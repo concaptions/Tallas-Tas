@@ -8,7 +8,8 @@
     "./state": "./src/state/index.ts",
     "./roles": "./src/roles.ts",
     "./csv": "./src/csv/index.ts",
-    "./angles": "./src/angles/index.ts"
+    "./angles": "./src/angles/index.ts",
+    "./themes": "./src/themes/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

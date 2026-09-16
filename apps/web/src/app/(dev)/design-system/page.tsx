@@ -72,6 +72,17 @@ import {
 } from '@/app/app/angles/fields';
 import { InspoCard } from '@/app/app/angles/inspo-card';
 import { conceptCountLabel, conceptCountTone, EM_DASH, hostLabel } from '@/app/app/products/fields';
+import {
+  ALL_CATEGORIES,
+  CATEGORY_FILTERS,
+  DEMO_DIALOG_NOTICE,
+  libraryCountLabel,
+  REFERENCE_LINKS_SOON_HINT,
+  THEME_CATEGORIES,
+  type ThemeCardRow,
+} from '@/app/app/themes/fields';
+import { GlobalBadge } from '@/app/app/themes/global-badge';
+import { ThemeCard } from '@/app/app/themes/theme-card';
 
 export const metadata = {
   title: 'Design system — TAS Creative Platform',
@@ -151,6 +162,42 @@ const SAMPLE_INSPO = [
   'https://www.youtube.com/watch?v=nm1TxQj9IsQ',
   'https://swipe-file.example/collections/sleep-hooks-q3',
 ] as const;
+
+/**
+ * Three rows in the Themes shape, one per category: a card with links and a long note that clamps,
+ * a card that is actually in use (the singular "1 brand" case), and a card with neither note nor
+ * link, so the grid's shortest possible card is on this page too.
+ */
+const SAMPLE_THEMES = [
+  {
+    id: 'ds-theme-1',
+    name: 'Yapper Style',
+    category: 'Production Style',
+    notes:
+      'One creator, one take, talking straight down the barrel at conversational speed with no B-roll to hide behind — the whole thing lives or dies on the first sentence. Cheapest format we shoot and the only one that survives being cut to six different hooks in the edit.',
+    referenceLinks: [
+      'https://foreplay.example/boards/yapper-style-dtc',
+      'https://www.tiktok.com/@thepostpartumplan/video/7385012994771635745',
+    ],
+    usedByBrandCount: 0,
+  },
+  {
+    id: 'ds-theme-2',
+    name: 'Problem/Solution',
+    category: 'Framework',
+    notes: 'Name the problem in the first two seconds, then show the product solving it.',
+    referenceLinks: ['https://foreplay.example/boards/problem-solution'],
+    usedByBrandCount: 1,
+  },
+  {
+    id: 'ds-theme-3',
+    name: 'Holiday Gifting',
+    category: 'Seasonal',
+    notes: null,
+    referenceLinks: null,
+    usedByBrandCount: 4,
+  },
+] as const satisfies readonly ThemeCardRow[];
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
@@ -615,6 +662,83 @@ export default function DesignSystemPage() {
                 ))}
               </span>
             </DisabledWrite>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Themes — the GLOBAL library"
+        note="The badge, the card and the filter row the /app/themes page is built from. Themes are the one table that is not per-brand, so the badge is part of the page rather than decoration on it."
+      >
+        <div className="flex flex-col gap-5 rounded-card border border-line bg-surface p-5">
+          <GlobalBadge />
+
+          <p className="text-sm text-text2">
+            <span className="font-mono text-text2">{libraryCountLabel(SAMPLE_THEMES.length)}</span>{' '}
+            — the count under the heading covers every brand on the platform, never one workspace.
+          </p>
+
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <span className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              Category filters — All, then the three kinds in vocabulary order
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_FILTERS.map((entry) => (
+                <span
+                  key={entry.key}
+                  className={
+                    entry.key === ALL_CATEGORIES
+                      ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase'
+                      : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase'
+                  }
+                >
+                  {entry.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <span className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              Category chips — one fixed tone per kind, from THEME_CATEGORIES
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {THEME_CATEGORIES.map((entry) => (
+                <StatusChip key={entry.key} tone={entry.tone} label={entry.label} />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <span className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              Theme cards — name, category chip, usage line, clamped note, host-only link chips
+            </span>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {SAMPLE_THEMES.map((row) => (
+                <ThemeCard key={row.id} theme={row} />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-line pt-4">
+            <span className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              New theme dialog, in demo mode: trigger and save inert, reference links not yet
+              writable
+            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <DisabledWrite hint={DEMO_WRITE_HINT}>
+                <Button size="sm" disabled className={disabledWriteClassName}>
+                  New theme
+                </Button>
+              </DisabledWrite>
+              <DisabledWrite hint={REFERENCE_LINKS_SOON_HINT}>
+                <span className="inline-flex items-center gap-2">
+                  <SoonChip />
+                  <span className="text-xs text-text3">Reference Links</span>
+                </span>
+              </DisabledWrite>
+              <span className="text-xs text-text3">{DEMO_DIALOG_NOTICE}</span>
+            </div>
           </div>
         </div>
       </Section>

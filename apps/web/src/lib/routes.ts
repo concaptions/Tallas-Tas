@@ -9,6 +9,7 @@ export const appPath = '/app';
 export const personasPath = '/app/personas';
 export const productsPath = '/app/products';
 export const anglesPath = '/app/angles';
+export const themesPath = '/app/themes';
 export const designSystemPath = '/design-system';
 
 /** Public trees: the path itself and everything below it (`/sign-in/factor-one`). */

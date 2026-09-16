@@ -1,4 +1,11 @@
-import { anglesPath, appPath, designSystemPath, personasPath, productsPath } from '@/lib/routes';
+import {
+  anglesPath,
+  appPath,
+  designSystemPath,
+  personasPath,
+  productsPath,
+  themesPath,
+} from '@/lib/routes';
 
 import type { IconName } from './icons';
 
@@ -32,7 +39,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { key: 'products', label: 'Products', icon: 'products', href: productsPath },
       { key: 'personas', label: 'Personas', icon: 'personas', href: personasPath },
       { key: 'angles', label: 'Angles', icon: 'angles', href: anglesPath },
-      { key: 'themes', label: 'Themes', icon: 'themes' },
+      { key: 'themes', label: 'Themes', icon: 'themes', href: themesPath },
       { key: 'concepts', label: 'Concepts', icon: 'concepts' },
       { key: 'briefs', label: 'Creative Briefs', icon: 'briefs' },
       { key: 'copywriting', label: 'Copywriting', icon: 'copywriting' },

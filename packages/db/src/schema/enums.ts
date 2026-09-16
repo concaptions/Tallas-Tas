@@ -61,3 +61,15 @@ export const angleFormatEnum = pgEnum('angle_format', angleFormats);
 export const angleTypes = ['Emotional', 'Functional', 'Identity', 'Critical'] as const;
 export type AngleType = (typeof angleTypes)[number];
 export const angleTypeEnum = pgEnum('angle_type', angleTypes);
+
+/**
+ * The three kinds of theme the GLOBAL library holds (`themes.category`), PRD §5.5 — Frameworks
+ * (the *how* of the argument), Production styles (the *how* of the shoot) and Seasonal / timely
+ * hooks — in the order the PRD lists them and the page's filter chips render them. Same arrangement
+ * as `angleFormats`: one `as const` tuple, a pg enum derived from it and the union derived from it,
+ * so the Themes page imports `themeCategories` to label its chips instead of writing a string
+ * literal. A single-select, so unlike `angleFormats` the column is the enum itself, not `jsonb`.
+ */
+export const themeCategories = ['Framework', 'Production Style', 'Seasonal'] as const;
+export type ThemeCategory = (typeof themeCategories)[number];
+export const themeCategoryEnum = pgEnum('theme_category', themeCategories);

@@ -68,12 +68,14 @@ async function insertOne<T extends PgTable>(
 
 /**
  * Drops `brand_id` from a demo row: `ScopedInsertValue` has no such key, because the scope, not the
- * payload, decides which brand a row lands in. The derived columns go the same way — `productName`
- * and `personaName` are the names `listPersonas` and `listAngles` join in and `conceptCount` is the
- * linked-concept count `listProducts` counts, none of them a column of the table the row is
- * inserted into.
+ * payload, decides which brand a row lands in. A global theme goes through the same function — it
+ * has no brand to drop, and leaving `brand_id` unset is exactly what its `themes_global` check
+ * constraint wants. The derived columns go the same way — `productName` and `personaName` are the
+ * names `listPersonas` and `listAngles` join in, `conceptCount` is the linked-concept count
+ * `listProducts` counts and `usedByBrandCount` the distinct-brand count `listThemes` counts, none of
+ * them a column of the table the row is inserted into.
  */
-type Derived = 'brandId' | 'productName' | 'personaName' | 'conceptCount';
+type Derived = 'brandId' | 'productName' | 'personaName' | 'conceptCount' | 'usedByBrandCount';
 
 function scoped<T extends { brandId: string | null }>(row: T): Omit<T, Derived> {
   const rest: Record<string, unknown> = { ...row };
@@ -81,6 +83,7 @@ function scoped<T extends { brandId: string | null }>(row: T): Omit<T, Derived> 
   delete rest['productName'];
   delete rest['personaName'];
   delete rest['conceptCount'];
+  delete rest['usedByBrandCount'];
   return rest as Omit<T, Derived>;
 }
 
@@ -136,7 +139,7 @@ export async function seed(db: Db): Promise<SeedResult> {
 
   const scope = withBrand(db, childBrand.id);
   const seededProducts = await scope.insert(products, demoProducts.map(scoped)).returning();
-  const seededThemes = await db.insert(themes).values(demoThemes).returning();
+  const seededThemes = await db.insert(themes).values(demoThemes.map(scoped)).returning();
   const seededPersonas = await scope.insert(personas, demoPersonas.map(scoped)).returning();
   const seededAngles = await scope.insert(angles, demoAngles.map(scoped)).returning();
   const seededConcepts = await scope.insert(concepts, demoConcepts.map(scoped)).returning();

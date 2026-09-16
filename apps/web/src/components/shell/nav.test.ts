@@ -51,6 +51,7 @@ describe('NAV_SECTIONS', () => {
       ['Products', '/app/products'],
       ['Personas', '/app/personas'],
       ['Angles', '/app/angles'],
+      ['Themes', '/app/themes'],
       ['Design System', '/design-system'],
     ]);
   });
@@ -65,6 +66,8 @@ describe('activeSectionKey', () => {
     ['/app/personas/33333333-3333-4333-8333-000000000001', 'personas'],
     ['/app/angles', 'angles'],
     ['/app/angles/55555555-5555-4555-8555-000000000001', 'angles'],
+    ['/app/themes', 'themes'],
+    ['/app/themes/44444444-4444-4444-8444-000000000003', 'themes'],
     ['/design-system', 'design-system'],
   ])('marks %s as %s', (pathname, key) => {
     expect(activeSectionKey(pathname)).toBe(key);

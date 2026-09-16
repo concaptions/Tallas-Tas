@@ -1,7 +1,8 @@
 import type { AngleListRow } from './angles';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
-import type { Concept, Theme } from './schema';
+import type { Concept } from './schema';
+import type { ThemeListRow } from './themes';
 
 /**
  * The single source of the demo content: the fixtures the app serves in DEMO MODE (no Clerk key, so
@@ -33,6 +34,10 @@ const PERSONA_PARENT_ID = '33333333-3333-4333-8333-000000000002';
 const PERSONA_PERI_ID = '33333333-3333-4333-8333-000000000003';
 const THEME_PROBLEM_SOLUTION_ID = '44444444-4444-4444-8444-000000000001';
 const THEME_GREEN_SCREEN_ID = '44444444-4444-4444-8444-000000000002';
+const THEME_POV_ID = '44444444-4444-4444-8444-000000000003';
+const THEME_YAPPER_ID = '44444444-4444-4444-8444-000000000004';
+const THEME_HOLIDAY_GIFTING_ID = '44444444-4444-4444-8444-000000000005';
+const THEME_SPRING_SOCCER_ID = '44444444-4444-4444-8444-000000000006';
 const ANGLE_BODY_CLOCK_ID = '55555555-5555-4555-8555-000000000001';
 const ANGLE_NINETY_MINUTES_ID = '55555555-5555-4555-8555-000000000002';
 const ANGLE_NOT_YOUR_AGE_ID = '55555555-5555-4555-8555-000000000003';
@@ -97,30 +102,99 @@ export const demoProducts: ProductListRow[] = [
 ];
 
 /**
- * Two themes from the GLOBAL library (PRD §5.5): one framework and one production style. Their
- * `brandId` is null, which the `themes_global` check constraint requires.
+ * The framework the seeded concept is built on, named here because that concept's auto-generated
+ * `Batch-Angle-Theme` name is built from it (CLAUDE.md non-negotiable 6).
  */
-const problemSolutionTheme: Theme = {
+const problemSolutionTheme: ThemeListRow = {
   ...base(THEME_PROBLEM_SOLUTION_ID, '2026-07-20T10:00:00.000Z', '2026-08-28T10:00:00.000Z'),
   brandId: null,
   name: 'Problem/Solution',
+  category: 'Framework',
   referenceLinks: [
     'https://foreplay.example/boards/problem-solution-sleep',
     'https://atria.example/collections/sleep-aids-2026',
   ],
   notes:
     'Open on the problem in the first two seconds, name it in the viewer’s own words, then land the product as the mechanism that removes it. Works coldest at problem-aware and solution-aware.',
+  usedByBrandCount: 1,
 };
 
-export const demoThemes: Theme[] = [
-  problemSolutionTheme,
+/**
+ * Six themes from the GLOBAL library (PRD §5.5), two of each kind: Frameworks (the *how* of the
+ * argument), Production styles (the *how* of the shoot) and Seasonal hooks. Every `brandId` is
+ * null, which the `themes_global` check constraint requires — this library belongs to the platform,
+ * not to a brand, so the notes are written for whoever picks the theme up next and name the other
+ * brands on the roster (Mattress Central, Gratsi, Funky Painting) where the lesson came from them.
+ *
+ * `usedByBrandCount` is the number of distinct brands whose live concepts reference the theme, the
+ * aggregate `listThemes` computes, so the fixtures satisfy `ThemeListRow[]` and the Themes page
+ * reads demo rows and database rows through one type. The seeded database holds one brand and one
+ * concept, on Problem/Solution: the counts below are exactly what `listThemes` returns there — a
+ * real one and five real zeros, never an invented number.
+ *
+ * The array is in `updated_at` descending order, the order `listThemes` returns, so a test can
+ * compare the two directly.
+ */
+export const demoThemes: ThemeListRow[] = [
+  {
+    ...base(THEME_YAPPER_ID, '2026-08-04T09:30:00.000Z', '2026-09-12T13:25:00.000Z'),
+    brandId: null,
+    name: 'Yapper Style',
+    category: 'Production Style',
+    referenceLinks: [
+      'https://foreplay.example/boards/yapper-style-dtc',
+      'https://www.tiktok.com/@thepostpartumplan/video/7385012994771635745',
+    ],
+    notes:
+      'One creator, one take, talking straight down the barrel at conversational speed with no B-roll to hide behind — the whole thing lives or dies on the first sentence. Cheapest format we shoot and the only one that survives being cut to six different hooks in the edit. Needs a creator who can actually talk; on Gratsi the second-choice creator read the script and the retention graph fell off a cliff at four seconds.',
+    usedByBrandCount: 0,
+  },
+  {
+    ...base(THEME_HOLIDAY_GIFTING_ID, '2026-08-09T11:15:00.000Z', '2026-09-07T10:50:00.000Z'),
+    brandId: null,
+    name: 'Holiday Gifting',
+    category: 'Seasonal',
+    referenceLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=1120774398215530',
+      'https://atria.example/collections/q4-gifting-teardowns',
+    ],
+    notes:
+      'Reframe the product as the gift for a named person — the shift-working sister, the dad who is always cold — so the buyer is not the user and price stops being measured against personal need. Ship the first cut by the first week of November: Mattress Central left it to the third week last year and paid double CPM for the same creative. Gift-receipt and delivery-cutoff lines belong on screen, not in the caption.',
+    usedByBrandCount: 0,
+  },
+  {
+    ...base(THEME_POV_ID, '2026-07-28T14:20:00.000Z', '2026-09-02T09:05:00.000Z'),
+    brandId: null,
+    name: 'POV: X vs Y',
+    category: 'Framework',
+    referenceLinks: ['https://foreplay.example/boards/pov-x-vs-y-comparison'],
+    notes:
+      'Split the frame and let the viewer pick a side: the night before versus the night after, the thing they own versus the thing we sell. It earns the comparison the ad would otherwise have to claim, and it gives the editor a structure that reads with the sound off. Keep the losing side a situation and never a competitor by name — legal made Funky Painting re-cut a whole batch over a visible rival can.',
+    usedByBrandCount: 0,
+  },
   {
     ...base(THEME_GREEN_SCREEN_ID, '2026-07-20T10:05:00.000Z', '2026-08-30T16:40:00.000Z'),
     brandId: null,
     name: 'Green Screen',
+    category: 'Production Style',
     referenceLinks: ['https://foreplay.example/boards/green-screen-reaction'],
     notes:
       'Creator reacts over a screenshot of a review, a Reddit thread or a sleep-tracker graph. Cheap to produce, high hook rate, and the on-screen artefact carries the proof so the script can stay short.',
+    usedByBrandCount: 0,
+  },
+  problemSolutionTheme,
+  {
+    ...base(THEME_SPRING_SOCCER_ID, '2026-08-11T16:00:00.000Z', '2026-08-19T15:35:00.000Z'),
+    brandId: null,
+    name: 'Spring x Soccer',
+    category: 'Seasonal',
+    referenceLinks: [
+      'https://www.instagram.com/reel/C8kTm1QsV7bN/',
+      'https://atria.example/collections/spring-sport-hooks',
+    ],
+    notes:
+      'Hang the product on the spring sports calendar — 5am training runs, tournament weekends, a parent driving home from a match — so a cold audience meets it inside a routine they are already living in March and April. Broad enough to carry any brand on the roster and dead by June, so treat every build as disposable and never as evergreen. No club crests, no player likenesses, no tournament name: the rights holders send the letters.',
+    usedByBrandCount: 0,
   },
 ];
 

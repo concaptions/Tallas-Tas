@@ -20,6 +20,7 @@ import {
 import { awarenessStages, concepts, personas, themes, type Persona } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
+import { listThemes } from './themes';
 
 /** The first demo persona, past `noUncheckedIndexedAccess`. */
 function demoPersona(): PersonaListRow {
@@ -70,7 +71,7 @@ describe('migration 0002 on PGlite', () => {
 
     expect(brandId).toBe(DEMO_BRAND_ID);
     expect(await listPersonas(db, brandId)).toEqual(demoPersonas);
-    expect(await db.select().from(themes)).toEqual(demoThemes);
+    expect(await listThemes(db)).toEqual(demoThemes);
     expect(await db.select().from(concepts)).toEqual(demoConcepts);
     expect(demoProducts).toHaveLength(3);
     expect(demoAngles).toHaveLength(5);
@@ -81,7 +82,10 @@ describe('migration 0002 on PGlite', () => {
 
     expect(
       await rejection(
-        db.execute(sql`insert into themes (brand_id, name) values (${brandId}, 'Branded theme')`),
+        db.execute(
+          sql`insert into themes (brand_id, name, category)
+              values (${brandId}, 'Branded theme', 'Framework')`,
+        ),
       ),
     ).toMatch(/themes_global/);
     expect(await db.select().from(themes)).toHaveLength(demoThemes.length);
