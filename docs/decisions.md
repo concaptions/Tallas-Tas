@@ -298,3 +298,111 @@ Conventions fixed by this ticket:
   `setActive` (stable ClerkJS API) instead of the switcher's modal, whose copy changes between UI
   releases; the switcher's presence on `/app` is asserted.
 - Numbering: the ticket text names D-012 for this entry; TICKET-003 stage 2 took it, so this is D-013.
+
+## D-006a · 2026-09-16 · Cost envelope confirmed against vendor pages
+
+Sources read on 2026-09-16: clerk.com/pricing, vercel.com/docs/plans/hobby, neon.com/pricing, inngest.com/pricing.
+
+| Service | Verified free-tier terms | Consequence |
+| --- | --- | --- |
+| Clerk Free | 50,000 monthly retained users; Organizations included with 100 monthly retained orgs; **20 members per organization**; Pro 25 USD/mo; org "Enhanced" add-on 100 USD/mo | D-003 keeps clients out of the org. If the internal team passes 20, stop adding members to the Clerk org (authorization already lives in `memberships`/`brand_assignments`); never buy the Enhanced add-on |
+| Vercel Hobby | "restricts users to non-commercial, personal use only"; Pro developer seat 20 USD/user/month | Pro with one developer seat: 240 USD/yr. Viewer seats are free |
+| Neon Free | 100 CU-hours/project/month, 0.5 GB storage/project, 10 branches, scale-to-zero after 5 min, point-in-time restore window 6 hours (1 GB limit) | Fits at current team size. Backup runbook must state the 6-hour PITR window and add a nightly logical dump to R2. Launch plan is pay-as-you-go if compute exceeds 100 CU-hours |
+| Inngest Free | 50k executions/month, 5 concurrent steps, 3 users, 500k events/month | Propagation must batch: one function run per parent transaction with one step per child brand at most, never one execution per row per brand. At 20 parent edits/day x 50 brands = 30k step executions/month, which is inside the tier only with batching |
+
+Annual estimate stands at roughly 260-340 USD. Human decision still open: Vercel Pro (240) versus Cloudflare Workers via OpenNext (about 60), see PRD §17 q5.
+
+## D-015 · 2026-09-16 · Design system source and adaptations
+
+The design handoff (2026-09-16) named a bundled Claude Design artifact `TAS_Creative_Platform.html`
+carrying the Two-Track Approval widget. The file was not present at the given path, anywhere on the dev
+machine, among the Claude artifacts or in Drive. The handoff text itself carries the tokens, the status
+arrays with descriptions, the gate rule and the widget's behavioural values, so TICKET-DS-01..05 are
+built from it; only pixel geometry is deferred to a parity pass (TICKET-DS-03b) once the file arrives.
+
+Adaptations, same outcome as the handoff asks:
+- Tailwind 4 is CSS-first: tokens live in `packages/ui/src/styles/tokens.css` (raw `:root` variables plus
+  `@theme inline` semantic mapping) imported by `apps/web/src/app/globals.css`; there is no
+  `tailwind.config.ts`. shadcn variables alias the tokens so shadcn components inherit the palette.
+- No Storybook dependency. Stories are CSF-compatible `*.stories.tsx` modules rendered by the
+  `/design-system` pages; Playwright screenshots are the visual regression suite. Storybook can be added
+  later without rewriting stories.
+- Paths follow the repo layout: `apps/web/src/app/...`, `packages/domain/src/state/creative-status.ts`.
+- The admin-only guard for `/design-system` needs `requireAdmin()` (TICKET-008), so TICKET-DS-05 runs
+  after it; DS-01..04 run right after TICKET-012 (local PGlite stack + test session), which is what lets
+  their Playwright tests run on this machine.
+
+## Design system open questions
+
+- DS-Q1 The artifact file: please re-share `TAS_Creative_Platform.html` (or its Claude artifact link) so
+  the parity pass can run.
+- DS-Q2 Light theme values for `--bg-deep`, `--ok`, `--warn`, `--bad`, `--info` are not specified; the dark
+  values are reused.
+- DS-Q3 Does `(On Hold)` need its own chip tone? Default: mute.
+- DS-Q4 Static-track descriptions are not in the handoff; the video texts are reused with editor →
+  designer, cut → design.
+- DS-Q5 The `on_hold` description is not in the handoff; a placeholder text is used and marked.
+- DS-Q6 `CLIENT_STATUS` in the handoff has no "Revisions Needed", but PRD §9 lists it and PRD §12 has the
+  trigger "Client requested revisions". Implemented as handed off (three states). Recommendation: add
+  `revisions_needed` (Pending for Approval → Revisions Needed → Pending for Approval) before the client
+  interface ticket.
+
+## D-021 · 2026-09-16 · Engine ledgers are operational logs
+
+`propagation_outcomes`, `propagation_child_runs`,
+`template_changes` and `engine_audit_log` may be hard-deleted by the retention job (TICKET-032b,
+weekly Inngest cron) after 90 days; outcomes only when their conflicts are acknowledged or empty;
+audit rows only when no run references them. The "soft delete only" rule protects business data
+tables and does not apply to these. `propagation_runs` and `promotion_requests` are kept (small; the
+approval trail I9 depends on them). Why: soft deletes reclaim nothing on Neon and the ledger would
+consume the free storage within two years (design §3.6, §5.5).
+
+## D-022 · 2026-09-16 · Package direction `@tas/db → @tas/domain`
+
+`@tas/domain` defines the template field spec,
+the row and plan types and every status / role string array (`agencyRoles`, `brandRoles`,
+`internalBrandRoles`, `brandStatuses`, `changeKinds`, `runStatuses`, `promotionStatuses`, …);
+`@tas/db` builds Drizzle tables and `pgEnum`s from them and re-exports the unions. TICKET-005's note
+"role enums are defined once in `packages/db/src/schema/enums.ts` and re-exported so `packages/domain`
+can import them" is superseded (TICKET-014 creates the arrays, TICKET-022 stage 2 re-points
+`enums.ts`). A domain-side `no-restricted-imports` rule (TICKET-020 stage 2) forbids `@tas/db`,
+`@tas/integrations`, `@tas/web`, `@tas/env` and `drizzle-orm` in `packages/domain/**`, and the CI step
+`pnpm turbo run build --dry` (TICKET-006) fails on a cyclic workspace graph. Why: a cycle is refused by
+Turborepo and cannot be ordered by project references (design §3.3, §11).
+
+## D-023 · 2026-09-16 · Inngest usage and the `inngest` SDK; the `@tas/integrations` package
+
+One `propagate-run`
+execution per change set with a 20 s coalescing `step.sleep`, a row-operation budget (`stepBudget =
+2000`) per apply step, `concurrency { key: templateBrandId, limit: 1 }`, `retries: 3`, no Inngest
+`idempotency` / `debounce` / `batchEvents` (the database claim with attempt-suffixed event ids is the
+correctness mechanism); `seed-brand` keyed per brand; `sweep-runs` hourly in agency hours (`TZ=
+<AGENCY_TIMEZONE> 0 7-21 * * 1-6`); `retention` weekly. ≈2.3k step executions a month at the load
+target (design §5.5). TICKET-029a adds the `inngest` npm package (major 3, exact major pinned) to
+`packages/integrations` and `apps/web`, and creates `packages/integrations` (`@tas/integrations`) with
+the workspace edges `@tas/integrations → @tas/db, @tas/domain, @tas/env` and `@tas/web →
+@tas/integrations`; it is the CLAUDE.md layout's integrations package, first used for Inngest (Slack,
+Resend, R2 and Airtable join it in later phases). Events and step outputs carry ids, field names and
+counts only (design A6).
+
+## D-024 · 2026-09-16 · D-006 amendment: Vercel Pro `maxDuration = 300`, Neon compute, Inngest executions
+
+The
+Inngest serve route (`apps/web/src/app/api/inngest/route.ts`, TICKET-029b) exports `maxDuration = 300`,
+which needs the Vercel Pro plan D-006 already assumes (TICKET-007 records the plan tier). Neon compute
+is estimated at ≈60 CU-hours a month at the load target (design §5.5) against an assumed 100 CU-hour
+free allowance, and Inngest at ≈2.3k step executions a month against an assumed 50k free executions
+(design A5). Both allowances are assumptions pending the human's confirmation (design §10 q1 and q5);
+if either is lower, the first lever is the sweeper cadence (every two hours) and `stepBudget` (5,000),
+the second is moving the retention cron into business hours. D-006's table is unchanged in USD.
+
+## D-025 · 2026-09-16 · Concurrency properties are verified outside PGlite
+
+Four properties need two connections
+and cannot be proven on single-connection PGlite: (1) the queued-run row lock of a template write
+against a concurrent claim (design §4.3); (2) `FOR UPDATE` serialisation of a child edit against a
+running propagation (§4.4); (3) `FOR UPDATE` serialisation of promotion approval against a concurrent
+child edit and request (§4.5); (4) claim takeover with `claim_generation` (A12, I14). They are checked
+by `DATABASE_URL=<neon preview> pnpm --filter @tas/db engine:concurrency` (TICKET-037; expected last
+line `engine-concurrency: 4/4 properties held`) and listed under "Pending human verification" in
+`docs/runbook.md` (D-008). PGlite tests prove the single-connection half of each (T24, T13, T14).

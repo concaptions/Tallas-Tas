@@ -50,7 +50,7 @@ packages/domain          Business logic, state machines,     package @tas/domain
 packages/integrations    Slack, Resend, Inngest, R2, Airtable package @tas/integrations
 packages/ui              shadcn components, brand-agnostic   package @tas/ui
 packages/env             zod-validated environment loader    package @tas/env
-docs                     PRD.md, decisions.md, runbook.md, glossary.md, tickets/
+docs                     PRD.md, decisions.md, runbook.md, glossary.md, tickets/, design/
 scripts                  Migration and one-off scripts
 ```
 
@@ -100,6 +100,23 @@ scripts                  Migration and one-off scripts
 - File and symbol names: kebab-case files, camelCase functions, PascalCase types and components.
 - Tests live next to the code as `*.test.ts`; E2E under `apps/web/e2e/*.spec.ts`.
 - Secrets never enter the repo. `.env.example` lists every variable with a comment. `.env*` is gitignored.
+
+## UI governance (design system, from the 2026-09-16 handoff)
+
+Every UI ticket after TICKET-DS-01..05 must, in this order, and the reviewer rejects any diff that breaks one:
+
+1. Import colours, fonts and radii from the token layer (`packages/ui/src/styles/tokens.css` through the
+   Tailwind semantic classes `bg-surface`, `text-text2`, `border-line`, `bg-accent`, `text-ok`, `font-mono`,
+   `rounded-input`, `rounded-card`, …). Never a hex value, never `rounded-full` on a button.
+2. Import status values from `@tas/domain/state` (`INTERNAL_VIDEO_STATUS`, `INTERNAL_STATIC_STATUS`,
+   `CLIENT_STATUS`, `isClientTrackOpen`, `chipTone`, `stepState`). Never a magic string.
+3. Import `StatusChip` and `StepRow` from `@tas/ui` (`packages/ui/src/status/`). Never re-implement a
+   status pill or a stepper row.
+4. Render every new primitive or status-bearing component on the `/design-system` page (as a story in a
+   `*.stories.tsx` module the page mounts) before the ticket can be Done.
+
+The `/design-system` page is the single source of truth for anyone who touches UI. Auto-generated system
+output (concept names, creative names, IDs) always renders in `font-mono`.
 
 ## Credential status (as of 2026-09-16)
 
