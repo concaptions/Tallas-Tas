@@ -3,9 +3,11 @@ import { appPath, designSystemPath, personasPath } from '@/lib/routes';
 import type { IconName } from './icons';
 
 /**
- * Every product section of the PRD, in the order the sidebar lists them. A section with no `href`
- * is not built yet: the sidebar renders it muted, `aria-disabled`, marked "soon" and not clickable,
- * so the shell states the whole product without pretending a page exists.
+ * Every product section, grouped the way the sidebar lists them. A section with no `href` is not
+ * built yet: the sidebar renders it muted, `aria-disabled` and marked with a `SoonChip`, so the
+ * shell states the whole product without pretending a page exists.
+ *
+ * Shipping a section means giving it an `href` here in the same commit as its page.
  */
 export interface NavSection {
   readonly key: string;
@@ -15,20 +17,62 @@ export interface NavSection {
   readonly href?: string;
 }
 
-export const NAV_SECTIONS: readonly NavSection[] = [
-  { key: 'overview', label: 'Overview', icon: 'overview', href: appPath },
-  { key: 'products', label: 'Products', icon: 'products' },
-  { key: 'personas', label: 'Personas', icon: 'personas', href: personasPath },
-  { key: 'angles', label: 'Angles', icon: 'angles' },
-  { key: 'themes', label: 'Themes', icon: 'themes' },
-  { key: 'concepts', label: 'Concepts', icon: 'concepts' },
-  { key: 'briefs', label: 'Creative Briefs', icon: 'briefs' },
-  { key: 'copywriting', label: 'Copywriting', icon: 'copywriting' },
-  { key: 'ugc', label: 'UGC Management', icon: 'ugc' },
-  { key: 'client', label: 'Client Interface', icon: 'client' },
-  { key: 'design-system', label: 'Design System', icon: 'design-system', href: designSystemPath },
-  { key: 'admin', label: 'Admin', icon: 'admin' },
+export interface NavGroup {
+  readonly key: string;
+  /** Rendered as a quiet heading above the group; the first group is unlabelled. */
+  readonly label?: string;
+  readonly sections: readonly NavSection[];
+}
+
+export const NAV_GROUPS: readonly NavGroup[] = [
+  {
+    key: 'workspace',
+    sections: [
+      { key: 'overview', label: 'Overview', icon: 'overview', href: appPath },
+      { key: 'products', label: 'Products', icon: 'products' },
+      { key: 'personas', label: 'Personas', icon: 'personas', href: personasPath },
+      { key: 'angles', label: 'Angles', icon: 'angles' },
+      { key: 'themes', label: 'Themes', icon: 'themes' },
+      { key: 'concepts', label: 'Concepts', icon: 'concepts' },
+      { key: 'briefs', label: 'Creative Briefs', icon: 'briefs' },
+      { key: 'copywriting', label: 'Copywriting', icon: 'copywriting' },
+      { key: 'ugc', label: 'UGC Management', icon: 'ugc' },
+    ],
+  },
+  {
+    key: 'approvals',
+    label: 'Approvals',
+    sections: [
+      { key: 'internal-queue', label: 'Internal Queue', icon: 'queue-internal' },
+      { key: 'client-queue', label: 'Client Queue', icon: 'queue-client' },
+    ],
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    sections: [
+      { key: 'team', label: 'Team', icon: 'team' },
+      { key: 'interface-config', label: 'Interface Config', icon: 'interface' },
+      { key: 'notifications', label: 'Notifications', icon: 'notifications' },
+      { key: 'propagation', label: 'Propagation', icon: 'propagation' },
+    ],
+  },
+  {
+    key: 'dev',
+    label: 'Reference',
+    sections: [
+      {
+        key: 'design-system',
+        label: 'Design System',
+        icon: 'design-system',
+        href: designSystemPath,
+      },
+    ],
+  },
 ];
+
+/** Every section, flattened, in sidebar order. */
+export const NAV_SECTIONS: readonly NavSection[] = NAV_GROUPS.flatMap((group) => group.sections);
 
 /**
  * The active section is the one whose `href` is the longest prefix of `pathname`, so `/app/personas`
@@ -47,4 +91,9 @@ export function activeSectionKey(pathname: string): string | null {
     }
   }
   return active?.key ?? null;
+}
+
+/** Sections still waiting for a page. Empty means every section has shipped. */
+export function pendingSections(): readonly NavSection[] {
+  return NAV_SECTIONS.filter((section) => section.href === undefined);
 }

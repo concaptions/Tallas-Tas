@@ -46,12 +46,15 @@ export default defineConfig(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    // Repo maintenance scripts run under Node directly, not through the bundler.
+    // Repo maintenance scripts run under Node directly, not through the bundler. `getComputedStyle`
+    // is here because a verification script passes callbacks to Playwright's `page.evaluate`, which
+    // runs them in the browser; ESLint reads them as ordinary Node code.
     files: ['scripts/**/*.{js,mjs,cjs}'],
     languageOptions: {
       globals: {
         console: 'readonly',
         process: 'readonly',
+        getComputedStyle: 'readonly',
       },
     },
   },

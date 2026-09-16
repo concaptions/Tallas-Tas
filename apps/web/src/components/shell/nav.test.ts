@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { NAV_SECTIONS, activeSectionKey } from './nav';
+import { NAV_GROUPS, NAV_SECTIONS, activeSectionKey, pendingSections } from './nav';
 
 describe('NAV_SECTIONS', () => {
   it('lists every product section of the PRD in order', () => {
@@ -14,10 +14,33 @@ describe('NAV_SECTIONS', () => {
       'Creative Briefs',
       'Copywriting',
       'UGC Management',
-      'Client Interface',
+      'Internal Queue',
+      'Client Queue',
+      'Team',
+      'Interface Config',
+      'Notifications',
+      'Propagation',
       'Design System',
-      'Admin',
     ]);
+  });
+
+  it('groups them, leaving the first group unlabelled', () => {
+    expect(NAV_GROUPS.map((group) => group.label)).toEqual([
+      undefined,
+      'Approvals',
+      'Settings',
+      'Reference',
+    ]);
+  });
+
+  it('keys are unique, so the sidebar never renders a duplicate', () => {
+    const keys = NAV_SECTIONS.map((section) => section.key);
+
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('reports the sections still waiting for a page', () => {
+    expect(pendingSections().every((section) => section.href === undefined)).toBe(true);
   });
 
   it('gives an href only to the sections that are built', () => {
