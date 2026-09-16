@@ -230,3 +230,71 @@ Conventions fixed by this ticket:
   `casing` option, so the SQL in `drizzle/` reads the same as the schema.
 - Numbering: the ticket text names D-011 for this entry; stage 1 took D-011 (see its last bullet), so
   stage 2 is D-012.
+
+## D-013 · 2026-09-16 · Clerk auth wiring (TICKET-004)
+
+Dependencies added to `apps/web` (`@tas/web`), exact major pinned, minor and patch float with caret:
+
+- `@clerk/nextjs` 7: Clerk's Next.js SDK (`clerkMiddleware`, `ClerkProvider`, `SignIn`, `SignUp`,
+  `OrganizationSwitcher`, `auth`, the client hooks). Peers satisfied: Next ^15.5.9, React ~19.3.
+- `@clerk/testing` 2 (dev): Playwright helpers. `clerkSetup` fetches a testing token that bypasses bot
+  protection, `clerk.loaded` waits for ClerkJS, and the `unstable` page objects drive Clerk's sign-up
+  form and enter the test OTP `424242`.
+- `@tas/env` (workspace): the app reads both Clerk keys through it (`clientEnv()` publishable,
+  `serverEnv()` secret).
+
+Conventions fixed by this ticket:
+
+- `apps/web/src/middleware.ts` runs on the Node.js runtime (`export const config = { runtime: 'nodejs' }`,
+  stable since Next 15.5): `serverEnv()` reads the repo-root `.env.local` with `node:fs`, which the
+  Edge runtime cannot bundle. Vercel runs Node middleware as a function. `packages/env/src/server.ts`
+  now builds that path with `path.resolve`; the previous `new URL(relative, import.meta.url)` is a
+  webpack asset reference that fails the build when the file is absent.
+- No-keys mode, the D-008 substitute: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` in the process environment
+  is the switch. Absent, the middleware itself sends every private path to `/sign-in` (nobody can hold
+  a session), the root layout renders no `ClerkProvider` (so Clerk's keyless mode never starts) and
+  the `(auth)` layout explains what is missing. Present, `CLERK_SECRET_KEY` is required and a missing
+  one throws rather than running without auth. `pnpm dev` and the always-on E2E therefore work with
+  no credentials. `serverEnv()` validates the whole server environment, so a configured Clerk needs a
+  valid `DATABASE_URL` as well.
+- The middleware hands `clerkMiddleware` only the publishable key. A `secretKey` option ("dynamic
+  keys") makes the SDK encrypt it into a request header for the server components and throw without
+  `CLERK_ENCRYPTION_KEY`, which the SDK reads from `process.env` alone, so it would add a variable and
+  still depend on the process environment. Instead the SDK reads `CLERK_SECRET_KEY` from the process
+  environment itself, the same variable `clerkKeys()` validated through `serverEnv()` before enabling
+  Clerk. Consequence: the repo-root `.env.local` (D-011) cannot switch Clerk on for `next dev`, which
+  loads only `apps/web/.env*`; locally the pair lives in `apps/web/.env.local` (gitignored) or the
+  shell, in production in the host's variables. `DATABASE_URL` keeps working from the root file
+  because `serverSource()` reads it with `node:fs`, also inside the Node middleware.
+- Turborepo runs every task in strict environment mode (the Turbo 2 default; `turbo.json` sets no
+  `envMode`), so a task's command sees only the variables declared for it plus Turbo's built-in
+  pass-through set, which on turbo 2.10.13 includes `NEXT_PUBLIC_*` (observed with framework inference
+  on and off) but not `CLERK_SECRET_KEY` or `DATABASE_URL`. A pair exported in the shell therefore
+  reached `next dev` by half: the publishable key switched Clerk on, `clerkKeys()` threw on every
+  request, and through `pnpm test:e2e` (`//#test:e2e:root` → Playwright → `pnpm --filter @tas/web dev`)
+  the dev server never became ready. `turbo.json` now lists `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+  `CLERK_SECRET_KEY` and `DATABASE_URL` under `passThroughEnv` for `dev` and `//#test:e2e:root`
+  (pass-through rather than `env`: both tasks are uncached, so nothing is hashed). `build`,
+  `typecheck`, `lint` and `test` are unchanged: none reads the secret, and `next build` gets the
+  publishable key through framework inference, hashed. Commands run with `pnpm --filter` or `pnpm exec`
+  bypass Turbo and were never affected.
+- The route matcher is our own pure `isPublicPath(pathname)` in `apps/web/src/lib/routes.ts`
+  (`/`, `/sign-in(.*)`, `/sign-up(.*)` public, everything else protected). Clerk's `createRouteMatcher`
+  is deprecated in v7 (removed in the next major) and typed lint rejects deprecated calls. The
+  middleware `matcher` (static assets excluded) stays a literal in `middleware.ts` because Next reads
+  it statically.
+- The middleware builds the Clerk handler per request from the keys it just read; nothing is cached at
+  module level.
+- `/app` calls `auth.protect()` as the second line of defence and shows the user and the active
+  organisation from Clerk's client session (`useUser`, `useOrganization`), not from `currentUser()` or
+  the Backend API: no Clerk API call per page view, and the values follow the `OrganizationSwitcher`.
+- `next.config.ts` lists `@tas/env` in `transpilePackages` (D-011) and bridges nothing: values in
+  Next's `env` config are inlined into the browser bundle too, so it cannot carry the secret, and
+  bridging only the publishable key from the root file would switch Clerk on while the SDK lacks the
+  secret.
+- Gated E2E: `test.skip(condition, reason)` inside a describe whose title also carries the reason,
+  because the list reporter prints titles, not annotations. Playwright `globalSetup` calls `clerkSetup`
+  only when keys exist. The test creates the organisation through `window.Clerk.createOrganization` +
+  `setActive` (stable ClerkJS API) instead of the switcher's modal, whose copy changes between UI
+  releases; the switcher's presence on `/app` is asserted.
+- Numbering: the ticket text names D-012 for this entry; TICKET-003 stage 2 took it, so this is D-013.

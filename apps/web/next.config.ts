@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // ESLint runs once at the repo root through Turborepo (D-009). Left on, `next build` walks up to
   // the root eslint.config.js and runs the same rules a second time.
   eslint: { ignoreDuringBuilds: true },
+  // `@tas/env` ships TypeScript source (D-011).
+  transpilePackages: ['@tas/env'],
 };
 
 export default nextConfig;

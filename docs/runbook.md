@@ -33,6 +33,20 @@ pnpm build
 
 Never paste secrets into the repo or into chat. Put them in `.env.local` (gitignored).
 
+## Authentication (Clerk)
+
+Without `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` in the process environment the app runs identity-less
+(D-013): `/` and the sign-in and sign-up pages respond, every `/app` path redirects to `/sign-in`, and
+`/sign-in` says what is missing. Clerk's SDK reads both keys from the process environment and `next dev`
+loads only `apps/web/.env*`, so for `pnpm dev` put the pair in `apps/web/.env.local` (gitignored, never
+committed) or export it in the shell; the repo-root `.env.local` cannot switch Clerk on and keeps
+`DATABASE_URL` for `@tas/env` and the db scripts (D-011). With the key set, `CLERK_SECRET_KEY` and a
+valid `DATABASE_URL` must be set too. Restart `pnpm dev` after changing them. Root scripts run through
+Turborepo, whose strict environment mode hands a task only the variables `turbo.json` declares:
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` and `DATABASE_URL` are passed through to
+`dev` and `test:e2e` (D-013), so a shell export reaches them; any other variable exported for a Turbo
+task must be added there first.
+
 ## Pending human verification
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
@@ -45,6 +59,30 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   `DATABASE_URL=<neon preview> pnpm --filter @tas/db db:migrate && DATABASE_URL=<neon preview> pnpm --filter @tas/db db:seed`
   Expected: `Migrations applied from .../packages/db/drizzle`, then `Seeded health_check <uuid>`, and
   one row in `health_check` on the branch.
+- TICKET-004 · Clerk sign-up and organisation creation E2E (`apps/web/e2e/auth.spec.ts`, second test; the
+  first, `/app` signed out lands on `/sign-in`, runs on every `pnpm test:e2e` and passes without keys).
+  Needs a Clerk **development** instance (`pk_test_…`, `sk_test_…`) with organisations enabled, and a
+  valid `DATABASE_URL` (the middleware validates the whole server environment). With `DATABASE_URL`
+  in the repo-root `.env.local` (or exported) and the Clerk pair exported in the shell (`turbo.json`
+  passes all three through Turborepo's strict environment mode to `test:e2e`, D-013; Playwright's own
+  process gates the test on the pair and passes it to the dev server it starts; `apps/web/.env.local`
+  is not read for the gate):
+  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=<pk_test…> CLERK_SECRET_KEY=<sk_test…> pnpm test:e2e`
+  Stop any dev server on port 3000 first: Playwright reuses a running one, which started without the
+  keys. Expected: `3 passed`, with the line "signs up, creates an organisation and lands on /app showing
+  its name" marked ✓ rather than `-` (skipped).
+  Plumbing check that needs no real keys (proves the variables reach Playwright and the dev server):
+  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk CLERK_SECRET_KEY=sk_test_x DATABASE_URL=postgres://x pnpm test:e2e`
+  must fail in `clerkSetup` (`Failed to fetch testing token from Clerk API`, Clerk rejects the secret)
+  instead of reporting the second test as `-` skipped. That publishable key is `pk_test_` plus the
+  base64 of `example.clerk.accounts.dev$`, the shape Clerk's SDK checks at start-up; a malformed one
+  such as `pk_test_x` makes every request fail and Playwright times out waiting for the dev server.
+  The run leaves a `tas-e2e-<stamp>+clerk_test@example.com` user and a `TAS Digital E2E <stamp>`
+  organisation on the instance; delete them in the Clerk dashboard.
+  The sign-up step assumes the instance defaults: email address + password sign-up, verified by an
+  email code (the `+clerk_test` address accepts `424242`).
+  Manual check after that: `pnpm dev`, sign up at `/sign-up`, create the agency organisation from the
+  switcher on `/app`, and confirm the page shows your name and the organisation name.
 
 ## Migrations
 

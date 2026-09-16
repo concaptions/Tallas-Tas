@@ -5,7 +5,8 @@
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY", "DATABASE_URL"]
     },
     "build": {
       "dependsOn": ["^build"],
@@ -33,7 +34,8 @@
       "cache": false
     },
     "//#test:e2e:root": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY", "DATABASE_URL"]
     }
   }
 }

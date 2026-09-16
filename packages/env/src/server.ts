@@ -1,12 +1,17 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'dotenv';
 
 import { clientEnv, type ClientEnv } from './client';
 import { parseEnv, serverSchema, type EnvSource, type ServerEnv } from './schema';
 
-/** Repo-root `.env.local`: this file lives at `packages/env/src`, three levels below the root. */
-const repoRootEnvLocal = fileURLToPath(new URL('../../../.env.local', import.meta.url));
+/**
+ * Repo-root `.env.local`: this file lives at `packages/env/src`, three levels below the root. Built with
+ * `path`, not `new URL(relative, import.meta.url)`, which bundlers treat as an asset to resolve at build
+ * time and fail on when the file is absent (D-013).
+ */
+const repoRootEnvLocal = resolve(dirname(fileURLToPath(import.meta.url)), '../../..', '.env.local');
 
 /** Parses a dotenv file without touching `process.env`; a missing file is an empty source. */
 export function loadEnvFile(path: string): EnvSource {

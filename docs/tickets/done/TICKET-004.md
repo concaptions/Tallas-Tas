@@ -5,6 +5,8 @@
 - Depends on: TICKET-002, TICKET-003
 - PRD: §11 (roles, brands and access; every person gets their own account), D-003 (one Clerk org per
   agency)
+- Decision: D-013 (the ticket text names D-012, which TICKET-003 stage 2 took; the numbering note is
+  the last bullet of D-013)
 
 ## Why
 

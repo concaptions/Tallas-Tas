@@ -11,6 +11,8 @@ export default defineConfig({
   testDir: 'apps/web/e2e',
   fullyParallel: true,
   reporter: 'list',
+  // Fetches a Clerk testing token when keys exist; the Clerk-gated E2E tests skip without them (D-008).
+  globalSetup: './apps/web/e2e/global-setup.ts',
   use: {
     baseURL,
     trace: 'on-first-retry',
