@@ -1,0 +1,72 @@
+# Architectural decisions
+
+Append-only. Newest at the bottom. Format: ID, date, decision, why, consequences.
+
+## D-001 · 2026-09-16 · PRD source and conversion
+
+The PRD is `C_PRD___TAS_Creative_Platform_v1.docx` (Talal Abulshamat, TAS Digital, 10 September 2026),
+found on the dev machine and stored as `docs/prd-assets/PRD-v1-original.docx`. `docs/PRD.md` is a
+formatting-only conversion (headings, lists, tables, hyperlinks, two images). The author's section numbers
+are kept and are what tickets cite. The Airtable bases the PRD references ("TAS Digital Creative Hub
+Template version 5.1", "Niagara Sleep Solutions") are not reachable from this machine's Airtable
+connection, which only exposes an unrelated base. Migration work (Phase 6) needs access granted.
+
+## D-002 · 2026-09-16 · Ticket files
+
+`docs/tickets/backlog.md` is the ordered index. Ticket bodies are one file each under
+`docs/tickets/backlog/`, moved with `git mv` to `in-progress/` and then `done/`. A ticket names its
+owning role(s); a two-role ticket lists build stages that run in order.
+
+## D-003 · 2026-09-16 · Clerk tenancy model
+
+One Clerk Organization represents the agency (TAS Digital). Brands are rows in our database, never Clerk
+orgs. Internal team members are org members; their real permissions come from `memberships` (agency role)
+and `brand_assignments` (per-brand role). Clients are ordinary Clerk users with no org membership; their
+access is resolved solely from `brand_assignments` rows with role `client`. Why: keeps the whole
+authorization model in our schema (tenancy at the query layer), keeps Clerk usage inside the free tier
+(one organisation), and avoids exposing Clerk's org UI to clients. Revisit only if a client needs
+org-level Clerk features.
+
+## D-004 · 2026-09-16 · `packages/env` added to the layout
+
+The brief lists db, domain, integrations and ui packages and requires one zod-validated environment
+loader with no `process.env` access elsewhere. db, integrations and web all need it, so it becomes its
+own package `@tas/env` rather than living inside one consumer. Lint rule `no-restricted-properties`
+blocks `process.env` outside it.
+
+## D-005 · 2026-09-16 · PGlite for database tests, driver factory for production
+
+No Postgres or Docker exists on the development machine. Unit tests for `@tas/db` run on
+`@electric-sql/pglite` through `drizzle-orm/pglite`, applying the real generated migrations. Production
+code receives its client through `createDb(...)`, so the same schema and queries run against Neon. The
+production driver must support transactions (propagation and promotion approval need them).
+
+## D-006 · 2026-09-16 · Cost envelope (to be confirmed by the human)
+
+| Service | Plan assumed | Annual USD | Note |
+| --- | --- | --- | --- |
+| Vercel | Pro, 1 seat | 240 | Hobby plan forbids commercial use |
+| Clerk | Free | 0 | assumes ≤10k MAU and ≤100 monthly active orgs; D-003 uses one org |
+| Neon | Free | 0 | scale-to-zero; revisit if compute hours exceed the free quota |
+| Cloudflare R2 | Pay as you go | 0–40 | 10 GB free; Airtable attachments may exceed it |
+| Inngest | Free | 0 | free tier run quota |
+| Resend | Free | 0 | 3k emails/month |
+| Anthropic API | Pay as you go | 20–60 | spell checker only |
+| **Total** |  | **≈260–340** | under the 500 USD ceiling |
+
+Open: the PRD (§17 q5) mentions Cloudflare and Railway. Vercel is kept per the brief; Cloudflare Workers
+via OpenNext would cut the Vercel line to ~60 USD if the human prefers it.
+
+## D-007 · 2026-09-16 · Next.js pinned to 15.x
+
+The brief specifies Next.js 15 with React 19. `apps/web` pins `next@15` even if a newer major is
+published. Upgrade is a Phase 7 hardening ticket.
+
+## D-008 · 2026-09-16 · Environment-gated acceptance criteria
+
+Some kickoff acceptance criteria need live services that have no credentials yet (Neon preview branch,
+Clerk sign-up). Those criteria are satisfied in code, verified against a local substitute where one exists,
+and the live check is recorded under "Pending human verification" in `docs/runbook.md` with the exact
+command to run once credentials exist. The ticket file states which criteria are gated. A ticket can move
+to `done/` with gated criteria only when everything else in the Definition of Done is met and the gated
+items are listed.
