@@ -1,0 +1,47 @@
+import js from '@eslint/js';
+import prettier from 'eslint-config-prettier';
+import { defineConfig, globalIgnores } from 'eslint/config';
+import tseslint from 'typescript-eslint';
+
+export default defineConfig(
+  globalIgnores([
+    '**/node_modules/',
+    '**/.next/',
+    '**/dist/',
+    '**/coverage/',
+    '**/.turbo/',
+    'playwright-report/',
+    'test-results/',
+  ]),
+  js.configs.recommended,
+  tseslint.configs.strictTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'process',
+          property: 'env',
+          message: 'Read environment variables through @tas/env (packages/env) only.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/env/**'],
+    rules: {
+      'no-restricted-properties': 'off',
+    },
+  },
+  {
+    files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  prettier,
+);

@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# build output
+.next/
+dist/
+*.tsbuildinfo
+
+# test artefacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# task cache
+.turbo/
+
+# environment files: never commit secrets, only the template
+.env*
+!.env.example
+
+# OS
+.DS_Store

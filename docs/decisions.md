@@ -70,3 +70,40 @@ and the live check is recorded under "Pending human verification" in `docs/runbo
 command to run once credentials exist. The ticket file states which criteria are gated. A ticket can move
 to `done/` with gated criteria only when everything else in the Definition of Done is met and the gated
 items are listed.
+
+## D-009 · 2026-09-16 · Bootstrap tooling (TICKET-001)
+
+Root dev dependencies, exact major pinned, minor and patch float with caret:
+
+- `turbo` 2: task pipeline and caching across the pnpm workspace.
+- `typescript` 5: compiler. Major 5 because typescript-eslint 8 supports `<6.1.0` and Next.js 15
+  (D-007) is tested against 5.x; the TypeScript 6/7 upgrade is a Phase 7 hardening item.
+- `@types/node` 24: Node typings for the root config files.
+- `eslint` 10 and `@eslint/js` 10: flat config and the core recommended rules.
+- `typescript-eslint` 8: strict-type-checked rules through `projectService`; typed lint is cheap on
+  this tree. `no-restricted-properties` blocks `process.env` outside `packages/env/**` (D-004).
+- `eslint-config-prettier` 10: switches off formatting rules that would fight Prettier.
+- `prettier` 3: formatter.
+- `vitest` 4: unit runner; the root config discovers `packages/*` and `apps/*` as projects. Vitest 5.0
+  shipped on 2026-09-03; major 4 stays until it has settled, the `projects` API is the same.
+- `@playwright/test` 1: E2E runner configured at the root, tests under `apps/web/e2e`.
+- `husky` 9 and `lint-staged` 17: pre-commit runs Prettier on staged files and ESLint on staged
+  ts/tsx.
+
+Conventions fixed by this ticket:
+
+- Root scripts run through Turborepo. Root-level tools are Turborepo root tasks (`//#lint:root`,
+  `//#test:root`, `//#test:e2e:root`, `//#typecheck:root`), the pattern Turborepo documents; they
+  are uncached because they read files from every package. Packages provide `typecheck`, `build`
+  and `dev` scripts. `lint`, `test` and `test:e2e` run once at the root: root ESLint covers every
+  package, root Vitest discovers each package's `vitest.config.ts`, Playwright reads
+  `apps/web/e2e`. A package adds its own `lint` or `test` script only when it needs another runner.
+- `exactOptionalPropertyTypes` stays off (comment in `tsconfig.base.json`): React, Next.js and
+  third-party typings pass `undefined` to optional properties; the option adds friction with no
+  safety payoff for this codebase.
+- Every package sets `"type": "module"`; `verbatimModuleSyntax` requires ESM.
+- Prettier skips `docs/` and `CLAUDE.md`: prose owned by the planner and the PRD author; Prettier's
+  table padding would rewrite every table for no gain.
+- Playwright declares `webServer` only when `apps/web/package.json` exists because it starts the
+  server before it looks for tests. Vitest lists a workspace root only when it holds a package
+  because it refuses a `projects` glob with no match.

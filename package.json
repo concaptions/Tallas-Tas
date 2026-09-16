@@ -1,0 +1,38 @@
+{
+  "name": "tas-creative-platform",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck typecheck:root",
+    "typecheck:root": "tsc -p tsconfig.json",
+    "lint": "turbo run lint lint:root",
+    "lint:root": "eslint . --max-warnings 0",
+    "test": "turbo run test test:root",
+    "test:root": "vitest run",
+    "test:e2e": "turbo run test:e2e test:e2e:root",
+    "test:e2e:root": "playwright test --pass-with-no-tests",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.4",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.13",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^4.1.11"
+  }
+}

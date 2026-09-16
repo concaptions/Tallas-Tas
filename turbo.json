@@ -1,0 +1,39 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": ["tsconfig.base.json", "eslint.config.js", ".prettierrc"],
+  "tasks": {
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "//#typecheck:root": {},
+    "//#lint:root": {
+      "cache": false
+    },
+    "//#test:root": {
+      "cache": false
+    },
+    "//#test:e2e:root": {
+      "cache": false
+    }
+  }
+}
