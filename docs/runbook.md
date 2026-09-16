@@ -84,6 +84,31 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   Manual check after that: `pnpm dev`, sign up at `/sign-up`, create the agency organisation from the
   switcher on `/app`, and confirm the page shows your name and the organisation name.
 
+## Deploy (Vercel)
+
+The Next.js app lives in `apps/web`, so the Vercel project must build from that directory. One-time
+project settings in the Vercel dashboard (they cannot be set from the repository):
+
+1. **Root Directory** = `apps/web`, with "Include source files outside of the Root Directory" enabled
+   (the app imports `packages/*`). Vercel detects the pnpm workspace and installs at the repository root.
+2. Framework preset Next.js; build and install commands come from `apps/web/vercel.json`.
+3. Node.js version 24.x (silences the `engines` auto-upgrade warning).
+4. Production branch `main`; every pull request gets a preview deployment.
+
+Environment variables (Settings → Environment Variables): none are required for the first deploy. Without
+them the app runs identity-less: `/` renders, every private route redirects to `/sign-in`, and the Clerk
+sign-in screen needs the two Clerk keys to work. Set, when available:
+
+| Variable | Scope | Note |
+| --- | --- | --- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Production, Preview | switches the auth layer on (D-013) |
+| `CLERK_SECRET_KEY` | Production, Preview | must be set together with the publishable key |
+| `DATABASE_URL` | Production, Preview | Neon; required once the publishable key is set (D-013) |
+| `E2E_AUTH_BYPASS` | never on Vercel | test-only sign-in (TICKET-012b) |
+
+Redeploy after changing variables. The first deployment was configured by hand on 2026-09-16
+(decision D-026); TICKET-007 completes the deploy skeleton.
+
 ## Migrations
 
 The schema is TypeScript in `packages/db/src/schema/*.ts`; every table spreads `baseColumns()` from

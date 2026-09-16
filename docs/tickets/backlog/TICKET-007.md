@@ -83,3 +83,4 @@ agent guesses them later.
   that is the only Phase 2 edit to this file.
 - Keep the runbook table the single source for "which variable goes where"; TICKET-012b adds
   `E2E_AUTH_BYPASS`, TICKET-029b adds `AGENCY_TIMEZONE` and `INNGEST_*`.
+- Note (2026-09-16): `apps/web/vercel.json` and the runbook "Deploy" section already exist (decision entry "Fast-path Vercel deploy configuration"). Extend them; do not recreate them.

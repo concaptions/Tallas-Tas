@@ -406,3 +406,12 @@ child edit and request (§4.5); (4) claim takeover with `claim_generation` (A12,
 by `DATABASE_URL=<neon preview> pnpm --filter @tas/db engine:concurrency` (TICKET-037; expected last
 line `engine-concurrency: 4/4 properties held`) and listed under "Pending human verification" in
 `docs/runbook.md` (D-008). PGlite tests prove the single-connection half of each (T24, T13, T14).
+
+## D-026 · 2026-09-16 · Fast-path Vercel deploy configuration
+
+The human connected the GitHub repository to Vercel before TICKET-007 (Vercel deploy skeleton) ran, and
+the first build ran from the repository root, where no Next.js app exists. To let the frontend be hosted
+now, `apps/web/vercel.json` (framework, install and build commands, region) and the runbook "Deploy"
+section were committed outside the ticket loop. The only setting that cannot live in the repository is
+Root Directory = `apps/web`, documented in the runbook. TICKET-007 builds on this file rather than
+creating it. `next build` was verified locally with no Clerk or database variables before the push.
