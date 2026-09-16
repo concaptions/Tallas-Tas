@@ -1,0 +1,174 @@
+/**
+ * The token layer (design handoff 2026-09-16). This is the ONLY file in the repository allowed to
+ * hold a colour literal; `src/styles/no-hex.test.ts` fails the build on a hex anywhere else.
+ *
+ * Warm dark is the default: the raw tokens live on `:root` unthemed. Warm light arrives two ways —
+ * an explicit `data-theme="light"` (the root element, or any container, which is how the
+ * /design-system page shows both palettes side by side) and the OS preference when the root has not
+ * been pinned to dark.
+ */
+
+:root {
+  --bg: #14110f;
+  --bg-deep: #0d0b0a;
+  --surface: #1c1916;
+  --surface2: #221c17;
+  --surface3: #241f1b;
+  --surface4: #2b251f;
+  --line: #2e2823;
+  --line2: #3b332b;
+  --text: #eae4db;
+  --text2: #cfc6b9;
+  --text3: #948a7f;
+  --text4: #756a60;
+  --accent: #d98b4a;
+  --accent-line: #b36a2b;
+  --accent-soft: color-mix(in srgb, #d98b4a 22%, transparent);
+  --ok: #7a9b6b;
+  --warn: #c69a46;
+  --bad: #ab6753;
+  --info: #7688a0;
+  /* next/font/google hands the hashed families over as --font-inter / --font-jetbrains-mono
+     (apps/web/src/app/layout.tsx); the handoff's stack is the fallback when it has not loaded. */
+  --mono: var(--font-jetbrains-mono, 'JetBrains Mono'), ui-monospace, monospace;
+  --sans: var(--font-inter, 'Inter'), ui-sans-serif, system-ui;
+}
+
+/* Warm light. `--bg-deep`, `--ok`, `--warn`, `--bad`, `--info`, `--mono` and `--sans` are not
+   redefined; the dark values carry over (open question DS-Q2). */
+:root[data-theme='light'],
+[data-theme='light'] {
+  --bg: #faf8f5;
+  --surface: #fffdfa;
+  --surface2: #f3efe9;
+  --surface3: #ede7e0;
+  --surface4: #e2dbd1;
+  --line: #cfc6b9;
+  --line2: #a79d93;
+  --text: #241f1b;
+  --text2: #3b332b;
+  --text3: #6b6057;
+  --text4: #948a7f;
+  --accent: #93513d;
+  --accent-line: #93513d;
+  --accent-soft: color-mix(in srgb, #93513d 18%, transparent);
+}
+
+/* A dark container nested inside a light one (the /design-system swatch pair) re-declares dark. */
+[data-theme='dark'] {
+  --bg: #14110f;
+  --surface: #1c1916;
+  --surface2: #221c17;
+  --surface3: #241f1b;
+  --surface4: #2b251f;
+  --line: #2e2823;
+  --line2: #3b332b;
+  --text: #eae4db;
+  --text2: #cfc6b9;
+  --text3: #948a7f;
+  --text4: #756a60;
+  --accent: #d98b4a;
+  --accent-line: #b36a2b;
+  --accent-soft: color-mix(in srgb, #d98b4a 22%, transparent);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #faf8f5;
+    --surface: #fffdfa;
+    --surface2: #f3efe9;
+    --surface3: #ede7e0;
+    --surface4: #e2dbd1;
+    --line: #cfc6b9;
+    --line2: #a79d93;
+    --text: #241f1b;
+    --text2: #3b332b;
+    --text3: #6b6057;
+    --text4: #948a7f;
+    --accent: #93513d;
+    --accent-line: #93513d;
+    --accent-soft: color-mix(in srgb, #93513d 18%, transparent);
+  }
+}
+
+/**
+ * shadcn/ui's variable names aliased onto the tokens. Every alias is a `var()` reference, so a
+ * shadcn component inherits the palette and follows the theme switch without knowing it exists.
+ * shadcn's `--accent` (a hover surface) is deliberately absent: `bg-accent` is the brand orange in
+ * this design system, so the vendored primitives use `bg-surface3` for hover instead.
+ */
+:root {
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface2);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--bg);
+  --secondary: var(--surface3);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface2);
+  --muted-foreground: var(--text3);
+  --destructive: var(--bad);
+  --destructive-foreground: var(--text);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent-line);
+  --radius: 6px;
+}
+
+/**
+ * Tailwind 4 utilities. `inline` keeps the raw `var()` in the generated CSS, which is what lets a
+ * `data-theme` container re-theme everything inside it at runtime.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-deep: var(--bg-deep);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-surface3: var(--surface3);
+  --color-surface4: var(--surface4);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+  --color-text4: var(--text4);
+  --color-accent: var(--accent);
+  --color-accent-line: var(--accent-line);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+
+  --radius-input: 6px;
+  --radius-card: 8px;
+
+  /* shadcn surface aliases, so the vendored primitives keep compiling unchanged. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}

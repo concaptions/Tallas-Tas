@@ -6,6 +6,8 @@
 export const signInPath = '/sign-in';
 export const signUpPath = '/sign-up';
 export const appPath = '/app';
+export const personasPath = '/app/personas';
+export const designSystemPath = '/design-system';
 
 /** Public trees: the path itself and everything below it (`/sign-in/factor-one`). */
 const publicTrees = [signInPath, signUpPath];

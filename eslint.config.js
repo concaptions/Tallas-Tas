@@ -45,5 +45,15 @@ export default defineConfig(
     files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  {
+    // Repo maintenance scripts run under Node directly, not through the bundler.
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
   prettier,
 );

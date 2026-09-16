@@ -1,11 +1,11 @@
-import { Button } from '@/components/ui/button';
+import { redirect } from 'next/navigation';
 
-export default function HomePage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center p-8">
-      <Button asChild size="lg">
-        <h1>TAS Creative Platform</h1>
-      </Button>
-    </main>
-  );
+import { appPath } from '@/lib/routes';
+
+/**
+ * `/` is the product's front door and the product lives at `/app`. There is no marketing page and
+ * no placeholder: a visitor lands in the workspace shell (in demo mode, on fixtures).
+ */
+export default function RootPage() {
+  redirect(appPath);
 }

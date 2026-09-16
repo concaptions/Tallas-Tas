@@ -1,0 +1,49 @@
+{
+  "baseUrl": "http://localhost:3300",
+  "when": "2026-09-16T19:41:59.642Z",
+  "results": [
+    {
+      "route": "/",
+      "status": 200,
+      "landedOn": "http://localhost:3300/app",
+      "chars": 1643,
+      "screenshot": "/Users/macbook/Tallas Tas/docs/verification/01-root.png",
+      "ok": true,
+      "note": "redirected into the app"
+    },
+    {
+      "route": "/app",
+      "status": 200,
+      "landedOn": "http://localhost:3300/app",
+      "chars": 1643,
+      "sidebarSectionsFound": [
+        "Personas",
+        "Angles",
+        "Themes",
+        "Concepts",
+        "Creative Briefs"
+      ],
+      "screenshot": "/Users/macbook/Tallas Tas/docs/verification/02-app-shell.png",
+      "ok": true,
+      "note": "shell rendered"
+    },
+    {
+      "route": "/app/personas",
+      "status": 200,
+      "landedOn": "http://localhost:3300/app/personas?persona=33333333-3333-4333-8333-000000000001",
+      "rowCount": 3,
+      "panelOpened": true,
+      "panelGroupsFound": [
+        "Identity",
+        "Desires",
+        "Barriers",
+        "Buying Behaviour",
+        "Language"
+      ],
+      "screenshot": "/Users/macbook/Tallas Tas/docs/verification/03-personas-panel.png",
+      "ok": true,
+      "note": "3 rows, panel opened"
+    }
+  ],
+  "consoleErrors": []
+}

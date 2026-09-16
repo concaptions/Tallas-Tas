@@ -5,9 +5,18 @@ import { expect, test } from '@playwright/test';
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { appPath } from '../src/lib/routes';
 
-test('visiting /app signed out lands on /sign-in', async ({ page }) => {
+test('visiting /app signed out', async ({ page }) => {
   await page.goto(appPath);
 
+  if (clerkKeys() === undefined) {
+    // DEMO MODE: no identity provider exists, so there is no session to protect. The visitor gets
+    // the real shell on fixtures; the data layer, not a redirect, is what keeps that safe.
+    await expect(page).toHaveURL(new RegExp(`${appPath}$`));
+    await expect(page.locator('[data-slot="demo-banner"]')).toBeVisible();
+    return;
+  }
+
+  // Clerk configured: unchanged behaviour, the private route goes through Clerk to sign-in.
   await expect(page).toHaveURL(/\/sign-in/);
 });
 

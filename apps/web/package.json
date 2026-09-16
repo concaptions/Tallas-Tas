@@ -11,14 +11,14 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.2",
-    "@radix-ui/react-slot": "^1.3.3",
+    "@tas/db": "workspace:*",
+    "@tas/domain": "workspace:*",
     "@tas/env": "workspace:*",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "@tas/ui": "workspace:*",
     "next": "^15.5.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "tailwind-merge": "^3.7.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@clerk/testing": "^2.2.34",

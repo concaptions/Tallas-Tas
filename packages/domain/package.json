@@ -1,0 +1,14 @@
+{
+  "name": "@tas/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./state": "./src/state/index.ts",
+    "./roles": "./src/roles.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

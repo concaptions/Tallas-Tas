@@ -17,20 +17,23 @@ export const config = {
 };
 
 /**
- * With no identity provider nobody can hold a session, so every private route goes to sign-in. This
- * is the D-008 substitute that keeps `pnpm dev` and the always-on E2E test working without keys.
+ * DEMO MODE. With no identity provider nobody can hold a session, so there is no session to protect
+ * and nothing a redirect to `/sign-in` could accomplish except hiding the product: every route is
+ * let through.
+ *
+ * What makes that safe is not this file but the data layer. `src/lib/data-source.ts` serves the
+ * in-repo demo fixtures whenever `isDemoMode()` is true and never opens a database connection, even
+ * with `DATABASE_URL` set, and every mutation is refused. An unauthenticated visitor on the
+ * key-less Vercel deployment can therefore only ever reach fixtures.
  */
-function withoutClerk(request: NextRequest): NextResponse {
-  if (isPublicPath(request.nextUrl.pathname)) {
-    return NextResponse.next();
-  }
-  return NextResponse.redirect(new URL(signInPath, request.url));
+function withoutClerk(): NextResponse {
+  return NextResponse.next();
 }
 
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const keys = clerkKeys();
   if (keys === undefined) {
-    return withoutClerk(request);
+    return withoutClerk();
   }
   // Built per request from the keys just validated; nothing is cached at module level. Only the
   // publishable key is handed over: a `secretKey` option makes Clerk encrypt it into a request header

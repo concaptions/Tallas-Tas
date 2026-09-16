@@ -8,6 +8,20 @@
       "when": 1789566179691,
       "tag": "0000_health_check",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789573840935,
+      "tag": "0001_tenancy",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789584652358,
+      "tag": "0002_personas",
+      "breakpoints": true
     }
   ]
 }

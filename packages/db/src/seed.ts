@@ -1,14 +1,153 @@
-import type { Db } from './db';
-import { healthCheck, type HealthCheck } from './schema';
+import { getTableName } from 'drizzle-orm';
+import type { PgInsertValue, PgTable } from 'drizzle-orm/pg-core';
 
-/** Inserts one `health_check` row and returns it. Run by `db:seed` and by the PGlite test. */
-export async function seed(db: Db): Promise<HealthCheck> {
-  const [row] = await db
-    .insert(healthCheck)
-    .values({ note: 'seeded by @tas/db db:seed' })
-    .returning();
+import type { Db } from './db';
+import {
+  DEMO_BRAND_ID,
+  demoAngles,
+  demoConcepts,
+  demoPersonas,
+  demoProducts,
+  demoThemes,
+} from './demo-data';
+import {
+  agencies,
+  angles,
+  brandAssignments,
+  brands,
+  concepts,
+  healthCheck,
+  memberships,
+  personas,
+  products,
+  themes,
+  users,
+  type Agency,
+  type Angle,
+  type Brand,
+  type BrandAssignment,
+  type Concept,
+  type HealthCheck,
+  type Membership,
+  type Persona,
+  type Product,
+  type Theme,
+  type User,
+} from './schema';
+import { withBrand } from './tenancy';
+
+/** An object type, not an interface, so `Object.entries(result)` keeps the row union (`scripts/seed.ts`). */
+export type SeedResult = {
+  agency: Agency;
+  templateBrand: Brand;
+  childBrand: Brand;
+  admin: User;
+  strategist: User;
+  adminMembership: Membership;
+  strategistAssignment: BrandAssignment;
+  healthCheck: HealthCheck;
+  products: Product[];
+  themes: Theme[];
+  personas: Persona[];
+  angles: Angle[];
+  concepts: Concept[];
+};
+
+/** Inserts one row and returns it, or throws naming the table. */
+async function insertOne<T extends PgTable>(
+  db: Db,
+  table: T,
+  values: PgInsertValue<T>,
+): Promise<T['$inferSelect']> {
+  const [row] = await db.insert(table).values(values).returning();
   if (row === undefined) {
-    throw new Error('health_check insert returned no row');
+    throw new Error(`${getTableName(table)} insert returned no row`);
   }
   return row;
+}
+
+/**
+ * Drops `brand_id` from a demo row: `ScopedInsertValue` has no such key, because the scope, not the
+ * payload, decides which brand a row lands in. `productName` goes the same way — it is the joined
+ * column `listPersonas` computes, not a column of `personas`.
+ */
+function scoped<T extends { brandId: string | null }>(row: T): Omit<T, 'brandId' | 'productName'> {
+  const rest: Record<string, unknown> = { ...row };
+  delete rest['brandId'];
+  delete rest['productName'];
+  return rest as Omit<T, 'brandId' | 'productName'>;
+}
+
+/**
+ * Inserts the development data set and returns every row. Run by `db:seed` and by the PGlite tests.
+ * Plain inserts, once per fresh database: the agency goes first, so a repeat run fails on
+ * `agencies_slug_unique` before writing anything. Placeholder Clerk ids and `example.com` addresses
+ * never collide with real accounts.
+ *
+ * The product rows come from `demo-data.ts`, the same module the app serves in demo mode, and keep
+ * their fixture ids and timestamps; the child brand is given `DEMO_BRAND_ID` so a seeded database
+ * and the demo fixtures are row-for-row identical. Branded rows go in through `withBrand`, which
+ * forces `brand_id` to the child brand; `themes` is the global library (PRD §5.5) and is inserted
+ * unscoped with `brand_id` null, as its `themes_global` check constraint requires.
+ */
+export async function seed(db: Db): Promise<SeedResult> {
+  const agency = await insertOne(db, agencies, { name: 'TAS Digital', slug: 'tas-digital' });
+  const templateBrand = await insertOne(db, brands, {
+    agencyId: agency.id,
+    name: 'Creative Hub Template',
+    slug: 'creative-hub-template',
+    isTemplate: true,
+  });
+  const childBrand = await insertOne(db, brands, {
+    id: DEMO_BRAND_ID,
+    agencyId: agency.id,
+    name: 'Niagara Sleep Solutions',
+    slug: 'niagara-sleep-solutions',
+    website: 'https://niagarasleep.example',
+    templateBrandId: templateBrand.id,
+  });
+  const admin = await insertOne(db, users, {
+    clerkUserId: 'user_seed_admin',
+    email: 'admin@example.com',
+    fullName: 'Seed Admin',
+  });
+  const strategist = await insertOne(db, users, {
+    clerkUserId: 'user_seed_strategist',
+    email: 'strategist@example.com',
+    fullName: 'Seed Strategist',
+  });
+  const adminMembership = await insertOne(db, memberships, {
+    userId: admin.id,
+    agencyId: agency.id,
+    role: 'admin',
+  });
+  const strategistAssignment = await insertOne(db, brandAssignments, {
+    userId: strategist.id,
+    brandId: childBrand.id,
+    role: 'strategist',
+  });
+  const health = await insertOne(db, healthCheck, { note: 'seeded by @tas/db db:seed' });
+
+  const scope = withBrand(db, childBrand.id);
+  const seededProducts = await scope.insert(products, demoProducts.map(scoped)).returning();
+  const seededThemes = await db.insert(themes).values(demoThemes).returning();
+  const seededPersonas = await scope.insert(personas, demoPersonas.map(scoped)).returning();
+  const seededAngles = await scope.insert(angles, demoAngles.map(scoped)).returning();
+  const seededConcepts = await scope.insert(concepts, demoConcepts.map(scoped)).returning();
+
+  return {
+    agency,
+    templateBrand,
+    childBrand,
+    admin,
+    strategist,
+    adminMembership,
+    strategistAssignment,
+    healthCheck: health,
+    products: seededProducts,
+    themes: seededThemes,
+    personas: seededPersonas,
+    angles: seededAngles,
+    concepts: seededConcepts,
+  };
 }
