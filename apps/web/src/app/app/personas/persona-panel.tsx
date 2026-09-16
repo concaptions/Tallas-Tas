@@ -4,6 +4,8 @@ import { useActionState, useEffect, useState } from 'react';
 import type { AwarenessStage, PersonaListRow } from '@tas/db';
 import {
   Button,
+  disabledWriteClassName,
+  DisabledWrite,
   Input,
   Label,
   Select,
@@ -190,9 +192,17 @@ export function PersonaPanel({ persona, demo, onClose, onSaved }: PersonaPanelPr
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={demo || pending} data-slot="persona-save">
-            {pending ? 'Saving…' : 'Save'}
-          </Button>
+          <DisabledWrite active={demo}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={demo || pending}
+              data-slot="persona-save"
+              className={disabledWriteClassName}
+            >
+              {pending ? 'Saving…' : 'Save'}
+            </Button>
+          </DisabledWrite>
         </footer>
       </form>
     </aside>

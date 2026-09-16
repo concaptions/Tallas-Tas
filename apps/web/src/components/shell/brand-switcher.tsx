@@ -8,6 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  SoonChip,
   StatusChip,
 } from '@tas/ui';
 
@@ -65,7 +66,13 @@ export function BrandSwitcher({ brand, readOnly }: BrandSwitcherProps) {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>Create a brand</DropdownMenuItem>
+        <DropdownMenuItem
+          disabled
+          className="flex items-center justify-between gap-2 text-text3 data-[disabled]:opacity-100"
+        >
+          <span>Create a brand</span>
+          <SoonChip />
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

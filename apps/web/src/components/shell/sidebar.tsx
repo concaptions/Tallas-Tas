@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@tas/ui';
+import { cn, SoonChip } from '@tas/ui';
 
 import { Icon } from './icons';
 import { NAV_SECTIONS, activeSectionKey } from './nav';
@@ -11,8 +11,8 @@ import { NAV_SECTIONS, activeSectionKey } from './nav';
  * The product's left rail. Below `md` it collapses to a 56px icon rail (labels hidden, the whole
  * shell still fits 390px with no horizontal scroll); from `md` up it is a 224px labelled column.
  *
- * A section with no `href` is not built yet: muted, `aria-disabled`, marked "soon", rendered as a
- * `div` so it cannot be clicked or focused.
+ * A section with no `href` is not built yet: muted, `aria-disabled`, marked with a `SoonChip` from
+ * `@tas/ui`, rendered as a `div` so it cannot be clicked or focused.
  */
 export function Sidebar() {
   const pathname = usePathname();
@@ -40,9 +40,7 @@ export function Sidebar() {
                 >
                   <Icon name={section.icon} className="size-4 shrink-0" />
                   <span className="hidden flex-1 truncate md:inline">{section.label}</span>
-                  <span className="hidden font-mono text-[10px] tracking-wide text-text4 uppercase md:inline">
-                    soon
-                  </span>
+                  <SoonChip className="ml-auto hidden md:inline-flex" />
                 </div>
               </li>
             );

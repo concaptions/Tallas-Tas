@@ -23,6 +23,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
+  DEMO_WRITE_HINT,
+  disabledWriteClassName,
+  DisabledWrite,
   Input,
   Label,
   Select,
@@ -30,6 +33,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SoonChip,
   StatusChip,
   StepRow,
   Switch,
@@ -360,6 +364,31 @@ export default function DesignSystemPage() {
               />
             ))}
             <StatusChip tone="mute" label="locked" />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="SoonChip and disabled write actions"
+        note="A section that is not built yet carries a SoonChip. A write action disabled because no session exists is muted, never accent, and explains itself on hover."
+      >
+        <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <SoonChip />
+            <span className="text-sm text-text3">
+              Sidebar sections and menu items that have no page yet.
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+            <Button size="sm">Save</Button>
+            <DisabledWrite>
+              <Button size="sm" disabled className={disabledWriteClassName}>
+                Save
+              </Button>
+            </DisabledWrite>
+            <span className="text-sm text-text3">
+              Enabled, then the same button disabled in demo mode: hover it for {DEMO_WRITE_HINT}.
+            </span>
           </div>
         </div>
       </Section>
