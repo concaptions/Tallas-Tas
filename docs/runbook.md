@@ -57,8 +57,15 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   `pnpm --filter @tas/db db:migrate && pnpm --filter @tas/db db:seed`
   As a one-liner the variable must be given to both commands (`VAR=x a && b` only sets it for `a`):
   `DATABASE_URL=<neon preview> pnpm --filter @tas/db db:migrate && DATABASE_URL=<neon preview> pnpm --filter @tas/db db:seed`
-  Expected: `Migrations applied from .../packages/db/drizzle`, then `Seeded health_check <uuid>`, and
-  one row in `health_check` on the branch.
+  Expected: `Migrations applied from .../packages/db/drizzle`, then `Seeded healthCheck <uuid>` (one of
+  the eight seed lines, TICKET-005 below), and one row in `health_check` on the branch.
+- TICKET-005 · tenancy migration `0001_tenancy` and seed against a Neon preview branch (verified on PGlite
+  by `packages/db/src/schema/tenancy-tables.test.ts` and `packages/db/src/seed.test.ts`). Same command as
+  the TICKET-003 item above. Expected: eight `Seeded <key> <uuid>` lines, one per `SeedResult` key
+  (`agency`, `templateBrand`, `childBrand`, `admin`, `strategist`, `adminMembership`,
+  `strategistAssignment`, `healthCheck`). On the branch: enums `agency_role`, `brand_role`,
+  `brand_status`; tables `agencies`, `brands`, `users`, `memberships`, `brand_assignments`. The seed is
+  plain inserts: a second `db:seed` on the same branch fails on `agencies_slug_unique` and writes nothing.
 - TICKET-004 · Clerk sign-up and organisation creation E2E (`apps/web/e2e/auth.spec.ts`, second test; the
   first, `/app` signed out lands on `/sign-in`, runs on every `pnpm test:e2e` and passes without keys).
   Needs a Clerk **development** instance (`pk_test_…`, `sk_test_…`) with organisations enabled, and a
@@ -100,7 +107,10 @@ change the schema and generate again.
 4. `pnpm --filter @tas/db db:migrate` applies the pending migrations to `DATABASE_URL`. Drizzle records
    applied migrations in `drizzle.__drizzle_migrations`, so the command is safe to repeat. Run it against
    a preview branch first, then main.
-5. `pnpm --filter @tas/db db:seed` inserts the seed rows (today: one `health_check` row per run).
+5. `pnpm --filter @tas/db db:seed` inserts the seed rows once per fresh database: the tenancy set (agency
+   `tas-digital`, template brand `creative-hub-template`, child brand `demo-brand`, an admin with a
+   membership, a strategist assigned to the child) and one `health_check` row, as plain inserts. A repeat
+   run fails on `agencies_slug_unique` and writes nothing (TICKET-005).
 
 `db:migrate` and `db:seed` read `DATABASE_URL` through `@tas/env`: from the shell, or from the repo-root
 `.env.local` in development. They run through `tsx`, a dev dependency, so they need a full
