@@ -1,4 +1,4 @@
-import { appPath, designSystemPath, personasPath } from '@/lib/routes';
+import { appPath, designSystemPath, personasPath, productsPath } from '@/lib/routes';
 
 import type { IconName } from './icons';
 
@@ -29,7 +29,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     key: 'workspace',
     sections: [
       { key: 'overview', label: 'Overview', icon: 'overview', href: appPath },
-      { key: 'products', label: 'Products', icon: 'products' },
+      { key: 'products', label: 'Products', icon: 'products', href: productsPath },
       { key: 'personas', label: 'Personas', icon: 'personas', href: personasPath },
       { key: 'angles', label: 'Angles', icon: 'angles' },
       { key: 'themes', label: 'Themes', icon: 'themes' },

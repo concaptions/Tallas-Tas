@@ -68,14 +68,18 @@ async function insertOne<T extends PgTable>(
 
 /**
  * Drops `brand_id` from a demo row: `ScopedInsertValue` has no such key, because the scope, not the
- * payload, decides which brand a row lands in. `productName` goes the same way — it is the joined
- * column `listPersonas` computes, not a column of `personas`.
+ * payload, decides which brand a row lands in. The derived columns go the same way — `productName`
+ * is the product name `listPersonas` joins in and `conceptCount` is the linked-concept count
+ * `listProducts` counts, neither of them a column of the table the row is inserted into.
  */
-function scoped<T extends { brandId: string | null }>(row: T): Omit<T, 'brandId' | 'productName'> {
+function scoped<T extends { brandId: string | null }>(
+  row: T,
+): Omit<T, 'brandId' | 'productName' | 'conceptCount'> {
   const rest: Record<string, unknown> = { ...row };
   delete rest['brandId'];
   delete rest['productName'];
-  return rest as Omit<T, 'brandId' | 'productName'>;
+  delete rest['conceptCount'];
+  return rest as Omit<T, 'brandId' | 'productName' | 'conceptCount'>;
 }
 
 /**

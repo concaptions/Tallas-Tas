@@ -59,6 +59,8 @@ import {
 } from '@tas/domain/state';
 import { brandRoles, brandStatuses } from '@tas/domain';
 
+import { conceptCountLabel, conceptCountTone, EM_DASH, hostLabel } from '@/app/app/products/fields';
+
 export const metadata = {
   title: 'Design system — TAS Creative Platform',
 };
@@ -86,6 +88,22 @@ const PALETTE = [
 ] as const;
 
 const TONES: ChipTone[] = ['ok', 'warn', 'bad', 'info', 'accent', 'mute'];
+
+/** Two rows in the Products shape: one with a collection link and a concept, one with neither. */
+const SAMPLE_PRODUCTS = [
+  {
+    name: 'Niagara Deep Sleep Weighted Blanket',
+    link: 'https://niagarasleep.example/products/deep-sleep-weighted-blanket',
+    collectionLink: 'https://www.niagarasleep.example/collections/sleep-essentials',
+    conceptCount: 1,
+  },
+  {
+    name: 'Niagara Cooling Blackout Sleep Mask',
+    link: 'https://niagarasleep.example/products/cooling-blackout-sleep-mask',
+    collectionLink: null,
+    conceptCount: 0,
+  },
+] as const;
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
@@ -389,6 +407,62 @@ export default function DesignSystemPage() {
             <span className="text-sm text-text3">
               Enabled, then the same button disabled in demo mode: hover it for {DEMO_WRITE_HINT}.
             </span>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Data table row (Products)"
+        note="The shape every per-brand table uses. A long URL is shortened to its host with the full link in the cell's title, an optional link that is absent renders the em dash from the route's fields.ts, and a derived count is a StatusChip — info above zero, mute at zero. A count is not a status: this table has none, and invents none."
+      >
+        <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm">New product</Button>
+            <DisabledWrite>
+              <Button variant="outline" size="sm" disabled className={disabledWriteClassName}>
+                Upload CSV
+              </Button>
+            </DisabledWrite>
+            <Button variant="outline" size="sm">
+              Download template
+            </Button>
+            <span className="text-sm text-text3">
+              Download template stays enabled without a session: it builds the CSV in the browser
+              and writes nothing.
+            </span>
+          </div>
+          <div className="overflow-x-auto border-t border-line pt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product name</TableHead>
+                  <TableHead>Landing page URL</TableHead>
+                  <TableHead>Collection link</TableHead>
+                  <TableHead>Linked concepts</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {SAMPLE_PRODUCTS.map((row) => (
+                  <TableRow key={row.name}>
+                    <TableCell className="font-medium text-text">{row.name}</TableCell>
+                    <TableCell className="text-text2" title={row.link}>
+                      {hostLabel(row.link)}
+                    </TableCell>
+                    <TableCell className="text-text2" title={row.collectionLink ?? undefined}>
+                      {hostLabel(row.collectionLink) ?? (
+                        <span className="text-text4">{EM_DASH}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <StatusChip
+                        tone={conceptCountTone(row.conceptCount)}
+                        label={conceptCountLabel(row.conceptCount)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </div>
       </Section>

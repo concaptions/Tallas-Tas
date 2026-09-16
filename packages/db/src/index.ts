@@ -4,6 +4,7 @@ export type { Db, NeonDb, Schema } from './db';
 export {
   DEMO_ACTOR_ID,
   DEMO_BRAND_ID,
+  PRODUCT_CSV_COLUMNS,
   demoAngles,
   demoConcepts,
   demoPersonas,
@@ -12,6 +13,8 @@ export {
 } from './demo-data';
 export { getPersonaById, insertPersona, listPersonas, updatePersona } from './personas';
 export type { PersonaInput, PersonaListRow } from './personas';
+export { getProductById, insertProduct, listProducts, updateProduct } from './products';
+export type { ProductInput, ProductListRow } from './products';
 export * from './schema';
 export { seed } from './seed';
 export type { SeedResult } from './seed';

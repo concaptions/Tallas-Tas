@@ -1,5 +1,6 @@
 import type { PersonaListRow } from './personas';
-import type { Angle, Concept, Product, Theme } from './schema';
+import type { ProductListRow } from './products';
+import type { Angle, Concept, Theme } from './schema';
 
 /**
  * The single source of the demo content: the fixtures the app serves in DEMO MODE (no Clerk key, so
@@ -25,6 +26,7 @@ const at = (iso: string): Date => new Date(iso);
 
 const PRODUCT_BLANKET_ID = '22222222-2222-4222-8222-000000000001';
 const PRODUCT_MASK_ID = '22222222-2222-4222-8222-000000000002';
+const PRODUCT_RESET_BUNDLE_ID = '22222222-2222-4222-8222-000000000003';
 const PERSONA_SHIFT_ID = '33333333-3333-4333-8333-000000000001';
 const PERSONA_PARENT_ID = '33333333-3333-4333-8333-000000000002';
 const PERSONA_PERI_ID = '33333333-3333-4333-8333-000000000003';
@@ -46,14 +48,31 @@ function base(id: string, created: string, updated: string) {
   };
 }
 
-/** Two products for Niagara Sleep Solutions (PRD §5.1: the landing page link is the required part). */
-export const demoProducts: Product[] = [
+/**
+ * The CSV template a user downloads before a bulk upload (PRD §5.1, CLAUDE.md non-negotiable 9: a
+ * downloadable template per table). Data, not schema: it is the writable columns of `products` in
+ * the order the template presents them, snake_case because that is what a spreadsheet exported from
+ * Airtable carries. `id`, `brand_id` and the audit columns are absent — the scope, the clock and the
+ * actor own those, and an uploaded row may not choose them. It lives beside the fixtures so the demo
+ * download and a live download are the same string.
+ */
+export const PRODUCT_CSV_COLUMNS = ['name', 'link', 'collection_link'] as const;
+
+/**
+ * Three products for Niagara Sleep Solutions (PRD §5.1: the landing page link is the required part,
+ * the collection link optional — the sleep mask has none, so the column is visibly optional in the
+ * table). `conceptCount` is the linked-concept count `listProducts` computes: the live concepts of
+ * the brand whose angle points at the product (`concepts.angleId` → `angles.productId`). Only the
+ * weighted blanket carries a concept so far, so the fixtures show a real count and a real zero.
+ */
+export const demoProducts: ProductListRow[] = [
   {
     ...base(PRODUCT_BLANKET_ID, '2026-08-02T09:00:00.000Z', '2026-09-11T14:10:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Niagara Deep Sleep Weighted Blanket',
     link: 'https://niagarasleep.example/products/deep-sleep-weighted-blanket',
     collectionLink: 'https://niagarasleep.example/collections/sleep-essentials',
+    conceptCount: 1,
   },
   {
     ...base(PRODUCT_MASK_ID, '2026-08-02T09:05:00.000Z', '2026-09-09T11:30:00.000Z'),
@@ -61,6 +80,15 @@ export const demoProducts: Product[] = [
     name: 'Niagara Cooling Blackout Sleep Mask',
     link: 'https://niagarasleep.example/products/cooling-blackout-sleep-mask',
     collectionLink: null,
+    conceptCount: 0,
+  },
+  {
+    ...base(PRODUCT_RESET_BUNDLE_ID, '2026-08-12T15:45:00.000Z', '2026-09-05T13:20:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Niagara Night Reset Bundle (Blanket + Mask)',
+    link: 'https://niagarasleep.example/products/night-reset-bundle',
+    collectionLink: 'https://niagarasleep.example/collections/shift-worker-sleep-kit',
+    conceptCount: 0,
   },
 ];
 

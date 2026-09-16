@@ -72,7 +72,7 @@ describe('migration 0002 on PGlite', () => {
     expect(await listPersonas(db, brandId)).toEqual(demoPersonas);
     expect(await db.select().from(themes)).toEqual(demoThemes);
     expect(await db.select().from(concepts)).toEqual(demoConcepts);
-    expect(demoProducts).toHaveLength(2);
+    expect(demoProducts).toHaveLength(3);
     expect(demoAngles).toHaveLength(2);
   });
 

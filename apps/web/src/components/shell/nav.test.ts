@@ -48,6 +48,7 @@ describe('NAV_SECTIONS', () => {
 
     expect(linked.map((section) => [section.label, section.href])).toEqual([
       ['Overview', '/app'],
+      ['Products', '/app/products'],
       ['Personas', '/app/personas'],
       ['Design System', '/design-system'],
     ]);
@@ -57,6 +58,8 @@ describe('NAV_SECTIONS', () => {
 describe('activeSectionKey', () => {
   it.each([
     ['/app', 'overview'],
+    ['/app/products', 'products'],
+    ['/app/products/22222222-2222-4222-8222-000000000001', 'products'],
     ['/app/personas', 'personas'],
     ['/app/personas/33333333-3333-4333-8333-000000000001', 'personas'],
     ['/design-system', 'design-system'],
