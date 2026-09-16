@@ -9,7 +9,7 @@ when QA passes and the reviewer approves. Ticket bodies: `docs/tickets/backlog/T
 | --- | --- | --- | --- | --- | --- |
 | TICKET-001 | Bootstrap monorepo | integrator | M | — | done |
 | TICKET-002 | Next.js app in apps/web | frontend | S | 001 | done |
-| TICKET-003 | Env loader package and Neon + Drizzle wiring in packages/db | integrator → schema | M | 001 | backlog |
+| TICKET-003 | Env loader package and Neon + Drizzle wiring in packages/db | integrator → schema | M | 001 | done |
 | TICKET-004 | Clerk auth with organisations, protected routes | integrator | M | 002, 003 | backlog |
 | TICKET-005 | Tenancy tables and `withBrand(brandId)` | schema → integrator | M | 003 | backlog |
 

@@ -1,3 +1,8 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# esbuild (bundled by drizzle-kit and tsx) has a postinstall that only validates the platform binary
+# pnpm installs as an optional dependency anyway; pnpm refuses to install with an undecided script.
+allowBuilds:
+  esbuild: false

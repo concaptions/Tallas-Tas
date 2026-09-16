@@ -141,3 +141,92 @@ Conventions fixed by this ticket:
   rewrites it.
 - `@next/eslint-plugin-next` is not added: root ESLint (D-009) already covers the app. It is a later
   tooling ticket if its rules earn their keep.
+
+## D-011 · 2026-09-16 · Environment loader (TICKET-003, stage 1)
+
+Dependencies added to `packages/env` (`@tas/env`), exact major pinned, minor and patch float with caret:
+
+- `zod` 4: schema validation for every environment variable; also the validation library the brief
+  assumes for forms and Server Action inputs, so no second validator arrives later.
+- `dotenv` 17: only its `parse` function is used, on the repo-root `.env.local`. `dotenv.config()` is
+  not called because it mutates `process.env`; the loader stays a pure function of its inputs.
+
+Conventions fixed by this ticket:
+
+- Validation is lazy: `serverEnv()` and `clientEnv()` validate when called, never at import. A call site
+  that wants memoisation creates its own loader with `createEnv()`, whose cache lives in the returned
+  closure. The package holds no module-level parsed environment.
+- `.env.local` is read from the repo root, only when `NODE_ENV` is `development` (its default), and is
+  merged *under* the process environment so a variable set in the shell or by the host always wins.
+  `test` and `production` read the process environment alone.
+- An empty value (`KEY=`) counts as unset, so a `.env.local` copied from `.env.example` behaves as
+  "nothing configured" instead of failing every optional check.
+- `@tas/env/client` is a second entry point with no Node imports. It reads each `NEXT_PUBLIC_*`
+  variable through a literal `process.env.NAME` expression, the only form Next.js inlines into the
+  browser bundle. `@tas/env` (server) re-exports `clientEnv` for server-side use.
+- Clerk keys carry a prefix check (`pk_` publishable, `sk_` secret) because swapping them would ship
+  the secret key to the browser. Other optional secrets are validated as non-empty strings only; vendor
+  prefixes for those are not documented as stable.
+- The package exposes its TypeScript source (`exports` points at `src/*.ts`) and has no build step.
+  Relative imports stay extensionless, as in `apps/web`, so consumers are bundlers and TypeScript-aware
+  loaders (Vitest, Next.js `transpilePackages`, drizzle-kit's config loader, `tsx` for scripts). Bare
+  `node file.ts` cannot resolve extensionless imports and is not a supported way to run this package.
+- Numbering: the ticket text names D-011 for stage 2's dependency list and production driver choice.
+  Stage 1 ran first and took D-011, so stage 2 records those in D-012.
+
+## D-012 · 2026-09-16 · Database package and production driver (TICKET-003, stage 2)
+
+Dependencies added to `packages/db` (`@tas/db`), exact major pinned, minor and patch float with caret
+(for the 0.x packages the caret floats patch only, which is what "pin the major" means before 1.0):
+
+- `drizzle-orm` 0.45: the ORM the brief names. The 1.0 line is still beta (relations API rewrite); the
+  upgrade is a Phase 7 hardening item.
+- `drizzle-kit` 0.31 (dev): generates SQL migrations from the schema (`db:generate`). It does not apply
+  them, see below.
+- `@neondatabase/serverless` 1: the production driver, see below.
+- `@electric-sql/pglite` 0.5 (dev): in-memory Postgres for tests (D-005), through `drizzle-orm/pglite`.
+  Imported only from `src/pglite.ts` and `src/testing.ts`, exposed as the `@tas/db/testing` entry, so
+  the app never bundles the WASM.
+- `tsx` 4 (dev): runs `db:migrate` and `db:seed` (`src/scripts/*.ts`); bare Node cannot resolve the
+  extensionless imports (D-011).
+- `@tas/env` (workspace): read only by those two scripts. The library takes the URL or the client as a
+  parameter and never touches the environment.
+
+Root tooling side effects of these dependencies:
+
+- `pnpm-workspace.yaml` gains `allowBuilds: { esbuild: false }`. drizzle-kit and tsx bundle esbuild,
+  whose postinstall only validates the platform binary pnpm installs as an optional dependency; pnpm 12
+  refuses to install while a build script is undecided, so the decision is recorded as "never run".
+- `.prettierignore` gains `packages/db/drizzle/`: drizzle-kit's snapshot JSON is committed as written so
+  a regenerate does not churn the diff.
+
+Production driver: `@neondatabase/serverless` `Pool` through `drizzle-orm/neon-serverless`.
+
+- Why: Neon's own driver for serverless runtimes (Vercel functions). It speaks the Postgres protocol
+  over a WebSocket, so `db.transaction(...)` runs BEGIN/COMMIT on one connection, which propagation and
+  promotion approval need (D-005). Node 22+ has a global `WebSocket`, so no `ws` polyfill. The same
+  package also runs in Edge middleware if a later ticket needs it there.
+- Rejected: `drizzle-orm/neon-http` (Neon's HTTP driver) is the fastest per query but has no
+  interactive transactions. `pg` / `postgres.js` over TCP work against Neon and any Postgres, and are
+  the swap if the WebSocket path misbehaves, but are not edge-compatible and gain nothing on Vercel.
+- Consequence: `createNeonDb` only reaches Neon (or a host behind `neonConfig.wsProxy`). There is no
+  local Postgres anyway (D-005).
+
+Conventions fixed by this ticket:
+
+- `createDb(client)` binds any client the Neon driver accepts (`Pool`, `PoolClient`, `Client`) to the
+  schema; `createNeonDb(databaseUrl)` builds the pool for it. `createPgliteDb()` binds the PGlite driver
+  to the same `drizzleConfig`. Consumers type against `Db` (`PgDatabase<PgQueryResultHKT, Schema>`),
+  the common supertype of both, so a query or `withBrand` written once runs on either. No instance is
+  created at module level; the scripts create theirs inside `main()` and end the pool.
+- `baseColumns()` is a function returning fresh builders, not a shared object: a Drizzle builder mutates
+  in place when a table chains `.references()` on it, so a shared object would leak one table's foreign
+  key into the next.
+- Migrations are applied by the driver-specific migrators reading one folder (`migrationsFolder` in
+  `src/migrations.ts`): `drizzle-orm/pglite/migrator` inside `testDb()`, `drizzle-orm/neon-serverless/migrator`
+  inside `db:migrate`. `drizzle-kit migrate` is not used because it needs the connection string inside
+  `drizzle.config.ts`, which would make `db:generate` fail on a machine without credentials.
+- Column names are written explicitly in snake_case (`uuid('brand_id')`) rather than through drizzle's
+  `casing` option, so the SQL in `drizzle/` reads the same as the schema.
+- Numbering: the ticket text names D-011 for this entry; stage 1 took D-011 (see its last bullet), so
+  stage 2 is D-012.
