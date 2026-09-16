@@ -84,6 +84,22 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   Manual check after that: `pnpm dev`, sign up at `/sign-up`, create the agency organisation from the
   switcher on `/app`, and confirm the page shows your name and the organisation name.
 
+## Local dev gotchas
+
+- **Node via Herd.** `~/.zshrc` loads Herd's own nvm (`NVM_DIR` under `Library/Application Support/Herd`), so
+  the active `node` is whatever Herd last selected, not the repo's `.node-version` (24). Check `node -v`
+  before `pnpm install`; the system Node 24 lives in `/usr/local/bin`. A `cd` into the repo does not change
+  PATH (verified 2026-09-16), so nothing rewrites your shell on entry.
+- **Background processes in the Claude Code Bash tool.** After a command launches a server with `&` (for
+  example `next start … &`), every later command in the same tool call can fail with `command not found`
+  for `curl`, `sed`, `tail`: the tool's shell loses PATH. Use absolute paths (`/usr/bin/curl`,
+  `/usr/bin/git`, `/Users/macbook/.local/bin/pnpm`) or the tool's own `run_in_background` option. Plain
+  terminals are unaffected.
+- **pnpm.** `pnpm` is a corepack shim in `~/.local/bin`; never `npm install -g pnpm`. pnpm 12 refuses
+  packages younger than its release-age gate; wait rather than bypass it (TICKET-001 review).
+- **PGlite tests boot Postgres.** The first test of each `@tas/db` file takes 4–10 s under load;
+  `testTimeout` is 30 s. If `pnpm test` flakes on a busy machine, close the Electron apps and rerun.
+
 ## Deploy (Vercel)
 
 The Next.js app lives in `apps/web`, so the Vercel project must build from that directory. One-time
