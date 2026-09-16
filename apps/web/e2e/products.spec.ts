@@ -85,13 +85,15 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     await expect(panel.locator('[data-slot="product-save"]')).toBeDisabled();
     await expect(panel.locator('#product-field-name')).toHaveAttribute('readonly', '');
 
-    // The blanket carries one concept; the chip is the shared StatusChip in the info tone.
+    // The blanket carries two concepts; the chip is the shared StatusChip in the info tone, and it
+    // pluralises.
     const count = panel.locator('[data-slot="product-concept-count"] [data-slot="status-chip"]');
-    await expect(count).toHaveText('1 concept');
+    await expect(count).toHaveText('2 concepts');
     await expect(count).toHaveAttribute('data-tone', 'info');
 
-    // A product with no linked concept renders a zero, never a blank or a dash.
-    await page.goto(`${productsPath}?product=22222222-2222-4222-8222-000000000002`);
+    // A product with no linked concept — the reset bundle, which nothing has been built on yet —
+    // renders a zero, never a blank or a dash.
+    await page.goto(`${productsPath}?product=22222222-2222-4222-8222-000000000003`);
     const zero = page.locator('[data-slot="product-concept-count"] [data-slot="status-chip"]');
     await expect(zero).toHaveText('0 concepts');
     await expect(zero).toHaveAttribute('data-tone', 'mute');

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import { listConcepts } from './concepts';
 import {
   DEMO_BRAND_ID,
   demoAngles,
@@ -17,7 +18,7 @@ import {
   type PersonaInput,
   type PersonaListRow,
 } from './personas';
-import { awarenessStages, concepts, personas, themes, type Persona } from './schema';
+import { awarenessStages, personas, themes, type Persona } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
 import { listThemes } from './themes';
@@ -72,7 +73,7 @@ describe('migration 0002 on PGlite', () => {
     expect(brandId).toBe(DEMO_BRAND_ID);
     expect(await listPersonas(db, brandId)).toEqual(demoPersonas);
     expect(await listThemes(db)).toEqual(demoThemes);
-    expect(await db.select().from(concepts)).toEqual(demoConcepts);
+    expect(await listConcepts(db, brandId)).toEqual(demoConcepts);
     expect(demoProducts).toHaveLength(3);
     expect(demoAngles).toHaveLength(5);
   });

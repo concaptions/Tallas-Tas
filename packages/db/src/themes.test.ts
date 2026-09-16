@@ -15,14 +15,14 @@ import {
 } from './themes';
 import { withBrand } from './tenancy';
 
-/** The one theme a seeded concept references — Problem/Solution — past `noUncheckedIndexedAccess`. */
+/** One of the four themes a seeded concept references — past `noUncheckedIndexedAccess`. */
 function usedTheme(): ThemeListRow {
   const row = demoThemes.find((theme) => theme.name === 'Problem/Solution');
   if (row === undefined) throw new Error('demoThemes has no Problem/Solution');
   return row;
 }
 
-/** The seeded concept, the only row linking a brand to a theme. */
+/** The newest seeded concept; four of them link this brand to four different themes. */
 function demoConcept() {
   const [row] = demoConcepts;
   if (row === undefined) throw new Error('demoConcepts is empty');
@@ -236,7 +236,9 @@ describe('theme queries', () => {
 
     const rows = await listThemes(db);
 
-    expect(rows.filter((row) => row.usedByBrandCount === 0)).toHaveLength(5);
+    // Four themes carry a demo concept; Holiday Gifting and Spring x Soccer carry none, and the
+    // unthemed concept just inserted must not become a count on either of them.
+    expect(rows.filter((row) => row.usedByBrandCount === 0)).toHaveLength(2);
     expect(rows.every((row) => Number.isInteger(row.usedByBrandCount))).toBe(true);
     expect(await db.select().from(concepts).where(eq(concepts.name, 'B2-Unthemed'))).toHaveLength(
       1,

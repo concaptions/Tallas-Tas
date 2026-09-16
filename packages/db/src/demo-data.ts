@@ -1,7 +1,7 @@
 import type { AngleListRow } from './angles';
+import type { ConceptListRow } from './concepts';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
-import type { Concept } from './schema';
 import type { ThemeListRow } from './themes';
 
 /**
@@ -43,7 +43,10 @@ const ANGLE_NINETY_MINUTES_ID = '55555555-5555-4555-8555-000000000002';
 const ANGLE_NOT_YOUR_AGE_ID = '55555555-5555-4555-8555-000000000003';
 const ANGLE_DAYLIGHT_ID = '55555555-5555-4555-8555-000000000004';
 const ANGLE_THERMOSTAT_ID = '55555555-5555-4555-8555-000000000005';
-const CONCEPT_ID = '66666666-6666-4666-8666-000000000001';
+const CONCEPT_BODY_CLOCK_ID = '66666666-6666-4666-8666-000000000001';
+const CONCEPT_NOT_YOUR_AGE_ID = '66666666-6666-4666-8666-000000000002';
+const CONCEPT_DAYLIGHT_ID = '66666666-6666-4666-8666-000000000003';
+const CONCEPT_NINETY_MINUTES_ID = '66666666-6666-4666-8666-000000000004';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -71,8 +74,9 @@ export const PRODUCT_CSV_COLUMNS = ['name', 'link', 'collection_link'] as const;
  * Three products for Niagara Sleep Solutions (PRD §5.1: the landing page link is the required part,
  * the collection link optional — the sleep mask has none, so the column is visibly optional in the
  * table). `conceptCount` is the linked-concept count `listProducts` computes: the live concepts of
- * the brand whose angle points at the product (`concepts.angleId` → `angles.productId`). Only the
- * weighted blanket carries a concept so far, so the fixtures show a real count and a real zero.
+ * the brand whose angle points at the product (`concepts.angleId` → `angles.productId`). The four
+ * demo concepts sit two on the blanket and two on the mask, and nothing has been built on the bundle
+ * yet, so the fixtures show real counts and a real zero.
  */
 export const demoProducts: ProductListRow[] = [
   {
@@ -81,7 +85,7 @@ export const demoProducts: ProductListRow[] = [
     name: 'Niagara Deep Sleep Weighted Blanket',
     link: 'https://niagarasleep.example/products/deep-sleep-weighted-blanket',
     collectionLink: 'https://niagarasleep.example/collections/sleep-essentials',
-    conceptCount: 1,
+    conceptCount: 2,
   },
   {
     ...base(PRODUCT_MASK_ID, '2026-08-02T09:05:00.000Z', '2026-09-09T11:30:00.000Z'),
@@ -89,7 +93,7 @@ export const demoProducts: ProductListRow[] = [
     name: 'Niagara Cooling Blackout Sleep Mask',
     link: 'https://niagarasleep.example/products/cooling-blackout-sleep-mask',
     collectionLink: null,
-    conceptCount: 0,
+    conceptCount: 2,
   },
   {
     ...base(PRODUCT_RESET_BUNDLE_ID, '2026-08-12T15:45:00.000Z', '2026-09-05T13:20:00.000Z'),
@@ -128,9 +132,10 @@ const problemSolutionTheme: ThemeListRow = {
  *
  * `usedByBrandCount` is the number of distinct brands whose live concepts reference the theme, the
  * aggregate `listThemes` computes, so the fixtures satisfy `ThemeListRow[]` and the Themes page
- * reads demo rows and database rows through one type. The seeded database holds one brand and one
- * concept, on Problem/Solution: the counts below are exactly what `listThemes` returns there — a
- * real one and five real zeros, never an invented number.
+ * reads demo rows and database rows through one type. The seeded database holds one brand, whose
+ * four concepts sit on four different themes: the counts below are exactly what `listThemes` returns
+ * there — four real ones and two real zeros, never an invented number. They are ones and not fours
+ * because the aggregate counts distinct BRANDS, not concepts.
  *
  * The array is in `updated_at` descending order, the order `listThemes` returns, so a test can
  * compare the two directly.
@@ -147,7 +152,7 @@ export const demoThemes: ThemeListRow[] = [
     ],
     notes:
       'One creator, one take, talking straight down the barrel at conversational speed with no B-roll to hide behind — the whole thing lives or dies on the first sentence. Cheapest format we shoot and the only one that survives being cut to six different hooks in the edit. Needs a creator who can actually talk; on Gratsi the second-choice creator read the script and the retention graph fell off a cliff at four seconds.',
-    usedByBrandCount: 0,
+    usedByBrandCount: 1,
   },
   {
     ...base(THEME_HOLIDAY_GIFTING_ID, '2026-08-09T11:15:00.000Z', '2026-09-07T10:50:00.000Z'),
@@ -170,7 +175,7 @@ export const demoThemes: ThemeListRow[] = [
     referenceLinks: ['https://foreplay.example/boards/pov-x-vs-y-comparison'],
     notes:
       'Split the frame and let the viewer pick a side: the night before versus the night after, the thing they own versus the thing we sell. It earns the comparison the ad would otherwise have to claim, and it gives the editor a structure that reads with the sound off. Keep the losing side a situation and never a competitor by name — legal made Funky Painting re-cut a whole batch over a visible rival can.',
-    usedByBrandCount: 0,
+    usedByBrandCount: 1,
   },
   {
     ...base(THEME_GREEN_SCREEN_ID, '2026-07-20T10:05:00.000Z', '2026-08-30T16:40:00.000Z'),
@@ -180,7 +185,7 @@ export const demoThemes: ThemeListRow[] = [
     referenceLinks: ['https://foreplay.example/boards/green-screen-reaction'],
     notes:
       'Creator reacts over a screenshot of a review, a Reddit thread or a sleep-tracker graph. Cheap to produce, high hook rate, and the on-screen artefact carries the proof so the script can stay short.',
-    usedByBrandCount: 0,
+    usedByBrandCount: 1,
   },
   problemSolutionTheme,
   {
@@ -445,25 +450,144 @@ export const demoAngles: AngleListRow[] = [
   },
 ];
 
-/**
- * One concept: the pairing of one angle and one theme (PRD §5.7). `name` is the auto-generated
- * `Batch-Angle-Theme` string, built here from its two inputs and never typed by hand.
- */
-const demoConceptBatch = 'B1';
+/** One seeded angle by id, past `noUncheckedIndexedAccess`; the concepts below pair with these. */
+function demoAngle(id: string): AngleListRow {
+  const row = demoAngles.find((angle) => angle.id === id);
+  if (row === undefined) throw new Error(`demoAngles has no ${id}`);
+  return row;
+}
 
-export const demoConcepts: Concept[] = [
+/** One seeded theme by id, past `noUncheckedIndexedAccess`. */
+function demoTheme(id: string): ThemeListRow {
+  const row = demoThemes.find((theme) => theme.id === id);
+  if (row === undefined) throw new Error(`demoThemes has no ${id}`);
+  return row;
+}
+
+/**
+ * PRD §5.7's auto-generated concept name: `Batch-Angle-Theme`, never typed by a user (CLAUDE.md
+ * non-negotiable 4). The canonical formula is the pure `conceptName` function in
+ * `packages/domain/src/concepts/`, which the detail page and every write call; this two-line copy
+ * exists only because `@tas/db` does not depend on `@tas/domain` — the edge runs the other way
+ * everywhere in this repo (`packages/domain/src/angles/vocabulary.ts` copies this package's storage
+ * vocabulary for exactly the same reason). Nothing here is hand-written: every fixture name below is
+ * this function applied to a real batch, a real seeded angle and a real seeded theme, so a drifting
+ * formula shows up as four changed fixtures rather than as one stale string. `apps/web` depends on
+ * both packages and is where the two are asserted equal.
+ */
+function conceptName(batch: string, angle: AngleListRow, theme: ThemeListRow): string {
+  return `${batch}-${angle.name}-${theme.name}`;
+}
+
+/**
+ * The pairing itself, plus everything the concept INHERITS from its angle (PRD §5.7: "everything
+ * derivable from the Angle must auto-fill"). Derived from the angle and theme rows rather than
+ * retyped, so a fixture can never disagree with what `listConcepts` joins in.
+ */
+function pairing(batch: string, angle: AngleListRow, theme: ThemeListRow) {
+  return {
+    batch,
+    angleId: angle.id,
+    themeId: theme.id,
+    name: conceptName(batch, angle, theme),
+    angleName: angle.name,
+    themeName: theme.name,
+    personaName: angle.personaName,
+    productName: angle.productName,
+    description: angle.description,
+    painPoints: angle.painPoints,
+    usp: angle.usp,
+  };
+}
+
+const bodyClock = demoAngle(ANGLE_BODY_CLOCK_ID);
+const notYourAge = demoAngle(ANGLE_NOT_YOUR_AGE_ID);
+const daylight = demoAngle(ANGLE_DAYLIGHT_ID);
+const ninetyMinutes = demoAngle(ANGLE_NINETY_MINUTES_ID);
+
+/**
+ * Four concepts for Niagara Sleep Solutions (PRD §5.7): each one angle paired with one theme, each
+ * pairing distinct, spread across three batches and across all four of the pre-Approved internal
+ * states of the video track — `videos_revisions`, `video_editing_in_progress`, `ad_submitted` and
+ * `sent_to_video_editor`, in `@tas/domain/state` terms. None of them is `approved` or `launched`, so
+ * `isClientTrackOpen` is false on all four and the client bar stays shut on every demo row; each
+ * therefore also sits at the first client status, `pending_for_approval`.
+ *
+ * `angleName`, `themeName`, `personaName`, `productName`, `description`, `painPoints` and `usp` are
+ * what `listConcepts` inherits from the angle, so the fixtures satisfy `ConceptListRow[]` and the
+ * Concepts page reads demo rows and database rows through one type.
+ *
+ * The array is in `updated_at` descending order, the order `listConcepts` returns, so a test can
+ * compare the two directly. The oldest batch has travelled furthest down the internal track.
+ */
+export const demoConcepts: ConceptListRow[] = [
   {
-    ...base(CONCEPT_ID, '2026-08-20T12:00:00.000Z', '2026-09-11T17:05:00.000Z'),
+    ...base(CONCEPT_NOT_YOUR_AGE_ID, '2026-08-29T09:45:00.000Z', '2026-09-14T11:20:00.000Z'),
     brandId: DEMO_BRAND_ID,
-    angleId: bodyClockAngle.id,
-    themeId: problemSolutionTheme.id,
-    batch: demoConceptBatch,
-    name: `${demoConceptBatch}-${bodyClockAngle.name}-${problemSolutionTheme.name}`,
+    ...pairing('B2', notYourAge, demoTheme(THEME_GREEN_SCREEN_ID)),
+    category: 'New',
+    conceptStyle: 'Editing',
+    formats: ['Video', 'Static'],
+    adInspoLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=982254173318827',
+      'https://foreplay.example/boards/green-screen-reaction',
+    ],
+    hookExamples:
+      '"My doctor wrote \'peri-menopausal\' on the notes and sent me home. Here is what she did not write." / "Three forty-seven. Every night. Ask me how I know what the ceiling looks like." / "Reading the thread where four hundred women describe the exact same night."',
+    scriptIdea:
+      'Creator stands beside a full-screen grab of the r/Menopause thread about 3am waking and reads two comments aloud, tapping the screen as she goes — the green screen carries the proof so the script never has to claim it. She lands on the line about being told it is just her age, then cuts to the blanket: one shot of the quilted channels, one sentence on pressure without heat. Closes on her own bed at 3am with the lamp off and the ninety-night trial on screen.',
+    internalStatus: 'video_editing_in_progress',
+    clientStatus: 'pending_for_approval',
+  },
+  {
+    ...base(CONCEPT_BODY_CLOCK_ID, '2026-08-20T12:00:00.000Z', '2026-09-11T17:05:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...pairing('B1', bodyClock, demoTheme(THEME_PROBLEM_SOLUTION_ID)),
     category: 'New',
     conceptStyle: 'Filming',
+    formats: ['Video', 'Static'],
+    adInspoLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=1204339857741622',
+      'https://www.tiktok.com/@nightshiftnurselife/video/7412906633401285934',
+    ],
     hookExamples:
       '"Six years of nights. It is not you that is broken, it is the rota." / "If you can sleep at 9am in a bright room, you are not tired — you are equipped." / "Nurses: stop calling this a sleep problem."',
     scriptIdea:
       'Open on a nurse pulling into the driveway in full morning sun, still in scrubs. Two seconds of the problem: bins, dog, daylight through thin curtains. He says the line about the rota being the abnormal thing. Cut to the blanket going on, one line on breathable weight versus sedation, then the same man asleep with the room still bright. End on him leaving for the 19:00 shift clear-eyed, with the trial window on screen.',
+    internalStatus: 'videos_revisions',
+    clientStatus: 'pending_for_approval',
+  },
+  {
+    ...base(CONCEPT_DAYLIGHT_ID, '2026-08-27T15:30:00.000Z', '2026-09-09T08:50:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...pairing('B2', daylight, demoTheme(THEME_POV_ID)),
+    category: 'Iteration',
+    conceptStyle: 'AI Concept',
+    formats: ['Motion Graphic', 'Video'],
+    adInspoLinks: ['https://www.youtube.com/watch?v=nm1TxQj9IsQ'],
+    hookExamples:
+      '"POV: your bedroom at 3am versus your bedroom at 9am. Same room. Ninety times the light." / "The curtains are not the problem. The number in the corner is." / "Your body cannot tell the time. It can only count photons."',
+    scriptIdea:
+      'Split frame, held for the whole ad: left side is the room at 03:00, right side the same room at 09:00, a real lux meter burned into each corner. The voiceover says the shift worker is not failing at sleep, he is being out-lit a hundred to one. The mask goes on over the right-hand frame and that side drops to the left-hand reading, meter and all. One line that it travels to the on-call room, then the offer. The meter must be filmed live on the day, never added in post.',
+    internalStatus: 'ad_submitted',
+    clientStatus: 'pending_for_approval',
+  },
+  {
+    ...base(CONCEPT_NINETY_MINUTES_ID, '2026-09-01T10:15:00.000Z', '2026-09-04T16:35:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...pairing('B3', ninetyMinutes, demoTheme(THEME_YAPPER_ID)),
+    category: 'Iteration',
+    conceptStyle: 'Filming',
+    formats: ['Video', 'Carousel'],
+    adInspoLinks: [
+      'https://www.tiktok.com/@thepostpartumplan/video/7385012994771635745',
+      'https://foreplay.example/boards/yapper-style-dtc',
+    ],
+    hookExamples:
+      '"Nobody is giving you eight hours. I am talking about the ninety minutes you already have." / "It blocks light, not sound. You will still hear him. That is the entire point." / "The handover is at seven. This is what I do with it."',
+    scriptIdea:
+      'One creator, one take, straight down the barrel, no B-roll: a parent on the sofa in a bright east-facing flat during the morning handover. She says out loud that more sleep is not on offer and she has stopped listening to anyone who promises it, then sells the window she actually gets. The objection goes in the first ten seconds — blocks light, not sound — and she holds the mask up to camera while she says it. Ends on her lying down with the room still bright and the monitor audibly on.',
+    internalStatus: 'sent_to_video_editor',
+    clientStatus: 'pending_for_approval',
   },
 ];

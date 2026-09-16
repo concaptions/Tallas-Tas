@@ -270,14 +270,15 @@ describe('angle queries', () => {
     expectTypeOf<AngleInput>().toHaveProperty('clientNotes');
   });
 
-  it('keeps the demo products’ concept counts unchanged by the three new angles', async () => {
+  it('keeps the demo products’ concept counts consistent with the four demo concepts', async () => {
     const { db, brandId } = await seeded();
 
     const rows = await listAngles(db, brandId);
 
-    // The concept still hangs off the body-clock angle alone (PRD §5.7), so `listProducts` reports
-    // the same 1 / 0 / 0 it did with two angles; the fixtures stay consistent with `demoProducts`.
+    // Four concepts hang off four of these five angles (PRD §5.7): two on blanket angles and two on
+    // mask angles, none on the bundle angle, so `listProducts` reports 2 / 2 / 0 and the fixtures
+    // stay consistent with `demoProducts`.
     expect(rows.filter((row) => row.productId === demoProducts[0]?.id)).toHaveLength(2);
-    expect(demoProducts.map((product) => product.conceptCount)).toEqual([1, 0, 0]);
+    expect(demoProducts.map((product) => product.conceptCount)).toEqual([2, 2, 0]);
   });
 });

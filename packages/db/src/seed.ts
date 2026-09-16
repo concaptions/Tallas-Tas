@@ -73,7 +73,8 @@ async function insertOne<T extends PgTable>(
  * constraint wants. The derived columns go the same way — `productName` and `personaName` are the
  * names `listPersonas` and `listAngles` join in, `conceptCount` is the linked-concept count
  * `listProducts` counts and `usedByBrandCount` the distinct-brand count `listThemes` counts, none of
- * them a column of the table the row is inserted into.
+ * them a column of the table the row is inserted into. The concept fixtures carry five more derived
+ * keys, stripped by `scopedConcept` below, which is deliberately not folded into this list.
  */
 type Derived = 'brandId' | 'productName' | 'personaName' | 'conceptCount' | 'usedByBrandCount';
 
@@ -85,6 +86,25 @@ function scoped<T extends { brandId: string | null }>(row: T): Omit<T, Derived> 
   delete rest['conceptCount'];
   delete rest['usedByBrandCount'];
   return rest as Omit<T, Derived>;
+}
+
+/**
+ * The concept fixtures' derived keys. A concept inherits seven fields from its angle
+ * (`listConcepts`), and three of them — `description`, `painPoints` and `usp` — are named after real
+ * columns on OTHER tables: `personas.pain_points` is a column a persona fixture legitimately
+ * carries. So this list is applied to concepts only, and `scoped` above keeps the shared list it
+ * can safely apply to every table.
+ */
+type ConceptDerived = Derived | 'angleName' | 'themeName' | 'description' | 'painPoints' | 'usp';
+
+function scopedConcept<T extends { brandId: string | null }>(row: T): Omit<T, ConceptDerived> {
+  const rest: Record<string, unknown> = { ...scoped(row) };
+  delete rest['angleName'];
+  delete rest['themeName'];
+  delete rest['description'];
+  delete rest['painPoints'];
+  delete rest['usp'];
+  return rest as Omit<T, ConceptDerived>;
 }
 
 /**
@@ -142,7 +162,12 @@ export async function seed(db: Db): Promise<SeedResult> {
   const seededThemes = await db.insert(themes).values(demoThemes.map(scoped)).returning();
   const seededPersonas = await scope.insert(personas, demoPersonas.map(scoped)).returning();
   const seededAngles = await scope.insert(angles, demoAngles.map(scoped)).returning();
-  const seededConcepts = await scope.insert(concepts, demoConcepts.map(scoped)).returning();
+  const seededConcepts = await scope
+    .insert(
+      concepts,
+      demoConcepts.map((row) => scopedConcept(row)),
+    )
+    .returning();
 
   return {
     agency,

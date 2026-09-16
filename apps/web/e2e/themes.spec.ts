@@ -65,11 +65,15 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
       await expect(card.locator('[data-slot="theme-usage"]')).not.toHaveText('');
     }
 
-    // Zero reads as words, never "0 brands"; the one used theme reads singular.
+    // Zero reads as words, never "0 brands"; a used theme reads singular. The demo brand's four
+    // concepts sit on four different themes, and the aggregate counts distinct BRANDS, so four cards
+    // read "Used by 1 brand" and the remaining two read the worded zero.
     const used = cards.filter({ hasText: PROBLEM_SOLUTION });
     await expect(used.locator('[data-slot="theme-usage"]')).toHaveText('Used by 1 brand');
-    await expect(page.getByText('Used by no brands yet')).toHaveCount(5);
+    await expect(page.getByText('Used by 1 brand')).toHaveCount(4);
+    await expect(page.getByText('Used by no brands yet')).toHaveCount(2);
     await expect(page.getByText('0 brands')).toHaveCount(0);
+    await expect(page.getByText('Used by 4 brands')).toHaveCount(0);
 
     // The count line is the platform's, not the brand's — the point of a global library.
     await expect(page.locator('[data-slot="theme-count"]')).toHaveText(

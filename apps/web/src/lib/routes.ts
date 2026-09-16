@@ -10,7 +10,17 @@ export const personasPath = '/app/personas';
 export const productsPath = '/app/products';
 export const anglesPath = '/app/angles';
 export const themesPath = '/app/themes';
+export const conceptsPath = '/app/concepts';
 export const designSystemPath = '/design-system';
+
+/**
+ * One concept's own route segment (PRD §5.7). The Concepts detail page is a real page, not a side
+ * panel, so the id belongs in the path; `encodeURIComponent` keeps a non-uuid id from ever
+ * producing a second segment.
+ */
+export function conceptPath(id: string): string {
+  return `${conceptsPath}/${encodeURIComponent(id)}`;
+}
 
 /** Public trees: the path itself and everything below it (`/sign-in/factor-one`). */
 const publicTrees = [signInPath, signUpPath];

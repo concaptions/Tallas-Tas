@@ -84,6 +84,12 @@ import {
 import { GlobalBadge } from '@/app/app/themes/global-badge';
 import { ThemeCard } from '@/app/app/themes/theme-card';
 
+import {
+  ConceptNamePreviewStory,
+  ConceptsBoardStory,
+  ConceptsViewToggleStory,
+} from './concepts.stories';
+
 export const metadata = {
   title: 'Design system — TAS Creative Platform',
 };
@@ -756,6 +762,32 @@ export default function DesignSystemPage() {
             badge={<StatusChip tone={chipTone(ON_HOLD.label)} label={ON_HOLD.label} />}
           />
           <StepRow label="Ad Submitted" tip="Editor uploaded a cut." state="next" isLast />
+        </div>
+      </Section>
+
+      <Section
+        title="Concepts: view toggle, board and auto-name"
+        note="The three shapes /app/concepts introduces. Mounted from the route's own modules, never re-drawn here."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              view toggle — two controls, no pill, written to ?view=
+            </h3>
+            <ConceptsViewToggleStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              board — one column per internal status, empties kept, count on the status chip
+            </h3>
+            <ConceptsBoardStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              auto-name — font-mono, never an input, complete and half-filled
+            </h3>
+            <ConceptNamePreviewStory />
+          </div>
         </div>
       </Section>
 

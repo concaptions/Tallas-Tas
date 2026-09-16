@@ -50,7 +50,7 @@ describe('product queries', () => {
     // Ordered by updated_at desc, not by insertion order.
     const updated = rows.map((row) => row.updatedAt.getTime());
     expect(updated).toEqual([...updated].sort((a, b) => b - a));
-    expect(rows.map((row) => row.conceptCount)).toEqual([1, 0, 0]);
+    expect(rows.map((row) => row.conceptCount)).toEqual([2, 2, 0]);
     // The optional column is visibly optional: one product has no collection link.
     expect(rows.filter((row) => row.collectionLink === null)).toHaveLength(1);
   });
@@ -59,7 +59,7 @@ describe('product queries', () => {
     const { db, brandId } = await seeded();
     const target = demoProduct();
 
-    expect((await getProductById(db, brandId, target.id))?.conceptCount).toBe(1);
+    expect((await getProductById(db, brandId, target.id))?.conceptCount).toBe(2);
 
     await db
       .update(concepts)
