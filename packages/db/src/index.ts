@@ -1,3 +1,5 @@
+export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
+export type { AngleInput, AngleListRow } from './angles';
 export { baseColumns } from './columns';
 export { createDb, createNeonDb, drizzleConfig } from './db';
 export type { Db, NeonDb, Schema } from './db';

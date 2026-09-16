@@ -42,3 +42,22 @@ export const awarenessStages = [
 ] as const;
 export type AwarenessStage = (typeof awarenessStages)[number];
 export const awarenessStageEnum = pgEnum('awareness_stage', awarenessStages);
+
+/**
+ * The formats a strategist asks an angle to be built in (`angles.formats`), PRD §5.6, in the fixed
+ * order the page renders them. The column itself is `jsonb` because Type and Formats are
+ * multi-selects and a row carries a set, not a value; this enum is the shared vocabulary that
+ * vocabulary is drawn from, so a component imports `angleFormats` instead of writing a string
+ * literal, exactly as `awarenessStages` is imported for the single-select.
+ */
+export const angleFormats = ['Static', 'Video', 'Carousel', 'Motion Graphic'] as const;
+export type AngleFormat = (typeof angleFormats)[number];
+export const angleFormatEnum = pgEnum('angle_format', angleFormats);
+
+/**
+ * The multi-select PRD §5.6 calls Type (`angles.type`): what the hypothesis leans on. Same
+ * arrangement as `angleFormats` — a `jsonb` set of values, this enum naming them once.
+ */
+export const angleTypes = ['Emotional', 'Functional', 'Identity', 'Critical'] as const;
+export type AngleType = (typeof angleTypes)[number];
+export const angleTypeEnum = pgEnum('angle_type', angleTypes);

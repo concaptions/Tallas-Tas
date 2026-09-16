@@ -73,7 +73,7 @@ describe('migration 0002 on PGlite', () => {
     expect(await db.select().from(themes)).toEqual(demoThemes);
     expect(await db.select().from(concepts)).toEqual(demoConcepts);
     expect(demoProducts).toHaveLength(3);
-    expect(demoAngles).toHaveLength(2);
+    expect(demoAngles).toHaveLength(5);
   });
 
   it('rejects a theme that carries a brand: the global library is a check constraint', async () => {

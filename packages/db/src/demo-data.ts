@@ -1,6 +1,7 @@
+import type { AngleListRow } from './angles';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
-import type { Angle, Concept, Theme } from './schema';
+import type { Concept, Theme } from './schema';
 
 /**
  * The single source of the demo content: the fixtures the app serves in DEMO MODE (no Clerk key, so
@@ -34,6 +35,9 @@ const THEME_PROBLEM_SOLUTION_ID = '44444444-4444-4444-8444-000000000001';
 const THEME_GREEN_SCREEN_ID = '44444444-4444-4444-8444-000000000002';
 const ANGLE_BODY_CLOCK_ID = '55555555-5555-4555-8555-000000000001';
 const ANGLE_NINETY_MINUTES_ID = '55555555-5555-4555-8555-000000000002';
+const ANGLE_NOT_YOUR_AGE_ID = '55555555-5555-4555-8555-000000000003';
+const ANGLE_DAYLIGHT_ID = '55555555-5555-4555-8555-000000000004';
+const ANGLE_THERMOSTAT_ID = '55555555-5555-4555-8555-000000000005';
 const CONCEPT_ID = '66666666-6666-4666-8666-000000000001';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
@@ -225,35 +229,145 @@ export const demoPersonas: PersonaListRow[] = [
 ];
 
 /** The shift-worker angle, named here because the concept's auto-generated name is built from it. */
-const bodyClockAngle: Angle = {
+const bodyClockAngle: AngleListRow = {
   ...base(ANGLE_BODY_CLOCK_ID, '2026-08-14T13:00:00.000Z', '2026-09-11T09:40:00.000Z'),
   brandId: DEMO_BRAND_ID,
   personaId: PERSONA_SHIFT_ID,
+  personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
   productId: PRODUCT_BLANKET_ID,
+  productName: 'Niagara Deep Sleep Weighted Blanket',
   name: 'Your Body Clock Is Not Broken',
   description:
     'Hypothesis: shift workers reject sleep products because every one of them implies they are doing something wrong. Reframe the problem as occupational, not personal — the rota is the abnormal thing, not him — and the weighted blanket becomes equipment for the job rather than a wellness purchase. We expect this to lift cold-traffic hook rate among the healthcare audience and cut the "this is not for me" objection in comments.',
   painPoints:
     'Cannot fall asleep in daylight. Wakes every ninety minutes. Melatonin leaves him groggy for the first hours of a shift. Treats his exhaustion as a personal failing.',
   usp: 'Breathable weighted construction that signals sleep by pressure instead of sedation, so it works at 09:00 in a bright room and leaves nothing in his system when he clocks in at 19:00.',
-  type: 'Identity',
+  type: ['Identity', 'Emotional'],
+  formats: ['Static', 'Video'],
+  adInspoLinks: [
+    'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=1204339857741622',
+    'https://www.tiktok.com/@nightshiftnurselife/video/7412906633401285934',
+  ],
+  potential:
+    'High — the only angle we have that speaks to the occupational audience in their own terms.',
+  winning: true,
+  internalNotes:
+    'Built off the r/nursing thread the strategist pulled in the August research round. Keep the word "wellness" out of every script; two of the three nurses we interviewed used it as an insult. Media buyer wants this tested against the generic bedtime framing at equal spend before we scale.',
+  clientNotes:
+    'This is the one we would like to lead the batch with: it speaks to nurses and shift workers as professionals, not as people who are failing at sleep.',
 };
 
-/** One angle per persona (PRD §5.6): the hypothesis, its pain points and its USP. */
-export const demoAngles: Angle[] = [
+/**
+ * Five angles for Niagara Sleep Solutions (PRD §5.6), spread across the three seeded personas —
+ * Marcus and Denise carry two each, Priya one — so the page shows a persona appearing more than
+ * once and every product link resolving to a different row. Each is a real hypothesis sentence, its
+ * pain points and its USP, with the formats it should be built in and the ads it was inspired by.
+ * `personaName` and `productName` are the names `listAngles` joins in, so the fixtures satisfy
+ * `AngleListRow[]` and the Angles page reads demo rows and database rows through one type.
+ *
+ * The array is in `updated_at` descending order, the order `listAngles` returns, so a test can
+ * compare the two directly.
+ */
+export const demoAngles: AngleListRow[] = [
+  {
+    ...base(ANGLE_NOT_YOUR_AGE_ID, '2026-08-18T09:20:00.000Z', '2026-09-13T11:15:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    personaId: PERSONA_PERI_ID,
+    personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
+    productId: PRODUCT_BLANKET_ID,
+    productName: 'Niagara Deep Sleep Weighted Blanket',
+    name: 'It Is Not Just Your Age',
+    description:
+      'Hypothesis: peri-menopausal women have been told their 3am waking is something to accept, so "sleep better" reads as another brand agreeing with the doctor who dismissed them. Lead with the dismissal itself — say the sentence back to her — and the product stops being a comfort item and becomes the first thing that took her seriously. We expect the higher thumb-stop in the 45-55 segment to come from the opening line alone, and the ninety-night trial to carry the conversion.',
+    painPoints:
+      'Wakes at the same time every night drenched and spends two hours awake with her mind on work. Too hot with the duvet, too cold without it. Every cooling product she has bought trapped heat. Was told by a GP that it is just her age.',
+    usp: 'A weighted blanket whose fill is quilted into breathable channels, so the pressure that keeps her asleep does not become the heat that wakes her — the one combination the cooling sheets she already wasted money on could not manage.',
+    type: ['Emotional', 'Critical'],
+    formats: ['Static', 'Video', 'Carousel'],
+    adInspoLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=982254173318827',
+      'https://www.instagram.com/reel/C9xRt2LsK4pM/',
+    ],
+    potential:
+      'High — the largest untapped segment in the account and the only angle that names the dismissal out loud.',
+    winning: true,
+    internalNotes:
+      'Copy has to be checked by someone who has lived it; the first draft read as a brand explaining menopause to women who have it. No lavender, no candles, no soft-focus bathroom. The claim about breathable channels needs the fabric spec on screen or the media buyer will not run it.',
+    clientNotes:
+      'A direct, unsentimental angle for the 45-55 audience. It opens on the line women in this group hear from their doctors and answers it with the product spec rather than with reassurance.',
+  },
   bodyClockAngle,
+  {
+    ...base(ANGLE_DAYLIGHT_ID, '2026-08-21T14:45:00.000Z', '2026-09-10T08:25:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    personaId: PERSONA_SHIFT_ID,
+    personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
+    productId: PRODUCT_MASK_ID,
+    productName: 'Niagara Cooling Blackout Sleep Mask',
+    name: 'Make 9am Look Like 3am',
+    description:
+      'Hypothesis: the shift worker’s blocker is not willpower, it is photons — his bedroom at 09:00 is roughly a hundred times brighter than his bedroom at 03:00, and no amount of trying harder changes that. Make the ad a measurement rather than a promise: put the lux reading on screen before and after. We expect a concrete, checkable number to outperform every comfort claim with an audience that reads study abstracts for fun.',
+    painPoints:
+      'Sleeps in full daylight behind thin rented curtains. Wakes to every delivery and to the sun moving across the room. Has tried blackout blinds he is not allowed to fit in a rental. Anything over the eyes so far has either slid off or cooked his face.',
+    usp: 'A contoured blackout mask with a cooling insert that seals at the nose bridge, so the light goes whatever the curtains do — and it travels with him to the on-call room, which a blind never will.',
+    type: ['Functional'],
+    formats: ['Static', 'Video', 'Motion Graphic'],
+    adInspoLinks: ['https://www.youtube.com/watch?v=nm1TxQj9IsQ'],
+    potential:
+      'Medium — narrow audience, but the cheapest angle in the batch to produce and the easiest to prove on camera.',
+    winning: false,
+    internalNotes:
+      'The motion graphic is the whole angle: lux meter reading in the corner, curtains open, mask on, number drops. Needs a real meter on the shoot day, not a post-production overlay — if a nurse works out we faked the number the comments will end the angle.',
+    clientNotes: null,
+  },
   {
     ...base(ANGLE_NINETY_MINUTES_ID, '2026-08-15T10:30:00.000Z', '2026-09-09T15:20:00.000Z'),
     brandId: DEMO_BRAND_ID,
     personaId: PERSONA_PARENT_ID,
+    personaName: 'Priya — the new parent running on broken sleep',
     productId: PRODUCT_MASK_ID,
+    productName: 'Niagara Cooling Blackout Sleep Mask',
     name: 'Sleep In The Ninety Minutes You Actually Get',
     description:
       'Hypothesis: new parents have stopped responding to "sleep better" because more sleep is not on offer. Sell the use of the window they already have — the morning handover — instead of the length of the night. Narrow, concrete and immediately testable, which we expect to beat the generic bedtime framing on both hook rate and add-to-cart.',
     painPoints:
       'The only sleep window is in full daylight. Too hot and too alert to drop off. Cannot block sound because of the monitor. Feels selfish spending anything on herself.',
     usp: 'Contoured blackout that clears the eyes with a cooling insert, blocking light only — so the two-hour handover becomes real sleep and she still hears the baby.',
-    type: 'Functional',
+    type: ['Functional', 'Emotional'],
+    formats: ['Video', 'Carousel'],
+    adInspoLinks: [
+      'https://www.tiktok.com/@thepostpartumplan/video/7385012994771635745',
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=760118443925514',
+    ],
+    potential:
+      'High — the cheapest product in the range at the price point this audience will approve for themselves.',
+    winning: false,
+    internalNotes:
+      'Every script must say "blocks light, not sound" in the first ten seconds; the objection about not hearing the baby killed the first round of comments before anyone reached the offer. Shoot in a real flat with east-facing windows, not the studio.',
+    clientNotes:
+      'Written for the parental-leave audience. It sells the morning handover window rather than a full night, which is the only promise this group still believes.',
+  },
+  {
+    ...base(ANGLE_THERMOSTAT_ID, '2026-08-25T16:10:00.000Z', '2026-09-06T14:05:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    personaId: PERSONA_PERI_ID,
+    personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
+    productId: PRODUCT_RESET_BUNDLE_ID,
+    productName: 'Niagara Night Reset Bundle (Blanket + Mask)',
+    name: 'Nobody Wins The Thermostat Argument',
+    description:
+      'Hypothesis: the nightly fight over the bedroom temperature is a shared problem sold as a personal one, so the bundle can be pitched to the couple rather than to her alone. Put both people in the ad and let the product end the argument instead of winning it. We expect a second decision-maker in the room to lift average order value, because the bundle stops looking like her purchase and starts looking like theirs.',
+    painPoints:
+      'Two years of the same argument about the thermostat every night. Changing soaked sheets at 03:30 while her husband sleeps through it. Resents being the only one whose sleep is treated as a problem to manage.',
+    usp: 'A blanket and mask pairing that lets each side of the bed run at its own temperature, so the room does not have to be set to whoever is suffering more that night.',
+    type: ['Emotional'],
+    formats: ['Video'],
+    adInspoLinks: ['https://www.instagram.com/reel/C7pLd4vNqR2/'],
+    potential: 'Medium — untested with couples, but the bundle is the highest-margin line we sell.',
+    winning: false,
+    internalNotes:
+      'Do not let this become a comedy sketch about a nagging wife; the reference ad gets close to it. The husband has to be an ally by the second beat or the angle reads as mocking the audience we are selling to.',
+    clientNotes: null,
   },
 ];
 

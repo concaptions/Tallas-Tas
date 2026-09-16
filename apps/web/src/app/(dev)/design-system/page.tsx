@@ -59,6 +59,18 @@ import {
 } from '@tas/domain/state';
 import { brandRoles, brandStatuses } from '@tas/domain';
 
+import {
+  ANGLE_FORMATS,
+  ANGLE_TYPES,
+  chipLabel,
+  FORMAT_CHIP_TONE,
+  formatChipRow,
+  overflowLabel,
+  PERSONA_CHIP_TONE,
+  PRODUCT_CHIP_TONE,
+  TYPE_SOON_HINT,
+} from '@/app/app/angles/fields';
+import { InspoCard } from '@/app/app/angles/inspo-card';
 import { conceptCountLabel, conceptCountTone, EM_DASH, hostLabel } from '@/app/app/products/fields';
 
 export const metadata = {
@@ -103,6 +115,41 @@ const SAMPLE_PRODUCTS = [
     collectionLink: null,
     conceptCount: 0,
   },
+] as const;
+
+/** Three rows in the Angles shape: both links, a four-format row that collapses, and neither link. */
+const SAMPLE_ANGLES = [
+  {
+    name: 'It Is Not Just Your Age',
+    personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
+    productName: 'Niagara Deep Sleep Weighted Blanket',
+    formats: ['Static', 'Video', 'Carousel'],
+  },
+  {
+    name: 'Make 9am Look Like 3am',
+    personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
+    productName: 'Niagara Cooling Blackout Sleep Mask',
+    formats: ['Static', 'Video', 'Carousel', 'Motion Graphic'],
+  },
+  {
+    name: 'Unlinked draft',
+    personaName: null,
+    productName: null,
+    formats: [],
+  },
+] as const satisfies readonly {
+  name: string;
+  personaName: string | null;
+  productName: string | null;
+  formats: readonly string[];
+}[];
+
+/** One of each source `parseInspoLink` recognises, plus a URL it does not. */
+const SAMPLE_INSPO = [
+  'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=982254173318827',
+  'https://www.tiktok.com/@thepostpartumplan/video/7385012994771635745',
+  'https://www.youtube.com/watch?v=nm1TxQj9IsQ',
+  'https://swipe-file.example/collections/sleep-hooks-q3',
 ] as const;
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
@@ -463,6 +510,111 @@ export default function DesignSystemPage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Linked-row chips, format chips and the ad-inspiration card (Angles)"
+        note="What the Angles page introduces. A chip that carries a linked row's name is info for a persona and mute for a product, and it shows the half of the name before the em dash with the whole string in the cell's title. Format chips are accent, always in ANGLE_FORMATS order, and collapse to +N past three so a row never wraps. The ad-inspiration card is built from parseInspoLink alone — no fetch, no embed dependency, no loading state — so an unrecognised URL still renders a source, a host and a title."
+      >
+        <div className="flex flex-col gap-5 rounded-card border border-line bg-surface p-5">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Persona</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Formats</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {SAMPLE_ANGLES.map((row) => {
+                  const chips = formatChipRow(row.formats);
+                  return (
+                    <TableRow key={row.name}>
+                      <TableCell className="font-medium text-text">{row.name}</TableCell>
+                      <TableCell title={row.personaName ?? undefined}>
+                        {row.personaName === null ? (
+                          <span className="text-text4">{EM_DASH}</span>
+                        ) : (
+                          <StatusChip tone={PERSONA_CHIP_TONE} label={chipLabel(row.personaName)} />
+                        )}
+                      </TableCell>
+                      <TableCell title={row.productName ?? undefined}>
+                        {row.productName === null ? (
+                          <span className="text-text4">{EM_DASH}</span>
+                        ) : (
+                          <StatusChip tone={PRODUCT_CHIP_TONE} label={chipLabel(row.productName)} />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {chips.shown.length === 0 ? (
+                          <span className="text-text4">{EM_DASH}</span>
+                        ) : (
+                          <span className="flex flex-nowrap items-center gap-1">
+                            {chips.shown.map((entry) => (
+                              <StatusChip
+                                key={entry.key}
+                                tone={FORMAT_CHIP_TONE}
+                                label={entry.label}
+                              />
+                            ))}
+                            {chips.overflow === 0 ? null : (
+                              <StatusChip tone="mute" label={overflowLabel(chips.overflow)} />
+                            )}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="grid gap-2 border-t border-line pt-4 sm:grid-cols-2">
+            {SAMPLE_INSPO.map((url) => (
+              <InspoCard key={url} url={url} />
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <span className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              Format toggles, then the inert Type toggles
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {ANGLE_FORMATS.map((entry, index) => (
+                <span
+                  key={entry.key}
+                  className={
+                    index < 2
+                      ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase'
+                      : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase'
+                  }
+                >
+                  {entry.label}
+                </span>
+              ))}
+            </div>
+            <DisabledWrite hint={TYPE_SOON_HINT}>
+              <span className="flex flex-wrap items-center gap-2">
+                <SoonChip />
+                {ANGLE_TYPES.map((entry, index) => (
+                  <span
+                    key={entry.key}
+                    className={
+                      index === 0
+                        ? 'rounded-input border border-line2 bg-surface3 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text2 uppercase'
+                        : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text4 uppercase'
+                    }
+                  >
+                    {entry.label}
+                  </span>
+                ))}
+              </span>
+            </DisabledWrite>
           </div>
         </div>
       </Section>
