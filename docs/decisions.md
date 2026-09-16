@@ -107,3 +107,37 @@ Conventions fixed by this ticket:
 - Playwright declares `webServer` only when `apps/web/package.json` exists because it starts the
   server before it looks for tests. Vitest lists a workspace root only when it holds a package
   because it refuses a `projects` glob with no match.
+
+## D-010 · 2026-09-16 · Web app scaffold (TICKET-002)
+
+Dependencies added to `apps/web` (`@tas/web`), exact major pinned, minor and patch float with caret:
+
+- `next` 15 (15.5.x): the App Router host (D-007). `eslint.ignoreDuringBuilds` is on: `next build`
+  walks up to the root `eslint.config.js` and would run the same rules a second time; lint runs once
+  at the root (D-009).
+- `react` 19 and `react-dom` 19: the brief's React version; Next 15.5 lists `^19.0.0` as a peer.
+- `@types/react` 19 and `@types/react-dom` 19: typings for the above.
+- `tailwindcss` 4, `@tailwindcss/postcss` 4 and `postcss` 8: CSS-first Tailwind
+  (`@import "tailwindcss"` in `src/app/globals.css`) through the PostCSS plugin Next.js supports.
+- `clsx` 2 and `tailwind-merge` 3: the shadcn `cn` helper.
+- `class-variance-authority` 0.7: variant props for shadcn components.
+- `@radix-ui/react-slot` 1: `asChild` composition in the shadcn Button.
+
+Conventions fixed by this ticket:
+
+- shadcn/ui is set up by hand in the shape its manual installation documents (`components.json`
+  style `new-york`, base colour neutral, CSS variables, `@/` aliases, `cn` in `src/lib/utils.ts`).
+  The current CLI (`shadcn@4`) defaults to the Base UI preset and adds runtime packages (`shadcn`,
+  `cn`, `radix-ui`, `lucide-react`, `tw-animate-css`) the ticket does not need. `components.json`
+  stays valid for `shadcn add`. Chart and sidebar CSS variables are left out until a component needs
+  them; the CLI adds them together with that component.
+- Root `typescript`, `@types/node`, `vitest` and `@playwright/test` resolve from the root
+  `node_modules`; the app does not list them again.
+- `next-env.d.ts` is generated and references `.next/types/routes.d.ts`, so it is gitignored in
+  `apps/web` and ignored by the root ESLint config (the one root file this ticket touches). The app's
+  `typecheck` script runs `next typegen` before `tsc`, so `pnpm typecheck` passes on a fresh clone.
+- `apps/web/tsconfig.json` extends the base and pre-sets every option Next.js would otherwise write
+  back (`jsx`, `allowJs`, `incremental`, `lib`, the `next` plugin, `include`), so `next build` never
+  rewrites it.
+- `@next/eslint-plugin-next` is not added: root ESLint (D-009) already covers the app. It is a later
+  tooling ticket if its rules earn their keep.
