@@ -1,6 +1,7 @@
-import { agencies, createNeonDb, demoTeam, listTeam, type Db, type TeamListRow } from '@tas/db';
+import { createNeonDb, demoTeam, listTeam, type Db, type TeamListRow } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
+import { resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 
 /**
@@ -46,7 +47,7 @@ export interface DbConnection {
  * environment through `@tas/env` and `connect` opens Neon. A test injects `connect` to prove the
  * demo branch never constructs a client.
  */
-export interface TeamSourceDeps {
+export interface TeamSourceDeps extends BrandResolverDeps {
   readonly demoMode?: () => boolean;
   readonly connect?: (databaseUrl: string) => DbConnection;
 }
@@ -72,18 +73,6 @@ function inDemoMode(deps: TeamSourceDeps): boolean {
 }
 
 /**
- * The working agency: the first live one. The platform runs a single agency (TAS Digital) today, so
- * this is the exact counterpart of `liveBrandId` in `personas-source.ts` — a placeholder for the
- * membership-derived agency that arrives with the org switcher, not a permanent rule. Passing it to
- * `listTeam` is what keeps another tenant's people, and another tenant's brand names, out of the
- * table if a second agency is ever inserted before that switcher exists.
- */
-async function liveAgencyId(db: Db): Promise<string | null> {
-  const rows = await db.select().from(agencies);
-  return rows.find((row) => row.deletedAt === null)?.id ?? null;
-}
-
-/**
  * Every member of the agency, ordered by full name, each already carrying `roles`, `brandNames` and
  * `lastActiveAt`. The fixtures are already in that order and `brandNames` is already alphabetical
  * and de-duplicated, so the page never sorts.
@@ -96,7 +85,7 @@ export async function loadTeam(deps: TeamSourceDeps = {}): Promise<TeamListResul
     return { rows: demoTeam, source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const agencyId = await liveAgencyId(db);
+    const agencyId = await resolveLiveAgencyId(db, deps);
     const rows = agencyId === null ? [] : await listTeam(db, agencyId);
     return { rows, source: 'database' };
   });
@@ -117,7 +106,7 @@ export async function withAgencyScope<T>(
     throw new Error(DEMO_MUTATION_REFUSED);
   }
   return withDb(deps, async (db) => {
-    const agencyId = await liveAgencyId(db);
+    const agencyId = await resolveLiveAgencyId(db, deps);
     return agencyId === null ? null : run(db, agencyId);
   });
 }

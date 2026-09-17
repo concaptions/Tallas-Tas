@@ -90,6 +90,15 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   email code (the `+clerk_test` address accepts `424242`).
   Manual check after that: `pnpm dev`, sign up at `/sign-up`, create the agency organisation from the
   switcher on `/app`, and confirm the page shows your name and the organisation name.
+- Brand resolution from a real session (`resolveLiveBrand` in `apps/web/src/lib/data-source.ts`). The
+  single resolver maps the actor's active Clerk Organization to `agencies.clerk_org_id`, falls back to
+  the person's `memberships` row, and throws `AmbiguousBrandError` rather than guessing when more than
+  one agency is in scope with no actor. Every branch is unit tested with an injected `actorScope`
+  (`apps/web/src/lib/data-source.test.ts`), but the production default reads Clerk's `auth()`, which
+  needs keys. With the Clerk pair and a seeded `DATABASE_URL` exported: `pnpm dev`, sign in, and confirm
+  `/app` names the seeded brand. Expected once a second agency exists on the branch: a signed-in member
+  of agency A still sees only agency A's brand, and a request with no organisation selected fails loudly
+  with `AmbiguousBrandError` instead of rendering the other tenant's workspace.
 
 ## Local dev gotchas
 

@@ -1,5 +1,4 @@
 import {
-  brands,
   createNeonDb,
   demoBriefs,
   demoCopy,
@@ -11,6 +10,7 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
+import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 
 /**
@@ -26,7 +26,8 @@ import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
  * route through, so a visitor must be unable to reach real data.
  *
  * LIVE MODE (Clerk configured): a Neon connection opened per call and closed in a `finally`, the
- * actor's brand resolved from `brands`, then the scoped queries in `@tas/db`. No singleton.
+ * actor's brand resolved by the ONE `resolveLiveBrandId` in `data-source.ts` — never a private
+ * copy of it — then the scoped queries in `@tas/db`. No singleton.
  *
  * The fixtures and a seeded database are row-for-row identical, ids and joined creative names
  * included, so the page renders one branch either way. `demoCopy` already arrives in `updated_at`
@@ -84,8 +85,11 @@ export interface DbConnection {
  * Seams, for tests only. Production calls every function with no argument: `demoMode` reads the
  * environment through `@tas/env` and `connect` opens Neon. A test injects `connect` to prove the
  * demo branch never constructs a client.
+ *
+ * `actorScope` comes from `BrandResolverDeps` and is handed straight to `resolveLiveBrandId`, so a
+ * test can pin which agency's brand the live branch is allowed to resolve.
  */
-export interface CopySourceDeps {
+export interface CopySourceDeps extends BrandResolverDeps {
   readonly demoMode?: () => boolean;
   readonly connect?: (databaseUrl: string) => DbConnection;
 }
@@ -110,15 +114,6 @@ function inDemoMode(deps: CopySourceDeps): boolean {
   return (deps.demoMode ?? isDemoMode)();
 }
 
-/**
- * The working brand: the first live client workspace, never the parent template. A single-brand V0
- * shell needs no more; per-membership selection arrives with the brand switcher.
- */
-async function liveBrandId(db: Db): Promise<string | null> {
-  const rows = await db.select().from(brands);
-  return rows.find((row) => row.deletedAt === null && !row.isTemplate)?.id ?? null;
-}
-
 /** A brief row reduced to what the `<select>` needs; the name is the brief's own, never rebuilt. */
 function toCreativeOption(brief: { readonly id: string; readonly name: string }): CreativeOption {
   return { id: brief.id, name: brief.name };
@@ -133,7 +128,7 @@ export async function loadCopy(deps: CopySourceDeps = {}): Promise<CopyListResul
     return { rows: demoCopy, source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     const rows = brandId === null ? [] : await listCopy(db, brandId);
     return { rows, source: 'database' };
   });
@@ -145,7 +140,7 @@ export async function loadCreativeOptions(deps: CopySourceDeps = {}): Promise<Cr
     return demoBriefs.map(toCreativeOption);
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     return brandId === null ? [] : (await listBriefs(db, brandId)).map(toCreativeOption);
   });
 }
@@ -159,7 +154,7 @@ export async function loadCopyWorkspace(deps: CopySourceDeps = {}): Promise<Copy
     return { rows: demoCopy, creatives: demoBriefs.map(toCreativeOption), source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     if (brandId === null) {
       return { rows: [], creatives: [], source: 'database' as const };
     }
@@ -174,7 +169,7 @@ export async function loadCopyById(id: string, deps: CopySourceDeps = {}): Promi
     return { copy: demoCopy.find((row) => row.id === id) ?? null, source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     const copy = brandId === null ? null : await getCopyById(db, brandId, id);
     return { copy, source: 'database' };
   });
@@ -194,7 +189,7 @@ export async function withBrandScope<T>(
     throw new Error(DEMO_MUTATION_REFUSED);
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     return brandId === null ? null : run(db, brandId);
   });
 }

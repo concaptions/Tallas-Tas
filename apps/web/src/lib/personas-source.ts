@@ -1,5 +1,4 @@
 import {
-  brands,
   createNeonDb,
   demoPersonas,
   getPersonaById,
@@ -9,6 +8,7 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
+import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 
 /**
@@ -20,7 +20,8 @@ import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
  * the middleware lets every route through, so a visitor must be unable to reach real data.
  *
  * LIVE MODE (Clerk configured): a Neon connection opened per call and closed in a `finally`, the
- * actor's brand resolved from `brands`, then the scoped queries in `@tas/db`. No singleton.
+ * actor's brand resolved by the ONE `resolveLiveBrandId` in `data-source.ts` — never a private
+ * copy of it — then the scoped queries in `@tas/db`. No singleton.
  *
  * The fixtures and a seeded database are row-for-row identical, ids included, so the page renders
  * one branch either way.
@@ -47,8 +48,11 @@ export interface DbConnection {
  * Seams, for tests only. Production calls every function with no argument: `demoMode` reads the
  * environment through `@tas/env` and `connect` opens Neon. A test injects `connect` to prove the
  * demo branch never constructs a client.
+ *
+ * `actorScope` comes from `BrandResolverDeps` and is handed straight to `resolveLiveBrandId`, so a
+ * test can pin which agency's brand the live branch is allowed to resolve.
  */
-export interface PersonaSourceDeps {
+export interface PersonaSourceDeps extends BrandResolverDeps {
   readonly demoMode?: () => boolean;
   readonly connect?: (databaseUrl: string) => DbConnection;
 }
@@ -73,22 +77,13 @@ function inDemoMode(deps: PersonaSourceDeps): boolean {
   return (deps.demoMode ?? isDemoMode)();
 }
 
-/**
- * The working brand: the first live client workspace, never the parent template. A single-brand V0
- * shell needs no more; per-membership selection arrives with the brand switcher.
- */
-async function liveBrandId(db: Db): Promise<string | null> {
-  const rows = await db.select().from(brands);
-  return rows.find((row) => row.deletedAt === null && !row.isTemplate)?.id ?? null;
-}
-
 /** Every persona of the working brand, newest edit first, each already carrying `productName`. */
 export async function loadPersonas(deps: PersonaSourceDeps = {}): Promise<PersonaListResult> {
   if (inDemoMode(deps)) {
     return { rows: demoPersonas, source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     const rows = brandId === null ? [] : await listPersonas(db, brandId);
     return { rows, source: 'database' };
   });
@@ -103,7 +98,7 @@ export async function loadPersona(
     return { persona: demoPersonas.find((row) => row.id === id) ?? null, source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     const persona = brandId === null ? null : await getPersonaById(db, brandId, id);
     return { persona, source: 'database' };
   });
@@ -122,7 +117,7 @@ export async function withBrandScope<T>(
     throw new Error(DEMO_MUTATION_REFUSED);
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     return brandId === null ? null : run(db, brandId);
   });
 }

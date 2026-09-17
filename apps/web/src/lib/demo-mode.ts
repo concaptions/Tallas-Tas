@@ -28,7 +28,25 @@ export const DEMO_ACTOR: DemoActor = {
 export const DEMO_MODE_NOTICE =
   'Demo mode — sample data, changes are not saved. Connect Clerk and a database to go live.';
 
-/** Every mutation refused in demo mode answers with this. */
+/**
+ * THE refusal every Server Action returns in demo mode. One constant, imported by all thirteen
+ * action modules, because it is a user-facing sentence and thirteen copies is thirteen chances to
+ * disagree — which is exactly what happened: twelve said this and Personas said "Demo mode: connect
+ * a database to save changes."
+ *
+ * The wording is `DEMO_WRITE_HINT` from `@tas/ui` plus a full stop, because the disabled control's
+ * tooltip and the refusal its form would return have to be the same sentence; the visitor reads one
+ * of them before clicking and the other after. `demo-mode.test.ts` asserts the two against each
+ * other, so changing the tooltip fails here rather than drifting. The literal is repeated rather
+ * than imported: this module is pulled into every Server Action, and `@tas/ui` is a React barrel.
+ */
+export const DEMO_WRITE_REFUSAL = 'Sign in required to save changes.';
+
+/**
+ * The backstop, thrown (not returned) by the source layer's `withBrandScope` / `withAgencyScope` if
+ * a write ever reaches them in demo mode. It is a different sentence from `DEMO_WRITE_REFUSAL` on
+ * purpose: nobody should ever see it, so if it does surface it names the layer that caught it.
+ */
 export const DEMO_MUTATION_REFUSED =
   'Demo mode: sample data is read-only. Connect Clerk and a database to save changes.';
 

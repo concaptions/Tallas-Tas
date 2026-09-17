@@ -1,5 +1,4 @@
 import {
-  agencies,
   createNeonDb,
   demoPromotionRequests,
   demoReviewedPromotionRequests,
@@ -10,6 +9,7 @@ import {
 import { PROMOTION_STATUS_INITIAL, type PromotionStatusKey } from '@tas/domain/state';
 import { serverEnv } from '@tas/env';
 
+import { resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 
 /**
@@ -69,7 +69,7 @@ export interface DbConnection {
  * environment through `@tas/env` and `connect` opens Neon. A test injects `connect` to prove the
  * demo branch never constructs a client.
  */
-export interface PromotionSourceDeps {
+export interface PromotionSourceDeps extends BrandResolverDeps {
   readonly demoMode?: () => boolean;
   readonly connect?: (databaseUrl: string) => DbConnection;
 }
@@ -92,18 +92,6 @@ async function withDb<T>(deps: PromotionSourceDeps, query: (db: Db) => Promise<T
 
 function inDemoMode(deps: PromotionSourceDeps): boolean {
   return (deps.demoMode ?? isDemoMode)();
-}
-
-/**
- * The working agency: the first live one, exactly as `team-source.ts` resolves it. The platform runs
- * a single agency (TAS Digital) today, so this is a placeholder for the membership-derived agency
- * that arrives with the org switcher, not a permanent rule. Passing it down is what keeps another
- * tenant's requests — and another tenant's brand names — out of the table if a second agency is ever
- * inserted before that switcher exists.
- */
-async function liveAgencyId(db: Db): Promise<string | null> {
-  const rows = await db.select().from(agencies);
-  return rows.find((row) => row.deletedAt === null)?.id ?? null;
 }
 
 /**
@@ -165,7 +153,7 @@ export async function loadPromotionRequestsByStatus(
     return { rows, source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const agencyId = await liveAgencyId(db);
+    const agencyId = await resolveLiveAgencyId(db, deps);
     const rows = agencyId === null ? [] : await listPromotionRequests(db, agencyId, status);
     return { rows, source: 'database' };
   });
@@ -184,7 +172,7 @@ export async function loadPromotionRequest(
     return { request: demoRequestsById.find((row) => row.id === id) ?? null, source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const agencyId = await liveAgencyId(db);
+    const agencyId = await resolveLiveAgencyId(db, deps);
     const rows = agencyId === null ? [] : await listPromotionRequests(db, agencyId);
     return { request: rows.find((row) => row.id === id) ?? null, source: 'database' };
   });
@@ -208,7 +196,7 @@ export async function withAgencyScope<T>(
     throw new Error(DEMO_MUTATION_REFUSED);
   }
   return withDb(deps, async (db) => {
-    const agencyId = await liveAgencyId(db);
+    const agencyId = await resolveLiveAgencyId(db, deps);
     return agencyId === null ? null : run(db, agencyId);
   });
 }

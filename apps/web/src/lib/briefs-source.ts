@@ -1,6 +1,5 @@
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
-  brands,
   createNeonDb,
   demoBriefs,
   getBriefById,
@@ -18,6 +17,7 @@ import {
 } from '@tas/domain/state';
 import { serverEnv } from '@tas/env';
 
+import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 
 /**
@@ -32,7 +32,8 @@ import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
  * through, so a visitor must be unable to reach real data.
  *
  * LIVE MODE (Clerk configured): a Neon connection opened per call and closed in a `finally`, the
- * actor's brand resolved from `brands`, then the scoped queries in `@tas/db`. No singleton.
+ * actor's brand resolved by the ONE `resolveLiveBrandId` in `data-source.ts` — never a private
+ * copy of it — then the scoped queries in `@tas/db`. No singleton.
  *
  * The fixtures and a seeded database are row-for-row identical, ids and inherited names included,
  * so the page renders one branch either way. `demoBriefs` already arrives in `updated_at`
@@ -81,8 +82,11 @@ export interface DbConnection {
  * Seams, for tests only. Production calls every function with no argument: `demoMode` reads the
  * environment through `@tas/env` and `connect` opens Neon. A test injects `connect` to prove the
  * demo branch never constructs a client.
+ *
+ * `actorScope` comes from `BrandResolverDeps` and is handed straight to `resolveLiveBrandId`, so a
+ * test can pin which agency's brand the live branch is allowed to resolve.
  */
-export interface BriefSourceDeps {
+export interface BriefSourceDeps extends BrandResolverDeps {
   readonly demoMode?: () => boolean;
   readonly connect?: (databaseUrl: string) => DbConnection;
 }
@@ -167,15 +171,6 @@ function inDemoMode(deps: BriefSourceDeps): boolean {
 }
 
 /**
- * The working brand: the first live client workspace, never the parent template. A single-brand V0
- * shell needs no more; per-membership selection arrives with the brand switcher.
- */
-async function liveBrandId(db: Db): Promise<string | null> {
-  const rows = await db.select().from(brands);
-  return rows.find((row) => row.deletedAt === null && !row.isTemplate)?.id ?? null;
-}
-
-/**
  * Every brief of the working brand, newest edit first, each already carrying the concept name, the
  * angle name and the product name it inherits through its concept — all three null for a standalone.
  */
@@ -184,7 +179,7 @@ export async function loadBriefs(deps: BriefSourceDeps = {}): Promise<BriefListR
     return { rows: demoBriefs.map(toBriefRow), source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     const rows = brandId === null ? [] : await listBriefs(db, brandId);
     return { rows: rows.map(toBriefRow), source: 'database' };
   });
@@ -200,7 +195,7 @@ export async function loadBriefById(id: string, deps: BriefSourceDeps = {}): Pro
     return { brief: found === undefined ? null : toBriefRow(found), source: 'demo' };
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     const brief = brandId === null ? null : await getBriefById(db, brandId, id);
     return { brief: brief === null ? null : toBriefRow(brief), source: 'database' };
   });
@@ -220,7 +215,7 @@ export async function withBrandScope<T>(
     throw new Error(DEMO_MUTATION_REFUSED);
   }
   return withDb(deps, async (db) => {
-    const brandId = await liveBrandId(db);
+    const brandId = await resolveLiveBrandId(db, deps);
     return brandId === null ? null : run(db, brandId);
   });
 }
