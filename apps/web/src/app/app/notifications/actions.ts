@@ -12,7 +12,7 @@ import {
 } from '@tas/domain';
 import { z } from 'zod';
 
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withBrandScope } from '@/lib/notifications-source';
 import { notificationsPath } from '@/lib/routes';
 
@@ -64,13 +64,6 @@ export interface NotificationActionFailure {
 
 export type NotificationActionResult = NotificationActionSuccess | NotificationActionFailure;
 
-/**
- * The message the write shows when there is no database to write to. The house string, and the same
- * sentence as the tooltip on the disabled switches, so the page says one thing twice rather than two
- * things once.
- */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
-
 /** A `role="switch"` submits its next value as a string; nothing else is a boolean here. */
 const flag = z
   .union([z.literal('true'), z.literal('false')])
@@ -121,7 +114,7 @@ export async function setNotificationChannelAction(
   formData: FormData,
 ): Promise<NotificationActionResult> {
   if (isDemoMode()) {
-    return failure(DEMO_REFUSAL);
+    return failure(DEMO_WRITE_REFUSAL);
   }
 
   const parsed = channelSubmissionSchema.safeParse({

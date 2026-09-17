@@ -215,9 +215,9 @@ export const NO_COPY_NOTE =
 export const NO_MATCH_NOTE = 'No copy matches this search. Clear it to see every row.';
 
 /**
- * Why "New copy" is inert outside demo mode too: `createCopyAction` exists and is tested, but
- * creating a row is explicitly out of this ticket's scope, so the button would have nothing to
- * submit.
+ * Why "New copy" is inert outside demo mode too: creating a row is explicitly out of this ticket's
+ * scope, so there is no create action for the button to submit to. One ships with the CSV upload
+ * ticket; an exported Server Action nothing submits to would be dead code until then.
  */
 export const NEW_COPY_SOON_HINT = 'Creating a copy row ships with the CSV upload ticket';
 

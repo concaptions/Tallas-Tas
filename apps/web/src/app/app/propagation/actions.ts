@@ -6,7 +6,7 @@ import { listTeam, setPromotionRequestStatus } from '@tas/db';
 import { canReviewPromotion, promotionStatusLabel, type PromotionStatusKey } from '@tas/domain';
 import { z } from 'zod';
 
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withAgencyScope } from '@/lib/propagation-source';
 import { propagationPath } from '@/lib/routes';
 import { teamPageActorFrom } from '@/lib/team-actor';
@@ -72,13 +72,6 @@ export type PromotionActionResult = PromotionActionSuccess | PromotionActionFail
 
 /** The only two things a submission carries, named once so the row and the action agree. */
 export type PromotionFieldName = 'request' | 'note';
-
-/**
- * The message a write shows when there is no database to write to. The house string, and the same
- * sentence as the tooltip on the disabled buttons (criterion 10), so the page says one thing twice
- * rather than two things once.
- */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 /**
  * The two decisions, pinned to the domain vocabulary at COMPILE time. `satisfies` is what makes a
@@ -212,7 +205,7 @@ export async function approvePromotionAction(
   formData: FormData,
 ): Promise<PromotionActionResult> {
   if (isDemoMode()) {
-    return failure(DEMO_REFUSAL);
+    return failure(DEMO_WRITE_REFUSAL);
   }
 
   const parsed = approveSchema.safeParse({
@@ -238,7 +231,7 @@ export async function rejectPromotionAction(
   formData: FormData,
 ): Promise<PromotionActionResult> {
   if (isDemoMode()) {
-    return failure(DEMO_REFUSAL);
+    return failure(DEMO_WRITE_REFUSAL);
   }
 
   const parsed = rejectSchema.safeParse({

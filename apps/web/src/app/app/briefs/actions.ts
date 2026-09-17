@@ -39,7 +39,7 @@ import {
 import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/briefs-source';
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefPath, briefsPath } from '@/lib/routes';
 
 /**
@@ -119,9 +119,6 @@ export interface BriefActionFailure {
 }
 
 export type BriefActionResult = BriefActionSuccess | BriefActionFailure;
-
-/** The message the page shows when there is no database to write to. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 const NEEDS_ATTENTION = 'Some fields need attention before this can be saved.';
 
@@ -435,7 +432,7 @@ export async function createBriefAction(
   formData: FormData,
 ): Promise<BriefActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const parsed = parse(formData);
@@ -506,7 +503,7 @@ export async function updateBriefAction(
   formData: FormData,
 ): Promise<BriefActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const id = formData.get('id');
@@ -636,7 +633,7 @@ export async function toggleQaAction(
   formData: FormData,
 ): Promise<BriefActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const id = formData.get('id');

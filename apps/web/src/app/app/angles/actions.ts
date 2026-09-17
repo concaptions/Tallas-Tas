@@ -12,7 +12,7 @@ import {
 import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/angles-source';
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { anglesPath } from '@/lib/routes';
 
 /**
@@ -55,9 +55,6 @@ export interface AngleActionFailure {
 }
 
 export type AngleActionResult = AngleActionSuccess | AngleActionFailure;
-
-/** The message the panel shows when there is no database to write to. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 /** A text column: trimmed, and empty means NULL. */
 const text = z
@@ -189,7 +186,7 @@ export async function createAngleAction(
   formData: FormData,
 ): Promise<AngleActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const parsed = parse(formData);
@@ -221,7 +218,7 @@ export async function updateAngleAction(
   formData: FormData,
 ): Promise<AngleActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const id = formData.get('id');

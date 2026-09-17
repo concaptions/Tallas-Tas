@@ -34,7 +34,7 @@ import {
 import { z } from 'zod';
 
 import { CONCEPT_TRACK, withBrandScope } from '@/lib/concepts-source';
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { conceptPath, conceptsPath } from '@/lib/routes';
 
 /**
@@ -97,9 +97,6 @@ export interface ConceptActionFailure {
 }
 
 export type ConceptActionResult = ConceptActionSuccess | ConceptActionFailure;
-
-/** The message the page shows when there is no database to write to. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 const NEEDS_ATTENTION = 'Some fields need attention before this can be saved.';
 
@@ -398,7 +395,7 @@ export async function createConceptAction(
   formData: FormData,
 ): Promise<ConceptActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const parsed = parse(formData);
@@ -468,7 +465,7 @@ export async function updateConceptAction(
   formData: FormData,
 ): Promise<ConceptActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const id = formData.get('id');

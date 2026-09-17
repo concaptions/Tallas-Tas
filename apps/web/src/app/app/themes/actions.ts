@@ -2,16 +2,16 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { insertTheme, updateTheme, type ThemeInput } from '@tas/db';
+import { insertTheme, type ThemeInput } from '@tas/db';
 import { isThemeCategory, validateThemeDraft, type ThemeDraftField } from '@tas/domain/themes';
 import { z } from 'zod';
 
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { themesPath } from '@/lib/routes';
 import { withGlobalScope } from '@/lib/themes-source';
 
 /**
- * The Themes route's two mutations (PRD §5.5). Both follow `personas/actions.ts` and
+ * The Themes route's one mutation (PRD §5.5). It follows `personas/actions.ts` and
  * `angles/actions.ts` exactly:
  *
  * 1. refuse immediately in DEMO MODE, before any validation, actor lookup or connection — the demo
@@ -24,17 +24,25 @@ import { withGlobalScope } from '@/lib/themes-source';
  *    the same function to disable its save, and a disabled button is a courtesy, not a guarantee,
  *    so the action re-runs it. No rule is restated here;
  * 4. write through `@tas/db`;
- * 5. revalidate the page and return a typed result. Neither ever throws to the client.
+ * 5. revalidate the page and return a typed result. It never throws to the client.
  *
  * NO BRAND, ON PURPOSE. Every other route's actions resolve the actor's brand and hand it to a
  * scoped query. The theme library is GLOBAL (CLAUDE.md non-negotiable 3, PRD §5.5: "the theme
- * library is shared across every brand in the platform"), so these two go through `withGlobalScope`
- * instead, never `withBrandScope`, and `brand_id` is never in the payload — the `themes_global`
- * check constraint would reject the row if it were. Do not "fix" the missing scope: a per-brand
- * theme library is the disconnected-Airtable-table problem this page exists to delete.
+ * library is shared across every brand in the platform"), so this one goes through
+ * `withGlobalScope` instead, never `withBrandScope`, and `brand_id` is never in the payload — the
+ * `themes_global` check constraint would reject the row if it were. Do not "fix" the missing scope:
+ * a per-brand theme library is the disconnected-Airtable-table problem this page exists to delete.
  *
- * Reference Links and Attachments are out of scope for this ticket, so neither action reads or
- * writes them: an update patches only the columns below and leaves the rest of the row as it was.
+ * CREATE ONLY. The Themes ticket puts "editing or deleting an existing theme" out of scope and ships
+ * no edit panel, so there is no `updateThemeAction` here. One shipped with the page anyway: an
+ * exported Server Action is a callable endpoint whether or not a component imports it, so a patch
+ * against the library every brand reads was reachable over the network from a page that offers no
+ * way to reach it, behind nothing stronger than "there is a session". It is deleted rather than
+ * left for the edit ticket, which will add it back beside the panel that calls it and the role check
+ * that guards it.
+ *
+ * Reference Links and Attachments are out of scope for this ticket, so the action neither reads nor
+ * writes them.
  */
 
 /**
@@ -58,9 +66,6 @@ export interface ThemeActionFailure {
 }
 
 export type ThemeActionResult = ThemeActionSuccess | ThemeActionFailure;
-
-/** The message the dialog shows when there is no database to write to. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 /** A text column: trimmed, and empty means NULL. */
 const text = z
@@ -148,7 +153,7 @@ export async function createThemeAction(
   formData: FormData,
 ): Promise<ThemeActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const parsed = parse(formData);
@@ -164,44 +169,6 @@ export async function createThemeAction(
     const created = await withGlobalScope((db) => insertTheme(db, parsed.values, actor));
     revalidatePath(themesPath);
     return { ok: true, id: created.id, savedAt: Date.now() };
-  } catch {
-    return { ok: false, error: 'The theme could not be saved. Try again.' };
-  }
-}
-
-/**
- * Patches one theme of the shared library. Unscoped for the same reason `createThemeAction` is:
- * every brand reads the same row, so there is no brand whose id could narrow this one.
- */
-export async function updateThemeAction(
-  _previous: ThemeActionResult | null,
-  formData: FormData,
-): Promise<ThemeActionResult> {
-  if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
-  }
-
-  const id = formData.get('id');
-  if (typeof id !== 'string' || id === '') {
-    return { ok: false, error: 'This theme could not be identified.' };
-  }
-
-  const parsed = parse(formData);
-  if ('ok' in parsed) {
-    return parsed;
-  }
-
-  try {
-    const actor = await actorId();
-    if (actor === null) {
-      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
-    }
-    const saved = await withGlobalScope((db) => updateTheme(db, id, parsed.values, actor));
-    if (saved === null) {
-      return { ok: false, error: 'That theme is no longer available.' };
-    }
-    revalidatePath(themesPath);
-    return { ok: true, id: saved.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The theme could not be saved. Try again.' };
   }

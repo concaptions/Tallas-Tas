@@ -5,7 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import { insertProduct, updateProduct, type ProductInput } from '@tas/db';
 import { z } from 'zod';
 
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withBrandScope } from '@/lib/products-source';
 import { productsPath } from '@/lib/routes';
 
@@ -43,9 +43,6 @@ export interface ProductActionFailure {
 }
 
 export type ProductActionResult = ProductActionSuccess | ProductActionFailure;
-
-/** The message the panel shows when there is no database to write to. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 /** An `http(s)` URL, or a message a strategist can act on. Anything else is not a landing page. */
 function isHttpUrl(value: string): boolean {
@@ -117,7 +114,7 @@ export async function createProductAction(
   formData: FormData,
 ): Promise<ProductActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const parsed = parse(formData);
@@ -149,7 +146,7 @@ export async function updateProductAction(
   formData: FormData,
 ): Promise<ProductActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const id = formData.get('id');

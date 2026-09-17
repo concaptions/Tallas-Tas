@@ -937,8 +937,8 @@ export default function DesignSystemPage() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-              client queue card — the shared face, the client chip, both writes disabled with a
-              tooltip
+              client queue card — the shared face, the client chip, only the writes the state
+              machine allows, disabled with a tooltip
             </h3>
             <ClientQueueCardStory />
           </div>

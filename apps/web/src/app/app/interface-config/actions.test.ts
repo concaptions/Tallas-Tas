@@ -1,11 +1,7 @@
 import { demoInterfaceConfig } from '@tas/db';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  saveInterfaceConfigAction,
-  setFieldVisibilityAction,
-  setPageEnabledAction,
-} from './actions';
+import { saveInterfaceConfigAction } from './actions';
 
 /** The actions call `revalidatePath`, which only exists inside a Next request. */
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -29,11 +25,6 @@ const [conceptsPage] = demoInterfaceConfig;
 if (conceptsPage === undefined) {
   throw new Error('the demo interface configuration is empty');
 }
-const [firstField] = conceptsPage.fields;
-if (firstField === undefined) {
-  throw new Error('the Concepts page has no fields');
-}
-
 /** The draft the Save control submits, built from the fixtures so the ids are real uuids. */
 const draft = JSON.stringify({
   pages: demoInterfaceConfig.map((page) => ({
@@ -49,21 +40,6 @@ afterEach(() => {
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
-  it('refuses to hide a field, with the message the disabled control shows', async () => {
-    const result = await setFieldVisibilityAction(
-      null,
-      form({ id: firstField.id, visible: 'false' }),
-    );
-
-    expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
-  });
-
-  it('refuses to switch a page off, before it even looks at the id', async () => {
-    const result = await setPageEnabledAction(null, form({ id: 'whatever', enabled: 'false' }));
-
-    expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
-  });
-
   it('refuses to save the whole configuration, before the JSON is parsed', async () => {
     const result = await saveInterfaceConfigAction(null, form({ config: 'not json at all' }));
 
@@ -72,33 +48,6 @@ describe('in demo mode (no Clerk publishable key)', () => {
 });
 
 describe('with Clerk configured', () => {
-  it('rejects a field id that is not a uuid, before any actor or database call', async () => {
-    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
-
-    const result = await setFieldVisibilityAction(null, form({ id: 'nope', visible: 'false' }));
-
-    expect(result).toEqual({ ok: false, error: 'That field could not be identified.' });
-  });
-
-  it('rejects a visibility that is neither true nor false', async () => {
-    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
-
-    const result = await setFieldVisibilityAction(
-      null,
-      form({ id: firstField.id, visible: 'maybe' }),
-    );
-
-    expect(result).toEqual({ ok: false, error: 'That field could not be identified.' });
-  });
-
-  it('rejects a page toggle with no target value at all', async () => {
-    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
-
-    const result = await setPageEnabledAction(null, form({ id: conceptsPage.id }));
-
-    expect(result).toEqual({ ok: false, error: 'That page could not be identified.' });
-  });
-
   it('rejects a draft naming a page key the product does not have', async () => {
     vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
     const tampered = JSON.stringify({

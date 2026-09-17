@@ -5,8 +5,6 @@ import { auth } from '@clerk/nextjs/server';
 import {
   getBriefById,
   getCopyById,
-  insertCopy,
-  listCopy,
   updateCopy,
   type CopyInput,
   type CopyListRow,
@@ -15,7 +13,6 @@ import {
 import {
   COPY_CTA_INITIAL,
   isCopyCta,
-  nextCopyNumber,
   validateCopyDraft,
   type CopyDraft,
   type CopyDraftField,
@@ -25,11 +22,11 @@ import { COPY_STATUS_INITIAL } from '@tas/domain/state';
 import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/copy-source';
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { copywritingPath } from '@/lib/routes';
 
 /**
- * The Copywriting route's two mutations (PRD §5.11). Both follow `personas/actions.ts` and
+ * The Copywriting route's one mutation (PRD §5.11). It follows `personas/actions.ts` and
  * `briefs/actions.ts` exactly:
  *
  * 1. refuse immediately in DEMO MODE, before any validation, actor lookup or connection — the demo
@@ -46,13 +43,13 @@ import { copywritingPath } from '@/lib/routes';
  *    ~125 / ~40 / ~27 are tildes, Meta truncates past them rather than rejecting, so an over-long
  *    field is a warning the panel renders and never a refused save);
  * 4. write through the scoped `@tas/db` functions, which put `brand_id` on every statement;
- * 5. revalidate the page and return a typed result. Neither ever throws to the client.
+ * 5. revalidate the page and return a typed result. It never throws to the client.
  *
  * THE COPY # IS NEVER SUBMITTED. `copywriting.copy_number` is auto-generated (CLAUDE.md
- * non-negotiable 4): `createCopyAction` computes it with `nextCopyNumber` from `@tas/domain/copy`
- * over the numbers the brand already has, inside the scope, and no action reads a `copyNumber` field
- * from the form. The TITLE is never stored at all — it is `copyTitle` applied to that integer when
- * the table renders.
+ * non-negotiable 4): a row keeps the number it was given, this action never rebuilds it, and no
+ * `copyNumber` field is read from the form. Generating the FIRST number ships with the create path,
+ * in the CSV upload ticket, next to `nextCopyNumber` in `@tas/domain/copy`. The TITLE is never
+ * stored at all — it is `copyTitle` applied to that integer when the table renders.
  *
  * THE UNATTACHED ROW IS ORDINARY, NOT DEGRADED. `creativeBriefId` may be null (CLAUDE.md
  * non-negotiable 5): the panel's "No creative" option submits an empty value and it is stored as
@@ -61,7 +58,7 @@ import { copywritingPath } from '@/lib/routes';
  * that is not really there.
  *
  * CLIENT'S COMMENT IS OUT OF SCOPE (ticket). No schema key here reads it, so `client_comment` is
- * never written by either action and a row that carries one keeps it through every save.
+ * never written by this action and a row that carries one keeps it through every save.
  */
 
 /** The fields the panel can show a message under: the domain's draft fields, one vocabulary. */
@@ -86,9 +83,6 @@ export interface CopyActionFailure {
 }
 
 export type CopyActionResult = CopyActionSuccess | CopyActionFailure;
-
-/** The message the panel shows when there is no database to write to; the tooltip's words. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 const NEEDS_ATTENTION = 'Some fields need attention before this can be saved.';
 
@@ -254,69 +248,6 @@ function success(id: string, validation: CopyDraftValidation): CopyActionSuccess
 }
 
 /**
- * Creates a copy row in the actor's brand.
- *
- * The Copy # comes from `nextCopyNumber` over the brand's existing rows, read inside the scope, so
- * it is one past the highest number the brand has ever used and never re-uses a soft-deleted row's.
- */
-export async function createCopyAction(
-  _previous: CopyActionResult | null,
-  formData: FormData,
-): Promise<CopyActionResult> {
-  if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
-  }
-
-  const parsed = parse(formData);
-  if ('ok' in parsed) {
-    return parsed;
-  }
-
-  // A create has no row to merge with, so the whole draft is known here — before the actor lookup
-  // and before a connection, exactly as the demo refusal is.
-  const draft = draftFrom(parsed.values, null);
-  const checked = check(draft);
-  if ('ok' in checked) {
-    return checked;
-  }
-
-  try {
-    const actor = await actorId();
-    if (actor === null) {
-      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
-    }
-
-    const outcome = await withBrandScope(async (db, brandId) => {
-      const refusal = await creativeRefusal(db, brandId, draft.creativeBriefId);
-      if (refusal !== null) {
-        return refusal;
-      }
-      const existing = await listCopy(db, brandId);
-      const created = await insertCopy(
-        db,
-        brandId,
-        {
-          ...checked.values,
-          copyNumber: nextCopyNumber(existing.map((row) => row.copyNumber)),
-        },
-        actor,
-      );
-      return success(created.id, checked.validation);
-    });
-
-    if (outcome === null) {
-      return { ok: false, error: 'This workspace has no brand yet.' };
-    }
-    if (outcome.ok) {
-      revalidatePath(copywritingPath);
-    }
-    return outcome;
-  } catch {
-    return { ok: false, error: 'The copy could not be saved. Try again.' };
-  }
-}
-
-/**
  * Patches one copy row of the actor's brand; another brand's id simply never resolves.
  *
  * The rules run against the row MERGED with the submission, inside the scope, because "leave that
@@ -329,7 +260,7 @@ export async function updateCopyAction(
   formData: FormData,
 ): Promise<CopyActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const id = formData.get('id');

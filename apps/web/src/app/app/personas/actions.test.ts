@@ -42,12 +42,12 @@ afterEach(() => {
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
-  it('refuses to create, with the message the panel shows', async () => {
+  it('refuses to create, in the same words as every other page and as the tooltip', async () => {
     const result = await createPersonaAction(null, form(filled));
 
     expect(result).toEqual({
       ok: false,
-      error: 'Demo mode: connect a database to save changes.',
+      error: 'Sign in required to save changes.',
     });
   });
 
@@ -56,7 +56,7 @@ describe('in demo mode (no Clerk publishable key)', () => {
 
     expect(result).toEqual({
       ok: false,
-      error: 'Demo mode: connect a database to save changes.',
+      error: 'Sign in required to save changes.',
     });
   });
 });

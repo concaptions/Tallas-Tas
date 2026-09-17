@@ -39,8 +39,15 @@ describe('NAV_SECTIONS', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('reports the sections still waiting for a page', () => {
-    expect(pendingSections().every((section) => section.href === undefined)).toBe(true);
+  /**
+   * Not `every(section => section.href === undefined)`: that is true BY CONSTRUCTION —
+   * `pendingSections` filters on exactly that predicate — so it passed with half the sidebar
+   * unbuilt and would pass again on the day a section loses its href. Every section is built, so
+   * the assertion that guards the run is that the list is EMPTY. A new section added to `nav.ts`
+   * without an href fails here, which is the reminder to ship its page or accept a `SoonChip`.
+   */
+  it('has no section left waiting for a page', () => {
+    expect(pendingSections()).toEqual([]);
   });
 
   it('gives an href only to the sections that are built', () => {

@@ -15,7 +15,7 @@ import {
 } from '@tas/domain';
 import { z } from 'zod';
 
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { teamPath } from '@/lib/routes';
 import { teamPageActorFrom } from '@/lib/team-actor';
 import { withAgencyScope } from '@/lib/team-source';
@@ -88,9 +88,6 @@ const invitableRoles = [firstAgencyRole, ...otherAgencyRoles, ...internalBrandRo
  */
 const externalRoles: readonly string[] = brandRoles.filter((role) => !isInternalBrandRole(role));
 
-/** The message the button shows when there is no session to write with. Criterion 8's tooltip. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
-
 const inviteSchema = z.object({
   email: z
     .string({ error: 'An invitation needs an email address.' })
@@ -136,7 +133,7 @@ export async function inviteMemberAction(
   formData: FormData,
 ): Promise<InviteMemberResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const parsed = inviteSchema.safeParse(fieldsOf(formData));

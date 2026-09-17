@@ -5,7 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import { awarenessStages, insertPersona, updatePersona, type PersonaInput } from '@tas/db';
 import { z } from 'zod';
 
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withBrandScope } from '@/lib/personas-source';
 import { personasPath } from '@/lib/routes';
 
@@ -35,9 +35,6 @@ export interface PersonaActionFailure {
 }
 
 export type PersonaActionResult = PersonaActionSuccess | PersonaActionFailure;
-
-/** The message the panel shows when there is no database to write to. */
-const DEMO_REFUSAL = 'Demo mode: connect a database to save changes.';
 
 /** A text column: trimmed, and empty means NULL. */
 const text = z
@@ -104,7 +101,7 @@ export async function createPersonaAction(
   formData: FormData,
 ): Promise<PersonaActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const parsed = parse(formData);
@@ -136,7 +133,7 @@ export async function updatePersonaAction(
   formData: FormData,
 ): Promise<PersonaActionResult> {
   if (isDemoMode()) {
-    return { ok: false, error: DEMO_REFUSAL };
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
   const id = formData.get('id');

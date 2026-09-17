@@ -8,3 +8,14 @@ Ship-blocking problems are fixed in place. These are noted and deliberately left
 - **14/15 Queues** — the card thumbnail renders a provider token derived from the design-file host, so it
   reads as a clipped "FRAM…" inside the fixed tile. Either widen the tile, shorten the token to a letter,
   or drop the text and keep the colour block.
+
+The same two findings again after the audit pass of 2026-09-17, still deliberately not fixed, this
+time naming the file that owns each so the cleanup ticket has somewhere to start:
+
+- `apps/web/src/app/app/products/fields.ts` — `hostLabel` reduces a landing page or collection URL to
+  its host, so every row of a single-brand workspace reads the same host and both columns carry no
+  information.
+- `packages/domain/src/creatives/thumbnail.ts` — the provider token it derives from the design-file
+  host clips to "FRAM…" in the fixed tile drawn by
+  `apps/web/src/app/app/queue/client/client-queue-card.tsx` and
+  `apps/web/src/app/app/queue/internal/queue-card.tsx`.
