@@ -23,6 +23,7 @@
 
 import {
   CLIENT_STATUS,
+  canTransitionClient,
   isClientTrackOpen,
   type ClientStatusKey,
   type InternalStatusKey,
@@ -165,13 +166,9 @@ export interface ClientQueueAction {
  * transition. The Server Action still asks `canTransitionClient` whether the move is legal for the row
  * it was handed; this table only says what the button is FOR.
  *
- * KNOWN GAP, flagged rather than papered over: PRD §9 reads "Pending for Approval → Approved /
- * Revisions Needed → Launched", but `CLIENT_STATUS` carries no `revisions_needed` key and
- * `CLIENT_TRANSITIONS` therefore has no edge for it — and ticket `client-queue` criterion 2 freezes
- * both. So `request_revisions` is modelled as what it can honestly be today, a return to
- * `pending_for_approval`, and `canTransitionClient` refuses it from every state until the missing
- * status is added in its own ticket. In demo mode both controls are refused anyway, so the board is
- * correct as shipped; the vocabulary gap is the thing to fix, not this table.
+ * Both targets are the two branches PRD §9 gives the client out of Pending for Approval — "Pending for
+ * Approval → Approved / Revisions Needed" — so each action names a status `CLIENT_TRANSITIONS`
+ * actually has an edge to, and neither button is a control that can never succeed (D-027).
  */
 export const CLIENT_QUEUE_ACTIONS: readonly ClientQueueAction[] = [
   {
@@ -183,13 +180,39 @@ export const CLIENT_QUEUE_ACTIONS: readonly ClientQueueAction[] = [
   {
     key: 'request_revisions',
     label: 'Request Revisions',
-    to: 'pending_for_approval',
+    to: 'revisions_needed',
     description:
-      'Client sends the creative back for changes. Returns it to Pending for Approval until CLIENT_STATUS gains a Revisions Needed key.',
+      'Client sends the creative back for changes. Moves it to Revisions Needed until the team resubmits.',
   },
 ];
 
 /** The action for a key, or `undefined`: a control cannot be built from a key the table does not have. */
 export function clientQueueAction(key: string): ClientQueueAction | undefined {
   return CLIENT_QUEUE_ACTIONS.find((action) => action.key === key);
+}
+
+/**
+ * The actions that can actually SUCCEED on one row, which is what a card is allowed to draw.
+ *
+ * A control that the state machine refuses from the row's current status is not a control, it is a
+ * dead button: the client presses Approve on a creative they already approved and is answered "that
+ * is not the next step". So the rule lives here, once, next to the table the buttons come from, and
+ * the card renders what it returns rather than rendering both and hoping.
+ *
+ * It asks `canTransitionClient`, the same function the Server Action asks, so the drawn control and
+ * the accepted write can never disagree. The statuses come off a stored row as plain strings: an
+ * internal value the gate does not recognise closes the track and an unknown client value has no
+ * outgoing edge, so either way the answer is an empty list — never a throw, and never a guess.
+ */
+export function clientQueueActionsFor(
+  internalStatus: string,
+  clientStatus: string,
+): readonly ClientQueueAction[] {
+  return CLIENT_QUEUE_ACTIONS.filter((action) =>
+    canTransitionClient(
+      internalStatus as InternalStatusKey,
+      clientStatus as ClientStatusKey,
+      action.to,
+    ),
+  );
 }

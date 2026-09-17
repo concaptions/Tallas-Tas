@@ -1,6 +1,7 @@
 import { briefThumbnail } from '@tas/domain/creatives';
 import {
   chipTone,
+  clientQueueActionsFor,
   clientQueueColumnEntry,
   CLIENT_QUEUE_ACTIONS,
   isOnClientQueue as isOnClientQueueRule,
@@ -245,6 +246,21 @@ export function clientQueueControl(key: ClientQueueActionKey): ClientQueueContro
   return found;
 }
 
+/**
+ * The controls ONE card may draw: the domain's `clientQueueActionsFor` for the row's own statuses,
+ * mapped to their slots. Never the whole table.
+ *
+ * A button whose move the state machine refuses cannot succeed, so drawing it is drawing a lie — the
+ * client presses Approve on something they already approved and gets an error that reads like a bug.
+ * The decision of WHICH moves are legal is the domain's; this function only attaches the `data-slot`
+ * each one is tested by, which is the same split `CLIENT_QUEUE_CONTROLS` already makes.
+ */
+export function clientQueueControlsFor(item: ClientQueueItem): readonly ClientQueueControl[] {
+  return clientQueueActionsFor(item.internalStatus, item.clientStatus).map((action) =>
+    clientQueueControl(action.key),
+  );
+}
+
 /** The subtitle under the heading. */
 export const CLIENT_QUEUE_INTRO_NOTE =
   'Every creative waiting on the client, by where it sits on their track. Internal status is team-only and never appears here.';
@@ -308,3 +324,10 @@ export const OPEN_INTERNAL_QUEUE_LABEL = 'Go to Internal Queue';
 
 /** What a card says once a write has landed, so a save is visible without a reload. */
 export const SAVED_NOTE = 'Saved';
+
+/**
+ * What a card says instead of buttons when the client track has no move open from where the creative
+ * sits — it is already approved, or it is back with the team for changes. One sentence, because a
+ * card with an empty control row and no explanation reads as a component that failed to render.
+ */
+export const NO_CLIENT_DECISION_NOTE = 'No decision is open on this creative right now.';

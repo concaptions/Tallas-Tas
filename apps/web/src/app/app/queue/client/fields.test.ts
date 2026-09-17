@@ -15,6 +15,7 @@ import {
   CLIENT_QUEUE_RULE_NOTE,
   clientQueueColumnView,
   clientQueueControl,
+  clientQueueControlsFor,
   clientQueueCountLabel,
   clientQueueFilterParam,
   clientQueueItem,
@@ -171,7 +172,7 @@ describe('clientQueueColumnView', () => {
       columns.map((column) => column.description),
     );
     // Pinned as values, not recomputed with chipTone: a tautology proves nothing about the tone.
-    expect(views.map((view) => view.tone)).toEqual(['info', 'ok']);
+    expect(views.map((view) => view.tone)).toEqual(['info', 'ok', 'warn']);
   });
 });
 
@@ -247,5 +248,40 @@ describe('CLIENT_QUEUE_CONTROLS', () => {
     for (const action of CLIENT_QUEUE_ACTIONS) {
       expect(clientQueueControl(action.key).description).toBe(action.description);
     }
+  });
+});
+
+describe('clientQueueControlsFor — a card draws only what can succeed', () => {
+  const at = (internalStatus: string, clientStatus: string) =>
+    clientQueueControlsFor(clientQueueItem({ ...ROW, internalStatus, clientStatus }, '/x'));
+
+  it('draws both controls on a creative waiting for the client decision', () => {
+    expect(at('approved', 'pending_for_approval').map((control) => control.key)).toEqual([
+      'approve',
+      'request_revisions',
+    ]);
+  });
+
+  it('draws no Approve on a creative the client already approved', () => {
+    expect(at('approved', 'approved')).toEqual([]);
+  });
+
+  it('draws nothing while the creative is back with the team in Revisions Needed', () => {
+    expect(at('approved', 'revisions_needed')).toEqual([]);
+  });
+
+  it('carries the slot each control is tested by, straight from CLIENT_QUEUE_CONTROLS', () => {
+    expect(at('approved', 'pending_for_approval').map((control) => control.slot)).toEqual([
+      'client-queue-approve',
+      'client-queue-request-revisions',
+    ]);
+    for (const control of at('approved', 'pending_for_approval')) {
+      expect(CLIENT_QUEUE_CONTROLS).toContain(control);
+    }
+  });
+
+  it('draws nothing for a stored status this build has no row for, rather than throwing', () => {
+    expect(at('approved', 'awaiting_legal')).toEqual([]);
+    expect(at('static_design_in_progress', 'pending_for_approval')).toEqual([]);
   });
 });

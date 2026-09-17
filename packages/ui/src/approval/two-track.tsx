@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react';
 import {
   CLIENT_STATUS,
+  CLIENT_TRACK_STEPS,
   chipTone,
   internalStatusFor,
   isClientTrackOpen,
@@ -41,6 +42,12 @@ const TRANSITION = 'opacity 500ms ease, border-color 500ms ease, filter 500ms ea
  *
  * The gate is never recomputed here: `isClientTrackOpen` from `@tas/domain/state` decides whether the
  * client bar is live, and every status label and chip tone comes from the same module.
+ *
+ * THE CLIENT STEPPER WALKS `CLIENT_TRACK_STEPS`, NOT `CLIENT_STATUS`. `revisions_needed` is PRD §9's
+ * branch off the client decision, not a fourth stage: placed in a linear stepper it would draw
+ * Approved as `done` on a creative the client had just sent back. The domain keeps it out of the
+ * walked list, exactly as `on_hold` is kept out of the internal ones, and the header chip — which
+ * still resolves against the full `CLIENT_STATUS` — is what names it while the branch is current.
  */
 export function TwoTrackApproval({
   track,
@@ -118,13 +125,13 @@ export function TwoTrackApproval({
           )}
         </header>
         <div data-slot="client-steps">
-          {CLIENT_STATUS.map((entry, index) => (
+          {CLIENT_TRACK_STEPS.map((entry, index) => (
             <StepRow
               key={entry.key}
               label={entry.label}
               tip={entry.description}
-              state={stepState(CLIENT_STATUS, client, entry.key)}
-              isLast={index === CLIENT_STATUS.length - 1}
+              state={stepState(CLIENT_TRACK_STEPS, client, entry.key)}
+              isLast={index === CLIENT_TRACK_STEPS.length - 1}
             />
           ))}
         </div>

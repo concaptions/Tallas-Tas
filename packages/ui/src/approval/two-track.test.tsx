@@ -1,6 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS } from '@tas/domain/state';
+import {
+  CLIENT_TRACK_STEPS,
+  INTERNAL_STATIC_STATUS,
+  INTERNAL_VIDEO_STATUS,
+} from '@tas/domain/state';
 
 import { CLIENT_TRACK_LIVE_NOTE, CLIENT_TRACK_LOCKED_NOTE, TwoTrackApproval } from './two-track';
 
@@ -163,5 +167,37 @@ describe('TwoTrackApproval — advance handlers', () => {
     expect(
       open.querySelector<HTMLButtonElement>('[data-slot="client-track"] button')?.disabled,
     ).toBe(false);
+  });
+});
+
+describe('TwoTrackApproval — the client branch', () => {
+  it('walks the linear client path only: Revisions Needed is never a step row', () => {
+    const { container } = render(
+      <TwoTrackApproval track="video" internal="approved" client="pending_for_approval" />,
+    );
+    const steps = container.querySelectorAll('[data-slot="client-steps"] [data-slot="step-row"]');
+
+    expect(steps).toHaveLength(CLIENT_TRACK_STEPS.length);
+    expect([...steps].some((row) => row.textContent.startsWith('Revisions Needed'))).toBe(false);
+  });
+
+  /**
+   * The defect a linear stepper would introduce: a creative the client sent back must never draw
+   * Approved as a step it has already passed.
+   */
+  it('marks nothing done while the creative sits on the Revisions Needed branch', () => {
+    const { container } = render(
+      <TwoTrackApproval track="video" internal="approved" client="revisions_needed" />,
+    );
+
+    expect(stepStateOf(container, 'client-steps', 'Pending for Approval')).toBe('next');
+    expect(stepStateOf(container, 'client-steps', 'Approved')).toBe('next');
+    expect(stepStateOf(container, 'client-steps', 'Launched')).toBe('next');
+  });
+
+  it('names the branch with the header chip instead, in the domain\u2019s own warn tone', () => {
+    render(<TwoTrackApproval track="video" internal="approved" client="revisions_needed" />);
+
+    expect(screen.getByText('Revisions Needed').dataset['tone']).toBe('warn');
   });
 });

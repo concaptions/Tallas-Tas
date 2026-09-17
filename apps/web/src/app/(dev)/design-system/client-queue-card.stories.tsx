@@ -28,11 +28,19 @@ import { QueueColumnPanel, QueueStrip } from '@/components/queue/queue-strip';
  * tooltip that says why. The enabled state is deliberately NOT previewed — a live Approve button on
  * the design-system page would be a write control with a real Server Action behind it.
  *
+ * A CARD DRAWS ONLY THE MOVES THAT CAN SUCCEED (D-027), so the sample rows below cover all three
+ * shapes the card has: Pending for Approval with both controls, Approved with none, and Revisions
+ * Needed with none. The last two show the "no decision" line in place of the button row — a control
+ * the state machine refuses is a broken button, not a disabled one.
+ *
  * A client module because the card holds `useActionState` and the strip is the same scrolling
  * container the board uses; both belong in the browser exactly as the route has them.
  */
 
-/** Three rows covering the card's branches: both tile sources, and the unassigned, unprioritised case. */
+/**
+ * Four rows covering the card's branches: both tile sources, the unassigned and unprioritised case,
+ * and the two client statuses that leave a card with no decision open.
+ */
 const SAMPLE_ROWS: readonly ClientQueueSourceRow[] = [
   {
     id: 'ds-client-queue-1',
@@ -64,14 +72,25 @@ const SAMPLE_ROWS: readonly ClientQueueSourceRow[] = [
     designFileUrl: 'https://frame.example/niagara/rs1-b4-v3-client-markup',
     inspoLinks: [],
   },
+  {
+    id: 'ds-client-queue-4',
+    name: 'TV3-B2-The Nap You Keep Postponing-Testimonial-V1',
+    internalStatus: 'approved',
+    clientStatus: 'revisions_needed',
+    assignee: 'Dorian Vance',
+    priority: 'Video Average',
+    designFileUrl: null,
+    inspoLinks: ['https://www.tiktok.com/@thepostpartumplan/video/7385012994771635746'],
+  },
 ];
 
 const SAMPLE_ITEMS = SAMPLE_ROWS.map((row) => clientQueueItem(row, `/app/briefs/${row.id}`));
 
 /**
  * The card: the shared face, the client-status chip, and Approve / Request Revisions both inert with
- * the demo-mode tooltip. The middle card is the unassigned, unprioritised case — an italic word and
- * NO priority chip, rather than a blank pill.
+ * the demo-mode tooltip. The second card is the unassigned, unprioritised case — an italic word and
+ * NO priority chip, rather than a blank pill. The third and fourth have no legal move left, so they
+ * draw the "no decision" line where the buttons would be.
  */
 export function ClientQueueCardStory() {
   return (

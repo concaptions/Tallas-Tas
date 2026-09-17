@@ -6,6 +6,7 @@ import {
   CLIENT_QUEUE_ACTIONS,
   CLIENT_QUEUE_COLUMNS,
   clientQueueAction,
+  clientQueueActionsFor,
   clientQueueColumnEntry,
   clientQueueColumnKey,
   clientQueueColumns,
@@ -124,6 +125,7 @@ describe('clientQueueColumns', () => {
     expect(clientQueueColumns().map((column) => column.key)).toEqual([
       'pending_for_approval',
       'approved',
+      'revisions_needed',
     ]);
   });
 
@@ -141,6 +143,7 @@ describe('clientQueueColumns', () => {
     expect(CLIENT_STATUS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
+      'revisions_needed',
       'launched',
     ]);
   });
@@ -172,14 +175,22 @@ describe('clientQueueColumnEntry', () => {
 });
 
 describe('groupByClientStatus', () => {
-  it('puts the seeded briefs in 2 Pending for Approval and 1 Approved', () => {
+  it('puts the seeded briefs in 2 Pending for Approval, 1 Approved and 0 Revisions Needed', () => {
     const columns = groupByClientStatus(demoRows);
     expect(columns.map((column) => [column.key, column.count])).toEqual([
       ['pending_for_approval', 2],
       ['approved', 1],
+      ['revisions_needed', 0],
     ]);
     expect(columns[0]?.rows.map((entry) => entry.id)).toEqual(['0', '3']);
     expect(columns[1]?.rows.map((entry) => entry.id)).toEqual(['4']);
+  });
+
+  it('keeps a Revisions Needed row on the board: the client asked, the team has not resubmitted', () => {
+    const columns = groupByClientStatus([row('sent-back', 'approved', 'revisions_needed')]);
+    const revisions = columns.find((column) => column.key === 'revisions_needed');
+    expect(revisions?.rows.map((entry) => entry.id)).toEqual(['sent-back']);
+    expect(columns.map((column) => column.key)).not.toContain(QUEUE_OTHER_COLUMN.key);
   });
 
   it('keeps an empty column with a count of 0 rather than closing it up', () => {
@@ -192,7 +203,11 @@ describe('groupByClientStatus', () => {
 
   it('renders every column even when there is nothing on the board at all', () => {
     const columns = groupByClientStatus([]);
-    expect(columns.map((column) => column.key)).toEqual(['pending_for_approval', 'approved']);
+    expect(columns.map((column) => column.key)).toEqual([
+      'pending_for_approval',
+      'approved',
+      'revisions_needed',
+    ]);
     expect(columns.every((column) => column.count === 0)).toBe(true);
   });
 
@@ -281,12 +296,23 @@ describe('CLIENT_QUEUE_ACTIONS', () => {
     );
   });
 
-  it('documents the Revisions Needed gap: CLIENT_STATUS has no such key, so the move is refused', () => {
+  it('moves a revision request to Revisions Needed, which PRD §9 branches to from Pending', () => {
     const revisions = clientQueueAction('request_revisions');
-    expect(CLIENT_STATUS.map((entry) => entry.key)).not.toContain('revisions_needed');
-    expect(revisions?.to).toBe('pending_for_approval');
-    expect(CLIENT_TRANSITIONS.pending_for_approval).not.toContain('pending_for_approval');
-    expect(canTransitionClient('approved', 'approved', revisions?.to ?? 'launched')).toBe(false);
+    expect(CLIENT_STATUS.map((entry) => entry.key)).toContain('revisions_needed');
+    expect(revisions?.to).toBe('revisions_needed');
+    expect(CLIENT_TRANSITIONS.pending_for_approval).toContain('revisions_needed');
+    expect(
+      canTransitionClient('approved', 'pending_for_approval', revisions?.to ?? 'launched'),
+    ).toBe(true);
+  });
+
+  it('gives every action a target the state machine can actually reach from somewhere', () => {
+    for (const action of CLIENT_QUEUE_ACTIONS) {
+      const reachable = Object.values(CLIENT_TRANSITIONS).some((targets) =>
+        targets.includes(action.to),
+      );
+      expect(reachable).toBe(true);
+    }
   });
 
   it('refuses every action while the internal track is still closed', () => {
@@ -297,5 +323,51 @@ describe('CLIENT_QUEUE_ACTIONS', () => {
 
   it('returns undefined for a key the table does not carry', () => {
     expect(clientQueueAction('delete_everything')).toBeUndefined();
+  });
+});
+
+describe('clientQueueActionsFor — only the controls that can succeed', () => {
+  const keys = (internal: string, client: string): readonly string[] =>
+    clientQueueActionsFor(internal, client).map((action) => action.key);
+
+  it('offers both PRD §9 branches from Pending for Approval once internal has signed off', () => {
+    expect(keys('approved', 'pending_for_approval')).toEqual(['approve', 'request_revisions']);
+    expect(keys('launched', 'pending_for_approval')).toEqual(['approve', 'request_revisions']);
+  });
+
+  it('offers nothing on a creative the client already approved, rather than a dead Approve', () => {
+    expect(keys('approved', 'approved')).toEqual([]);
+  });
+
+  it('offers nothing while the creative sits in Revisions Needed: the next move is the team’s', () => {
+    expect(keys('approved', 'revisions_needed')).toEqual([]);
+  });
+
+  it('offers nothing while the internal gate is shut, whatever the client status says', () => {
+    expect(keys('ad_submitted', 'pending_for_approval')).toEqual([]);
+    expect(keys('static_design_in_progress', 'pending_for_approval')).toEqual([]);
+  });
+
+  it('answers with an empty list, never a throw, for statuses this build has no row for', () => {
+    expect(keys('approved', 'awaiting_legal')).toEqual([]);
+    expect(keys('from_a_newer_build', 'pending_for_approval')).toEqual([]);
+  });
+
+  it('never offers a move canTransitionClient would refuse', () => {
+    const internals = ['approved', 'launched', 'ad_submitted'];
+    const clients = ['pending_for_approval', 'approved', 'revisions_needed', 'launched'];
+    for (const internal of internals) {
+      for (const client of clients) {
+        for (const action of clientQueueActionsFor(internal, client)) {
+          expect(
+            canTransitionClient(
+              internal as Parameters<typeof canTransitionClient>[0],
+              client as Parameters<typeof canTransitionClient>[1],
+              action.to,
+            ),
+          ).toBe(true);
+        }
+      }
+    }
   });
 });

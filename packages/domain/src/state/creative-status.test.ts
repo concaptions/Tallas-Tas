@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CLIENT_STATUS,
+  CLIENT_TRACK_STEPS,
   CLIENT_TRANSITIONS,
   INTERNAL_STATIC_STATUS,
   INTERNAL_VIDEO_STATUS,
@@ -60,6 +61,34 @@ describe('the status vocabularies', () => {
     for (const entry of [...INTERNAL_VIDEO_STATUS, ...INTERNAL_STATIC_STATUS, ...CLIENT_STATUS]) {
       expect(entry.description.length).toBeGreaterThan(0);
     }
+  });
+
+  it('lists the client track in PRD §9 order, Revisions Needed included', () => {
+    expect(CLIENT_STATUS.map((entry) => entry.key)).toEqual([
+      'pending_for_approval',
+      'approved',
+      'revisions_needed',
+      'launched',
+    ]);
+  });
+
+  it('keeps the Revisions Needed branch out of the linear client stepper', () => {
+    expect(CLIENT_TRACK_STEPS.map((entry) => entry.key)).toEqual([
+      'pending_for_approval',
+      'approved',
+      'launched',
+    ]);
+    // The entries are CLIENT_STATUS', never retyped.
+    for (const entry of CLIENT_TRACK_STEPS) {
+      expect(CLIENT_STATUS).toContainEqual(entry);
+    }
+  });
+
+  it('leaves every client step upcoming while the creative sits on the branch', () => {
+    const states = CLIENT_TRACK_STEPS.map((entry) =>
+      stepState(CLIENT_TRACK_STEPS, 'revisions_needed', entry.key),
+    );
+    expect(states).toEqual(['next', 'next', 'next']);
   });
 
   it('returns the list for the track', () => {
@@ -129,6 +158,7 @@ describe('chipTone — the tone map over every label', () => {
     ['Videos Revisions', 'warn'],
     ['Images Revisions', 'warn'],
     ['Revisions Submitted', 'mute'],
+    ['Revisions Needed', 'warn'],
     ['Pending for Approval', 'info'],
     ['Sent to Video Editor', 'mute'],
     ['Video Editing in Progress', 'mute'],
@@ -248,9 +278,27 @@ describe('canTransitionClient', () => {
     expect(canTransitionClient('launched', 'approved', 'launched')).toBe(true);
   });
 
+  it('branches Pending for Approval to Revisions Needed, PRD §9\u2019s other outcome', () => {
+    expect(canTransitionClient('approved', 'pending_for_approval', 'revisions_needed')).toBe(true);
+    expect(canTransitionClient('launched', 'pending_for_approval', 'revisions_needed')).toBe(true);
+  });
+
+  it('rejoins Revisions Needed to Pending for Approval when the team resubmits', () => {
+    expect(canTransitionClient('approved', 'revisions_needed', 'pending_for_approval')).toBe(true);
+  });
+
+  it('refuses the moves Revisions Needed is not a shortcut for', () => {
+    expect(canTransitionClient('approved', 'revisions_needed', 'approved')).toBe(false);
+    expect(canTransitionClient('approved', 'revisions_needed', 'launched')).toBe(false);
+    expect(canTransitionClient('approved', 'approved', 'revisions_needed')).toBe(false);
+    expect(canTransitionClient('approved', 'launched', 'revisions_needed')).toBe(false);
+  });
+
   it('refuses every client transition while the gate is closed', () => {
     const pairs: [ClientStatusKey, ClientStatusKey][] = [
       ['pending_for_approval', 'approved'],
+      ['pending_for_approval', 'revisions_needed'],
+      ['revisions_needed', 'pending_for_approval'],
       ['approved', 'launched'],
     ];
     for (const internal of closed) {
@@ -267,9 +315,21 @@ describe('canTransitionClient', () => {
     expect(canTransitionClient('approved', 'launched', 'launched')).toBe(false);
   });
 
-  it('keeps the client table linear', () => {
-    expect(CLIENT_TRANSITIONS.pending_for_approval).toEqual(['approved']);
+  it('is PRD §9\u2019s table: one branch out of Pending, one way back, one terminal state', () => {
+    expect(CLIENT_TRANSITIONS.pending_for_approval).toEqual(['approved', 'revisions_needed']);
     expect(CLIENT_TRANSITIONS.approved).toEqual(['launched']);
+    expect(CLIENT_TRANSITIONS.revisions_needed).toEqual(['pending_for_approval']);
     expect(CLIENT_TRANSITIONS.launched).toEqual([]);
+  });
+
+  it('gives every client status an entry, so a stored value can never hit a missing row', () => {
+    for (const entry of CLIENT_STATUS) {
+      expect(CLIENT_TRANSITIONS[entry.key]).toBeDefined();
+    }
+  });
+
+  it('answers false rather than throwing for a stored status this build has no row for', () => {
+    const unknown = 'from_a_newer_build' as ClientStatusKey;
+    expect(canTransitionClient('approved', unknown, 'approved')).toBe(false);
   });
 });

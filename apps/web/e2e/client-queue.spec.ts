@@ -12,7 +12,8 @@ import { briefPath, clientQueuePath, propagationPath } from '../src/lib/routes';
  * board is fully usable read-only: the client columns in PRD §9 order with counts, the eligible
  * seeded briefs spread across them, the muted line explaining why the board is shorter than the
  * briefs list, a card that links to the real Creative Brief page, a `?filter=` that survives a
- * reload, and both write controls present, disabled and explaining themselves.
+ * reload, and — on every card that still has a decision open — both write controls present, disabled
+ * and explaining themselves.
  *
  * WHAT THE FIXTURES GIVE THIS BOARD (`demoBriefs` in `packages/db/src/demo-data.ts`, seven rows):
  * three are internally Approved and not yet Launched, so three cards reach the board — two in
@@ -26,7 +27,7 @@ import { briefPath, clientQueuePath, propagationPath } from '../src/lib/routes';
  */
 
 /** `CLIENT_STATUS` in PRD §9 order with `launched` removed — what `clientQueueColumns()` returns. */
-const COLUMNS_IN_ORDER = ['Pending for Approval', 'Approved'];
+const COLUMNS_IN_ORDER = ['Pending for Approval', 'Approved', 'Revisions Needed'];
 
 /** The three fixtures PRD §9's gate lets through, with the column each one lands in. */
 const ON_BOARD = [
@@ -34,6 +35,12 @@ const ON_BOARD = [
   { id: '77777777-7777-4777-8777-000000000004', status: 'pending_for_approval' },
   { id: '77777777-7777-4777-8777-000000000005', status: 'approved' },
 ];
+/**
+ * The fixtures that still have a client decision open, so their cards draw the write controls
+ * (D-027). Row 5 is already client-Approved: the state machine has no move for it, so its card draws
+ * the "no decision" line instead of two buttons that could only fail.
+ */
+const WITH_CONTROLS = ON_BOARD.filter((entry) => entry.status === 'pending_for_approval');
 
 const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
 const BODY_CLOCK_NAME = 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
@@ -149,11 +156,12 @@ test.describe('client queue in demo mode (no Clerk publishable key)', () => {
   }) => {
     await page.goto(clientQueuePath);
 
-    // Criterion 8: two controls per card, labelled from CLIENT_QUEUE_ACTIONS.
+    // Criterion 8: two controls on every card that still has a decision open, labelled from
+    // CLIENT_QUEUE_ACTIONS. A card with no legal move draws neither (D-027).
     const approve = page.locator('[data-slot="client-queue-approve"]');
     const revise = page.locator('[data-slot="client-queue-request-revisions"]');
-    await expect(approve).toHaveCount(ON_BOARD.length);
-    await expect(revise).toHaveCount(ON_BOARD.length);
+    await expect(approve).toHaveCount(WITH_CONTROLS.length);
+    await expect(revise).toHaveCount(WITH_CONTROLS.length);
     await expect(approve.first()).toHaveText('Approve');
     await expect(revise.first()).toHaveText('Request Revisions');
 
@@ -165,8 +173,26 @@ test.describe('client queue in demo mode (no Clerk publishable key)', () => {
 
     // …and every one says so, on the enabled wrapper a disabled button needs to carry a tooltip.
     const wrappers = page.locator('[data-slot="client-queue-card"] [data-slot="disabled-write"]');
-    await expect(wrappers).toHaveCount(ON_BOARD.length * 2);
+    await expect(wrappers).toHaveCount(WITH_CONTROLS.length * 2);
     await expect(wrappers.first()).toHaveAttribute('title', /sign in/i);
+  });
+
+  test('a creative the client already approved draws no control it cannot use', async ({
+    page,
+  }) => {
+    await page.goto(clientQueuePath);
+
+    const settled = ON_BOARD.filter((entry) => entry.status === 'approved');
+    expect(settled.length).toBeGreaterThan(0);
+
+    for (const { id } of settled) {
+      const card = page.locator(`[data-slot="client-queue-card"][data-brief-id="${id}"]`);
+      await expect(card.locator('[data-slot="client-queue-approve"]')).toHaveCount(0);
+      await expect(card.locator('[data-slot="client-queue-request-revisions"]')).toHaveCount(0);
+      await expect(card.locator('[data-slot="client-queue-card-no-decision"]')).toHaveText(
+        'No decision is open on this creative right now.',
+      );
+    }
   });
 
   test('a card click lands on the brief, and Back restores the board with its filter', async ({
@@ -210,9 +236,11 @@ test.describe('client queue in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="client-queue-column"]')).toHaveCount(
       COLUMNS_IN_ORDER.length,
     );
-    await expect(page.locator('[data-slot="client-queue-column-empty"]')).toHaveText(
-      'Nothing here',
-    );
+    // Exactly one column holds the single matching card; every other column keeps its place and
+    // says it is empty.
+    const empties = page.locator('[data-slot="client-queue-column-empty"]');
+    await expect(empties).toHaveCount(COLUMNS_IN_ORDER.length - 1);
+    await expect(empties.first()).toHaveText('Nothing here');
 
     // A reload restores the same board from the same address: the URL is shareable.
     await page.reload();

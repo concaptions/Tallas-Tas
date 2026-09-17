@@ -415,3 +415,87 @@ now, `apps/web/vercel.json` (framework, install and build commands, region) and 
 section were committed outside the ticket loop. The only setting that cannot live in the repository is
 Root Directory = `apps/web`, documented in the runbook. TICKET-007 builds on this file rather than
 creating it. `next build` was verified locally with no Clerk or database variables before the push.
+
+## D-027 · 2026-09-17 · DS-Q6 resolved in favour of PRD §9: `revisions_needed` joins CLIENT_STATUS
+
+The Client Queue shipped with a control that could never succeed. `CLIENT_QUEUE_ACTIONS`' Request
+Revisions pointed at `pending_for_approval`, no entry in `CLIENT_TRANSITIONS` had that as a target, so
+`canTransitionClient` refused the move from every state and the button answered "that is not the next
+step on the client track" on every row in live mode. Approve had the same shape on a card already
+client-Approved. Both were drawn unconditionally.
+
+The cause is open question DS-Q6, logged on 2026-09-16 and never answered: the design handoff's
+`CLIENT_STATUS` array has three entries and omits Revisions Needed, while PRD §9 states the client
+track as "Pending for Approval → Approved / Revisions Needed → Launched", PRD §12 lists the trigger
+"Client requested revisions", and PRD §5.8 gives creators a client status including Revisions Needed.
+The PRD is the source of truth for product behaviour and the handoff for tokens and widget appearance,
+so the handoff's three-entry array is read as a DISPLAY LIST — the columns that were drawn — and not
+as the product's state set. DS-Q6 is closed in favour of PRD §9.
+
+What changed: `CLIENT_STATUS` gains `revisions_needed` (label "Revisions Needed") after `approved` and
+before `launched`, in PRD §9's order; `CLIENT_TRANSITIONS` becomes `pending_for_approval → approved |
+revisions_needed`, `revisions_needed → pending_for_approval` (the team resubmits) and `approved →
+launched`; `CLIENT_QUEUE_ACTIONS`' `request_revisions` targets `revisions_needed`. The tone needs no
+special case — `chipTone` already maps a "Revisions" label that is not "Submitted" to `warn`. The gate
+is untouched: `isClientTrackOpen` still decides whether the client track is reachable at all, and the
+Client Queue's rule (internal Approved, client not Launched) is unchanged, so a row in
+`revisions_needed` stays on the board — the client has asked for changes and the team has not yet
+resubmitted. `CLIENT_QUEUE_COLUMNS` derives from `CLIENT_STATUS`, so the board gains a third column
+with no second edit.
+
+One consequence had to be handled rather than inherited: the client STEPPER in
+`packages/ui/src/approval/two-track.tsx` walks its list positionally, so a fourth row would have drawn
+Approved as `done` on a creative the client had just sent back. `revisions_needed` is a branch off the
+decision, not a stage, so the domain exports `CLIENT_TRACK_STEPS` (`CLIENT_STATUS` minus the branch)
+for anything linear and the widget names the branch with its header chip instead — the treatment
+`ON_HOLD` already gets on the internal track.
+
+Also: `canTransitionClient` reads its table with a widened lookup so a stored status this build has no row for
+answers `false` instead of throwing, and a new `clientQueueActionsFor(internal, client)` in
+`packages/domain/src/queue/client-queue.ts` returns only the actions the state machine allows from a
+row. The card renders that list instead of both buttons, and shows one line where the buttons would be
+when nothing is open. No dependency was added and no service cost changes.
+
+## D-028 · 2026-09-17 · Naming formulas stay beside their vocabulary, not in `packages/domain/naming`
+
+CLAUDE.md's architecture principles say "Naming formulas are pure functions in
+`packages/domain/naming`, unit tested with fixtures". They are not: the Concept formula is
+`packages/domain/src/concepts/concept-name.ts` and the Creative formula is
+`packages/domain/src/creatives/creative-name.ts`, each with its `*.test.ts` beside it. Logging the
+deviation, per the same file's rule that any deviation is written down with the reason.
+
+Why they are not being moved: each formula reads the vocabulary of the thing it names — PRD §7's
+Concept name is Batch-Angle-Theme and is built from `concepts/vocabulary.ts`, the Creative name is
+`{FUNNEL}{FORMAT}{NUMBER}-BATCH-CONCEPT-VERSION(-PRODUCT)` and is built from
+`creatives/vocabulary.ts`. Grouping by entity keeps a formula, its vocabulary, its validator and its
+fixtures in one directory; grouping by "naming" would split every entity in half and leave two
+modules importing across the package for the tokens they are made of. The principle's intent — pure
+functions, no query, no component, fixture-tested — holds as written; only the directory differs.
+
+Consequence: the CLAUDE.md sentence is read as "pure functions in `packages/domain`, unit tested
+with fixtures". A third naming formula goes beside its own vocabulary, not into a `naming/`
+directory. Nothing moves, no import path changes, no dependency and no service cost.
+
+## D-029 · 2026-09-17 · One brand resolver and one agency resolver, both in `data-source.ts`
+
+Thirteen modules each kept a private copy of "which tenant am I reading?". Twelve `*-source.ts`
+modules had their own `liveBrandId` — `rows.find(row => !row.isTemplate && live(row))`, the FIRST
+live non-template brand in the table — and `team-source.ts` and `propagation-source.ts` each had a
+byte-identical `liveAgencyId` taking the first live agency. `brands.agency_id` is NOT NULL, so "the
+first live brand" only means something while exactly one agency exists: insert a second tenant before
+the organisation switcher ships and every one of those copies hands a correctly-scoped
+`withBrand(brandId)` call a brand from the wrong tenant. The scope was enforced perfectly around an
+id chosen by row order.
+
+Both resolvers now live in `apps/web/src/lib/data-source.ts` and nothing else resolves a tenant.
+`resolveLiveAgencyId` takes the actor's agency — the active Clerk Organization first (D-003: one
+agency per organisation), then the person's memberships — and falls back to the only agency there is.
+`resolveLiveBrandId` is that agency's first live non-template brand. Where there is no honest answer
+the resolvers throw `AmbiguousBrandError` instead of returning a row: an actor in two agencies with
+neither selected, or two live agencies and no actor scope. Refusing is the safe direction — a page
+that errors is a bug report, a page showing another tenant's people is a breach.
+
+`TeamSourceDeps` and `PromotionSourceDeps` extend `BrandResolverDeps` so the `actorScope` seam reaches
+them, which is also what makes the refusal testable without Clerk. The demo branch of every module is
+untouched and still returns before any connection is opened. No dependency was added and no service
+cost changes.

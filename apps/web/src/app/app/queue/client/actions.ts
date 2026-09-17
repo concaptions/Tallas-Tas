@@ -13,7 +13,7 @@ import {
 import { z } from 'zod';
 
 import { toBriefRow, withBrandScope } from '@/lib/briefs-source';
-import { isDemoMode } from '@/lib/demo-mode';
+import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefPath, clientQueuePath } from '@/lib/routes';
 
 /**
@@ -40,14 +40,12 @@ import { briefPath, clientQueuePath } from '@/lib/routes';
  * talk this action past the gate, and a card the client left open while the brief moved back cannot
  * either. `refuses a move on a brief the internal track has not approved` in `actions.test.ts` pins it.
  *
- * KNOWN GAP, inherited from the vocabulary and flagged rather than papered over: PRD §9 reads
- * "Pending for Approval → Approved / Revisions Needed", but `CLIENT_STATUS` has no `revisions_needed`
- * key and `CLIENT_TRANSITIONS` has no edge for one — ticket `client-queue` criterion 2 freezes both.
- * `CLIENT_QUEUE_ACTIONS` therefore models Request Revisions as a return to `pending_for_approval`, and
- * `canTransitionClient` refuses that from every state today. So in LIVE mode Request Revisions answers
- * with the ordinary "not the next step" refusal until a separate ticket adds the status; in demo mode
- * both controls are refused before any of this is reached. The fix belongs in the state machine, not
- * in a special case here.
+ * BOTH CONTROLS CAN NOW SUCCEED (D-027). PRD §9's client track is "Pending for Approval → Approved /
+ * Revisions Needed → Launched", and `CLIENT_STATUS` carries `revisions_needed` with the edges to match,
+ * so Request Revisions moves a creative the client sent back rather than answering "not the next step"
+ * from every state. The card draws only the moves `canTransitionClient` allows from the row it shows;
+ * this action asks the same question again of the STORED row, because the card is a picture and a
+ * submission can arrive without one.
  */
 
 export interface ClientQueueActionSuccess {
@@ -65,9 +63,6 @@ export interface ClientQueueActionFailure {
 }
 
 export type ClientQueueActionResult = ClientQueueActionSuccess | ClientQueueActionFailure;
-
-/** The message every write shows when there is no database to write to. The house string. */
-const DEMO_REFUSAL = 'Sign in required to save changes.';
 
 /** PRD §9's gate, in the one sentence the brief detail page already uses for it. */
 const CLIENT_GATE_SHUT = 'The client track opens once internal status reaches Approved.';
@@ -105,7 +100,7 @@ async function moveClientStatus(
   formData: FormData,
 ): Promise<ClientQueueActionResult> {
   if (isDemoMode()) {
-    return failure(DEMO_REFUSAL);
+    return failure(DEMO_WRITE_REFUSAL);
   }
 
   const action = clientQueueAction(key);
@@ -166,7 +161,7 @@ export async function approveCreativeAction(
   return moveClientStatus('approve', formData);
 }
 
-/** The client sends one creative back for changes. See the KNOWN GAP note at the head of this file. */
+/** The client sends one creative back for changes: Pending for Approval → Revisions Needed (PRD §9). */
 export async function requestRevisionsAction(
   _previous: ClientQueueActionResult | null,
   formData: FormData,

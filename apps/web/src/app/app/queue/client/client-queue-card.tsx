@@ -18,7 +18,13 @@ import {
   type ClientQueueActionFailure,
   type ClientQueueActionResult,
 } from './actions';
-import { clientQueueControl, SAVED_NOTE, type ClientQueueItem } from './fields';
+import {
+  clientQueueControlsFor,
+  NO_CLIENT_DECISION_NOTE,
+  SAVED_NOTE,
+  type ClientQueueControl,
+  type ClientQueueItem,
+} from './fields';
 
 /**
  * One creative on the Client Queue board (ticket `client-queue` criteria 7, 8 and 9).
@@ -46,6 +52,13 @@ import { clientQueueControl, SAVED_NOTE, type ClientQueueItem } from './fields';
  *
  * THE BUTTONS SUBMIT ONE FIELD: the brief's id. The target status is never submitted — it comes from
  * `CLIENT_QUEUE_ACTIONS` inside the action — so a tampered form cannot name a status of its own.
+ *
+ * ONLY THE CONTROLS THAT CAN SUCCEED ARE DRAWN (D-027). The card asks `clientQueueControlsFor`, which
+ * asks the domain's `canTransitionClient` for the row's own statuses: a creative in Pending for
+ * Approval draws both branches PRD §9 gives the client, one already Approved draws neither and says
+ * so. A button the state machine will refuse is not a disabled control, it is a broken one, and the
+ * card is the last place that can tell the difference — the Server Action still checks the move
+ * against the STORED row, because a card is a picture and not an authority.
  */
 interface ClientQueueCardProps {
   readonly item: ClientQueueItem;
@@ -56,7 +69,7 @@ interface ClientQueueCardProps {
 interface WriteControlProps {
   readonly briefId: string;
   readonly demo: boolean;
-  readonly control: ReturnType<typeof clientQueueControl>;
+  readonly control: ClientQueueControl;
   readonly state: ClientQueueActionResult | null;
   readonly pending: boolean;
   readonly dispatch: (formData: FormData) => void;
@@ -108,6 +121,21 @@ export function ClientQueueCard({ item, demo }: ClientQueueCardProps) {
   );
   const saved = [approveState, reviseState].some((state) => state !== null && state.ok);
 
+  /**
+   * ONLY THE MOVES THAT CAN SUCCEED. `clientQueueControlsFor` asks the domain's state machine what is
+   * legal from this row's own statuses, so a creative the client already approved draws no Approve
+   * button rather than one that always answers "that is not the next step". The two `useActionState`
+   * calls above stay unconditional — hooks are, rendering is not.
+   */
+  const controls = clientQueueControlsFor(item);
+  const dispatchers: Record<
+    ClientQueueControl['key'],
+    { state: ClientQueueActionResult | null; pending: boolean; dispatch: (data: FormData) => void }
+  > = {
+    approve: { state: approveState, pending: approving, dispatch: approve },
+    request_revisions: { state: reviseState, pending: revising, dispatch: revise },
+  };
+
   return (
     <article
       data-slot="client-queue-card"
@@ -128,28 +156,32 @@ export function ClientQueueCard({ item, demo }: ClientQueueCardProps) {
         <StatusChip tone={item.status.tone} label={item.status.label} />
       </span>
 
-      <div
-        role="group"
-        aria-label={`Client decision for ${item.name}`}
-        className="flex min-w-0 flex-wrap items-center gap-1.5 border-t border-line pt-2"
-      >
-        <WriteControl
-          briefId={item.id}
-          demo={demo}
-          control={clientQueueControl('approve')}
-          state={approveState}
-          pending={approving}
-          dispatch={approve}
-        />
-        <WriteControl
-          briefId={item.id}
-          demo={demo}
-          control={clientQueueControl('request_revisions')}
-          state={reviseState}
-          pending={revising}
-          dispatch={revise}
-        />
-      </div>
+      {controls.length === 0 ? (
+        <p
+          data-slot="client-queue-card-no-decision"
+          className="border-t border-line pt-2 text-xs text-text3"
+        >
+          {NO_CLIENT_DECISION_NOTE}
+        </p>
+      ) : (
+        <div
+          role="group"
+          aria-label={`Client decision for ${item.name}`}
+          className="flex min-w-0 flex-wrap items-center gap-1.5 border-t border-line pt-2"
+        >
+          {controls.map((control) => (
+            <WriteControl
+              key={control.key}
+              briefId={item.id}
+              demo={demo}
+              control={control}
+              state={dispatchers[control.key].state}
+              pending={dispatchers[control.key].pending}
+              dispatch={dispatchers[control.key].dispatch}
+            />
+          ))}
+        </div>
+      )}
 
       {failure === undefined ? null : (
         <p data-slot="client-queue-card-error" className="text-xs text-bad">

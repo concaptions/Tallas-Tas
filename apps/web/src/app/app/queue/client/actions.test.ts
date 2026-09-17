@@ -161,9 +161,52 @@ describe('with Clerk configured', () => {
     );
   });
 
-  it('refuses a move the state machine has no edge for, rather than inventing one', async () => {
+  /**
+   * PRD §9's other branch out of Pending for Approval. It used to be unreachable — `CLIENT_STATUS`
+   * had no `revisions_needed` key, so this action answered "not the next step" from every state and
+   * the button could never succeed. D-027 added the status and the edge; this pins the move.
+   */
+  it('sends a creative back for changes, storing Revisions Needed', async () => {
     configured();
     mocks.getBriefById.mockResolvedValue(ON_THE_BOARD);
+    mocks.updateBrief.mockResolvedValue({ ...ON_THE_BOARD, clientStatus: 'revisions_needed' });
+
+    const result = await requestRevisionsAction(null, form({ id: ON_THE_BOARD.id }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      id: ON_THE_BOARD.id,
+      clientStatus: 'revisions_needed',
+    });
+    expect(mocks.updateBrief).toHaveBeenCalledWith(
+      {},
+      'brand-1',
+      ON_THE_BOARD.id,
+      { clientStatus: 'revisions_needed' },
+      'user_client_1',
+    );
+  });
+
+  /**
+   * The card no longer draws a control the state machine refuses, but a submission can arrive without
+   * a card. An Approve on a creative the client already approved must still be refused here.
+   */
+  it('refuses a move the state machine has no edge for, rather than inventing one', async () => {
+    configured();
+    mocks.getBriefById.mockResolvedValue({ ...ON_THE_BOARD, clientStatus: 'approved' });
+
+    const result = await approveCreativeAction(null, form({ id: ON_THE_BOARD.id }));
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'That is not the next step on the client track.',
+    });
+    expect(mocks.updateBrief).not.toHaveBeenCalled();
+  });
+
+  it('refuses a revision request on a creative already sitting in Revisions Needed', async () => {
+    configured();
+    mocks.getBriefById.mockResolvedValue({ ...ON_THE_BOARD, clientStatus: 'revisions_needed' });
 
     const result = await requestRevisionsAction(null, form({ id: ON_THE_BOARD.id }));
 
