@@ -21,6 +21,12 @@ export const ugcPath = '/app/ugc';
  * unrelated top-level words. The sidebar section key stays `internal-queue`.
  */
 export const internalQueuePath = '/app/queue/internal';
+/**
+ * The Client Queue board (PRD §9, §10). Sibling of `internalQueuePath` under the same `queue`
+ * segment: two boards of the same shape, one per track. The sidebar section key stays
+ * `client-queue`.
+ */
+export const clientQueuePath = '/app/queue/client';
 export const designSystemPath = '/design-system';
 
 /**

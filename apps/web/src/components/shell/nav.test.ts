@@ -57,6 +57,7 @@ describe('NAV_SECTIONS', () => {
       ['Copywriting', '/app/copywriting'],
       ['UGC Management', '/app/ugc'],
       ['Internal Queue', '/app/queue/internal'],
+      ['Client Queue', '/app/queue/client'],
       ['Design System', '/design-system'],
     ]);
   });
@@ -82,6 +83,7 @@ describe('activeSectionKey', () => {
     ['/app/ugc', 'ugc'],
     ['/app/ugc/88888888-8888-4888-8888-000000000001', 'ugc'],
     ['/app/queue/internal', 'internal-queue'],
+    ['/app/queue/client', 'client-queue'],
     ['/design-system', 'design-system'],
   ])('marks %s as %s', (pathname, key) => {
     expect(activeSectionKey(pathname)).toBe(key);

@@ -207,7 +207,7 @@ describe('the fixture names and the domain formula agree', () => {
     ).toBe(name);
   });
 
-  it('covers all six fixtures', () => {
-    expect(demoBriefs).toHaveLength(6);
+  it('covers all seven fixtures', () => {
+    expect(demoBriefs).toHaveLength(7);
   });
 });

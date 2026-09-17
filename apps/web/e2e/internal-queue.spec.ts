@@ -9,14 +9,16 @@ import { briefPath, internalQueuePath } from '../src/lib/routes';
  * stands (PRD §9, §13; ticket `internal-queue.md` criterion 14).
  *
  * The middleware lets the route through, `loadInternalQueue()` serves the in-repo fixtures, and the
- * board is fully usable read-only: eleven columns in PRD §9 order, the six seeded briefs spread one
- * per column across six of them, the five empty columns keeping their place, a card that links to
- * the real Creative Brief page, and a `?view=` filter that survives a reload.
+ * board is fully usable read-only: eleven columns in PRD §9 order, the seven seeded briefs spread
+ * across five of them, the six empty columns keeping their place, a card that links to the real
+ * Creative Brief page, and a `?view=` filter that survives a reload.
  *
- * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: six rows in six DIFFERENT
- * internal statuses across both tracks, which is what makes "one card per occupied column, zero in
- * the rest" a real assertion rather than a coincidence. `DEMO_QUEUE_ASSIGNEE` is imported rather
- * than retyped, so renaming the seeded assignee fails here instead of quietly emptying "Mine".
+ * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: SEVEN rows across five different
+ * internal statuses and both tracks, three of them stacked in `approved`. The spread is what makes
+ * "every card in its own column, the exact count in each, zero in the rest" a real assertion rather
+ * than a coincidence — and the stack is what proves a column renders more than one card.
+ * `DEMO_QUEUE_ASSIGNEE` is imported rather than retyped, so renaming the seeded assignee fails here
+ * instead of quietly emptying "Mine".
  */
 
 /** PRD §9, the two ladders merged: the static half of each pair first, `On Hold` last. */
@@ -34,21 +36,38 @@ const COLUMNS_IN_ORDER = [
   'On Hold',
 ];
 
-/** The status each seeded brief is parked at. Six of the eleven columns hold exactly one card. */
-const OCCUPIED_STATUSES = [
-  'sent_to_designer',
-  'static_design_in_progress',
-  'video_editing_in_progress',
-  'ad_submitted',
-  'images_revisions',
-  'approved',
+/**
+ * The column each seeded brief lands in, with how many sit there. Five of the eleven columns are
+ * occupied; the other six render empty. The totals below are the fixtures' own, not a guess.
+ *
+ * `sent_to_designer` holds the carousel, whose STORED status is `sent_to_video_editor`: it is a
+ * static-track creative, so `briefs-source.ts` reads the stored value against the static ladder,
+ * does not find it there and starts the row at its own track's first step rather than dropping it.
+ * That normalisation is the reason this list is the board's columns and not a copy of `demoBriefs`.
+ */
+const OCCUPIED_STATUSES: ReadonlyArray<readonly [status: string, count: number]> = [
+  ['sent_to_designer', 1],
+  ['static_design_in_progress', 1],
+  ['ad_submitted', 1],
+  ['approved', 3],
+  ['launched', 1],
 ];
+
+/** Every seeded brief, so the board's own total can never drift from the fixtures. */
+const BRIEF_COUNT = OCCUPIED_STATUSES.reduce((total, [, count]) => total + count, 0);
+
+/** The header's wording, built from the same number the board is asserted to render. */
+const briefsLabel = (count: number): string => `${String(count)} briefs`;
 
 const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
 const BODY_CLOCK_NAME = 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
 
-/** The two briefs `DEMO_QUEUE_ASSIGNEE` owns, in two different columns. */
-const MINE_IDS = [BODY_CLOCK, '77777777-7777-4777-8777-000000000003'];
+/** The three briefs `DEMO_QUEUE_ASSIGNEE` owns, in three different columns. */
+const MINE_IDS = [
+  BODY_CLOCK,
+  '77777777-7777-4777-8777-000000000003',
+  '77777777-7777-4777-8777-000000000007',
+];
 
 test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -56,13 +75,13 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/queue/internal needs a session and real data',
   );
 
-  test('renders every §9 column in order with a count, and the six fixtures across them', async ({
+  test('renders every §9 column in order with a count, and the seven fixtures across them', async ({
     page,
   }) => {
     await page.goto(internalQueuePath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Internal Queue');
-    await expect(page.locator('[data-slot="queue-count"]')).toHaveText('6 briefs');
+    await expect(page.locator('[data-slot="queue-count"]')).toHaveText(briefsLabel(BRIEF_COUNT));
 
     // Criterion 2: one column per internal status, in PRD §9 order, labelled by the domain.
     const columns = page.locator('[data-slot="queue-column"]');
@@ -70,11 +89,11 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="queue-column-label"]')).toHaveText(COLUMNS_IN_ORDER);
 
     // Criterion 3: every brief in exactly one column, and the empty stages keep their place.
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(6);
-    for (const status of OCCUPIED_STATUSES) {
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(BRIEF_COUNT);
+    for (const [status, count] of OCCUPIED_STATUSES) {
       const column = page.locator(`[data-slot="queue-column"][data-status="${status}"]`);
-      await expect(column).toHaveAttribute('data-count', '1');
-      await expect(column.locator('[data-slot="queue-card"]')).toHaveCount(1);
+      await expect(column).toHaveAttribute('data-count', String(count));
+      await expect(column.locator('[data-slot="queue-card"]')).toHaveCount(count);
       await expect(column.locator('[data-slot="queue-column-empty"]')).toHaveCount(0);
     }
     const emptyColumns = COLUMNS_IN_ORDER.length - OCCUPIED_STATUSES.length;
@@ -119,7 +138,7 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
 
     // Every seeded brief carries a priority, so every card carries exactly one chip and no card
     // shows an empty pill. The unset case — no chip at all — is mounted on `/design-system`.
-    await expect(page.locator('[data-slot="queue-card-priority"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="queue-card-priority"]')).toHaveCount(BRIEF_COUNT);
     await expect(page.locator('[data-slot="queue-card-priority"]:empty')).toHaveCount(0);
   });
 
@@ -127,7 +146,7 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(`${internalQueuePath}?view=mine`);
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(MINE_IDS.length);
 
     // Criterion 6: the whole card is a link to the real Creative Brief detail route.
     const card = page.locator(`[data-slot="queue-card"][data-brief-id="${BODY_CLOCK}"]`);
@@ -139,7 +158,7 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
 
     await page.goBack();
     await expect(page).toHaveURL(/\?view=mine$/);
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(MINE_IDS.length);
   });
 
   test('?view=mine narrows the board, writes the address and survives a reload', async ({
@@ -155,8 +174,10 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     // Criterion 7: the History API writes ?view= with no server round trip.
     await expect(page).toHaveURL(/\?view=mine$/);
     await expect(mine).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('[data-slot="queue-count"]')).toHaveText('2 of 6 briefs');
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="queue-count"]')).toHaveText(
+      `${String(MINE_IDS.length)} of ${briefsLabel(BRIEF_COUNT)}`,
+    );
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(MINE_IDS.length);
     for (const id of MINE_IDS) {
       await expect(page.locator(`[data-slot="queue-card"][data-brief-id="${id}"]`)).toBeVisible();
     }
@@ -165,13 +186,13 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
 
     // A reload restores the same board from the same address: the URL is shareable.
     await page.reload();
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(MINE_IDS.length);
     await expect(mine).toHaveAttribute('aria-pressed', 'true');
 
     // "All" is the default, so it deletes the parameter rather than writing ?view=all.
     await page.locator('[data-slot="queue-view-option"][data-view="all"]').click();
     await expect(page).toHaveURL(new RegExp(`${internalQueuePath}$`));
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(BRIEF_COUNT);
   });
 
   test('the brand option is derived from the rows, and a filter that matches nothing says so', async ({
@@ -182,11 +203,11 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     // Criterion 8: one brand in demo mode, named, with the number of briefs actually behind it.
     const brand = page.locator('[data-slot="queue-view-option"][data-view^="brand:"]');
     await expect(brand).toHaveCount(1);
-    await expect(brand).toHaveText('Niagara Sleep Solutions · 6');
+    await expect(brand).toHaveText(`Niagara Sleep Solutions · ${String(BRIEF_COUNT)}`);
     await expect(page.locator('[data-slot="queue-brand-note"]')).toContainText('One brand');
 
     await brand.click();
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(BRIEF_COUNT);
 
     // Criterion 7: a hand-edited URL never throws; an unknown brand is an empty board that
     // explains itself in words and offers its way back, never a blank panel or raw JSON.
@@ -195,11 +216,11 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     const empty = page.locator('[data-slot="queue-empty"]');
     await expect(empty).toContainText('No briefs on the internal track');
     await page.locator('[data-slot="queue-show-all"]').click();
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(BRIEF_COUNT);
 
     // Junk in the parameter is the default board, not an error page.
     await page.goto(`${internalQueuePath}?view=%%%`);
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(BRIEF_COUNT);
   });
 
   test('there is no write on the board at all, and the page says so in one line', async ({
@@ -225,7 +246,7 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(internalQueuePath);
 
-    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(BRIEF_COUNT);
 
     // Criterion 12: the shell never gets a horizontal page scrollbar.
     const pageOverflow = await page.evaluate(
@@ -257,10 +278,12 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     await expect(row.locator('[data-slot="soon-chip"]')).toHaveCount(0);
     await expect(row.locator('[aria-disabled="true"]')).toHaveCount(0);
 
-    // Client Queue is the next ticket, so it must still be the muted placeholder. This is what
-    // proves the assertion above is about Internal Queue shipping, and not about the SoonChip
-    // having quietly disappeared from the whole sidebar.
-    const clientQueue = page.locator('[aria-disabled="true"]', { hasText: 'Client Queue' });
-    await expect(clientQueue.locator('[data-slot="soon-chip"]')).toHaveCount(1);
+    // Team is a later ticket, so it must still be the muted placeholder. This is what proves the
+    // assertion above is about Internal Queue shipping, and not about the SoonChip having quietly
+    // disappeared from the whole sidebar. It was Client Queue until that board shipped its own page
+    // and its own `href` in ticket `client-queue`; `client-queue.spec.ts` makes the mirror-image
+    // assertion from the other side.
+    const team = page.locator('[aria-disabled="true"]', { hasText: 'Team' });
+    await expect(team.locator('[data-slot="soon-chip"]')).toHaveCount(1);
   });
 });

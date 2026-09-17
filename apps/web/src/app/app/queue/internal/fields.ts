@@ -266,5 +266,8 @@ export const SHOW_ALL_LABEL = 'Show all briefs';
 /** Where the empty board points instead: the list the briefs themselves live on. */
 export const OPEN_BRIEFS_LABEL = 'Go to Creative Briefs';
 
-/** The sentence a card's empty assignee shows, so an unassigned brief reads as unassigned. */
-export const UNASSIGNED_LABEL = 'Unassigned';
+/**
+ * The sentence a card's empty assignee shows, so an unassigned brief reads as unassigned.
+ * Re-exported from the shared card face, so both approval boards say the same word.
+ */
+export { UNASSIGNED_LABEL } from '@/components/queue/queue-face';

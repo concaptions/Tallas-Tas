@@ -2,6 +2,7 @@ import {
   anglesPath,
   appPath,
   briefsPath,
+  clientQueuePath,
   conceptsPath,
   copywritingPath,
   designSystemPath,
@@ -61,7 +62,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         icon: 'queue-internal',
         href: internalQueuePath,
       },
-      { key: 'client-queue', label: 'Client Queue', icon: 'queue-client' },
+      {
+        key: 'client-queue',
+        label: 'Client Queue',
+        icon: 'queue-client',
+        href: clientQueuePath,
+      },
     ],
   },
   {

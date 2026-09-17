@@ -6,15 +6,24 @@ import { briefPath, briefsPath } from '../src/lib/routes';
 /**
  * The Creative Briefs route with no environment variables at all — the Vercel deployment as it
  * stands. The middleware lets the route through, the data source serves the in-repo fixtures, and
- * both pages are fully usable read-only: six briefs in a six-column table, a real detail route with
+ * both pages are fully usable read-only: every brief in a six-column table, a real detail route with
  * a generated name that is not a field, three columns, the inspiration previews, the two-track rail
  * and every write disabled with a reason.
  *
- * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: six rows, newest edit first, in
- * six different internal statuses across both tracks, with exactly one `approved` — so
- * `isClientTrackOpen` is true on that one row and false on the other five.
+ * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: SEVEN rows, newest edit first,
+ * spread across both tracks of the internal ladder. Four of them are past internal sign-off (three
+ * `approved`, one `launched`), so `isClientTrackOpen` is true on those four and false on the other
+ * three — which is what makes "open here, shut there" a real assertion rather than a coincidence.
+ * The count is spelled `BRIEF_COUNT` once so a fixture added to the seed fails in one place.
  */
+const BRIEF_COUNT = 7;
+
+/** The header's wording, built from the same number the table is asserted to render. */
+const briefsLabel = (count: number): string => `${String(count)} briefs`;
+
 const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
+/** `static_design_in_progress`: the one the client track is still shut on. */
+const NOT_YOUR_AGE_STATIC = '77777777-7777-4777-8777-000000000002';
 const BUNDLE_STANDALONE = '77777777-7777-4777-8777-000000000005';
 
 const BODY_CLOCK_NAME = 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
@@ -26,13 +35,13 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/briefs needs a session and real data',
   );
 
-  test('lists the six fixtures in six columns, with the standalone chip in the concept cell', async ({
+  test('lists the seven fixtures in six columns, with the standalone chip in the concept cell', async ({
     page,
   }) => {
     await page.goto(briefsPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Briefs');
-    await expect(page.locator('[data-slot="brief-count"]')).toHaveText('6 briefs');
+    await expect(page.locator('[data-slot="brief-count"]')).toHaveText(briefsLabel(BRIEF_COUNT));
 
     await expect(page.locator('[data-slot="briefs-table"] thead th')).toHaveText([
       'Name',
@@ -43,7 +52,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       'Internal Status',
     ]);
 
-    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
 
     // The generated name is monospace, because it is system output and not a typed field.
     const name = page.locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="brief-row-name"]`);
@@ -80,7 +89,9 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
 
     await page.locator('[data-slot="brief-search"]').fill('standalone');
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(1);
-    await expect(page.locator('[data-slot="brief-count"]')).toHaveText('1 of 6 briefs');
+    await expect(page.locator('[data-slot="brief-count"]')).toHaveText(
+      `1 of ${briefsLabel(BRIEF_COUNT)}`,
+    );
     await expect(page).toHaveURL(/\?q=standalone/);
 
     // A filter that matches nothing says so in words and offers to clear itself.
@@ -88,7 +99,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="briefs-table"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="briefs-empty"]')).toContainText('No brief matches');
     await page.locator('[data-slot="clear-search"]').click();
-    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
   });
 
   test('a row click lands on the detail route, and Back restores the list', async ({ page }) => {
@@ -100,7 +111,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="brief-name"]')).toHaveText(BODY_CLOCK_NAME);
 
     await page.goBack();
-    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
   });
 
   test('an unknown id is a 404, not a crash', async ({ page }) => {
@@ -163,7 +174,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     );
   });
 
-  test('the rail shows both tracks, open on the approved brief and shut on the others', async ({
+  test('the rail shows both tracks, open past internal sign-off and shut before it', async ({
     page,
   }) => {
     await page.goto(briefPath(BODY_CLOCK));
@@ -172,13 +183,20 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(rail.locator('[data-slot="internal-track"]')).toBeVisible();
     await expect(rail.locator('[data-slot="client-track"]')).toHaveAttribute('data-open', 'true');
 
-    await page.goto(briefPath(BUNDLE_STANDALONE));
-    await expect(page.locator('[data-slot="brief-name"]')).toHaveText(BUNDLE_NAME);
+    // `static_design_in_progress`, so `isClientTrackOpen` is false: the client bar is shut and says
+    // so in a chip instead of rendering a stepper the client has not reached yet.
+    await page.goto(briefPath(NOT_YOUR_AGE_STATIC));
     const shut = page.locator('[data-slot="brief-rail"] [data-slot="client-track"]');
     await expect(shut).toHaveAttribute('data-open', 'false');
     await expect(shut.locator('[data-slot="status-chip"]')).toHaveText('locked');
 
-    // A standalone brief says why it has no concept card, rather than showing an empty one.
+    // The standalone brief is internally Approved, so its bar is open — and it still says why it
+    // has no concept card, rather than showing an empty one.
+    await page.goto(briefPath(BUNDLE_STANDALONE));
+    await expect(page.locator('[data-slot="brief-name"]')).toHaveText(BUNDLE_NAME);
+    await expect(
+      page.locator('[data-slot="brief-rail"] [data-slot="client-track"]'),
+    ).toHaveAttribute('data-open', 'true');
     await expect(page.locator('[data-slot="brief-concept"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="brief-concept-standalone"]')).toContainText(
       'No parent concept',

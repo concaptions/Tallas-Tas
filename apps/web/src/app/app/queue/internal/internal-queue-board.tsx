@@ -2,9 +2,10 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Button, StatusChip } from '@tas/ui';
+import { Button } from '@tas/ui';
 import { groupByInternalStatus } from '@tas/domain/state';
 
+import { QueueColumnPanel, QueueStrip } from '@/components/queue/queue-strip';
 import { briefsPath } from '@/lib/routes';
 
 import { QueueCard } from './queue-card';
@@ -49,7 +50,9 @@ import {
  * THE STRIP SCROLLS, THE PAGE DOES NOT. `overflow-x-auto` lives on the strip's own container and
  * every ancestor carries `min-w-0`, so at 390px the columns slide inside the board while the shell's
  * `<main>` stays exactly as wide as the viewport. The shell's `overflow-x-hidden` is the backstop,
- * not the mechanism.
+ * not the mechanism. The strip and the column themselves are `QueueStrip` and `QueueColumnPanel` in
+ * `@/components/queue`, which the Client Queue board renders too: two boards, one shape, so neither
+ * can quietly grow a different column.
  *
  * THE FILTER IS THE ADDRESS. Selecting a view rewrites `?view=` with the History API exactly as
  * `briefs-workspace.tsx` writes `?q=` — instant, no server round trip, and a reload restores the same
@@ -215,50 +218,28 @@ export function InternalQueueBoard({
             )}
           </div>
         ) : (
-          <div
-            data-slot="queue-board"
-            className="-mx-1 min-w-0 overflow-x-auto px-1 pb-2"
-            role="region"
-            aria-label="Internal status board"
-            tabIndex={0}
-          >
-            <div className="flex w-max items-start gap-3">
-              {columns.map((column) => {
-                const head = queueColumnView(column);
-                return (
-                  <section
-                    key={column.key}
-                    data-slot="queue-column"
-                    data-status={column.key}
-                    data-count={column.count}
-                    aria-label={`${column.label}, ${queueCountLabel(column.count)}`}
-                    className="flex w-60 shrink-0 flex-col gap-2 rounded-card border border-line bg-surface2 p-3"
-                  >
-                    <header className="flex items-start justify-between gap-2">
-                      <h3
-                        data-slot="queue-column-label"
-                        title={column.description}
-                        className="min-w-0 text-[11px] font-medium tracking-wide text-text2 uppercase"
-                      >
-                        {column.label}
-                      </h3>
-                      <span data-slot="queue-column-count">
-                        <StatusChip tone={head.tone} label={String(column.count)} />
-                      </span>
-                    </header>
-
-                    {column.count === 0 ? (
-                      <p data-slot="queue-column-empty" className="py-2 text-xs text-text4">
-                        {EMPTY_COLUMN_NOTE}
-                      </p>
-                    ) : (
-                      column.rows.map((item) => <QueueCard key={item.id} item={item} />)
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          </div>
+          <QueueStrip slot="queue-board" label="Internal status board">
+            {columns.map((column) => {
+              const head = queueColumnView(column);
+              return (
+                <QueueColumnPanel
+                  key={column.key}
+                  slot="queue-column"
+                  statusKey={column.key}
+                  label={column.label}
+                  description={column.description}
+                  tone={head.tone}
+                  count={column.count}
+                  countLabel={queueCountLabel(column.count)}
+                  emptyNote={EMPTY_COLUMN_NOTE}
+                >
+                  {column.rows.map((item) => (
+                    <QueueCard key={item.id} item={item} />
+                  ))}
+                </QueueColumnPanel>
+              );
+            })}
+          </QueueStrip>
         )}
       </section>
     </div>

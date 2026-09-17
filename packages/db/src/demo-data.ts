@@ -57,6 +57,7 @@ const BRIEF_DAYLIGHT_MOTION_ID = '77777777-7777-4777-8777-000000000003';
 const BRIEF_NINETY_MINUTES_VIDEO_ID = '77777777-7777-4777-8777-000000000004';
 const BRIEF_BUNDLE_STANDALONE_ID = '77777777-7777-4777-8777-000000000005';
 const BRIEF_NINETY_MINUTES_CAROUSEL_ID = '77777777-7777-4777-8777-000000000006';
+const BRIEF_BODY_CLOCK_LAUNCHED_ID = '77777777-7777-4777-8777-000000000007';
 const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
 const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
 const COPY_DAYLIGHT_ID = '88888888-8888-4888-8888-000000000003';
@@ -759,16 +760,44 @@ const daylightConcept = demoConcept(CONCEPT_DAYLIGHT_ID);
 const ninetyMinutesConcept = demoConcept(CONCEPT_NINETY_MINUTES_ID);
 
 /**
- * Six creative briefs for Niagara Sleep Solutions (PRD §5.10), one record per creative asset.
+ * Seven creative briefs for Niagara Sleep Solutions (PRD §5.10), one record per creative asset.
  *
- * They sit in six DIFFERENT internal statuses, across both tracks of the state machine — the video
- * track's `sent_to_video_editor`, `video_editing_in_progress`, `ad_submitted` and `approved`, and the
- * static track's `static_design_in_progress` and `images_revisions` (`@tas/domain/state` keys).
- * Exactly one is `approved`, so `isClientTrackOpen` is true on exactly one row and the client bar is
- * visibly open there and shut everywhere else (PRD §9, CLAUDE.md non-negotiable 4); that row sits at
- * the first client status, `pending_for_approval`, which is the pairing the client interface gates on.
+ * TWO BOARDS READ THESE SAME ROWS, so the status spread is deliberate and is pinned in
+ * `briefs.test.ts`. The Internal Queue (PRD §9/§13) groups every row by `internalStatus`; the Client
+ * Queue groups by `clientStatus` and shows a row only when `isClientTrackOpen(internalStatus)` is
+ * true AND `clientStatus !== 'launched'`. Which fixture sits where, and why:
  *
- * All four types are covered (two Video, one Static, one Carousel, one Motion Image, plus the
+ * | # | fixture                        | internal                    | client               | boards |
+ * |---|--------------------------------|-----------------------------|----------------------|--------|
+ * | 1 | TV1 night-shift nurse video    | `approved`                  | `pending_for_approval` | both |
+ * | 2 | TS1 r/Menopause thread static  | `static_design_in_progress` | `pending_for_approval` | internal |
+ * | 3 | AM1 lux-meter motion image     | `ad_submitted`              | `pending_for_approval` | internal |
+ * | 4 | TV2 ninety-minutes video       | `approved`                  | `pending_for_approval` | both |
+ * | 5 | RS1 Night Reset bundle static  | `approved`                  | `approved`           | both |
+ * | 6 | TC1 ninety-minutes carousel    | `sent_to_video_editor`      | `pending_for_approval` | internal |
+ * | 7 | TV3 driveway control video     | `launched`                  | `launched`           | NEITHER (client), internal only |
+ *
+ * Reading the table down the columns:
+ *
+ *   - THREE rows are internally `approved`, so the client board has something to show and both of
+ *     its columns are populated: two in Pending for Approval (1 and 4) and one the client has
+ *     already signed off (5). Row 5 is the honest one to carry `clientStatus: 'approved'` — its
+ *     brief exists because the client marked up V2, so V3 coming back approved is the real
+ *     sequence, and it is also the STANDALONE row, so the client board renders a card whose
+ *     concept, angle and product all join null (PRD §8).
+ *   - THREE rows stay in pre-Approved internal states — 2, 3 and 6 — so the Internal Queue board
+ *     keeps cards in Static Design in Progress, Ad Submitted and Sent to Video Editor, one early,
+ *     one mid, one per track. Neither board is empty and neither is a copy of the other.
+ *   - Row 7 is the exclusion rule made visible: `launched` / `launched` passes `isClientTrackOpen`
+ *     and is still kept OFF the client board by the `launched` client status (PRD §9 — the media
+ *     buyer has it live, there is nothing left to approve). It is the only row in the Internal
+ *     Queue's Launched column, and the only one carrying `performance: 'Winning'`.
+ *
+ * `isClientTrackOpen` is therefore true on four rows (three `approved` plus the `launched` one) and
+ * false on the other three, so the client bar on a brief page is visibly open on some and shut on
+ * others (CLAUDE.md non-negotiable 4).
+ *
+ * All four types are covered (three Video, one Static, one Carousel, one Motion Image, plus the
  * standalone Static), and one row — the retargeting bundle static — has `conceptId: null`: the PRD §8
  * case that the whole nullable link exists for. Four different inspiration providers appear across
  * the set (Meta Ad Library, YouTube, TikTok, Instagram), and one row carries the AI spelling feedback
@@ -886,12 +915,14 @@ export const demoBriefs: BriefListRow[] = [
       'https://www.instagram.com/reel/C7pLd4vNqR2/',
     ],
     platform: 'TikTok',
-    designFileUrl: null,
-    qaVideoEditor: false,
-    qaDesigner: false,
-    qaStrategist: false,
+    designFileUrl: 'https://frame.example/niagara/tv2-b3-v1-locked',
+    // Internally signed off, so all three QA gates are ticked and the client track is open on this
+    // row: it is the second card in the Client Queue's Pending for Approval column.
+    qaVideoEditor: true,
+    qaDesigner: true,
+    qaStrategist: true,
     spellingFeedback: null,
-    internalStatus: 'video_editing_in_progress',
+    internalStatus: 'approved',
     clientStatus: 'pending_for_approval',
     performance: null,
   },
@@ -920,12 +951,16 @@ export const demoBriefs: BriefListRow[] = [
     ],
     platform: 'Meta',
     designFileUrl: 'https://frame.example/niagara/rs1-b4-v3-client-markup',
+    // A static, so there is no video editor gate to tick; the designer and the strategist both
+    // signed V3 off. This is the one row the CLIENT has already approved — V3 exists because the
+    // client marked up V2, so it came back approved rather than pending — which is why it sits in
+    // the Client Queue's Approved column while everything else waits in Pending for Approval.
     qaVideoEditor: false,
     qaDesigner: true,
-    qaStrategist: false,
+    qaStrategist: true,
     spellingFeedback: null,
-    internalStatus: 'images_revisions',
-    clientStatus: 'pending_for_approval',
+    internalStatus: 'approved',
+    clientStatus: 'approved',
     performance: 'High Potential to Iterate',
   },
   {
@@ -960,6 +995,37 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'sent_to_video_editor',
     clientStatus: 'pending_for_approval',
     performance: null,
+  },
+  {
+    // PRD §9's exclusion rule, made visible. `isClientTrackOpen('launched')` is true, so this row
+    // is past internal sign-off — and it is still kept OFF the Client Queue board because its
+    // CLIENT status is `launched`: the media buyer has it live and there is nothing left for the
+    // client to approve. It is the only row in the Internal Queue's Launched column, and the only
+    // fixture carrying `performance: 'Winning'`.
+    ...base(BRIEF_BODY_CLOCK_LAUNCHED_ID, '2026-08-12T10:05:00.000Z', '2026-09-04T08:15:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...fromConcept(bodyClockConcept, { funnel: 'TOF', type: 'Video', sequence: 3, version: 1 }),
+    source: 'TAS',
+    priority: 'Video High',
+    assignee: 'Dorian Vance',
+    briefToDesign:
+      'The fifteen-second cutdown that is actually running in the account — do not re-edit this one. The row exists so anyone can find what is live and what the rest of B1 is being measured against. Same driveway location as TV1 but the 9 August shoot, not the September rushes, and the whole 3am/9am comparison is stripped out: it opens on the handover at 07:12 with his lanyard still on and never leaves the hallway. The first line lands at 0:02, not 0:04, because the Reels placement loses them before the fourth second. One cut only, on the blanket going on. No end card and no trial claim — the offer is carried by the copy, which is the only reason this fits the fifteen-second slot the 28-second cut never did. If anyone opens this to iterate, branch a new version and leave the live asset alone.',
+    scriptContent:
+      'NURSE (hospital corridor, 07:12, lanyard still on): Twelve hours. The sun is coming up and I have to go to bed.\nNURSE: Everyone keeps telling me to fix my sleep. Nobody tells me how to sleep at eight in the morning.\n(ONE CUT — BLANKET GOES ON, BEDROOM, CURTAINS OPEN)\nNURSE: Weight, not heat. That is the whole thing.\n(HE IS ALREADY ASLEEP. THE ROOM IS BRIGHT.)\nSUPER: Built for the people who sleep while the sun is up.',
+    elementsTested:
+      'Settled, not open: this is the control every TOF video in B1 is now measured against. It took the fifteen-second slot on hook rate — 48% held to three seconds against 31% for the 28-second cut — and it still holds the account’s lowest cost per add-to-cart, which is why it is marked Winning and why the brief is frozen rather than iterated. The variable it settled was LENGTH at a fixed opening: same corridor, same first line, fifteen seconds against twenty-eight. What it did not settle, and what TV1 V2 is in the queue to test, is whether a problem-first open that delays the product by nine seconds beats it outright.',
+    inspoLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=1188402955347119',
+    ],
+    platform: 'Meta',
+    designFileUrl: 'https://frame.example/niagara/tv3-b1-v1-live',
+    qaVideoEditor: true,
+    qaDesigner: true,
+    qaStrategist: true,
+    spellingFeedback: null,
+    internalStatus: 'launched',
+    clientStatus: 'launched',
+    performance: 'Winning',
   },
 ];
 

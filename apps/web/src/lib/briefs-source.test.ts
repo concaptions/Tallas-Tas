@@ -39,14 +39,14 @@ afterEach(() => {
 });
 
 describe('loadBriefs in demo mode', () => {
-  it('returns the six fixtures and constructs no database client, even with DATABASE_URL set', async () => {
+  it('returns the seven fixtures and constructs no database client, even with DATABASE_URL set', async () => {
     vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
 
     const result = await loadBriefs({ connect });
 
     expect(result.source).toBe('demo');
     expect(result.rows).toEqual(demoBriefs.map(toBriefRow));
-    expect(result.rows).toHaveLength(6);
+    expect(result.rows).toHaveLength(7);
     expect(connect).not.toHaveBeenCalled();
   });
 
@@ -126,6 +126,7 @@ describe('toBriefRow', () => {
       ['Video', 'video'],
       ['Static', 'static'],
       ['Carousel', 'static'],
+      ['Video', 'video'],
     ]);
   });
 
@@ -145,7 +146,7 @@ describe('toBriefRow', () => {
       (row, index) => row.internalStatus === demoBriefs[index]?.internalStatus,
     );
 
-    expect(kept).toHaveLength(5);
+    expect(kept).toHaveLength(6);
     for (const row of kept) {
       expect(internalStatusFor(row.track).map((entry) => entry.key)).toContain(row.internalStatus);
     }
@@ -192,13 +193,30 @@ describe('toBriefRow', () => {
     );
   });
 
-  it('opens the client track on exactly the one approved fixture', async () => {
+  /**
+   * The gate, pinned against the shipped distribution (ticket `client-queue`): three fixtures are
+   * internally Approved and one has gone all the way to Launched, so FOUR rows have an open client
+   * track. Only three of them are on the client BOARD — `launched` is the media buyer's column, not an
+   * approval the client still owes — and that second half of the rule lives in `isOnClientQueue` /
+   * `clientQueueRows`, tested in `client-queue-source.test.ts`, not here.
+   */
+  it('opens the client track on the three approved fixtures and the launched one', async () => {
     const { rows } = await loadBriefs({ connect });
 
     const open = rows.filter((row) => isClientTrackOpen(row.internalStatus));
-    expect(open).toHaveLength(1);
-    expect(open[0]?.internalStatus).toBe('approved');
-    expect(open[0]?.clientStatus).toBe(BRIEF_CLIENT_STATUS_DEFAULT);
+    expect(open).toHaveLength(4);
+    expect(open.map((row) => row.internalStatus)).toEqual([
+      'approved',
+      'approved',
+      'approved',
+      'launched',
+    ]);
+    expect(open.map((row) => row.clientStatus)).toEqual([
+      BRIEF_CLIENT_STATUS_DEFAULT,
+      BRIEF_CLIENT_STATUS_DEFAULT,
+      'approved',
+      'launched',
+    ]);
   });
 
   it('leaves the standalone fixture with no inherited name at all', async () => {
@@ -256,7 +274,7 @@ describe('the @tas/domain formula and the @tas/db copy', () => {
     expect(rebuilt).toEqual(demoBriefs.map((row) => row.name));
   });
 
-  it('pins the six names the db handoff published, so a rename is never silent', () => {
+  it('pins the seven names the db handoff published, so a rename is never silent', () => {
     expect(demoBriefs.map((row) => row.name)).toEqual([
       'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
       'TS1-B2-It Is Not Just Your Age-Green Screen-V1',
@@ -264,6 +282,7 @@ describe('the @tas/domain formula and the @tas/db copy', () => {
       'TV2-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
       'RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
       'TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      'TV3-B1-Your Body Clock Is Not Broken-Problem/Solution-V1',
     ]);
   });
 

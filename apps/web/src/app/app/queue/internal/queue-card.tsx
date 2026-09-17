@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { StatusChip } from '@tas/ui';
 
-import { UNASSIGNED_LABEL, type QueueItem } from './fields';
+import { QueueCardFace } from '@/components/queue/queue-card-face';
+
+import { type QueueItem } from './fields';
 
 /**
  * One brief on the Internal Queue board (ticket `internal-queue` criteria 4, 5 and 6).
@@ -12,46 +13,15 @@ import { UNASSIGNED_LABEL, type QueueItem } from './fields';
  * keydown handler on a `role="button"` can give. The Concepts board predates this and uses the
  * handler; on a card whose only job is navigation, the anchor is the primitive.
  *
- * Four things in one fixed order: the generated NAME in `font-mono` (it is system output, never a
- * typed field, CLAUDE.md non-negotiable 6), the THUMBNAIL, the ASSIGNEE and the PRIORITY chip.
- *
- * Nothing is decided here. The tile's word and its source come from `briefThumbnail` in
- * `@tas/domain/creatives`; the priority label and tone from `priorityView`, which the Creative Briefs
- * route owns. A brief with no priority renders no chip at all rather than an empty pill, and every
- * colour, radius and font is a token class — no hex, no `rounded-full`.
+ * WHAT THE CARD SHOWS is `QueueCardFace` in `@/components/queue`, which the Client Queue card draws
+ * too: four things in one fixed order — the generated NAME in `font-mono` (it is system output,
+ * never a typed field, CLAUDE.md non-negotiable 6), the THUMBNAIL, the ASSIGNEE and the PRIORITY
+ * chip. This file owns only what makes it an internal card: the anchor around it. Nothing is
+ * decided in either place — the tile comes from `briefThumbnail`, the priority chip from
+ * `priorityView`, and every colour, radius and font is a token class.
  */
 interface QueueCardProps {
   readonly item: QueueItem;
-}
-
-/**
- * The tile, drawn entirely from the token layer: no image is fetched and nothing is measured. The
- * design file is the creative itself, so it gets the accent treatment; a borrowed reference and the
- * name fallback stay quiet, because the tile must never out-shout the name above it.
- */
-function ThumbnailTile({ item }: QueueCardProps) {
-  const { thumbnail } = item;
-  const accent = thumbnail.source === 'design-file';
-
-  return (
-    <span
-      data-slot="queue-card-thumb"
-      data-thumb-source={thumbnail.source}
-      title={thumbnail.url ?? thumbnail.alt}
-      aria-label={thumbnail.alt}
-      role="img"
-      className={[
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-input border px-1 text-center',
-        accent
-          ? 'border-accent-line bg-accent-soft text-accent'
-          : 'border-line bg-surface3 text-text3',
-      ].join(' ')}
-    >
-      <span className="w-full truncate font-mono text-[9px] leading-none tracking-tight uppercase">
-        {thumbnail.label}
-      </span>
-    </span>
-  );
 }
 
 export function QueueCard({ item }: QueueCardProps) {
@@ -63,32 +33,7 @@ export function QueueCard({ item }: QueueCardProps) {
       aria-label={item.name}
       className="flex min-w-0 flex-col gap-2 rounded-card border border-line bg-surface p-3 hover:border-line2 focus-visible:border-accent-line focus-visible:outline-none"
     >
-      <p
-        data-slot="queue-card-name"
-        className="font-mono text-xs leading-snug break-words text-text"
-      >
-        {item.name}
-      </p>
-
-      <div className="flex min-w-0 items-center gap-2.5">
-        <ThumbnailTile item={item} />
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <span
-            data-slot="queue-card-assignee"
-            className={[
-              'min-w-0 truncate text-xs',
-              item.assignee === null ? 'text-text4 italic' : 'text-text2',
-            ].join(' ')}
-          >
-            {item.assignee ?? UNASSIGNED_LABEL}
-          </span>
-          {item.priority === null ? null : (
-            <span data-slot="queue-card-priority" className="flex min-w-0">
-              <StatusChip tone={item.priority.tone} label={item.priority.label} />
-            </span>
-          )}
-        </div>
-      </div>
+      <QueueCardFace face={item} slot="queue-card" />
     </Link>
   );
 }

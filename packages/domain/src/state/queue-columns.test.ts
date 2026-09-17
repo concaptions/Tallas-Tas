@@ -17,14 +17,20 @@ interface Row {
 
 const row = (id: string, internalStatus: string): Row => ({ id, internalStatus });
 
-/** The six seeded briefs' statuses, in `demoBriefs` order (which is `updated_at desc`). */
+/**
+ * The seven seeded briefs' internal statuses, in `demoBriefs` order (which is `updated_at desc`).
+ * Copied from the `packages/db` client-queue handoff rather than imported: `@tas/domain` has no
+ * dependency on `@tas/db` and must not grow one. Three rows are `approved` so the Client Queue board
+ * has cards, and the seventh is `launched`.
+ */
 const demoStatuses = [
   'approved',
   'static_design_in_progress',
   'ad_submitted',
-  'video_editing_in_progress',
-  'images_revisions',
+  'approved',
+  'approved',
   'sent_to_video_editor',
+  'launched',
 ];
 
 describe('internalQueueColumns', () => {
@@ -124,8 +130,10 @@ describe('groupByInternalStatus', () => {
 
     const filled = columns.filter((column) => column.count > 0).map((column) => column.key);
     expect(new Set(filled)).toEqual(new Set(demoStatuses));
+    // Three of the seven fixtures share the `approved` step, so the empty columns are counted
+    // against the DISTINCT statuses, not the row count.
     expect(columns.filter((column) => column.count === 0)).toHaveLength(
-      INTERNAL_QUEUE_COLUMNS.length - demoStatuses.length,
+      INTERNAL_QUEUE_COLUMNS.length - new Set(demoStatuses).size,
     );
   });
 

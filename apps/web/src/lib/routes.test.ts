@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { briefPath, internalQueuePath, isPublicPath } from './routes';
+import { briefPath, clientQueuePath, internalQueuePath, isPublicPath } from './routes';
 
 describe('isPublicPath', () => {
   it.each(['/app', '/app/brands/1', '/app/', '/sign-in-other', '/settings', internalQueuePath])(
@@ -31,5 +31,19 @@ describe('internalQueuePath', () => {
       false,
     );
     expect(isPublicPath(internalQueuePath)).toBe(false);
+  });
+});
+
+describe('clientQueuePath', () => {
+  it('is the Internal Queue’s sibling under the same queue segment', () => {
+    expect(clientQueuePath).toBe('/app/queue/client');
+    expect(clientQueuePath.startsWith('/app/queue/')).toBe(true);
+    expect(clientQueuePath).not.toBe(internalQueuePath);
+  });
+
+  it('is protected, and neither queue route is a prefix of the other', () => {
+    expect(isPublicPath(clientQueuePath)).toBe(false);
+    expect(clientQueuePath.startsWith(internalQueuePath)).toBe(false);
+    expect(internalQueuePath.startsWith(clientQueuePath)).toBe(false);
   });
 });

@@ -101,6 +101,7 @@ import {
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
 } from './copywriting.stories';
+import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
 
@@ -905,6 +906,27 @@ export default function DesignSystemPage() {
               queue column — PRD §9 order from the domain, empty columns kept, strip scrolls alone
             </h3>
             <QueueColumnStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Client Queue: the card and the column"
+        note="The two shapes /app/queue/client introduces. Mounted from the route's own component and the strip both boards share, never re-drawn here."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              client queue card — the shared face, the client chip, both writes disabled with a
+              tooltip
+            </h3>
+            <ClientQueueCardStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              client column — CLIENT_STATUS minus Launched, from the domain, empty columns kept
+            </h3>
+            <ClientQueueColumnStory />
           </div>
         </div>
       </Section>

@@ -201,11 +201,11 @@ describe('migration 0006 on PGlite', () => {
 });
 
 describe('brief fixtures', () => {
-  it('seeds the six fixtures row for row, everything inherited included', async () => {
+  it('seeds the seven fixtures row for row, everything inherited included', async () => {
     const { db, brandId } = await seeded();
 
     expect(brandId).toBe(DEMO_BRAND_ID);
-    expect(demoBriefs).toHaveLength(6);
+    expect(demoBriefs).toHaveLength(7);
     expect(await listBriefs(db, brandId)).toEqual(demoBriefs);
   });
 
@@ -243,12 +243,14 @@ describe('brief fixtures', () => {
       // The optional §7 product suffix, on the one brief whose concept does not name the product.
       'RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
       'TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      // The launched control: a third TOF video on the B1 concept, so the §7 number is 3.
+      'TV3-B1-Your Body Clock Is Not Broken-Problem/Solution-V1',
     ]);
   });
 
   it('increments the number per funnel+format combination within the brand', () => {
-    // PRD §7: "the number increments per funnel+format combination". Two TOF videos, so 1 and 2;
-    // every other combination is used once, so 1.
+    // PRD §7: "the number increments per funnel+format combination". Three TOF videos, so 1, 2 and
+    // 3; every other combination is used once, so 1.
     const byCombination = new Map<string, number[]>();
     for (const row of demoBriefs) {
       const key = `${row.funnel}|${row.type}`;
@@ -260,29 +262,83 @@ describe('brief fixtures', () => {
         sequences.map((_, index) => index + 1).sort((a, b) => a - b),
       );
     }
-    expect(byCombination.get('TOF|Video')?.sort((a, b) => a - b)).toEqual([1, 2]);
+    expect(byCombination.get('TOF|Video')?.sort((a, b) => a - b)).toEqual([1, 2, 3]);
   });
 
-  it('sits each brief in a different internal status, exactly one of them Approved', () => {
+  /**
+   * The status spread feeds TWO boards off these same rows, so it is pinned here rather than left
+   * to whichever page happens to read it. The Internal Queue groups by `internalStatus`; the Client
+   * Queue groups by `clientStatus` and admits a row only when the internal status opens the client
+   * track (`isClientTrackOpen` in `@tas/domain/state`: `approved` or `launched`) AND the client
+   * status is not `launched` (PRD §9). Three rows stay pre-Approved so the internal board keeps
+   * cards, three are internally Approved so the client board has both its columns filled, and the
+   * launched row is on the internal board and off the client one.
+   */
+  it('spreads the internal statuses across both boards, three of them Approved', () => {
     const internal = demoBriefs.map((row) => row.internalStatus);
 
     expect(internal).toEqual([
       'approved',
       'static_design_in_progress',
       'ad_submitted',
-      'video_editing_in_progress',
-      'images_revisions',
+      'approved',
+      'approved',
+      'sent_to_video_editor',
+      'launched',
+    ]);
+    // Three pre-Approved rows in three different states, so the Internal Queue board is populated
+    // early, mid and per track rather than collapsing into one column.
+    const preApproved = internal.filter((key) => key !== 'approved' && key !== 'launched');
+    expect(preApproved).toEqual([
+      'static_design_in_progress',
+      'ad_submitted',
       'sent_to_video_editor',
     ]);
-    expect(new Set(internal).size).toBe(6);
-    // PRD §9 / CLAUDE.md non-negotiable 4: the client track opens only at Approved, so exactly one
-    // demo row has it open and that row sits at the first client status.
-    expect(internal.filter((key) => key === 'approved')).toHaveLength(1);
-    expect(demoBriefs.every((row) => row.clientStatus === 'pending_for_approval')).toBe(true);
-    const approved = demoBriefs.find((row) => row.internalStatus === 'approved');
-    expect(approved?.clientStatus).toBe('pending_for_approval');
+    expect(new Set(preApproved).size).toBe(3);
     // At least one sits before Ad Submitted, so the stepper is visibly early somewhere.
     expect(internal).toContain('sent_to_video_editor');
+  });
+
+  it('pairs the client statuses so the client board fills and Launched is excluded', () => {
+    // The gate, spelled out rather than imported: `@tas/db` does not depend on `@tas/domain`, and
+    // this is the truth table `isClientTrackOpen` implements.
+    const trackOpen = (internal: string): boolean =>
+      internal === 'approved' || internal === 'launched';
+    const onClientBoard = demoBriefs.filter(
+      (row) => trackOpen(row.internalStatus) && row.clientStatus !== 'launched',
+    );
+
+    expect(demoBriefs.map((row) => row.clientStatus)).toEqual([
+      'pending_for_approval',
+      'pending_for_approval',
+      'pending_for_approval',
+      'pending_for_approval',
+      'approved',
+      'pending_for_approval',
+      'launched',
+    ]);
+    // Four rows are past internal sign-off, but only three reach the client board: the launched
+    // creative is excluded by its CLIENT status, which is the PRD §9 rule this fixture exercises.
+    expect(demoBriefs.filter((row) => trackOpen(row.internalStatus))).toHaveLength(4);
+    expect(onClientBoard).toHaveLength(3);
+    expect(onClientBoard.filter((row) => row.clientStatus === 'pending_for_approval')).toHaveLength(
+      2,
+    );
+    expect(onClientBoard.filter((row) => row.clientStatus === 'approved')).toHaveLength(1);
+    // The one client-approved row is the standalone bundle static, so the client board renders a
+    // card whose concept, angle and product all join null (PRD §8).
+    expect(onClientBoard.find((row) => row.clientStatus === 'approved')).toMatchObject({
+      id: standaloneBrief().id,
+      conceptId: null,
+      conceptName: null,
+      angleName: null,
+      productName: null,
+    });
+    // Exactly one launched creative, and it never reaches the client board.
+    const launched = demoBriefs.filter((row) => row.internalStatus === 'launched');
+    expect(launched).toHaveLength(1);
+    expect(launched[0]).toMatchObject({ clientStatus: 'launched', performance: 'Winning' });
+    expect(onClientBoard.map((row) => row.id)).not.toContain(launched[0]?.id);
   });
 
   it('covers all four types and keeps exactly one standalone brief', () => {
@@ -454,7 +510,7 @@ describe('brief queries', () => {
       .set({ deletedAt: new Date() })
       .where(eq(creativeBriefs.id, demoBrief().id));
 
-    expect(await listBriefs(db, brandId)).toHaveLength(5);
+    expect(await listBriefs(db, brandId)).toHaveLength(6);
     expect(await getBriefById(db, brandId, demoBrief().id)).toBeNull();
   });
 
@@ -535,7 +591,7 @@ describe('brief queries', () => {
       createdBy: 'user_test',
       updatedBy: 'user_test',
     });
-    expect(await listBriefs(db, brandId)).toHaveLength(7);
+    expect(await listBriefs(db, brandId)).toHaveLength(8);
     expect(await listBriefs(db, otherBrandId)).toEqual([]);
   });
 

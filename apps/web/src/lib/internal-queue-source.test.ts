@@ -28,14 +28,14 @@ afterEach(() => {
 });
 
 describe('loadInternalQueue in demo mode', () => {
-  it('returns the six fixtures and constructs no database client, even with DATABASE_URL set', async () => {
+  it('returns the seven fixtures and constructs no database client, even with DATABASE_URL set', async () => {
     vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
 
     const result = await loadInternalQueue({ connect });
 
     expect(result.source).toBe('demo');
     expect(result.rows).toEqual(demoBriefs.map(toBriefRow));
-    expect(result.rows).toHaveLength(6);
+    expect(result.rows).toHaveLength(7);
     expect(connect).not.toHaveBeenCalled();
   });
 
@@ -63,7 +63,7 @@ describe('loadInternalQueue in demo mode', () => {
   it('offers exactly the one seeded brand, labelled and counted from the rows', async () => {
     const { brands } = await loadInternalQueue({ connect });
 
-    expect(brands).toEqual([{ id: DEMO_BRAND_ID, name: 'Niagara Sleep Solutions', count: 6 }]);
+    expect(brands).toEqual([{ id: DEMO_BRAND_ID, name: 'Niagara Sleep Solutions', count: 7 }]);
   });
 });
 
@@ -80,7 +80,7 @@ describe('loadInternalQueue in live mode', () => {
 
     expect(result.source).toBe('database');
     expect(result.viewer).toBe('Imogen Bardsley');
-    expect(result.brands).toEqual([{ id: DEMO_BRAND_ID, name: 'Live Brand', count: 6 }]);
+    expect(result.brands).toEqual([{ id: DEMO_BRAND_ID, name: 'Live Brand', count: 7 }]);
   });
 });
 
