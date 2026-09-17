@@ -101,6 +101,7 @@ import {
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
 } from './copywriting.stories';
+import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
 
 export const metadata = {
   title: 'Design system — TAS Creative Platform',
@@ -863,6 +864,26 @@ export default function DesignSystemPage() {
               character counter — used of the guide, warn at it, bad past it, never a block
             </h3>
             <CopyCounterStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="UGC Management: the creator card and the partnership countdown"
+        note="The two shapes /app/ugc introduces. Mounted from the route's own components, never re-drawn here."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              creator card — avatar or initials, and the three tracks each under its own review
+            </h3>
+            <CreatorCardStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              partnership countdown — expiring, active, expired, and never activated
+            </h3>
+            <PartnershipCountdownStory />
           </div>
         </div>
       </Section>

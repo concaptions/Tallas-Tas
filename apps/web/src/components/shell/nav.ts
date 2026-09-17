@@ -8,6 +8,7 @@ import {
   personasPath,
   productsPath,
   themesPath,
+  ugcPath,
 } from '@/lib/routes';
 
 import type { IconName } from './icons';
@@ -46,7 +47,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { key: 'concepts', label: 'Concepts', icon: 'concepts', href: conceptsPath },
       { key: 'briefs', label: 'Creative Briefs', icon: 'briefs', href: briefsPath },
       { key: 'copywriting', label: 'Copywriting', icon: 'copywriting', href: copywritingPath },
-      { key: 'ugc', label: 'UGC Management', icon: 'ugc' },
+      { key: 'ugc', label: 'UGC Management', icon: 'ugc', href: ugcPath },
     ],
   },
   {

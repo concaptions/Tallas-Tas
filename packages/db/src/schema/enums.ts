@@ -146,3 +146,28 @@ export const copyCtas = [
 ] as const;
 export type CopyCta = (typeof copyCtas)[number];
 export const copyCtaEnum = pgEnum('copy_cta', copyCtas);
+
+/**
+ * The age band a creator is booked in (`creators.age_bracket`), PRD §5.8, in ascending order.
+ *
+ * A BAND rather than a birth date on purpose: the agency never learns a creator's age, it books
+ * against the bracket a casting brief asks for, and a date of birth would be personal data the
+ * product has no use for. Same arrangement as `creativeSources` — an `as const` tuple the column is
+ * `$type`d from rather than a `pgEnum`, so adding a band is a vocabulary change and not a migration.
+ */
+export const creatorAgeBrackets = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'] as const;
+export type CreatorAgeBracket = (typeof creatorAgeBrackets)[number];
+
+/**
+ * Where a creator was sourced and is paid through (`creators.platform`), PRD §5.8, in the order the
+ * PRD lists them. "Direct Management" is the one that is not a marketplace: the creator is managed
+ * by TAS directly, which is why a partnership (§5.8.1) is usually struck with one of those.
+ */
+export const creatorPlatforms = [
+  'Fiverr',
+  'Billo',
+  'Backstage',
+  'Insense',
+  'Direct Management',
+] as const;
+export type CreatorPlatform = (typeof creatorPlatforms)[number];

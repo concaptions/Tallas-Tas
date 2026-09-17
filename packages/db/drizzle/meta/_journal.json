@@ -57,6 +57,13 @@
       "when": 1789605892038,
       "tag": "0007_copywriting",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789626029370,
+      "tag": "0008_ugc",
+      "breakpoints": true
     }
   ]
 }

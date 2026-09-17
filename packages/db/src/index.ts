@@ -7,17 +7,28 @@ export { getConceptById, insertConcept, listConcepts, updateConcept } from './co
 export type { ConceptInput, ConceptListRow } from './concepts';
 export { getCopyById, insertCopy, listCopy, updateCopy } from './copy';
 export type { CopyInput, CopyListRow } from './copy';
+export {
+  getCreatorById,
+  insertCreator,
+  listCreators,
+  listPartnershipCreators,
+  updateCreator,
+} from './creators';
+export type { CreatorInput, CreatorListRow } from './creators';
 export { createDb, createNeonDb, drizzleConfig } from './db';
 export type { Db, NeonDb, Schema } from './db';
 export {
   DEMO_ACTOR_ID,
   DEMO_BRAND_ID,
+  PARTNERSHIP_REFERENCE_DATE,
   PRODUCT_CSV_COLUMNS,
   STANDALONE_CONCEPT_SLUG,
   demoAngles,
   demoBriefs,
   demoConcepts,
   demoCopy,
+  demoCreators,
+  demoPartnershipCreators,
   demoPersonas,
   demoProducts,
   demoThemes,

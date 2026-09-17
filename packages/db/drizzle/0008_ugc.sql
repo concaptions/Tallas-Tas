@@ -1,0 +1,42 @@
+CREATE TABLE "creators" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"brand_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" text,
+	"updated_by" text,
+	"deleted_at" timestamp with time zone,
+	"name" text NOT NULL,
+	"age_bracket" text,
+	"gender" text,
+	"ethnicity" text,
+	"profile_pic_url" text,
+	"video_intro_url" text,
+	"creator_link" text,
+	"platform" text,
+	"internal_brief" text,
+	"shipping_location" text,
+	"tracking_number" text,
+	"date_of_management" timestamp with time zone,
+	"deadline" timestamp with time zone,
+	"budget_per_60s" integer,
+	"creator_cost" integer,
+	"internal_creator_status" text DEFAULT 'request' NOT NULL,
+	"client_status" text DEFAULT 'pending_for_approval' NOT NULL,
+	"internal_assets_status" text DEFAULT 'pending_for_cs_approval' NOT NULL,
+	"client_note" text,
+	"instagram_username" text,
+	"for_partnership_ads" boolean DEFAULT false NOT NULL,
+	"partnership_activity" text DEFAULT 'not_active' NOT NULL,
+	"partnership_activated_at" timestamp with time zone,
+	"partnership_period_days" integer,
+	"continue_working_with" boolean,
+	"extension_days" integer DEFAULT 0 NOT NULL,
+	"partnership_price_per_30_days" integer,
+	"partnership_notes" text,
+	"facebook_profile_url" text
+);
+--> statement-breakpoint
+ALTER TABLE "creators" ADD CONSTRAINT "creators_brand_id_brands_id_fk" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "creators_brand_id_idx" ON "creators" USING btree ("brand_id");--> statement-breakpoint
+CREATE INDEX "creators_partnership_idx" ON "creators" USING btree ("brand_id","for_partnership_ads");

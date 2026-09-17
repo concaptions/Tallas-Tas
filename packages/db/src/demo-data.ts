@@ -2,6 +2,7 @@ import type { AngleListRow } from './angles';
 import type { BriefListRow } from './briefs';
 import type { ConceptListRow } from './concepts';
 import type { CopyListRow } from './copy';
+import type { CreatorListRow } from './creators';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
 import type { CreativeFunnel, CreativeType } from './schema';
@@ -60,6 +61,11 @@ const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
 const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
 const COPY_DAYLIGHT_ID = '88888888-8888-4888-8888-000000000003';
 const COPY_BUNDLE_UNATTACHED_ID = '88888888-8888-4888-8888-000000000004';
+const CREATOR_DANIELLE_ID = '99999999-9999-4999-8999-000000000001';
+const CREATOR_MARCUS_ID = '99999999-9999-4999-8999-000000000002';
+const CREATOR_PRIYA_ID = '99999999-9999-4999-8999-000000000003';
+const CREATOR_TOMAS_ID = '99999999-9999-4999-8999-000000000004';
+const CREATOR_HANNAH_ID = '99999999-9999-4999-8999-000000000005';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -1050,3 +1056,266 @@ export const demoCopy: CopyListRow[] = [
     creativeName: null,
   },
 ];
+
+/**
+ * The instant every partnership countdown in the demo is measured from.
+ *
+ * Fixed, exported, and NOT `Date.now()`. A fixture that derived its activation date from the clock
+ * would make "expires in 3 days" true at build time and false the next morning, and a test that
+ * asserted 3 would be a test that fails on a Tuesday. So the activation dates below are literal
+ * timestamps chosen against THIS instant, and the app passes it as `now` in demo mode (the live
+ * path passes the real clock, because live rows carry real activation dates). One reference date
+ * shared by the fixtures, the page and the tests is what makes the countdown agree everywhere.
+ */
+export const PARTNERSHIP_REFERENCE_DATE = at('2026-09-17T09:00:00.000Z');
+
+/**
+ * A creator's profile picture as an inline SVG data URI: a rounded tile with their initials.
+ *
+ * Deterministic and OFFLINE on purpose. The demo deployment runs with no environment variables at
+ * all — no Clerk, no database, and no object storage — and a fixture pointing at a remote avatar
+ * (an R2 key, a Fiverr CDN URL, a placeholder service) would render as a broken image on the one
+ * deployment anybody actually looks at, and would make the tests depend on a network. A data URI is
+ * bytes in the row: it renders in an `<img src>` with the machine unplugged, it is identical in
+ * every process, and it is exactly the shape a real `profile_pic_url` has, so the page needs no
+ * branch between demo and live.
+ *
+ * Colours are `hsl()` rather than hex, matching the `--surface3` / `--text3` tokens by value: this
+ * is DATA (a stand-in for an uploaded photo), not a component, so it cannot import the token layer —
+ * and a real deployment replaces the whole string with the creator's own picture.
+ */
+function initialsAvatar(initials: string): string {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">' +
+    '<rect width="96" height="96" rx="14" fill="hsl(26 15% 13%)"/>' +
+    '<text x="48" y="49" text-anchor="middle" dominant-baseline="central" ' +
+    'font-family="system-ui, sans-serif" font-size="34" font-weight="600" ' +
+    `fill="hsl(30 9% 54%)">${initials}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * Five creators for Niagara Sleep Solutions (PRD §5.8), with §5.8.1's partnership fields on the same
+ * rows — the people who actually film the ads the concepts and briefs above describe.
+ *
+ * Read them as one roster, not five independent records: Danielle and Marcus are the two the brand
+ * keeps re-booking (Direct Management and Insense), Priya was a marketplace booking that turned into
+ * a partnership and then ended, Tomás is mid-shipment on his first brief and Hannah has just
+ * delivered. They sit in FIVE different `CREATOR_STATUS` keys (the client-facing track): approved,
+ * revisions_needed, due_shipment, video_delivered and pending_for_approval, across three genders and
+ * five age brackets, one per PRD platform.
+ *
+ * Tomás carries `profilePicUrl: null` deliberately: a creator sourced off a Fiverr gig often has no
+ * usable headshot on day one, and the grid must fall back to initials rather than a broken image.
+ *
+ * THE THREE PARTNERSHIPS are the whole point of §5.8.1, and their activation dates are chosen
+ * against `PARTNERSHIP_REFERENCE_DATE` so the countdown is the same on any day the demo is opened:
+ *
+ *   - Danielle: activated 2026-07-22 for 60 days, no extension → lapses 2026-09-20, THREE days out.
+ *     Inside the 25-day window PRD §5.8.1 wants the Slack reminder for, so this is the highlighted
+ *     row and the one the reminder would fire on.
+ *   - Marcus: activated 2026-07-09 for 60 days PLUS a 30-day extension → lapses 2026-10-07, twenty
+ *     days out. The extension is what makes his expiry later than Danielle's although he was
+ *     whitelisted first, which is exactly the arithmetic a stored expiry column would get wrong.
+ *   - Priya: activated 2026-04-15 for 30 days, never extended → lapsed 2026-05-15, months ago, and
+ *     her activity is `ended`. The row stays in the list: it is the brand's partnership history.
+ *
+ * The other two have `forPartnershipAds: false` and no partnership data at all, which is the
+ * ordinary case — most creators are hired for a video and never whitelisted.
+ *
+ * Money is whole US dollars (`schema/creators.ts`). The array is in `updated_at` descending order,
+ * the order `listCreators` returns, so a test can compare the two directly.
+ */
+export const demoCreators: CreatorListRow[] = [
+  {
+    ...base(CREATOR_DANIELLE_ID, '2026-06-18T13:20:00.000Z', '2026-09-16T11:40:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Danielle Okonkwo',
+    ageBracket: '25-34',
+    gender: 'Female',
+    ethnicity: 'Black Canadian',
+    profilePicUrl: initialsAvatar('DO'),
+    videoIntroUrl: 'https://vimeo.com/niagarasleep/danielle-okonkwo-intro',
+    creatorLink: 'https://www.instagram.com/danielle.sleeps.late',
+    platform: 'Direct Management',
+    internalBrief:
+      'Danielle is the night-shift voice for the whole Body Clock batch — she worked four years of 12-hour ER nights in Hamilton before moving to comms, so she can say "I drove home in daylight" without us scripting it. Film the one-take hook in her actual bedroom at 08:30 with the blinds open, not a set: the blown-out window IS the proof. Two takes maximum, no ring light, phone on a stack of books. She talks fast, so ask for one slow read of the ninety-nights line at the end that we can cut back in.',
+    shippingLocation: 'Hamilton, ON L8P 4W7, Canada',
+    trackingNumber: 'CP 4192 8830 1147 CA',
+    dateOfManagement: at('2026-06-18T13:20:00.000Z'),
+    deadline: at('2026-09-26T21:00:00.000Z'),
+    budgetPer60s: 420,
+    creatorCost: 630,
+    internalCreatorStatus: 'approved',
+    clientStatus: 'approved',
+    internalAssetsStatus: 'approved',
+    clientNote:
+      'She is the one. Keep her on the night-shift angles and do not put her in anything menopause-adjacent — different audience, and she is thirty.',
+    instagramUsername: '@danielle.sleeps.late',
+    forPartnershipAds: true,
+    partnershipActivity: 'active',
+    // 60 days from 2026-07-22 lapses 2026-09-20: three days after PARTNERSHIP_REFERENCE_DATE.
+    partnershipActivatedAt: at('2026-07-22T09:00:00.000Z'),
+    partnershipPeriodDays: 60,
+    continueWorkingWith: true,
+    extensionDays: 0,
+    partnershipPricePer30Days: 750,
+    partnershipNotes:
+      'Whitelisted from her own handle for the Body Clock video and the r/nursing static. Expires in three days and the top ad is still spending — get the extension signed before Sunday or Meta drops the placement mid-flight. She has already said yes verbally, it is the paperwork that is late.',
+    facebookProfileUrl: 'https://www.facebook.com/danielle.okonkwo.creator',
+  },
+  {
+    ...base(CREATOR_MARCUS_ID, '2026-06-02T10:05:00.000Z', '2026-09-15T09:25:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Marcus Delacroix',
+    ageBracket: '35-44',
+    gender: 'Male',
+    ethnicity: 'Mixed — Haitian and French Canadian',
+    profilePicUrl: initialsAvatar('MD'),
+    videoIntroUrl: 'https://vimeo.com/niagarasleep/marcus-delacroix-intro',
+    creatorLink: 'https://insense.pro/creators/marcus-delacroix',
+    platform: 'Insense',
+    internalBrief:
+      'Marcus is the sceptic. He opens every video by saying he did not believe it, which is why the comments do not read as an ad. Brief him on the thermostat angle: he overheats, he has thrown two weighted blankets out for exactly that reason, and we want him to say so on camera before the product appears. Shoot in his own bedroom in Montreal, ambient light only. He needs the fabric spec in writing beforehand or he will refuse to make the cooling claim, which is the correct instinct and the reason we book him.',
+    shippingLocation: 'Montréal, QC H2T 1S4, Canada',
+    trackingNumber: 'CP 7731 0064 9982 CA',
+    dateOfManagement: at('2026-06-02T10:05:00.000Z'),
+    deadline: at('2026-10-02T21:00:00.000Z'),
+    budgetPer60s: 380,
+    creatorCost: 540,
+    internalCreatorStatus: 'approved',
+    clientStatus: 'filming_in_progress',
+    internalAssetsStatus: 'pending_for_cs_approval',
+    clientNote: null,
+    instagramUsername: '@marcus.after.midnight',
+    forPartnershipAds: true,
+    partnershipActivity: 'active',
+    // 60 + 30 days from 2026-07-09 lapses 2026-10-07: twenty days after the reference date. He was
+    // whitelisted before Danielle and still expires later — the extension is why.
+    partnershipActivatedAt: at('2026-07-09T09:00:00.000Z'),
+    partnershipPeriodDays: 60,
+    continueWorkingWith: true,
+    extensionDays: 30,
+    partnershipPricePer30Days: 600,
+    partnershipNotes:
+      'Extended by 30 days in August when the thermostat creative went from testing into the always-on set. Runs from his handle on Meta only — he has no TikTok and has asked us not to repurpose the footage there. Invoice is per 30 days and does not include the content fee above.',
+    facebookProfileUrl: 'https://www.facebook.com/marcus.delacroix.mtl',
+  },
+  {
+    ...base(CREATOR_PRIYA_ID, '2026-03-30T15:45:00.000Z', '2026-09-14T15:10:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Priya Raghunathan',
+    ageBracket: '45-54',
+    gender: 'Female',
+    ethnicity: 'South Asian — Tamil Canadian',
+    profilePicUrl: initialsAvatar('PR'),
+    videoIntroUrl: 'https://vimeo.com/niagarasleep/priya-raghunathan-intro',
+    creatorLink: 'https://billo.app/creators/priya-raghunathan',
+    platform: 'Billo',
+    internalBrief:
+      'Priya filmed the first perimenopause cut in March and it is still the best-performing static we have. She reads the 3:47am line as a fact about her own week, because it is. Brief for the follow-up: no soft focus, no candles, no spa language — she has said plainly that the category patronises women her age and she will not read a script that does. Kitchen table at night, overhead light on, exactly like the first one.',
+    shippingLocation: 'Mississauga, ON L5B 3C2, Canada',
+    trackingNumber: 'CP 2205 4417 6690 CA',
+    dateOfManagement: at('2026-03-30T15:45:00.000Z'),
+    deadline: at('2026-09-19T21:00:00.000Z'),
+    budgetPer60s: 260,
+    creatorCost: 390,
+    internalCreatorStatus: 'revisions_needed',
+    clientStatus: 'revisions_needed',
+    internalAssetsStatus: 'revisions_needed',
+    clientNote:
+      'Love her, but the second cut has the brand name in the first two seconds and the first one did not. That is the whole difference. Send it back and ask for the cold open.',
+    instagramUsername: '@priya.at.3am',
+    forPartnershipAds: true,
+    partnershipActivity: 'ended',
+    // 30 days from 2026-04-15 lapsed 2026-05-15, months before the reference date.
+    partnershipActivatedAt: at('2026-04-15T09:00:00.000Z'),
+    partnershipPeriodDays: 30,
+    continueWorkingWith: false,
+    extensionDays: 0,
+    partnershipPricePer30Days: 450,
+    partnershipNotes:
+      'One 30-day whitelisting window in April that we did not renew — her handle skews too far outside the buying audience for paid, although her organic reach on the thread posts is the reason we found her. We still book her for content; the partnership itself is closed and should not be reactivated without asking her first.',
+    facebookProfileUrl: null,
+  },
+  {
+    ...base(CREATOR_TOMAS_ID, '2026-08-28T09:10:00.000Z', '2026-09-11T08:05:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Tomás Ferreira',
+    ageBracket: '18-24',
+    gender: 'Male',
+    ethnicity: 'Brazilian',
+    // No headshot yet: a Fiverr booking arrives with a gig thumbnail and nothing usable, so the
+    // grid falls back to initials rather than rendering a broken image.
+    profilePicUrl: null,
+    videoIntroUrl: null,
+    creatorLink: 'https://www.fiverr.com/tomasferreira_ugc',
+    platform: 'Fiverr',
+    internalBrief:
+      'First booking, cheapest of the roster, and the only one under 25 — he is here to test whether the ninety-minute-window angle reads to students as well as it does to new parents. Two variants of the same thirty-second script, one filmed at a desk at 02:00 and one in bed at 09:00, both vertical, both on his own phone. Do not send him the full brief document; he has asked for a one-page shot list and he is right that it works better.',
+    shippingLocation: 'Toronto, ON M5V 2K4, Canada',
+    trackingNumber: 'CP 9043 1178 2265 CA',
+    dateOfManagement: at('2026-08-28T09:10:00.000Z'),
+    deadline: at('2026-10-10T21:00:00.000Z'),
+    budgetPer60s: 150,
+    creatorCost: 150,
+    internalCreatorStatus: 'pending_for_cs_approval',
+    clientStatus: 'due_shipment',
+    internalAssetsStatus: 'pending_for_cs_approval',
+    clientNote: null,
+    instagramUsername: null,
+    forPartnershipAds: false,
+    partnershipActivity: 'not_active',
+    partnershipActivatedAt: null,
+    partnershipPeriodDays: null,
+    continueWorkingWith: null,
+    extensionDays: 0,
+    partnershipPricePer30Days: null,
+    partnershipNotes: null,
+    facebookProfileUrl: null,
+  },
+  {
+    ...base(CREATOR_HANNAH_ID, '2026-07-14T11:30:00.000Z', '2026-09-08T17:45:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Hannah Whitcombe',
+    ageBracket: '55-64',
+    gender: 'Non-binary',
+    ethnicity: 'White — British Canadian',
+    profilePicUrl: initialsAvatar('HW'),
+    videoIntroUrl: 'https://vimeo.com/niagarasleep/hannah-whitcombe-intro',
+    creatorLink: 'https://www.backstage.com/u/hannah-whitcombe',
+    platform: 'Backstage',
+    internalBrief:
+      'Trained actor, booked through Backstage rather than a UGC marketplace, and the only person on the roster who can carry a scripted read without it sounding scripted. Use them for the lux-meter motion image voiceover and the retargeting cutdowns where we need the words hit exactly. They live in a top-floor flat in Ottawa with east-facing windows, which is the actual set for the 186-lux shot — no lighting rig, we want the real reading on camera.',
+    shippingLocation: 'Ottawa, ON K1N 7B7, Canada',
+    trackingNumber: 'CP 6618 9924 0053 CA',
+    dateOfManagement: at('2026-07-14T11:30:00.000Z'),
+    deadline: at('2026-09-12T21:00:00.000Z'),
+    budgetPer60s: 500,
+    creatorCost: 500,
+    internalCreatorStatus: 'approved',
+    clientStatus: 'video_delivered',
+    internalAssetsStatus: 'approved',
+    clientNote:
+      'Delivered a day early and the lux reading is legible on a phone, which is all we asked for. Book them again for the Q4 gifting set.',
+    instagramUsername: '@hannahwhitcombe',
+    forPartnershipAds: false,
+    partnershipActivity: 'not_active',
+    partnershipActivatedAt: null,
+    partnershipPeriodDays: null,
+    continueWorkingWith: null,
+    extensionDays: 0,
+    partnershipPricePer30Days: null,
+    partnershipNotes: null,
+    facebookProfileUrl: null,
+  },
+];
+
+/**
+ * The §5.8.1 list: the three creators marked for partnership ads, in the same `updated_at`
+ * descending order `listPartnershipCreators` returns them. Derived from `demoCreators` by the one
+ * qualifier the query filters on, rather than written out a second time, so the two can never drift.
+ */
+export const demoPartnershipCreators: CreatorListRow[] = demoCreators.filter(
+  (creator) => creator.forPartnershipAds,
+);

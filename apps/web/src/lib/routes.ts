@@ -13,6 +13,7 @@ export const themesPath = '/app/themes';
 export const conceptsPath = '/app/concepts';
 export const briefsPath = '/app/briefs';
 export const copywritingPath = '/app/copywriting';
+export const ugcPath = '/app/ugc';
 export const designSystemPath = '/design-system';
 
 /**

@@ -8,6 +8,7 @@ import {
   demoBriefs,
   demoConcepts,
   demoCopy,
+  demoCreators,
   demoPersonas,
   demoProducts,
   demoThemes,
@@ -20,6 +21,7 @@ import {
   concepts,
   copywriting,
   creativeBriefs,
+  creators,
   healthCheck,
   memberships,
   personas,
@@ -33,6 +35,7 @@ import {
   type Concept,
   type Copy,
   type CreativeBrief,
+  type Creator,
   type HealthCheck,
   type Membership,
   type Persona,
@@ -59,6 +62,7 @@ export type SeedResult = {
   concepts: Concept[];
   briefs: CreativeBrief[];
   copy: Copy[];
+  creators: Creator[];
 };
 
 /** Inserts one row and returns it, or throws naming the table. */
@@ -216,6 +220,8 @@ export async function seed(db: Db): Promise<SeedResult> {
     )
     .returning();
 
+  const seededCreators = await scope.insert(creators, demoCreators.map(scoped)).returning();
+
   return {
     agency,
     templateBrand,
@@ -232,5 +238,6 @@ export async function seed(db: Db): Promise<SeedResult> {
     concepts: seededConcepts,
     briefs: seededBriefs,
     copy: seededCopy,
+    creators: seededCreators,
   };
 }
