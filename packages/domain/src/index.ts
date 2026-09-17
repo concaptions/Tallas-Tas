@@ -9,3 +9,4 @@ export * from './copy/index';
 export * from './creators/index';
 export * from './team/index';
 export * from './interface/index';
+export * from './notifications/index';

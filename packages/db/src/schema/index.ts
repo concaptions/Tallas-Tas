@@ -10,6 +10,7 @@ export * from './enums';
 export * from './health-check';
 export * from './interface-config';
 export * from './memberships';
+export * from './notifications';
 export * from './personas';
 export * from './products';
 export * from './themes';

@@ -193,3 +193,118 @@ export const interfacePageKeys = [
   'partnership',
 ] as const;
 export type InterfacePageKey = (typeof interfacePageKeys)[number];
+
+/**
+ * The eight things PRD §12 sends a Slack DM about, in the order §12's bullet list writes them and
+ * the Notifications table renders them: brief assigned, revisions requested internally, ad
+ * submitted, client approved, client requested revisions, creative ready to launch, creator status
+ * changed, partnership permission expiring in 5 days.
+ *
+ * ONE TUPLE, THREE THINGS. A row of `notification_settings` stores only its `trigger_key` and its
+ * two switches; the human LABEL and the RECIPIENT that key means are vocabulary, not per-brand data,
+ * so they live here beside the key instead of being duplicated into every brand's rows and into a
+ * component. A component never writes 'brief_assigned' or 'Media Buyer': it reads
+ * `notificationTriggers` (or the joined label `listNotificationSettings` hands it), exactly as the
+ * Angles page reads `angleFormats` instead of typing 'Carousel'.
+ *
+ * RECIPIENTS ARE §11 ROLES, not names and not a new vocabulary: `recipients` holds `BrandRole`
+ * values, so routing derives from the brand assignment made at onboarding (§12: "routing comes from
+ * the team assignment made at onboarding — filled once, never rebuilt by hand") and this table never
+ * names a person. `recipientLabel` is the short reading of that list for the Recipient column
+ * ("Media Buyer", "CSM + Strategist"); it is a rendering of `recipients` and never disagrees with it.
+ *
+ * §12's "UGC manager" is the one bullet with no §11 role behind it: PRD §11's table has Admin, CSM,
+ * Creative Strategist, Video Editor / Designer, Media Buyer and Client, and the person who runs the
+ * creator roster in this agency is the Creative Strategist who books it. So `creator_status_changed`
+ * ROUTES to `strategist` rather than inventing a role the rest of the platform cannot assign — and
+ * it is LABELLED "UGC Manager (Strategist)", because the Recipient column has two things to be
+ * honest about at once. §12 names the UGC manager, so the page must show that bullet's recipient
+ * rather than silently renaming it; and the DM resolves through the brand's team assignment, where
+ * the only role that can hold it today is the strategist. Dropping either half would mislead: "UGC
+ * Manager" alone sends a CSM to the Team page looking for a role that cannot be assigned, and
+ * "Strategist" alone hides a §12 requirement. It is the one label with a parenthetical because it
+ * is the one bullet with this problem. The day §11 gains a UGC manager, this row's `recipients`
+ * becomes that role and the parenthetical goes; nothing else changes.
+ *
+ * The `pgEnum` beside the tuple is the same arrangement as `copyCtas` / `copyCtaEnum`: the
+ * vocabulary is declared to Postgres, while `notification_settings.trigger_key` is plain `text`
+ * `$type`d from the union, so a trigger renamed in a later PRD revision is a vocabulary change and a
+ * stored row whose key has gone stops matching the tuple instead of failing an insert.
+ */
+export const notificationTriggers = [
+  {
+    key: 'brief_assigned',
+    label: 'Brief assigned to an editor or designer',
+    recipients: ['video_editor', 'designer'],
+    recipientLabel: 'Video Editor / Designer',
+  },
+  {
+    key: 'internal_revisions_requested',
+    label: 'Revisions requested internally',
+    recipients: ['video_editor', 'designer'],
+    recipientLabel: 'Video Editor / Designer',
+  },
+  {
+    key: 'ad_submitted',
+    label: 'Ad submitted',
+    recipients: ['strategist', 'csm'],
+    recipientLabel: 'Strategist + CSM',
+  },
+  {
+    key: 'client_approved',
+    label: 'Client approved a concept, creative, copy or creator',
+    recipients: ['csm', 'strategist'],
+    recipientLabel: 'CSM + Strategist',
+  },
+  {
+    key: 'client_requested_revisions',
+    label: 'Client requested revisions',
+    recipients: ['csm', 'strategist'],
+    recipientLabel: 'CSM + Strategist',
+  },
+  {
+    key: 'creative_ready_to_launch',
+    label: 'Creative approved internally and ready to launch',
+    recipients: ['media_buyer'],
+    recipientLabel: 'Media Buyer',
+  },
+  {
+    key: 'creator_status_changed',
+    label: 'Creator status changed',
+    recipients: ['strategist'],
+    recipientLabel: 'UGC Manager (Strategist)',
+  },
+  {
+    key: 'partnership_expiring',
+    label: 'Partnership permission expiring in 5 days',
+    recipients: ['media_buyer', 'csm'],
+    recipientLabel: 'Media Buyer + CSM',
+  },
+] as const satisfies readonly {
+  key: string;
+  label: string;
+  recipients: readonly BrandRole[];
+  recipientLabel: string;
+}[];
+
+/** One §12 trigger: its stored key, its label, the §11 roles it DMs and how they read in a cell. */
+export type NotificationTrigger = (typeof notificationTriggers)[number];
+
+/** What `notification_settings.trigger_key` stores; the tuple above is the only place it is written. */
+export type NotificationTriggerKey = NotificationTrigger['key'];
+
+/**
+ * The keys alone, in §12 order — what a `pgEnum` and an ordering assertion need. Derived from the
+ * tuple rather than typed a second time, with the one assertion `pgEnum`'s non-empty tuple signature
+ * requires: `map` widens the eight literals to an array, and the tuple above is what guarantees the
+ * first element exists.
+ */
+export const notificationTriggerKeys = notificationTriggers.map(
+  (trigger) => trigger.key,
+) as unknown as [NotificationTriggerKey, ...NotificationTriggerKey[]];
+
+export const notificationTriggerEnum = pgEnum('notification_trigger', notificationTriggerKeys);
+
+/** The two channels §12 offers per trigger: the Slack DM it is about, and email as the extra. */
+export const notificationChannels = ['slack', 'email'] as const;
+export type NotificationChannel = (typeof notificationChannels)[number];

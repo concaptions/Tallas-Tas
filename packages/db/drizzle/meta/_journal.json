@@ -78,6 +78,13 @@
       "when": 1789641144332,
       "tag": "0010_interface-config",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789645076424,
+      "tag": "0011_notifications",
+      "breakpoints": true
     }
   ]
 }

@@ -107,6 +107,12 @@ import {
   InterfaceConfigEmptyStory,
   InterfaceConfigStory,
 } from './interface-config.stories';
+import {
+  NotificationRoutingNoteStory,
+  NotificationTableDemoStory,
+  NotificationTableStory,
+  NotificationsEmptyStory,
+} from './notifications.stories';
 import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
 import { TeamEmptyStory, TeamTableStory } from './team.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
@@ -983,6 +989,41 @@ export default function DesignSystemPage() {
               words and offers the way back
             </h3>
             <InterfaceConfigEmptyStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Notifications: the routing note and the four-column switch table"
+        note="The shapes /app/notifications introduces. Mounted from the route's own NotificationTable, so the story and the page cannot drift. Trigger wording comes from notificationTriggerLabel and the headers from NOTIFICATION_COLUMNS — no §12 string is written here. The Recipient column is text in the mute tone and never a control, which is what the routing note above it explains."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              the two notes — the Slack DM line, then routingNote() in a rounded-card bg-surface2
+              block with the Team link after the sentence
+            </h3>
+            <NotificationRoutingNoteStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              live — two switches per row, each submitting the value the row should become, never a
+              flip
+            </h3>
+            <NotificationTableStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              demo mode — every switch disabled through DisabledWrite, and an ON switch still reads
+              as on
+            </h3>
+            <NotificationTableDemoStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              empty state — words and the one action that leads somewhere, never a blank panel
+            </h3>
+            <NotificationsEmptyStory />
           </div>
         </div>
       </Section>

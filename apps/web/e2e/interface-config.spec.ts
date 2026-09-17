@@ -192,11 +192,11 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     const row = page.locator('li', { has: link }).last();
     await expect(row.locator('[aria-disabled="true"]')).toHaveCount(0);
 
-    // Notifications is a later ticket and must still be the muted placeholder, which is what proves
+    // Propagation is a later ticket and must still be the muted placeholder, which is what proves
     // the assertions above are about Interface Config shipping rather than about the SoonChip having
-    // quietly disappeared from the whole sidebar. The queue specs make the same assertion from the
-    // other side.
-    const pending = page.locator('[aria-disabled="true"]', { hasText: 'Notifications' });
+    // quietly disappeared from the whole sidebar. It was Notifications until ticket `notifications`
+    // shipped its page. The queue specs make the same assertion from the other side.
+    const pending = page.locator('[aria-disabled="true"]', { hasText: 'Propagation' });
     await expect(pending.locator('[data-slot="soon-chip"]')).toHaveCount(1);
   });
 

@@ -40,6 +40,13 @@ export const teamPath = '/app/team';
  * The sidebar section key stays `interface-config`.
  */
 export const interfaceConfigPath = '/app/interface-config';
+/**
+ * The Notifications page (PRD §12: one row per trigger, a Slack DM switch and an email switch).
+ * A flat page under `/app` beside `interfaceConfigPath`, for the reason `teamPath` gives: `settings`
+ * is the sidebar GROUP, and the pages in it are siblings rather than children. The sidebar section
+ * key stays `notifications`.
+ */
+export const notificationsPath = '/app/notifications';
 export const designSystemPath = '/design-system';
 
 /**

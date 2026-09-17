@@ -60,6 +60,7 @@ describe('NAV_SECTIONS', () => {
       ['Client Queue', '/app/queue/client'],
       ['Team', '/app/team'],
       ['Interface Config', '/app/interface-config'],
+      ['Notifications', '/app/notifications'],
       ['Design System', '/design-system'],
     ]);
   });
@@ -88,6 +89,7 @@ describe('activeSectionKey', () => {
     ['/app/queue/client', 'client-queue'],
     ['/app/team', 'team'],
     ['/app/interface-config', 'interface-config'],
+    ['/app/notifications', 'notifications'],
     ['/design-system', 'design-system'],
   ])('marks %s as %s', (pathname, key) => {
     expect(activeSectionKey(pathname)).toBe(key);

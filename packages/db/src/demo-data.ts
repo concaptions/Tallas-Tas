@@ -4,15 +4,17 @@ import type { ConceptListRow } from './concepts';
 import type { CopyListRow } from './copy';
 import type { CreatorListRow } from './creators';
 import type { InterfacePageRow } from './interface-config';
+import type { NotificationSettingRow } from './notifications';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
-import { brandRoles } from './schema';
+import { brandRoles, notificationTriggers } from './schema';
 import type {
   AgencyRole,
   BrandRole,
   CreativeFunnel,
   CreativeType,
   InterfacePageKey,
+  NotificationTriggerKey,
   User,
 } from './schema';
 import type { TeamListRow, TeamRole } from './team';
@@ -1829,3 +1831,52 @@ export const demoInterfaceConfig: InterfacePageRow[] = [
     },
   ]),
 ];
+
+/**
+ * Niagara Sleep Solutions' notification routing (PRD §12), written the morning the brand was
+ * onboarded and last read through with Callum when the client interface was reviewed — the same two
+ * days the interface configuration above carries, because in a real agency those two conversations
+ * are one conversation.
+ *
+ * ALL EIGHT TRIGGERS, SLACK ON, EMAIL OFF. §12 is unambiguous about the default: the DM through the
+ * existing TAS Bot app is the channel ("today automations post into Slack channels and it's noise
+ * nobody reads"), and email is the extra a person opts into. So a freshly onboarded brand is
+ * reachable on Slack for every one of §12's eight triggers and emails nobody until someone asks.
+ *
+ * Built from `notificationTriggers` rather than retyped, so the fixtures are in §12's order by
+ * construction and a trigger can neither be missed nor positioned wrong. Each id is hardcoded and
+ * keyed by trigger: a ninth trigger fails the build here until it has one, and no id changes between
+ * processes — `seed(db)` inserts exactly these rows, ids included, so a seeded database and
+ * `demoNotifications` are row-for-row identical.
+ */
+const NOTIFICATIONS_ROUTED_AT = '2026-08-18T09:15:00.000Z';
+const NOTIFICATIONS_REVIEWED_AT = '2026-09-11T15:40:00.000Z';
+
+const NOTIFICATION_SETTING_IDS: Readonly<Record<NotificationTriggerKey, string>> = {
+  brief_assigned: 'dddddddd-dddd-4ddd-8ddd-000000000001',
+  internal_revisions_requested: 'dddddddd-dddd-4ddd-8ddd-000000000002',
+  ad_submitted: 'dddddddd-dddd-4ddd-8ddd-000000000003',
+  client_approved: 'dddddddd-dddd-4ddd-8ddd-000000000004',
+  client_requested_revisions: 'dddddddd-dddd-4ddd-8ddd-000000000005',
+  creative_ready_to_launch: 'dddddddd-dddd-4ddd-8ddd-000000000006',
+  creator_status_changed: 'dddddddd-dddd-4ddd-8ddd-000000000007',
+  partnership_expiring: 'dddddddd-dddd-4ddd-8ddd-000000000008',
+};
+
+export const demoNotifications: NotificationSettingRow[] = notificationTriggers.map(
+  (trigger, index) => ({
+    ...base(
+      NOTIFICATION_SETTING_IDS[trigger.key],
+      NOTIFICATIONS_ROUTED_AT,
+      NOTIFICATIONS_REVIEWED_AT,
+    ),
+    brandId: DEMO_BRAND_ID,
+    triggerKey: trigger.key,
+    slackEnabled: true,
+    emailEnabled: false,
+    position: index,
+    label: trigger.label,
+    recipients: trigger.recipients,
+    recipientLabel: trigger.recipientLabel,
+  }),
+);

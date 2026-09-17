@@ -15,6 +15,7 @@ import {
   demoCreators,
   demoInterfaceConfig,
   demoMemberships,
+  demoNotifications,
   demoPersonas,
   demoProducts,
   demoThemes,
@@ -33,6 +34,7 @@ import {
   interfaceFields,
   interfacePages,
   memberships,
+  notificationSettings,
   personas,
   products,
   themes,
@@ -49,6 +51,7 @@ import {
   type InterfaceField,
   type InterfacePage,
   type Membership,
+  type NotificationSetting,
   type Persona,
   type Product,
   type Theme,
@@ -80,6 +83,7 @@ export type SeedResult = {
   creators: Creator[];
   interfacePages: InterfacePage[];
   interfaceFields: InterfaceField[];
+  notificationSettings: NotificationSetting[];
 };
 
 /** Narrows a fixture lookup past `noUncheckedIndexedAccess`, or throws naming what was missing. */
@@ -182,6 +186,21 @@ function scopedInterfacePage<T extends { brandId: string | null }>(
   const rest: Record<string, unknown> = { ...scoped(row) };
   delete rest['fields'];
   return rest as Omit<T, Derived | 'fields'>;
+}
+
+/**
+ * The notification fixtures' derived keys: the §12 vocabulary `listNotificationSettings` joins in
+ * from `notificationTriggers` — the trigger's label, its recipient roles and their short reading —
+ * none of which is a column of `notification_settings`. `brandId` goes with them through `scoped`.
+ */
+function scopedNotification<T extends { brandId: string | null }>(
+  row: T,
+): Omit<T, Derived | 'label' | 'recipients' | 'recipientLabel'> {
+  const rest: Record<string, unknown> = { ...scoped(row) };
+  delete rest['label'];
+  delete rest['recipients'];
+  delete rest['recipientLabel'];
+  return rest as Omit<T, Derived | 'label' | 'recipients' | 'recipientLabel'>;
 }
 
 /**
@@ -296,6 +315,12 @@ export async function seed(db: Db): Promise<SeedResult> {
     )
     .returning();
 
+  // PRD §12, the brand's notification routing: the eight triggers in the PRD's order, Slack on and
+  // email off, keeping their fixture ids so `demoNotifications` and a seeded database match row for row.
+  const seededNotifications = await scope
+    .insert(notificationSettings, demoNotifications.map(scopedNotification))
+    .returning();
+
   return {
     agency,
     templateBrand,
@@ -319,5 +344,6 @@ export async function seed(db: Db): Promise<SeedResult> {
     creators: seededCreators,
     interfacePages: seededInterfacePages,
     interfaceFields: seededInterfaceFields,
+    notificationSettings: seededNotifications,
   };
 }

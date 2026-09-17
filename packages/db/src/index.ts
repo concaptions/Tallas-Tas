@@ -34,6 +34,7 @@ export {
   demoCreators,
   demoInterfaceConfig,
   demoMemberships,
+  demoNotifications,
   demoPartnershipCreators,
   demoPersonas,
   demoProducts,
@@ -49,6 +50,13 @@ export {
   setPageEnabled,
 } from './interface-config';
 export type { InterfaceFieldRow, InterfacePageRow } from './interface-config';
+export {
+  listNotificationSettings,
+  listNotifications,
+  setChannel,
+  setNotificationChannel,
+} from './notifications';
+export type { NotificationChannel, NotificationRow, NotificationSettingRow } from './notifications';
 export { getPersonaById, insertPersona, listPersonas, updatePersona } from './personas';
 export type { PersonaInput, PersonaListRow } from './personas';
 export { getProductById, insertProduct, listProducts, updateProduct } from './products';
