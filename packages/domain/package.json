@@ -15,7 +15,8 @@
     "./creatives": "./src/creatives/index.ts",
     "./copy": "./src/copy/index.ts",
     "./creators": "./src/creators/index.ts",
-    "./team": "./src/team/index.ts"
+    "./team": "./src/team/index.ts",
+    "./interface": "./src/interface/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

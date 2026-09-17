@@ -171,3 +171,25 @@ export const creatorPlatforms = [
   'Direct Management',
 ] as const;
 export type CreatorPlatform = (typeof creatorPlatforms)[number];
+
+/**
+ * The five pages of the client interface (`interface_pages.page_key`), PRD §10, in the order §10
+ * lists them and the client's tab strip renders them: Concepts, Creatives, Copywriting, UGC
+ * Management, Partnership Ads Tracking.
+ *
+ * A KEY, not the label: `ugc` and `partnership` are what the row stores and what a component
+ * branches on, while the label a client reads ("UGC Management") is a column of the row, so a brand
+ * can rename a tab without changing what the page IS. Same arrangement as `creativeSources` — an
+ * `as const` tuple the column is `$type`d from rather than a `pgEnum`, because `packages/domain`
+ * owns the interface defaults (`defaultInterfaceConfig`) and a second copy in Postgres would need a
+ * migration to say something the database never enforces for the other single-selects either. The
+ * dependency edge runs app → db and app → domain, never db → domain; `apps/web` asserts the two equal.
+ */
+export const interfacePageKeys = [
+  'concepts',
+  'creatives',
+  'copywriting',
+  'ugc',
+  'partnership',
+] as const;
+export type InterfacePageKey = (typeof interfacePageKeys)[number];

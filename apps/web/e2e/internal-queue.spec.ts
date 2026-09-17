@@ -278,12 +278,13 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     await expect(row.locator('[data-slot="soon-chip"]')).toHaveCount(0);
     await expect(row.locator('[aria-disabled="true"]')).toHaveCount(0);
 
-    // Interface Config is a later ticket, so it must still be the muted placeholder. This is what
+    // Notifications is a later ticket, so it must still be the muted placeholder. This is what
     // proves the assertion above is about Internal Queue shipping, and not about the SoonChip having
     // quietly disappeared from the whole sidebar. It was Client Queue until that board shipped, then
-    // Team until the roster shipped its own page and `href` in ticket `team`; each of those specs
-    // makes the mirror-image assertion from the other side.
-    const pending = page.locator('[aria-disabled="true"]', { hasText: 'Interface Config' });
+    // Team until the roster shipped its own page and `href` in ticket `team`, then Interface Config
+    // until ticket `interface-config` shipped its page; each of those specs makes the mirror-image
+    // assertion from the other side.
+    const pending = page.locator('[aria-disabled="true"]', { hasText: 'Notifications' });
     await expect(pending.locator('[data-slot="soon-chip"]')).toHaveCount(1);
   });
 });

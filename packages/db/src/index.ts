@@ -32,6 +32,7 @@ export {
   demoConcepts,
   demoCopy,
   demoCreators,
+  demoInterfaceConfig,
   demoMemberships,
   demoPartnershipCreators,
   demoPersonas,
@@ -41,6 +42,13 @@ export {
   demoUsers,
 } from './demo-data';
 export type { DemoBrand } from './demo-data';
+export {
+  getInterfacePageById,
+  listInterfaceConfig,
+  setFieldVisibility,
+  setPageEnabled,
+} from './interface-config';
+export type { InterfaceFieldRow, InterfacePageRow } from './interface-config';
 export { getPersonaById, insertPersona, listPersonas, updatePersona } from './personas';
 export type { PersonaInput, PersonaListRow } from './personas';
 export { getProductById, insertProduct, listProducts, updateProduct } from './products';

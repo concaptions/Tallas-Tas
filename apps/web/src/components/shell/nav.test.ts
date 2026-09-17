@@ -59,6 +59,7 @@ describe('NAV_SECTIONS', () => {
       ['Internal Queue', '/app/queue/internal'],
       ['Client Queue', '/app/queue/client'],
       ['Team', '/app/team'],
+      ['Interface Config', '/app/interface-config'],
       ['Design System', '/design-system'],
     ]);
   });
@@ -86,6 +87,7 @@ describe('activeSectionKey', () => {
     ['/app/queue/internal', 'internal-queue'],
     ['/app/queue/client', 'client-queue'],
     ['/app/team', 'team'],
+    ['/app/interface-config', 'interface-config'],
     ['/design-system', 'design-system'],
   ])('marks %s as %s', (pathname, key) => {
     expect(activeSectionKey(pathname)).toBe(key);

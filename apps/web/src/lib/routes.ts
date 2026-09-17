@@ -33,6 +33,13 @@ export const clientQueuePath = '/app/queue/client';
  * group will hold (brands, billing) are siblings of it rather than children.
  */
 export const teamPath = '/app/team';
+/**
+ * The Interface Config page (PRD §10: which pages and which fields the client's interface shows).
+ * A flat page under `/app` beside `teamPath`, not a `settings` segment, for the reason `teamPath`
+ * gives: `settings` is the sidebar GROUP, and the pages in it are siblings rather than children.
+ * The sidebar section key stays `interface-config`.
+ */
+export const interfaceConfigPath = '/app/interface-config';
 export const designSystemPath = '/design-system';
 
 /**

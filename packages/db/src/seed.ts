@@ -13,6 +13,7 @@ import {
   demoConcepts,
   demoCopy,
   demoCreators,
+  demoInterfaceConfig,
   demoMemberships,
   demoPersonas,
   demoProducts,
@@ -29,6 +30,8 @@ import {
   creativeBriefs,
   creators,
   healthCheck,
+  interfaceFields,
+  interfacePages,
   memberships,
   personas,
   products,
@@ -43,6 +46,8 @@ import {
   type CreativeBrief,
   type Creator,
   type HealthCheck,
+  type InterfaceField,
+  type InterfacePage,
   type Membership,
   type Persona,
   type Product,
@@ -73,6 +78,8 @@ export type SeedResult = {
   briefs: CreativeBrief[];
   copy: Copy[];
   creators: Creator[];
+  interfacePages: InterfacePage[];
+  interfaceFields: InterfaceField[];
 };
 
 /** Narrows a fixture lookup past `noUncheckedIndexedAccess`, or throws naming what was missing. */
@@ -161,6 +168,20 @@ function scopedCopy<T extends { brandId: string | null }>(
   const rest: Record<string, unknown> = { ...scoped(row) };
   delete rest['creativeName'];
   return rest as Omit<T, Derived | 'creativeName'>;
+}
+
+/**
+ * The interface-page fixtures' derived key: `fields`, the field rows the page NESTS
+ * (`listInterfaceConfig`) and which live in their own table, not in a column of `interface_pages`.
+ * `brandId` goes with it through `scoped`; the nested rows are inserted separately below, keeping
+ * their fixture ids so a seeded database and `demoInterfaceConfig` are row-for-row identical.
+ */
+function scopedInterfacePage<T extends { brandId: string | null }>(
+  row: T,
+): Omit<T, Derived | 'fields'> {
+  const rest: Record<string, unknown> = { ...scoped(row) };
+  delete rest['fields'];
+  return rest as Omit<T, Derived | 'fields'>;
 }
 
 /**
@@ -263,6 +284,18 @@ export async function seed(db: Db): Promise<SeedResult> {
 
   const seededCreators = await scope.insert(creators, demoCreators.map(scoped)).returning();
 
+  // PRD §10, the client interface's configuration: the pages first, then their fields, which
+  // reference the page rows by their fixture ids.
+  const seededInterfacePages = await scope
+    .insert(interfacePages, demoInterfaceConfig.map(scopedInterfacePage))
+    .returning();
+  const seededInterfaceFields = await scope
+    .insert(
+      interfaceFields,
+      demoInterfaceConfig.flatMap((page) => page.fields.map(scoped)),
+    )
+    .returning();
+
   return {
     agency,
     templateBrand,
@@ -284,5 +317,7 @@ export async function seed(db: Db): Promise<SeedResult> {
     briefs: seededBriefs,
     copy: seededCopy,
     creators: seededCreators,
+    interfacePages: seededInterfacePages,
+    interfaceFields: seededInterfaceFields,
   };
 }

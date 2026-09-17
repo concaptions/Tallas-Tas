@@ -102,6 +102,11 @@ import {
   CopyStatusChipsStory,
 } from './copywriting.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
+import {
+  ConfigToggleStory,
+  InterfaceConfigEmptyStory,
+  InterfaceConfigStory,
+} from './interface-config.stories';
 import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
 import { TeamEmptyStory, TeamTableStory } from './team.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
@@ -949,6 +954,35 @@ export default function DesignSystemPage() {
               empty state — words and the way out, inside the table, never a blank panel
             </h3>
             <TeamEmptyStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Interface Config: the switch, the page/field tree and the client preview"
+        note="The shapes /app/interface-config introduces. Mounted from the route's own components and wired to one draft, so the toggles work here too: the tree writes through toggleField / togglePage and the preview reads back through enabledPages / visibleFields. Every row is StepRow, every chip is StatusChip, and the switch is role=switch with rounded-input — never a pill."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              the switch — role=&quot;switch&quot;, aria-checked, rounded-input, labelled by its
+              page or field name
+            </h3>
+            <ConfigToggleStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              tree and preview — one page switched off (its field rows mute, their values survive)
+              and two concept fields hidden
+            </h3>
+            <InterfaceConfigStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              empty state — every field off is a legitimate configuration, so the preview says so in
+              words and offers the way back
+            </h3>
+            <InterfaceConfigEmptyStory />
           </div>
         </div>
       </Section>

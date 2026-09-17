@@ -8,3 +8,4 @@ export * from './creatives/index';
 export * from './copy/index';
 export * from './creators/index';
 export * from './team/index';
+export * from './interface/index';

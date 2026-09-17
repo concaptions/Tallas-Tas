@@ -8,6 +8,7 @@ export * from './copy';
 export * from './creators';
 export * from './enums';
 export * from './health-check';
+export * from './interface-config';
 export * from './memberships';
 export * from './personas';
 export * from './products';

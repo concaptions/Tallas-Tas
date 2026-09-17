@@ -6,6 +6,7 @@ import {
   conceptsPath,
   copywritingPath,
   designSystemPath,
+  interfaceConfigPath,
   internalQueuePath,
   personasPath,
   productsPath,
@@ -76,7 +77,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: 'Settings',
     sections: [
       { key: 'team', label: 'Team', icon: 'team', href: teamPath },
-      { key: 'interface-config', label: 'Interface Config', icon: 'interface' },
+      {
+        key: 'interface-config',
+        label: 'Interface Config',
+        icon: 'interface',
+        href: interfaceConfigPath,
+      },
       { key: 'notifications', label: 'Notifications', icon: 'notifications' },
       { key: 'propagation', label: 'Propagation', icon: 'propagation' },
     ],

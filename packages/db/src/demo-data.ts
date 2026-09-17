@@ -3,10 +3,18 @@ import type { BriefListRow } from './briefs';
 import type { ConceptListRow } from './concepts';
 import type { CopyListRow } from './copy';
 import type { CreatorListRow } from './creators';
+import type { InterfacePageRow } from './interface-config';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
 import { brandRoles } from './schema';
-import type { AgencyRole, BrandRole, CreativeFunnel, CreativeType, User } from './schema';
+import type {
+  AgencyRole,
+  BrandRole,
+  CreativeFunnel,
+  CreativeType,
+  InterfacePageKey,
+  User,
+} from './schema';
 import type { TeamListRow, TeamRole } from './team';
 import type { ThemeListRow } from './themes';
 
@@ -1587,3 +1595,237 @@ export const demoTeam: TeamListRow[] = [...demoUsers]
 
 /** The one row that carries two roles: the assertion a test makes without re-typing his name. */
 export const DEMO_TEAM_DUAL_ROLE_NAME = 'Callum Ashworth';
+
+/**
+ * The interface configuration the demo brand was onboarded with, and the day a CSM last went
+ * through it with the client. Two fixed timestamps rather than one, so the fixtures show what every
+ * real configuration looks like: written once at onboarding, revisited when the client asks for a
+ * field to go away.
+ */
+const INTERFACE_CONFIGURED_AT = '2026-08-18T09:15:00.000Z';
+const INTERFACE_REVIEWED_AT = '2026-09-11T15:40:00.000Z';
+
+const INTERFACE_PAGE_CONCEPTS_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000001';
+const INTERFACE_PAGE_CREATIVES_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000002';
+const INTERFACE_PAGE_COPYWRITING_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000003';
+const INTERFACE_PAGE_UGC_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000004';
+const INTERFACE_PAGE_PARTNERSHIP_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000005';
+
+/** One field of a configured page, before `interfacePage` gives it its brand, page and position. */
+type InterfaceFieldSeed = {
+  id: string;
+  fieldName: string;
+  label: string;
+  /** PRD §10's second column: may the CLIENT change this value, or only read it? */
+  clientEditable: boolean;
+};
+
+/**
+ * Builds one page row with its fields, taking each field's `position` from its index in the list —
+ * so the order these fixtures are WRITTEN in is the order PRD §10 lists them in and the order the
+ * client's interface renders them in, and no position can be typed wrong or repeated.
+ */
+function interfacePage(
+  id: string,
+  pageKey: InterfacePageKey,
+  label: string,
+  position: number,
+  fields: InterfaceFieldSeed[],
+): InterfacePageRow {
+  return {
+    ...base(id, INTERFACE_CONFIGURED_AT, INTERFACE_REVIEWED_AT),
+    brandId: DEMO_BRAND_ID,
+    pageKey,
+    label,
+    enabled: true,
+    position,
+    fields: fields.map((field, index) => ({
+      ...base(field.id, INTERFACE_CONFIGURED_AT, INTERFACE_REVIEWED_AT),
+      brandId: DEMO_BRAND_ID,
+      pageId: id,
+      fieldName: field.fieldName,
+      label: field.label,
+      visible: true,
+      clientEditable: field.clientEditable,
+      position: index,
+    })),
+  };
+}
+
+/**
+ * The demo brand's client interface (PRD §10): the five pages in the PRD's order, all switched on,
+ * each with the fields that brand's client actually sees.
+ *
+ * THE DEFAULTS ARE THE DOMAIN'S. `defaultInterfaceConfig()` in `packages/domain/src/interface/` is
+ * the canonical §10 default — the five page keys and labels, and the twelve concept-card fields in
+ * their PRD order. These fixtures are that configuration written as ROWS (ids, brand, timestamps and
+ * positions included), not a second opinion about what the defaults are, for the reason
+ * `conceptName` above gives at length: `@tas/db` does not depend on `@tas/domain`, the edge runs the
+ * other way everywhere in this repo, and `apps/web` — which depends on both — is where the two are
+ * asserted equal. A field key here is the storage vocabulary (`hook_examples`), snake_case like
+ * every other stored vocabulary in this schema; the label beside it is what the client reads.
+ *
+ * WHAT IS EDITABLE, AND WHY THE CONCEPT CARD IS NOT. §10's table grants the client exactly four
+ * sets of edits: Client Status and comments on Creatives, Status and Client's Comment on
+ * Copywriting, Status, Note and Tracking Number on UGC Management, and nothing at all on
+ * Partnership Ads Tracking, which is view, group and filter only. The twelve default concept-card
+ * fields are the CONTENT of a concept — batch, angle, theme, the hypothesis, the hooks — none of
+ * which §10 lets a client rewrite (the two things they may change on that page, Approval Status and
+ * Client's Comments, are the approval track, not card fields), so every one of them is
+ * `clientEditable: false`. That split is the whole point of the flag: a client reads twelve fields
+ * on the concept card and may type into exactly seven fields across the other four pages.
+ */
+export const demoInterfaceConfig: InterfacePageRow[] = [
+  interfacePage(INTERFACE_PAGE_CONCEPTS_ID, 'concepts', 'Concepts', 0, [
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000101',
+      fieldName: 'batch',
+      label: 'Batch',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000102',
+      fieldName: 'category',
+      label: 'Category',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000103',
+      fieldName: 'concept_name',
+      label: 'Concept name',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000104',
+      fieldName: 'concept_style',
+      label: 'Concept Style',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000105',
+      fieldName: 'angle',
+      label: 'Angle',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000106',
+      fieldName: 'theme',
+      label: 'Theme',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000107',
+      fieldName: 'product',
+      label: 'Product',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000108',
+      fieldName: 'description',
+      label: 'Description (hypothesis)',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000109',
+      fieldName: 'pain_points',
+      label: 'Pain Points',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000110',
+      fieldName: 'usp',
+      label: 'USP',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000111',
+      fieldName: 'persona',
+      label: 'Persona',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000112',
+      fieldName: 'hook_examples',
+      label: 'Hook examples',
+      clientEditable: false,
+    },
+  ]),
+  interfacePage(INTERFACE_PAGE_CREATIVES_ID, 'creatives', 'Creatives', 1, [
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000201',
+      fieldName: 'client_status',
+      label: 'Client Status',
+      clientEditable: true,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000202',
+      fieldName: 'client_comments',
+      label: 'Comments & annotations',
+      clientEditable: true,
+    },
+  ]),
+  interfacePage(INTERFACE_PAGE_COPYWRITING_ID, 'copywriting', 'Copywriting', 2, [
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000301',
+      fieldName: 'client_status',
+      label: 'Status',
+      clientEditable: true,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000302',
+      fieldName: 'client_comment',
+      label: "Client's Comment",
+      clientEditable: true,
+    },
+  ]),
+  interfacePage(INTERFACE_PAGE_UGC_ID, 'ugc', 'UGC Management', 3, [
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000401',
+      fieldName: 'client_status',
+      label: 'Status',
+      clientEditable: true,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000402',
+      fieldName: 'client_note',
+      label: "Client's Note",
+      clientEditable: true,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000403',
+      fieldName: 'tracking_number',
+      label: 'Tracking Number',
+      clientEditable: true,
+    },
+  ]),
+  // View, group and filter only (§10): the client reads this table and changes nothing on it, so
+  // every field is `clientEditable: false`. The four listed are the columns `listPartnershipCreators`
+  // returns that carry no internal figure — never the partnership price or the creator cost, which
+  // CLAUDE.md non-negotiable 10 keeps out of the client interface entirely.
+  interfacePage(INTERFACE_PAGE_PARTNERSHIP_ID, 'partnership', 'Partnership Ads Tracking', 4, [
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000501',
+      fieldName: 'creator_name',
+      label: 'Creator',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000502',
+      fieldName: 'instagram_username',
+      label: 'Instagram Username',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000503',
+      fieldName: 'partnership_activity',
+      label: 'Activity',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000504',
+      fieldName: 'partnership_expires_on',
+      label: 'Expires On',
+      clientEditable: false,
+    },
+  ]),
+];
