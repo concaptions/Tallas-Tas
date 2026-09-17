@@ -37,9 +37,21 @@ beforeEach(() => {
 describe('the matcher', () => {
   it('runs on the Node.js runtime and skips Next internals and static files', () => {
     expect(config.runtime).toBe('nodejs');
-    expect(config.matcher).toHaveLength(2);
+    expect(config.matcher).toHaveLength(3);
     expect(config.matcher[0]).toContain('_next');
     expect(config.matcher[1]).toBe('/(api|trpc)(.*)');
+  });
+
+  /**
+   * Clerk's hosted sign-in handshake comes back through `/__clerk/...`. The first matcher excludes
+   * anything that looks like a static file, so the path is listed explicitly rather than left to
+   * chance: without it the handshake never reaches the middleware and sign-in cannot complete.
+   */
+  it('lets Clerk’s auto-proxy path through to the middleware', () => {
+    expect(config.matcher).toContain('/__clerk/:path*');
+    expect(config.matcher.indexOf('/__clerk/:path*')).toBeGreaterThan(
+      config.matcher.indexOf('/(api|trpc)(.*)'),
+    );
   });
 });
 

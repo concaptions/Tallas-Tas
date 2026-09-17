@@ -13,6 +13,10 @@ export const config = {
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     // API routes always run through it.
     '/(api|trpc)(.*)',
+    // Clerk's auto-proxy path. It must reach the middleware or the hosted sign-in flow cannot
+    // complete, and the first matcher excludes it: `/__clerk/...` carries no file extension but the
+    // handshake sub-paths can, so it is listed explicitly rather than relied on.
+    '/__clerk/:path*',
   ],
 };
 
