@@ -54,6 +54,7 @@ describe('NAV_SECTIONS', () => {
       ['Themes', '/app/themes'],
       ['Concepts', '/app/concepts'],
       ['Creative Briefs', '/app/briefs'],
+      ['Copywriting', '/app/copywriting'],
       ['Design System', '/design-system'],
     ]);
   });
@@ -75,6 +76,7 @@ describe('activeSectionKey', () => {
     ['/app/concepts/new', 'concepts'],
     ['/app/briefs', 'briefs'],
     ['/app/briefs/77777777-7777-4777-8777-000000000001', 'briefs'],
+    ['/app/copywriting', 'copywriting'],
     ['/design-system', 'design-system'],
   ])('marks %s as %s', (pathname, key) => {
     expect(activeSectionKey(pathname)).toBe(key);

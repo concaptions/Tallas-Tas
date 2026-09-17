@@ -1,6 +1,7 @@
 import type { AngleListRow } from './angles';
 import type { BriefListRow } from './briefs';
 import type { ConceptListRow } from './concepts';
+import type { CopyListRow } from './copy';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
 import type { CreativeFunnel, CreativeType } from './schema';
@@ -55,6 +56,10 @@ const BRIEF_DAYLIGHT_MOTION_ID = '77777777-7777-4777-8777-000000000003';
 const BRIEF_NINETY_MINUTES_VIDEO_ID = '77777777-7777-4777-8777-000000000004';
 const BRIEF_BUNDLE_STANDALONE_ID = '77777777-7777-4777-8777-000000000005';
 const BRIEF_NINETY_MINUTES_CAROUSEL_ID = '77777777-7777-4777-8777-000000000006';
+const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
+const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
+const COPY_DAYLIGHT_ID = '88888888-8888-4888-8888-000000000003';
+const COPY_BUNDLE_UNATTACHED_ID = '88888888-8888-4888-8888-000000000004';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -949,5 +954,99 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'sent_to_video_editor',
     clientStatus: 'pending_for_approval',
     performance: null,
+  },
+];
+
+/** One seeded brief by id, past `noUncheckedIndexedAccess`; the copy rows below are tied to these. */
+function demoBrief(id: string): BriefListRow {
+  const row = demoBriefs.find((brief) => brief.id === id);
+  if (row === undefined) throw new Error(`demoBriefs has no ${id}`);
+  return row;
+}
+
+/**
+ * Four copy rows for Niagara Sleep Solutions (PRD §5.11), the words that run above and beneath the
+ * creative.
+ *
+ * Three are tied to a seeded brief and reuse its id constant, so the link is a real one: the
+ * night-shift video, the r/Menopause static and the lux-meter motion image. The fourth has
+ * `creativeBriefId: null` — copy drafted for the Night Reset Bundle before anyone decided which
+ * static it would sit on — which is the PRD §5.11 case the nullable link exists for, and what
+ * `listCopy` returns `creativeName: null` for and the table renders as an em dash.
+ *
+ * They sit in four DIFFERENT `COPY_STATUS` keys (`@tas/domain/state`): `approved`,
+ * `pending_for_client_review`, `edited_by_client` and `revisions_needed`. Exactly one is
+ * `edited_by_client`, and it is the only row carrying a `clientComment` — the client rewrote the
+ * headline in place, which is precisely what that status means. Three different CTAs appear across
+ * the set (Shop Now, Learn More, Get Offer).
+ *
+ * Every string respects the PRD §5.11 guidance the panel shows as helper text: primary copy at or
+ * under ~125 characters, headline ~40, link description ~27. They are written to the limit rather
+ * than truncated to it, because the fixtures are the demo product and a strategist reading them
+ * should see what a real Meta ad looks like at that length.
+ *
+ * `creativeName` is what `listCopy` joins in through the brief, so the fixtures satisfy
+ * `CopyListRow[]` and the page reads demo rows and database rows through one type. The array is in
+ * `updated_at` descending order, the order `listCopy` returns, so a test can compare the two
+ * directly.
+ */
+export const demoCopy: CopyListRow[] = [
+  {
+    ...base(COPY_BODY_CLOCK_ID, '2026-09-01T10:15:00.000Z', '2026-09-16T11:20:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creativeBriefId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    copyNumber: 1,
+    primaryCopy:
+      'Six years of night shifts and he still could not sleep at noon. It is the rota, not you. Weight, not heat. Ninety nights.',
+    headline: 'Your Rota Is Broken. You Are Not.',
+    linkDescription: '90 nights. Sleep or return.',
+    cta: 'Shop Now',
+    status: 'approved',
+    clientComment: null,
+    creativeName: demoBrief(BRIEF_BODY_CLOCK_VIDEO_ID).name,
+  },
+  {
+    ...base(COPY_NOT_YOUR_AGE_ID, '2026-09-04T09:40:00.000Z', '2026-09-15T14:05:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creativeBriefId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    copyNumber: 2,
+    primaryCopy:
+      'Her doctor called it her age. Four hundred women in one thread called it 3:47am. Quilted weight that spreads, never traps.',
+    headline: 'They Called It Your Age. It Is 3am.',
+    linkDescription: 'Read the 3am thread first.',
+    cta: 'Learn More',
+    status: 'pending_for_client_review',
+    clientComment: null,
+    creativeName: demoBrief(BRIEF_NOT_YOUR_AGE_STATIC_ID).name,
+  },
+  {
+    ...base(COPY_DAYLIGHT_ID, '2026-09-02T12:25:00.000Z', '2026-09-13T17:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creativeBriefId: BRIEF_DAYLIGHT_MOTION_ID,
+    copyNumber: 3,
+    primaryCopy:
+      'Same bedroom, six hours apart: 2 lux at 3am, 186 lux at 9am. You are not failing at sleep, you are being out-lit 90 to 1.',
+    headline: 'Not Bad Sleep. Ninety Times The Light.',
+    linkDescription: 'Blocks 186 lux, not sound.',
+    cta: 'Get Offer',
+    status: 'edited_by_client',
+    clientComment:
+      'Swapped the headline ourselves — "Not Bad Sleep" reads as us calling their sleep bad, and our support inbox is full of people who already feel judged about it. The lux numbers stay, they are the best thing in here, but please keep 186 and 2 as digits everywhere; spelling them out in the link description made it look like a pharmacy leaflet. One more: legal will not sign off on "90 to 1" unless the meter reading is in the asset itself, which I think it is, so send the frame and we will clear it.',
+    creativeName: demoBrief(BRIEF_DAYLIGHT_MOTION_ID).name,
+  },
+  {
+    ...base(COPY_BUNDLE_UNATTACHED_ID, '2026-08-27T16:05:00.000Z', '2026-09-10T08:50:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    // Drafted before anyone chose which bundle static it runs on: the PRD §5.11 unattached case.
+    creativeBriefId: null,
+    copyNumber: 4,
+    primaryCopy:
+      'You bought the blanket and left the mask behind. The weight handles 3am, the light handles 6am, and the box handles both.',
+    headline: 'Save $64 When They Ship Together.',
+    linkDescription: 'Both for $174 tonight.',
+    cta: 'Shop Now',
+    status: 'revisions_needed',
+    clientComment: null,
+    creativeName: null,
   },
 ];

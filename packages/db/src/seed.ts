@@ -7,6 +7,7 @@ import {
   demoAngles,
   demoBriefs,
   demoConcepts,
+  demoCopy,
   demoPersonas,
   demoProducts,
   demoThemes,
@@ -17,6 +18,7 @@ import {
   brandAssignments,
   brands,
   concepts,
+  copywriting,
   creativeBriefs,
   healthCheck,
   memberships,
@@ -29,6 +31,7 @@ import {
   type Brand,
   type BrandAssignment,
   type Concept,
+  type Copy,
   type CreativeBrief,
   type HealthCheck,
   type Membership,
@@ -55,6 +58,7 @@ export type SeedResult = {
   angles: Angle[];
   concepts: Concept[];
   briefs: CreativeBrief[];
+  copy: Copy[];
 };
 
 /** Inserts one row and returns it, or throws naming the table. */
@@ -126,6 +130,18 @@ function scopedConcept<T extends { brandId: string | null }>(row: T): Omit<T, Co
 }
 
 /**
+ * The copy fixtures' derived key: the creative's name, which `listCopy` joins in through the brief
+ * and which is not a column of `copywriting`. `brandId` goes with it through `scoped`.
+ */
+function scopedCopy<T extends { brandId: string | null }>(
+  row: T,
+): Omit<T, Derived | 'creativeName'> {
+  const rest: Record<string, unknown> = { ...scoped(row) };
+  delete rest['creativeName'];
+  return rest as Omit<T, Derived | 'creativeName'>;
+}
+
+/**
  * Inserts the development data set and returns every row. Run by `db:seed` and by the PGlite tests.
  * Plain inserts, once per fresh database: the agency goes first, so a repeat run fails on
  * `agencies_slug_unique` before writing anything. Placeholder Clerk ids and `example.com` addresses
@@ -193,6 +209,13 @@ export async function seed(db: Db): Promise<SeedResult> {
     )
     .returning();
 
+  const seededCopy = await scope
+    .insert(
+      copywriting,
+      demoCopy.map((row) => scopedCopy(row)),
+    )
+    .returning();
+
   return {
     agency,
     templateBrand,
@@ -208,5 +231,6 @@ export async function seed(db: Db): Promise<SeedResult> {
     angles: seededAngles,
     concepts: seededConcepts,
     briefs: seededBriefs,
+    copy: seededCopy,
   };
 }

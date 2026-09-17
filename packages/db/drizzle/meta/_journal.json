@@ -50,6 +50,13 @@
       "when": 1789602575238,
       "tag": "0006_briefs",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789605892038,
+      "tag": "0007_copywriting",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,8 @@ export type { BriefInput, BriefListRow } from './briefs';
 export { baseColumns } from './columns';
 export { getConceptById, insertConcept, listConcepts, updateConcept } from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
+export { getCopyById, insertCopy, listCopy, updateCopy } from './copy';
+export type { CopyInput, CopyListRow } from './copy';
 export { createDb, createNeonDb, drizzleConfig } from './db';
 export type { Db, NeonDb, Schema } from './db';
 export {
@@ -15,6 +17,7 @@ export {
   demoAngles,
   demoBriefs,
   demoConcepts,
+  demoCopy,
   demoPersonas,
   demoProducts,
   demoThemes,

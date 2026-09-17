@@ -11,7 +11,8 @@
     "./angles": "./src/angles/index.ts",
     "./themes": "./src/themes/index.ts",
     "./concepts": "./src/concepts/index.ts",
-    "./creatives": "./src/creatives/index.ts"
+    "./creatives": "./src/creatives/index.ts",
+    "./copy": "./src/copy/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

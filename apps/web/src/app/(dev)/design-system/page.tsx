@@ -96,6 +96,11 @@ import {
   ConceptsBoardStory,
   ConceptsViewToggleStory,
 } from './concepts.stories';
+import {
+  CopyCounterStory,
+  CopyLinkedCreativeStory,
+  CopyStatusChipsStory,
+} from './copywriting.stories';
 
 export const metadata = {
   title: 'Design system — TAS Creative Platform',
@@ -832,6 +837,32 @@ export default function DesignSystemPage() {
               QA checklist — three boxes, disabled in demo mode with the reason on hover
             </h3>
             <BriefQaStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Copywriting: status chips, the linked-creative cell and the character counter"
+        note="The three shapes /app/copywriting introduces. Mounted from the route's own modules, never re-drawn here."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              copy status — the five PRD §5.11 states, toned by copyStatusTone
+            </h3>
+            <CopyStatusChipsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              linked creative — a mono chip linking to the brief, or the muted em dash
+            </h3>
+            <CopyLinkedCreativeStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              character counter — used of the guide, warn at it, bad past it, never a block
+            </h3>
+            <CopyCounterStory />
           </div>
         </div>
       </Section>

@@ -4,6 +4,7 @@ export * from './brand-assignments';
 export * from './brands';
 export * from './briefs';
 export * from './concepts';
+export * from './copy';
 export * from './enums';
 export * from './health-check';
 export * from './memberships';

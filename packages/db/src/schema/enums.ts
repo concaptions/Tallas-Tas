@@ -124,3 +124,25 @@ export type CreativePlatform = (typeof creativePlatforms)[number];
 /** How the ad did once live (`creative_briefs.performance`), PRD §5.10; null until it has run. */
 export const creativePerformances = ['Winning', 'High Potential to Iterate', 'Losing'] as const;
 export type CreativePerformance = (typeof creativePerformances)[number];
+
+/**
+ * The call to action a copy row offers (`copywriting.cta`), PRD §5.11, in the order the PRD lists
+ * them and the panel's dropdown renders them.
+ *
+ * Declared here with its `pgEnum` exactly as `angleFormats` is, so a component imports `copyCtas`
+ * instead of re-typing six string literals (CLAUDE.md non-negotiable 2 in spirit: one vocabulary,
+ * one place). The `copywriting.cta` COLUMN is plain `text` `$type`d from this union rather than the
+ * enum itself, the same decision `creativeSources` documents: the storage vocabulary is asserted in
+ * TypeScript, and adding a seventh CTA should not need a migration to say something the database
+ * never enforces for the other single-selects either.
+ */
+export const copyCtas = [
+  'Shop Now',
+  'Learn More',
+  'Get Offer',
+  'Get Directions',
+  'Visit Us',
+  'Download',
+] as const;
+export type CopyCta = (typeof copyCtas)[number];
+export const copyCtaEnum = pgEnum('copy_cta', copyCtas);
