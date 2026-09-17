@@ -19,20 +19,28 @@ export { createDb, createNeonDb, drizzleConfig } from './db';
 export type { Db, NeonDb, Schema } from './db';
 export {
   DEMO_ACTOR_ID,
+  DEMO_ADMIN_ACTOR_ID,
   DEMO_BRAND_ID,
+  DEMO_TEAM_DUAL_ROLE_NAME,
   PARTNERSHIP_REFERENCE_DATE,
   PRODUCT_CSV_COLUMNS,
   STANDALONE_CONCEPT_SLUG,
   demoAngles,
+  demoBrandAssignments,
+  demoBrands,
   demoBriefs,
   demoConcepts,
   demoCopy,
   demoCreators,
+  demoMemberships,
   demoPartnershipCreators,
   demoPersonas,
   demoProducts,
+  demoTeam,
   demoThemes,
+  demoUsers,
 } from './demo-data';
+export type { DemoBrand } from './demo-data';
 export { getPersonaById, insertPersona, listPersonas, updatePersona } from './personas';
 export type { PersonaInput, PersonaListRow } from './personas';
 export { getProductById, insertProduct, listProducts, updateProduct } from './products';
@@ -40,6 +48,8 @@ export type { ProductInput, ProductListRow } from './products';
 export * from './schema';
 export { seed } from './seed';
 export type { SeedResult } from './seed';
+export { listTeam, listTeamMembers } from './team';
+export type { TeamListRow, TeamMemberRow, TeamRole } from './team';
 export { getThemeById, insertTheme, listThemes, updateTheme } from './themes';
 export type { ThemeInput, ThemeListRow } from './themes';
 export { withBrand } from './tenancy';

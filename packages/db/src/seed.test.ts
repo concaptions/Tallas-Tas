@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { demoBrandAssignments, demoBrands, demoMemberships, demoUsers } from './demo-data';
 import { agencies, brandAssignments, brands, healthCheck, memberships, users } from './schema';
 import { seed } from './seed';
 import { testDb } from './testing';
@@ -33,7 +34,7 @@ describe('seed', () => {
 
     expect(await db.select().from(agencies)).toEqual([agency]);
     expect(agency).toMatchObject({ slug: 'tas-digital', clerkOrgId: null, brandId: null });
-    expect(await db.select().from(brands)).toHaveLength(2);
+    expect(await db.select().from(brands)).toHaveLength(1 + demoBrands.length);
     expect(templateBrand).toMatchObject({
       agencyId: agency.id,
       isTemplate: true,
@@ -57,14 +58,37 @@ describe('seed', () => {
     const { agency, childBrand, admin, strategist, adminMembership, strategistAssignment } =
       await seed(db);
 
-    expect(await db.select().from(users)).toHaveLength(2);
-    expect(await db.select().from(memberships)).toEqual([adminMembership]);
+    expect(await db.select().from(users)).toHaveLength(demoUsers.length);
+    expect(await db.select().from(memberships)).toHaveLength(demoMemberships.length);
     expect(adminMembership).toMatchObject({ userId: admin.id, agencyId: agency.id, role: 'admin' });
-    expect(await db.select().from(brandAssignments)).toEqual([strategistAssignment]);
+    expect(await db.select().from(brandAssignments)).toHaveLength(demoBrandAssignments.length);
     expect(strategistAssignment).toMatchObject({
       userId: strategist.id,
       brandId: childBrand.id,
       role: 'strategist',
     });
+    // The admin is agency-wide: everything they can see comes from the membership, never a row here.
+    expect(
+      (await db.select().from(brandAssignments)).filter((row) => row.userId === admin.id),
+    ).toEqual([]);
+  });
+
+  it('seeds the team, the roster brands and their assignments from the fixtures, ids included', async () => {
+    const db = await testDb();
+
+    const { rosterBrands } = await seed(db);
+
+    // Every fixture row is in the database unchanged: same ids, same fixed timestamps, no extras.
+    expect(await db.select().from(users)).toEqual(expect.arrayContaining(demoUsers));
+    expect(rosterBrands.map((brand) => brand.name).sort()).toEqual([
+      'Funky Painting',
+      'Gratsi',
+      'Mattress Central',
+    ]);
+    expect(rosterBrands.every((brand) => brand.templateBrandId !== null)).toBe(true);
+    const assignments = await db.select().from(brandAssignments);
+    for (const fixture of demoBrandAssignments) {
+      expect(assignments).toContainEqual(expect.objectContaining(fixture));
+    }
   });
 });

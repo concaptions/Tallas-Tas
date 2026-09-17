@@ -5,7 +5,9 @@ import type { CopyListRow } from './copy';
 import type { CreatorListRow } from './creators';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
-import type { CreativeFunnel, CreativeType } from './schema';
+import { brandRoles } from './schema';
+import type { AgencyRole, BrandRole, CreativeFunnel, CreativeType, User } from './schema';
+import type { TeamListRow, TeamRole } from './team';
 import type { ThemeListRow } from './themes';
 
 /**
@@ -27,6 +29,13 @@ export const DEMO_BRAND_ID = '11111111-1111-4111-8111-111111111111';
 
 /** The `created_by` / `updated_by` actor on every demo row: the seed's strategist, not a real user. */
 export const DEMO_ACTOR_ID = 'user_seed_strategist';
+
+/**
+ * The agency admin's placeholder Clerk id: the actor who provisioned the team accounts, and the
+ * person the demo-mode stub actor stands in for (PRD §11, "Admin (me) — Everything, all brands").
+ * Kept beside `DEMO_ACTOR_ID` so both seeded identities are named in one place.
+ */
+export const DEMO_ADMIN_ACTOR_ID = 'user_seed_admin';
 
 const at = (iso: string): Date => new Date(iso);
 
@@ -62,6 +71,14 @@ const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
 const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
 const COPY_DAYLIGHT_ID = '88888888-8888-4888-8888-000000000003';
 const COPY_BUNDLE_UNATTACHED_ID = '88888888-8888-4888-8888-000000000004';
+const BRAND_MATTRESS_CENTRAL_ID = '11111111-1111-4111-8111-111111111112';
+const BRAND_GRATSI_ID = '11111111-1111-4111-8111-111111111113';
+const BRAND_FUNKY_PAINTING_ID = '11111111-1111-4111-8111-111111111114';
+const USER_MARGUERITE_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-000000000001';
+const USER_DORIAN_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-000000000002';
+const USER_IMOGEN_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-000000000003';
+const USER_RHIANNON_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-000000000004';
+const USER_CALLUM_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-000000000005';
 const CREATOR_DANIELLE_ID = '99999999-9999-4999-8999-000000000001';
 const CREATOR_MARCUS_ID = '99999999-9999-4999-8999-000000000002';
 const CREATOR_PRIYA_ID = '99999999-9999-4999-8999-000000000003';
@@ -1385,3 +1402,188 @@ export const demoCreators: CreatorListRow[] = [
 export const demoPartnershipCreators: CreatorListRow[] = demoCreators.filter(
   (creator) => creator.forPartnershipAds,
 );
+
+/**
+ * The four client brands on the agency's roster (PRD §3: the brands TAS Digital runs). Niagara Sleep
+ * Solutions is the one with content — every product, angle, concept, brief, copy row and creator
+ * above belongs to it, which is why it keeps `DEMO_BRAND_ID` — and the other three carry no rows
+ * yet. They exist because the Team table has to show a person spread across real brands rather than
+ * one: an agency where every name reads "Niagara Sleep Solutions" tells a visitor nothing about how
+ * assignment works. `seed(db)` inserts all four as children of the parent template (CLAUDE.md
+ * non-negotiable 1), so a seeded database and the fixtures name the same brands.
+ */
+export type DemoBrand = { id: string; name: string; slug: string; website: string };
+
+export const demoBrands: DemoBrand[] = [
+  {
+    id: DEMO_BRAND_ID,
+    name: 'Niagara Sleep Solutions',
+    slug: 'niagara-sleep-solutions',
+    website: 'https://niagarasleep.example',
+  },
+  {
+    id: BRAND_MATTRESS_CENTRAL_ID,
+    name: 'Mattress Central',
+    slug: 'mattress-central',
+    website: 'https://mattresscentral.example',
+  },
+  { id: BRAND_GRATSI_ID, name: 'Gratsi', slug: 'gratsi', website: 'https://gratsi.example' },
+  {
+    id: BRAND_FUNKY_PAINTING_ID,
+    name: 'Funky Painting',
+    slug: 'funky-painting',
+    website: 'https://funkypainting.example',
+  },
+];
+
+/** The shared columns a team fixture carries: the admin provisioned every account, including his own. */
+function teamBase(id: string, created: string, updated: string) {
+  return {
+    id,
+    brandId: null,
+    createdAt: at(created),
+    updatedAt: at(updated),
+    createdBy: DEMO_ADMIN_ACTOR_ID,
+    updatedBy: DEMO_ADMIN_ACTOR_ID,
+    deletedAt: null,
+  };
+}
+
+/**
+ * The five people of TAS Digital (PRD §11, §3: "TAS Digital should be added in a team dashboard,
+ * with their role and names").
+ *
+ * Five people covering six roles, because that is what a five-person agency actually looks like:
+ * Callum runs the client relationships AND the ad accounts, so he holds `csm` and `media_buyer` and
+ * the table shows him two chips. The other four are one role each — admin, strategist, video editor,
+ * designer.
+ *
+ * Three of the five are the names already on the demo briefs (Dorian Vance, Imogen Bardsley and
+ * Rhiannon Okafor), so the Team page and the Internal Queue name the same people; `DEMO_ACTOR_ID`
+ * is Dorian's Clerk id and `DEMO_ADMIN_ACTOR_ID` is Marguerite's, the two identities `seed(db)` has
+ * always written. Placeholder Clerk ids and `.example` addresses never collide with real accounts.
+ *
+ * `lastActiveAt` is a fixed timestamp, never `Date.now()`: the fixtures render the same relative
+ * string on every run and in every screenshot. They are spread across the days before
+ * `PARTNERSHIP_REFERENCE_DATE` (17 September 2026) so the Last active column shows a range — this
+ * morning, yesterday, last week — rather than five identical values.
+ */
+export const demoUsers: User[] = [
+  {
+    ...teamBase(USER_CALLUM_ID, '2025-11-04T09:15:00.000Z', '2026-08-28T15:10:00.000Z'),
+    clerkUserId: 'user_seed_csm',
+    email: 'callum@tasdigital.example',
+    fullName: 'Callum Ashworth',
+    slackUserId: 'U04CASHWORTH',
+    lastActiveAt: at('2026-09-10T14:30:00.000Z'),
+  },
+  {
+    ...teamBase(USER_DORIAN_ID, '2025-03-18T11:40:00.000Z', '2026-09-02T08:05:00.000Z'),
+    clerkUserId: DEMO_ACTOR_ID,
+    email: 'dorian@tasdigital.example',
+    fullName: 'Dorian Vance',
+    slackUserId: 'U02DVANCE',
+    lastActiveAt: at('2026-09-17T07:55:00.000Z'),
+  },
+  {
+    ...teamBase(USER_IMOGEN_ID, '2025-06-09T13:25:00.000Z', '2026-07-21T10:35:00.000Z'),
+    clerkUserId: 'user_seed_video_editor',
+    email: 'imogen@tasdigital.example',
+    fullName: 'Imogen Bardsley',
+    slackUserId: 'U03IBARDSLEY',
+    lastActiveAt: at('2026-09-16T17:20:00.000Z'),
+  },
+  {
+    ...teamBase(USER_MARGUERITE_ID, '2024-09-02T08:00:00.000Z', '2026-09-01T09:45:00.000Z'),
+    clerkUserId: DEMO_ADMIN_ACTOR_ID,
+    email: 'marguerite@tasdigital.example',
+    fullName: 'Marguerite Alaoui',
+    slackUserId: 'U01MALAOUI',
+    lastActiveAt: at('2026-09-17T08:41:00.000Z'),
+  },
+  {
+    ...teamBase(USER_RHIANNON_ID, '2026-01-13T10:50:00.000Z', '2026-09-08T12:15:00.000Z'),
+    clerkUserId: 'user_seed_designer',
+    email: 'rhiannon@tasdigital.example',
+    fullName: 'Rhiannon Okafor',
+    slackUserId: 'U05ROKAFOR',
+    lastActiveAt: at('2026-09-15T11:05:00.000Z'),
+  },
+];
+
+/**
+ * Who is an admin and who is a member, one row per person (PRD §11: Admin sees everything, everyone
+ * else sees the brands they are assigned). Marguerite is the only admin, which is why she is the
+ * only person with no `brand_assignments` row below — an admin is agency-wide, so the Team page
+ * reads her empty brand list as "All brands" rather than as "none".
+ */
+export const demoMemberships: { userId: string; role: AgencyRole }[] = [
+  { userId: USER_MARGUERITE_ID, role: 'admin' },
+  { userId: USER_DORIAN_ID, role: 'member' },
+  { userId: USER_IMOGEN_ID, role: 'member' },
+  { userId: USER_RHIANNON_ID, role: 'member' },
+  { userId: USER_CALLUM_ID, role: 'member' },
+];
+
+/**
+ * The tenancy edge the Team page reads: who holds which role on which brand.
+ *
+ * Callum is the client-facing half of the agency and is CSM on all four brands; he also buys media
+ * on the two accounts big enough to need it, which is the second hat that puts two chips in his row.
+ * Dorian, Imogen and Rhiannon each carry one role across the three brands they work on, and every
+ * one of them is on Niagara Sleep Solutions — the brand the rest of the demo content belongs to —
+ * so the names on the briefs are names the Team page can explain.
+ */
+export const demoBrandAssignments: { userId: string; brandId: string; role: BrandRole }[] = [
+  { userId: USER_CALLUM_ID, brandId: DEMO_BRAND_ID, role: 'csm' },
+  { userId: USER_CALLUM_ID, brandId: BRAND_MATTRESS_CENTRAL_ID, role: 'csm' },
+  { userId: USER_CALLUM_ID, brandId: BRAND_GRATSI_ID, role: 'csm' },
+  { userId: USER_CALLUM_ID, brandId: BRAND_FUNKY_PAINTING_ID, role: 'csm' },
+  { userId: USER_CALLUM_ID, brandId: BRAND_MATTRESS_CENTRAL_ID, role: 'media_buyer' },
+  { userId: USER_CALLUM_ID, brandId: BRAND_GRATSI_ID, role: 'media_buyer' },
+  { userId: USER_DORIAN_ID, brandId: DEMO_BRAND_ID, role: 'strategist' },
+  { userId: USER_DORIAN_ID, brandId: BRAND_MATTRESS_CENTRAL_ID, role: 'strategist' },
+  { userId: USER_DORIAN_ID, brandId: BRAND_GRATSI_ID, role: 'strategist' },
+  { userId: USER_IMOGEN_ID, brandId: DEMO_BRAND_ID, role: 'video_editor' },
+  { userId: USER_IMOGEN_ID, brandId: BRAND_GRATSI_ID, role: 'video_editor' },
+  { userId: USER_IMOGEN_ID, brandId: BRAND_FUNKY_PAINTING_ID, role: 'video_editor' },
+  { userId: USER_RHIANNON_ID, brandId: DEMO_BRAND_ID, role: 'designer' },
+  { userId: USER_RHIANNON_ID, brandId: BRAND_MATTRESS_CENTRAL_ID, role: 'designer' },
+];
+
+/** `brandId -> brand name`, so the derivation below reads names without repeating them. */
+const brandNameById = new Map(demoBrands.map((brand) => [brand.id, brand.name]));
+
+/**
+ * The Team page's five rows, DERIVED from the three fixture tables above rather than written out a
+ * fourth time (the arrangement `demoPartnershipCreators` uses). The derivation applies the same
+ * three rules `listTeam` applies in SQL and TypeScript — an admin shows the agency role and nothing
+ * else, brand roles come out in `brandRoles` vocabulary order, brand names come out alphabetical and
+ * de-duplicated — and the PGlite test asserts `listTeam` on a seeded database returns exactly this
+ * array, so the two can never drift apart unnoticed.
+ *
+ * Ordered by full name, the order `listTeam` returns: Callum, Dorian, Imogen, Marguerite, Rhiannon.
+ */
+export const demoTeam: TeamListRow[] = [...demoUsers]
+  .sort((a, b) => (a.fullName < b.fullName ? -1 : a.fullName > b.fullName ? 1 : 0))
+  .map((user) => {
+    const agencyRole =
+      demoMemberships.find((membership) => membership.userId === user.id)?.role ?? 'member';
+    const held = demoBrandAssignments.filter((assignment) => assignment.userId === user.id);
+    const brandRolesHeld = brandRoles.filter((role) =>
+      held.some((assignment) => assignment.role === role),
+    );
+    const roles: TeamRole[] =
+      agencyRole === 'admin'
+        ? ['admin']
+        : brandRolesHeld.length > 0
+          ? [...brandRolesHeld]
+          : [agencyRole];
+    const brandNames = [
+      ...new Set(held.map((assignment) => brandNameById.get(assignment.brandId) ?? '')),
+    ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    return { ...user, role: roles[0] ?? agencyRole, roles, brandNames };
+  });
+
+/** The one row that carries two roles: the assertion a test makes without re-typing his name. */
+export const DEMO_TEAM_DUAL_ROLE_NAME = 'Callum Ashworth';

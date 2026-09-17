@@ -58,6 +58,7 @@ describe('NAV_SECTIONS', () => {
       ['UGC Management', '/app/ugc'],
       ['Internal Queue', '/app/queue/internal'],
       ['Client Queue', '/app/queue/client'],
+      ['Team', '/app/team'],
       ['Design System', '/design-system'],
     ]);
   });
@@ -84,6 +85,7 @@ describe('activeSectionKey', () => {
     ['/app/ugc/88888888-8888-4888-8888-000000000001', 'ugc'],
     ['/app/queue/internal', 'internal-queue'],
     ['/app/queue/client', 'client-queue'],
+    ['/app/team', 'team'],
     ['/design-system', 'design-system'],
   ])('marks %s as %s', (pathname, key) => {
     expect(activeSectionKey(pathname)).toBe(key);

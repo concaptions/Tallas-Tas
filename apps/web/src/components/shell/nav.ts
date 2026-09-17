@@ -9,6 +9,7 @@ import {
   internalQueuePath,
   personasPath,
   productsPath,
+  teamPath,
   themesPath,
   ugcPath,
 } from '@/lib/routes';
@@ -74,7 +75,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     key: 'settings',
     label: 'Settings',
     sections: [
-      { key: 'team', label: 'Team', icon: 'team' },
+      { key: 'team', label: 'Team', icon: 'team', href: teamPath },
       { key: 'interface-config', label: 'Interface Config', icon: 'interface' },
       { key: 'notifications', label: 'Notifications', icon: 'notifications' },
       { key: 'propagation', label: 'Propagation', icon: 'propagation' },

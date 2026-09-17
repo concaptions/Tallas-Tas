@@ -32,27 +32,42 @@ interface TwoBrands {
   userId: string;
 }
 
-/** Two brands with one `brand_assignments` row each: A is the seeded child brand, B the template. */
+/**
+ * Two brands with exactly one `brand_assignments` row each, both created by this fixture rather than
+ * taken from the seed: every assertion below is an exact `toEqual([rowA])`, so the scope's isolation
+ * is only readable when the brands hold nothing else. The seeded roster brands carry the agency's
+ * real team (PRD §11), which is content, not scope, and a test of `withBrand` must not move when
+ * someone is added to that team.
+ */
 async function twoBrands(): Promise<TwoBrands> {
   const db = await testDb();
-  const { childBrand, templateBrand, admin, strategistAssignment } = await seed(db);
+  const { agency, admin } = await seed(db);
+  const [brandA, brandB] = await db
+    .insert(brands)
+    .values([
+      { agencyId: agency.id, name: 'Scope Fixture A', slug: 'scope-fixture-a' },
+      { agencyId: agency.id, name: 'Scope Fixture B', slug: 'scope-fixture-b' },
+    ])
+    .returning();
+  if (brandA === undefined || brandB === undefined)
+    throw new Error('brands insert returned no row');
+  const [rowA] = await db
+    .insert(brandAssignments)
+    .values({ userId: admin.id, brandId: brandA.id, role: 'strategist' })
+    .returning();
   const [rowB] = await db
     .insert(brandAssignments)
-    .values({ userId: admin.id, brandId: templateBrand.id, role: 'csm' })
+    .values({ userId: admin.id, brandId: brandB.id, role: 'csm' })
     .returning();
-  if (rowB === undefined) throw new Error('brand_assignments insert returned no row');
-  return {
-    db,
-    a: childBrand.id,
-    b: templateBrand.id,
-    rowA: strategistAssignment,
-    rowB,
-    userId: admin.id,
-  };
+  if (rowA === undefined || rowB === undefined) {
+    throw new Error('brand_assignments insert returned no row');
+  }
+  return { db, a: brandA.id, b: brandB.id, rowA, rowB, userId: admin.id };
 }
 
-async function liveRows(db: PgliteDb): Promise<BrandAssignment[]> {
-  return db.select().from(brandAssignments);
+/** The live rows of the two fixture brands only: the seeded team's own assignments are not the subject. */
+async function liveRows(db: PgliteDb, ...brandIds: string[]): Promise<BrandAssignment[]> {
+  return db.select().from(brandAssignments).where(inArray(brandAssignments.brandId, brandIds));
 }
 
 describe('withBrand on PGlite', () => {
@@ -113,7 +128,7 @@ describe('withBrand on PGlite', () => {
       );
       expect(() => scope.softDelete(brandAssignments, escape)).toThrow(/not contained/);
     }
-    const rows = await liveRows(db);
+    const rows = await liveRows(db, a, rowB.brandId);
     expect(rows).toHaveLength(2);
     expect(rows).toEqual(expect.arrayContaining([rowA, rowB]));
     expect(await withBrand(db, rowB.brandId).select(brandAssignments)).toEqual([rowB]);
@@ -168,7 +183,7 @@ describe('withBrand on PGlite', () => {
 
     expect(escaped).toEqual([]);
     expect(own).toHaveLength(1);
-    expect(await liveRows(db)).toEqual(
+    expect(await liveRows(db, a, rowB.brandId)).toEqual(
       expect.arrayContaining([{ ...rowA, role: 'designer' }, rowB]),
     );
   });

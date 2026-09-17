@@ -27,6 +27,12 @@ export const internalQueuePath = '/app/queue/internal';
  * `client-queue`.
  */
 export const clientQueuePath = '/app/queue/client';
+/**
+ * The Team roster (PRD §11, §3). One flat page under `/app`, not a `settings` segment: the sidebar
+ * group is called `settings`, but the page is a roster of people, and the two other pages that
+ * group will hold (brands, billing) are siblings of it rather than children.
+ */
+export const teamPath = '/app/team';
 export const designSystemPath = '/design-system';
 
 /**

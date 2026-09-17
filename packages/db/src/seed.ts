@@ -3,15 +3,21 @@ import type { PgInsertValue, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
 import {
+  DEMO_ACTOR_ID,
+  DEMO_ADMIN_ACTOR_ID,
   DEMO_BRAND_ID,
   demoAngles,
+  demoBrandAssignments,
+  demoBrands,
   demoBriefs,
   demoConcepts,
   demoCopy,
   demoCreators,
+  demoMemberships,
   demoPersonas,
   demoProducts,
   demoThemes,
+  demoUsers,
 } from './demo-data';
 import {
   agencies,
@@ -50,6 +56,10 @@ export type SeedResult = {
   agency: Agency;
   templateBrand: Brand;
   childBrand: Brand;
+  rosterBrands: Brand[];
+  users: User[];
+  memberships: Membership[];
+  brandAssignments: BrandAssignment[];
   admin: User;
   strategist: User;
   adminMembership: Membership;
@@ -64,6 +74,14 @@ export type SeedResult = {
   copy: Copy[];
   creators: Creator[];
 };
+
+/** Narrows a fixture lookup past `noUncheckedIndexedAccess`, or throws naming what was missing. */
+function required<T>(row: T | undefined, what: string): T {
+  if (row === undefined) {
+    throw new Error(`seed could not find ${what} among the rows it just inserted`);
+  }
+  return row;
+}
 
 /** Inserts one row and returns it, or throws naming the table. */
 async function insertOne<T extends PgTable>(
@@ -148,8 +166,15 @@ function scopedCopy<T extends { brandId: string | null }>(
 /**
  * Inserts the development data set and returns every row. Run by `db:seed` and by the PGlite tests.
  * Plain inserts, once per fresh database: the agency goes first, so a repeat run fails on
- * `agencies_slug_unique` before writing anything. Placeholder Clerk ids and `example.com` addresses
- * never collide with real accounts.
+ * `agencies_slug_unique` before writing anything. Placeholder Clerk ids and reserved `.example`
+ * addresses never collide with real accounts.
+ *
+ * The people come from `demo-data.ts` too (PRD §11): the four roster brands, the five users, their
+ * memberships and their brand assignments are inserted FROM the fixtures, ids included, rather than
+ * hand-written here, so `listTeam` on a seeded database returns exactly `demoTeam`. `admin` and
+ * `strategist` are still returned by name — they are the two identities every other fixture's
+ * `created_by` points at — but they are now found among the seeded rows instead of being two
+ * separate inserts.
  *
  * The product rows come from `demo-data.ts`, the same module the app serves in demo mode, and keep
  * their fixture ids and timestamps; the child brand is given `DEMO_BRAND_ID` so a seeded database
@@ -165,34 +190,50 @@ export async function seed(db: Db): Promise<SeedResult> {
     slug: 'creative-hub-template',
     isTemplate: true,
   });
-  const childBrand = await insertOne(db, brands, {
-    id: DEMO_BRAND_ID,
-    agencyId: agency.id,
-    name: 'Niagara Sleep Solutions',
-    slug: 'niagara-sleep-solutions',
-    website: 'https://niagarasleep.example',
-    templateBrandId: templateBrand.id,
-  });
-  const admin = await insertOne(db, users, {
-    clerkUserId: 'user_seed_admin',
-    email: 'admin@example.com',
-    fullName: 'Seed Admin',
-  });
-  const strategist = await insertOne(db, users, {
-    clerkUserId: 'user_seed_strategist',
-    email: 'strategist@example.com',
-    fullName: 'Seed Strategist',
-  });
-  const adminMembership = await insertOne(db, memberships, {
-    userId: admin.id,
-    agencyId: agency.id,
-    role: 'admin',
-  });
-  const strategistAssignment = await insertOne(db, brandAssignments, {
-    userId: strategist.id,
-    brandId: childBrand.id,
-    role: 'strategist',
-  });
+  const roster = await db
+    .insert(brands)
+    .values(
+      demoBrands.map((brand) => ({
+        ...brand,
+        agencyId: agency.id,
+        templateBrandId: templateBrand.id,
+      })),
+    )
+    .returning();
+  const childBrand = required(
+    roster.find((brand) => brand.id === DEMO_BRAND_ID),
+    'the demo child brand',
+  );
+  const rosterBrands = roster.filter((brand) => brand.id !== DEMO_BRAND_ID);
+
+  const seededUsers = await db.insert(users).values(demoUsers).returning();
+  const seededMemberships = await db
+    .insert(memberships)
+    .values(demoMemberships.map((membership) => ({ ...membership, agencyId: agency.id })))
+    .returning();
+  const seededAssignments = await db
+    .insert(brandAssignments)
+    .values(demoBrandAssignments)
+    .returning();
+
+  const admin = required(
+    seededUsers.find((user) => user.clerkUserId === DEMO_ADMIN_ACTOR_ID),
+    'the admin user',
+  );
+  const strategist = required(
+    seededUsers.find((user) => user.clerkUserId === DEMO_ACTOR_ID),
+    'the strategist user',
+  );
+  const adminMembership = required(
+    seededMemberships.find((membership) => membership.userId === admin.id),
+    "the admin's membership",
+  );
+  const strategistAssignment = required(
+    seededAssignments.find(
+      (assignment) => assignment.userId === strategist.id && assignment.brandId === childBrand.id,
+    ),
+    "the strategist's assignment on the demo brand",
+  );
   const health = await insertOne(db, healthCheck, { note: 'seeded by @tas/db db:seed' });
 
   const scope = withBrand(db, childBrand.id);
@@ -226,6 +267,10 @@ export async function seed(db: Db): Promise<SeedResult> {
     agency,
     templateBrand,
     childBrand,
+    rosterBrands,
+    users: seededUsers,
+    memberships: seededMemberships,
+    brandAssignments: seededAssignments,
     admin,
     strategist,
     adminMembership,

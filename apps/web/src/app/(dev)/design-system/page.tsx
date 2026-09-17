@@ -103,6 +103,7 @@ import {
 } from './copywriting.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
+import { TeamEmptyStory, TeamTableStory } from './team.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
 
 export const metadata = {
@@ -927,6 +928,27 @@ export default function DesignSystemPage() {
               client column — CLIENT_STATUS minus Launched, from the domain, empty columns kept
             </h3>
             <ClientQueueColumnStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Team: the roster row and its empty state"
+        note="The shapes /app/team introduces. Mounted from the route's own table with plain rows, never re-drawn here: one role chip per role from roleTone, worded Brands fallbacks, Never, and the client row that states its own access."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              roster — name over email, a chip per role, All brands / No brands, Never, and a client
+              row that says its access is the client interface only
+            </h3>
+            <TeamTableStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              empty state — words and the way out, inside the table, never a blank panel
+            </h3>
+            <TeamEmptyStory />
           </div>
         </div>
       </Section>
