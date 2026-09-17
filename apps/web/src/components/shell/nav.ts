@@ -5,6 +5,7 @@ import {
   conceptsPath,
   copywritingPath,
   designSystemPath,
+  internalQueuePath,
   personasPath,
   productsPath,
   themesPath,
@@ -54,7 +55,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     key: 'approvals',
     label: 'Approvals',
     sections: [
-      { key: 'internal-queue', label: 'Internal Queue', icon: 'queue-internal' },
+      {
+        key: 'internal-queue',
+        label: 'Internal Queue',
+        icon: 'queue-internal',
+        href: internalQueuePath,
+      },
       { key: 'client-queue', label: 'Client Queue', icon: 'queue-client' },
     ],
   },

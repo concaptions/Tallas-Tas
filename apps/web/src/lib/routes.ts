@@ -14,6 +14,13 @@ export const conceptsPath = '/app/concepts';
 export const briefsPath = '/app/briefs';
 export const copywritingPath = '/app/copywriting';
 export const ugcPath = '/app/ugc';
+/**
+ * The Internal Queue board (PRD §9, §13). It lives under a `queue` segment rather than at
+ * `/app/internal-queue` because the Client Queue is the next page in the same group: two boards of
+ * the same shape, one per track, and the segment is what keeps them siblings instead of two
+ * unrelated top-level words. The sidebar section key stays `internal-queue`.
+ */
+export const internalQueuePath = '/app/queue/internal';
 export const designSystemPath = '/design-system';
 
 /**

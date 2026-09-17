@@ -335,6 +335,33 @@ describe('brief fixtures', () => {
     }
   });
 
+  /**
+   * The Internal Queue board (PRD §9/§13) draws one card per brief and puts a PERSON on every card,
+   * so a null assignee would render a card belonging to nobody. It also offers a "Mine" view, which
+   * is only a filter if the six briefs share a small team rather than holding six different names.
+   * Both facts are fixture invariants, not page logic, so they are pinned here: the queue reads
+   * these rows through the existing `listBriefs`, and this test is what stops a later fixture edit
+   * from emptying a card or turning "Mine" into "All".
+   */
+  it('assigns every brief to a named member of the demo team, several each', () => {
+    const assignees = demoBriefs.map((row) => row.assignee);
+
+    for (const assignee of assignees) {
+      expect(assignee).not.toBeNull();
+      expect(assignee?.trim()).toBe(assignee);
+      // A full name, so a card reads as a person and not as a handle.
+      expect(assignee).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    }
+    // A team small enough that every member owns more than one card, so "Mine" narrows the board
+    // to a real subset instead of showing one card or all six.
+    const team = new Set(assignees);
+    expect(team.size).toBeLessThan(demoBriefs.length);
+    for (const member of team) {
+      expect(assignees.filter((name) => name === member).length).toBeGreaterThan(1);
+    }
+    expect(team).toEqual(new Set(['Dorian Vance', 'Rhiannon Okafor', 'Imogen Bardsley']));
+  });
+
   it('spreads inspiration across providers and fills one spelling feedback', () => {
     const links = demoBriefs.flatMap((row) => row.inspoLinks);
     const providers = ['facebook.com/ads/library', 'youtube.com', 'tiktok.com', 'instagram.com'];

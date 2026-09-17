@@ -101,6 +101,7 @@ import {
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
 } from './copywriting.stories';
+import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
 
 export const metadata = {
@@ -884,6 +885,26 @@ export default function DesignSystemPage() {
               partnership countdown — expiring, active, expired, and never activated
             </h3>
             <PartnershipCountdownStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Internal Queue: the card and the column"
+        note="The two shapes /app/queue/internal introduces. Mounted from the route's own component and its own fields module, never re-drawn here."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              queue card — mono name, labelled tile, assignee, priority chip; no chip when unset
+            </h3>
+            <QueueCardStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              queue column — PRD §9 order from the domain, empty columns kept, strip scrolls alone
+            </h3>
+            <QueueColumnStory />
           </div>
         </div>
       </Section>
