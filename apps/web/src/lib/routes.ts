@@ -47,6 +47,13 @@ export const interfaceConfigPath = '/app/interface-config';
  * key stays `notifications`.
  */
 export const notificationsPath = '/app/notifications';
+/**
+ * The Propagation page (PRD §5, §14.1: a child brand asks to promote a change to the template, and
+ * the agency admin approves or rejects it here). A flat page under `/app` beside
+ * `notificationsPath`, for the reason `teamPath` gives: `settings` is the sidebar GROUP, and the
+ * pages in it are siblings rather than children. The sidebar section key stays `propagation`.
+ */
+export const propagationPath = '/app/propagation';
 export const designSystemPath = '/design-system';
 
 /**

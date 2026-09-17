@@ -18,6 +18,8 @@ import {
   demoNotifications,
   demoPersonas,
   demoProducts,
+  demoPromotionRequests,
+  demoReviewedPromotionRequests,
   demoThemes,
   demoUsers,
 } from './demo-data';
@@ -37,6 +39,7 @@ import {
   notificationSettings,
   personas,
   products,
+  promotionRequests,
   themes,
   users,
   type Agency,
@@ -54,6 +57,7 @@ import {
   type NotificationSetting,
   type Persona,
   type Product,
+  type PromotionRequest,
   type Theme,
   type User,
 } from './schema';
@@ -84,6 +88,7 @@ export type SeedResult = {
   interfacePages: InterfacePage[];
   interfaceFields: InterfaceField[];
   notificationSettings: NotificationSetting[];
+  promotionRequests: PromotionRequest[];
 };
 
 /** Narrows a fixture lookup past `noUncheckedIndexedAccess`, or throws naming what was missing. */
@@ -204,6 +209,21 @@ function scopedNotification<T extends { brandId: string | null }>(
 }
 
 /**
+ * Strips the promotion fixtures' derived key: `brandName`, the child brand's name
+ * `listPromotionRequests` joins in from `brands` and which is not a column of `promotion_requests`.
+ * `brandId` is deliberately KEPT — unlike every other fixture here, a promotion request names the
+ * child brand that raised it and the five rows belong to four different brands, so the payload, not
+ * a single scope, decides where each one lands. That is why the insert below is a plain
+ * `db.insert(...)` and not a `withBrand(...)` insert: `withBrand` writes one brand's rows, and this
+ * table's whole point is that an admin reads across all of them.
+ */
+function promotionRow<T extends { brandName: string | null }>(row: T): Omit<T, 'brandName'> {
+  const rest: Record<string, unknown> = { ...row };
+  delete rest['brandName'];
+  return rest as Omit<T, 'brandName'>;
+}
+
+/**
  * Inserts the development data set and returns every row. Run by `db:seed` and by the PGlite tests.
  * Plain inserts, once per fresh database: the agency goes first, so a repeat run fails on
  * `agencies_slug_unique` before writing anything. Placeholder Clerk ids and reserved `.example`
@@ -321,6 +341,14 @@ export async function seed(db: Db): Promise<SeedResult> {
     .insert(notificationSettings, demoNotifications.map(scopedNotification))
     .returning();
 
+  // PRD §5, §14.1, the promotion queue the Admin dashboard settles: the three pending requests the
+  // page renders plus the two already reviewed, raised by four different brands of this agency and
+  // keeping their fixture ids, so `demoPromotionRequests` and a seeded database match row for row.
+  const seededPromotionRequests = await db
+    .insert(promotionRequests)
+    .values([...demoPromotionRequests, ...demoReviewedPromotionRequests].map(promotionRow))
+    .returning();
+
   return {
     agency,
     templateBrand,
@@ -345,5 +373,6 @@ export async function seed(db: Db): Promise<SeedResult> {
     interfacePages: seededInterfacePages,
     interfaceFields: seededInterfaceFields,
     notificationSettings: seededNotifications,
+    promotionRequests: seededPromotionRequests,
   };
 }

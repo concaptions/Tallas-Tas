@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { DEMO_QUEUE_ASSIGNEE } from '../src/lib/demo-mode';
-import { briefPath, clientQueuePath } from '../src/lib/routes';
+import { briefPath, clientQueuePath, propagationPath } from '../src/lib/routes';
 
 /**
  * The Client Queue board with no environment variables at all — the Vercel deployment as it stands
@@ -265,12 +265,18 @@ test.describe('client queue in demo mode (no Clerk publishable key)', () => {
     await expect(row.locator('[data-slot="soon-chip"]')).toHaveCount(0);
     await expect(row.locator('[aria-disabled="true"]')).toHaveCount(0);
 
-    // Propagation is a later ticket, so it must still be the muted placeholder. This is what
-    // proves the assertion above is about Client Queue shipping, and not about the SoonChip having
-    // quietly disappeared from the whole sidebar. It was Team until the roster shipped its own page
-    // and `href` in ticket `team`, then Interface Config, then Notifications until ticket
-    // `notifications` shipped its page.
-    const pending = page.locator('[aria-disabled="true"]', { hasText: 'Propagation' });
-    await expect(pending.locator('[data-slot="soon-chip"]')).toHaveCount(1);
+    // This used to point at whichever section had not shipped yet — Team, then Interface Config,
+    // then Notifications, then Propagation — so that the assertion above was provably about Client
+    // Queue shipping and not about the SoonChip having quietly disappeared from the whole sidebar.
+    // Propagation shipped in ticket `propagation` and was the last one, so there is no placeholder
+    // left to point at and the control has to be made the other way round: the rail still renders
+    // the section that shipped last, as a real link, and carries no muted placeholder anywhere.
+    // Without the positive half, `toHaveCount(0)` would also pass on a sidebar that failed to
+    // render at all. `pendingSections()` in `nav.test.ts` fails if a section ever loses its href.
+    await expect(page.getByRole('link', { name: 'Propagation' })).toHaveAttribute(
+      'href',
+      propagationPath,
+    );
+    await expect(page.locator('[data-slot="shell-sidebar"] [aria-disabled="true"]')).toHaveCount(0);
   });
 });

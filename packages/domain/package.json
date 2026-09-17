@@ -17,7 +17,8 @@
     "./creators": "./src/creators/index.ts",
     "./team": "./src/team/index.ts",
     "./interface": "./src/interface/index.ts",
-    "./notifications": "./src/notifications/index.ts"
+    "./notifications": "./src/notifications/index.ts",
+    "./propagation": "./src/propagation/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

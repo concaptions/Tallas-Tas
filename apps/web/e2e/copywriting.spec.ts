@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { copywritingPath } from '../src/lib/routes';
+import { copywritingPath, propagationPath } from '../src/lib/routes';
 
 /**
  * The Copywriting route with no environment variables at all — the Vercel deployment as it stands.
@@ -57,9 +57,18 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(link).toHaveAttribute('href', copywritingPath);
     await expect(link).toHaveAttribute('aria-current', 'page');
 
-    // The chip is still rendered for the sections that genuinely have no page yet, so the
-    // assertion below is about Copywriting and not about a selector that stopped matching.
-    await expect(page.locator('[data-slot="soon-chip"]').first()).toBeAttached();
+    // A SoonChip somewhere else in the rail used to be the control here, proving the assertions
+    // below were about Copywriting and not about a selector that had stopped matching. Propagation
+    // shipped in ticket `propagation` and was the last section without a page, so no chip is
+    // rendered anywhere any more and the control has to be made the other way round: the rail still
+    // renders the section that shipped last, as a real link, and carries no muted placeholder at
+    // all. Without that positive half the zero-counts below would also pass on a sidebar that
+    // failed to render. `pendingSections()` in `nav.test.ts` fails if a section loses its href.
+    await expect(page.getByRole('link', { name: 'Propagation' })).toHaveAttribute(
+      'href',
+      propagationPath,
+    );
+    await expect(page.locator('[data-slot="shell-sidebar"] [aria-disabled="true"]')).toHaveCount(0);
 
     // It has a page now, so nothing in the sidebar says Copywriting is still coming.
     await expect(

@@ -113,6 +113,14 @@ import {
   NotificationTableStory,
   NotificationsEmptyStory,
 } from './notifications.stories';
+import {
+  DiffPreviewStory,
+  PromotionTableDemoStory,
+  PromotionTableStory,
+  PropagationEmptyStory,
+  PropagationFilterStory,
+  PropagationNoteStory,
+} from './propagation.stories';
 import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
 import { TeamEmptyStory, TeamTableStory } from './team.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
@@ -1024,6 +1032,56 @@ export default function DesignSystemPage() {
               empty state — words and the one action that leads somewhere, never a blank panel
             </h3>
             <NotificationsEmptyStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Propagation: the admin note, the diff cell and the seven-column decision table"
+        note="The shapes /app/propagation introduces. Mounted from the route's own PromotionTable and DiffPreview, so the story and the page cannot drift. The note is PROPAGATION_ADMIN_NOTE from @tas/domain, every chip is StatusChip and every label and tone comes from PROMOTION_STATUS — no status string is written here. The last cell is a DECISION rather than a seventh fact: a status chip, and under it either the two buttons or who settled the request and why."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              the note — PROPAGATION_ADMIN_NOTE in a rounded-card bg-surface2 block, then how the
+              admin check is actually enforced
+            </h3>
+            <PropagationNoteStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              diff preview — previous value struck through in text-text4, requested value in
+              text-text2, both font-mono, each truncated to one line
+            </h3>
+            <DiffPreviewStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              the ?status= filter — links rather than buttons, because the state decides which rows
+              the server reads
+            </h3>
+            <PropagationFilterStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              live — Approve and Reject on every pending row, and a settled row showing who decided
+              it instead of buttons
+            </h3>
+            <PromotionTableStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              demo mode — every control disabled through DisabledWrite with the tooltip that says
+              why
+            </h3>
+            <PromotionTableDemoStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              empty state — which state is empty, why a row would appear, and the way out, never a
+              blank panel
+            </h3>
+            <PropagationEmptyStory />
           </div>
         </div>
       </Section>

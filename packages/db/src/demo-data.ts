@@ -7,6 +7,7 @@ import type { InterfacePageRow } from './interface-config';
 import type { NotificationSettingRow } from './notifications';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
+import type { PromotionRequestRow } from './promotion-requests';
 import { brandRoles, notificationTriggers } from './schema';
 import type {
   AgencyRole,
@@ -1880,3 +1881,179 @@ export const demoNotifications: NotificationSettingRow[] = notificationTriggers.
     recipientLabel: trigger.recipientLabel,
   }),
 );
+
+/**
+ * The promotion requests waiting on an agency admin (PRD §5, §14.1; CLAUDE.md non-negotiable 2:
+ * "child changes can *request* promotion to the parent... Nothing auto-promotes").
+ *
+ * THREE PENDING REQUESTS, RAISED BY THREE DIFFERENT BRANDS, AGAINST THREE DIFFERENT TABLES. That
+ * spread is the point of the page: the admin dashboard is the one screen that reads ACROSS brands,
+ * and three requests all from one brand against one table would show a queue that proves nothing.
+ * Mattress Central wants a persona's pain points sharpened, Gratsi wants a theme's reference links
+ * repointed, and Funky Painting wants a format the template's angle list does not offer.
+ *
+ * The rows they came from are real where a real row exists: Gratsi's request names
+ * `THEME_PROBLEM_SOLUTION_ID`, an actual row of the global theme library, so an admin could open it.
+ * Funky Painting's `rowId` is NULL on purpose and is the case the column is nullable for — the
+ * request is about the SHAPE of the template's format list, not about one angle's value, so there is
+ * no row to point at.
+ *
+ * Every id is a hardcoded uuid and every timestamp is fixed, like every other fixture here, and
+ * `seed(db)` inserts exactly these rows, ids included, so a seeded database and the fixtures are
+ * row-for-row identical. `brandName` is derived from `demoBrands` rather than retyped, so a brand
+ * renamed above cannot leave a stale name on a request.
+ */
+const PROMOTION_PERSONA_PAIN_POINTS_ID = 'eeeeeeee-eeee-4eee-8eee-000000000001';
+const PROMOTION_THEME_REFERENCE_LINKS_ID = 'eeeeeeee-eeee-4eee-8eee-000000000002';
+const PROMOTION_ANGLE_FORMATS_ID = 'eeeeeeee-eeee-4eee-8eee-000000000003';
+const PROMOTION_BRIEF_ELEMENTS_TESTED_ID = 'eeeeeeee-eeee-4eee-8eee-000000000004';
+const PROMOTION_COPY_CTA_ID = 'eeeeeeee-eeee-4eee-8eee-000000000005';
+
+/** The origin rows the requests point at, in the child brands that raised them. */
+const PROMOTION_ROW_MATTRESS_PERSONA_ID = 'eeeeeeee-eeee-4eee-8eee-0000000000a1';
+const PROMOTION_ROW_NIAGARA_BRIEF_ID = 'eeeeeeee-eeee-4eee-8eee-0000000000a2';
+const PROMOTION_ROW_MATTRESS_COPY_ID = 'eeeeeeee-eeee-4eee-8eee-0000000000a3';
+
+/** The shared columns a promotion request carries: raised by its requester, last touched by them. */
+function requestBase(id: string, requester: string, created: string, updated: string) {
+  return {
+    ...base(id, created, updated),
+    createdBy: requester,
+    updatedBy: requester,
+  };
+}
+
+/** The brand's name as `demoBrands` spells it, so a rename above cannot strand a stale name here. */
+function brandNamed(brandId: string): string | null {
+  return brandNameById.get(brandId) ?? null;
+}
+
+export const demoPromotionRequests: PromotionRequestRow[] = [
+  {
+    ...requestBase(
+      PROMOTION_ANGLE_FORMATS_ID,
+      'user_seed_designer',
+      '2026-09-17T08:10:00.000Z',
+      '2026-09-17T08:10:00.000Z',
+    ),
+    brandId: BRAND_FUNKY_PAINTING_ID,
+    brandName: brandNamed(BRAND_FUNKY_PAINTING_ID),
+    tableName: 'angles',
+    rowId: null,
+    fieldName: 'formats',
+    currentValue: 'Static, Video, Carousel',
+    proposedValue: 'Static, Video, Carousel, Motion Graphic',
+    requestedBy: 'Rhiannon Okafor',
+    requestedAt: at('2026-09-17T08:10:00.000Z'),
+    status: 'pending',
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewNote: null,
+  },
+  {
+    ...requestBase(
+      PROMOTION_THEME_REFERENCE_LINKS_ID,
+      'user_seed_video_editor',
+      '2026-09-16T09:05:00.000Z',
+      '2026-09-16T09:05:00.000Z',
+    ),
+    brandId: BRAND_GRATSI_ID,
+    brandName: brandNamed(BRAND_GRATSI_ID),
+    tableName: 'themes',
+    rowId: THEME_PROBLEM_SOLUTION_ID,
+    fieldName: 'reference_links',
+    currentValue: 'https://drive.tasdigital.example/themes/problem-solution-2024',
+    proposedValue:
+      'https://drive.tasdigital.example/themes/problem-solution-2026, https://vimeo.example/tas/gratsi-pour-and-explain',
+    requestedBy: 'Imogen Bardsley',
+    requestedAt: at('2026-09-16T09:05:00.000Z'),
+    status: 'pending',
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewNote: null,
+  },
+  {
+    ...requestBase(
+      PROMOTION_PERSONA_PAIN_POINTS_ID,
+      DEMO_ACTOR_ID,
+      '2026-09-15T14:20:00.000Z',
+      '2026-09-15T14:20:00.000Z',
+    ),
+    brandId: BRAND_MATTRESS_CENTRAL_ID,
+    brandName: brandNamed(BRAND_MATTRESS_CENTRAL_ID),
+    tableName: 'personas',
+    rowId: PROMOTION_ROW_MATTRESS_PERSONA_ID,
+    fieldName: 'pain_points',
+    currentValue: 'Sleeps hot and wakes around 3am, then blames the mattress before the bedroom.',
+    proposedValue:
+      'Sleeps hot and wakes around 3am. Has already bought a cooling topper and a fan, so “cooling” on its own no longer reads as a promise — it reads as a thing that failed.',
+    requestedBy: 'Dorian Vance',
+    requestedAt: at('2026-09-15T14:20:00.000Z'),
+    status: 'pending',
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewNote: null,
+  },
+];
+
+/**
+ * The two requests an admin has already settled, kept beside the pending three so the page's status
+ * filter has something to show on each of its other two keys, and so filtering to a state with
+ * nothing in it is reachable in demo mode rather than only in an empty database.
+ *
+ * They are a SEPARATE array, not three more entries above, because `/app/propagation` renders the
+ * pending queue and nothing else: `demoPromotionRequests` is exactly what that table shows, three
+ * rows, and a reviewed request can never leak into it by being appended to the wrong list.
+ * `seed(db)` inserts both arrays, so the database holds all five and `listPromotionRequests` can be
+ * asked for any of the three states.
+ *
+ * Marguerite Alaoui reviewed both, because she is the agency's only admin (`demoMemberships`), and
+ * each note says what an admin's note is actually for: whether the change belongs to every brand or
+ * only to the one that asked.
+ */
+export const demoReviewedPromotionRequests: PromotionRequestRow[] = [
+  {
+    ...requestBase(
+      PROMOTION_COPY_CTA_ID,
+      'user_seed_csm',
+      '2026-09-08T16:45:00.000Z',
+      '2026-09-09T10:30:00.000Z',
+    ),
+    brandId: BRAND_MATTRESS_CENTRAL_ID,
+    brandName: brandNamed(BRAND_MATTRESS_CENTRAL_ID),
+    tableName: 'copywriting',
+    rowId: PROMOTION_ROW_MATTRESS_COPY_ID,
+    fieldName: 'cta',
+    currentValue: 'Shop Now',
+    proposedValue: 'Claim My Offer',
+    requestedBy: 'Callum Ashworth',
+    requestedAt: at('2026-09-08T16:45:00.000Z'),
+    status: 'rejected',
+    reviewedBy: 'Marguerite Alaoui',
+    reviewedAt: at('2026-09-09T10:30:00.000Z'),
+    reviewNote:
+      '“Claim My Offer” is a Mattress Central promise tied to their sale calendar, not a default every brand should inherit. Keep it as a local override.',
+  },
+  {
+    ...requestBase(
+      PROMOTION_BRIEF_ELEMENTS_TESTED_ID,
+      DEMO_ACTOR_ID,
+      '2026-09-04T11:35:00.000Z',
+      '2026-09-05T09:12:00.000Z',
+    ),
+    brandId: DEMO_BRAND_ID,
+    brandName: brandNamed(DEMO_BRAND_ID),
+    tableName: 'creative_briefs',
+    rowId: PROMOTION_ROW_NIAGARA_BRIEF_ID,
+    fieldName: 'elements_tested',
+    currentValue: 'Hook, thumbnail',
+    proposedValue: 'Hook, thumbnail, first-frame caption, CTA card',
+    requestedBy: 'Dorian Vance',
+    requestedAt: at('2026-09-04T11:35:00.000Z'),
+    status: 'approved',
+    reviewedBy: 'Marguerite Alaoui',
+    reviewedAt: at('2026-09-05T09:12:00.000Z'),
+    reviewNote:
+      'Every brand already reports on these four in the monthly review, so the template should ask for them. Promoted.',
+  },
+];

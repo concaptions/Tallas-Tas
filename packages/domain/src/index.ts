@@ -10,3 +10,4 @@ export * from './creators/index';
 export * from './team/index';
 export * from './interface/index';
 export * from './notifications/index';
+export * from './propagation/index';

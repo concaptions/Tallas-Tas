@@ -13,5 +13,6 @@ export * from './memberships';
 export * from './notifications';
 export * from './personas';
 export * from './products';
+export * from './promotion-requests';
 export * from './themes';
 export * from './users';

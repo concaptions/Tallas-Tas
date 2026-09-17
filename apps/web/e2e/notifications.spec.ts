@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { notificationsPath } from '../src/lib/routes';
+import { notificationsPath, propagationPath } from '../src/lib/routes';
 
 /**
  * Notifications with no environment variables at all — the Vercel deployment as it stands
@@ -211,11 +211,17 @@ test.describe('notifications in demo mode (no Clerk publishable key)', () => {
     const row = page.locator('li', { has: link }).last();
     await expect(row.locator('[aria-disabled="true"]')).toHaveCount(0);
 
-    // Propagation is a later ticket and must still be the muted placeholder, which is what proves
-    // the assertions above are about Notifications shipping rather than about the SoonChip having
-    // quietly disappeared from the whole sidebar.
-    const pending = page.locator('[aria-disabled="true"]', { hasText: 'Propagation' });
-    await expect(pending.locator('[data-slot="soon-chip"]')).toHaveCount(1);
+    // Propagation has since shipped too (ticket `propagation`), so the sidebar now has no muted
+    // placeholder left at all. The assertion that used to prove the SoonChip had not quietly
+    // disappeared from the whole rail is therefore the opposite one: the section that shipped last
+    // is a real link, and nothing in the rail is a placeholder. The positive half is what keeps the
+    // zero-count honest — on its own it would also pass on a sidebar that failed to render — and
+    // `pendingSections()` in `nav.test.ts` is what fails if a section loses its href again.
+    await expect(page.getByRole('link', { name: 'Propagation' })).toHaveAttribute(
+      'href',
+      propagationPath,
+    );
+    await expect(page.locator('[data-slot="shell-sidebar"] [aria-disabled="true"]')).toHaveCount(0);
   });
 
   test('fits a 390px phone with no horizontal page scroll', async ({ page }) => {

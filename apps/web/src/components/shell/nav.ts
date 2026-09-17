@@ -11,6 +11,7 @@ import {
   notificationsPath,
   personasPath,
   productsPath,
+  propagationPath,
   teamPath,
   themesPath,
   ugcPath,
@@ -90,7 +91,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         icon: 'notifications',
         href: notificationsPath,
       },
-      { key: 'propagation', label: 'Propagation', icon: 'propagation' },
+      {
+        key: 'propagation',
+        label: 'Propagation',
+        icon: 'propagation',
+        href: propagationPath,
+      },
     ],
   },
   {

@@ -81,3 +81,57 @@ export const DEMO_TEAM_ACCESS_NOTE =
 
 /** The actor demo mode hands the guard: an agency admin with no brand memberships. */
 export const DEMO_TEAM_ACTOR: TeamPageActor = { agencyRole: 'admin', brandRoles: [] };
+
+/**
+ * Who may open `/app/propagation` (PRD §5, ticket `propagation` criterion 3).
+ *
+ * §5: "request comes in to the ADMIN dashboard to approve everything." ADMIN ONLY, and strictly
+ * narrower than `canSeeTeamPage` above: a CSM belongs on the roster because §11 scopes them across
+ * the whole client base, but approving a promotion writes into the TEMPLATE and every brand inherits
+ * the result, so it is not a per-brand job however many brands the person holds. The two guards
+ * disagree on purpose; `../propagation/review` is where the reason is written at length.
+ *
+ * It lives in this file, beside `canSeeTeamPage`, because the actor type and every other access rule
+ * are here and because the reviewing half of the rule (`canReviewPromotion`) must be the SAME
+ * function, not a second one that agrees today: the page shows nothing but the pending queue and the
+ * Approve/Reject buttons, so a page that opened wider than the buttons would render controls it
+ * refuses to honour. `../propagation/review` re-exports this under the name the action path calls it
+ * by; the edge runs `propagation -> team` and never back.
+ *
+ * DENY BY DEFAULT, like its sibling: `null`, `undefined`, `{}`, a member, a client and an unknown
+ * role are all false, so a page that fails to resolve a session cannot fall through to the queue.
+ * Demo mode passes `DEMO_TEAM_ACTOR` rather than skipping the call (criterion 3).
+ */
+export function canSeePropagationPage(actor: TeamPageActor | null | undefined): boolean {
+  return actor?.agencyRole === 'admin';
+}
+
+/**
+ * The note above the table, `data-slot="admin-note"` (criterion 2). One short paragraph; the page
+ * wraps it in a `rounded-card` `border-line` `bg-surface2` block in `text-text3`, so no colour or
+ * radius decision leaks into this package.
+ *
+ * It says the same thing the guard enforces, in the order a reader needs it: who the page is for,
+ * what a request is, and who settles it. The last clause is CLAUDE.md's non-negotiable in the user's
+ * own words — nothing auto-promotes.
+ */
+export const PROPAGATION_ADMIN_NOTE =
+  'This page is admin only. A change made in one brand can request promotion to the template, ' +
+  'and an agency admin approves or rejects it here — nothing is promoted automatically.';
+
+/**
+ * The extra sentence demo mode appends, where there is no identity provider to ask. It says the
+ * check is STUBBED rather than absent, because the check does still run: the page hands
+ * `DEMO_TEAM_ACTOR` to `canSeePropagationPage` and gets a real answer from a stand-in actor.
+ */
+export const DEMO_PROPAGATION_ACCESS_NOTE =
+  'Demo mode signs you in as an Admin, so the pending queue shows; the role check is stubbed, ' +
+  'not skipped.';
+
+/**
+ * What `data-slot="not-admin"` says instead of the table when the guard refuses (criterion 3). It
+ * names the role that can act, so the reader knows who to go to rather than only that they cannot.
+ */
+export const PROPAGATION_NOT_ADMIN_NOTE =
+  'Only an agency Admin can review promotion requests. Ask your Admin to approve or reject this ' +
+  'change.';

@@ -38,6 +38,8 @@ export {
   demoPartnershipCreators,
   demoPersonas,
   demoProducts,
+  demoPromotionRequests,
+  demoReviewedPromotionRequests,
   demoTeam,
   demoThemes,
   demoUsers,
@@ -61,6 +63,12 @@ export { getPersonaById, insertPersona, listPersonas, updatePersona } from './pe
 export type { PersonaInput, PersonaListRow } from './personas';
 export { getProductById, insertProduct, listProducts, updateProduct } from './products';
 export type { ProductInput, ProductListRow } from './products';
+export {
+  listPendingPromotionRequests,
+  listPromotionRequests,
+  setPromotionRequestStatus,
+} from './promotion-requests';
+export type { PromotionRequestInput, PromotionRequestRow } from './promotion-requests';
 export * from './schema';
 export { seed } from './seed';
 export type { SeedResult } from './seed';

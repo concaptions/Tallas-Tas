@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { interfaceConfigPath } from '../src/lib/routes';
+import { interfaceConfigPath, propagationPath } from '../src/lib/routes';
 
 /**
  * Interface Config with no environment variables at all — the Vercel deployment as it stands
@@ -192,12 +192,19 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     const row = page.locator('li', { has: link }).last();
     await expect(row.locator('[aria-disabled="true"]')).toHaveCount(0);
 
-    // Propagation is a later ticket and must still be the muted placeholder, which is what proves
-    // the assertions above are about Interface Config shipping rather than about the SoonChip having
-    // quietly disappeared from the whole sidebar. It was Notifications until ticket `notifications`
-    // shipped its page. The queue specs make the same assertion from the other side.
-    const pending = page.locator('[aria-disabled="true"]', { hasText: 'Propagation' });
-    await expect(pending.locator('[data-slot="soon-chip"]')).toHaveCount(1);
+    // This used to point at whichever section had not shipped yet — Notifications, then Propagation
+    // — so that the assertions above were provably about Interface Config shipping rather than
+    // about the SoonChip having quietly disappeared from the whole sidebar. Propagation shipped in
+    // ticket `propagation` and was the last one, so there is no placeholder left to point at and
+    // the control has to be made the other way round: the rail still renders the section that
+    // shipped last, as a real link, and carries no muted placeholder anywhere. Without the positive
+    // half, `toHaveCount(0)` would also pass on a sidebar that failed to render. `pendingSections()`
+    // in `nav.test.ts` fails if a section ever loses its href again.
+    await expect(page.getByRole('link', { name: 'Propagation' })).toHaveAttribute(
+      'href',
+      propagationPath,
+    );
+    await expect(page.locator('[data-slot="shell-sidebar"] [aria-disabled="true"]')).toHaveCount(0);
   });
 
   test('fits a 390px phone with no horizontal page scroll', async ({ page }) => {
