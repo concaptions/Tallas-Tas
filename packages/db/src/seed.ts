@@ -5,6 +5,7 @@ import type { Db } from './db';
 import {
   DEMO_BRAND_ID,
   demoAngles,
+  demoBriefs,
   demoConcepts,
   demoPersonas,
   demoProducts,
@@ -16,6 +17,7 @@ import {
   brandAssignments,
   brands,
   concepts,
+  creativeBriefs,
   healthCheck,
   memberships,
   personas,
@@ -27,6 +29,7 @@ import {
   type Brand,
   type BrandAssignment,
   type Concept,
+  type CreativeBrief,
   type HealthCheck,
   type Membership,
   type Persona,
@@ -51,6 +54,7 @@ export type SeedResult = {
   personas: Persona[];
   angles: Angle[];
   concepts: Concept[];
+  briefs: CreativeBrief[];
 };
 
 /** Inserts one row and returns it, or throws naming the table. */
@@ -86,6 +90,20 @@ function scoped<T extends { brandId: string | null }>(row: T): Omit<T, Derived> 
   delete rest['conceptCount'];
   delete rest['usedByBrandCount'];
   return rest as Omit<T, Derived>;
+}
+
+/**
+ * The brief fixtures' derived keys: the three names `listBriefs` joins in through the concept.
+ * `productName` is already in the shared list above; `conceptName` and `angleName` are not, because
+ * no other fixture carries them.
+ */
+type BriefDerived = Derived | 'conceptName' | 'angleName';
+
+function scopedBrief<T extends { brandId: string | null }>(row: T): Omit<T, BriefDerived> {
+  const rest: Record<string, unknown> = { ...scoped(row) };
+  delete rest['conceptName'];
+  delete rest['angleName'];
+  return rest as Omit<T, BriefDerived>;
 }
 
 /**
@@ -168,6 +186,12 @@ export async function seed(db: Db): Promise<SeedResult> {
       demoConcepts.map((row) => scopedConcept(row)),
     )
     .returning();
+  const seededBriefs = await scope
+    .insert(
+      creativeBriefs,
+      demoBriefs.map((row) => scopedBrief(row)),
+    )
+    .returning();
 
   return {
     agency,
@@ -183,5 +207,6 @@ export async function seed(db: Db): Promise<SeedResult> {
     personas: seededPersonas,
     angles: seededAngles,
     concepts: seededConcepts,
+    briefs: seededBriefs,
   };
 }

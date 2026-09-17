@@ -2,6 +2,7 @@ export * from './agencies';
 export * from './angles';
 export * from './brand-assignments';
 export * from './brands';
+export * from './briefs';
 export * from './concepts';
 export * from './enums';
 export * from './health-check';

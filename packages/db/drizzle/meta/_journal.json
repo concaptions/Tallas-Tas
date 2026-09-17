@@ -43,6 +43,13 @@
       "when": 1789598288952,
       "tag": "0005_concepts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789602575238,
+      "tag": "0006_briefs",
+      "breakpoints": true
     }
   ]
 }

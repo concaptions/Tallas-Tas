@@ -85,6 +85,13 @@ import { GlobalBadge } from '@/app/app/themes/global-badge';
 import { ThemeCard } from '@/app/app/themes/theme-card';
 
 import {
+  BriefChipsStory,
+  BriefDimensionsStory,
+  BriefInspirationStory,
+  BriefNameStory,
+  BriefQaStory,
+} from './briefs.stories';
+import {
   ConceptNamePreviewStory,
   ConceptsBoardStory,
   ConceptsViewToggleStory,
@@ -787,6 +794,44 @@ export default function DesignSystemPage() {
               auto-name — font-mono, never an input, complete and half-filled
             </h3>
             <ConceptNamePreviewStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Creative Briefs: generated name, chips, ratios, inspiration and QA"
+        note="The five shapes /app/briefs introduces. Mounted from the route's own modules, never re-drawn here."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              creative name — font-mono, never an input, copy confirms in place
+            </h3>
+            <BriefNameStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              chips — standalone in the mute tone, priority toned by its SLA, status from chipTone
+            </h3>
+            <BriefChipsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              dimensions — the PRD §8 defaults, video set then static set
+            </h3>
+            <BriefDimensionsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              inspiration — embed where a provider allows it, a card where it does not
+            </h3>
+            <BriefInspirationStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              QA checklist — three boxes, disabled in demo mode with the reason on hover
+            </h3>
+            <BriefQaStory />
           </div>
         </div>
       </Section>

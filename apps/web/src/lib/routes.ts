@@ -11,6 +11,7 @@ export const productsPath = '/app/products';
 export const anglesPath = '/app/angles';
 export const themesPath = '/app/themes';
 export const conceptsPath = '/app/concepts';
+export const briefsPath = '/app/briefs';
 export const designSystemPath = '/design-system';
 
 /**
@@ -20,6 +21,15 @@ export const designSystemPath = '/design-system';
  */
 export function conceptPath(id: string): string {
   return `${conceptsPath}/${encodeURIComponent(id)}`;
+}
+
+/**
+ * One brief's own route segment (PRD §5.10, ticket criterion 3). The Creative Briefs detail page is
+ * a real route, not a side panel, so the id belongs in the path and Back restores the list;
+ * `encodeURIComponent` keeps a non-uuid id from ever producing a second segment.
+ */
+export function briefPath(id: string): string {
+  return `${briefsPath}/${encodeURIComponent(id)}`;
 }
 
 /** Public trees: the path itself and everything below it (`/sign-in/factor-one`). */

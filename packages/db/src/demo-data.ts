@@ -1,7 +1,9 @@
 import type { AngleListRow } from './angles';
+import type { BriefListRow } from './briefs';
 import type { ConceptListRow } from './concepts';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
+import type { CreativeFunnel, CreativeType } from './schema';
 import type { ThemeListRow } from './themes';
 
 /**
@@ -47,6 +49,12 @@ const CONCEPT_BODY_CLOCK_ID = '66666666-6666-4666-8666-000000000001';
 const CONCEPT_NOT_YOUR_AGE_ID = '66666666-6666-4666-8666-000000000002';
 const CONCEPT_DAYLIGHT_ID = '66666666-6666-4666-8666-000000000003';
 const CONCEPT_NINETY_MINUTES_ID = '66666666-6666-4666-8666-000000000004';
+const BRIEF_BODY_CLOCK_VIDEO_ID = '77777777-7777-4777-8777-000000000001';
+const BRIEF_NOT_YOUR_AGE_STATIC_ID = '77777777-7777-4777-8777-000000000002';
+const BRIEF_DAYLIGHT_MOTION_ID = '77777777-7777-4777-8777-000000000003';
+const BRIEF_NINETY_MINUTES_VIDEO_ID = '77777777-7777-4777-8777-000000000004';
+const BRIEF_BUNDLE_STANDALONE_ID = '77777777-7777-4777-8777-000000000005';
+const BRIEF_NINETY_MINUTES_CAROUSEL_ID = '77777777-7777-4777-8777-000000000006';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -589,5 +597,357 @@ export const demoConcepts: ConceptListRow[] = [
       'One creator, one take, straight down the barrel, no B-roll: a parent on the sofa in a bright east-facing flat during the morning handover. She says out loud that more sleep is not on offer and she has stopped listening to anyone who promises it, then sells the window she actually gets. The objection goes in the first ten seconds — blocks light, not sound — and she holds the mask up to camera while she says it. Ends on her lying down with the room still bright and the monitor audibly on.',
     internalStatus: 'sent_to_video_editor',
     clientStatus: 'pending_for_approval',
+  },
+];
+
+/** One seeded concept by id, past `noUncheckedIndexedAccess`; the briefs below are built on these. */
+function demoConcept(id: string): ConceptListRow {
+  const row = demoConcepts.find((concept) => concept.id === id);
+  if (row === undefined) throw new Error(`demoConcepts has no ${id}`);
+  return row;
+}
+
+/** PRD §7's funnel letters: the first character of every creative name. */
+const FUNNEL_LETTER: Record<CreativeFunnel, string> = {
+  TOF: 'T',
+  Retargeting: 'R',
+  'All Funnels': 'A',
+};
+
+/** PRD §7's format letters: the second character. "Motion Image" is M. */
+const FORMAT_LETTER: Record<CreativeType, string> = {
+  Video: 'V',
+  Static: 'S',
+  Carousel: 'C',
+  'Motion Image': 'M',
+};
+
+/**
+ * What stands in the CONCEPT NAME segment when a brief has no parent concept (PRD §8). A standalone
+ * static still needs a name, and the name still has to have that segment, so the slug fills it.
+ */
+export const STANDALONE_CONCEPT_SLUG = 'Standalone';
+
+/**
+ * PRD §7's creative name, `{FUNNEL}{FORMAT}{NUMBER}-BATCH#-CONCEPT NAME-VARIATION#-(PRODUCT)`, never
+ * typed by a user (CLAUDE.md non-negotiable 6). The canonical formula is the pure `creativeName`
+ * function in `packages/domain/src/creatives/`, which the brief page and every write call; this copy
+ * exists only because `@tas/db` does not depend on `@tas/domain` — the edge runs the other way
+ * everywhere in this repo, exactly as the `conceptName` copy above explains. Nothing below is
+ * hand-written: every fixture name is this function applied to a real funnel, type, sequence, batch
+ * and seeded concept, so a drifting formula shows up as six changed fixtures rather than as one
+ * stale string. `apps/web` depends on both packages and is where the two are asserted equal.
+ *
+ * The product suffix is optional ("if needed"): it disambiguates a creative whose concept does not
+ * already name the product, which in practice is the standalone static.
+ */
+function creativeName(spec: {
+  funnel: CreativeFunnel;
+  format: CreativeType;
+  number: number;
+  batch: string;
+  conceptName: string;
+  version: number;
+  product?: string;
+}): string {
+  const head = `${FUNNEL_LETTER[spec.funnel]}${FORMAT_LETTER[spec.format]}${String(spec.number)}`;
+  const suffix = spec.product === undefined ? '' : `-${spec.product}`;
+  return `${head}-${spec.batch}-${spec.conceptName}-V${String(spec.version)}${suffix}`;
+}
+
+/**
+ * The CONCEPT NAME segment of a creative name: the concept's own generated `Batch-Angle-Theme` name
+ * with its batch prefix removed, because the batch is already the segment before it. PRD §7's second
+ * example — `AV1-B1-Less Pressure Means Less Pain-Educational Content-V1` — is exactly this: batch
+ * once, then the Angle-Theme pairing.
+ */
+function conceptSegment(concept: ConceptListRow): string {
+  const prefix = `${concept.batch ?? ''}-`;
+  return concept.name.startsWith(prefix) ? concept.name.slice(prefix.length) : concept.name;
+}
+
+/**
+ * PRD §8's default dimension set for a type: "4:5 or 1:1 (1080x1080) … plus 9:16" for video,
+ * "1:1 and 9:16" for statics. A carousel is a set of stills, so it takes the static set; a motion
+ * image is cut like a video and takes the video set. Editable per row — these are the defaults a
+ * fresh brief starts from, and the ratio vocabulary itself lives in `packages/domain/src/creatives`.
+ */
+function dimensionsFor(type: CreativeType): string[] {
+  return type === 'Static' || type === 'Carousel' ? ['1:1', '9:16'] : ['4:5', '1:1', '9:16'];
+}
+
+/** The generated name, the inherited names and the §8 dimensions of a brief built on a concept. */
+function fromConcept(
+  concept: ConceptListRow,
+  spec: { funnel: CreativeFunnel; type: CreativeType; sequence: number; version: number },
+) {
+  const batch = concept.batch ?? '';
+  return {
+    conceptId: concept.id,
+    batch,
+    funnel: spec.funnel,
+    type: spec.type,
+    sequence: spec.sequence,
+    version: spec.version,
+    dimensions: dimensionsFor(spec.type),
+    name: creativeName({
+      funnel: spec.funnel,
+      format: spec.type,
+      number: spec.sequence,
+      batch,
+      conceptName: conceptSegment(concept),
+      version: spec.version,
+    }),
+    conceptName: concept.name,
+    angleName: concept.angleName,
+    productName: concept.productName,
+  };
+}
+
+/**
+ * The same for a STANDALONE brief (PRD §8, CLAUDE.md non-negotiable 5): no concept, so the slug
+ * fills the concept segment and all three inherited names are null — there is no concept to reach an
+ * angle through, and no angle to reach a product through. The product still appears in the NAME,
+ * because a standalone static is written for a specific product; it is the optional §7 suffix, not a
+ * join, which is precisely why the row can carry it while `productName` stays null.
+ */
+function standalone(spec: {
+  funnel: CreativeFunnel;
+  type: CreativeType;
+  sequence: number;
+  version: number;
+  batch: string;
+  product: string;
+}) {
+  return {
+    conceptId: null,
+    batch: spec.batch,
+    funnel: spec.funnel,
+    type: spec.type,
+    sequence: spec.sequence,
+    version: spec.version,
+    dimensions: dimensionsFor(spec.type),
+    name: creativeName({
+      funnel: spec.funnel,
+      format: spec.type,
+      number: spec.sequence,
+      batch: spec.batch,
+      conceptName: STANDALONE_CONCEPT_SLUG,
+      version: spec.version,
+      product: spec.product,
+    }),
+    conceptName: null,
+    angleName: null,
+    productName: null,
+  };
+}
+
+const bodyClockConcept = demoConcept(CONCEPT_BODY_CLOCK_ID);
+const notYourAgeConcept = demoConcept(CONCEPT_NOT_YOUR_AGE_ID);
+const daylightConcept = demoConcept(CONCEPT_DAYLIGHT_ID);
+const ninetyMinutesConcept = demoConcept(CONCEPT_NINETY_MINUTES_ID);
+
+/**
+ * Six creative briefs for Niagara Sleep Solutions (PRD §5.10), one record per creative asset.
+ *
+ * They sit in six DIFFERENT internal statuses, across both tracks of the state machine — the video
+ * track's `sent_to_video_editor`, `video_editing_in_progress`, `ad_submitted` and `approved`, and the
+ * static track's `static_design_in_progress` and `images_revisions` (`@tas/domain/state` keys).
+ * Exactly one is `approved`, so `isClientTrackOpen` is true on exactly one row and the client bar is
+ * visibly open there and shut everywhere else (PRD §9, CLAUDE.md non-negotiable 4); that row sits at
+ * the first client status, `pending_for_approval`, which is the pairing the client interface gates on.
+ *
+ * All four types are covered (two Video, one Static, one Carousel, one Motion Image, plus the
+ * standalone Static), and one row — the retargeting bundle static — has `conceptId: null`: the PRD §8
+ * case that the whole nullable link exists for. Four different inspiration providers appear across
+ * the set (Meta Ad Library, YouTube, TikTok, Instagram), and one row carries the AI spelling feedback
+ * already written.
+ *
+ * `conceptName`, `angleName` and `productName` are what `listBriefs` inherits through the concept, so
+ * the fixtures satisfy `BriefListRow[]` and the page reads demo rows and database rows through one
+ * type. The array is in `updated_at` descending order, the order `listBriefs` returns, so a test can
+ * compare the two directly.
+ */
+export const demoBriefs: BriefListRow[] = [
+  {
+    ...base(BRIEF_BODY_CLOCK_VIDEO_ID, '2026-08-30T09:20:00.000Z', '2026-09-15T16:40:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...fromConcept(bodyClockConcept, { funnel: 'TOF', type: 'Video', sequence: 1, version: 2 }),
+    source: 'TAS',
+    priority: 'Video High',
+    assignee: 'Dorian Vance',
+    briefToDesign:
+      'Cut the V2 from the 14 September rushes, not from the V1 timeline — the new driveway take is two seconds tighter and the sun is still behind him. Open on the car pulling in, no logo, no music for the first three seconds; the only sound is the engine and the birds, because every competitor in this feed opens on a bed. Burn the on-screen line "your rota is the abnormal thing, not you" at 0:04 and hold it for a full beat. Keep the blanket reveal to one continuous shot of the quilted channels being laid over him — no cutaway to packaging, the packaging test lost twice. Captions in the brand sans, bottom third, never over his face. Hard out at 0:28 on the 90-night trial card; do not let this run past 30 seconds, the retention drop at 31 is a cliff.',
+    scriptContent:
+      'NURSE (to camera, still in scrubs, morning sun behind him): Six years of nights. I used to think I was broken.\nNURSE: I am not. The rota is. My body wants to sleep at 4am and I am asking it to sleep at 9.\n(BEAT — he pushes the front door open, bright hallway)\nNURSE: So I stopped trying to fix me and I fixed the room.\n(BLANKET GOES ON — one continuous shot)\nNURSE: Weight, not heat. It is breathable, so I do not wake up at noon soaked through.\n(CUT TO: same man asleep, room still bright)\nVO: Ninety nights to try it. Sleep through the daylight or send it back.',
+    elementsTested:
+      'Hypothesis: naming the ROTA as the broken thing, rather than the sleeper, beats every comfort-led open with shift workers. V1 opened on the bed and held 31% to three seconds; this cut opens on the driveway and delays the product by nine seconds. If the three-second hold clears 40% with no drop in add-to-cart we move the whole batch to problem-first opens. Second variable, deliberately isolated: "weight, not heat" as the single product claim, with no mention of the fill or the tog rating.',
+    inspoLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=1204339857741622',
+      'https://www.youtube.com/watch?v=nm1TxQj9IsQ',
+    ],
+    platform: 'Meta',
+    designFileUrl: 'https://frame.example/niagara/tv1-b1-v2-master',
+    qaVideoEditor: true,
+    qaDesigner: true,
+    qaStrategist: true,
+    spellingFeedback: null,
+    internalStatus: 'approved',
+    clientStatus: 'pending_for_approval',
+    performance: null,
+  },
+  {
+    ...base(BRIEF_NOT_YOUR_AGE_STATIC_ID, '2026-09-02T11:05:00.000Z', '2026-09-14T09:10:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...fromConcept(notYourAgeConcept, { funnel: 'TOF', type: 'Static', sequence: 1, version: 1 }),
+    source: 'TAS',
+    priority: 'Static Average',
+    assignee: 'Rhiannon Okafor',
+    briefToDesign:
+      'One static, two ratios, same layout. Top two thirds: the screenshot of the r/Menopause thread, real, unretouched, with the usernames blurred at 40% not blacked out — a black bar reads as a legal notice and kills the credibility we are borrowing. Highlight one comment in the brand accent, the one about the ceiling at 3:47. Bottom third: the blanket on a real unmade bed shot from above, warm but not orange, and the line "Your doctor called it your age. Four hundred women called it 3am." set left, two lines maximum. No price, no badge, no starburst. The 9:16 keeps the same crop of the thread — do not re-flow it into a column, the eye needs to read it as a screenshot, not as a designed block.',
+    scriptContent:
+      'HEADLINE (on image, over the thread): Your doctor called it your age. Four hundred women called it 3am.\nHIGHLIGHTED COMMENT (pulled from the thread, verbatim): "3:47. Every single night. I could draw that ceiling from memory."\nSUBLINE: Quilted channels spread the weight across you instead of piling it on you, so it never traps the heat you are already fighting.\nPRODUCT LINE: Niagara Deep Sleep Weighted Blanket — breathable cotton shell, 7kg and 9kg.\nCTA: 90 nights. Sleep through it or send it back.\nALT HEADLINE (for the 9:16, if the first runs long): They told her it was her age. The thread told her otherwise.',
+    elementsTested:
+      'Hypothesis: borrowed proof outperforms claimed proof with this persona. The last three statics in the batch led with the product and a benefit line; this one leads with a real thread and holds the product to the bottom third. Testing whether social proof in the top two thirds lifts click-through enough to survive the lower add-to-cart we expect from a static that never shows a price. Blur level is the second variable — 40% versus fully redacted ran as a hypothesis in the July batch and was never settled.',
+    inspoLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=982254173318827',
+    ],
+    platform: 'Meta',
+    designFileUrl: null,
+    qaVideoEditor: false,
+    qaDesigner: false,
+    qaStrategist: false,
+    spellingFeedback: null,
+    internalStatus: 'static_design_in_progress',
+    clientStatus: 'pending_for_approval',
+    performance: null,
+  },
+  {
+    ...base(BRIEF_DAYLIGHT_MOTION_ID, '2026-08-28T13:40:00.000Z', '2026-09-12T18:25:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...fromConcept(daylightConcept, {
+      funnel: 'All Funnels',
+      type: 'Motion Image',
+      sequence: 1,
+      version: 1,
+    }),
+    source: 'TAS',
+    priority: 'Video Average',
+    assignee: 'Dorian Vance',
+    briefToDesign:
+      'Split frame held for the entire runtime: left is the bedroom at 03:00, right is the same bedroom at 09:00, locked off on the same tripod mark so the two halves line up to the pixel. A real lux meter sits in shot in each half with its reading legible — this is filmed live on the day, never an after-effects overlay, and if the meter is not readable in the grade we reshoot rather than fake it. At 0:09 the mask animates on over the right half only and that side crushes down to the left half’s reading, meter and all, in one continuous ramp. Numbers count down on screen with the ramp. End card: the mask on a hotel nightstand with "travels to the on-call room" set small underneath. Motion only, no dialogue, captions carry everything.',
+    scriptContent:
+      'CARD 1: Same room. Six hours apart.\nCARD 2 (over the meter readings): 3am — 2 lux. 9am — 186 lux.\nCARD 3: You are not failing at sleep. You are being out-lit ninety to one.\n(MASK ANIMATES ON, RIGHT HALF RAMPS DOWN TO 2 LUX)\nCARD 4: Contoured blackout. Cooling insert. Seals at the nose bridge.\nCARD 5: It goes where the blinds cannot. Including the on-call room.',
+    elementsTested:
+      'Hypothesis: a measured number beats a comfort promise with an audience that reads study abstracts for fun. Every other asset in this batch makes a claim; this one shows an instrument. Testing whether the live lux reading lifts three-second retention and, more importantly, whether it lowers the "does this actually block light" comment rate that ate the first round. Second variable: no voiceover at all, on the theory that this audience scrolls muted at 6am on a ward break.',
+    inspoLinks: ['https://www.youtube.com/watch?v=nm1TxQj9IsQ'],
+    platform: 'Meta',
+    designFileUrl: 'https://frame.example/niagara/am1-b2-v1-review',
+    qaVideoEditor: true,
+    qaDesigner: true,
+    qaStrategist: false,
+    spellingFeedback:
+      'Two issues and one judgement call. Card 2 reads "3am — 2 lux. 9am — 186 lux." but card 3 says "ninety to one"; 186 over 2 is ninety-three to one, so either round the claim to "ninety to one" honestly or say "ninety-three". Card 5 has "on-call room" hyphenated and the end card has "on call room" without the hyphen — make both hyphenated. "out-lit" is not in the dictionary but it is deliberate and it scans; leaving it.',
+    internalStatus: 'ad_submitted',
+    clientStatus: 'pending_for_approval',
+    performance: null,
+  },
+  {
+    ...base(BRIEF_NINETY_MINUTES_VIDEO_ID, '2026-09-03T08:55:00.000Z', '2026-09-11T10:05:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...fromConcept(ninetyMinutesConcept, {
+      funnel: 'TOF',
+      type: 'Video',
+      sequence: 2,
+      version: 1,
+    }),
+    source: 'TAS',
+    priority: 'Video High',
+    assignee: 'Imogen Bardsley',
+    briefToDesign:
+      'One creator, one take, straight down the barrel, no B-roll and no music bed. Shoot in a real east-facing flat during the actual morning handover, not the studio — the blown-out window behind her is the whole point and we cannot light it back in. The objection goes in the first ten seconds and she holds the mask up to camera while she says it: blocks light, not sound. Do not cut away while she says that line; a cutaway there reads as a dodge and the comments found it last time. Keep her hair and the unmade sofa exactly as they are. Captions burned in, sentence case, never all-caps. Out at 0:32 on her lying down with the room still bright and the monitor audibly on.',
+    scriptContent:
+      'CREATOR (sofa, bright window behind her, baby monitor beside her): Nobody is giving you eight hours. I have stopped listening to anyone who says they are.\nCREATOR: I get ninety minutes. Seven in the morning, when he takes over.\nCREATOR (holds mask to camera): This blocks light. Not sound. I still hear him. That is the entire point.\nCREATOR: It is cooling, so I am not lying there too hot to drop off with the sun coming straight in.\n(SHE LIES DOWN. ROOM STILL BRIGHT. MONITOR AUDIBLE.)\nCREATOR (VO): Ninety minutes of actual sleep is not nothing. It is the difference.',
+    elementsTested:
+      'Hypothesis: new parents have stopped responding to "sleep better" because more sleep is not on offer, so selling the USE of the window they already have beats selling the length of the night. Testing the objection-first structure — "blocks light, not sound" inside ten seconds — against the July cut that held it to 0:22 and lost the thread in the comments before anyone reached the offer. Also testing a single unbroken take against the cut-heavy house style: if hook rate holds, the whole parental-leave audience moves to one-take.',
+    inspoLinks: [
+      'https://www.tiktok.com/@thepostpartumplan/video/7385012994771635745',
+      'https://www.instagram.com/reel/C7pLd4vNqR2/',
+    ],
+    platform: 'TikTok',
+    designFileUrl: null,
+    qaVideoEditor: false,
+    qaDesigner: false,
+    qaStrategist: false,
+    spellingFeedback: null,
+    internalStatus: 'video_editing_in_progress',
+    clientStatus: 'pending_for_approval',
+    performance: null,
+  },
+  {
+    ...base(BRIEF_BUNDLE_STANDALONE_ID, '2026-08-19T15:15:00.000Z', '2026-09-08T15:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    ...standalone({
+      funnel: 'Retargeting',
+      type: 'Static',
+      sequence: 1,
+      version: 3,
+      batch: 'B4',
+      product: 'NIGHT RESET BUNDLE',
+    }),
+    source: 'Client',
+    priority: 'Static High',
+    assignee: 'Rhiannon Okafor',
+    briefToDesign:
+      'Standalone retargeting static for the bundle — no concept behind it, it exists to catch the people who viewed the blanket and the mask separately and bought neither. V3 fixes what the client flagged on V2: the bundle saving has to be the largest element on the canvas, and the two products have to be photographed together on one bed, not composited from the two product shots. Blanket laid back on the left side of the bed, mask on the right pillow, one lamp, shot at dusk. Saving set in the accent, "save $64 when they ship together", with the strikethrough on the combined single price directly beneath at half the size. Nothing else on the canvas. 1:1 for feed, 9:16 for stories with the saving moved to the upper third so the sticker tray does not cover it.',
+    scriptContent:
+      'HEADLINE (largest element on the canvas): Save $64 when they ship together.\nPRICE LINE (half size, directly beneath): $238 bought separately. $174 as the Night Reset Bundle.\nSUBLINE: The blanket for the weight. The mask for the light. One box, one delivery, one decision.\nPRODUCT LINE: Niagara Deep Sleep Weighted Blanket + Niagara Cooling Blackout Sleep Mask.\nCTA: Complete the set.\nALT CTA (test against the above on the 9:16): Get both, save $64.',
+    elementsTested:
+      'Hypothesis: the retargeting pool is not undecided about the products, it is undecided about spending twice, so the saving is the message and the product story is not. V2 led with "one box, two problems" and the client was right that the saving was buried. V3 makes the number the largest element and drops the benefit copy to a single line. Testing saving-as-hero against benefit-as-hero at the same spend and the same audience; if it wins, every retargeting static in the account gets rebuilt this way.',
+    inspoLinks: [
+      'https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=CA&id=760118443925514',
+    ],
+    platform: 'Meta',
+    designFileUrl: 'https://frame.example/niagara/rs1-b4-v3-client-markup',
+    qaVideoEditor: false,
+    qaDesigner: true,
+    qaStrategist: false,
+    spellingFeedback: null,
+    internalStatus: 'images_revisions',
+    clientStatus: 'pending_for_approval',
+    performance: 'High Potential to Iterate',
+  },
+  {
+    ...base(
+      BRIEF_NINETY_MINUTES_CAROUSEL_ID,
+      '2026-09-05T10:30:00.000Z',
+      '2026-09-05T11:45:00.000Z',
+    ),
+    brandId: DEMO_BRAND_ID,
+    ...fromConcept(ninetyMinutesConcept, {
+      funnel: 'TOF',
+      type: 'Carousel',
+      sequence: 1,
+      version: 1,
+    }),
+    source: 'TAS',
+    priority: 'Video Average',
+    assignee: 'Imogen Bardsley',
+    briefToDesign:
+      'Five cards, built from the same shoot as the one-take video so the creator is recognisable across both — the carousel is the second exposure, not a separate campaign. Card one is the hook in type over the blown-out window, no product. Cards two to four each take one objection and answer it in a single line with one photograph: the sound objection, the heat objection, the "it will slide off" objection. Card five is the bundle shot with the trial. Type set large enough to read at feed size on a phone held at arm’s length; if it needs a second look it is too small. Keep the creator in at least two of the five cards, face visible.',
+    scriptContent:
+      'CARD 1: You get ninety minutes. Here is how to actually sleep them.\nCARD 2: It blocks light, not sound. You will still hear the monitor.\nCARD 3: Cooling insert at the nose bridge, so you are not lying there too hot to drop off.\nCARD 4: Contoured, so it clears your eyes and stays where you put it.\nCARD 5: Ninety nights to try it. Sleep the handover or send it back.',
+    elementsTested:
+      'Hypothesis: the three objections that eat the comments — sound, heat, slippage — convert better answered one per card than compressed into a thirty-second script. Testing the carousel as a second exposure against the same audience that saw the one-take video, so we can read incremental lift rather than standalone performance. Card one carries no product at all, which is the second variable: whether a type-only hook card earns the swipe.',
+    inspoLinks: [],
+    platform: 'Meta',
+    designFileUrl: null,
+    qaVideoEditor: false,
+    qaDesigner: false,
+    qaStrategist: false,
+    spellingFeedback: null,
+    internalStatus: 'sent_to_video_editor',
+    clientStatus: 'pending_for_approval',
+    performance: null,
   },
 ];

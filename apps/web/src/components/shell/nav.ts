@@ -1,6 +1,7 @@
 import {
   anglesPath,
   appPath,
+  briefsPath,
   conceptsPath,
   designSystemPath,
   personasPath,
@@ -42,7 +43,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { key: 'angles', label: 'Angles', icon: 'angles', href: anglesPath },
       { key: 'themes', label: 'Themes', icon: 'themes', href: themesPath },
       { key: 'concepts', label: 'Concepts', icon: 'concepts', href: conceptsPath },
-      { key: 'briefs', label: 'Creative Briefs', icon: 'briefs' },
+      { key: 'briefs', label: 'Creative Briefs', icon: 'briefs', href: briefsPath },
       { key: 'copywriting', label: 'Copywriting', icon: 'copywriting' },
       { key: 'ugc', label: 'UGC Management', icon: 'ugc' },
     ],

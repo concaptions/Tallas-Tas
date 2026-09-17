@@ -1,5 +1,7 @@
 export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
 export type { AngleInput, AngleListRow } from './angles';
+export { getBriefById, insertBrief, listBriefs, updateBrief } from './briefs';
+export type { BriefInput, BriefListRow } from './briefs';
 export { baseColumns } from './columns';
 export { getConceptById, insertConcept, listConcepts, updateConcept } from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
@@ -9,7 +11,9 @@ export {
   DEMO_ACTOR_ID,
   DEMO_BRAND_ID,
   PRODUCT_CSV_COLUMNS,
+  STANDALONE_CONCEPT_SLUG,
   demoAngles,
+  demoBriefs,
   demoConcepts,
   demoPersonas,
   demoProducts,

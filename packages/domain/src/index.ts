@@ -4,3 +4,4 @@ export * from './csv/index';
 export * from './angles/index';
 export * from './themes/index';
 export * from './concepts/index';
+export * from './creatives/index';

@@ -73,3 +73,54 @@ export const angleTypeEnum = pgEnum('angle_type', angleTypes);
 export const themeCategories = ['Framework', 'Production Style', 'Seasonal'] as const;
 export type ThemeCategory = (typeof themeCategories)[number];
 export const themeCategoryEnum = pgEnum('theme_category', themeCategories);
+
+/**
+ * The PRD §5.10 single-selects a Creative Brief carries: Source, Funnel, Type, Priority, Platform
+ * and Performance, each in the order the PRD lists them and a dropdown renders them.
+ *
+ * Deliberately NOT `pgEnum`s, and the columns that store them are plain `text` — the same decision
+ * `concepts.internal_status` documents. `packages/domain/src/creatives` is the single source of
+ * these vocabularies (it also owns the funnel and format LETTERS of the §7 name formula and the §8
+ * dimension defaults, neither of which is a storable value); a pg enum here would be a second copy
+ * of a list that lives there, and every added Platform or Performance value would need a migration
+ * to say something the database never enforces anyway. The `as const` tuples below are the storage
+ * vocabulary the columns are `$type`d from, so a fixture or an insert cannot spell a value wrong,
+ * and `packages/domain` copies them exactly as `angles/vocabulary.ts` copies `angleFormats` — the
+ * dependency edge runs app → db and app → domain, never db → domain. `apps/web` asserts the two
+ * equal.
+ */
+
+/** Who asked for the creative (`creative_briefs.source`), PRD §5.10. */
+export const creativeSources = ['TAS', 'Client'] as const;
+export type CreativeSource = (typeof creativeSources)[number];
+
+/** Where the creative runs (`creative_briefs.funnel`); the first letter of the §7 name comes from it. */
+export const creativeFunnels = ['TOF', 'Retargeting', 'All Funnels'] as const;
+export type CreativeFunnel = (typeof creativeFunnels)[number];
+
+/**
+ * The asset itself (`creative_briefs.type`); the second letter of the §7 name comes from it, and §8
+ * hangs the default dimension set off it. "Motion Image" is the PRD §5.10 spelling — `angleFormats`
+ * calls the same thing "Motion Graphic", because that is the word a strategist uses when asking for
+ * a format on an Angle. Two vocabularies, deliberately not merged: one is a request, one is a built
+ * asset, and PRD §7's format letters (V/S/C/M) are defined over this one.
+ */
+export const creativeTypes = ['Video', 'Static', 'Carousel', 'Motion Image'] as const;
+export type CreativeType = (typeof creativeTypes)[number];
+
+/** Turnaround promise (`creative_briefs.priority`), PRD §5.10: 12h / 24h / 24h / 48h in this order. */
+export const creativePriorities = [
+  'Static High',
+  'Static Average',
+  'Video High',
+  'Video Average',
+] as const;
+export type CreativePriority = (typeof creativePriorities)[number];
+
+/** Where the finished ad is placed (`creative_briefs.platform`), PRD §5.10. */
+export const creativePlatforms = ['Meta', 'Google', 'TikTok', 'YouTube', 'Website'] as const;
+export type CreativePlatform = (typeof creativePlatforms)[number];
+
+/** How the ad did once live (`creative_briefs.performance`), PRD §5.10; null until it has run. */
+export const creativePerformances = ['Winning', 'High Potential to Iterate', 'Losing'] as const;
+export type CreativePerformance = (typeof creativePerformances)[number];
