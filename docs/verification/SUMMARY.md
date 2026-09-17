@@ -68,3 +68,26 @@ The brief's PRD citations were shifted for six pages. The real sections are Angl
 Concepts §5.7, Creative Briefs §5.10, Copywriting §5.11 and Interface Config §10. The pages were built
 from the PRD's actual content and the commits cite the corrected sections. `docs/context/` does not
 exist, so the PRD itself was used as the source of Talal's wording.
+
+## Post-run audit and hardening (2026-09-17)
+
+After the thirteen pages shipped, all thirteen were audited independently, one auditor per page plus a
+repo-wide sweep. Every page came back shipped, live in the sidebar and represented on `/design-system`.
+No blockers. Ten majors and eight cosmetic findings were raised; the three that mattered were fixed.
+
+| Fix | Commit | What was wrong |
+| --- | --- | --- |
+| Live brand resolution | `a137676` | Each data source had its own unscoped brand lookup, so with more than one agency it resolved to whichever brand sorted first and `withBrand` then scoped correctly to the wrong brand |
+| Client Revisions Needed | `5f59332` | Request Revisions could never succeed, because the state it targeted did not exist; resolves DS-Q6 in favour of PRD §9 |
+| Governance cleanups | `62093e8` | Inline colour in the demo banner, thirteen copies of the refusal message with one disagreeing, a tautological nav test, three dead exported Server Actions |
+
+Gate after hardening: typecheck, lint, unit tests, Playwright and a production build with no environment
+variables, all green. `docs/verification/21-client-queue-legal-transitions.png` shows the Client Queue
+with its new Revisions Needed column and an Approved card that offers no decision instead of two buttons
+that would fail.
+
+Two findings were deliberately left and are logged in `notes.md`: the Products URL columns show only the
+host, and the queue card thumbnail clips its provider token. Two structural notes were recorded rather
+than acted on: `resolveLiveBrand` filters in memory because `@tas/web` does not depend on `drizzle-orm`
+and the predicate belongs in `@tas/db`, and the agency-scoped `team-source` and `propagation-source`
+carry the same single-agency assumption a future ticket should consolidate.
