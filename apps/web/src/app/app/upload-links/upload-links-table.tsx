@@ -1,7 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import type { UploadLinkListRow } from '@tas/db';
 import { Button, DisabledWrite } from '@tas/ui';
+
+import { uploadLinkPath } from '@/lib/routes';
 
 export interface UploadLinkItem {
   readonly link: UploadLinkListRow;
@@ -44,7 +47,14 @@ export function UploadLinksTable({
             <tbody>
               {items.map(({ link, expiresLabel, usageLabel }) => (
                 <tr key={link.id} className="border-b border-line last:border-0">
-                  <td className="px-2 py-2 font-semibold text-text1">{link.label}</td>
+                  <td className="px-2 py-2 font-semibold text-text1">
+                    <Link
+                      href={uploadLinkPath(link.id)}
+                      className="cursor-pointer hover:text-accent hover:underline"
+                    >
+                      {link.label}
+                    </Link>
+                  </td>
                   <td className="px-2 py-2">{link.recipientName ?? '—'}</td>
                   <td className="px-2 py-2">{usageLabel}</td>
                   <td className="px-2 py-2 text-text3">{expiresLabel}</td>

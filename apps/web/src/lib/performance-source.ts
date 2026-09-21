@@ -1,4 +1,11 @@
-import { createAutoDb, demoAdMetrics, listAdMetrics, type AdMetricListRow, type Db } from '@tas/db';
+import {
+  createAutoDb,
+  demoAdMetrics,
+  getAdMetricById,
+  listAdMetrics,
+  type AdMetricListRow,
+  type Db,
+} from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
@@ -52,4 +59,33 @@ export async function loadPerformance(
     const rows = brandId === null ? [] : await listAdMetrics(db, brandId);
     return { rows, source: 'database' };
   });
+}
+
+export async function loadAdMetricById(
+  id: string,
+  deps: PerformanceSourceDeps = {},
+): Promise<{ metric: AdMetricListRow | null }> {
+  if (inDemoMode(deps)) {
+    const row = demoAdMetrics.find((m) => m.id === id) ?? null;
+    return { metric: row };
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    if (brandId === null) return { metric: null };
+    const row = await getAdMetricById(db, brandId, id);
+    return { metric: row ?? null };
+  });
+}
+
+export async function withPerformanceScope(deps: PerformanceSourceDeps = {}) {
+  const connect = deps.connect ?? neonConnection;
+  const databaseUrl = serverEnv().DATABASE_URL;
+  if (databaseUrl === undefined) throw new Error('DATABASE_URL is not configured.');
+  const connection = connect(databaseUrl);
+  const brandId = await resolveLiveBrandId(connection.db, deps);
+  if (brandId === null) {
+    await connection.close();
+    throw new Error('No brand found for the current workspace.');
+  }
+  return { db: connection.db, brandId, close: connection.close };
 }

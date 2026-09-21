@@ -1,6 +1,7 @@
 import {
   createAutoDb,
   demoUploadLinks,
+  getUploadLinkById,
   listUploadLinks,
   type Db,
   type UploadLinkListRow,
@@ -8,7 +9,7 @@ import {
 import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
-import { isDemoMode } from './demo-mode';
+import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 
 export interface UploadLinksResult {
   readonly rows: UploadLinkListRow[];
@@ -57,5 +58,42 @@ export async function loadUploadLinks(
     const brandId = await resolveLiveBrandId(db, deps);
     const rows = brandId === null ? [] : await listUploadLinks(db, brandId);
     return { rows, source: 'database' };
+  });
+}
+
+export interface UploadLinkResult {
+  readonly link: UploadLinkListRow | null;
+  readonly source: 'demo' | 'database';
+}
+
+/** One upload link by id, or null. In demo mode the fixtures are searched. */
+export async function loadUploadLinkById(
+  id: string,
+  deps: UploadLinksSourceDeps = {},
+): Promise<UploadLinkResult> {
+  if (inDemoMode(deps)) {
+    return { link: demoUploadLinks.find((row) => row.id === id) ?? null, source: 'demo' };
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    const link = brandId === null ? null : await getUploadLinkById(db, brandId, id);
+    return { link, source: 'database' };
+  });
+}
+
+/**
+ * The write path for Server Actions: one connection, the actor's brand resolved once, then `run`.
+ * Throws in demo mode and returns null when the workspace has no brand yet.
+ */
+export async function withBrandScope<T>(
+  run: (db: Db, brandId: string) => Promise<T>,
+  deps: UploadLinksSourceDeps = {},
+): Promise<T | null> {
+  if (inDemoMode(deps)) {
+    throw new Error(DEMO_MUTATION_REFUSED);
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    return brandId === null ? null : run(db, brandId);
   });
 }

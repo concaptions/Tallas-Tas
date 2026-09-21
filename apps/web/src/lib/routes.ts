@@ -65,6 +65,25 @@ export const adSpyPath = '/app/ad-spy';
 export const creatorRankingPath = '/app/creator-ranking';
 export const uploadLinksPath = '/app/upload-links';
 export const onboardingFormsPath = '/app/onboarding-forms';
+/**
+ * One upload link's detail route. The detail page is a real route, not a side panel, so the id
+ * belongs in the path; `encodeURIComponent` keeps a non-uuid id from ever producing a second segment.
+ */
+export function uploadLinkPath(id: string): string {
+  return `${uploadLinksPath}/${encodeURIComponent(id)}`;
+}
+export function assetPath(id: string): string {
+  return `${assetsPath}/${encodeURIComponent(id)}`;
+}
+export function adMetricPath(id: string): string {
+  return `${performancePath}/${encodeURIComponent(id)}`;
+}
+export function competitorAdPath(id: string): string {
+  return `${adSpyPath}/${encodeURIComponent(id)}`;
+}
+export function creatorRankingDetailPath(id: string): string {
+  return `${creatorRankingPath}/${encodeURIComponent(id)}`;
+}
 export const clientPortalPath = '/client';
 export const designSystemPath = '/design-system';
 

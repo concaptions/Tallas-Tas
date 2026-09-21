@@ -1,6 +1,7 @@
 import {
   createAutoDb,
   demoCreatorRankings,
+  getCreatorRankingById,
   listCreatorRankings,
   type CreatorRankingListRow,
   type Db,
@@ -61,4 +62,33 @@ export async function loadCreatorRankings(
     const rows = brandId === null ? [] : await listCreatorRankings(db, brandId);
     return { rows, source: 'database' };
   });
+}
+
+export async function loadCreatorRankingById(
+  id: string,
+  deps: CreatorRankingSourceDeps = {},
+): Promise<{ ranking: CreatorRankingListRow | null }> {
+  if (inDemoMode(deps)) {
+    const row = demoCreatorRankings.find((r) => r.id === id) ?? null;
+    return { ranking: row };
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    if (brandId === null) return { ranking: null };
+    const row = await getCreatorRankingById(db, brandId, id);
+    return { ranking: row ?? null };
+  });
+}
+
+export async function withCreatorRankingScope(deps: CreatorRankingSourceDeps = {}) {
+  const connect = deps.connect ?? neonConnection;
+  const databaseUrl = serverEnv().DATABASE_URL;
+  if (databaseUrl === undefined) throw new Error('DATABASE_URL is not configured.');
+  const connection = connect(databaseUrl);
+  const brandId = await resolveLiveBrandId(connection.db, deps);
+  if (brandId === null) {
+    await connection.close();
+    throw new Error('No brand found for the current workspace.');
+  }
+  return { db: connection.db, brandId, close: connection.close };
 }
