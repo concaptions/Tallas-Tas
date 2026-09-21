@@ -214,6 +214,7 @@ const problemSolutionTheme: ThemeListRow = {
   assigneeId: null,
   attachments: null,
   aiAttachmentSummary: null,
+  isActive: true,
 };
 
 /**
@@ -250,6 +251,7 @@ export const demoThemes: ThemeListRow[] = [
     assigneeId: null,
     attachments: null,
     aiAttachmentSummary: null,
+    isActive: true,
   },
   {
     ...contentBase(
@@ -271,6 +273,7 @@ export const demoThemes: ThemeListRow[] = [
     assigneeId: null,
     attachments: null,
     aiAttachmentSummary: null,
+    isActive: true,
   },
   {
     ...contentBase(THEME_POV_ID, '2026-07-28T14:20:00.000Z', '2026-09-02T09:05:00.000Z'),
@@ -285,6 +288,7 @@ export const demoThemes: ThemeListRow[] = [
     assigneeId: null,
     attachments: null,
     aiAttachmentSummary: null,
+    isActive: true,
   },
   {
     ...contentBase(THEME_GREEN_SCREEN_ID, '2026-07-20T10:05:00.000Z', '2026-08-30T16:40:00.000Z'),
@@ -299,6 +303,7 @@ export const demoThemes: ThemeListRow[] = [
     assigneeId: null,
     attachments: null,
     aiAttachmentSummary: null,
+    isActive: true,
   },
   problemSolutionTheme,
   {
@@ -317,6 +322,7 @@ export const demoThemes: ThemeListRow[] = [
     assigneeId: null,
     attachments: null,
     aiAttachmentSummary: null,
+    isActive: true,
   },
 ];
 
@@ -1318,6 +1324,7 @@ export const demoCopy: CopyListRow[] = [
     ...propagationBase(COPY_BODY_CLOCK_ID, '2026-09-01T10:15:00.000Z', '2026-09-16T11:20:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    conceptId: null,
     productId: null,
     copyNumber: 1,
     primaryCopy:
@@ -1328,6 +1335,7 @@ export const demoCopy: CopyListRow[] = [
     status: 'approved',
     clientComment: null,
     creativeName: demoBrief(BRIEF_BODY_CLOCK_VIDEO_ID).name,
+    conceptName: null,
     used: false,
     winning: false,
     metaRating: null,
@@ -1343,6 +1351,7 @@ export const demoCopy: CopyListRow[] = [
     ),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    conceptId: null,
     productId: null,
     copyNumber: 2,
     primaryCopy:
@@ -1353,6 +1362,7 @@ export const demoCopy: CopyListRow[] = [
     status: 'pending_for_client_review',
     clientComment: null,
     creativeName: demoBrief(BRIEF_NOT_YOUR_AGE_STATIC_ID).name,
+    conceptName: null,
     used: false,
     winning: false,
     metaRating: null,
@@ -1364,6 +1374,7 @@ export const demoCopy: CopyListRow[] = [
     ...propagationBase(COPY_DAYLIGHT_ID, '2026-09-02T12:25:00.000Z', '2026-09-13T17:30:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_DAYLIGHT_MOTION_ID,
+    conceptId: null,
     productId: null,
     copyNumber: 3,
     primaryCopy:
@@ -1375,6 +1386,7 @@ export const demoCopy: CopyListRow[] = [
     clientComment:
       'Swapped the headline ourselves — "Not Bad Sleep" reads as us calling their sleep bad, and our support inbox is full of people who already feel judged about it. The lux numbers stay, they are the best thing in here, but please keep 186 and 2 as digits everywhere; spelling them out in the link description made it look like a pharmacy leaflet. One more: legal will not sign off on "90 to 1" unless the meter reading is in the asset itself, which I think it is, so send the frame and we will clear it.',
     creativeName: demoBrief(BRIEF_DAYLIGHT_MOTION_ID).name,
+    conceptName: null,
     used: false,
     winning: false,
     metaRating: null,
@@ -1391,6 +1403,7 @@ export const demoCopy: CopyListRow[] = [
     brandId: DEMO_BRAND_ID,
     // Drafted before anyone chose which bundle static it runs on: the PRD §5.11 unattached case.
     creativeBriefId: null,
+    conceptId: null,
     productId: null,
     copyNumber: 4,
     primaryCopy:
@@ -1401,6 +1414,7 @@ export const demoCopy: CopyListRow[] = [
     status: 'revisions_needed',
     clientComment: null,
     creativeName: null,
+    conceptName: null,
     used: false,
     winning: false,
     metaRating: null,
@@ -1499,6 +1513,7 @@ export const demoCreators: CreatorListRow[] = [
     deadline: at('2026-09-26T21:00:00.000Z'),
     budgetPer60s: 420,
     creatorCost: 630,
+    costUsd: null,
     internalCreatorStatus: 'approved',
     clientStatus: 'approved',
     internalAssetsStatus: 'approved',
@@ -1539,6 +1554,7 @@ export const demoCreators: CreatorListRow[] = [
     deadline: at('2026-10-02T21:00:00.000Z'),
     budgetPer60s: 380,
     creatorCost: 540,
+    costUsd: null,
     internalCreatorStatus: 'approved',
     clientStatus: 'filming_in_progress',
     internalAssetsStatus: 'pending_for_cs_approval',
@@ -1579,6 +1595,7 @@ export const demoCreators: CreatorListRow[] = [
     deadline: at('2026-09-19T21:00:00.000Z'),
     budgetPer60s: 260,
     creatorCost: 390,
+    costUsd: null,
     internalCreatorStatus: 'revisions_needed',
     clientStatus: 'revisions_needed',
     internalAssetsStatus: 'revisions_needed',
@@ -1621,6 +1638,7 @@ export const demoCreators: CreatorListRow[] = [
     deadline: at('2026-10-10T21:00:00.000Z'),
     budgetPer60s: 150,
     creatorCost: 150,
+    costUsd: null,
     internalCreatorStatus: 'pending_for_cs_approval',
     clientStatus: 'due_shipment',
     internalAssetsStatus: 'pending_for_cs_approval',
@@ -1658,6 +1676,7 @@ export const demoCreators: CreatorListRow[] = [
     deadline: at('2026-09-12T21:00:00.000Z'),
     budgetPer60s: 500,
     creatorCost: 500,
+    costUsd: null,
     internalCreatorStatus: 'approved',
     clientStatus: 'video_delivered',
     internalAssetsStatus: 'approved',

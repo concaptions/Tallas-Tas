@@ -8,6 +8,7 @@ export * from './competitor-ads';
 export * from './creator-rankings';
 export * from './custom-field-schemas';
 export * from './briefs';
+export * from './collaborations';
 export * from './concepts';
 export * from './copy';
 export * from './creators';

@@ -1,7 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
-import { copywriting, creativeBriefs, type Copy, type NewCopy } from './schema';
+import { concepts, copywriting, creativeBriefs, type Copy, type NewCopy } from './schema';
 import { withBrand, type BrandScope } from './tenancy';
 
 /**
@@ -41,7 +41,7 @@ export type CopyInput = Omit<NewCopy, ManagedColumn>;
  * `demoCopy` satisfies `CopyListRow[]`, so the page reads demo fixtures and database rows through one
  * type.
  */
-export type CopyListRow = Copy & { creativeName: string | null };
+export type CopyListRow = Copy & { creativeName: string | null; conceptName: string | null };
 
 /**
  * The brand's live creative names, indexed by brief id, from one scoped read.
@@ -58,11 +58,22 @@ async function creativeNames(scope: BrandScope): Promise<Map<string, string>> {
   return new Map(briefs.map((brief) => [brief.id, brief.name]));
 }
 
-/** One row with the creative's name attached, null wherever the link is absent or no longer live. */
-function withCreativeName(row: Copy, names: Map<string, string>): CopyListRow {
+async function conceptNames(scope: BrandScope): Promise<Map<string, string>> {
+  const rows = await scope.select(concepts);
+  return new Map(rows.map((c) => [c.id, c.name]));
+}
+
+/** One row with the creative's and concept's name attached, null wherever a link is absent. */
+function withJoinedNames(
+  row: Copy,
+  creatives: Map<string, string>,
+  conceptMap: Map<string, string>,
+): CopyListRow {
   return {
     ...row,
-    creativeName: row.creativeBriefId === null ? null : (names.get(row.creativeBriefId) ?? null),
+    creativeName:
+      row.creativeBriefId === null ? null : (creatives.get(row.creativeBriefId) ?? null),
+    conceptName: row.conceptId === null ? null : (conceptMap.get(row.conceptId) ?? null),
   };
 }
 
@@ -73,11 +84,12 @@ function withCreativeName(row: Copy, names: Map<string, string>): CopyListRow {
  */
 export async function listCopy(db: Db, brandId: string): Promise<CopyListRow[]> {
   const scope = withBrand(db, brandId);
-  const [rows, names] = await Promise.all([
+  const [rows, creatives, conceptMap] = await Promise.all([
     scope.select(copywriting).orderBy(desc(copywriting.updatedAt)),
     creativeNames(scope),
+    conceptNames(scope),
   ]);
-  return rows.map((row) => withCreativeName(row, names));
+  return rows.map((row) => withJoinedNames(row, creatives, conceptMap));
 }
 
 /** One live copy row of the brand, with its creative's name, or null: another brand's id never resolves. */
@@ -89,7 +101,8 @@ export async function getCopyById(
   const scope = withBrand(db, brandId);
   const [row] = await scope.select(copywriting, eq(copywriting.id, id)).limit(1);
   if (row === undefined) return null;
-  return withCreativeName(row, await creativeNames(scope));
+  const [creatives, conceptMap] = await Promise.all([creativeNames(scope), conceptNames(scope)]);
+  return withJoinedNames(row, creatives, conceptMap);
 }
 
 /**

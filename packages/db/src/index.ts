@@ -75,6 +75,14 @@ export {
   updateCreator,
 } from './creators';
 export type { CreatorInput, CreatorListRow } from './creators';
+export {
+  getCollaborationById,
+  insertCollaboration,
+  listAllCollaborations,
+  listCollaborations,
+  updateCollaboration,
+} from './collaborations';
+export type { CollaborationInput, CollaborationListRow } from './collaborations';
 export { createAutoDb, createDb, createNeonDb, createNodeDb, drizzleConfig } from './db';
 export type { Db, NeonDb, Schema } from './db';
 export {

@@ -105,6 +105,7 @@ export const creators = pgTable(
     deadline: timestamp('deadline', { withTimezone: true }),
     budgetPer60s: integer('budget_per_60s'),
     creatorCost: integer('creator_cost'),
+    costUsd: integer('cost_usd'),
     rawAssetsUrl: text('raw_assets_url'),
     conceptIds: jsonb('concept_ids').$type<string[]>().notNull().default([]),
     productIds: jsonb('product_ids').$type<string[]>().notNull().default([]),

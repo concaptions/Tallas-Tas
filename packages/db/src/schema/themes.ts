@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
+import { boolean, check, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 
 import { baseColumns } from '../columns';
 import { themeCategoryEnum } from './enums';
@@ -27,6 +27,7 @@ export const themes = pgTable(
     status: text('status').$type<ThemeStatus>(),
     attachments: jsonb('attachments').$type<string[]>(),
     aiAttachmentSummary: text('ai_attachment_summary'),
+    isActive: boolean('is_active').notNull().default(true),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [check('themes_global', sql`${table.brandId} is null`)],

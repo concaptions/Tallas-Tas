@@ -3,6 +3,7 @@ import { boolean, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-cor
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { creativeBriefs } from './briefs';
+import { concepts } from './concepts';
 import { products } from './products';
 import type { CopyCta, CopyFunnel } from './enums';
 
@@ -62,6 +63,7 @@ export const copywriting = pgTable(
       .notNull()
       .references(() => brands.id),
     creativeBriefId: uuid('creative_brief_id').references(() => creativeBriefs.id),
+    conceptId: uuid('concept_id').references(() => concepts.id),
     productId: uuid('product_id').references(() => products.id),
     copyNumber: integer('copy_number').notNull().default(1),
     primaryCopy: text('primary_copy'),
@@ -81,6 +83,7 @@ export const copywriting = pgTable(
   (table) => [
     index('copywriting_brand_id_idx').on(table.brandId),
     index('copywriting_creative_brief_id_idx').on(table.creativeBriefId),
+    index('copywriting_concept_id_idx').on(table.conceptId),
     index('copywriting_template_row_id_idx').on(table.templateRowId),
   ],
 );
