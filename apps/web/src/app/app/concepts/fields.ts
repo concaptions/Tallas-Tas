@@ -1,10 +1,16 @@
 import {
   BATCHES,
+  CONCEPT_APPROVAL_STATUSES,
   CONCEPT_CATEGORIES,
+  CONCEPT_PRODUCTION_STATUSES,
   CONCEPT_STYLES,
+  conceptApprovalStatusLabel,
+  conceptProductionStatusLabel,
   INHERITED_ANGLE_FIELDS,
   type BatchKey,
+  type ConceptApprovalStatusKey,
   type ConceptCategoryKey,
+  type ConceptProductionStatusKey,
   type ConceptStyleKey,
 } from '@tas/domain/concepts';
 import { ANGLE_FORMATS, type AngleFormatEntry, type AngleFormatKey } from '@tas/domain/angles';
@@ -36,8 +42,26 @@ import type { ConceptFieldName } from './actions';
  * prop, which is why every function below takes the track rather than naming it.
  */
 export type { ConceptFieldName };
-export { BATCHES, CONCEPT_CATEGORIES, CONCEPT_STYLES, ANGLE_FORMATS, INHERITED_ANGLE_FIELDS };
-export type { AngleFormatEntry, AngleFormatKey, BatchKey, ConceptCategoryKey, ConceptStyleKey };
+export {
+  BATCHES,
+  CONCEPT_APPROVAL_STATUSES,
+  CONCEPT_CATEGORIES,
+  CONCEPT_PRODUCTION_STATUSES,
+  CONCEPT_STYLES,
+  conceptApprovalStatusLabel,
+  conceptProductionStatusLabel,
+  ANGLE_FORMATS,
+  INHERITED_ANGLE_FIELDS,
+};
+export type {
+  AngleFormatEntry,
+  AngleFormatKey,
+  BatchKey,
+  ConceptApprovalStatusKey,
+  ConceptCategoryKey,
+  ConceptProductionStatusKey,
+  ConceptStyleKey,
+};
 
 /** The dash an unlinked row or an empty field shows, so a blank cell is never just a gap. */
 export const EM_DASH = '—';

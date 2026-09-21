@@ -32,8 +32,10 @@ import { createConceptAction, updateConceptAction, type ConceptActionResult } fr
 import {
   ANGLE_FORMATS,
   BATCHES,
+  CONCEPT_APPROVAL_STATUSES,
   CONCEPT_CATEGORIES,
   CONCEPT_GROUPS,
+  CONCEPT_PRODUCTION_STATUSES,
   CONCEPT_STYLES,
   DEMO_FOOTER_NOTICE,
   EM_DASH,
@@ -62,6 +64,12 @@ export interface ThemeOption {
   readonly name: string;
 }
 
+/** One creator from the brand's roster. The concept links to a creator for production. */
+export interface CreatorOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 /** The columns this page edits. `name` is absent on purpose: it is generated, never held. */
 export interface ConceptFormValues {
   readonly id: string;
@@ -74,6 +82,10 @@ export interface ConceptFormValues {
   readonly adInspoLinks: readonly string[];
   readonly hookExamples: string | null;
   readonly scriptIdea: string | null;
+  readonly approvalStatus: string | null;
+  readonly productionStatus: string | null;
+  readonly formatsToCreate: readonly string[];
+  readonly creatorId: string | null;
 }
 
 interface ConceptDetailProps {
@@ -81,6 +93,7 @@ interface ConceptDetailProps {
   readonly concept: ConceptFormValues | null;
   readonly angles: readonly AngleOption[];
   readonly themes: readonly ThemeOption[];
+  readonly creators: readonly CreatorOption[];
   /** Which internal track this concept runs on, resolved on the server beside the data source. */
   readonly track: CreativeTrack;
   readonly internal: InternalStatusKey;
@@ -123,6 +136,7 @@ export function ConceptDetail({
   concept,
   angles,
   themes,
+  creators,
   track,
   internal,
   client,
@@ -143,6 +157,12 @@ export function ConceptDetail({
   const [conceptStyle, setConceptStyle] = useState(concept?.conceptStyle ?? NONE_VALUE);
   const [formats, setFormats] = useState<readonly string[]>(concept?.formats ?? []);
   const [links, setLinks] = useState<readonly string[]>(() => linkRowsOf(concept));
+  const [approvalStatus, setApprovalStatus] = useState(concept?.approvalStatus ?? NONE_VALUE);
+  const [productionStatus, setProductionStatus] = useState(concept?.productionStatus ?? NONE_VALUE);
+  const [formatsToCreate, setFormatsToCreate] = useState<readonly string[]>(
+    concept?.formatsToCreate ?? [],
+  );
+  const [creatorId, setCreatorId] = useState(concept?.creatorId ?? NONE_VALUE);
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -191,6 +211,12 @@ export function ConceptDetail({
 
   const toggleFormat = (key: AngleFormatKey) => {
     setFormats((current) =>
+      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
+    );
+  };
+
+  const toggleFormatToCreate = (key: string) => {
+    setFormatsToCreate((current) =>
       current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
     );
   };
@@ -312,6 +338,12 @@ export function ConceptDetail({
           {formats.map((key) => (
             <input key={key} type="hidden" name="formats" value={key} />
           ))}
+          {formatsToCreate.map((key) => (
+            <input key={`ftc-${key}`} type="hidden" name="formatsToCreate" value={key} />
+          ))}
+          <input type="hidden" name="approvalStatus" value={approvalStatus} />
+          <input type="hidden" name="productionStatus" value={productionStatus} />
+          <input type="hidden" name="creatorId" value={creatorId} />
 
           <section className="flex flex-col gap-3" data-slot="concept-pairing">
             <h2 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
@@ -422,6 +454,74 @@ export function ConceptDetail({
                 setConceptStyle,
                 demo,
               )}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {renderSelect(
+                'approvalStatus',
+                'Approval Status',
+                CONCEPT_APPROVAL_STATUSES,
+                approvalStatus,
+                setApprovalStatus,
+                demo,
+              )}
+              {renderSelect(
+                'productionStatus',
+                'Production Status',
+                CONCEPT_PRODUCTION_STATUSES,
+                productionStatus,
+                setProductionStatus,
+                demo,
+              )}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {renderSelect(
+                'creatorId',
+                'Creator',
+                creators.map((option) => ({ key: option.id, label: option.name })),
+                creatorId,
+                setCreatorId,
+                demo,
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] tracking-wide text-text3 uppercase">
+                Formats to create (production)
+              </Label>
+              <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="group"
+                  aria-label="Formats to create (production)"
+                  data-slot="concept-formats-to-create"
+                >
+                  {ANGLE_FORMATS.map((entry) => {
+                    const on = formatsToCreate.includes(entry.key);
+                    return (
+                      <button
+                        key={entry.key}
+                        type="button"
+                        disabled={demo}
+                        aria-pressed={on}
+                        data-slot="format-to-create-toggle"
+                        data-format={entry.key}
+                        onClick={() => {
+                          toggleFormatToCreate(entry.key);
+                        }}
+                        className={
+                          on
+                            ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase disabled:cursor-not-allowed'
+                            : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase hover:border-line2 hover:text-text2 disabled:cursor-not-allowed'
+                        }
+                      >
+                        {entry.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </DisabledWrite>
             </div>
 
             <div className="flex flex-col gap-1.5">

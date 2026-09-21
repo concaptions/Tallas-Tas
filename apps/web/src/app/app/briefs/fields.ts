@@ -200,7 +200,16 @@ export const BRIEF_HEADINGS = {
   briefToDesign: 'Brief to Design',
   scriptContent: 'Script or Ad Content',
   elementsTested: 'Elements we are Testing',
+  adContent: 'Ad Content',
   inspiration: 'Inspiration',
+  inspirationNotes: 'Inspiration Notes',
+  offer: 'Offer',
+  language: 'Language',
+  spellingFeedback2: 'Spelling Feedback 2',
+  designFile: 'Design File',
+  qaChecklistDoc: 'QA Checklist Doc',
+  inspirationImage: 'Inspiration Image',
+  scriptAndBriefBreakdown: 'Script & Brief Breakdown',
   approval: 'Approval',
   qa: 'QA checklist',
   spelling: 'Spelling Feedback',
@@ -222,6 +231,16 @@ export const BRIEF_PROSE_FIELDS = [
     name: 'elementsTested',
     label: BRIEF_HEADINGS.elementsTested,
     hint: 'The hypothesis this creative exists to settle.',
+  },
+  {
+    name: 'adContent',
+    label: BRIEF_HEADINGS.adContent,
+    hint: 'The ad content prose for this creative.',
+  },
+  {
+    name: 'inspiration',
+    label: BRIEF_HEADINGS.inspirationNotes,
+    hint: 'Inspiration notes for this creative.',
   },
 ] as const satisfies readonly { name: BriefFieldName; label: string; hint: string }[];
 

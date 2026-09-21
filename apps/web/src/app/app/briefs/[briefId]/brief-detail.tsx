@@ -75,6 +75,18 @@ export interface BriefValues {
   readonly inspoLinks: readonly string[];
   readonly dimensions: readonly string[];
   readonly spellingFeedback: string | null;
+  readonly angleId: string | null;
+  readonly productId: string | null;
+  readonly spellingFeedback2: string | null;
+  readonly clickForAiSpellChecker: boolean;
+  readonly adContent: string | null;
+  readonly inspiration: string | null;
+  readonly inspirationImage: readonly string[] | null;
+  readonly qaChecklistDoc: readonly string[] | null;
+  readonly designFile: readonly string[] | null;
+  readonly scriptAndBriefBreakdown: readonly string[] | null;
+  readonly language: string | null;
+  readonly offer: string | null;
   readonly qaVideoEditor: boolean;
   readonly qaDesigner: boolean;
   readonly qaStrategist: boolean;
@@ -209,6 +221,11 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
           {dimensions.map((entry) => (
             <input key={entry.key} type="hidden" name="dimensions" value={entry.key} />
           ))}
+          <input type="hidden" name="angleId" value={brief.angleId ?? ''} />
+          <input type="hidden" name="productId" value={brief.productId ?? ''} />
+          <input type="hidden" name="offer" value={brief.offer ?? ''} />
+          <input type="hidden" name="language" value={brief.language ?? ''} />
+          <input type="hidden" name="spellingFeedback2" value={brief.spellingFeedback2 ?? ''} />
 
           <section data-slot="brief-left" className="flex min-w-0 flex-col gap-5">
             {concept === null ? (
@@ -295,6 +312,37 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
               </span>
               <DimensionsGrid entries={dimensions} />
             </div>
+
+            {fact(BRIEF_HEADINGS.language, brief.language, 'brief-language')}
+            {fact(BRIEF_HEADINGS.offer, brief.offer, 'brief-offer')}
+            {fact(
+              BRIEF_HEADINGS.inspirationImage,
+              brief.inspirationImage === null || brief.inspirationImage.length === 0
+                ? null
+                : `${String(brief.inspirationImage.length)} attachment(s)`,
+              'brief-inspiration-image',
+            )}
+            {fact(
+              BRIEF_HEADINGS.qaChecklistDoc,
+              brief.qaChecklistDoc === null || brief.qaChecklistDoc.length === 0
+                ? null
+                : `${String(brief.qaChecklistDoc.length)} attachment(s)`,
+              'brief-qa-checklist-doc',
+            )}
+            {fact(
+              BRIEF_HEADINGS.designFile,
+              brief.designFile === null || brief.designFile.length === 0
+                ? null
+                : `${String(brief.designFile.length)} attachment(s)`,
+              'brief-design-file',
+            )}
+            {fact(
+              BRIEF_HEADINGS.scriptAndBriefBreakdown,
+              brief.scriptAndBriefBreakdown === null || brief.scriptAndBriefBreakdown.length === 0
+                ? null
+                : `${String(brief.scriptAndBriefBreakdown.length)} attachment(s)`,
+              'brief-script-and-brief-breakdown',
+            )}
           </section>
 
           <section data-slot="brief-centre" className="flex min-w-0 flex-col gap-5">
@@ -418,6 +466,14 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
                 className="text-xs leading-relaxed break-words text-text2"
               >
                 {brief.spellingFeedback}
+              </p>
+            )}
+            {brief.spellingFeedback2 === null ? null : (
+              <p
+                data-slot="brief-spelling-text-2"
+                className="text-xs leading-relaxed break-words text-text2"
+              >
+                {brief.spellingFeedback2}
               </p>
             )}
             {spellState !== null && !spellState.ok ? (

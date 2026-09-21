@@ -94,6 +94,13 @@ export type BriefFieldName =
   | 'briefToDesign'
   | 'scriptContent'
   | 'elementsTested'
+  | 'adContent'
+  | 'inspiration'
+  | 'offer'
+  | 'language'
+  | 'spellingFeedback2'
+  | 'angleId'
+  | 'productId'
   | 'inspoLinks'
   | 'dimensions'
   | 'internalStatus'
@@ -197,6 +204,13 @@ const briefSchema = z.object({
   briefToDesign: text,
   scriptContent: text,
   elementsTested: text,
+  adContent: text,
+  inspiration: text,
+  offer: text,
+  language: text,
+  spellingFeedback2: text,
+  angleId: link,
+  productId: link,
   inspoLinks: z.array(z.string().trim()),
   dimensions: z.array(dimension),
   internalStatus: status,
@@ -230,6 +244,13 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     briefToDesign: single('briefToDesign'),
     scriptContent: single('scriptContent'),
     elementsTested: single('elementsTested'),
+    adContent: single('adContent'),
+    inspiration: single('inspiration'),
+    offer: single('offer'),
+    language: single('language'),
+    spellingFeedback2: single('spellingFeedback2'),
+    angleId: single('angleId'),
+    productId: single('productId'),
     inspoLinks: many('inspoLinks'),
     dimensions: many('dimensions'),
     internalStatus: single('internalStatus'),
@@ -403,6 +424,13 @@ function toInput(
     briefToDesign: values.briefToDesign,
     scriptContent: values.scriptContent,
     elementsTested: values.elementsTested,
+    adContent: values.adContent,
+    inspiration: values.inspiration,
+    offer: values.offer,
+    language: values.language as BriefInput['language'],
+    spellingFeedback2: values.spellingFeedback2,
+    angleId: values.angleId,
+    productId: values.productId,
     inspoLinks: values.inspoLinks.filter((entry) => entry !== ''),
     // An untouched form submits no ratio at all, which is a fresh brief rather than a brief with no
     // delivery: PRD §8's defaults for the type fill it, from the domain table, never from a literal.

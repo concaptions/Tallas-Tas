@@ -15,9 +15,13 @@ import {
 import { isAngleFormat, type AngleFormatKey } from '@tas/domain/angles';
 import {
   conceptName,
+  isConceptApprovalStatus,
+  isConceptProductionStatus,
   isConceptStyle,
   validateConceptDraft,
+  type ConceptApprovalStatusKey,
   type ConceptDraftField,
+  type ConceptProductionStatusKey,
   type ConceptStyleKey,
 } from '@tas/domain/concepts';
 import {
@@ -79,7 +83,11 @@ export type ConceptFieldName =
   | 'hookExamples'
   | 'scriptIdea'
   | 'internalStatus'
-  | 'clientStatus';
+  | 'clientStatus'
+  | 'approvalStatus'
+  | 'productionStatus'
+  | 'formatsToCreate'
+  | 'creatorId';
 
 export interface ConceptActionSuccess {
   readonly ok: true;
@@ -182,6 +190,10 @@ const conceptSchema = z.object({
   scriptIdea: text,
   internalStatus,
   clientStatus,
+  approvalStatus: link,
+  productionStatus: link,
+  formatsToCreate: z.array(z.string().trim()),
+  creatorId: link,
 });
 
 type ConceptFormValues = z.infer<typeof conceptSchema>;
@@ -211,6 +223,10 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     scriptIdea: single('scriptIdea'),
     internalStatus: single('internalStatus'),
     clientStatus: single('clientStatus'),
+    approvalStatus: single('approvalStatus'),
+    productionStatus: single('productionStatus'),
+    formatsToCreate: many('formatsToCreate'),
+    creatorId: single('creatorId'),
   };
 }
 
@@ -288,6 +304,14 @@ function toInput(
     values.conceptStyle !== null && isConceptStyle(values.conceptStyle)
       ? values.conceptStyle
       : null;
+  const approval: ConceptApprovalStatusKey | null =
+    values.approvalStatus !== null && isConceptApprovalStatus(values.approvalStatus)
+      ? values.approvalStatus
+      : null;
+  const production: ConceptProductionStatusKey | null =
+    values.productionStatus !== null && isConceptProductionStatus(values.productionStatus)
+      ? values.productionStatus
+      : null;
   return {
     name,
     batch: values.batch,
@@ -301,6 +325,10 @@ function toInput(
     scriptIdea: values.scriptIdea,
     internalStatus: internal,
     clientStatus: client,
+    approvalStatus: approval,
+    productionStatus: production,
+    formatsToCreate: values.formatsToCreate.filter((entry) => entry !== ''),
+    creatorId: values.creatorId,
   };
 }
 

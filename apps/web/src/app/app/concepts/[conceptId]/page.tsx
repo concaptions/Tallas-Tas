@@ -3,6 +3,7 @@ import { CONCEPT_CLIENT_STATUS_DEFAULT, CONCEPT_INTERNAL_STATUS_DEFAULT } from '
 
 import { loadAngles } from '@/lib/angles-source';
 import { CONCEPT_TRACK, loadConceptById } from '@/lib/concepts-source';
+import { loadCreators } from '@/lib/ugc-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadThemes } from '@/lib/themes-source';
 
@@ -11,6 +12,7 @@ import {
   ConceptDetail,
   type AngleOption,
   type ConceptFormValues,
+  type CreatorOption,
   type ThemeOption,
 } from './concept-detail';
 
@@ -41,10 +43,11 @@ interface ConceptPageProps {
 }
 
 export default async function ConceptPage({ params }: ConceptPageProps) {
-  const [{ conceptId }, angleRows, themeRows] = await Promise.all([
+  const [{ conceptId }, angleRows, themeRows, creatorRows] = await Promise.all([
     params,
     loadAngles(),
     loadThemes(),
+    loadCreators(),
   ]);
   const demo = isDemoMode();
   const creating = conceptId === NEW_CONCEPT;
@@ -66,6 +69,8 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
 
   const themes: ThemeOption[] = themeRows.rows.map((row) => ({ id: row.id, name: row.name }));
 
+  const creators: CreatorOption[] = creatorRows.rows.map((row) => ({ id: row.id, name: row.name }));
+
   const values: ConceptFormValues | null =
     concept === null
       ? null
@@ -80,6 +85,10 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
           adInspoLinks: concept.adInspoLinks,
           hookExamples: concept.hookExamples,
           scriptIdea: concept.scriptIdea,
+          approvalStatus: concept.approvalStatus,
+          productionStatus: concept.productionStatus,
+          formatsToCreate: concept.formatsToCreate,
+          creatorId: concept.creatorId,
         };
 
   return (
@@ -87,6 +96,7 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
       concept={values}
       angles={angles}
       themes={themes}
+      creators={creators}
       track={CONCEPT_TRACK}
       internal={concept?.internalStatus ?? CONCEPT_INTERNAL_STATUS_DEFAULT}
       client={concept?.clientStatus ?? CONCEPT_CLIENT_STATUS_DEFAULT}
