@@ -1,3 +1,4 @@
+import type { AssetListRow } from './assets';
 import type { AngleListRow } from './angles';
 import type { BriefListRow } from './briefs';
 import type { ConceptListRow } from './concepts';
@@ -95,6 +96,10 @@ const CREATOR_MARCUS_ID = '99999999-9999-4999-8999-000000000002';
 const CREATOR_PRIYA_ID = '99999999-9999-4999-8999-000000000003';
 const CREATOR_TOMAS_ID = '99999999-9999-4999-8999-000000000004';
 const CREATOR_HANNAH_ID = '99999999-9999-4999-8999-000000000005';
+const ASSET_REF_VIDEO_ID = 'cccccccc-cccc-4ccc-8ccc-000000000001';
+const ASSET_BROLL_ID = 'cccccccc-cccc-4ccc-8ccc-000000000002';
+const ASSET_RAW_ID = 'cccccccc-cccc-4ccc-8ccc-000000000003';
+const ASSET_MOOD_ID = 'cccccccc-cccc-4ccc-8ccc-000000000004';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -2095,5 +2100,56 @@ export const demoReviewedPromotionRequests: PromotionRequestRow[] = [
     reviewedAt: at('2026-09-05T09:12:00.000Z'),
     reviewNote:
       'Every brand already reports on these four in the monthly review, so the template should ask for them. Promoted.',
+  },
+];
+
+export const demoAssets: AssetListRow[] = [
+  {
+    ...base(ASSET_REF_VIDEO_ID, '2026-09-01T09:00:00.000Z', '2026-09-01T09:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    filename: 'competitor-sleep-ad.mp4',
+    contentType: 'video/mp4',
+    sizeBytes: 12_400_000,
+    r2Key: `${DEMO_BRAND_ID}/reference/competitor-sleep-ad.mp4`,
+    url: '/demo/assets/competitor-sleep-ad.mp4',
+    category: 'reference',
+    conceptId: CONCEPT_BODY_CLOCK_ID,
+    caption: 'Competitor ad — body clock angle on Meta',
+  },
+  {
+    ...base(ASSET_BROLL_ID, '2026-09-02T14:30:00.000Z', '2026-09-02T14:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    filename: 'blanket-texture-closeup.jpg',
+    contentType: 'image/jpeg',
+    sizeBytes: 2_100_000,
+    r2Key: `${DEMO_BRAND_ID}/broll/blanket-texture-closeup.jpg`,
+    url: '/demo/assets/blanket-texture-closeup.jpg',
+    category: 'broll',
+    conceptId: null,
+    caption: 'Reusable B-roll — product texture close-up',
+  },
+  {
+    ...base(ASSET_RAW_ID, '2026-09-03T11:00:00.000Z', '2026-09-03T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    filename: 'danielle-take-3.mov',
+    contentType: 'video/quicktime',
+    sizeBytes: 48_700_000,
+    r2Key: `${DEMO_BRAND_ID}/raw/danielle-take-3.mov`,
+    url: '/demo/assets/danielle-take-3.mov',
+    category: 'raw_asset',
+    conceptId: CONCEPT_NOT_YOUR_AGE_ID,
+    caption: null,
+  },
+  {
+    ...base(ASSET_MOOD_ID, '2026-09-04T08:15:00.000Z', '2026-09-04T08:15:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    filename: 'daylight-mood-ref.png',
+    contentType: 'image/png',
+    sizeBytes: 890_000,
+    r2Key: `${DEMO_BRAND_ID}/mood/daylight-mood-ref.png`,
+    url: '/demo/assets/daylight-mood-ref.png',
+    category: 'mood_board',
+    conceptId: CONCEPT_DAYLIGHT_ID,
+    caption: 'Mood board — morning light colour palette',
   },
 ];

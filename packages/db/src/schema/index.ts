@@ -1,4 +1,5 @@
 export * from './agencies';
+export * from './assets';
 export * from './angles';
 export * from './brand-assignments';
 export * from './brands';

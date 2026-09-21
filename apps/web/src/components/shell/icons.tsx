@@ -27,7 +27,8 @@ export type IconName =
   | 'moon'
   | 'chevron'
   | 'user'
-  | 'building';
+  | 'building'
+  | 'assets';
 
 const PATHS: Record<IconName, string> = {
   overview: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
@@ -60,6 +61,7 @@ const PATHS: Record<IconName, string> = {
   user: 'M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2zM4 20.5c0-3.8 3.6-6.3 8-6.3s8 2.5 8 6.3',
   building:
     'M4 21V5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5V21M16 10h2.5A1.5 1.5 0 0 1 20 11.5V21M2.5 21h19M8 7.5h4M8 11.5h4M8 15.5h4',
+  assets: 'M4 4h16v16H4zM9 4v16M15 4v16M4 9h16M4 15h16',
 };
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {

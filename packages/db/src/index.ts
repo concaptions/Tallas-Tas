@@ -1,4 +1,8 @@
 export { importAirtableExport } from './airtable-import';
+export { getAssetById, insertAsset, listAssets, listConceptAssets } from './assets';
+export type { AssetInput, AssetListRow } from './assets';
+export { assetCategories } from './schema/assets';
+export type { AssetCategory } from './schema/assets';
 export type { AirtableExport, AirtableRecord } from './airtable-import';
 export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
 export type { AngleInput, AngleListRow } from './angles';
@@ -27,6 +31,7 @@ export {
   PARTNERSHIP_REFERENCE_DATE,
   PRODUCT_CSV_COLUMNS,
   STANDALONE_CONCEPT_SLUG,
+  demoAssets,
   demoAngles,
   demoBrandAssignments,
   demoBrands,
