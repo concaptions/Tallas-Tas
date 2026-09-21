@@ -154,7 +154,7 @@ export function creatorInitials(name: string): string {
   return letters.toUpperCase();
 }
 
-/** What one creator card renders. Narrower than `CreatorListRow`, so a preview passes a plain object. */
+/** What one creator card and its detail panel render. Narrower than `CreatorListRow`, so a preview passes a plain object. */
 export interface CreatorCardRow {
   readonly id: string;
   readonly name: string;
@@ -168,6 +168,11 @@ export interface CreatorCardRow {
   readonly rawAssetsUrl: string | null;
   readonly conceptIds: readonly string[];
   readonly productIds: readonly string[];
+  readonly ethnicity: string | null;
+  readonly creatorLink: string | null;
+  readonly shippingLocation: string | null;
+  readonly trackingNumber: string | null;
+  readonly internalBrief: string | null;
 }
 
 /**

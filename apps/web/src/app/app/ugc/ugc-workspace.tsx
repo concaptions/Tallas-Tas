@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -14,6 +15,7 @@ import {
 } from '@tas/ui';
 
 import { CreatorCard } from './creator-card';
+import { CreatorPanel, type LinkOption } from './creator-panel';
 import { PartnershipTable } from './partnership-table';
 import {
   creatorCountLabel,
@@ -33,40 +35,18 @@ import {
   type UgcTabKey,
 } from './fields';
 
-/**
- * UGC Management (PRD §5.8 and §5.8.1): the creator roster and the whitelisting partnerships struck
- * with a few of them, as two tabs and nothing else.
- *
- * TWO TABS, ONE READ. The page loaded both lists in a single call, so switching is instant and
- * neither half re-queries; the tab is only which one is on screen. Both pieces of state are
- * URL-backed exactly as the Themes grid does it — `?tab=` and `?q=`, written with the History API —
- * so a link opens the right tab with the right search and a reload restores both.
- *
- * ONE SEARCH, BOTH TABS. `?q=` reads creator names, which is the one thing both halves have in
- * common and the only way the empty state is reachable on either: filtering to nothing says so in
- * words and offers to clear the search, so neither tab is ever a blank rectangle.
- *
- * NOTHING IS RESOLVED HERE. Statuses, tones, countdowns and the near-expiry highlight were all
- * resolved on the server against the single `now` the page read; this component filters an array
- * and renders what it was handed. It holds no clock and compares no status to a literal.
- */
 export interface UgcWorkspaceProps {
   readonly creators: readonly CreatorCardRow[];
   readonly partnerships: readonly PartnershipRow[];
+  readonly concepts: readonly LinkOption[];
+  readonly products: readonly LinkOption[];
   readonly demo: boolean;
-  /** The `?tab=` the page was opened with, already narrowed to the known vocabulary. */
   readonly initialTab: UgcTabKey;
-  /** The `?q=` filter the page was opened with; `''` when there is none. */
   readonly initialSearch: string;
+  readonly initialSelection: string | null;
 }
 
-/**
- * Writes both page parameters without a server round trip; Next.js reads the History API back.
- * A parameter at its default is removed rather than written, so a clean view leaves a clean URL —
- * except `tab`, which is written even for the default so that switching back to Creators is as
- * shareable as switching away from it.
- */
-function syncUrl(tab: UgcTabKey, search: string): void {
+function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
   const url = new URL(window.location.href);
   url.searchParams.set(TAB_PARAM, tab);
   if (search.trim() === '') {
@@ -74,34 +54,64 @@ function syncUrl(tab: UgcTabKey, search: string): void {
   } else {
     url.searchParams.set(SEARCH_PARAM, search);
   }
+  if (creator === null || creator === '') {
+    url.searchParams.delete('creator');
+  } else {
+    url.searchParams.set('creator', creator);
+  }
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
 export function UgcWorkspace({
   creators,
   partnerships,
+  concepts,
+  products,
   demo,
   initialTab,
   initialSearch,
+  initialSelection,
 }: UgcWorkspaceProps) {
+  const router = useRouter();
   const [tab, setTab] = useState<UgcTabKey>(initialTab);
   const [search, setSearch] = useState(initialSearch);
+  const [selection, setSelection] = useState<string | null>(initialSelection);
+
+  const select = useCallback(
+    (id: string | null) => {
+      setSelection(id);
+      syncUrl(tab, search, id);
+    },
+    [tab, search],
+  );
+
+  const close = useCallback(() => {
+    select(null);
+  }, [select]);
+
+  const saved = useCallback(
+    (id: string) => {
+      select(id);
+      router.refresh();
+    },
+    [router, select],
+  );
 
   const pickTab = useCallback(
     (next: string) => {
       const chosen = UGC_TABS.find((entry) => entry.key === next)?.key ?? DEFAULT_TAB;
       setTab(chosen);
-      syncUrl(chosen, search);
+      syncUrl(chosen, search, selection);
     },
-    [search],
+    [search, selection],
   );
 
   const filter = useCallback(
     (next: string) => {
       setSearch(next);
-      syncUrl(tab, next);
+      syncUrl(tab, next, selection);
     },
-    [tab],
+    [tab, selection],
   );
 
   const clearSearch = useCallback(() => {
@@ -128,11 +138,8 @@ export function UgcWorkspace({
         ? filteredCountLabel(visiblePartnerships.length, partnershipCountLabel(partnerships.length))
         : partnershipCountLabel(partnerships.length);
 
-  /**
-   * "New creator" is a write. In demo mode it carries the standard reason; in live mode it carries
-   * its own, because the intake form is a later ticket and the button would have nothing to submit.
-   * Either way it is wrapped in `DisabledWrite` so the disabled control can still explain itself.
-   */
+  const open = creators.find((c) => c.id === selection) ?? null;
+
   const newCreator = (
     <DisabledWrite active hint={demo ? DEMO_WRITE_HINT : NEW_CREATOR_SOON_HINT}>
       <Button size="sm" disabled className={disabledWriteClassName} data-slot="new-creator">
@@ -213,7 +220,14 @@ export function UgcWorkspace({
               className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
             >
               {visibleCreators.map((creator) => (
-                <CreatorCard key={creator.id} creator={creator} />
+                <CreatorCard
+                  key={creator.id}
+                  creator={creator}
+                  selected={creator.id === selection}
+                  onClick={() => {
+                    select(creator.id);
+                  }}
+                />
               ))}
             </div>
           )}
@@ -227,6 +241,18 @@ export function UgcWorkspace({
           )}
         </TabsContent>
       </Tabs>
+
+      {open !== null ? (
+        <CreatorPanel
+          key={selection}
+          creator={open}
+          concepts={concepts}
+          products={products}
+          demo={demo}
+          onClose={close}
+          onSaved={saved}
+        />
+      ) : null}
     </div>
   );
 }

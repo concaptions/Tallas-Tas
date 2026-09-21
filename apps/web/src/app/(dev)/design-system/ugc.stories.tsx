@@ -45,6 +45,11 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     rawAssetsUrl: null,
     conceptIds: [],
     productIds: [],
+    ethnicity: 'Black Canadian',
+    creatorLink: 'https://www.instagram.com/danielle.sleeps.late',
+    shippingLocation: 'Hamilton, ON',
+    trackingNumber: null,
+    internalBrief: null,
   },
   {
     id: 'story-without-picture',
@@ -59,6 +64,11 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     rawAssetsUrl: null,
     conceptIds: [],
     productIds: [],
+    ethnicity: 'Brazilian',
+    creatorLink: null,
+    shippingLocation: null,
+    trackingNumber: null,
+    internalBrief: null,
   },
 ];
 

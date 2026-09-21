@@ -10,6 +10,8 @@ import {
 
 interface CreatorCardProps {
   readonly creator: CreatorCardRow;
+  readonly onClick?: () => void;
+  readonly selected?: boolean;
 }
 
 /**
@@ -31,14 +33,28 @@ interface CreatorCardProps {
  * renders, and it takes `CreatorCardRow` rather than `CreatorListRow` so that preview can hand it a
  * plain object without importing `@tas/db`.
  */
-export function CreatorCard({ creator }: CreatorCardProps) {
+export function CreatorCard({ creator, onClick, selected }: CreatorCardProps) {
   const tracks = creatorTracks(creator);
 
   return (
     <article
       data-slot="creator-card"
       data-creator-id={creator.id}
-      className="flex min-w-0 flex-col gap-4 rounded-card border border-line bg-surface p-4"
+      data-state={selected === true ? 'selected' : undefined}
+      role={onClick !== undefined ? 'button' : undefined}
+      tabIndex={onClick !== undefined ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick !== undefined
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`flex min-w-0 flex-col gap-4 rounded-card border border-line bg-surface p-4${onClick !== undefined ? ' cursor-pointer hover:border-line2' : ''}${selected === true ? ' ring-2 ring-accent' : ''}`}
     >
       <div className="flex min-w-0 items-start gap-3">
         {creator.profilePicUrl === null ? (
