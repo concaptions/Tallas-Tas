@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { PROPAGATION_TABLES, propagateTemplateRow } from './propagation';
 import {
   brands,
   promotionRequests,
@@ -8,6 +9,7 @@ import {
   type PromotionRequest,
   type PromotionRequestStatus,
 } from './schema';
+import { withBrand } from './tenancy';
 
 /**
  * The Propagation page's data access (PRD §5, §14.1: a child brand asks, the Admin dashboard
@@ -170,4 +172,89 @@ export async function setPromotionRequestStatus(
   const [brand] = await db.select().from(brands).where(eq(brands.id, row.brandId)).limit(1);
   const brandName = brand === undefined || brand.deletedAt !== null ? null : brand.name;
   return { ...row, brandName };
+}
+
+export interface ApplyPromotionResult {
+  readonly applied: boolean;
+  readonly reason?: string;
+  readonly childrenUpdated?: number;
+}
+
+/**
+ * Apply an approved promotion request: write the proposed value into the template row,
+ * then propagate the change to all child brands. Returns whether the application succeeded.
+ *
+ * Only applies if the request status is 'approved' and the table/field are in the propagation
+ * registry. The template brand is resolved from the child brand's `templateBrandId`.
+ */
+export async function applyApprovedPromotion(
+  db: Db,
+  agencyId: string,
+  requestId: string,
+  actorId: string,
+): Promise<ApplyPromotionResult> {
+  const [reqRow] = await db
+    .select({
+      request: promotionRequests,
+      childBrandId: promotionRequests.brandId,
+    })
+    .from(promotionRequests)
+    .innerJoin(brands, eq(promotionRequests.brandId, brands.id))
+    .where(
+      and(
+        eq(brands.agencyId, agencyId),
+        eq(promotionRequests.id, requestId),
+        isNull(promotionRequests.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!reqRow) return { applied: false, reason: 'Request not found' };
+  const request = reqRow.request;
+
+  if (request.status !== 'approved') {
+    return { applied: false, reason: `Request status is ${request.status}, not approved` };
+  }
+
+  const table = PROPAGATION_TABLES[request.tableName];
+  if (!table) {
+    return { applied: false, reason: `Table ${request.tableName} is not propagation-eligible` };
+  }
+
+  const [childBrand] = await db
+    .select()
+    .from(brands)
+    .where(eq(brands.id, request.brandId))
+    .limit(1);
+  if (!childBrand?.templateBrandId) {
+    return { applied: false, reason: 'Child brand has no template parent' };
+  }
+
+  const templateBrandId = childBrand.templateBrandId;
+
+  if (request.rowId) {
+    const templateScope = withBrand(db, templateBrandId);
+    const camelField = request.fieldName.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+    await templateScope.update(
+      table,
+      { [camelField]: request.proposedValue, updatedBy: actorId },
+      eq(
+        (table as unknown as Record<string, ReturnType<typeof sql>>).id as ReturnType<typeof sql>,
+        request.rowId,
+      ),
+    );
+
+    const result = await propagateTemplateRow(
+      db,
+      templateBrandId,
+      request.tableName,
+      request.rowId,
+      'update',
+      actorId,
+    );
+
+    return { applied: true, childrenUpdated: result.childrenUpdated };
+  }
+
+  return { applied: false, reason: 'Request has no rowId to update' };
 }

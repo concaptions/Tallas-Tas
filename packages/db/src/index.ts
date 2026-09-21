@@ -26,7 +26,14 @@ export {
   listOnboardingForms,
 } from './onboarding-forms';
 export type { OnboardingFormInput, OnboardingFormListRow } from './onboarding-forms';
-export { baseColumns } from './columns';
+export { baseColumns, propagationColumns } from './columns';
+export {
+  insertCustomFieldSchema,
+  listCustomFieldSchemas,
+  softDeleteCustomFieldSchema,
+  updateCustomFieldSchema,
+} from './custom-field-schemas';
+export type { CustomFieldSchemaInput, CustomFieldSchemaListRow } from './custom-field-schemas';
 export { getConceptById, insertConcept, listConcepts, updateConcept } from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
 export { getCopyById, insertCopy, listCopy, updateCopy } from './copy';
@@ -93,14 +100,32 @@ export { getPersonaById, insertPersona, listPersonas, updatePersona } from './pe
 export type { PersonaInput, PersonaListRow } from './personas';
 export { getProductById, insertProduct, listProducts, updateProduct } from './products';
 export type { ProductInput, ProductListRow } from './products';
-export { createPromotionRequest, listChildBrands, propagateInterfaceConfig } from './propagation';
-export type { CreatePromotionInput, PropagationResult } from './propagation';
 export {
+  createPromotionRequest,
+  listChildBrands,
+  propagateAllContent,
+  propagateInterfaceConfig,
+  propagateTemplateRow,
+  PROPAGATION_TABLES,
+  resolveTemplateBrandId,
+  seedContentFromTemplate,
+} from './propagation';
+export type {
+  ContentPropagationResult,
+  CreatePromotionInput,
+  PropagationResult,
+} from './propagation';
+export {
+  applyApprovedPromotion,
   listPendingPromotionRequests,
   listPromotionRequests,
   setPromotionRequestStatus,
 } from './promotion-requests';
-export type { PromotionRequestInput, PromotionRequestRow } from './promotion-requests';
+export type {
+  ApplyPromotionResult,
+  PromotionRequestInput,
+  PromotionRequestRow,
+} from './promotion-requests';
 export * from './schema';
 export { seed } from './seed';
 export type { SeedResult } from './seed';

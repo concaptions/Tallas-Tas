@@ -1,6 +1,6 @@
 import { index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
-import { baseColumns } from '../columns';
+import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { creativeBriefs } from './briefs';
 import type { CopyCta } from './enums';
@@ -56,6 +56,7 @@ export const copywriting = pgTable(
   'copywriting',
   {
     ...baseColumns(),
+    ...propagationColumns(),
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
@@ -72,6 +73,7 @@ export const copywriting = pgTable(
   (table) => [
     index('copywriting_brand_id_idx').on(table.brandId),
     index('copywriting_creative_brief_id_idx').on(table.creativeBriefId),
+    index('copywriting_template_row_id_idx').on(table.templateRowId),
   ],
 );
 

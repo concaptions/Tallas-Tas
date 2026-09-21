@@ -1,13 +1,25 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
+import { propagationColumns } from './columns';
+import { insertCustomFieldSchema, listCustomFieldSchemas } from './custom-field-schemas';
 import { DEMO_ACTOR_ID } from './demo-data';
 import { listInterfaceConfig } from './interface-config';
 import { onboardBrand, type InterfacePageDefault } from './onboard';
-import { createPromotionRequest, listChildBrands, propagateInterfaceConfig } from './propagation';
+import {
+  createPromotionRequest,
+  listChildBrands,
+  propagateAllContent,
+  propagateInterfaceConfig,
+  propagateTemplateRow,
+  PROPAGATION_TABLES,
+  resolveTemplateBrandId,
+} from './propagation';
+import { applyApprovedPromotion } from './promotion-requests';
+import { interfacePages, products } from './schema';
 import { seed } from './seed';
 import { testDb } from './testing';
 import { withBrand } from './tenancy';
-import { interfacePages } from './schema';
 
 const INTERFACE_DEFAULTS: InterfacePageDefault[] = [
   {
@@ -174,5 +186,204 @@ describe('propagateInterfaceConfig', () => {
     expect(configAfter.map((p) => p.pageKey)).toEqual(
       (await listInterfaceConfig(db, templateBrand.id)).map((p) => p.pageKey),
     );
+  });
+});
+
+describe('propagationColumns', () => {
+  it('returns templateRowId, overriddenFields, customFields', () => {
+    const cols = propagationColumns();
+    expect(cols).toHaveProperty('templateRowId');
+    expect(cols).toHaveProperty('overriddenFields');
+    expect(cols).toHaveProperty('customFields');
+  });
+});
+
+describe('resolveTemplateBrandId', () => {
+  it('returns the template brand id for an agency', async () => {
+    const { db, templateBrand, agency } = await seeded();
+    const resolved = await resolveTemplateBrandId(db, agency.id);
+    expect(resolved).toBe(templateBrand.id);
+  });
+
+  it('returns null for a non-existent agency', async () => {
+    const { db } = await seeded();
+    const resolved = await resolveTemplateBrandId(db, '00000000-0000-0000-0000-000000000000');
+    expect(resolved).toBeNull();
+  });
+});
+
+describe('PROPAGATION_TABLES', () => {
+  it('registers exactly the 7 content tables', () => {
+    const keys = Object.keys(PROPAGATION_TABLES).sort();
+    expect(keys).toEqual([
+      'angles',
+      'concepts',
+      'copywriting',
+      'creative_briefs',
+      'creators',
+      'personas',
+      'products',
+    ]);
+  });
+});
+
+describe('seedContentFromTemplate', () => {
+  it('copies template rows to a child brand with templateRowId set', async () => {
+    const { db, templateBrand, childBrand } = await seeded();
+
+    const templateScope = withBrand(db, templateBrand.id);
+    const templateProducts = await templateScope.select(products);
+
+    const childScope = withBrand(db, childBrand.id);
+    const childProducts = await childScope.select(products);
+
+    for (const childProduct of childProducts) {
+      if (childProduct.templateRowId !== null) {
+        expect(templateProducts.map((p) => p.id)).toContain(childProduct.templateRowId);
+        expect(childProduct.overriddenFields).toEqual([]);
+      }
+    }
+  });
+});
+
+/** Insert a product into the template brand so propagation has something to work with. */
+async function seedTemplateProduct(db: Parameters<typeof withBrand>[0], templateBrandId: string) {
+  const scope = withBrand(db, templateBrandId);
+  const rows = await scope
+    .insert(products, {
+      name: 'Template Product',
+      link: 'https://example.com/template',
+      collectionLink: null,
+      legacyAirtableId: null,
+      templateRowId: null,
+      overriddenFields: [],
+      customFields: {},
+      createdBy: DEMO_ACTOR_ID,
+      updatedBy: DEMO_ACTOR_ID,
+    })
+    .returning();
+  const row = rows[0];
+  if (row === undefined) throw new Error('No template product inserted');
+  return row;
+}
+
+describe('propagateTemplateRow', () => {
+  it('propagates an insert by creating a new child row', async () => {
+    const { db, templateBrand } = await seeded();
+    const templateProduct = await seedTemplateProduct(db, templateBrand.id);
+
+    const result = await propagateTemplateRow(
+      db,
+      templateBrand.id,
+      'products',
+      templateProduct.id,
+      'insert',
+      DEMO_ACTOR_ID,
+    );
+    expect(result.childrenUpdated).toBeGreaterThanOrEqual(1);
+  });
+
+  it('skips overridden fields during update propagation', async () => {
+    const { db, templateBrand, childBrand } = await seeded();
+    const templateProduct = await seedTemplateProduct(db, templateBrand.id);
+
+    await propagateTemplateRow(
+      db,
+      templateBrand.id,
+      'products',
+      templateProduct.id,
+      'insert',
+      DEMO_ACTOR_ID,
+    );
+
+    const templateScope = withBrand(db, templateBrand.id);
+    await templateScope.update(
+      products,
+      { name: 'Changed Template Name', updatedBy: DEMO_ACTOR_ID },
+      eq(products.id, templateProduct.id),
+    );
+
+    const childScope = withBrand(db, childBrand.id);
+    const childProducts = await childScope.select(products);
+    const linked = childProducts.find((p) => p.templateRowId === templateProduct.id);
+    if (!linked) throw new Error('No linked child');
+
+    await childScope.update(
+      products,
+      { overriddenFields: ['name'], updatedBy: DEMO_ACTOR_ID },
+      eq(products.id, linked.id),
+    );
+
+    await propagateTemplateRow(
+      db,
+      templateBrand.id,
+      'products',
+      templateProduct.id,
+      'update',
+      DEMO_ACTOR_ID,
+    );
+
+    const [refreshed] = await childScope.select(products, eq(products.id, linked.id)).limit(1);
+    if (refreshed === undefined) throw new Error('No refreshed child product');
+    expect(refreshed.name).not.toBe('Changed Template Name');
+  });
+
+  it('throws for a table not in the registry', async () => {
+    const { db, templateBrand } = await seeded();
+    await expect(
+      propagateTemplateRow(db, templateBrand.id, 'nonexistent', 'id', 'update', DEMO_ACTOR_ID),
+    ).rejects.toThrow('not in the propagation registry');
+  });
+});
+
+describe('propagateAllContent', () => {
+  it('processes tables that have template rows', async () => {
+    const { db, templateBrand } = await seeded();
+    await seedTemplateProduct(db, templateBrand.id);
+    const result = await propagateAllContent(db, templateBrand.id, DEMO_ACTOR_ID);
+    expect(result.tablesProcessed).toContain('products');
+  });
+});
+
+describe('custom field schemas', () => {
+  it('CRUD operations work via withBrand', async () => {
+    const { db, templateBrand } = await seeded();
+    const brandId = templateBrand.id;
+
+    const created = await insertCustomFieldSchema(
+      db,
+      brandId,
+      {
+        tableName: 'products',
+        fieldKey: 'test_field',
+        fieldType: 'text',
+        fieldLabel: 'Test Field',
+        options: null,
+        sortOrder: '0',
+        createdBy: DEMO_ACTOR_ID,
+        updatedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    expect(created.fieldKey).toBe('test_field');
+    expect(created.brandId).toBe(brandId);
+
+    const listed = await listCustomFieldSchemas(db, brandId, 'products');
+    expect(listed.some((f) => f.id === created.id)).toBe(true);
+  });
+});
+
+describe('applyApprovedPromotion', () => {
+  it('returns not-found for a nonexistent request', async () => {
+    const { db, agency } = await seeded();
+    const result = await applyApprovedPromotion(
+      db,
+      agency.id,
+      '00000000-0000-0000-0000-000000000000',
+      DEMO_ACTOR_ID,
+    );
+    expect(result.applied).toBe(false);
+    expect(result.reason).toContain('not found');
   });
 });

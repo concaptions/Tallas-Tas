@@ -134,6 +134,13 @@
       "when": 1789992526030,
       "tag": "0018_upload-links-and-onboarding-forms",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789996905559,
+      "tag": "0019_propagation-columns-and-custom-field-schemas",
+      "breakpoints": true
     }
   ]
 }

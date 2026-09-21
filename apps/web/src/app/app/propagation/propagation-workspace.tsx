@@ -9,6 +9,8 @@ import {
   rejectPromotionAction,
   type PromotionActionResult,
 } from './actions';
+import { CustomFieldsSection, type CustomFieldItem } from './custom-fields-section';
+import { PropagationControls, type ChildBrandItem } from './propagation-controls';
 import {
   EMPTY_BODY,
   PROMOTION_FILTERS,
@@ -53,6 +55,8 @@ import { PromotionTable, type PromotionDecision } from './promotion-row';
  */
 export interface PropagationWorkspaceProps {
   readonly items: readonly PromotionItem[];
+  readonly customFields: readonly CustomFieldItem[];
+  readonly childBrands: readonly ChildBrandItem[];
   readonly demo: boolean;
   /** The state the address asked for, already resolved by `resolveStatusFilter`. */
   readonly filter: PromotionStatusFilter;
@@ -70,6 +74,8 @@ interface PendingDecision {
 
 export function PropagationWorkspace({
   items,
+  customFields,
+  childBrands,
   demo,
   filter,
   demoAccessNote,
@@ -246,6 +252,10 @@ export function PropagationWorkspace({
           }
         />
       </section>
+
+      <PropagationControls childBrands={childBrands} demo={demo} />
+
+      <CustomFieldsSection fields={customFields} demo={demo} />
     </div>
   );
 }

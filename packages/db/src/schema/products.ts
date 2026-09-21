@@ -1,6 +1,6 @@
 import { index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
-import { baseColumns } from '../columns';
+import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 
 /**
@@ -12,6 +12,7 @@ export const products = pgTable(
   'products',
   {
     ...baseColumns(),
+    ...propagationColumns(),
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
@@ -20,8 +21,10 @@ export const products = pgTable(
     collectionLink: text('collection_link'),
     legacyAirtableId: text('legacy_airtable_id'),
   },
-  // Index for the `brand_id` foreign key; also the leading column of every scoped read.
-  (table) => [index('products_brand_id_idx').on(table.brandId)],
+  (table) => [
+    index('products_brand_id_idx').on(table.brandId),
+    index('products_template_row_id_idx').on(table.templateRowId),
+  ],
 );
 
 export type Product = typeof products.$inferSelect;

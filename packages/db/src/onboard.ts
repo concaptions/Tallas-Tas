@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { seedContentFromTemplate } from './propagation';
 import {
   agencies,
   brandAssignments,
@@ -101,6 +102,7 @@ export async function onboardBrand(db: Db, input: OnboardBrandInput): Promise<On
     input.interfaceDefaults,
   );
   await seedNotificationDefaults(db, brand.id, input.actorId);
+  await seedContentFromTemplate(db, input.templateBrandId, brand.id, input.actorId);
 
   return { brand, assignments };
 }

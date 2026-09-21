@@ -136,6 +136,15 @@ function contentBase(id: string, created: string, updated: string) {
   return { ...base(id, created, updated), legacyAirtableId: null as string | null };
 }
 
+function propagationBase(id: string, created: string, updated: string) {
+  return {
+    ...contentBase(id, created, updated),
+    templateRowId: null as string | null,
+    overriddenFields: [] as string[],
+    customFields: {} as Record<string, unknown>,
+  };
+}
+
 /**
  * The CSV template a user downloads before a bulk upload (PRD §5.1, CLAUDE.md non-negotiable 9: a
  * downloadable template per table). Data, not schema: it is the writable columns of `products` in
@@ -156,7 +165,7 @@ export const PRODUCT_CSV_COLUMNS = ['name', 'link', 'collection_link'] as const;
  */
 export const demoProducts: ProductListRow[] = [
   {
-    ...contentBase(PRODUCT_BLANKET_ID, '2026-08-02T09:00:00.000Z', '2026-09-11T14:10:00.000Z'),
+    ...propagationBase(PRODUCT_BLANKET_ID, '2026-08-02T09:00:00.000Z', '2026-09-11T14:10:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Niagara Deep Sleep Weighted Blanket',
     link: 'https://niagarasleep.example/products/deep-sleep-weighted-blanket',
@@ -164,7 +173,7 @@ export const demoProducts: ProductListRow[] = [
     conceptCount: 2,
   },
   {
-    ...contentBase(PRODUCT_MASK_ID, '2026-08-02T09:05:00.000Z', '2026-09-09T11:30:00.000Z'),
+    ...propagationBase(PRODUCT_MASK_ID, '2026-08-02T09:05:00.000Z', '2026-09-09T11:30:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Niagara Cooling Blackout Sleep Mask',
     link: 'https://niagarasleep.example/products/cooling-blackout-sleep-mask',
@@ -172,7 +181,11 @@ export const demoProducts: ProductListRow[] = [
     conceptCount: 2,
   },
   {
-    ...contentBase(PRODUCT_RESET_BUNDLE_ID, '2026-08-12T15:45:00.000Z', '2026-09-05T13:20:00.000Z'),
+    ...propagationBase(
+      PRODUCT_RESET_BUNDLE_ID,
+      '2026-08-12T15:45:00.000Z',
+      '2026-09-05T13:20:00.000Z',
+    ),
     brandId: DEMO_BRAND_ID,
     name: 'Niagara Night Reset Bundle (Blanket + Mask)',
     link: 'https://niagarasleep.example/products/night-reset-bundle',
@@ -290,7 +303,7 @@ export const demoThemes: ThemeListRow[] = [
  */
 export const demoPersonas: PersonaListRow[] = [
   {
-    ...contentBase(PERSONA_SHIFT_ID, '2026-08-05T08:30:00.000Z', '2026-09-12T10:20:00.000Z'),
+    ...propagationBase(PERSONA_SHIFT_ID, '2026-08-05T08:30:00.000Z', '2026-09-12T10:20:00.000Z'),
     brandId: DEMO_BRAND_ID,
     productId: PRODUCT_BLANKET_ID,
     productName: 'Niagara Deep Sleep Weighted Blanket',
@@ -322,7 +335,7 @@ export const demoPersonas: PersonaListRow[] = [
       'Off-shift. Daylight-proof. Ninety-minute blocks. Weighted, not hot. Drive home safe. Not a sedative. Back on the rota.',
   },
   {
-    ...contentBase(PERSONA_PARENT_ID, '2026-08-06T09:15:00.000Z', '2026-09-10T16:05:00.000Z'),
+    ...propagationBase(PERSONA_PARENT_ID, '2026-08-06T09:15:00.000Z', '2026-09-10T16:05:00.000Z'),
     brandId: DEMO_BRAND_ID,
     productId: PRODUCT_MASK_ID,
     productName: 'Niagara Cooling Blackout Sleep Mask',
@@ -354,7 +367,7 @@ export const demoPersonas: PersonaListRow[] = [
       'The morning window. Blackout, not earplugs. Ten minutes to asleep. You will still hear them. Not selfish. Back to yourself.',
   },
   {
-    ...contentBase(PERSONA_PERI_ID, '2026-08-07T11:00:00.000Z', '2026-09-08T08:45:00.000Z'),
+    ...propagationBase(PERSONA_PERI_ID, '2026-08-07T11:00:00.000Z', '2026-09-08T08:45:00.000Z'),
     brandId: DEMO_BRAND_ID,
     productId: PRODUCT_BLANKET_ID,
     productName: 'Niagara Deep Sleep Weighted Blanket',
@@ -389,7 +402,7 @@ export const demoPersonas: PersonaListRow[] = [
 
 /** The shift-worker angle, named here because the concept's auto-generated name is built from it. */
 const bodyClockAngle: AngleListRow = {
-  ...contentBase(ANGLE_BODY_CLOCK_ID, '2026-08-14T13:00:00.000Z', '2026-09-11T09:40:00.000Z'),
+  ...propagationBase(ANGLE_BODY_CLOCK_ID, '2026-08-14T13:00:00.000Z', '2026-09-11T09:40:00.000Z'),
   brandId: DEMO_BRAND_ID,
   personaId: PERSONA_SHIFT_ID,
   personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
@@ -429,7 +442,11 @@ const bodyClockAngle: AngleListRow = {
  */
 export const demoAngles: AngleListRow[] = [
   {
-    ...contentBase(ANGLE_NOT_YOUR_AGE_ID, '2026-08-18T09:20:00.000Z', '2026-09-13T11:15:00.000Z'),
+    ...propagationBase(
+      ANGLE_NOT_YOUR_AGE_ID,
+      '2026-08-18T09:20:00.000Z',
+      '2026-09-13T11:15:00.000Z',
+    ),
     brandId: DEMO_BRAND_ID,
     personaId: PERSONA_PERI_ID,
     personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
@@ -457,7 +474,7 @@ export const demoAngles: AngleListRow[] = [
   },
   bodyClockAngle,
   {
-    ...contentBase(ANGLE_DAYLIGHT_ID, '2026-08-21T14:45:00.000Z', '2026-09-10T08:25:00.000Z'),
+    ...propagationBase(ANGLE_DAYLIGHT_ID, '2026-08-21T14:45:00.000Z', '2026-09-10T08:25:00.000Z'),
     brandId: DEMO_BRAND_ID,
     personaId: PERSONA_SHIFT_ID,
     personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
@@ -480,7 +497,11 @@ export const demoAngles: AngleListRow[] = [
     clientNotes: null,
   },
   {
-    ...contentBase(ANGLE_NINETY_MINUTES_ID, '2026-08-15T10:30:00.000Z', '2026-09-09T15:20:00.000Z'),
+    ...propagationBase(
+      ANGLE_NINETY_MINUTES_ID,
+      '2026-08-15T10:30:00.000Z',
+      '2026-09-09T15:20:00.000Z',
+    ),
     brandId: DEMO_BRAND_ID,
     personaId: PERSONA_PARENT_ID,
     personaName: 'Priya — the new parent running on broken sleep',
@@ -507,7 +528,7 @@ export const demoAngles: AngleListRow[] = [
       'Written for the parental-leave audience. It sells the morning handover window rather than a full night, which is the only promise this group still believes.',
   },
   {
-    ...contentBase(ANGLE_THERMOSTAT_ID, '2026-08-25T16:10:00.000Z', '2026-09-06T14:05:00.000Z'),
+    ...propagationBase(ANGLE_THERMOSTAT_ID, '2026-08-25T16:10:00.000Z', '2026-09-06T14:05:00.000Z'),
     brandId: DEMO_BRAND_ID,
     personaId: PERSONA_PERI_ID,
     personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
@@ -602,7 +623,11 @@ const ninetyMinutes = demoAngle(ANGLE_NINETY_MINUTES_ID);
  */
 export const demoConcepts: ConceptListRow[] = [
   {
-    ...contentBase(CONCEPT_NOT_YOUR_AGE_ID, '2026-08-29T09:45:00.000Z', '2026-09-14T11:20:00.000Z'),
+    ...propagationBase(
+      CONCEPT_NOT_YOUR_AGE_ID,
+      '2026-08-29T09:45:00.000Z',
+      '2026-09-14T11:20:00.000Z',
+    ),
     brandId: DEMO_BRAND_ID,
     ...pairing('B2', notYourAge, demoTheme(THEME_GREEN_SCREEN_ID)),
     category: 'New',
@@ -620,7 +645,11 @@ export const demoConcepts: ConceptListRow[] = [
     clientStatus: 'pending_for_approval',
   },
   {
-    ...contentBase(CONCEPT_BODY_CLOCK_ID, '2026-08-20T12:00:00.000Z', '2026-09-11T17:05:00.000Z'),
+    ...propagationBase(
+      CONCEPT_BODY_CLOCK_ID,
+      '2026-08-20T12:00:00.000Z',
+      '2026-09-11T17:05:00.000Z',
+    ),
     brandId: DEMO_BRAND_ID,
     ...pairing('B1', bodyClock, demoTheme(THEME_PROBLEM_SOLUTION_ID)),
     category: 'New',
@@ -638,7 +667,7 @@ export const demoConcepts: ConceptListRow[] = [
     clientStatus: 'pending_for_approval',
   },
   {
-    ...contentBase(CONCEPT_DAYLIGHT_ID, '2026-08-27T15:30:00.000Z', '2026-09-09T08:50:00.000Z'),
+    ...propagationBase(CONCEPT_DAYLIGHT_ID, '2026-08-27T15:30:00.000Z', '2026-09-09T08:50:00.000Z'),
     brandId: DEMO_BRAND_ID,
     ...pairing('B2', daylight, demoTheme(THEME_POV_ID)),
     category: 'Iteration',
@@ -653,7 +682,7 @@ export const demoConcepts: ConceptListRow[] = [
     clientStatus: 'pending_for_approval',
   },
   {
-    ...contentBase(
+    ...propagationBase(
       CONCEPT_NINETY_MINUTES_ID,
       '2026-09-01T10:15:00.000Z',
       '2026-09-04T16:35:00.000Z',
@@ -874,7 +903,7 @@ const ninetyMinutesConcept = demoConcept(CONCEPT_NINETY_MINUTES_ID);
  */
 export const demoBriefs: BriefListRow[] = [
   {
-    ...contentBase(
+    ...propagationBase(
       BRIEF_BODY_CLOCK_VIDEO_ID,
       '2026-08-30T09:20:00.000Z',
       '2026-09-15T16:40:00.000Z',
@@ -905,7 +934,7 @@ export const demoBriefs: BriefListRow[] = [
     performance: null,
   },
   {
-    ...contentBase(
+    ...propagationBase(
       BRIEF_NOT_YOUR_AGE_STATIC_ID,
       '2026-09-02T11:05:00.000Z',
       '2026-09-14T09:10:00.000Z',
@@ -935,7 +964,7 @@ export const demoBriefs: BriefListRow[] = [
     performance: null,
   },
   {
-    ...contentBase(
+    ...propagationBase(
       BRIEF_DAYLIGHT_MOTION_ID,
       '2026-08-28T13:40:00.000Z',
       '2026-09-12T18:25:00.000Z',
@@ -969,7 +998,7 @@ export const demoBriefs: BriefListRow[] = [
     performance: null,
   },
   {
-    ...contentBase(
+    ...propagationBase(
       BRIEF_NINETY_MINUTES_VIDEO_ID,
       '2026-09-03T08:55:00.000Z',
       '2026-09-11T10:05:00.000Z',
@@ -1007,7 +1036,7 @@ export const demoBriefs: BriefListRow[] = [
     performance: null,
   },
   {
-    ...contentBase(
+    ...propagationBase(
       BRIEF_BUNDLE_STANDALONE_ID,
       '2026-08-19T15:15:00.000Z',
       '2026-09-08T15:30:00.000Z',
@@ -1048,7 +1077,7 @@ export const demoBriefs: BriefListRow[] = [
     performance: 'High Potential to Iterate',
   },
   {
-    ...contentBase(
+    ...propagationBase(
       BRIEF_NINETY_MINUTES_CAROUSEL_ID,
       '2026-09-05T10:30:00.000Z',
       '2026-09-05T11:45:00.000Z',
@@ -1086,7 +1115,7 @@ export const demoBriefs: BriefListRow[] = [
     // CLIENT status is `launched`: the media buyer has it live and there is nothing left for the
     // client to approve. It is the only row in the Internal Queue's Launched column, and the only
     // fixture carrying `performance: 'Winning'`.
-    ...contentBase(
+    ...propagationBase(
       BRIEF_BODY_CLOCK_LAUNCHED_ID,
       '2026-08-12T10:05:00.000Z',
       '2026-09-04T08:15:00.000Z',
@@ -1152,7 +1181,7 @@ function demoBrief(id: string): BriefListRow {
  */
 export const demoCopy: CopyListRow[] = [
   {
-    ...contentBase(COPY_BODY_CLOCK_ID, '2026-09-01T10:15:00.000Z', '2026-09-16T11:20:00.000Z'),
+    ...propagationBase(COPY_BODY_CLOCK_ID, '2026-09-01T10:15:00.000Z', '2026-09-16T11:20:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_BODY_CLOCK_VIDEO_ID,
     copyNumber: 1,
@@ -1166,7 +1195,11 @@ export const demoCopy: CopyListRow[] = [
     creativeName: demoBrief(BRIEF_BODY_CLOCK_VIDEO_ID).name,
   },
   {
-    ...contentBase(COPY_NOT_YOUR_AGE_ID, '2026-09-04T09:40:00.000Z', '2026-09-15T14:05:00.000Z'),
+    ...propagationBase(
+      COPY_NOT_YOUR_AGE_ID,
+      '2026-09-04T09:40:00.000Z',
+      '2026-09-15T14:05:00.000Z',
+    ),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
     copyNumber: 2,
@@ -1180,7 +1213,7 @@ export const demoCopy: CopyListRow[] = [
     creativeName: demoBrief(BRIEF_NOT_YOUR_AGE_STATIC_ID).name,
   },
   {
-    ...contentBase(COPY_DAYLIGHT_ID, '2026-09-02T12:25:00.000Z', '2026-09-13T17:30:00.000Z'),
+    ...propagationBase(COPY_DAYLIGHT_ID, '2026-09-02T12:25:00.000Z', '2026-09-13T17:30:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_DAYLIGHT_MOTION_ID,
     copyNumber: 3,
@@ -1195,7 +1228,7 @@ export const demoCopy: CopyListRow[] = [
     creativeName: demoBrief(BRIEF_DAYLIGHT_MOTION_ID).name,
   },
   {
-    ...contentBase(
+    ...propagationBase(
       COPY_BUNDLE_UNATTACHED_ID,
       '2026-08-27T16:05:00.000Z',
       '2026-09-10T08:50:00.000Z',
@@ -1286,7 +1319,7 @@ function initialsAvatar(initials: string): string {
  */
 export const demoCreators: CreatorListRow[] = [
   {
-    ...contentBase(CREATOR_DANIELLE_ID, '2026-06-18T13:20:00.000Z', '2026-09-16T11:40:00.000Z'),
+    ...propagationBase(CREATOR_DANIELLE_ID, '2026-06-18T13:20:00.000Z', '2026-09-16T11:40:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Danielle Okonkwo',
     ageBracket: '25-34',
@@ -1323,7 +1356,7 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: 'https://www.facebook.com/danielle.okonkwo.creator',
   },
   {
-    ...contentBase(CREATOR_MARCUS_ID, '2026-06-02T10:05:00.000Z', '2026-09-15T09:25:00.000Z'),
+    ...propagationBase(CREATOR_MARCUS_ID, '2026-06-02T10:05:00.000Z', '2026-09-15T09:25:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Marcus Delacroix',
     ageBracket: '35-44',
@@ -1360,7 +1393,7 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: 'https://www.facebook.com/marcus.delacroix.mtl',
   },
   {
-    ...contentBase(CREATOR_PRIYA_ID, '2026-03-30T15:45:00.000Z', '2026-09-14T15:10:00.000Z'),
+    ...propagationBase(CREATOR_PRIYA_ID, '2026-03-30T15:45:00.000Z', '2026-09-14T15:10:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Priya Raghunathan',
     ageBracket: '45-54',
@@ -1397,7 +1430,7 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: null,
   },
   {
-    ...contentBase(CREATOR_TOMAS_ID, '2026-08-28T09:10:00.000Z', '2026-09-11T08:05:00.000Z'),
+    ...propagationBase(CREATOR_TOMAS_ID, '2026-08-28T09:10:00.000Z', '2026-09-11T08:05:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Tomás Ferreira',
     ageBracket: '18-24',
@@ -1433,7 +1466,7 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: null,
   },
   {
-    ...contentBase(CREATOR_HANNAH_ID, '2026-07-14T11:30:00.000Z', '2026-09-08T17:45:00.000Z'),
+    ...propagationBase(CREATOR_HANNAH_ID, '2026-07-14T11:30:00.000Z', '2026-09-08T17:45:00.000Z'),
     brandId: DEMO_BRAND_ID,
     name: 'Hannah Whitcombe',
     ageBracket: '55-64',

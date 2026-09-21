@@ -1,6 +1,6 @@
 import { boolean, index, integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
-import { baseColumns } from '../columns';
+import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { concepts } from './concepts';
 import type {
@@ -61,6 +61,7 @@ export const creativeBriefs = pgTable(
   'creative_briefs',
   {
     ...baseColumns(),
+    ...propagationColumns(),
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
@@ -93,6 +94,7 @@ export const creativeBriefs = pgTable(
   (table) => [
     index('creative_briefs_brand_id_idx').on(table.brandId),
     index('creative_briefs_concept_id_idx').on(table.conceptId),
+    index('creative_briefs_template_row_id_idx').on(table.templateRowId),
   ],
 );
 

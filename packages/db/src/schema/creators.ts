@@ -1,6 +1,6 @@
 import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-import { baseColumns } from '../columns';
+import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import type { CreatorAgeBracket, CreatorPlatform } from './enums';
 
@@ -74,6 +74,7 @@ export const creators = pgTable(
   'creators',
   {
     ...baseColumns(),
+    ...propagationColumns(),
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
@@ -123,9 +124,8 @@ export const creators = pgTable(
   },
   (table) => [
     index('creators_brand_id_idx').on(table.brandId),
-    // The §5.8.1 list is always "this brand's partnership creators", never a global scan, so the
-    // qualifier is indexed WITH the brand rather than on its own.
     index('creators_partnership_idx').on(table.brandId, table.forPartnershipAds),
+    index('creators_template_row_id_idx').on(table.templateRowId),
   ],
 );
 

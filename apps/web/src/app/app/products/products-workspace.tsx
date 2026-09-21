@@ -10,6 +10,7 @@ import {
   disabledWriteClassName,
   DisabledWrite,
   Input,
+  PropagationBadge,
   Table,
   TableBody,
   TableCell,
@@ -290,7 +291,13 @@ export function ProductsWorkspace({
                     className="cursor-pointer"
                   >
                     <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
-                      {product.name}
+                      <span className="flex items-center gap-1.5">
+                        {product.name}
+                        <PropagationBadge
+                          templateRowId={product.templateRowId}
+                          overriddenFields={product.overriddenFields}
+                        />
+                      </span>
                     </TableCell>
                     <TableCell className="px-3 py-1.5 text-text2" title={product.link}>
                       {linkHost}

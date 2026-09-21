@@ -83,3 +83,4 @@ export {
   TwoTrackApproval,
   type TwoTrackApprovalProps,
 } from './approval/two-track';
+export { PropagationBadge } from './propagation/propagation-badge';

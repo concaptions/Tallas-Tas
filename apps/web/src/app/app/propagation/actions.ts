@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { listTeam, setPromotionRequestStatus } from '@tas/db';
+import { applyApprovedPromotion, listTeam, setPromotionRequestStatus } from '@tas/db';
 import { canReviewPromotion, promotionStatusLabel, type PromotionStatusKey } from '@tas/domain';
 import { z } from 'zod';
 
@@ -169,7 +169,13 @@ async function settle(
         userId,
         reviewNote,
       );
-      return row ?? ('missing' as const);
+      if (row === null) return 'missing' as const;
+
+      if (status === APPROVED) {
+        await applyApprovedPromotion(db, agencyId, row.id, userId);
+      }
+
+      return row;
     });
 
     if (settled === null) {

@@ -2,7 +2,11 @@ import {
   createAutoDb,
   demoPromotionRequests,
   demoReviewedPromotionRequests,
+  listChildBrands,
+  listCustomFieldSchemas,
   listPromotionRequests,
+  resolveTemplateBrandId,
+  type CustomFieldSchemaListRow,
   type Db,
   type PromotionRequestRow,
 } from '@tas/db';
@@ -205,5 +209,56 @@ export async function withAgencyScope<T>(
   return withDb(deps, async (db) => {
     const agencyId = await resolveLiveAgencyId(db, deps);
     return agencyId === null ? null : run(db, agencyId);
+  });
+}
+
+export interface CustomFieldListResult {
+  readonly rows: CustomFieldSchemaListRow[];
+  readonly source: PromotionSourceKind;
+}
+
+export async function loadCustomFieldSchemas(
+  deps: PromotionSourceDeps = {},
+): Promise<CustomFieldListResult> {
+  if (inDemoMode(deps)) {
+    return { rows: [], source: 'demo' };
+  }
+  return withDb(deps, async (db) => {
+    const agencyId = await resolveLiveAgencyId(db, deps);
+    if (agencyId === null) return { rows: [], source: 'database' as const };
+    const templateBrandId = await resolveTemplateBrandId(db, agencyId);
+    if (templateBrandId === null) return { rows: [], source: 'database' as const };
+    const rows = await listCustomFieldSchemas(db, templateBrandId);
+    return { rows, source: 'database' as const };
+  });
+}
+
+export interface ChildBrandSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+}
+
+export interface ChildBrandListResult {
+  readonly brands: ChildBrandSummary[];
+  readonly source: PromotionSourceKind;
+}
+
+export async function loadChildBrands(
+  deps: PromotionSourceDeps = {},
+): Promise<ChildBrandListResult> {
+  if (inDemoMode(deps)) {
+    return { brands: [], source: 'demo' };
+  }
+  return withDb(deps, async (db) => {
+    const agencyId = await resolveLiveAgencyId(db, deps);
+    if (agencyId === null) return { brands: [], source: 'database' as const };
+    const templateBrandId = await resolveTemplateBrandId(db, agencyId);
+    if (templateBrandId === null) return { brands: [], source: 'database' as const };
+    const children = await listChildBrands(db, templateBrandId);
+    return {
+      brands: children.map((b) => ({ id: b.id, name: b.name, status: b.status })),
+      source: 'database' as const,
+    };
   });
 }

@@ -6,6 +6,7 @@ export * from './brand-assignments';
 export * from './brands';
 export * from './competitor-ads';
 export * from './creator-rankings';
+export * from './custom-field-schemas';
 export * from './briefs';
 export * from './concepts';
 export * from './copy';

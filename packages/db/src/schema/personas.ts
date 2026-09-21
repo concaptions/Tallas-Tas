@@ -1,6 +1,6 @@
 import { index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
-import { baseColumns } from '../columns';
+import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { awarenessStageEnum } from './enums';
 import { products } from './products';
@@ -15,6 +15,7 @@ export const personas = pgTable(
   'personas',
   {
     ...baseColumns(),
+    ...propagationColumns(),
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
@@ -38,6 +39,7 @@ export const personas = pgTable(
   (table) => [
     index('personas_brand_id_idx').on(table.brandId),
     index('personas_product_id_idx').on(table.productId),
+    index('personas_template_row_id_idx').on(table.templateRowId),
   ],
 );
 
