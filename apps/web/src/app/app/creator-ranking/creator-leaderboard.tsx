@@ -1,7 +1,10 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import type { CreatorRankingListRow } from '@tas/db';
 import { DisabledWrite, Button } from '@tas/ui';
+
+import { creatorRankingDetailPath } from '@/lib/routes';
 
 export interface RankingItem {
   readonly ranking: CreatorRankingListRow;
@@ -19,6 +22,7 @@ export function CreatorLeaderboard({
   items: readonly RankingItem[];
   demo: boolean;
 }) {
+  const router = useRouter();
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -48,7 +52,21 @@ export function CreatorLeaderboard({
             </thead>
             <tbody>
               {items.map(({ ranking, spendLabel, roasLabel, cpaLabel }) => (
-                <tr key={ranking.id} className="border-b border-line last:border-0">
+                <tr
+                  key={ranking.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    router.push(creatorRankingDetailPath(ranking.id));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      router.push(creatorRankingDetailPath(ranking.id));
+                    }
+                  }}
+                  className="cursor-pointer border-b border-line last:border-0 hover:bg-surface2"
+                >
                   <td className="px-2 py-2 text-center">
                     {MEDAL[ranking.rank] ?? `#${String(ranking.rank)}`}
                   </td>

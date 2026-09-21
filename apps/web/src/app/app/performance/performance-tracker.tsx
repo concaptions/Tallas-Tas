@@ -1,8 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { AdMetricListRow } from '@tas/db';
 import { DisabledWrite, Button } from '@tas/ui';
+
+import { adMetricPath } from '@/lib/routes';
 
 export interface MetricItem {
   readonly metric: AdMetricListRow;
@@ -25,6 +28,7 @@ export function PerformanceTracker({
   items: readonly MetricItem[];
   demo: boolean;
 }) {
+  const router = useRouter();
   const [sort, setSort] = useState<SortKey>('spend');
   const [search, setSearch] = useState('');
   const sorted = useMemo(() => {
@@ -122,7 +126,21 @@ export function PerformanceTracker({
                   cpaLabel,
                   roasLabel,
                 }) => (
-                  <tr key={metric.id} className="border-b border-line last:border-0">
+                  <tr
+                    key={metric.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      router.push(adMetricPath(metric.id));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(adMetricPath(metric.id));
+                      }
+                    }}
+                    className="cursor-pointer border-b border-line last:border-0 hover:bg-surface2"
+                  >
                     <td className="truncate px-2 py-2 font-mono text-text1">{metric.adName}</td>
                     <td className="px-2 py-2">{spendLabel}</td>
                     <td className="px-2 py-2">{impressionsLabel}</td>

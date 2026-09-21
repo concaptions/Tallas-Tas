@@ -15,7 +15,7 @@ import { Icon, type IconName } from '@/components/shell/icons';
 import { roleDashboard } from '@/lib/dashboard-source';
 import { loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
-import { personasPath } from '@/lib/routes';
+import { anglesPath, conceptsPath, personasPath, themesPath } from '@/lib/routes';
 
 /**
  * The workspace Overview. Counts come from the data source, which is the demo fixtures when Clerk
@@ -42,18 +42,26 @@ export default async function OverviewPage() {
       blurb: 'Who the creative speaks to.',
       href: personasPath,
     },
-    { label: 'Angles', icon: 'angles', count: counts.angles, blurb: 'The argument each ad makes.' },
+    {
+      label: 'Angles',
+      icon: 'angles',
+      count: counts.angles,
+      blurb: 'The argument each ad makes.',
+      href: anglesPath,
+    },
     {
       label: 'Themes',
       icon: 'themes',
       count: counts.themes,
       blurb: 'The global production library.',
+      href: themesPath,
     },
     {
       label: 'Concepts',
       icon: 'concepts',
       count: counts.concepts,
       blurb: 'Batch, angle and theme, named.',
+      href: conceptsPath,
     },
   ];
 

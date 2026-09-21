@@ -1,8 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { AdPlatform, CompetitorAdListRow } from '@tas/db';
 import { Button, DisabledWrite } from '@tas/ui';
+
+import { competitorAdPath } from '@/lib/routes';
 
 export interface AdSpyItem {
   readonly ad: CompetitorAdListRow;
@@ -79,9 +82,10 @@ export function AdSpyBoard({
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(({ ad, daysLabel }) => (
-            <div
+            <Link
               key={ad.id}
-              className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3"
+              href={competitorAdPath(ad.id)}
+              className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3 transition-colors hover:border-line2"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="text-sm font-semibold text-text1">{ad.advertiserName}</span>
@@ -98,7 +102,7 @@ export function AdSpyBoard({
                 {ad.estimatedSpend !== null && <span>{ad.estimatedSpend}</span>}
                 <span>{daysLabel}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

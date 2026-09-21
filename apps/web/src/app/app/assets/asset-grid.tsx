@@ -1,8 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { AssetCategory, AssetListRow } from '@tas/db';
 import { Button, DisabledWrite } from '@tas/ui';
+
+import { assetPath } from '@/lib/routes';
 
 export interface AssetItem {
   readonly asset: AssetListRow;
@@ -83,9 +86,10 @@ export function AssetLibrary({
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(({ asset, updatedLabel, updatedTitle, sizeLabel }) => (
-            <div
+            <Link
               key={asset.id}
-              className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3"
+              href={assetPath(asset.id)}
+              className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3 transition-colors hover:border-line2"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="text-xl leading-none">
@@ -103,7 +107,7 @@ export function AssetLibrary({
                 <span>{sizeLabel}</span>
                 <time title={updatedTitle}>{updatedLabel}</time>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
