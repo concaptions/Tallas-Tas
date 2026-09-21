@@ -1,6 +1,8 @@
 import type { AdMetricListRow } from './ad-metrics';
 import type { AssetListRow } from './assets';
 import type { AngleListRow } from './angles';
+import type { CompetitorAdListRow } from './competitor-ads';
+import type { CreatorRankingListRow } from './creator-rankings';
 import type { BriefListRow } from './briefs';
 import type { ConceptListRow } from './concepts';
 import type { CopyListRow } from './copy';
@@ -105,6 +107,12 @@ const METRIC_BODY_CLOCK_ID = 'dddddddd-dddd-4ddd-8ddd-000000000001';
 const METRIC_NOT_YOUR_AGE_ID = 'dddddddd-dddd-4ddd-8ddd-000000000002';
 const METRIC_DAYLIGHT_ID = 'dddddddd-dddd-4ddd-8ddd-000000000003';
 const METRIC_NINETY_MINUTES_ID = 'dddddddd-dddd-4ddd-8ddd-000000000004';
+const COMP_AD_CASPER_ID = 'eeeeeeee-eeee-4eee-8eee-000000000001';
+const COMP_AD_PURPLE_ID = 'eeeeeeee-eeee-4eee-8eee-000000000002';
+const COMP_AD_HELIX_ID = 'eeeeeeee-eeee-4eee-8eee-000000000003';
+const RANKING_DANIELLE_ID = 'ffffffff-ffff-4fff-8fff-000000000001';
+const RANKING_MARCUS_ID = 'ffffffff-ffff-4fff-8fff-000000000002';
+const RANKING_PRIYA_ID = 'ffffffff-ffff-4fff-8fff-000000000003';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -2227,5 +2235,95 @@ export const demoAdMetrics: AdMetricListRow[] = [
     cpa: '7.62',
     roas: '5.50',
     dateRange: '2026-09-01 to 2026-09-14',
+  },
+];
+
+export const demoCompetitorAds: CompetitorAdListRow[] = [
+  {
+    ...base(COMP_AD_CASPER_ID, '2026-09-08T10:00:00.000Z', '2026-09-14T10:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    platform: 'meta',
+    advertiserName: 'Casper Sleep',
+    adUrl: 'https://facebook.com/ads/library/?id=100001',
+    headline: 'The mattress designed for better sleep',
+    bodyText: 'Try Casper risk-free for 100 nights.',
+    format: 'video',
+    estimatedSpend: '$50k-100k',
+    daysActive: 42,
+    firstSeen: '2026-08-01',
+    lastSeen: '2026-09-14',
+    notes: 'Heavy spend on cooling angle',
+  },
+  {
+    ...base(COMP_AD_PURPLE_ID, '2026-09-09T11:00:00.000Z', '2026-09-14T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    platform: 'meta',
+    advertiserName: 'Purple Mattress',
+    adUrl: 'https://facebook.com/ads/library/?id=100002',
+    headline: 'Sleep cool all night',
+    bodyText: null,
+    format: 'carousel',
+    estimatedSpend: '$25k-50k',
+    daysActive: 28,
+    firstSeen: '2026-08-15',
+    lastSeen: '2026-09-12',
+    notes: null,
+  },
+  {
+    ...base(COMP_AD_HELIX_ID, '2026-09-10T09:00:00.000Z', '2026-09-14T09:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    platform: 'tiktok',
+    advertiserName: 'Helix Sleep',
+    adUrl: 'https://library.tiktok.com/ads/detail/?id=200001',
+    headline: 'Take the sleep quiz',
+    bodyText: 'Find your perfect mattress in 2 minutes.',
+    format: 'video',
+    estimatedSpend: '$10k-25k',
+    daysActive: 14,
+    firstSeen: '2026-09-01',
+    lastSeen: null,
+    notes: 'UGC-style quiz funnel',
+  },
+];
+
+export const demoCreatorRankings: CreatorRankingListRow[] = [
+  {
+    ...base(RANKING_DANIELLE_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_DANIELLE_ID,
+    creatorName: 'Danielle Torres',
+    totalAds: 8,
+    totalSpend: '3200.00',
+    totalConversions: 320,
+    avgRoas: '5.20',
+    avgCpa: '7.50',
+    rank: 1,
+    periodLabel: 'Sep 2026',
+  },
+  {
+    ...base(RANKING_MARCUS_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_MARCUS_ID,
+    creatorName: 'Marcus Chen',
+    totalAds: 5,
+    totalSpend: '1800.00',
+    totalConversions: 144,
+    avgRoas: '3.80',
+    avgCpa: '12.50',
+    rank: 2,
+    periodLabel: 'Sep 2026',
+  },
+  {
+    ...base(RANKING_PRIYA_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_PRIYA_ID,
+    creatorName: 'Priya Sharma',
+    totalAds: 3,
+    totalSpend: '950.00',
+    totalConversions: 76,
+    avgRoas: '3.20',
+    avgCpa: '12.50',
+    rank: 3,
+    periodLabel: 'Sep 2026',
   },
 ];

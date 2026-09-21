@@ -1,5 +1,13 @@
 export { insertAdMetric, listAdMetrics, listConceptMetrics } from './ad-metrics';
 export type { AdMetricInput, AdMetricListRow } from './ad-metrics';
+export { getCompetitorAdById, insertCompetitorAd, listCompetitorAds } from './competitor-ads';
+export type { CompetitorAdInput, CompetitorAdListRow } from './competitor-ads';
+export {
+  insertCreatorRanking,
+  listCreatorRankings,
+  listCreatorRankingsByCreator,
+} from './creator-rankings';
+export type { CreatorRankingInput, CreatorRankingListRow } from './creator-rankings';
 export { importAirtableExport } from './airtable-import';
 export { getAssetById, insertAsset, listAssets, listConceptAssets } from './assets';
 export type { AssetInput, AssetListRow } from './assets';
@@ -36,6 +44,8 @@ export {
   demoAdMetrics,
   demoAssets,
   demoAngles,
+  demoCompetitorAds,
+  demoCreatorRankings,
   demoBrandAssignments,
   demoBrands,
   demoBriefs,

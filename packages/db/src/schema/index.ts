@@ -4,6 +4,8 @@ export * from './assets';
 export * from './angles';
 export * from './brand-assignments';
 export * from './brands';
+export * from './competitor-ads';
+export * from './creator-rankings';
 export * from './briefs';
 export * from './concepts';
 export * from './copy';

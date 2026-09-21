@@ -10,6 +10,8 @@ import {
   demoAdMetrics,
   demoAssets,
   demoBrandAssignments,
+  demoCompetitorAds,
+  demoCreatorRankings,
   demoBrands,
   demoBriefs,
   demoConcepts,
@@ -50,6 +52,10 @@ import {
   type Agency,
   type Angle,
   type Asset,
+  type CompetitorAd,
+  type CreatorRanking,
+  competitorAds,
+  creatorRankings,
   type Brand,
   type BrandAssignment,
   type Concept,
@@ -96,6 +102,8 @@ export type SeedResult = {
   notificationSettings: NotificationSetting[];
   assets: Asset[];
   adMetrics: AdMetric[];
+  competitorAds: CompetitorAd[];
+  creatorRankings: CreatorRanking[];
   promotionRequests: PromotionRequest[];
 };
 
@@ -335,6 +343,14 @@ export async function seed(db: Db): Promise<SeedResult> {
 
   const seededAdMetrics = await scope.insert(adMetrics, demoAdMetrics.map(scoped)).returning();
 
+  const seededCompetitorAds = await scope
+    .insert(competitorAds, demoCompetitorAds.map(scoped))
+    .returning();
+
+  const seededCreatorRankings = await scope
+    .insert(creatorRankings, demoCreatorRankings.map(scoped))
+    .returning();
+
   // PRD §10, the client interface's configuration: the pages first, then their fields, which
   // reference the page rows by their fixture ids.
   const seededInterfacePages = await scope
@@ -384,6 +400,8 @@ export async function seed(db: Db): Promise<SeedResult> {
     creators: seededCreators,
     assets: seededAssets,
     adMetrics: seededAdMetrics,
+    competitorAds: seededCompetitorAds,
+    creatorRankings: seededCreatorRankings,
     interfacePages: seededInterfacePages,
     interfaceFields: seededInterfaceFields,
     notificationSettings: seededNotifications,

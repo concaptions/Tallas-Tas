@@ -120,6 +120,13 @@
       "when": 1789991453628,
       "tag": "0016_ad-metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789991998582,
+      "tag": "0017_competitor-ads-and-rankings",
+      "breakpoints": true
     }
   ]
 }

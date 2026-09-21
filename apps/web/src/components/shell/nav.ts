@@ -1,8 +1,10 @@
 import {
   anglesPath,
   appPath,
+  adSpyPath,
   assetsPath,
   briefsPath,
+  creatorRankingPath,
   performancePath,
   clientQueuePath,
   conceptsPath,
@@ -59,6 +61,13 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { key: 'ugc', label: 'UGC Management', icon: 'ugc', href: ugcPath },
       { key: 'assets', label: 'Asset Library', icon: 'assets', href: assetsPath },
       { key: 'performance', label: 'Performance', icon: 'performance', href: performancePath },
+      { key: 'ad-spy', label: 'Ad Spy', icon: 'ad-spy', href: adSpyPath },
+      {
+        key: 'creator-ranking',
+        label: 'Creator Ranking',
+        icon: 'creator-ranking',
+        href: creatorRankingPath,
+      },
     ],
   },
   {
