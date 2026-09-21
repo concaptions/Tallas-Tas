@@ -124,7 +124,12 @@ export function roleDashboard(role: BrandRole | 'admin'): RoleDashboard {
   const effectiveRole: BrandRole = role === 'admin' ? 'csm' : role;
   const builder = BUILDERS[effectiveRole];
   return {
-    roleLabel: role === 'admin' ? 'Admin' : BRAND_ROLE_LABELS[effectiveRole],
+    roleLabel:
+      role === 'admin'
+        ? 'Admin'
+        : role === 'video_editor'
+          ? 'Creative Items'
+          : BRAND_ROLE_LABELS[effectiveRole],
     items: builder(demoBriefs),
   };
 }

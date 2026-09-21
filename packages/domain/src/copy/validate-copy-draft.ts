@@ -42,6 +42,8 @@ export interface CopyDraft {
   readonly status: string;
   /** `null` is the "No creative" option, and a legitimate saved value. */
   readonly creativeBriefId: string | null;
+  /** `null` is the "No concept" option, and a legitimate saved value. */
+  readonly conceptId: string | null;
 }
 
 export type CopyDraftField = keyof CopyDraft;

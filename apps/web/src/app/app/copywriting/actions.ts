@@ -129,6 +129,7 @@ const optionalInt = z
  */
 const copySchema = z.object({
   creativeBriefId: optionalText,
+  conceptId: optionalText,
   primaryCopy: optionalText,
   headline: optionalText,
   linkDescription: optionalText,
@@ -150,6 +151,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
   for (const key of [
     'creativeBriefId',
+    'conceptId',
     'primaryCopy',
     'headline',
     'linkDescription',
@@ -215,6 +217,7 @@ function draftFrom(values: CopyFormValues, current: CopyListRow | null): DraftWi
 
   const draft: CopyDraft = {
     creativeBriefId: keep(values.creativeBriefId, current?.creativeBriefId ?? null),
+    conceptId: keep(values.conceptId, current?.conceptId ?? null),
     primaryCopy: keep(values.primaryCopy, current?.primaryCopy ?? null),
     headline: keep(values.headline, current?.headline ?? null),
     linkDescription: keep(values.linkDescription, current?.linkDescription ?? null),
@@ -261,6 +264,7 @@ function check(draft: CopyDraft, details: DetailFields): CheckedCopy | CopyActio
     validation,
     values: {
       creativeBriefId: draft.creativeBriefId,
+      conceptId: draft.conceptId,
       primaryCopy: draft.primaryCopy,
       headline: draft.headline,
       linkDescription: draft.linkDescription,

@@ -43,6 +43,7 @@ export const SELECTION_PARAM = 'copy';
 export const COPY_COLUMNS = [
   'Copy title / Headline',
   'Linked Creative',
+  'Concept',
   'Funnel',
   'Status',
   'Updated',
@@ -73,6 +74,8 @@ export interface CopyItem {
   /** `null` is the ordinary unattached case (CLAUDE.md non-negotiable 5), not a degraded row. */
   readonly creativeBriefId: string | null;
   readonly creativeName: string | null;
+  readonly conceptId: string | null;
+  readonly conceptName: string | null;
   /** `briefPath(creativeBriefId)`, or `null` when there is no creative to link to. */
   readonly creativeHref: string | null;
   /** A `COPY_FUNNELS` key, or `null` when not yet assigned. */
@@ -106,6 +109,15 @@ export const NO_CREATIVE_VALUE = 'none';
 
 /** What that option reads as (ticket criterion 7). */
 export const NO_CREATIVE_LABEL = 'No creative';
+
+/** One option of the panel's Concept select. */
+export interface ConceptChoice {
+  readonly id: string;
+  readonly name: string;
+}
+
+export const NO_CONCEPT_VALUE = 'none';
+export const NO_CONCEPT_LABEL = 'No concept';
 
 /** The four copy fields of ticket criterion 6, and how each one is rendered. */
 export interface CopyField {

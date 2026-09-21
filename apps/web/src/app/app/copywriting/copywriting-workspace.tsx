@@ -31,6 +31,7 @@ import {
   copyCountLabel,
   filteredCopyCountLabel,
   matchesQuery,
+  type ConceptChoice,
   type CopyItem,
   type CreativeChoice,
 } from './fields';
@@ -58,6 +59,7 @@ import {
 interface CopywritingWorkspaceProps {
   readonly items: readonly CopyItem[];
   readonly creatives: readonly CreativeChoice[];
+  readonly concepts: readonly ConceptChoice[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -82,6 +84,7 @@ function syncUrl(selection: string | null, search: string): void {
 export function CopywritingWorkspace({
   items,
   creatives,
+  concepts,
   demo,
   initialSelection,
   initialSearch,
@@ -265,6 +268,15 @@ export function CopywritingWorkspace({
                         </Link>
                       )}
                     </TableCell>
+                    <TableCell className="px-3 py-1.5 align-top whitespace-normal">
+                      {item.conceptName === null ? (
+                        <span className="text-text3">{EM_DASH}</span>
+                      ) : (
+                        <span className="inline-flex rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2">
+                          {item.conceptName}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="px-3 py-1.5 align-top whitespace-nowrap text-text3">
                       {copyFunnelLabel(item.funnel)}
                     </TableCell>
@@ -290,6 +302,7 @@ export function CopywritingWorkspace({
           key={open.id}
           item={open}
           creatives={creatives}
+          concepts={concepts}
           demo={demo}
           onClose={close}
           onSaved={saved}

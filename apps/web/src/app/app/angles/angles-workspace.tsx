@@ -19,15 +19,7 @@ import {
 } from '@tas/ui';
 
 import { AnglePanel, NEW_ANGLE, type LinkOption } from './angle-panel';
-import {
-  EM_DASH,
-  FORMAT_CHIP_TONE,
-  PERSONA_CHIP_TONE,
-  PRODUCT_CHIP_TONE,
-  chipLabel,
-  formatChipRow,
-  overflowLabel,
-} from './fields';
+import { EM_DASH, PERSONA_CHIP_TONE, PRODUCT_CHIP_TONE, chipLabel } from './fields';
 
 /**
  * The Angles table, its header actions and its side panel (PRD §5.6).
@@ -193,14 +185,13 @@ export function AnglesWorkspace({
                 <TableHead className="px-3">Name</TableHead>
                 <TableHead className="px-3">Persona</TableHead>
                 <TableHead className="px-3">Product</TableHead>
-                <TableHead className="px-3">Formats</TableHead>
                 <TableHead className="px-3">Updated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="px-3 py-10">
+                  <TableCell colSpan={4} className="px-3 py-10">
                     <div
                       data-slot="angles-empty"
                       className="flex flex-col items-center gap-3 text-center"
@@ -242,7 +233,6 @@ export function AnglesWorkspace({
                 </TableRow>
               ) : (
                 visible.map(({ angle, updatedLabel, updatedTitle }) => {
-                  const chips = formatChipRow(angle.formats);
                   return (
                     <TableRow
                       key={angle.id}
@@ -281,28 +271,6 @@ export function AnglesWorkspace({
                             tone={PRODUCT_CHIP_TONE}
                             label={chipLabel(angle.productName)}
                           />
-                        )}
-                      </TableCell>
-                      <TableCell className="px-3 py-1.5">
-                        {chips.shown.length === 0 ? (
-                          <span className="text-text4">{EM_DASH}</span>
-                        ) : (
-                          <span className="flex flex-nowrap items-center gap-1">
-                            {chips.shown.map((entry) => (
-                              <StatusChip
-                                key={entry.key}
-                                tone={FORMAT_CHIP_TONE}
-                                label={entry.label}
-                              />
-                            ))}
-                            {chips.overflow === 0 ? null : (
-                              <StatusChip
-                                tone="mute"
-                                label={overflowLabel(chips.overflow)}
-                                className="shrink-0"
-                              />
-                            )}
-                          </span>
                         )}
                       </TableCell>
                       <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>

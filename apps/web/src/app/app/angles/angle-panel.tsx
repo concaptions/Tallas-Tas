@@ -2,12 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import type { AngleListRow } from '@tas/db';
-import {
-  isHttpUrl,
-  validateAngleDraft,
-  type AngleFormatKey,
-  type AngleTypeKey,
-} from '@tas/domain/angles';
+import { validateAngleDraft, type AngleTypeKey } from '@tas/domain/angles';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -27,7 +22,6 @@ import {
 import { createAngleAction, updateAngleAction, type AngleActionResult } from './actions';
 import {
   ANGLE_FIELD_GROUPS,
-  ANGLE_FORMATS,
   ANGLE_TYPES,
   NONE_OPTION_LABEL,
   NONE_VALUE,
@@ -35,7 +29,6 @@ import {
   TYPE_SOON_HINT,
   type AngleFieldName,
 } from './fields';
-import { InspoCard } from './inspo-card';
 
 /** The `?angle=` value that means "the panel is open on an angle that does not exist yet". */
 export const NEW_ANGLE = 'new';
@@ -104,8 +97,8 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
   const [name, setName] = useState(valueOf(angle, 'name'));
   const [personaId, setPersonaId] = useState(angle?.personaId ?? NONE_VALUE);
   const [productId, setProductId] = useState(angle?.productId ?? NONE_VALUE);
-  const [formats, setFormats] = useState<readonly AngleFormatKey[]>(angle?.formats ?? []);
-  const [links, setLinks] = useState<readonly string[]>(() => linkRowsOf(angle));
+  const formats = angle?.formats ?? [];
+  const links = linkRowsOf(angle);
 
   const types: readonly AngleTypeKey[] = angle?.type ?? [];
 
@@ -151,27 +144,6 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
     ? DEMO_WRITE_HINT
     : (Object.values(draft.fieldErrors)[0] ?? 'Nothing to save yet.');
   const blocked = demo || !draft.ok;
-
-  const toggleFormat = (key: AngleFormatKey) => {
-    setFormats((current) =>
-      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
-    );
-  };
-
-  const editLink = (index: number, value: string) => {
-    setLinks((current) => {
-      const next = current.map((entry, position) => (position === index ? value : entry));
-      // Keep exactly one trailing blank row, so the list grows as it is filled in.
-      return next[next.length - 1] === '' ? next : [...next, ''];
-    });
-  };
-
-  const removeLink = (index: number) => {
-    setLinks((current) => {
-      const next = current.filter((_, position) => position !== index);
-      return next.length === 0 || next[next.length - 1] !== '' ? [...next, ''] : next;
-    });
-  };
 
   const renderProse = (field: { name: AngleFieldName; label: string; hint?: string }) => {
     const id = `angle-field-${field.name}`;
@@ -261,10 +233,6 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
     );
   };
 
-  const formatError = fieldError('formats');
-  const linkError = fieldError('adInspoLinks');
-  const filledLinks = links.filter((entry) => entry.trim() !== '');
-
   return (
     <aside
       data-slot="angle-panel"
@@ -317,54 +285,6 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
                       <div className="grid gap-4 sm:grid-cols-2">
                         {renderDropdown('personaId', 'Persona', personas, personaId, setPersonaId)}
                         {renderDropdown('productId', 'Product', products, productId, setProductId)}
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <Label className="text-[11px] tracking-wide text-text3 uppercase">
-                          Formats to create
-                        </Label>
-                        {/*
-                          Disabled in demo mode like every other write, so it is wrapped the same
-                          way: a disabled button receives no pointer events and could not carry its
-                          own tooltip. `disabledWriteClassName` is deliberately not applied — it
-                          flattens a control onto one muted surface, which on a toggle would erase
-                          which formats are selected, the one thing a read-only visitor came to see.
-                        */}
-                        <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
-                          <div
-                            className="flex flex-wrap gap-2"
-                            role="group"
-                            aria-label="Formats to create"
-                            data-slot="angle-formats"
-                          >
-                            {ANGLE_FORMATS.map((entry) => {
-                              const on = formats.includes(entry.key);
-                              return (
-                                <button
-                                  key={entry.key}
-                                  type="button"
-                                  disabled={demo}
-                                  aria-pressed={on}
-                                  data-slot="format-toggle"
-                                  data-format={entry.key}
-                                  onClick={() => {
-                                    toggleFormat(entry.key);
-                                  }}
-                                  className={
-                                    on
-                                      ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase disabled:cursor-not-allowed'
-                                      : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase hover:border-line2 hover:text-text2 disabled:cursor-not-allowed'
-                                  }
-                                >
-                                  {entry.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </DisabledWrite>
-                        {formatError === undefined ? null : (
-                          <p className="text-xs text-bad">{formatError}</p>
-                        )}
                       </div>
 
                       <div className="flex flex-col gap-1.5">
@@ -437,60 +357,6 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
                         );
                       })
                     : null}
-
-                  {group.heading === 'Inspiration' ? (
-                    <div className="flex flex-col gap-3" data-slot="angle-inspo">
-                      {filledLinks.length === 0 ? (
-                        <p className="text-sm text-text3" data-slot="angle-inspo-empty">
-                          No ad inspiration saved yet. Paste a Meta Ad Library, TikTok, YouTube or
-                          Instagram URL below.
-                        </p>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          {filledLinks.map((url, index) =>
-                            isHttpUrl(url.trim()) ? (
-                              <InspoCard key={`${url}-${String(index)}`} url={url.trim()} />
-                            ) : null,
-                          )}
-                        </div>
-                      )}
-
-                      <div className="flex flex-col gap-2">
-                        {links.map((url, index) => (
-                          <div key={`row-${String(index)}`} className="flex items-center gap-2">
-                            <Input
-                              name="adInspoLinks"
-                              value={url}
-                              readOnly={demo}
-                              aria-label={`Ad inspiration ${String(index + 1)}`}
-                              placeholder="https://www.facebook.com/ads/library/?id=…"
-                              data-slot="inspo-input"
-                              onChange={(event) => {
-                                editLink(index, event.target.value);
-                              }}
-                              className="font-mono text-xs"
-                            />
-                            {demo || url === '' ? null : (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                aria-label={`Remove ad inspiration ${String(index + 1)}`}
-                                onClick={() => {
-                                  removeLink(index);
-                                }}
-                              >
-                                Remove
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      {linkError === undefined ? null : (
-                        <p className="text-xs text-bad">{linkError}</p>
-                      )}
-                    </div>
-                  ) : null}
                 </div>
               </section>
             ))}

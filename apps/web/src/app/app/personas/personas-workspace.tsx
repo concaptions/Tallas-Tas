@@ -111,7 +111,6 @@ export function PersonasWorkspace({ items, demo, initialSelection }: PersonasWor
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-3">Name</TableHead>
-                <TableHead className="px-3">Product</TableHead>
                 <TableHead className="px-3">Stage of Awareness</TableHead>
                 <TableHead className="px-3">Updated</TableHead>
               </TableRow>
@@ -119,7 +118,7 @@ export function PersonasWorkspace({ items, demo, initialSelection }: PersonasWor
             <TableBody>
               {items.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="px-3 py-6 text-center text-sm text-text3">
+                  <TableCell colSpan={3} className="px-3 py-6 text-center text-sm text-text3">
                     No personas yet. Start with the one your best customer looks like.
                   </TableCell>
                 </TableRow>
@@ -143,9 +142,6 @@ export function PersonasWorkspace({ items, demo, initialSelection }: PersonasWor
                   >
                     <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
                       {persona.name}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text2">
-                      {persona.productName ?? <span className="text-text4">{EM_DASH}</span>}
                     </TableCell>
                     <TableCell className="px-3 py-1.5">
                       {persona.stageOfAwareness === null ? (

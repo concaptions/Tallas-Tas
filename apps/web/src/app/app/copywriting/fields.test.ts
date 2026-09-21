@@ -34,6 +34,8 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     creativeBriefId: '77777777-7777-4777-8777-000000000001',
     creativeName: 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
     creativeHref: '/app/briefs/77777777-7777-4777-8777-000000000001',
+    conceptId: null,
+    conceptName: null,
     funnel: null,
     used: false,
     winning: false,

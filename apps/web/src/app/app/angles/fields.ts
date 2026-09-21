@@ -138,7 +138,6 @@ export const ANGLE_FIELD_GROUPS: readonly AngleFieldGroup[] = [
     fields: [{ name: 'usp', label: 'USP' }],
   },
   { heading: 'Targeting', fields: [] },
-  { heading: 'Inspiration', fields: [] },
   {
     heading: 'Resources',
     fields: [

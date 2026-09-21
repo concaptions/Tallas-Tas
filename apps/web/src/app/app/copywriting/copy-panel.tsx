@@ -26,6 +26,8 @@ import {
   CTA_OPTIONS,
   DEMO_FOOTER_NOTICE,
   FUNNEL_OPTIONS,
+  NO_CONCEPT_LABEL,
+  NO_CONCEPT_VALUE,
   NO_CREATIVE_LABEL,
   NO_CREATIVE_VALUE,
   NO_FUNNEL_LABEL,
@@ -33,6 +35,7 @@ import {
   STATUS_OPTIONS,
   counterLabel,
   counterTone,
+  type ConceptChoice,
   type CopyField,
   type CopyItem,
   type CreativeChoice,
@@ -63,6 +66,7 @@ import {
 interface CopyPanelProps {
   readonly item: CopyItem;
   readonly creatives: readonly CreativeChoice[];
+  readonly concepts: readonly ConceptChoice[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: () => void;
@@ -95,6 +99,7 @@ function draftOf(item: CopyItem): CopyDraft {
     cta: item.cta,
     status: item.status,
     creativeBriefId: item.creativeBriefId,
+    conceptId: item.conceptId,
   };
 }
 
@@ -115,7 +120,7 @@ function detailDraftOf(item: CopyItem): DetailDraft {
   };
 }
 
-export function CopyPanel({ item, creatives, demo, onClose, onSaved }: CopyPanelProps) {
+export function CopyPanel({ item, creatives, concepts, demo, onClose, onSaved }: CopyPanelProps) {
   const [state, formAction, pending] = useActionState<CopyActionResult | null, FormData>(
     updateCopyAction,
     null,
@@ -230,6 +235,7 @@ export function CopyPanel({ item, creatives, demo, onClose, onSaved }: CopyPanel
   };
 
   const creativeValue = draft.creativeBriefId ?? NO_CREATIVE_VALUE;
+  const conceptValue = draft.conceptId ?? NO_CONCEPT_VALUE;
   const savedWarnings = state !== null && state.ok ? Object.keys(state.warnings).length : 0;
 
   return (
@@ -328,6 +334,45 @@ export function CopyPanel({ item, creatives, demo, onClose, onSaved }: CopyPanel
                     {errorFor('creativeBriefId')}
                   </p>
                 )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="copy-field-conceptId"
+                  className="text-[11px] tracking-wide text-text3 uppercase"
+                >
+                  Concept
+                </Label>
+                <Select
+                  value={conceptValue}
+                  onValueChange={(next) => {
+                    patch({ conceptId: next === NO_CONCEPT_VALUE ? null : next });
+                  }}
+                  disabled={demo}
+                >
+                  <SelectTrigger
+                    id="copy-field-conceptId"
+                    className="w-full"
+                    aria-label="Concept"
+                    data-slot="copy-concept-select"
+                  >
+                    <SelectValue placeholder={NO_CONCEPT_LABEL} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_CONCEPT_VALUE}>{NO_CONCEPT_LABEL}</SelectItem>
+                    {concepts.map((concept) => (
+                      <SelectItem key={concept.id} value={concept.id} className="font-mono">
+                        {concept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input
+                  type="hidden"
+                  name="conceptId"
+                  value={draft.conceptId ?? ''}
+                  data-slot="copy-concept-value"
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">

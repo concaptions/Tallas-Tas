@@ -1,9 +1,11 @@
 import {
   createAutoDb,
   demoBriefs,
+  demoConcepts,
   demoCopy,
   getCopyById,
   listBriefs,
+  listConcepts,
   listCopy,
   type CopyListRow,
   type Db,
@@ -64,9 +66,15 @@ export interface CopyListResult {
  * Creative options. One call, so live mode opens ONE connection for both — a page that called two
  * loaders would open and close Neon twice per request to draw a single screen.
  */
+export interface ConceptOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface CopyWorkspaceResult {
   readonly rows: CopyListRow[];
   readonly creatives: CreativeOption[];
+  readonly concepts: ConceptOption[];
   readonly source: CopySourceKind;
 }
 
@@ -126,6 +134,10 @@ function toCreativeOption(brief: { readonly id: string; readonly name: string })
   return { id: brief.id, name: brief.name };
 }
 
+function toConceptOption(concept: { readonly id: string; readonly name: string }): ConceptOption {
+  return { id: concept.id, name: concept.name };
+}
+
 /**
  * Every copy row of the working brand, newest edit first, each already carrying the name of the
  * creative it is tied to — or `null`, the ordinary unattached case (CLAUDE.md non-negotiable 5).
@@ -158,15 +170,29 @@ export async function loadCreativeOptions(deps: CopySourceDeps = {}): Promise<Cr
  */
 export async function loadCopyWorkspace(deps: CopySourceDeps = {}): Promise<CopyWorkspaceResult> {
   if (inDemoMode(deps)) {
-    return { rows: demoCopy, creatives: demoBriefs.map(toCreativeOption), source: 'demo' };
+    return {
+      rows: demoCopy,
+      creatives: demoBriefs.map(toCreativeOption),
+      concepts: demoConcepts.map(toConceptOption),
+      source: 'demo',
+    };
   }
   return withDb(deps, async (db) => {
     const brandId = await resolveLiveBrandId(db, deps);
     if (brandId === null) {
-      return { rows: [], creatives: [], source: 'database' as const };
+      return { rows: [], creatives: [], concepts: [], source: 'database' as const };
     }
-    const [rows, briefs] = await Promise.all([listCopy(db, brandId), listBriefs(db, brandId)]);
-    return { rows, creatives: briefs.map(toCreativeOption), source: 'database' as const };
+    const [rows, briefs, conceptRows] = await Promise.all([
+      listCopy(db, brandId),
+      listBriefs(db, brandId),
+      listConcepts(db, brandId),
+    ]);
+    return {
+      rows,
+      creatives: briefs.map(toCreativeOption),
+      concepts: conceptRows.map(toConceptOption),
+      source: 'database' as const,
+    };
   });
 }
 

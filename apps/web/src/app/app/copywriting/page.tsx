@@ -34,7 +34,10 @@ interface CopywritingPageProps {
 }
 
 export default async function CopywritingPage({ searchParams }: CopywritingPageProps) {
-  const [{ rows, creatives }, params] = await Promise.all([loadCopyWorkspace(), searchParams]);
+  const [{ rows, creatives, concepts }, params] = await Promise.all([
+    loadCopyWorkspace(),
+    searchParams,
+  ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -51,6 +54,8 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
     creativeBriefId: row.creativeBriefId,
     creativeName: row.creativeName,
     creativeHref: row.creativeBriefId === null ? null : briefPath(row.creativeBriefId),
+    conceptId: row.conceptId,
+    conceptName: row.conceptName,
     funnel: row.funnel,
     used: row.used,
     winning: row.winning,
@@ -72,6 +77,7 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
     <CopywritingWorkspace
       items={items}
       creatives={creatives.map((creative) => ({ id: creative.id, name: creative.name }))}
+      concepts={concepts.map((concept) => ({ id: concept.id, name: concept.name }))}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

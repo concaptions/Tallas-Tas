@@ -33,7 +33,7 @@ describe('roleDashboard', () => {
 
   it('editor sees briefs in production and copy pending review', () => {
     const d = roleDashboard('video_editor');
-    expect(d.roleLabel).toBe('Video Editor');
+    expect(d.roleLabel).toBe('Creative Items');
     const labels = d.items.map((i) => i.label);
     expect(labels).toContain('Briefs in production');
     expect(labels).toContain('Copy pending review');

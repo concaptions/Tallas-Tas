@@ -73,6 +73,7 @@ describe('migration 0007 on PGlite', () => {
       'brand_id',
       'click_for_ai_spell_checker',
       'client_comment',
+      'concept_id',
       'copy_number',
       'created_at',
       'created_by',
