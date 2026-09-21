@@ -54,6 +54,11 @@ export const notificationsPath = '/app/notifications';
  * pages in it are siblings rather than children. The sidebar section key stays `propagation`.
  */
 export const propagationPath = '/app/propagation';
+/**
+ * The brand onboarding wizard (PRD §3). Creates a new client workspace with team assignments,
+ * interface config and notification defaults seeded from the template.
+ */
+export const onboardPath = '/app/onboard';
 export const designSystemPath = '/design-system';
 
 /**

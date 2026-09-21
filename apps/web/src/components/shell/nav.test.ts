@@ -20,6 +20,7 @@ describe('NAV_SECTIONS', () => {
       'Interface Config',
       'Notifications',
       'Propagation',
+      'Add Brand',
       'Design System',
     ]);
   });
@@ -69,6 +70,7 @@ describe('NAV_SECTIONS', () => {
       ['Interface Config', '/app/interface-config'],
       ['Notifications', '/app/notifications'],
       ['Propagation', '/app/propagation'],
+      ['Add Brand', '/app/onboard'],
       ['Design System', '/design-system'],
     ]);
   });
@@ -99,6 +101,7 @@ describe('activeSectionKey', () => {
     ['/app/interface-config', 'interface-config'],
     ['/app/notifications', 'notifications'],
     ['/app/propagation', 'propagation'],
+    ['/app/onboard', 'onboard'],
     ['/design-system', 'design-system'],
   ])('marks %s as %s', (pathname, key) => {
     expect(activeSectionKey(pathname)).toBe(key);

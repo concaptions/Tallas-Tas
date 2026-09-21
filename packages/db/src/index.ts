@@ -76,6 +76,13 @@ export { listTeam, listTeamMembers } from './team';
 export type { TeamListRow, TeamMemberRow, TeamRole } from './team';
 export { getThemeById, insertTheme, listThemes, updateTheme } from './themes';
 export type { ThemeInput, ThemeListRow } from './themes';
+export {
+  findAgencyByClerkOrg,
+  listAvailableTeamMembers,
+  onboardBrand,
+  type OnboardBrandInput,
+  type OnboardBrandResult,
+} from './onboard';
 export { withBrand } from './tenancy';
 export type { BrandedTable, BrandScope, ScopedInsertValue, ScopedUpdateSet } from './tenancy';
 export type { ScopedSelect, ScopedWrite } from './tenancy';
