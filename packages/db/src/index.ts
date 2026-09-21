@@ -85,6 +85,14 @@ export {
   type OnboardBrandInput,
   type OnboardBrandResult,
 } from './onboard';
+export {
+  getChannelSettings,
+  logNotification,
+  markNotificationFailed,
+  markNotificationSent,
+  resolveRecipients,
+} from './notification-dispatch';
+export type { LogNotificationInput, ResolvedRecipient } from './notification-dispatch';
 export { withBrand } from './tenancy';
 export type { BrandedTable, BrandScope, ScopedInsertValue, ScopedUpdateSet } from './tenancy';
 export type { ScopedSelect, ScopedWrite } from './tenancy';
