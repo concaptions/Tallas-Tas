@@ -22,6 +22,7 @@ export const creatorRankings = pgTable(
     avgCpa: numeric('avg_cpa', { precision: 10, scale: 2 }),
     rank: integer('rank').notNull(),
     periodLabel: text('period_label').notNull(),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('creator_rankings_brand_id_idx').on(table.brandId),

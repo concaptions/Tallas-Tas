@@ -21,6 +21,7 @@ export const competitorAds = pgTable(
     firstSeen: text('first_seen').notNull(),
     lastSeen: text('last_seen'),
     notes: text('notes'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [index('competitor_ads_brand_id_idx').on(table.brandId)],
 );

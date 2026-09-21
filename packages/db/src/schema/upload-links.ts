@@ -19,6 +19,7 @@ export const uploadLinks = pgTable(
     isActive: boolean('is_active').notNull().default(true),
     uploadsUsed: text('uploads_used').notNull().default('0'),
     notes: text('notes'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('upload_links_brand_id_idx').on(table.brandId),

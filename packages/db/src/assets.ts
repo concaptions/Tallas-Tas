@@ -46,3 +46,16 @@ export async function insertAsset(
   if (row === undefined) throw new Error('assets insert returned no row');
   return row;
 }
+
+export async function updateAsset(
+  db: Db,
+  brandId: string,
+  id: string,
+  patch: Partial<AssetInput>,
+  actorId: string,
+): Promise<Asset | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(assets, { ...patch, updatedBy: actorId, updatedAt: new Date() }, eq(assets.id, id))
+    .returning();
+  return row ?? null;
+}

@@ -25,6 +25,7 @@ export const adMetrics = pgTable(
     cpa: numeric('cpa', { precision: 10, scale: 2 }),
     roas: numeric('roas', { precision: 8, scale: 2 }),
     dateRange: text('date_range').notNull(),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('ad_metrics_brand_id_idx').on(table.brandId),

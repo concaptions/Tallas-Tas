@@ -42,3 +42,31 @@ export async function insertOnboardingForm(
   if (row === undefined) throw new Error('onboarding_forms insert returned no row');
   return row;
 }
+
+export async function getOnboardingFormById(
+  db: Db,
+  brandId: string,
+  id: string,
+): Promise<OnboardingFormListRow | null> {
+  const [row] = await withBrand(db, brandId)
+    .select(onboardingForms, eq(onboardingForms.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function updateOnboardingForm(
+  db: Db,
+  brandId: string,
+  id: string,
+  patch: Partial<OnboardingFormInput>,
+  actorId: string,
+): Promise<OnboardingForm | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      onboardingForms,
+      { ...patch, updatedBy: actorId, updatedAt: new Date() },
+      eq(onboardingForms.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

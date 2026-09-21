@@ -35,3 +35,29 @@ export async function insertUploadLink(
   if (row === undefined) throw new Error('upload_links insert returned no row');
   return row;
 }
+
+export async function getUploadLinkById(
+  db: Db,
+  brandId: string,
+  id: string,
+): Promise<UploadLinkListRow | null> {
+  const [row] = await withBrand(db, brandId).select(uploadLinks, eq(uploadLinks.id, id)).limit(1);
+  return row ?? null;
+}
+
+export async function updateUploadLink(
+  db: Db,
+  brandId: string,
+  id: string,
+  patch: Partial<UploadLinkInput>,
+  actorId: string,
+): Promise<UploadLink | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      uploadLinks,
+      { ...patch, updatedBy: actorId, updatedAt: new Date() },
+      eq(uploadLinks.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

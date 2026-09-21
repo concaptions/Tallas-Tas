@@ -2334,7 +2334,7 @@ export const demoReviewedPromotionRequests: PromotionRequestRow[] = [
 
 export const demoAssets: AssetListRow[] = [
   {
-    ...base(ASSET_REF_VIDEO_ID, '2026-09-01T09:00:00.000Z', '2026-09-01T09:00:00.000Z'),
+    ...contentBase(ASSET_REF_VIDEO_ID, '2026-09-01T09:00:00.000Z', '2026-09-01T09:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     filename: 'competitor-sleep-ad.mp4',
     contentType: 'video/mp4',
@@ -2346,7 +2346,7 @@ export const demoAssets: AssetListRow[] = [
     caption: 'Competitor ad — body clock angle on Meta',
   },
   {
-    ...base(ASSET_BROLL_ID, '2026-09-02T14:30:00.000Z', '2026-09-02T14:30:00.000Z'),
+    ...contentBase(ASSET_BROLL_ID, '2026-09-02T14:30:00.000Z', '2026-09-02T14:30:00.000Z'),
     brandId: DEMO_BRAND_ID,
     filename: 'blanket-texture-closeup.jpg',
     contentType: 'image/jpeg',
@@ -2358,7 +2358,7 @@ export const demoAssets: AssetListRow[] = [
     caption: 'Reusable B-roll — product texture close-up',
   },
   {
-    ...base(ASSET_RAW_ID, '2026-09-03T11:00:00.000Z', '2026-09-03T11:00:00.000Z'),
+    ...contentBase(ASSET_RAW_ID, '2026-09-03T11:00:00.000Z', '2026-09-03T11:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     filename: 'danielle-take-3.mov',
     contentType: 'video/quicktime',
@@ -2370,7 +2370,7 @@ export const demoAssets: AssetListRow[] = [
     caption: null,
   },
   {
-    ...base(ASSET_MOOD_ID, '2026-09-04T08:15:00.000Z', '2026-09-04T08:15:00.000Z'),
+    ...contentBase(ASSET_MOOD_ID, '2026-09-04T08:15:00.000Z', '2026-09-04T08:15:00.000Z'),
     brandId: DEMO_BRAND_ID,
     filename: 'daylight-mood-ref.png',
     contentType: 'image/png',
@@ -2385,7 +2385,7 @@ export const demoAssets: AssetListRow[] = [
 
 export const demoAdMetrics: AdMetricListRow[] = [
   {
-    ...base(METRIC_BODY_CLOCK_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    ...contentBase(METRIC_BODY_CLOCK_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     briefId: BRIEF_BODY_CLOCK_VIDEO_ID,
     conceptId: CONCEPT_BODY_CLOCK_ID,
@@ -2402,7 +2402,7 @@ export const demoAdMetrics: AdMetricListRow[] = [
     dateRange: '2026-09-01 to 2026-09-14',
   },
   {
-    ...base(METRIC_NOT_YOUR_AGE_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    ...contentBase(METRIC_NOT_YOUR_AGE_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     briefId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
     conceptId: CONCEPT_NOT_YOUR_AGE_ID,
@@ -2419,7 +2419,7 @@ export const demoAdMetrics: AdMetricListRow[] = [
     dateRange: '2026-09-01 to 2026-09-14',
   },
   {
-    ...base(METRIC_DAYLIGHT_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    ...contentBase(METRIC_DAYLIGHT_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     briefId: BRIEF_DAYLIGHT_MOTION_ID,
     conceptId: CONCEPT_DAYLIGHT_ID,
@@ -2436,7 +2436,11 @@ export const demoAdMetrics: AdMetricListRow[] = [
     dateRange: '2026-09-01 to 2026-09-14',
   },
   {
-    ...base(METRIC_NINETY_MINUTES_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    ...contentBase(
+      METRIC_NINETY_MINUTES_ID,
+      '2026-09-10T08:00:00.000Z',
+      '2026-09-15T08:00:00.000Z',
+    ),
     brandId: DEMO_BRAND_ID,
     briefId: BRIEF_NINETY_MINUTES_VIDEO_ID,
     conceptId: CONCEPT_NINETY_MINUTES_ID,
@@ -2456,7 +2460,7 @@ export const demoAdMetrics: AdMetricListRow[] = [
 
 export const demoCompetitorAds: CompetitorAdListRow[] = [
   {
-    ...base(COMP_AD_CASPER_ID, '2026-09-08T10:00:00.000Z', '2026-09-14T10:00:00.000Z'),
+    ...contentBase(COMP_AD_CASPER_ID, '2026-09-08T10:00:00.000Z', '2026-09-14T10:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     platform: 'meta',
     advertiserName: 'Casper Sleep',
@@ -2471,7 +2475,7 @@ export const demoCompetitorAds: CompetitorAdListRow[] = [
     notes: 'Heavy spend on cooling angle',
   },
   {
-    ...base(COMP_AD_PURPLE_ID, '2026-09-09T11:00:00.000Z', '2026-09-14T11:00:00.000Z'),
+    ...contentBase(COMP_AD_PURPLE_ID, '2026-09-09T11:00:00.000Z', '2026-09-14T11:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     platform: 'meta',
     advertiserName: 'Purple Mattress',
@@ -2486,7 +2490,7 @@ export const demoCompetitorAds: CompetitorAdListRow[] = [
     notes: null,
   },
   {
-    ...base(COMP_AD_HELIX_ID, '2026-09-10T09:00:00.000Z', '2026-09-14T09:00:00.000Z'),
+    ...contentBase(COMP_AD_HELIX_ID, '2026-09-10T09:00:00.000Z', '2026-09-14T09:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     platform: 'tiktok',
     advertiserName: 'Helix Sleep',
@@ -2504,7 +2508,7 @@ export const demoCompetitorAds: CompetitorAdListRow[] = [
 
 export const demoCreatorRankings: CreatorRankingListRow[] = [
   {
-    ...base(RANKING_DANIELLE_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    ...contentBase(RANKING_DANIELLE_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creatorId: CREATOR_DANIELLE_ID,
     creatorName: 'Danielle Torres',
@@ -2517,7 +2521,7 @@ export const demoCreatorRankings: CreatorRankingListRow[] = [
     periodLabel: 'Sep 2026',
   },
   {
-    ...base(RANKING_MARCUS_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    ...contentBase(RANKING_MARCUS_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creatorId: CREATOR_MARCUS_ID,
     creatorName: 'Marcus Chen',
@@ -2530,7 +2534,7 @@ export const demoCreatorRankings: CreatorRankingListRow[] = [
     periodLabel: 'Sep 2026',
   },
   {
-    ...base(RANKING_PRIYA_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    ...contentBase(RANKING_PRIYA_ID, '2026-09-15T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creatorId: CREATOR_PRIYA_ID,
     creatorName: 'Priya Sharma',
@@ -2546,7 +2550,7 @@ export const demoCreatorRankings: CreatorRankingListRow[] = [
 
 export const demoUploadLinks: UploadLinkListRow[] = [
   {
-    ...base(UPLOAD_LINK_AGENCY_ID, '2026-09-10T10:00:00.000Z', '2026-09-14T10:00:00.000Z'),
+    ...contentBase(UPLOAD_LINK_AGENCY_ID, '2026-09-10T10:00:00.000Z', '2026-09-14T10:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     token: 'tok_agency_niagara_sept',
     label: 'September Agency Deliverables',
@@ -2559,7 +2563,7 @@ export const demoUploadLinks: UploadLinkListRow[] = [
     notes: 'Monthly asset delivery from creative agency',
   },
   {
-    ...base(UPLOAD_LINK_CREATOR_ID, '2026-09-12T14:00:00.000Z', '2026-09-15T09:00:00.000Z'),
+    ...contentBase(UPLOAD_LINK_CREATOR_ID, '2026-09-12T14:00:00.000Z', '2026-09-15T09:00:00.000Z'),
     brandId: DEMO_BRAND_ID,
     token: 'tok_creator_danielle_sept',
     label: 'Danielle — Body Clock Takes',

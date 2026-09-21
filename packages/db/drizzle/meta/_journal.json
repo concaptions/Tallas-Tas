@@ -148,6 +148,20 @@
       "when": 1790000148649,
       "tag": "0020_material_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790005613089,
+      "tag": "0021_mixed_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790007374372,
+      "tag": "0022_rich_risque",
+      "breakpoints": true
     }
   ]
 }

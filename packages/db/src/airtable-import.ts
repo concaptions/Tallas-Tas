@@ -3,14 +3,19 @@ import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
 import {
+  adMetrics,
   angles,
+  assets,
+  competitorAds,
   concepts,
   copywriting,
   creativeBriefs,
+  creatorRankings,
   creators,
   personas,
   products,
   themes,
+  uploadLinks,
 } from './schema';
 
 export interface AirtableRecord {
@@ -27,6 +32,11 @@ export interface AirtableExport {
   readonly 'Creative Briefs'?: AirtableRecord[];
   readonly Copywriting?: AirtableRecord[];
   readonly Creators?: AirtableRecord[];
+  readonly Assets?: AirtableRecord[];
+  readonly 'Ad Metrics'?: AirtableRecord[];
+  readonly 'Competitor Ads'?: AirtableRecord[];
+  readonly 'Creator Rankings'?: AirtableRecord[];
+  readonly 'Upload Links'?: AirtableRecord[];
 }
 
 interface TableResult {
@@ -209,7 +219,7 @@ export async function importAirtableExport(
   );
   results.copywriting = copyResult;
 
-  const { result: creatorResult } = await importRows(
+  const { result: creatorResult, idMap: creatorMap } = await importRows(
     db,
     creators,
     data.Creators ?? [],
@@ -226,6 +236,109 @@ export async function importAirtableExport(
     actorId,
   );
   results.creators = creatorResult;
+
+  const { result: assetResult } = await importRows(
+    db,
+    assets,
+    data.Assets ?? [],
+    (f) => ({
+      brandId,
+      filename: str(f.Filename) ?? 'untitled',
+      contentType: str(f['Content Type']) ?? 'application/octet-stream',
+      sizeBytes: num(f['Size Bytes']) ?? 0,
+      r2Key: str(f['R2 Key']) ?? '',
+      url: str(f.URL) ?? '',
+      category: str(f.Category) ?? 'reference',
+      conceptId: resolveRef(conceptMap, f.Concept),
+      caption: str(f.Caption),
+    }),
+    actorId,
+  );
+  results.assets = assetResult;
+
+  const { result: adMetricResult } = await importRows(
+    db,
+    adMetrics,
+    data['Ad Metrics'] ?? [],
+    (f) => ({
+      brandId,
+      adName: str(f['Ad Name']) ?? 'Untitled',
+      metaAdId: str(f['Meta Ad ID']),
+      briefId: resolveRef(briefMap, f['Creative Brief']),
+      conceptId: resolveRef(conceptMap, f.Concept),
+      spend: str(f.Spend) ?? '0',
+      impressions: num(f.Impressions) ?? 0,
+      clicks: num(f.Clicks) ?? 0,
+      conversions: num(f.Conversions) ?? 0,
+      ctr: str(f.CTR),
+      cpc: str(f.CPC),
+      cpa: str(f.CPA),
+      roas: str(f.ROAS),
+      dateRange: str(f['Date Range']) ?? '',
+    }),
+    actorId,
+  );
+  results.adMetrics = adMetricResult;
+
+  const { result: competitorAdResult } = await importRows(
+    db,
+    competitorAds,
+    data['Competitor Ads'] ?? [],
+    (f) => ({
+      brandId,
+      platform: str(f.Platform) ?? 'meta',
+      advertiserName: str(f['Advertiser Name']) ?? 'Unknown',
+      adUrl: str(f['Ad URL']) ?? '',
+      headline: str(f.Headline),
+      bodyText: str(f['Body Text']),
+      format: str(f.Format) ?? 'video',
+      estimatedSpend: str(f['Estimated Spend']),
+      daysActive: num(f['Days Active']),
+      firstSeen: str(f['First Seen']) ?? '',
+      lastSeen: str(f['Last Seen']),
+      notes: str(f.Notes),
+    }),
+    actorId,
+  );
+  results.competitorAds = competitorAdResult;
+
+  const { result: rankingResult } = await importRows(
+    db,
+    creatorRankings,
+    data['Creator Rankings'] ?? [],
+    (f) => ({
+      brandId,
+      creatorId: resolveRef(creatorMap, f.Creator) ?? '',
+      creatorName: str(f['Creator Name']) ?? 'Unknown',
+      totalAds: num(f['Total Ads']) ?? 0,
+      totalSpend: str(f['Total Spend']) ?? '0',
+      totalConversions: num(f['Total Conversions']) ?? 0,
+      avgRoas: str(f['Avg ROAS']),
+      avgCpa: str(f['Avg CPA']),
+      rank: num(f.Rank) ?? 0,
+      periodLabel: str(f['Period Label']) ?? '',
+    }),
+    actorId,
+  );
+  results.creatorRankings = rankingResult;
+
+  const { result: uploadLinkResult } = await importRows(
+    db,
+    uploadLinks,
+    data['Upload Links'] ?? [],
+    (f) => ({
+      brandId,
+      token: str(f.Token) ?? crypto.randomUUID().slice(0, 8),
+      label: str(f.Label) ?? 'Imported link',
+      recipientName: str(f['Recipient Name']),
+      recipientEmail: str(f['Recipient Email']),
+      maxUploads: str(f['Max Uploads']),
+      isActive: f['Is Active'] !== false,
+      notes: str(f.Notes),
+    }),
+    actorId,
+  );
+  results.uploadLinks = uploadLinkResult;
 
   return results;
 }

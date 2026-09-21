@@ -40,3 +40,31 @@ export async function listCreatorRankingsByCreator(
     .select(creatorRankings, eq(creatorRankings.creatorId, creatorId))
     .orderBy(desc(creatorRankings.createdAt));
 }
+
+export async function getCreatorRankingById(
+  db: Db,
+  brandId: string,
+  id: string,
+): Promise<CreatorRankingListRow | null> {
+  const [row] = await withBrand(db, brandId)
+    .select(creatorRankings, eq(creatorRankings.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function updateCreatorRanking(
+  db: Db,
+  brandId: string,
+  id: string,
+  patch: Partial<CreatorRankingInput>,
+  actorId: string,
+): Promise<CreatorRanking | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creatorRankings,
+      { ...patch, updatedBy: actorId, updatedAt: new Date() },
+      eq(creatorRankings.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

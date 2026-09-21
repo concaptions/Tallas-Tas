@@ -1,15 +1,28 @@
-export { insertAdMetric, listAdMetrics, listConceptMetrics } from './ad-metrics';
+export {
+  getAdMetricById,
+  insertAdMetric,
+  listAdMetrics,
+  listConceptMetrics,
+  updateAdMetric,
+} from './ad-metrics';
 export type { AdMetricInput, AdMetricListRow } from './ad-metrics';
-export { getCompetitorAdById, insertCompetitorAd, listCompetitorAds } from './competitor-ads';
+export {
+  getCompetitorAdById,
+  insertCompetitorAd,
+  listCompetitorAds,
+  updateCompetitorAd,
+} from './competitor-ads';
 export type { CompetitorAdInput, CompetitorAdListRow } from './competitor-ads';
 export {
+  getCreatorRankingById,
   insertCreatorRanking,
   listCreatorRankings,
   listCreatorRankingsByCreator,
+  updateCreatorRanking,
 } from './creator-rankings';
 export type { CreatorRankingInput, CreatorRankingListRow } from './creator-rankings';
 export { importAirtableExport } from './airtable-import';
-export { getAssetById, insertAsset, listAssets, listConceptAssets } from './assets';
+export { getAssetById, insertAsset, listAssets, listConceptAssets, updateAsset } from './assets';
 export type { AssetInput, AssetListRow } from './assets';
 export { assetCategories } from './schema/assets';
 export type { AssetCategory } from './schema/assets';
@@ -18,12 +31,28 @@ export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
 export type { AngleInput, AngleListRow } from './angles';
 export { getBriefById, insertBrief, listBriefs, updateBrief } from './briefs';
 export type { BriefInput, BriefListRow } from './briefs';
-export { getUploadLinkByToken, insertUploadLink, listUploadLinks } from './upload-links';
+export {
+  getUploadLinkById,
+  getUploadLinkByToken,
+  insertUploadLink,
+  listUploadLinks,
+  updateUploadLink,
+} from './upload-links';
+export {
+  listCreatorConceptIds,
+  listCreatorProductIds,
+  syncCreatorConcepts,
+  syncCreatorProducts,
+  removeCreatorConcept,
+  removeCreatorProduct,
+} from './junction-queries';
 export type { UploadLinkInput, UploadLinkListRow } from './upload-links';
 export {
+  getOnboardingFormById,
   getOnboardingFormByToken,
   insertOnboardingForm,
   listOnboardingForms,
+  updateOnboardingForm,
 } from './onboarding-forms';
 export type { OnboardingFormInput, OnboardingFormListRow } from './onboarding-forms';
 export { baseColumns, propagationColumns } from './columns';

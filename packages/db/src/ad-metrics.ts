@@ -37,3 +37,29 @@ export async function insertAdMetric(
   if (row === undefined) throw new Error('ad_metrics insert returned no row');
   return row;
 }
+
+export async function getAdMetricById(
+  db: Db,
+  brandId: string,
+  id: string,
+): Promise<AdMetricListRow | null> {
+  const [row] = await withBrand(db, brandId).select(adMetrics, eq(adMetrics.id, id)).limit(1);
+  return row ?? null;
+}
+
+export async function updateAdMetric(
+  db: Db,
+  brandId: string,
+  id: string,
+  patch: Partial<AdMetricInput>,
+  actorId: string,
+): Promise<AdMetric | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      adMetrics,
+      { ...patch, updatedBy: actorId, updatedAt: new Date() },
+      eq(adMetrics.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

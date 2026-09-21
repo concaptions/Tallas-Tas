@@ -38,3 +38,20 @@ export async function getCompetitorAdById(
     .limit(1);
   return row ?? null;
 }
+
+export async function updateCompetitorAd(
+  db: Db,
+  brandId: string,
+  id: string,
+  patch: Partial<CompetitorAdInput>,
+  actorId: string,
+): Promise<CompetitorAd | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      competitorAds,
+      { ...patch, updatedBy: actorId, updatedAt: new Date() },
+      eq(competitorAds.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

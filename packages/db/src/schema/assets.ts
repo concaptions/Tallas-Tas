@@ -25,6 +25,7 @@ export const assets = pgTable(
     category: text('category').$type<AssetCategory>().notNull(),
     conceptId: uuid('concept_id').references(() => concepts.id),
     caption: text('caption'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('assets_brand_id_idx').on(table.brandId),
