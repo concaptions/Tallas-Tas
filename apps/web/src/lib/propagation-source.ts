@@ -82,7 +82,11 @@ function neonConnection(databaseUrl: string): DbConnection {
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */
 async function withDb<T>(deps: PromotionSourceDeps, query: (db: Db) => Promise<T>): Promise<T> {
   const connect = deps.connect ?? neonConnection;
-  const connection = connect(serverEnv().DATABASE_URL);
+  const databaseUrl = serverEnv().DATABASE_URL;
+  if (databaseUrl === undefined) {
+    throw new Error('DATABASE_URL is not configured.');
+  }
+  const connection = connect(databaseUrl);
   try {
     return await query(connection.db);
   } finally {
@@ -91,7 +95,10 @@ async function withDb<T>(deps: PromotionSourceDeps, query: (db: Db) => Promise<T
 }
 
 function inDemoMode(deps: PromotionSourceDeps): boolean {
-  return (deps.demoMode ?? isDemoMode)();
+  if ((deps.demoMode ?? isDemoMode)()) {
+    return true;
+  }
+  return serverEnv().DATABASE_URL === undefined;
 }
 
 /**

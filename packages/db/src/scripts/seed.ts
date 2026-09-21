@@ -5,7 +5,11 @@ import { seed } from '../seed';
 
 /** `pnpm --filter @tas/db db:seed`: inserts the development data set into `DATABASE_URL`. */
 async function main(): Promise<void> {
-  const db = createNeonDb(serverEnv().DATABASE_URL);
+  const databaseUrl = serverEnv().DATABASE_URL;
+  if (databaseUrl === undefined) {
+    throw new Error('DATABASE_URL is required to run the seed script.');
+  }
+  const db = createNeonDb(databaseUrl);
   try {
     for (const [name, value] of Object.entries(await seed(db))) {
       console.log(

@@ -7,6 +7,7 @@ import { TopBar } from '@/components/shell/top-bar';
 import { currentActor } from '@/lib/actor';
 import { currentBrand } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { ensureOrganization } from '@/lib/ensure-organization';
 
 /**
  * The product shell: top bar, demo strip, left rail, page slot.
@@ -22,6 +23,7 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
   // without a ClerkProvider and Clerk middleware `auth()` throws, so in demo mode it is never called.
   if (!demo) {
     await auth.protect();
+    await ensureOrganization();
   }
   const [brand, actor] = await Promise.all([currentBrand(), currentActor()]);
 

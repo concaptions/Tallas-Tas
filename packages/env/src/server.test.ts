@@ -16,8 +16,8 @@ describe('serverEnv', () => {
     expect(serverEnv({ ...valid, SLACK_BOT_TOKEN: 'xoxb-1' }).SLACK_BOT_TOKEN).toBe('xoxb-1');
   });
 
-  it('throws naming DATABASE_URL when it is missing', () => {
-    expect(() => serverEnv({ NODE_ENV: 'test' })).toThrow(/DATABASE_URL/);
+  it('accepts a missing DATABASE_URL (optional for the Clerk-only transitional state)', () => {
+    expect(serverEnv({ NODE_ENV: 'test' }).DATABASE_URL).toBeUndefined();
   });
 
   it('throws naming DATABASE_URL when it is not a url', () => {
@@ -25,7 +25,7 @@ describe('serverEnv', () => {
   });
 
   it('treats an empty string as unset', () => {
-    expect(() => serverEnv({ DATABASE_URL: '' })).toThrow(/DATABASE_URL/);
+    expect(serverEnv({ DATABASE_URL: '' }).DATABASE_URL).toBeUndefined();
     expect(serverEnv({ ...valid, RESEND_API_KEY: '' }).RESEND_API_KEY).toBeUndefined();
   });
 
@@ -47,9 +47,9 @@ describe('createEnv', () => {
     expect(env.clientEnv()).toBe(env.clientEnv());
   });
 
-  it('does not validate at creation', () => {
+  it('does not validate at creation and accepts empty source', () => {
     const env = createEnv({});
-    expect(() => env.serverEnv()).toThrow(/DATABASE_URL/);
+    expect(env.serverEnv().DATABASE_URL).toBeUndefined();
   });
 });
 

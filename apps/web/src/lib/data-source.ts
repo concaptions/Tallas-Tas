@@ -126,7 +126,13 @@ function neonConnection(databaseUrl: string): DbConnection {
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */
 async function withDb<T>(deps: DataSourceDeps, query: (db: Db) => Promise<T>): Promise<T> {
   const connect = deps.connect ?? neonConnection;
-  const connection = connect(serverEnv().DATABASE_URL);
+  const databaseUrl = serverEnv().DATABASE_URL;
+  if (databaseUrl === undefined) {
+    throw new Error(
+      'DATABASE_URL is not configured. Run in demo mode or provide a Neon connection string.',
+    );
+  }
+  const connection = connect(databaseUrl);
   try {
     return await query(connection.db);
   } finally {
@@ -134,8 +140,16 @@ async function withDb<T>(deps: DataSourceDeps, query: (db: Db) => Promise<T>): P
   }
 }
 
-function inDemoMode(deps: DataSourceDeps): boolean {
-  return (deps.demoMode ?? isDemoMode)();
+/**
+ * True when the data layer should serve fixtures instead of querying the database. This is a
+ * superset of `isDemoMode()`: fixtures are used when Clerk is absent (full demo) OR when the
+ * database is not configured (auth works but no data store yet — the P5-001 transitional state).
+ */
+function inFixtureMode(deps: DataSourceDeps): boolean {
+  if ((deps.demoMode ?? isDemoMode)()) {
+    return true;
+  }
+  return serverEnv().DATABASE_URL === undefined;
 }
 
 /** A live row is current when it has not been soft deleted. Soft delete only, never `DELETE FROM`. */
@@ -266,7 +280,7 @@ export async function resolveLiveBrandId(
  * `themes` is the GLOBAL library (non-negotiable 3), so it is counted across brands, not scoped.
  */
 export async function loadOverview(deps: DataSourceDeps = {}): Promise<Overview> {
-  if (inDemoMode(deps)) {
+  if (inFixtureMode(deps)) {
     return {
       brand: DEMO_BRAND,
       counts: {
@@ -307,7 +321,7 @@ export async function loadOverview(deps: DataSourceDeps = {}): Promise<Overview>
 
 /** Just the brand, for the shell's top bar. */
 export async function currentBrand(deps: DataSourceDeps = {}): Promise<BrandSummary | null> {
-  if (inDemoMode(deps)) {
+  if (inFixtureMode(deps)) {
     return DEMO_BRAND;
   }
   return withDb(deps, (db) => resolveLiveBrand(db, deps));
@@ -318,7 +332,7 @@ export async function currentBrand(deps: DataSourceDeps = {}): Promise<BrandSumm
  * Personas page calls this and nothing else; it never opens a connection of its own.
  */
 export async function listPersonaRows(deps: DataSourceDeps = {}): Promise<PersonaListRow[]> {
-  if (inDemoMode(deps)) {
+  if (inFixtureMode(deps)) {
     return demoPersonas;
   }
   return withDb(deps, async (db) => {

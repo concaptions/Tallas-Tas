@@ -14,7 +14,7 @@ export const clientSchema = z.object({
 
 /** Every variable the server may read. Optional entries are validated only when present. */
 export const serverSchema = clientSchema.extend({
-  DATABASE_URL: z.url(),
+  DATABASE_URL: z.url().optional(),
   CLERK_SECRET_KEY: z.string().startsWith('sk_').optional(),
   SLACK_BOT_TOKEN: secret.optional(),
   RESEND_API_KEY: secret.optional(),
