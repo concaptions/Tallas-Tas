@@ -105,6 +105,7 @@ export {
   demoBriefs,
   demoConcepts,
   demoCopy,
+  demoCollaborations,
   demoCreators,
   demoInterfaceConfig,
   demoMemberships,

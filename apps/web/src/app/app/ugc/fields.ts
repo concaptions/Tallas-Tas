@@ -408,3 +408,52 @@ export const NEW_CREATOR_SOON_HINT =
  */
 export const INTERNAL_ONLY_NOTE =
   'Internal view. Partnership price per 30 days is never shown to a client and is not in this table.';
+
+/**
+ * One collaboration instance as the creator panel renders it. Narrower than
+ * `CollaborationListRow` so a design-system story can pass a plain object.
+ */
+export interface CollabRow {
+  readonly id: string;
+  readonly conceptId: string | null;
+  readonly briefId: string | null;
+  readonly costUsd: number | null;
+  readonly startDate: Date | null;
+  readonly endDate: Date | null;
+  readonly internalStatus: string;
+  readonly clientStatus: string;
+  readonly assetsStatus: string;
+  readonly notes: string | null;
+}
+
+/**
+ * Stats derived from a creator's collaborations, shown in the panel header.
+ * Every number is computed client-side from the rows the page already has.
+ */
+export interface CreatorCollabStats {
+  readonly totalCollabs: number;
+  readonly totalPaid: number;
+  readonly activeCollabs: number;
+}
+
+const TERMINAL_STATUSES = new Set(['approved', 'complete', 'completed']);
+
+export function collabStats(collabs: readonly CollabRow[]): CreatorCollabStats {
+  let totalPaid = 0;
+  let activeCollabs = 0;
+  for (const c of collabs) {
+    if (c.costUsd !== null) totalPaid += c.costUsd;
+    const allTerminal =
+      TERMINAL_STATUSES.has(c.internalStatus) &&
+      TERMINAL_STATUSES.has(c.clientStatus) &&
+      TERMINAL_STATUSES.has(c.assetsStatus);
+    if (!allTerminal) activeCollabs += 1;
+  }
+  return { totalCollabs: collabs.length, totalPaid, activeCollabs };
+}
+
+export function collabDateLabel(row: CollabRow): string {
+  const start = isoDateLabel(row.startDate);
+  const end = row.endDate === null ? 'ongoing' : isoDateLabel(row.endDate);
+  return `${start} → ${end}`;
+}

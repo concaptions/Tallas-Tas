@@ -1,6 +1,7 @@
 import type { AdMetricListRow } from './ad-metrics';
 import type { AssetListRow } from './assets';
 import type { AngleListRow } from './angles';
+import type { CollaborationListRow } from './collaborations';
 import type { CompetitorAdListRow } from './competitor-ads';
 import type { CreatorRankingListRow } from './creator-rankings';
 import type { OnboardingFormListRow } from './onboarding-forms';
@@ -119,6 +120,13 @@ const UPLOAD_LINK_AGENCY_ID = 'aabbccdd-aabb-4ccd-8dde-000000000001';
 const UPLOAD_LINK_CREATOR_ID = 'aabbccdd-aabb-4ccd-8dde-000000000002';
 const ONBOARD_FORM_INTAKE_ID = 'bbccddee-bbcc-4dde-8eef-000000000001';
 const ONBOARD_FORM_BRIEF_ID = 'bbccddee-bbcc-4dde-8eef-000000000002';
+
+const COLLAB_DANIELLE_1_ID = 'cccccccc-cccc-4ccc-8ccc-000000000001';
+const COLLAB_DANIELLE_2_ID = 'cccccccc-cccc-4ccc-8ccc-000000000002';
+const COLLAB_DANIELLE_3_ID = 'cccccccc-cccc-4ccc-8ccc-000000000003';
+const COLLAB_MARCUS_1_ID = 'cccccccc-cccc-4ccc-8ccc-000000000004';
+const COLLAB_MARCUS_2_ID = 'cccccccc-cccc-4ccc-8ccc-000000000005';
+const COLLAB_TOMAS_1_ID = 'cccccccc-cccc-4ccc-8ccc-000000000006';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -2631,5 +2639,98 @@ export const demoOnboardingForms: OnboardingFormListRow[] = [
     ]),
     submissionsCount: '0',
     shareToken: 'form_brief_niagara',
+  },
+];
+
+export const demoCollaborations: CollaborationListRow[] = [
+  {
+    ...base(COLLAB_DANIELLE_1_ID, '2026-07-05T10:00:00.000Z', '2026-09-14T16:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_DANIELLE_ID,
+    conceptId: CONCEPT_BODY_CLOCK_ID,
+    briefId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    costUsd: 630,
+    startDate: at('2026-07-05T10:00:00.000Z'),
+    endDate: at('2026-08-04T10:00:00.000Z'),
+    internalStatus: 'approved',
+    clientStatus: 'approved',
+    assetsStatus: 'approved',
+    notes: 'Night-shift hook video — delivered on schedule, single retake.',
+    legacyAirtableId: null,
+  },
+  {
+    ...base(COLLAB_DANIELLE_2_ID, '2026-08-10T09:00:00.000Z', '2026-09-12T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_DANIELLE_ID,
+    conceptId: CONCEPT_NOT_YOUR_AGE_ID,
+    briefId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    costUsd: 280,
+    startDate: at('2026-08-10T09:00:00.000Z'),
+    endDate: at('2026-08-25T10:00:00.000Z'),
+    internalStatus: 'approved',
+    clientStatus: 'approved',
+    assetsStatus: 'approved',
+    notes: 'Static carousel for r/nursing — repurposed from Body Clock shoot.',
+    legacyAirtableId: null,
+  },
+  {
+    ...base(COLLAB_DANIELLE_3_ID, '2026-09-15T08:30:00.000Z', '2026-09-16T14:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_DANIELLE_ID,
+    conceptId: CONCEPT_DAYLIGHT_ID,
+    briefId: BRIEF_DAYLIGHT_MOTION_ID,
+    costUsd: 520,
+    startDate: at('2026-09-15T08:30:00.000Z'),
+    endDate: null,
+    internalStatus: 'request',
+    clientStatus: 'pending_for_approval',
+    assetsStatus: 'pending_for_cs_approval',
+    notes: 'Daylight angle — morning bedroom shoot, awaiting scheduling confirmation.',
+    legacyAirtableId: null,
+  },
+  {
+    ...base(COLLAB_MARCUS_1_ID, '2026-06-20T14:00:00.000Z', '2026-08-30T10:45:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_MARCUS_ID,
+    conceptId: CONCEPT_BODY_CLOCK_ID,
+    briefId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    costUsd: 420,
+    startDate: at('2026-06-20T14:00:00.000Z'),
+    endDate: at('2026-07-20T14:00:00.000Z'),
+    internalStatus: 'approved',
+    clientStatus: 'approved',
+    assetsStatus: 'approved',
+    notes: 'Thermostat angle sceptic video — used weighted-blanket comparison.',
+    legacyAirtableId: null,
+  },
+  {
+    ...base(COLLAB_MARCUS_2_ID, '2026-09-01T11:00:00.000Z', '2026-09-16T09:20:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_MARCUS_ID,
+    conceptId: CONCEPT_NINETY_MINUTES_ID,
+    briefId: BRIEF_NINETY_MINUTES_VIDEO_ID,
+    costUsd: 380,
+    startDate: at('2026-09-01T11:00:00.000Z'),
+    endDate: null,
+    internalStatus: 'in_progress',
+    clientStatus: 'pending_for_approval',
+    assetsStatus: 'pending_for_cs_approval',
+    notes: 'Ninety-minutes angle — shoot date pending Montreal weather.',
+    legacyAirtableId: null,
+  },
+  {
+    ...base(COLLAB_TOMAS_1_ID, '2026-09-10T15:00:00.000Z', '2026-09-16T10:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    creatorId: CREATOR_TOMAS_ID,
+    conceptId: null,
+    briefId: null,
+    costUsd: null,
+    startDate: at('2026-09-10T15:00:00.000Z'),
+    endDate: null,
+    internalStatus: 'request',
+    clientStatus: 'pending_for_approval',
+    assetsStatus: 'pending_for_cs_approval',
+    notes: 'Initial outreach — Fiverr profile looks strong, no concept assigned yet.',
+    legacyAirtableId: null,
   },
 ];

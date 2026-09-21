@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useCallback, useEffect, useState } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -17,7 +17,7 @@ import {
 } from '@tas/ui';
 
 import { updateCreatorAction, type CreatorActionResult } from './actions';
-import type { CreatorCardRow } from './fields';
+import { collabDateLabel, collabStats, type CollabRow, type CreatorCardRow } from './fields';
 
 export interface LinkOption {
   readonly id: string;
@@ -28,6 +28,7 @@ interface CreatorPanelProps {
   readonly creator: CreatorCardRow;
   readonly concepts: readonly LinkOption[];
   readonly products: readonly LinkOption[];
+  readonly collabs: readonly CollabRow[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -40,6 +41,7 @@ export function CreatorPanel({
   creator,
   concepts,
   products,
+  collabs,
   demo,
   onClose,
   onSaved,
@@ -82,6 +84,8 @@ export function CreatorPanel({
       prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
     );
   }, []);
+
+  const stats = useMemo(() => collabStats(collabs), [collabs]);
 
   const blocked = demo || name.trim() === '';
   const blockedHint = demo ? DEMO_WRITE_HINT : 'Name is required.';
@@ -134,6 +138,28 @@ export function CreatorPanel({
           Close
         </Button>
       </header>
+
+      {collabs.length > 0 ? (
+        <div
+          className="flex flex-wrap gap-4 border-b border-line px-4 py-2.5 sm:px-6"
+          data-slot="creator-stats"
+        >
+          <div className="flex flex-col">
+            <span className="text-[11px] tracking-wide text-text3 uppercase">Collaborations</span>
+            <span className="font-mono text-sm font-semibold text-text">{stats.totalCollabs}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] tracking-wide text-text3 uppercase">Active</span>
+            <span className="font-mono text-sm font-semibold text-text">{stats.activeCollabs}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] tracking-wide text-text3 uppercase">Total Paid</span>
+            <span className="font-mono text-sm font-semibold text-text">
+              {stats.totalPaid > 0 ? `$${String(stats.totalPaid)}` : '$0'}
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       <form action={formAction} className="flex min-h-0 flex-1 flex-col">
         <input type="hidden" name="id" value={creator.id} />
@@ -367,6 +393,52 @@ export function CreatorPanel({
                       </button>
                     );
                   })}
+                </div>
+              )}
+            </section>
+
+            <section className="flex flex-col gap-3" data-slot="collaborations-section">
+              <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                Past Collaborations
+                {collabs.length > 0 ? (
+                  <span className="text-xs font-normal text-text3">({collabs.length})</span>
+                ) : null}
+              </h3>
+              {collabs.length === 0 ? (
+                <p className="text-sm text-text3">No collaborations yet.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {collabs.map((collab) => (
+                    <div
+                      key={collab.id}
+                      className="flex flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs text-text2">
+                          {collabDateLabel(collab)}
+                        </span>
+                        {collab.costUsd !== null ? (
+                          <span className="font-mono text-xs font-semibold text-text">
+                            ${String(collab.costUsd)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="rounded-input bg-surface px-1.5 py-0.5 text-[10px] tracking-wide text-text3 uppercase">
+                          Int: {collab.internalStatus.replaceAll('_', ' ')}
+                        </span>
+                        <span className="rounded-input bg-surface px-1.5 py-0.5 text-[10px] tracking-wide text-text3 uppercase">
+                          Client: {collab.clientStatus.replaceAll('_', ' ')}
+                        </span>
+                        <span className="rounded-input bg-surface px-1.5 py-0.5 text-[10px] tracking-wide text-text3 uppercase">
+                          Assets: {collab.assetsStatus.replaceAll('_', ' ')}
+                        </span>
+                      </div>
+                      {collab.notes !== null && collab.notes.trim() !== '' ? (
+                        <p className="text-xs leading-relaxed text-text3">{collab.notes}</p>
+                      ) : null}
+                    </div>
+                  ))}
                 </div>
               )}
             </section>

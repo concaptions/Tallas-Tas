@@ -30,6 +30,7 @@ import {
   SEARCH_PARAM,
   TAB_PARAM,
   UGC_TABS,
+  type CollabRow,
   type CreatorCardRow,
   type PartnershipRow,
   type UgcTabKey,
@@ -44,6 +45,7 @@ export interface UgcWorkspaceProps {
   readonly initialTab: UgcTabKey;
   readonly initialSearch: string;
   readonly initialSelection: string | null;
+  readonly initialCollabs: readonly CollabRow[];
 }
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
@@ -71,6 +73,7 @@ export function UgcWorkspace({
   initialTab,
   initialSearch,
   initialSelection,
+  initialCollabs,
 }: UgcWorkspaceProps) {
   const router = useRouter();
   const [tab, setTab] = useState<UgcTabKey>(initialTab);
@@ -248,6 +251,7 @@ export function UgcWorkspace({
           creator={open}
           concepts={concepts}
           products={products}
+          collabs={initialCollabs}
           demo={demo}
           onClose={close}
           onSaved={saved}

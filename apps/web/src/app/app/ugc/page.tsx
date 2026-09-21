@@ -1,9 +1,15 @@
 import { loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
-import { loadUgc } from '@/lib/ugc-source';
+import { loadCollaborations, loadUgc } from '@/lib/ugc-source';
 
-import { partnershipRow, tabFromParam, type CreatorCardRow, type PartnershipRow } from './fields';
+import {
+  partnershipRow,
+  tabFromParam,
+  type CollabRow,
+  type CreatorCardRow,
+  type PartnershipRow,
+} from './fields';
 import { UgcWorkspace } from './ugc-workspace';
 
 interface UgcPageProps {
@@ -53,6 +59,21 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
   const initialSelection =
     typeof requestedCreator === 'string' && requestedCreator !== '' ? requestedCreator : null;
 
+  const collabResult =
+    initialSelection !== null ? await loadCollaborations(initialSelection) : null;
+  const collabs: CollabRow[] = (collabResult?.rows ?? []).map((row) => ({
+    id: row.id,
+    conceptId: row.conceptId,
+    briefId: row.briefId,
+    costUsd: row.costUsd,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    internalStatus: row.internalStatus,
+    clientStatus: row.clientStatus,
+    assetsStatus: row.assetsStatus,
+    notes: row.notes,
+  }));
+
   return (
     <UgcWorkspace
       creators={cards}
@@ -63,6 +84,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
       initialTab={initialTab}
       initialSearch={initialSearch}
       initialSelection={initialSelection}
+      initialCollabs={collabs}
     />
   );
 }

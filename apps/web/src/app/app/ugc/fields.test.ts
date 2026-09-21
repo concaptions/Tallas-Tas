@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { PARTNERSHIP_REFERENCE_DATE } from '@tas/db';
 
 import {
+  collabDateLabel,
+  collabStats,
   countdownCellLabel,
   creatorInitials,
   creatorTracks,
@@ -18,6 +20,7 @@ import {
   partnershipCountLabel,
   tabFromParam,
   UGC_TABS,
+  type CollabRow,
   type PartnershipSourceRow,
 } from './fields';
 
@@ -242,5 +245,66 @@ describe('the search and the count line', () => {
     expect(partnershipCountLabel(3)).toBe('3 partnerships');
     expect(partnershipCountLabel(1)).toBe('1 partnership');
     expect(filteredCountLabel(1, creatorCountLabel(5))).toBe('1 of 5 creators');
+  });
+});
+
+function makeCollab(overrides: Partial<CollabRow> = {}): CollabRow {
+  return {
+    id: 'collab-1',
+    conceptId: null,
+    briefId: null,
+    costUsd: null,
+    startDate: null,
+    endDate: null,
+    internalStatus: 'request',
+    clientStatus: 'pending_for_approval',
+    assetsStatus: 'pending_for_cs_approval',
+    notes: null,
+    ...overrides,
+  };
+}
+
+describe('collabStats', () => {
+  it('totals cost and counts active collabs', () => {
+    const collabs = [
+      makeCollab({
+        costUsd: 500,
+        internalStatus: 'approved',
+        clientStatus: 'approved',
+        assetsStatus: 'approved',
+      }),
+      makeCollab({ id: 'c2', costUsd: 300, internalStatus: 'in_progress' }),
+      makeCollab({ id: 'c3', costUsd: null, internalStatus: 'request' }),
+    ];
+    const stats = collabStats(collabs);
+    expect(stats.totalCollabs).toBe(3);
+    expect(stats.totalPaid).toBe(800);
+    expect(stats.activeCollabs).toBe(2);
+  });
+
+  it('returns zeroes for an empty list', () => {
+    const stats = collabStats([]);
+    expect(stats.totalCollabs).toBe(0);
+    expect(stats.totalPaid).toBe(0);
+    expect(stats.activeCollabs).toBe(0);
+  });
+});
+
+describe('collabDateLabel', () => {
+  it('formats a range with start and end', () => {
+    const label = collabDateLabel(
+      makeCollab({
+        startDate: new Date('2026-07-05T10:00:00.000Z'),
+        endDate: new Date('2026-08-04T10:00:00.000Z'),
+      }),
+    );
+    expect(label).toBe('2026-07-05 → 2026-08-04');
+  });
+
+  it('shows ongoing when endDate is null', () => {
+    const label = collabDateLabel(
+      makeCollab({ startDate: new Date('2026-09-15T08:30:00.000Z'), endDate: null }),
+    );
+    expect(label).toBe('2026-09-15 → ongoing');
   });
 });

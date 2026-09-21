@@ -1,11 +1,14 @@
 import {
   createAutoDb,
+  demoCollaborations,
   demoCreators,
   demoPartnershipCreators,
   getCreatorById,
+  listCollaborations,
   listCreators,
   listPartnershipCreators,
   PARTNERSHIP_REFERENCE_DATE,
+  type CollaborationListRow,
   type CreatorListRow,
   type Db,
 } from '@tas/db';
@@ -66,6 +69,11 @@ export interface UgcWorkspaceResult {
 
 export interface CreatorResult {
   readonly creator: CreatorListRow | null;
+  readonly source: UgcSourceKind;
+}
+
+export interface CollaborationListResult {
+  readonly rows: CollaborationListRow[];
   readonly source: UgcSourceKind;
 }
 
@@ -185,6 +193,24 @@ export async function loadCreator(id: string, deps: UgcSourceDeps = {}): Promise
     const brandId = await resolveLiveBrandId(db, deps);
     const creator = brandId === null ? null : await getCreatorById(db, brandId, id);
     return { creator, source: 'database' };
+  });
+}
+
+/** A creator's collaboration instances, newest first. */
+export async function loadCollaborations(
+  creatorId: string,
+  deps: UgcSourceDeps = {},
+): Promise<CollaborationListResult> {
+  if (inDemoMode(deps)) {
+    return {
+      rows: demoCollaborations.filter((row) => row.creatorId === creatorId),
+      source: 'demo',
+    };
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    const rows = brandId === null ? [] : await listCollaborations(db, brandId, creatorId);
+    return { rows, source: 'database' };
   });
 }
 
