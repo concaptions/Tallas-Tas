@@ -13,6 +13,7 @@ import {
 import {
   COPY_CTA_INITIAL,
   isCopyCta,
+  isCopyFunnel,
   validateCopyDraft,
   type CopyDraft,
   type CopyDraftField,
@@ -29,15 +30,15 @@ import { copywritingPath } from '@/lib/routes';
  * The Copywriting route's one mutation (PRD §5.11). It follows `personas/actions.ts` and
  * `briefs/actions.ts` exactly:
  *
- * 1. refuse immediately in DEMO MODE, before any validation, actor lookup or connection — the demo
+ * 1. refuse immediately in DEMO MODE, before any validation, actor lookup or connection -- the demo
  *    deployment is unauthenticated, so a write must never reach a database;
  * 2. parse the submitted `FormData` with zod, which owns the SHAPE only: which keys exist, that an
- *    empty text field is stored as NULL rather than as an empty string, and — the one thing that is
- *    particular to this form — that a key which was not submitted at all is `undefined` and means
+ *    empty text field is stored as NULL rather than as an empty string, and -- the one thing that is
+ *    particular to this form -- that a key which was not submitted at all is `undefined` and means
  *    "leave that column exactly as it is", which is different from a key submitted empty;
  * 3. run every RULE through `validateCopyDraft` in `@tas/domain/copy`, the same function the panel
  *    disables its save with. The panel's disabled button is a courtesy, not a guarantee, so the
- *    rules are re-run here against the values that are actually about to be written — and no rule is
+ *    rules are re-run here against the values that are actually about to be written -- and no rule is
  *    restated in this file: not the required headline, not the CTA vocabulary, not the status
  *    vocabulary, and not the character guidance (which is deliberately NOT a rule: PRD §5.11's
  *    ~125 / ~40 / ~27 are tildes, Meta truncates past them rather than rejecting, so an over-long
@@ -49,12 +50,12 @@ import { copywritingPath } from '@/lib/routes';
  * non-negotiable 4): a row keeps the number it was given, this action never rebuilds it, and no
  * `copyNumber` field is read from the form. Generating the FIRST number ships with the create path,
  * in the CSV upload ticket, next to `nextCopyNumber` in `@tas/domain/copy`. The TITLE is never
- * stored at all — it is `copyTitle` applied to that integer when the table renders.
+ * stored at all -- it is `copyTitle` applied to that integer when the table renders.
  *
  * THE UNATTACHED ROW IS ORDINARY, NOT DEGRADED. `creativeBriefId` may be null (CLAUDE.md
  * non-negotiable 5): the panel's "No creative" option submits an empty value and it is stored as
  * NULL. When an id IS submitted it is resolved INSIDE the scope, so a brief belonging to another
- * brand — or to a soft-deleted row — simply never resolves and copy cannot be attached to a creative
+ * brand -- or to a soft-deleted row -- simply never resolves and copy cannot be attached to a creative
  * that is not really there.
  *
  * CLIENT'S COMMENT IS OUT OF SCOPE (ticket). No schema key here reads it, so `client_comment` is
@@ -98,16 +99,33 @@ const optionalText = z
   .optional();
 
 /**
- * A submitted KEY of a closed vocabulary. Trimmed, and — unlike a text column — an empty submission
+ * A submitted KEY of a closed vocabulary. Trimmed, and -- unlike a text column -- an empty submission
  * stays the empty string rather than becoming `null`: "" is not a legal CTA or status and must be
  * refused by `validateCopyDraft`, not quietly read as "leave it alone". Only an ABSENT key means
  * that.
  */
 const optionalKey = z.string().trim().optional();
 
+/** A submitted boolean: present as "true" or "false" string; absent means `undefined`. */
+const optionalBool = z
+  .string()
+  .transform((value) => value === 'true')
+  .optional();
+
+/** A submitted integer: present as a string, parsed to int or `null` for empty; absent means `undefined`. */
+const optionalInt = z
+  .string()
+  .trim()
+  .transform((value) => {
+    if (value === '') return null;
+    const n = Number.parseInt(value, 10);
+    return Number.isNaN(n) ? null : n;
+  })
+  .optional();
+
 /**
- * Shape only. Every rule is `validateCopyDraft`'s. `copyNumber` is absent on purpose — it is
- * generated, never submitted — and so is `clientComment`, which the client writes, not us.
+ * Shape only. Every rule is `validateCopyDraft`'s. `copyNumber` is absent on purpose -- it is
+ * generated, never submitted -- and so is `clientComment`, which the client writes, not us.
  */
 const copySchema = z.object({
   creativeBriefId: optionalText,
@@ -116,6 +134,10 @@ const copySchema = z.object({
   linkDescription: optionalText,
   cta: optionalKey,
   status: optionalKey,
+  funnel: optionalKey,
+  used: optionalBool,
+  winning: optionalBool,
+  metaRating: optionalInt,
 });
 
 type CopyFormValues = z.infer<typeof copySchema>;
@@ -133,6 +155,10 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     'linkDescription',
     'cta',
     'status',
+    'funnel',
+    'used',
+    'winning',
+    'metaRating',
   ]) {
     if (formData.has(key)) {
       const value = formData.get(key);
@@ -162,19 +188,32 @@ function parse(formData: FormData): { values: CopyFormValues } | CopyActionFailu
   return parsed.success ? { values: parsed.data } : failureFrom(parsed.error);
 }
 
+/** The extra detail fields that bypass `CopyDraft` validation but still travel with the save. */
+interface DetailFields {
+  readonly funnel: string | null;
+  readonly used: boolean;
+  readonly winning: boolean;
+  readonly metaRating: number | null;
+}
+
+interface DraftWithDetails {
+  readonly draft: CopyDraft;
+  readonly details: DetailFields;
+}
+
 /**
  * What the row will hold once this write lands: the submitted values over the ones already there.
- * `current` is null for a create, where "already there" is the column defaults — the first entry of
+ * `current` is null for a create, where "already there" is the column defaults -- the first entry of
  * `COPY_STATUS` and of `COPY_CTAS`, both taken from the domain rather than typed here.
  *
  * This is the draft `validateCopyDraft` is asked about, which is the point: the rules are checked
  * against the row as it will be, not against the half of it the form happened to send.
  */
-function draftFrom(values: CopyFormValues, current: CopyListRow | null): CopyDraft {
+function draftFrom(values: CopyFormValues, current: CopyListRow | null): DraftWithDetails {
   const keep = <T>(submitted: T | undefined, existing: T): T =>
     submitted === undefined ? existing : submitted;
 
-  return {
+  const draft: CopyDraft = {
     creativeBriefId: keep(values.creativeBriefId, current?.creativeBriefId ?? null),
     primaryCopy: keep(values.primaryCopy, current?.primaryCopy ?? null),
     headline: keep(values.headline, current?.headline ?? null),
@@ -182,6 +221,16 @@ function draftFrom(values: CopyFormValues, current: CopyListRow | null): CopyDra
     cta: keep(values.cta, current?.cta ?? COPY_CTA_INITIAL),
     status: keep(values.status, current?.status ?? COPY_STATUS_INITIAL),
   };
+
+  const rawFunnel = keep(values.funnel, current?.funnel ?? null);
+  const details: DetailFields = {
+    funnel: rawFunnel === '' || rawFunnel === null ? null : rawFunnel,
+    used: keep(values.used, current?.used ?? false),
+    winning: keep(values.winning, current?.winning ?? false),
+    metaRating: keep(values.metaRating, current?.metaRating ?? null),
+  };
+
+  return { draft, details };
 }
 
 /** A draft that passed every rule, as the columns, plus the warnings the write goes ahead with. */
@@ -195,15 +244,18 @@ interface CheckedCopy {
  * decided here.
  *
  * `isCopyCta` is asked again only to NARROW: `CopyDraft.cta` is a `string`, the column's type is
- * `@tas/db`'s `CopyCta`, and the checked union is `@tas/domain`'s `CopyCtaKey` — the same six
+ * `@tas/db`'s `CopyCta`, and the checked union is `@tas/domain`'s `CopyCtaKey` -- the same six
  * strings declared once on each side of a dependency edge that deliberately does not exist. A draft
  * that satisfies the validator always satisfies the guard, so the second half of the condition is
  * unreachable rather than a second rule.
  */
-function check(draft: CopyDraft): CheckedCopy | CopyActionFailure {
+function check(draft: CopyDraft, details: DetailFields): CheckedCopy | CopyActionFailure {
   const validation = validateCopyDraft(draft);
   if (!validation.ok || !isCopyCta(draft.cta)) {
     return fieldFailure(validation.fieldErrors);
+  }
+  if (details.funnel !== null && !isCopyFunnel(details.funnel)) {
+    return fieldFailure({});
   }
   return {
     validation,
@@ -214,6 +266,10 @@ function check(draft: CopyDraft): CheckedCopy | CopyActionFailure {
       linkDescription: draft.linkDescription,
       cta: draft.cta,
       status: draft.status,
+      funnel: details.funnel,
+      used: details.used,
+      winning: details.winning,
+      metaRating: details.metaRating,
     },
   };
 }
@@ -251,7 +307,7 @@ function success(id: string, validation: CopyDraftValidation): CopyActionSuccess
  * Patches one copy row of the actor's brand; another brand's id simply never resolves.
  *
  * The rules run against the row MERGED with the submission, inside the scope, because "leave that
- * column as it is" can only be resolved against the stored row — a save of the four copy fields must
+ * column as it is" can only be resolved against the stored row -- a save of the four copy fields must
  * not be judged, or rewritten, as though it had cleared the status it never sent. The Copy # is the
  * row's own and is never rebuilt: a copy keeps the number it was given.
  */
@@ -286,8 +342,8 @@ export async function updateCopyAction(
         return { ok: false as const, error: 'That copy is no longer available.' };
       }
 
-      const draft = draftFrom(values, current);
-      const checked = check(draft);
+      const { draft, details } = draftFrom(values, current);
+      const checked = check(draft, details);
       if ('ok' in checked) {
         return checked;
       }

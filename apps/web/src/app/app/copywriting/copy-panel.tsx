@@ -5,6 +5,7 @@ import {
   Button,
   disabledWriteClassName,
   DisabledWrite,
+  Input,
   Label,
   Select,
   SelectContent,
@@ -24,8 +25,11 @@ import {
   COUNTER_TONE_CLASS,
   CTA_OPTIONS,
   DEMO_FOOTER_NOTICE,
+  FUNNEL_OPTIONS,
   NO_CREATIVE_LABEL,
   NO_CREATIVE_VALUE,
+  NO_FUNNEL_LABEL,
+  NO_FUNNEL_VALUE,
   STATUS_OPTIONS,
   counterLabel,
   counterTone,
@@ -94,12 +98,30 @@ function draftOf(item: CopyItem): CopyDraft {
   };
 }
 
+/** The detail fields that live alongside the domain draft but are not validated by it. */
+interface DetailDraft {
+  funnel: string | null;
+  used: boolean;
+  winning: boolean;
+  metaRating: number | null;
+}
+
+function detailDraftOf(item: CopyItem): DetailDraft {
+  return {
+    funnel: item.funnel,
+    used: item.used,
+    winning: item.winning,
+    metaRating: item.metaRating,
+  };
+}
+
 export function CopyPanel({ item, creatives, demo, onClose, onSaved }: CopyPanelProps) {
   const [state, formAction, pending] = useActionState<CopyActionResult | null, FormData>(
     updateCopyAction,
     null,
   );
   const [draft, setDraft] = useState<CopyDraft>(() => draftOf(item));
+  const [detailDraft, setDetailDraft] = useState<DetailDraft>(() => detailDraftOf(item));
 
   const validation = useMemo(() => validateCopyDraft(draft), [draft]);
 
@@ -354,6 +376,142 @@ export function CopyPanel({ item, creatives, demo, onClose, onSaved }: CopyPanel
               </div>
             </section>
 
+            <section className="flex flex-col gap-3">
+              <h3
+                data-slot="copy-group-heading"
+                className="border-b border-line pb-1 text-sm font-medium text-text2"
+              >
+                {COPY_HEADINGS.details}
+              </h3>
+
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="copy-field-funnel"
+                  className="text-[11px] tracking-wide text-text3 uppercase"
+                >
+                  Funnel
+                </Label>
+                <Select
+                  value={detailDraft.funnel ?? NO_FUNNEL_VALUE}
+                  onValueChange={(next) => {
+                    setDetailDraft((current) => ({
+                      ...current,
+                      funnel: next === NO_FUNNEL_VALUE ? null : next,
+                    }));
+                  }}
+                  disabled={demo}
+                >
+                  <SelectTrigger
+                    id="copy-field-funnel"
+                    className="w-full"
+                    aria-label="Funnel"
+                    data-slot="copy-funnel-select"
+                  >
+                    <SelectValue placeholder={NO_FUNNEL_LABEL} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_FUNNEL_VALUE}>{NO_FUNNEL_LABEL}</SelectItem>
+                    {FUNNEL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input type="hidden" name="funnel" value={detailDraft.funnel ?? ''} />
+                <p className="text-xs text-text3">
+                  Where this copy sits in the funnel: TOF, MOF, BOF or Retargeting.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label htmlFor="copy-field-used" className="flex cursor-pointer items-center gap-2">
+                  <input
+                    id="copy-field-used"
+                    type="checkbox"
+                    checked={detailDraft.used}
+                    disabled={demo}
+                    onChange={(event) => {
+                      setDetailDraft((current) => ({
+                        ...current,
+                        used: event.target.checked,
+                      }));
+                    }}
+                    className="accent-accent"
+                  />
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">Used</span>
+                </label>
+                <input type="hidden" name="used" value={String(detailDraft.used)} />
+
+                <label
+                  htmlFor="copy-field-winning"
+                  className="flex cursor-pointer items-center gap-2"
+                >
+                  <input
+                    id="copy-field-winning"
+                    type="checkbox"
+                    checked={detailDraft.winning}
+                    disabled={demo}
+                    onChange={(event) => {
+                      setDetailDraft((current) => ({
+                        ...current,
+                        winning: event.target.checked,
+                      }));
+                    }}
+                    className="accent-accent"
+                  />
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">Winning</span>
+                </label>
+                <input type="hidden" name="winning" value={String(detailDraft.winning)} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="copy-field-metaRating"
+                  className="text-[11px] tracking-wide text-text3 uppercase"
+                >
+                  Meta Rating
+                </Label>
+                <Input
+                  id="copy-field-metaRating"
+                  name="metaRating"
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={detailDraft.metaRating ?? ''}
+                  readOnly={demo}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    setDetailDraft((current) => ({
+                      ...current,
+                      metaRating: raw === '' ? null : Number.parseInt(raw, 10),
+                    }));
+                  }}
+                  className="w-24"
+                />
+                <p className="text-xs text-text3">
+                  Meta&apos;s ad quality score (1 to 10), if available.
+                </p>
+              </div>
+
+              {item.spellingFeedback === null ? null : (
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-[11px] tracking-wide text-text3 uppercase">
+                    Spelling Feedback
+                  </Label>
+                  <p
+                    data-slot="copy-spelling-feedback"
+                    className="rounded-card border border-line bg-surface2 px-3 py-2.5 text-sm leading-relaxed whitespace-pre-line text-text2"
+                  >
+                    {item.spellingFeedback}
+                  </p>
+                  <p className="text-xs text-text3">
+                    AI-generated spelling and grammar feedback. Read-only.
+                  </p>
+                </div>
+              )}
+            </section>
+
             {item.clientComment === null ? null : (
               <section className="flex flex-col gap-3">
                 <h3
@@ -398,7 +556,7 @@ export function CopyPanel({ item, creatives, demo, onClose, onSaved }: CopyPanel
               data-slot="copy-save"
               className={disabledWriteClassName}
             >
-              {pending ? 'Saving…' : 'Save'}
+              {pending ? 'Saving...' : 'Save'}
             </Button>
           </DisabledWrite>
         </footer>

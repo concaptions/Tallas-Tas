@@ -34,6 +34,11 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     creativeBriefId: '77777777-7777-4777-8777-000000000001',
     creativeName: 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
     creativeHref: '/app/briefs/77777777-7777-4777-8777-000000000001',
+    funnel: null,
+    used: false,
+    winning: false,
+    metaRating: null,
+    spellingFeedback: null,
     clientComment: null,
     updatedLabel: 'yesterday',
     updatedTitle: '2026-09-16 11:20',
@@ -42,12 +47,18 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
 }
 
 describe('COPY_COLUMNS', () => {
-  it('is exactly the four columns of the ticket, in order', () => {
-    expect(COPY_COLUMNS).toEqual(['Copy title / Headline', 'Linked Creative', 'Status', 'Updated']);
+  it('is exactly the five columns of the ticket, in order', () => {
+    expect(COPY_COLUMNS).toEqual([
+      'Copy title / Headline',
+      'Linked Creative',
+      'Funnel',
+      'Status',
+      'Updated',
+    ]);
   });
 
-  it('names both values the first cell stacks, and never adds a fifth column', () => {
-    expect(COPY_COLUMNS).toHaveLength(4);
+  it('names both values the first cell stacks', () => {
+    expect(COPY_COLUMNS).toHaveLength(5);
     expect(COPY_COLUMNS[0]).toContain('Copy title');
     expect(COPY_COLUMNS[0]).toContain(COPY_FIELD_LABELS.headline);
   });
