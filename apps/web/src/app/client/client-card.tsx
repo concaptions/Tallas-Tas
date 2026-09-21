@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import { Button, StatusChip } from '@tas/ui';
 
-import type { ClientQueueActionResult } from './actions';
+import type { ClientQueueActionResult } from '@/app/app/queue/client/actions';
 import { approveCreativeAction, requestRevisionsAction } from './actions';
 
 interface ClientBrief {

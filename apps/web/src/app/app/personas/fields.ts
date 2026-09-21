@@ -1,4 +1,4 @@
-import { awarenessStages, type AwarenessStage } from '@tas/db';
+import { awarenessStages, type AwarenessStage } from '@tas/db/schema';
 import type { ChipTone } from '@tas/domain/state';
 
 /**

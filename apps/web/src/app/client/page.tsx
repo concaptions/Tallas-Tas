@@ -5,6 +5,8 @@ import { isDemoMode } from '@/lib/demo-mode';
 
 import { ClientCard } from './client-card';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ClientPortalPage() {
   const demo = isDemoMode();
   const { rows, withheld } = await loadClientQueue();
