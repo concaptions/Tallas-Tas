@@ -10,7 +10,9 @@ import {
 } from '@tas/ui';
 
 import { AccountSummary } from '@/components/account-summary';
+import { RoleDashboardSection } from '@/components/role-dashboard';
 import { Icon, type IconName } from '@/components/shell/icons';
+import { roleDashboard } from '@/lib/dashboard-source';
 import { loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { personasPath } from '@/lib/routes';
@@ -30,6 +32,7 @@ interface SectionCard {
 export default async function OverviewPage() {
   const demo = isDemoMode();
   const { brand, counts } = await loadOverview();
+  const dashboard = roleDashboard('admin');
 
   const cards: readonly SectionCard[] = [
     {
@@ -69,6 +72,8 @@ export default async function OverviewPage() {
               : 'Everything briefed for this brand.'}
         </p>
       </header>
+
+      <RoleDashboardSection dashboard={dashboard} />
 
       <section aria-labelledby="library-heading" className="flex flex-col gap-3">
         <h2 id="library-heading" className="text-sm font-medium text-text2">
