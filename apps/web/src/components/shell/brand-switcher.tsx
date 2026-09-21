@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import {
   Button,
   DropdownMenu,
@@ -8,9 +10,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  SoonChip,
   StatusChip,
 } from '@tas/ui';
+
+import { onboardPath } from '@/lib/routes';
 
 import type { BrandSummary } from '@/lib/data-source';
 
@@ -66,12 +69,11 @@ export function BrandSwitcher({ brand, readOnly }: BrandSwitcherProps) {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled
-          className="flex items-center justify-between gap-2 text-text3 data-[disabled]:opacity-100"
-        >
-          <span>Create a brand</span>
-          <SoonChip />
+        <DropdownMenuItem asChild>
+          <Link href={onboardPath} className="flex items-center gap-2">
+            <Icon name="building" className="size-4 shrink-0" />
+            <span>Create a brand</span>
+          </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
