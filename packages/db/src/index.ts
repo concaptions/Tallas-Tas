@@ -63,6 +63,8 @@ export { getPersonaById, insertPersona, listPersonas, updatePersona } from './pe
 export type { PersonaInput, PersonaListRow } from './personas';
 export { getProductById, insertProduct, listProducts, updateProduct } from './products';
 export type { ProductInput, ProductListRow } from './products';
+export { createPromotionRequest, listChildBrands, propagateInterfaceConfig } from './propagation';
+export type { CreatePromotionInput, PropagationResult } from './propagation';
 export {
   listPendingPromotionRequests,
   listPromotionRequests,
