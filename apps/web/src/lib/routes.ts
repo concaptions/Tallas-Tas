@@ -63,6 +63,8 @@ export const assetsPath = '/app/assets';
 export const performancePath = '/app/performance';
 export const adSpyPath = '/app/ad-spy';
 export const creatorRankingPath = '/app/creator-ranking';
+export const uploadLinksPath = '/app/upload-links';
+export const onboardingFormsPath = '/app/onboarding-forms';
 export const clientPortalPath = '/client';
 export const designSystemPath = '/design-system';
 

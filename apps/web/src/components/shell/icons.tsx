@@ -31,7 +31,9 @@ export type IconName =
   | 'assets'
   | 'performance'
   | 'ad-spy'
-  | 'creator-ranking';
+  | 'creator-ranking'
+  | 'upload-links'
+  | 'onboarding-forms';
 
 const PATHS: Record<IconName, string> = {
   overview: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
@@ -69,6 +71,10 @@ const PATHS: Record<IconName, string> = {
   'ad-spy':
     'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5a6.5 6.5 0 1 0-6.5 6.5c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zM9.5 14A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z',
   'creator-ranking': 'M12 2l3 6 6 1-4.5 4L18 19l-6-3.5L6 19l1.5-6L3 9l6-1z',
+  'upload-links':
+    'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+  'onboarding-forms':
+    'M9 11h6M9 15h4M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 7h6',
 };
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {

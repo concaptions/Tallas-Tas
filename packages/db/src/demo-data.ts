@@ -3,6 +3,8 @@ import type { AssetListRow } from './assets';
 import type { AngleListRow } from './angles';
 import type { CompetitorAdListRow } from './competitor-ads';
 import type { CreatorRankingListRow } from './creator-rankings';
+import type { OnboardingFormListRow } from './onboarding-forms';
+import type { UploadLinkListRow } from './upload-links';
 import type { BriefListRow } from './briefs';
 import type { ConceptListRow } from './concepts';
 import type { CopyListRow } from './copy';
@@ -113,6 +115,10 @@ const COMP_AD_HELIX_ID = 'eeeeeeee-eeee-4eee-8eee-000000000003';
 const RANKING_DANIELLE_ID = 'ffffffff-ffff-4fff-8fff-000000000001';
 const RANKING_MARCUS_ID = 'ffffffff-ffff-4fff-8fff-000000000002';
 const RANKING_PRIYA_ID = 'ffffffff-ffff-4fff-8fff-000000000003';
+const UPLOAD_LINK_AGENCY_ID = 'aabbccdd-aabb-4ccd-8dde-000000000001';
+const UPLOAD_LINK_CREATOR_ID = 'aabbccdd-aabb-4ccd-8dde-000000000002';
+const ONBOARD_FORM_INTAKE_ID = 'bbccddee-bbcc-4dde-8eef-000000000001';
+const ONBOARD_FORM_BRIEF_ID = 'bbccddee-bbcc-4dde-8eef-000000000002';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -2325,5 +2331,72 @@ export const demoCreatorRankings: CreatorRankingListRow[] = [
     avgCpa: '12.50',
     rank: 3,
     periodLabel: 'Sep 2026',
+  },
+];
+
+export const demoUploadLinks: UploadLinkListRow[] = [
+  {
+    ...base(UPLOAD_LINK_AGENCY_ID, '2026-09-10T10:00:00.000Z', '2026-09-14T10:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    token: 'tok_agency_niagara_sept',
+    label: 'September Agency Deliverables',
+    recipientName: 'Sleep Creative Agency',
+    recipientEmail: 'uploads@sleepcreative.example',
+    maxUploads: '50',
+    expiresAt: at('2026-10-01T00:00:00.000Z'),
+    isActive: true,
+    uploadsUsed: '12',
+    notes: 'Monthly asset delivery from creative agency',
+  },
+  {
+    ...base(UPLOAD_LINK_CREATOR_ID, '2026-09-12T14:00:00.000Z', '2026-09-15T09:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    token: 'tok_creator_danielle_sept',
+    label: 'Danielle — Body Clock Takes',
+    recipientName: 'Danielle Torres',
+    recipientEmail: 'danielle@creator.example',
+    maxUploads: '10',
+    expiresAt: at('2026-09-30T00:00:00.000Z'),
+    isActive: true,
+    uploadsUsed: '3',
+    notes: null,
+  },
+];
+
+export const demoOnboardingForms: OnboardingFormListRow[] = [
+  {
+    ...base(ONBOARD_FORM_INTAKE_ID, '2026-09-05T10:00:00.000Z', '2026-09-10T10:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    title: 'Client Intake Questionnaire',
+    description:
+      'Collects brand guidelines, target audience, and creative preferences for new clients.',
+    status: 'published',
+    fieldsJson: JSON.stringify([
+      { key: 'brand_name', label: 'Brand Name', type: 'text', required: true },
+      { key: 'website', label: 'Website URL', type: 'url', required: true },
+      { key: 'target_audience', label: 'Target Audience', type: 'textarea', required: true },
+      {
+        key: 'brand_guidelines',
+        label: 'Brand Guidelines (upload)',
+        type: 'file',
+        required: false,
+      },
+    ]),
+    submissionsCount: '4',
+    shareToken: 'form_intake_niagara',
+  },
+  {
+    ...base(ONBOARD_FORM_BRIEF_ID, '2026-09-08T15:00:00.000Z', '2026-09-12T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    title: 'Creative Brief Request',
+    description: 'Clients submit creative brief requests directly.',
+    status: 'draft',
+    fieldsJson: JSON.stringify([
+      { key: 'concept_type', label: 'Concept Type', type: 'select', required: true },
+      { key: 'deadline', label: 'Requested Deadline', type: 'date', required: true },
+      { key: 'notes', label: 'Additional Notes', type: 'textarea', required: false },
+    ]),
+    submissionsCount: '0',
+    shareToken: 'form_brief_niagara',
   },
 ];

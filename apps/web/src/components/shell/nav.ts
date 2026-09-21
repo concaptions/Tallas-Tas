@@ -14,12 +14,14 @@ import {
   internalQueuePath,
   notificationsPath,
   onboardPath,
+  onboardingFormsPath,
   personasPath,
   productsPath,
   propagationPath,
   teamPath,
   themesPath,
   ugcPath,
+  uploadLinksPath,
 } from '@/lib/routes';
 
 import type { IconName } from './icons';
@@ -67,6 +69,18 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Creator Ranking',
         icon: 'creator-ranking',
         href: creatorRankingPath,
+      },
+      {
+        key: 'upload-links',
+        label: 'Upload Links',
+        icon: 'upload-links',
+        href: uploadLinksPath,
+      },
+      {
+        key: 'onboarding-forms',
+        label: 'Onboarding Forms',
+        icon: 'onboarding-forms',
+        href: onboardingFormsPath,
       },
     ],
   },

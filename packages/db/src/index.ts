@@ -18,6 +18,14 @@ export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
 export type { AngleInput, AngleListRow } from './angles';
 export { getBriefById, insertBrief, listBriefs, updateBrief } from './briefs';
 export type { BriefInput, BriefListRow } from './briefs';
+export { getUploadLinkByToken, insertUploadLink, listUploadLinks } from './upload-links';
+export type { UploadLinkInput, UploadLinkListRow } from './upload-links';
+export {
+  getOnboardingFormByToken,
+  insertOnboardingForm,
+  listOnboardingForms,
+} from './onboarding-forms';
+export type { OnboardingFormInput, OnboardingFormListRow } from './onboarding-forms';
 export { baseColumns } from './columns';
 export { getConceptById, insertConcept, listConcepts, updateConcept } from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
@@ -46,6 +54,8 @@ export {
   demoAngles,
   demoCompetitorAds,
   demoCreatorRankings,
+  demoUploadLinks,
+  demoOnboardingForms,
   demoBrandAssignments,
   demoBrands,
   demoBriefs,
