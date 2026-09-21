@@ -75,6 +75,65 @@ export type ThemeCategory = (typeof themeCategories)[number];
 export const themeCategoryEnum = pgEnum('theme_category', themeCategories);
 
 /**
+ * Theme lifecycle (`themes.status`), Gratsi addition. Null until someone assigns a status, which is
+ * why the column is nullable — most template themes never need one.
+ */
+export const themeStatuses = ['not_started', 'in_progress', 'done', 'archived'] as const;
+export type ThemeStatus = (typeof themeStatuses)[number];
+
+/**
+ * Client-facing approval lifecycle of a concept (`concepts.approval_status`), Airtable v5.1: Draft
+ * through Approved / Rejected / Revision Needed. Separate from the two-track internal/client status
+ * already on concepts — this is the client-side gate.
+ */
+export const conceptApprovalStatuses = [
+  'draft',
+  'pending_client',
+  'approved',
+  'rejected',
+  'revision_needed',
+] as const;
+export type ConceptApprovalStatus = (typeof conceptApprovalStatuses)[number];
+
+/**
+ * Production lifecycle of a concept (`concepts.production_status`), Airtable v5.1.
+ */
+export const conceptProductionStatuses = [
+  'not_started',
+  'scripting',
+  'filming',
+  'in_edit',
+  'ready',
+] as const;
+export type ConceptProductionStatus = (typeof conceptProductionStatuses)[number];
+
+/**
+ * The language a creative brief is written in (`creative_briefs.language`), Gratsi addition.
+ */
+export const creativeLanguages = [
+  'English',
+  'Spanish',
+  'French',
+  'German',
+  'Portuguese',
+  'Arabic',
+] as const;
+export type CreativeLanguage = (typeof creativeLanguages)[number];
+
+/**
+ * Funnel position on a copy row (`copywriting.funnel`), Airtable v5.1. Includes MOF and BOF which
+ * the creative brief funnel vocabulary does not carry.
+ */
+export const copyFunnels = ['TOF', 'MOF', 'BOF', 'Retargeting'] as const;
+export type CopyFunnel = (typeof copyFunnels)[number];
+
+/**
+ * Potential assessment for an angle (`angles.potential`), Airtable v5.1.
+ */
+export const anglePotentials = ['High', 'Medium', 'Low'] as const;
+export type AnglePotential = (typeof anglePotentials)[number];
+
+/**
  * The PRD §5.10 single-selects a Creative Brief carries: Source, Funnel, Type, Priority, Platform
  * and Performance, each in the order the PRD lists them and a dropdown renders them.
  *
@@ -139,10 +198,14 @@ export type CreativePerformance = (typeof creativePerformances)[number];
 export const copyCtas = [
   'Shop Now',
   'Learn More',
+  'Sign Up',
   'Get Offer',
+  'Subscribe',
+  'Book Now',
+  'Download',
+  'Contact Us',
   'Get Directions',
   'Visit Us',
-  'Download',
 ] as const;
 export type CopyCta = (typeof copyCtas)[number];
 export const copyCtaEnum = pgEnum('copy_cta', copyCtas);

@@ -57,7 +57,7 @@ describe('migration 0007 on PGlite', () => {
     ]);
   });
 
-  it('DROPS Funnel and Copy Type, which PRD §5.11 says do not come over from Airtable', async () => {
+  it('DROPS Copy Type, which PRD §5.11 says does not come over from Airtable', async () => {
     const db = await testDb();
 
     const { rows } = await db.execute<{ column_name: string }>(
@@ -66,12 +66,12 @@ describe('migration 0007 on PGlite', () => {
     );
 
     const names = rows.map((row) => row.column_name);
-    expect(names).not.toContain('funnel');
     expect(names).not.toContain('copy_type');
     expect(names).not.toContain('type');
-    // The lean table PRD §5.11 asks for: the seven shared columns plus eight of its own.
+    // The shared columns plus the table's own, including the Airtable-parity additions.
     expect(names).toEqual([
       'brand_id',
+      'click_for_ai_spell_checker',
       'client_comment',
       'copy_number',
       'created_at',
@@ -80,16 +80,22 @@ describe('migration 0007 on PGlite', () => {
       'cta',
       'custom_fields',
       'deleted_at',
+      'funnel',
       'headline',
       'id',
       'legacy_airtable_id',
       'link_description',
+      'meta_rating',
       'overridden_fields',
       'primary_copy',
+      'product_id',
+      'spelling_feedback',
       'status',
       'template_row_id',
       'updated_at',
       'updated_by',
+      'used',
+      'winning',
     ]);
   });
 
@@ -378,8 +384,9 @@ describe('types', () => {
     expectTypeOf<CopyInput>().toHaveProperty('cta');
     expectTypeOf<CopyInput>().toHaveProperty('status');
     expectTypeOf<CopyInput>().toHaveProperty('clientComment');
-    // PRD §5.11 drops both, so neither may reappear as a column.
-    expectTypeOf<CopyInput>().not.toHaveProperty('funnel');
+    // `funnel` was re-added as a nullable column for Airtable parity.
+    expectTypeOf<CopyInput>().toHaveProperty('funnel');
+    // PRD §5.11 dropped copy type, so it must not reappear as a column.
     expectTypeOf<CopyInput>().not.toHaveProperty('copyType');
   });
 });

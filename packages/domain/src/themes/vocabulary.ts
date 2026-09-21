@@ -15,6 +15,47 @@
 
 import type { ChipTone } from '../state/creative-status';
 
+export interface ThemeStatusEntry {
+  readonly key: ThemeStatusKey;
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+export const THEME_STATUSES = [
+  { key: 'not_started', label: 'Not Started', tone: 'mute' },
+  { key: 'in_progress', label: 'In Progress', tone: 'accent' },
+  { key: 'done', label: 'Done', tone: 'ok' },
+  { key: 'archived', label: 'Archived', tone: 'warn' },
+] as const satisfies readonly { key: string; label: string; tone: ChipTone }[];
+
+export type ThemeStatusKey = (typeof THEME_STATUSES)[number]['key'];
+
+export const THEME_STATUS_KEYS: readonly ThemeStatusKey[] = THEME_STATUSES.map(
+  (entry) => entry.key,
+);
+
+export function isThemeStatus(value: string): value is ThemeStatusKey {
+  return THEME_STATUS_KEYS.includes(value as ThemeStatusKey);
+}
+
+export function themeStatusEntry(value: string): ThemeStatusEntry | undefined {
+  return THEME_STATUSES.find((entry) => entry.key === value);
+}
+
+export function themeStatusLabel(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  return themeStatusEntry(value)?.label ?? value;
+}
+
+export function themeStatusTone(value: string | null | undefined): ChipTone {
+  if (value === null || value === undefined || value === '') {
+    return 'mute';
+  }
+  return themeStatusEntry(value)?.tone ?? 'mute';
+}
+
 export interface ThemeCategoryEntry {
   /** The value stored in `themes.category`, verbatim. */
   readonly key: ThemeCategoryKey;

@@ -38,6 +38,8 @@ export const angles = pgTable(
     winning: boolean('winning').notNull().default(false),
     internalNotes: text('internal_notes'),
     clientNotes: text('client_notes'),
+    briefUrl: text('brief_url'),
+    exactScriptUrl: text('exact_script_url'),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [

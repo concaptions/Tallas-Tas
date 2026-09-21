@@ -1,9 +1,10 @@
-import { index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { creativeBriefs } from './briefs';
-import type { CopyCta } from './enums';
+import { products } from './products';
+import type { CopyCta, CopyFunnel } from './enums';
 
 /**
  * The value `status` starts at: the FIRST entry of `COPY_STATUS` in `@tas/domain/state`, verbatim —
@@ -61,11 +62,18 @@ export const copywriting = pgTable(
       .notNull()
       .references(() => brands.id),
     creativeBriefId: uuid('creative_brief_id').references(() => creativeBriefs.id),
+    productId: uuid('product_id').references(() => products.id),
     copyNumber: integer('copy_number').notNull().default(1),
     primaryCopy: text('primary_copy'),
     headline: text('headline'),
     linkDescription: text('link_description'),
     cta: text('cta').$type<CopyCta>().notNull().default(COPY_CTA_DEFAULT),
+    funnel: text('funnel').$type<CopyFunnel>(),
+    used: boolean('used').notNull().default(false),
+    winning: boolean('winning').notNull().default(false),
+    metaRating: integer('meta_rating'),
+    clickForAiSpellChecker: boolean('click_for_ai_spell_checker').notNull().default(false),
+    spellingFeedback: text('spelling_feedback'),
     status: text('status').notNull().default(COPY_STATUS_DEFAULT),
     clientComment: text('client_comment'),
     legacyAirtableId: text('legacy_airtable_id'),

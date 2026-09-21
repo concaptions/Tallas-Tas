@@ -13,6 +13,33 @@
  * moves through live in `../state/copy-status`.
  */
 
+export interface CopyFunnelEntry {
+  readonly key: CopyFunnelKey;
+  readonly label: string;
+}
+
+export const COPY_FUNNELS = [
+  { key: 'TOF', label: 'TOF' },
+  { key: 'MOF', label: 'MOF' },
+  { key: 'BOF', label: 'BOF' },
+  { key: 'Retargeting', label: 'Retargeting' },
+] as const satisfies readonly { key: string; label: string }[];
+
+export type CopyFunnelKey = (typeof COPY_FUNNELS)[number]['key'];
+
+export const COPY_FUNNEL_KEYS: readonly CopyFunnelKey[] = COPY_FUNNELS.map((entry) => entry.key);
+
+export function isCopyFunnel(value: string): value is CopyFunnelKey {
+  return COPY_FUNNEL_KEYS.includes(value as CopyFunnelKey);
+}
+
+export function copyFunnelLabel(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  return COPY_FUNNELS.find((entry) => entry.key === value)?.label ?? value;
+}
+
 export interface CopyCtaEntry {
   /** The value stored in `copywriting.cta`, verbatim. */
   readonly key: CopyCtaKey;

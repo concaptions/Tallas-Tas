@@ -1,4 +1,13 @@
-import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
@@ -96,6 +105,9 @@ export const creators = pgTable(
     deadline: timestamp('deadline', { withTimezone: true }),
     budgetPer60s: integer('budget_per_60s'),
     creatorCost: integer('creator_cost'),
+    rawAssetsUrl: text('raw_assets_url'),
+    conceptIds: jsonb('concept_ids').$type<string[]>().notNull().default([]),
+    productIds: jsonb('product_ids').$type<string[]>().notNull().default([]),
 
     // The three tracks of PRD §5.8 plus the client's note.
     internalCreatorStatus: text('internal_creator_status')

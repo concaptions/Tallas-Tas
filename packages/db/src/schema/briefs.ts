@@ -1,10 +1,13 @@
 import { boolean, index, integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
+import { angles } from './angles';
 import { brands } from './brands';
 import { concepts } from './concepts';
+import { products } from './products';
 import type {
   CreativeFunnel,
+  CreativeLanguage,
   CreativePerformance,
   CreativePlatform,
   CreativePriority,
@@ -66,6 +69,8 @@ export const creativeBriefs = pgTable(
       .notNull()
       .references(() => brands.id),
     conceptId: uuid('concept_id').references(() => concepts.id),
+    angleId: uuid('angle_id').references(() => angles.id),
+    productId: uuid('product_id').references(() => products.id),
     name: text('name').notNull(),
     batch: text('batch'),
     source: text('source').$type<CreativeSource>().notNull().default('TAS'),
@@ -86,6 +91,16 @@ export const creativeBriefs = pgTable(
     qaDesigner: boolean('qa_designer').notNull().default(false),
     qaStrategist: boolean('qa_strategist').notNull().default(false),
     spellingFeedback: text('spelling_feedback'),
+    spellingFeedback2: text('spelling_feedback_2'),
+    clickForAiSpellChecker: boolean('click_for_ai_spell_checker').notNull().default(false),
+    adContent: text('ad_content'),
+    inspiration: text('inspiration'),
+    inspirationImage: jsonb('inspiration_image').$type<string[]>(),
+    qaChecklistDoc: jsonb('qa_checklist_doc').$type<string[]>(),
+    designFile: jsonb('design_file').$type<string[]>(),
+    scriptAndBriefBreakdown: jsonb('script_and_brief_breakdown').$type<string[]>(),
+    language: text('language').$type<CreativeLanguage>(),
+    offer: text('offer'),
     internalStatus: text('internal_status').notNull().default(BRIEF_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(BRIEF_CLIENT_STATUS_DEFAULT),
     performance: text('performance').$type<CreativePerformance>(),

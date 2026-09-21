@@ -17,6 +17,64 @@
  * concept moves through live in `../state`, and nothing here participates in the state machine.
  */
 
+export interface ConceptApprovalStatusEntry {
+  readonly key: ConceptApprovalStatusKey;
+  readonly label: string;
+}
+
+export const CONCEPT_APPROVAL_STATUSES = [
+  { key: 'draft', label: 'Draft' },
+  { key: 'pending_client', label: 'Pending Client' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'rejected', label: 'Rejected' },
+  { key: 'revision_needed', label: 'Revision Needed' },
+] as const satisfies readonly { key: string; label: string }[];
+
+export type ConceptApprovalStatusKey = (typeof CONCEPT_APPROVAL_STATUSES)[number]['key'];
+
+export const CONCEPT_APPROVAL_STATUS_KEYS: readonly ConceptApprovalStatusKey[] =
+  CONCEPT_APPROVAL_STATUSES.map((entry) => entry.key);
+
+export function isConceptApprovalStatus(value: string): value is ConceptApprovalStatusKey {
+  return CONCEPT_APPROVAL_STATUS_KEYS.includes(value as ConceptApprovalStatusKey);
+}
+
+export function conceptApprovalStatusLabel(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  return CONCEPT_APPROVAL_STATUSES.find((entry) => entry.key === value)?.label ?? value;
+}
+
+export interface ConceptProductionStatusEntry {
+  readonly key: ConceptProductionStatusKey;
+  readonly label: string;
+}
+
+export const CONCEPT_PRODUCTION_STATUSES = [
+  { key: 'not_started', label: 'Not Started' },
+  { key: 'scripting', label: 'Scripting' },
+  { key: 'filming', label: 'Filming' },
+  { key: 'in_edit', label: 'In Edit' },
+  { key: 'ready', label: 'Ready' },
+] as const satisfies readonly { key: string; label: string }[];
+
+export type ConceptProductionStatusKey = (typeof CONCEPT_PRODUCTION_STATUSES)[number]['key'];
+
+export const CONCEPT_PRODUCTION_STATUS_KEYS: readonly ConceptProductionStatusKey[] =
+  CONCEPT_PRODUCTION_STATUSES.map((entry) => entry.key);
+
+export function isConceptProductionStatus(value: string): value is ConceptProductionStatusKey {
+  return CONCEPT_PRODUCTION_STATUS_KEYS.includes(value as ConceptProductionStatusKey);
+}
+
+export function conceptProductionStatusLabel(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  return CONCEPT_PRODUCTION_STATUSES.find((entry) => entry.key === value)?.label ?? value;
+}
+
 export interface ConceptCategoryEntry {
   /** The value stored in `concepts.category`, verbatim. */
   readonly key: ConceptCategoryKey;

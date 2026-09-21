@@ -148,6 +148,37 @@ export const CREATIVE_VERSIONS = [1, 2, 3, 4, 5, 6] as const satisfies readonly 
 
 export type CreativeVersion = (typeof CREATIVE_VERSIONS)[number];
 
+export interface CreativeLanguageEntry {
+  readonly key: CreativeLanguageKey;
+  readonly label: string;
+}
+
+export const CREATIVE_LANGUAGES = [
+  { key: 'English', label: 'English' },
+  { key: 'Spanish', label: 'Spanish' },
+  { key: 'French', label: 'French' },
+  { key: 'German', label: 'German' },
+  { key: 'Portuguese', label: 'Portuguese' },
+  { key: 'Arabic', label: 'Arabic' },
+] as const satisfies readonly { key: string; label: string }[];
+
+export type CreativeLanguageKey = (typeof CREATIVE_LANGUAGES)[number]['key'];
+
+export const CREATIVE_LANGUAGE_KEYS: readonly CreativeLanguageKey[] = CREATIVE_LANGUAGES.map(
+  (entry) => entry.key,
+);
+
+export function isCreativeLanguage(value: string): value is CreativeLanguageKey {
+  return CREATIVE_LANGUAGE_KEYS.includes(value as CreativeLanguageKey);
+}
+
+export function creativeLanguageLabel(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  return CREATIVE_LANGUAGES.find((entry) => entry.key === value)?.label ?? value;
+}
+
 /** Just the keys, for a validator or a `<select>` that needs the raw vocabulary. */
 export const CREATIVE_FUNNEL_KEYS: readonly CreativeFunnelKey[] = CREATIVE_FUNNELS.map(
   (entry) => entry.key,

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { copyFunnelLabel } from '@tas/domain/copy';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -263,6 +264,9 @@ export function CopywritingWorkspace({
                           {item.creativeName}
                         </Link>
                       )}
+                    </TableCell>
+                    <TableCell className="px-3 py-1.5 align-top whitespace-nowrap text-text3">
+                      {copyFunnelLabel(item.funnel)}
                     </TableCell>
                     <TableCell className="px-3 py-1.5 align-top">
                       <StatusChip tone={item.statusTone} label={item.statusLabel} />

@@ -21,6 +21,7 @@ function theme(overrides: Partial<ThemeCardRow> = {}): ThemeCardRow {
     id: '44444444-4444-4444-8444-000000000001',
     name: 'Green Screen',
     category: 'Production Style',
+    status: null,
     notes: 'Creator reacts over a screenshot of a review or a sleep-tracker graph.',
     referenceLinks: ['https://foreplay.example/boards/green-screen-reaction'],
     usedByBrandCount: 0,

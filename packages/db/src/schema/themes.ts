@@ -3,6 +3,7 @@ import { check, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 
 import { baseColumns } from '../columns';
 import { themeCategoryEnum } from './enums';
+import type { ThemeStatus } from './enums';
 
 /**
  * The GLOBAL theme library (PRD §5.5, CLAUDE.md non-negotiable 3): one shared library across every
@@ -22,6 +23,10 @@ export const themes = pgTable(
     category: themeCategoryEnum('category').notNull(),
     referenceLinks: jsonb('reference_links').$type<string[]>(),
     notes: text('notes'),
+    assigneeId: text('assignee_id'),
+    status: text('status').$type<ThemeStatus>(),
+    attachments: jsonb('attachments').$type<string[]>(),
+    aiAttachmentSummary: text('ai_attachment_summary'),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [check('themes_global', sql`${table.brandId} is null`)],

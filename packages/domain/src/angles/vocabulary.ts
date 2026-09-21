@@ -54,9 +54,26 @@ export const ANGLE_TYPES = [
 
 export type AngleTypeKey = (typeof ANGLE_TYPES)[number]['key'];
 
+export interface AnglePotentialEntry {
+  readonly key: AnglePotentialKey;
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+export const ANGLE_POTENTIALS = [
+  { key: 'High', label: 'High', tone: 'ok' },
+  { key: 'Medium', label: 'Medium', tone: 'accent' },
+  { key: 'Low', label: 'Low', tone: 'warn' },
+] as const satisfies readonly { key: string; label: string; tone: ChipTone }[];
+
+export type AnglePotentialKey = (typeof ANGLE_POTENTIALS)[number]['key'];
+
 /** Just the keys, for a validator or a `<select>` that needs the raw vocabulary. */
 export const ANGLE_FORMAT_KEYS: readonly AngleFormatKey[] = ANGLE_FORMATS.map((entry) => entry.key);
 export const ANGLE_TYPE_KEYS: readonly AngleTypeKey[] = ANGLE_TYPES.map((entry) => entry.key);
+export const ANGLE_POTENTIAL_KEYS: readonly AnglePotentialKey[] = ANGLE_POTENTIALS.map(
+  (entry) => entry.key,
+);
 
 export function isAngleFormat(value: string): value is AngleFormatKey {
   return ANGLE_FORMAT_KEYS.includes(value as AngleFormatKey);
@@ -64,6 +81,24 @@ export function isAngleFormat(value: string): value is AngleFormatKey {
 
 export function isAngleType(value: string): value is AngleTypeKey {
   return ANGLE_TYPE_KEYS.includes(value as AngleTypeKey);
+}
+
+export function isAnglePotential(value: string): value is AnglePotentialKey {
+  return ANGLE_POTENTIAL_KEYS.includes(value as AnglePotentialKey);
+}
+
+export function anglePotentialLabel(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  return ANGLE_POTENTIALS.find((entry) => entry.key === value)?.label ?? value;
+}
+
+export function anglePotentialTone(value: string | null | undefined): ChipTone {
+  if (value === null || value === undefined || value === '') {
+    return 'mute';
+  }
+  return ANGLE_POTENTIALS.find((entry) => entry.key === value)?.tone ?? 'mute';
 }
 
 /** The entry for a stored value, or `undefined` for a value this build does not know. */

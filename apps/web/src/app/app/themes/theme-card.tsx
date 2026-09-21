@@ -5,6 +5,8 @@ import {
   referenceChipRow,
   themeCategoryLabel,
   themeCategoryTone,
+  themeStatusLabel,
+  themeStatusTone,
   usageLabel,
   type ThemeCardRow,
 } from './fields';
@@ -52,6 +54,12 @@ export function ThemeCard({ theme }: ThemeCardProps) {
             tone={themeCategoryTone(theme.category)}
             label={themeCategoryLabel(theme.category)}
           />
+          {theme.status === null ? null : (
+            <StatusChip
+              tone={themeStatusTone(theme.status)}
+              label={themeStatusLabel(theme.status)}
+            />
+          )}
         </div>
         <p className="text-sm text-text3" data-slot="theme-usage">
           {usageLabel(theme.usedByBrandCount)}

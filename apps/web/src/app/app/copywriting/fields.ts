@@ -1,6 +1,7 @@
 import {
   COPY_CTAS,
   COPY_FIELD_LABELS,
+  COPY_FUNNELS,
   COPY_LIMITS,
   copyLength,
   copyLimitFor,
@@ -42,6 +43,7 @@ export const SELECTION_PARAM = 'copy';
 export const COPY_COLUMNS = [
   'Copy title / Headline',
   'Linked Creative',
+  'Funnel',
   'Status',
   'Updated',
 ] as const;
@@ -73,6 +75,16 @@ export interface CopyItem {
   readonly creativeName: string | null;
   /** `briefPath(creativeBriefId)`, or `null` when there is no creative to link to. */
   readonly creativeHref: string | null;
+  /** A `COPY_FUNNELS` key, or `null` when not yet assigned. */
+  readonly funnel: string | null;
+  /** Whether this copy has been used in a live ad. */
+  readonly used: boolean;
+  /** Whether this copy is a proven winner. */
+  readonly winning: boolean;
+  /** Meta's ad quality rating (1–10), or `null` when not yet scored. */
+  readonly metaRating: number | null;
+  /** AI-generated spelling feedback, read-only. */
+  readonly spellingFeedback: string | null;
   /** The client writes this, we never do. Read-only wherever it appears. */
   readonly clientComment: string | null;
   readonly updatedLabel: string;
@@ -162,10 +174,25 @@ export const STATUS_OPTIONS: readonly { value: string; label: string; descriptio
     description: entry.description,
   }));
 
+/** The Funnel dropdown's options, in the domain's render order. */
+export const FUNNEL_OPTIONS: readonly { value: string; label: string }[] = COPY_FUNNELS.map(
+  (entry) => ({
+    value: entry.key,
+    label: entry.label,
+  }),
+);
+
+/** The sentinel value the "No funnel" option carries, matching the NO_CREATIVE_VALUE pattern. */
+export const NO_FUNNEL_VALUE = 'none';
+
+/** What the "No funnel" option reads as. */
+export const NO_FUNNEL_LABEL = 'No funnel';
+
 /** The two headings above the panel's selects, stated once so the E2E assertion agrees with them. */
 export const COPY_HEADINGS = {
   copy: 'Copy',
   creative: 'Creative & Status',
+  details: 'Details',
   clientComment: "Client's Comment",
 } as const;
 
@@ -200,6 +227,7 @@ export function matchesQuery(item: CopyItem, query: string): boolean {
     item.linkDescription ?? '',
     item.cta,
     item.creativeName ?? NO_CREATIVE_LABEL,
+    item.funnel ?? '',
     item.statusLabel,
   ].some((value) => value.toLowerCase().includes(query));
 }

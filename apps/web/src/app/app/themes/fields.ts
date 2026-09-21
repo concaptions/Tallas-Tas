@@ -2,11 +2,16 @@ import {
   NO_USAGE_LABEL,
   THEME_CATEGORIES,
   THEME_CATEGORY_KEYS,
+  THEME_STATUSES,
   themeCategoryLabel,
   themeCategoryTone,
+  themeStatusLabel,
+  themeStatusTone,
   usageLabel,
   type ThemeCategoryEntry,
   type ThemeCategoryKey,
+  type ThemeStatusEntry,
+  type ThemeStatusKey,
 } from '@tas/domain/themes';
 import type { ChipTone } from '@tas/domain/state';
 
@@ -25,21 +30,30 @@ import type { ThemeFieldName } from './actions';
  * string. The "used by N brands" sentence is `usageLabel` from the same package: a component that
  * interpolated the count itself would get both ends of the range wrong.
  *
- * Themes carry no workflow status. A category is a KIND, not a state, so nothing here reaches into
- * the state machine beyond the `ChipTone` union that `StatusChip` takes.
+ * A category is a KIND, not a state. The optional `status` column tracks workflow progress
+ * (not_started / in_progress / done / archived) through `THEME_STATUSES` from `@tas/domain/themes`.
  *
  * `ThemeFieldName` is re-exported from `actions.ts` rather than declared a second time: the actions
  * own the union their zod schema validates. A type-only re-export is erased, so this module stays
  * importable from a client component, and `@tas/db` is deliberately absent for the same reason — a
  * runtime import of that package would drag the database driver into the browser bundle.
  */
-export type { ThemeFieldName, ThemeCategoryEntry, ThemeCategoryKey };
+export type {
+  ThemeFieldName,
+  ThemeCategoryEntry,
+  ThemeCategoryKey,
+  ThemeStatusEntry,
+  ThemeStatusKey,
+};
 export {
   NO_USAGE_LABEL,
   THEME_CATEGORIES,
   THEME_CATEGORY_KEYS,
+  THEME_STATUSES,
   themeCategoryLabel,
   themeCategoryTone,
+  themeStatusLabel,
+  themeStatusTone,
   usageLabel,
 };
 
@@ -113,6 +127,7 @@ export interface ThemeCardRow {
   readonly id: string;
   readonly name: string;
   readonly category: string;
+  readonly status: string | null;
   readonly notes: string | null;
   readonly referenceLinks: readonly string[] | null;
   readonly usedByBrandCount: number;

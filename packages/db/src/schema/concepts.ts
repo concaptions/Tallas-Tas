@@ -3,8 +3,9 @@ import { index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { baseColumns, propagationColumns } from '../columns';
 import { angles } from './angles';
 import { brands } from './brands';
+import { creators } from './creators';
 import { themes } from './themes';
-import type { AngleFormat } from './enums';
+import type { AngleFormat, ConceptApprovalStatus, ConceptProductionStatus } from './enums';
 
 /**
  * The value `internal_status` starts at: the FIRST entry of `INTERNAL_VIDEO_STATUS` in
@@ -58,6 +59,10 @@ export const concepts = pgTable(
     adInspoLinks: jsonb('ad_inspo_links').$type<string[]>().notNull().default([]),
     hookExamples: text('hook_examples'),
     scriptIdea: text('script_idea'),
+    approvalStatus: text('approval_status').$type<ConceptApprovalStatus>(),
+    formatsToCreate: jsonb('formats_to_create').$type<string[]>().notNull().default([]),
+    productionStatus: text('production_status').$type<ConceptProductionStatus>(),
+    creatorId: uuid('creator_id').references(() => creators.id),
     internalStatus: text('internal_status').notNull().default(CONCEPT_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(CONCEPT_CLIENT_STATUS_DEFAULT),
     legacyAirtableId: text('legacy_airtable_id'),

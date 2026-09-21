@@ -210,6 +210,10 @@ const problemSolutionTheme: ThemeListRow = {
   notes:
     'Open on the problem in the first two seconds, name it in the viewer’s own words, then land the product as the mechanism that removes it. Works coldest at problem-aware and solution-aware.',
   usedByBrandCount: 1,
+  status: null,
+  assigneeId: null,
+  attachments: null,
+  aiAttachmentSummary: null,
 };
 
 /**
@@ -242,6 +246,10 @@ export const demoThemes: ThemeListRow[] = [
     notes:
       'One creator, one take, talking straight down the barrel at conversational speed with no B-roll to hide behind — the whole thing lives or dies on the first sentence. Cheapest format we shoot and the only one that survives being cut to six different hooks in the edit. Needs a creator who can actually talk; on Gratsi the second-choice creator read the script and the retention graph fell off a cliff at four seconds.',
     usedByBrandCount: 1,
+    status: null,
+    assigneeId: null,
+    attachments: null,
+    aiAttachmentSummary: null,
   },
   {
     ...contentBase(
@@ -259,6 +267,10 @@ export const demoThemes: ThemeListRow[] = [
     notes:
       'Reframe the product as the gift for a named person — the shift-working sister, the dad who is always cold — so the buyer is not the user and price stops being measured against personal need. Ship the first cut by the first week of November: Mattress Central left it to the third week last year and paid double CPM for the same creative. Gift-receipt and delivery-cutoff lines belong on screen, not in the caption.',
     usedByBrandCount: 0,
+    status: null,
+    assigneeId: null,
+    attachments: null,
+    aiAttachmentSummary: null,
   },
   {
     ...contentBase(THEME_POV_ID, '2026-07-28T14:20:00.000Z', '2026-09-02T09:05:00.000Z'),
@@ -269,6 +281,10 @@ export const demoThemes: ThemeListRow[] = [
     notes:
       'Split the frame and let the viewer pick a side: the night before versus the night after, the thing they own versus the thing we sell. It earns the comparison the ad would otherwise have to claim, and it gives the editor a structure that reads with the sound off. Keep the losing side a situation and never a competitor by name — legal made Funky Painting re-cut a whole batch over a visible rival can.',
     usedByBrandCount: 1,
+    status: null,
+    assigneeId: null,
+    attachments: null,
+    aiAttachmentSummary: null,
   },
   {
     ...contentBase(THEME_GREEN_SCREEN_ID, '2026-07-20T10:05:00.000Z', '2026-08-30T16:40:00.000Z'),
@@ -279,6 +295,10 @@ export const demoThemes: ThemeListRow[] = [
     notes:
       'Creator reacts over a screenshot of a review, a Reddit thread or a sleep-tracker graph. Cheap to produce, high hook rate, and the on-screen artefact carries the proof so the script can stay short.',
     usedByBrandCount: 1,
+    status: null,
+    assigneeId: null,
+    attachments: null,
+    aiAttachmentSummary: null,
   },
   problemSolutionTheme,
   {
@@ -293,6 +313,10 @@ export const demoThemes: ThemeListRow[] = [
     notes:
       'Hang the product on the spring sports calendar — 5am training runs, tournament weekends, a parent driving home from a match — so a cold audience meets it inside a routine they are already living in March and April. Broad enough to carry any brand on the roster and dead by June, so treat every build as disposable and never as evergreen. No club crests, no player likenesses, no tournament name: the rights holders send the letters.',
     usedByBrandCount: 0,
+    status: null,
+    assigneeId: null,
+    attachments: null,
+    aiAttachmentSummary: null,
   },
 ];
 
@@ -427,6 +451,8 @@ const bodyClockAngle: AngleListRow = {
     'Built off the r/nursing thread the strategist pulled in the August research round. Keep the word "wellness" out of every script; two of the three nurses we interviewed used it as an insult. Media buyer wants this tested against the generic bedtime framing at equal spend before we scale.',
   clientNotes:
     'This is the one we would like to lead the batch with: it speaks to nurses and shift workers as professionals, not as people who are failing at sleep.',
+  briefUrl: null,
+  exactScriptUrl: null,
 };
 
 /**
@@ -471,6 +497,8 @@ export const demoAngles: AngleListRow[] = [
       'Copy has to be checked by someone who has lived it; the first draft read as a brand explaining menopause to women who have it. No lavender, no candles, no soft-focus bathroom. The claim about breathable channels needs the fabric spec on screen or the media buyer will not run it.',
     clientNotes:
       'A direct, unsentimental angle for the 45-55 audience. It opens on the line women in this group hear from their doctors and answers it with the product spec rather than with reassurance.',
+    briefUrl: null,
+    exactScriptUrl: null,
   },
   bodyClockAngle,
   {
@@ -495,6 +523,8 @@ export const demoAngles: AngleListRow[] = [
     internalNotes:
       'The motion graphic is the whole angle: lux meter reading in the corner, curtains open, mask on, number drops. Needs a real meter on the shoot day, not a post-production overlay — if a nurse works out we faked the number the comments will end the angle.',
     clientNotes: null,
+    briefUrl: null,
+    exactScriptUrl: null,
   },
   {
     ...propagationBase(
@@ -526,6 +556,8 @@ export const demoAngles: AngleListRow[] = [
       'Every script must say "blocks light, not sound" in the first ten seconds; the objection about not hearing the baby killed the first round of comments before anyone reached the offer. Shoot in a real flat with east-facing windows, not the studio.',
     clientNotes:
       'Written for the parental-leave audience. It sells the morning handover window rather than a full night, which is the only promise this group still believes.',
+    briefUrl: null,
+    exactScriptUrl: null,
   },
   {
     ...propagationBase(ANGLE_THERMOSTAT_ID, '2026-08-25T16:10:00.000Z', '2026-09-06T14:05:00.000Z'),
@@ -548,6 +580,8 @@ export const demoAngles: AngleListRow[] = [
     internalNotes:
       'Do not let this become a comedy sketch about a nagging wife; the reference ad gets close to it. The husband has to be an ally by the second beat or the angle reads as mocking the audience we are selling to.',
     clientNotes: null,
+    briefUrl: null,
+    exactScriptUrl: null,
   },
 ];
 
@@ -643,6 +677,10 @@ export const demoConcepts: ConceptListRow[] = [
       'Creator stands beside a full-screen grab of the r/Menopause thread about 3am waking and reads two comments aloud, tapping the screen as she goes — the green screen carries the proof so the script never has to claim it. She lands on the line about being told it is just her age, then cuts to the blanket: one shot of the quilted channels, one sentence on pressure without heat. Closes on her own bed at 3am with the lamp off and the ninety-night trial on screen.',
     internalStatus: 'video_editing_in_progress',
     clientStatus: 'pending_for_approval',
+    approvalStatus: null,
+    formatsToCreate: [],
+    productionStatus: null,
+    creatorId: null,
   },
   {
     ...propagationBase(
@@ -665,6 +703,10 @@ export const demoConcepts: ConceptListRow[] = [
       'Open on a nurse pulling into the driveway in full morning sun, still in scrubs. Two seconds of the problem: bins, dog, daylight through thin curtains. He says the line about the rota being the abnormal thing. Cut to the blanket going on, one line on breathable weight versus sedation, then the same man asleep with the room still bright. End on him leaving for the 19:00 shift clear-eyed, with the trial window on screen.',
     internalStatus: 'videos_revisions',
     clientStatus: 'pending_for_approval',
+    approvalStatus: null,
+    formatsToCreate: [],
+    productionStatus: null,
+    creatorId: null,
   },
   {
     ...propagationBase(CONCEPT_DAYLIGHT_ID, '2026-08-27T15:30:00.000Z', '2026-09-09T08:50:00.000Z'),
@@ -680,6 +722,10 @@ export const demoConcepts: ConceptListRow[] = [
       'Split frame, held for the whole ad: left side is the room at 03:00, right side the same room at 09:00, a real lux meter burned into each corner. The voiceover says the shift worker is not failing at sleep, he is being out-lit a hundred to one. The mask goes on over the right-hand frame and that side drops to the left-hand reading, meter and all. One line that it travels to the on-call room, then the offer. The meter must be filmed live on the day, never added in post.',
     internalStatus: 'ad_submitted',
     clientStatus: 'pending_for_approval',
+    approvalStatus: null,
+    formatsToCreate: [],
+    productionStatus: null,
+    creatorId: null,
   },
   {
     ...propagationBase(
@@ -702,6 +748,10 @@ export const demoConcepts: ConceptListRow[] = [
       'One creator, one take, straight down the barrel, no B-roll: a parent on the sofa in a bright east-facing flat during the morning handover. She says out loud that more sleep is not on offer and she has stopped listening to anyone who promises it, then sells the window she actually gets. The objection goes in the first ten seconds — blocks light, not sound — and she holds the mask up to camera while she says it. Ends on her lying down with the room still bright and the monitor audibly on.',
     internalStatus: 'sent_to_video_editor',
     clientStatus: 'pending_for_approval',
+    approvalStatus: null,
+    formatsToCreate: [],
+    productionStatus: null,
+    creatorId: null,
   },
 ];
 
@@ -929,6 +979,18 @@ export const demoBriefs: BriefListRow[] = [
     qaDesigner: true,
     qaStrategist: true,
     spellingFeedback: null,
+    spellingFeedback2: null,
+    clickForAiSpellChecker: false,
+    angleId: null,
+    productId: null,
+    adContent: null,
+    inspiration: null,
+    inspirationImage: null,
+    qaChecklistDoc: null,
+    designFile: null,
+    scriptAndBriefBreakdown: null,
+    language: null,
+    offer: null,
     internalStatus: 'approved',
     clientStatus: 'pending_for_approval',
     performance: null,
@@ -959,6 +1021,18 @@ export const demoBriefs: BriefListRow[] = [
     qaDesigner: false,
     qaStrategist: false,
     spellingFeedback: null,
+    spellingFeedback2: null,
+    clickForAiSpellChecker: false,
+    angleId: null,
+    productId: null,
+    adContent: null,
+    inspiration: null,
+    inspirationImage: null,
+    qaChecklistDoc: null,
+    designFile: null,
+    scriptAndBriefBreakdown: null,
+    language: null,
+    offer: null,
     internalStatus: 'static_design_in_progress',
     clientStatus: 'pending_for_approval',
     performance: null,
@@ -993,6 +1067,18 @@ export const demoBriefs: BriefListRow[] = [
     qaStrategist: false,
     spellingFeedback:
       'Two issues and one judgement call. Card 2 reads "3am — 2 lux. 9am — 186 lux." but card 3 says "ninety to one"; 186 over 2 is ninety-three to one, so either round the claim to "ninety to one" honestly or say "ninety-three". Card 5 has "on-call room" hyphenated and the end card has "on call room" without the hyphen — make both hyphenated. "out-lit" is not in the dictionary but it is deliberate and it scans; leaving it.',
+    spellingFeedback2: null,
+    clickForAiSpellChecker: false,
+    angleId: null,
+    productId: null,
+    adContent: null,
+    inspiration: null,
+    inspirationImage: null,
+    qaChecklistDoc: null,
+    designFile: null,
+    scriptAndBriefBreakdown: null,
+    language: null,
+    offer: null,
     internalStatus: 'ad_submitted',
     clientStatus: 'pending_for_approval',
     performance: null,
@@ -1031,6 +1117,18 @@ export const demoBriefs: BriefListRow[] = [
     qaDesigner: true,
     qaStrategist: true,
     spellingFeedback: null,
+    spellingFeedback2: null,
+    clickForAiSpellChecker: false,
+    angleId: null,
+    productId: null,
+    adContent: null,
+    inspiration: null,
+    inspirationImage: null,
+    qaChecklistDoc: null,
+    designFile: null,
+    scriptAndBriefBreakdown: null,
+    language: null,
+    offer: null,
     internalStatus: 'approved',
     clientStatus: 'pending_for_approval',
     performance: null,
@@ -1072,6 +1170,18 @@ export const demoBriefs: BriefListRow[] = [
     qaDesigner: true,
     qaStrategist: true,
     spellingFeedback: null,
+    spellingFeedback2: null,
+    clickForAiSpellChecker: false,
+    angleId: null,
+    productId: null,
+    adContent: null,
+    inspiration: null,
+    inspirationImage: null,
+    qaChecklistDoc: null,
+    designFile: null,
+    scriptAndBriefBreakdown: null,
+    language: null,
+    offer: null,
     internalStatus: 'approved',
     clientStatus: 'approved',
     performance: 'High Potential to Iterate',
@@ -1105,6 +1215,18 @@ export const demoBriefs: BriefListRow[] = [
     qaDesigner: false,
     qaStrategist: false,
     spellingFeedback: null,
+    spellingFeedback2: null,
+    clickForAiSpellChecker: false,
+    angleId: null,
+    productId: null,
+    adContent: null,
+    inspiration: null,
+    inspirationImage: null,
+    qaChecklistDoc: null,
+    designFile: null,
+    scriptAndBriefBreakdown: null,
+    language: null,
+    offer: null,
     internalStatus: 'sent_to_video_editor',
     clientStatus: 'pending_for_approval',
     performance: null,
@@ -1140,6 +1262,18 @@ export const demoBriefs: BriefListRow[] = [
     qaDesigner: true,
     qaStrategist: true,
     spellingFeedback: null,
+    spellingFeedback2: null,
+    clickForAiSpellChecker: false,
+    angleId: null,
+    productId: null,
+    adContent: null,
+    inspiration: null,
+    inspirationImage: null,
+    qaChecklistDoc: null,
+    designFile: null,
+    scriptAndBriefBreakdown: null,
+    language: null,
+    offer: null,
     internalStatus: 'launched',
     clientStatus: 'launched',
     performance: 'Winning',
@@ -1184,6 +1318,7 @@ export const demoCopy: CopyListRow[] = [
     ...propagationBase(COPY_BODY_CLOCK_ID, '2026-09-01T10:15:00.000Z', '2026-09-16T11:20:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    productId: null,
     copyNumber: 1,
     primaryCopy:
       'Six years of night shifts and he still could not sleep at noon. It is the rota, not you. Weight, not heat. Ninety nights.',
@@ -1193,6 +1328,12 @@ export const demoCopy: CopyListRow[] = [
     status: 'approved',
     clientComment: null,
     creativeName: demoBrief(BRIEF_BODY_CLOCK_VIDEO_ID).name,
+    used: false,
+    winning: false,
+    metaRating: null,
+    funnel: null,
+    clickForAiSpellChecker: false,
+    spellingFeedback: null,
   },
   {
     ...propagationBase(
@@ -1202,6 +1343,7 @@ export const demoCopy: CopyListRow[] = [
     ),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    productId: null,
     copyNumber: 2,
     primaryCopy:
       'Her doctor called it her age. Four hundred women in one thread called it 3:47am. Quilted weight that spreads, never traps.',
@@ -1211,11 +1353,18 @@ export const demoCopy: CopyListRow[] = [
     status: 'pending_for_client_review',
     clientComment: null,
     creativeName: demoBrief(BRIEF_NOT_YOUR_AGE_STATIC_ID).name,
+    used: false,
+    winning: false,
+    metaRating: null,
+    funnel: null,
+    clickForAiSpellChecker: false,
+    spellingFeedback: null,
   },
   {
     ...propagationBase(COPY_DAYLIGHT_ID, '2026-09-02T12:25:00.000Z', '2026-09-13T17:30:00.000Z'),
     brandId: DEMO_BRAND_ID,
     creativeBriefId: BRIEF_DAYLIGHT_MOTION_ID,
+    productId: null,
     copyNumber: 3,
     primaryCopy:
       'Same bedroom, six hours apart: 2 lux at 3am, 186 lux at 9am. You are not failing at sleep, you are being out-lit 90 to 1.',
@@ -1226,6 +1375,12 @@ export const demoCopy: CopyListRow[] = [
     clientComment:
       'Swapped the headline ourselves — "Not Bad Sleep" reads as us calling their sleep bad, and our support inbox is full of people who already feel judged about it. The lux numbers stay, they are the best thing in here, but please keep 186 and 2 as digits everywhere; spelling them out in the link description made it look like a pharmacy leaflet. One more: legal will not sign off on "90 to 1" unless the meter reading is in the asset itself, which I think it is, so send the frame and we will clear it.',
     creativeName: demoBrief(BRIEF_DAYLIGHT_MOTION_ID).name,
+    used: false,
+    winning: false,
+    metaRating: null,
+    funnel: null,
+    clickForAiSpellChecker: false,
+    spellingFeedback: null,
   },
   {
     ...propagationBase(
@@ -1236,6 +1391,7 @@ export const demoCopy: CopyListRow[] = [
     brandId: DEMO_BRAND_ID,
     // Drafted before anyone chose which bundle static it runs on: the PRD §5.11 unattached case.
     creativeBriefId: null,
+    productId: null,
     copyNumber: 4,
     primaryCopy:
       'You bought the blanket and left the mask behind. The weight handles 3am, the light handles 6am, and the box handles both.',
@@ -1245,6 +1401,12 @@ export const demoCopy: CopyListRow[] = [
     status: 'revisions_needed',
     clientComment: null,
     creativeName: null,
+    used: false,
+    winning: false,
+    metaRating: null,
+    funnel: null,
+    clickForAiSpellChecker: false,
+    spellingFeedback: null,
   },
 ];
 
@@ -1342,6 +1504,9 @@ export const demoCreators: CreatorListRow[] = [
     internalAssetsStatus: 'approved',
     clientNote:
       'She is the one. Keep her on the night-shift angles and do not put her in anything menopause-adjacent — different audience, and she is thirty.',
+    rawAssetsUrl: null,
+    conceptIds: [],
+    productIds: [],
     instagramUsername: '@danielle.sleeps.late',
     forPartnershipAds: true,
     partnershipActivity: 'active',
@@ -1378,6 +1543,9 @@ export const demoCreators: CreatorListRow[] = [
     clientStatus: 'filming_in_progress',
     internalAssetsStatus: 'pending_for_cs_approval',
     clientNote: null,
+    rawAssetsUrl: null,
+    conceptIds: [],
+    productIds: [],
     instagramUsername: '@marcus.after.midnight',
     forPartnershipAds: true,
     partnershipActivity: 'active',
@@ -1416,6 +1584,9 @@ export const demoCreators: CreatorListRow[] = [
     internalAssetsStatus: 'revisions_needed',
     clientNote:
       'Love her, but the second cut has the brand name in the first two seconds and the first one did not. That is the whole difference. Send it back and ask for the cold open.',
+    rawAssetsUrl: null,
+    conceptIds: [],
+    productIds: [],
     instagramUsername: '@priya.at.3am',
     forPartnershipAds: true,
     partnershipActivity: 'ended',
@@ -1454,6 +1625,9 @@ export const demoCreators: CreatorListRow[] = [
     clientStatus: 'due_shipment',
     internalAssetsStatus: 'pending_for_cs_approval',
     clientNote: null,
+    rawAssetsUrl: null,
+    conceptIds: [],
+    productIds: [],
     instagramUsername: null,
     forPartnershipAds: false,
     partnershipActivity: 'not_active',
@@ -1489,6 +1663,9 @@ export const demoCreators: CreatorListRow[] = [
     internalAssetsStatus: 'approved',
     clientNote:
       'Delivered a day early and the lux reading is legible on a phone, which is all we asked for. Book them again for the Q4 gifting set.',
+    rawAssetsUrl: null,
+    conceptIds: [],
+    productIds: [],
     instagramUsername: '@hannahwhitcombe',
     forPartnershipAds: false,
     partnershipActivity: 'not_active',

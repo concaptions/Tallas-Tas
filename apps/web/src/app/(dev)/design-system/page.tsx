@@ -214,6 +214,7 @@ const SAMPLE_THEMES = [
     id: 'ds-theme-1',
     name: 'Yapper Style',
     category: 'Production Style',
+    status: 'in_progress',
     notes:
       'One creator, one take, talking straight down the barrel at conversational speed with no B-roll to hide behind — the whole thing lives or dies on the first sentence. Cheapest format we shoot and the only one that survives being cut to six different hooks in the edit.',
     referenceLinks: [
@@ -226,6 +227,7 @@ const SAMPLE_THEMES = [
     id: 'ds-theme-2',
     name: 'Problem/Solution',
     category: 'Framework',
+    status: 'done',
     notes: 'Name the problem in the first two seconds, then show the product solving it.',
     referenceLinks: ['https://foreplay.example/boards/problem-solution'],
     usedByBrandCount: 1,
@@ -234,6 +236,7 @@ const SAMPLE_THEMES = [
     id: 'ds-theme-3',
     name: 'Holiday Gifting',
     category: 'Seasonal',
+    status: null,
     notes: null,
     referenceLinks: null,
     usedByBrandCount: 4,

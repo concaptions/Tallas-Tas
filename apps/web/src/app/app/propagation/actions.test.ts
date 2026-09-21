@@ -36,6 +36,7 @@ vi.mock('@tas/db', async (importOriginal) => {
     ...actual,
     listTeam: vi.fn(() => Promise.resolve(actual.demoTeam)),
     setPromotionRequestStatus: vi.fn(),
+    applyApprovedPromotion: vi.fn(() => Promise.resolve({ applied: true, reason: null })),
   };
 });
 
