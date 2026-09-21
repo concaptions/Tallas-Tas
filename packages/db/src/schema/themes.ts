@@ -22,6 +22,7 @@ export const themes = pgTable(
     category: themeCategoryEnum('category').notNull(),
     referenceLinks: jsonb('reference_links').$type<string[]>(),
     notes: text('notes'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [check('themes_global', sql`${table.brandId} is null`)],
 );

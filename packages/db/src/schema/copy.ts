@@ -67,6 +67,7 @@ export const copywriting = pgTable(
     cta: text('cta').$type<CopyCta>().notNull().default(COPY_CTA_DEFAULT),
     status: text('status').notNull().default(COPY_STATUS_DEFAULT),
     clientComment: text('client_comment'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('copywriting_brand_id_idx').on(table.brandId),

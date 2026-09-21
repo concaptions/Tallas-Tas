@@ -18,6 +18,7 @@ export const products = pgTable(
     name: text('name').notNull(),
     link: text('link').notNull(),
     collectionLink: text('collection_link'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   // Index for the `brand_id` foreign key; also the leading column of every scoped read.
   (table) => [index('products_brand_id_idx').on(table.brandId)],

@@ -88,6 +88,7 @@ export const creativeBriefs = pgTable(
     internalStatus: text('internal_status').notNull().default(BRIEF_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(BRIEF_CLIENT_STATUS_DEFAULT),
     performance: text('performance').$type<CreativePerformance>(),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('creative_briefs_brand_id_idx').on(table.brandId),

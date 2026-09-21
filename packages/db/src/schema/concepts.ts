@@ -59,6 +59,7 @@ export const concepts = pgTable(
     scriptIdea: text('script_idea'),
     internalStatus: text('internal_status').notNull().default(CONCEPT_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(CONCEPT_CLIENT_STATUS_DEFAULT),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('concepts_brand_id_idx').on(table.brandId),

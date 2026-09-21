@@ -1,3 +1,5 @@
+export { importAirtableExport } from './airtable-import';
+export type { AirtableExport, AirtableRecord } from './airtable-import';
 export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
 export type { AngleInput, AngleListRow } from './angles';
 export { getBriefById, insertBrief, listBriefs, updateBrief } from './briefs';

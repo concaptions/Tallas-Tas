@@ -81,6 +81,7 @@ describe('migration 0007 on PGlite', () => {
       'deleted_at',
       'headline',
       'id',
+      'legacy_airtable_id',
       'link_description',
       'primary_copy',
       'status',

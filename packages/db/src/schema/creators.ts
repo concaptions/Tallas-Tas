@@ -119,6 +119,7 @@ export const creators = pgTable(
     partnershipPricePer30Days: integer('partnership_price_per_30_days'),
     partnershipNotes: text('partnership_notes'),
     facebookProfileUrl: text('facebook_profile_url'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('creators_brand_id_idx').on(table.brandId),

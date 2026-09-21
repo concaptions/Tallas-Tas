@@ -33,6 +33,7 @@ export const personas = pgTable(
     problemChallenge: text('problem_challenge'),
     successTransformation: text('success_transformation'),
     triggerWords: text('trigger_words'),
+    legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('personas_brand_id_idx').on(table.brandId),
