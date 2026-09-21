@@ -24,13 +24,13 @@ import {
 import { briefsPath } from '@/lib/routes';
 
 import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '../actions';
+import { runSpellCheckAction, type SpellCheckActionResult } from '../spell-check-action';
 import {
   BRIEF_HEADINGS,
   BRIEF_PROSE_FIELDS,
   DEMO_FOOTER_NOTICE,
   EM_DASH,
   NO_SPELLING_NOTE,
-  RERUN_SOON_HINT,
   STANDALONE_CONCEPT_SLUG,
   STANDALONE_NOTE,
   VERSION_OPTIONS,
@@ -129,6 +129,10 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
     updateBriefAction,
     null,
   );
+  const [spellState, spellAction, spellPending] = useActionState<
+    SpellCheckActionResult | null,
+    FormData
+  >(runSpellCheckAction, null);
   const [version, setVersion] = useState(String(brief.version));
 
   useEffect(() => {
@@ -397,7 +401,14 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
             <h3 className="text-[11px] font-medium tracking-wide text-text3 uppercase">
               {BRIEF_HEADINGS.spelling}
             </h3>
-            {brief.spellingFeedback === null ? (
+            {spellState?.ok && spellState.feedback ? (
+              <p
+                data-slot="brief-spelling-text"
+                className="text-xs leading-relaxed break-words text-text2"
+              >
+                {spellState.feedback}
+              </p>
+            ) : brief.spellingFeedback === null ? (
               <p data-slot="brief-spelling-empty" className="text-xs text-text4">
                 {NO_SPELLING_NOTE}
               </p>
@@ -409,18 +420,21 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
                 {brief.spellingFeedback}
               </p>
             )}
-            <DisabledWrite active hint={demo ? DEMO_WRITE_HINT : RERUN_SOON_HINT}>
+            {spellState !== null && !spellState.ok ? (
+              <p className="text-xs text-bad">{spellState.error}</p>
+            ) : null}
+            <form action={spellAction}>
+              <input type="hidden" name="id" value={brief.id} />
               <Button
-                type="button"
+                type="submit"
                 variant="outline"
                 size="sm"
-                disabled
+                disabled={spellPending}
                 data-slot="brief-spelling-rerun"
-                className={disabledWriteClassName}
               >
-                Re-run AI check
+                {spellPending ? 'Checking…' : 'Run AI spell check'}
               </Button>
-            </DisabledWrite>
+            </form>
           </section>
         </aside>
       </div>
