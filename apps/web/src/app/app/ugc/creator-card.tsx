@@ -76,6 +76,31 @@ export function CreatorCard({ creator }: CreatorCardProps) {
         </div>
       </div>
 
+      {(creator.rawAssetsUrl || creator.conceptIds.length > 0 || creator.productIds.length > 0) && (
+        <div className="flex flex-wrap gap-3 text-xs text-text2" data-slot="creator-links">
+          {creator.rawAssetsUrl && (
+            <a
+              href={creator.rawAssetsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-line hover:text-text"
+            >
+              Raw Assets
+            </a>
+          )}
+          {creator.conceptIds.length > 0 && (
+            <span className="font-mono">
+              {creator.conceptIds.length} concept{creator.conceptIds.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          {creator.productIds.length > 0 && (
+            <span className="font-mono">
+              {creator.productIds.length} product{creator.productIds.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       <dl className="flex flex-col gap-2 border-t border-line pt-3" data-slot="creator-tracks">
         {tracks.map((track) => (
           <div

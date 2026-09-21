@@ -67,7 +67,7 @@ describe('inspoSourceLabel', () => {
 });
 
 describe('panel groups', () => {
-  it('are the six the design specifies, in order', () => {
+  it('are the seven the design specifies, in order', () => {
     expect(ANGLE_GROUP_HEADINGS).toEqual([
       'Identity',
       'Hypothesis',
@@ -75,6 +75,7 @@ describe('panel groups', () => {
       'USP',
       'Targeting',
       'Inspiration',
+      'Resources',
     ]);
   });
 

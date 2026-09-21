@@ -139,6 +139,17 @@ export const ANGLE_FIELD_GROUPS: readonly AngleFieldGroup[] = [
   },
   { heading: 'Targeting', fields: [] },
   { heading: 'Inspiration', fields: [] },
+  {
+    heading: 'Resources',
+    fields: [
+      { name: 'briefUrl', label: 'Brief URL', hint: 'Link to the brief document for this angle.' },
+      {
+        name: 'exactScriptUrl',
+        label: 'Exact Script URL',
+        hint: 'Link to the exact script document for this angle.',
+      },
+    ],
+  },
 ];
 
 /** Just the headings, for the panel's section list and for the E2E assertion. */

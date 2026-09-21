@@ -405,6 +405,39 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
                     </>
                   ) : null}
 
+                  {group.heading === 'Resources'
+                    ? group.fields.map((field) => {
+                        const id = `angle-field-${field.name}`;
+                        const error = fieldError(field.name);
+                        return (
+                          <div key={field.name} className="flex flex-col gap-1.5">
+                            <Label
+                              htmlFor={id}
+                              className="text-[11px] tracking-wide text-text3 uppercase"
+                            >
+                              {field.label}
+                            </Label>
+                            {field.hint === undefined ? null : (
+                              <p className="text-xs text-text3">{field.hint}</p>
+                            )}
+                            <Input
+                              id={id}
+                              name={field.name}
+                              type="url"
+                              readOnly={demo}
+                              aria-invalid={error !== undefined}
+                              placeholder="https://…"
+                              defaultValue={valueOf(angle, field.name)}
+                              className="font-mono text-xs"
+                            />
+                            {error === undefined ? null : (
+                              <p className="text-xs text-bad">{error}</p>
+                            )}
+                          </div>
+                        );
+                      })
+                    : null}
+
                   {group.heading === 'Inspiration' ? (
                     <div className="flex flex-col gap-3" data-slot="angle-inspo">
                       {filledLinks.length === 0 ? (

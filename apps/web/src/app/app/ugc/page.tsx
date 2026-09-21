@@ -46,6 +46,9 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     internalCreatorStatus: row.internalCreatorStatus,
     clientStatus: row.clientStatus,
     internalAssetsStatus: row.internalAssetsStatus,
+    rawAssetsUrl: row.rawAssetsUrl,
+    conceptIds: row.conceptIds,
+    productIds: row.productIds,
   }));
 
   const rows: PartnershipRow[] = partnerships.map((row) => partnershipRow(row, now));

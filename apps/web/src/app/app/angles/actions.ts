@@ -39,7 +39,14 @@ import { anglesPath } from '@/lib/routes';
  * The fields the panel can show a message under: the four the domain validator knows, plus the four
  * this page writes that carry no rule. Derived from `AngleDraftField` so the two cannot drift.
  */
-export type AngleFieldName = AngleDraftField | 'productId' | 'description' | 'painPoints' | 'usp';
+export type AngleFieldName =
+  | AngleDraftField
+  | 'productId'
+  | 'description'
+  | 'painPoints'
+  | 'usp'
+  | 'briefUrl'
+  | 'exactScriptUrl';
 
 export interface AngleActionSuccess {
   readonly ok: true;
@@ -93,6 +100,8 @@ const angleSchema = z.object({
   usp: text,
   formats: z.array(format),
   adInspoLinks: z.array(z.string().trim()),
+  briefUrl: text,
+  exactScriptUrl: text,
 });
 
 type AngleFormValues = z.infer<typeof angleSchema>;
@@ -119,6 +128,8 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     usp: single('usp'),
     formats: many('formats'),
     adInspoLinks: many('adInspoLinks'),
+    briefUrl: single('briefUrl'),
+    exactScriptUrl: single('exactScriptUrl'),
   };
 }
 
@@ -151,6 +162,8 @@ function toInput(values: AngleFormValues): AngleInput {
     usp: values.usp,
     formats: values.formats,
     adInspoLinks: values.adInspoLinks.filter((entry) => entry !== ''),
+    briefUrl: values.briefUrl,
+    exactScriptUrl: values.exactScriptUrl,
   };
 }
 

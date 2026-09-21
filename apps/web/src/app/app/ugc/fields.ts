@@ -165,6 +165,9 @@ export interface CreatorCardRow {
   readonly internalCreatorStatus: string;
   readonly clientStatus: string;
   readonly internalAssetsStatus: string;
+  readonly rawAssetsUrl: string | null;
+  readonly conceptIds: readonly string[];
+  readonly productIds: readonly string[];
 }
 
 /**

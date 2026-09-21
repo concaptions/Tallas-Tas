@@ -42,6 +42,9 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     internalCreatorStatus: 'approved',
     clientStatus: 'approved',
     internalAssetsStatus: 'approved',
+    rawAssetsUrl: null,
+    conceptIds: [],
+    productIds: [],
   },
   {
     id: 'story-without-picture',
@@ -53,6 +56,9 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     internalCreatorStatus: 'pending_for_cs_approval',
     clientStatus: 'due_shipment',
     internalAssetsStatus: 'pending_for_cs_approval',
+    rawAssetsUrl: null,
+    conceptIds: [],
+    productIds: [],
   },
 ];
 
