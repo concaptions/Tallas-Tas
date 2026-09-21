@@ -59,6 +59,7 @@ export const propagationPath = '/app/propagation';
  * interface config and notification defaults seeded from the template.
  */
 export const onboardPath = '/app/onboard';
+export const clientPortalPath = '/client';
 export const designSystemPath = '/design-system';
 
 /**
