@@ -260,6 +260,51 @@ export function CreatorPanel({
 
             <section className="flex flex-col gap-3">
               <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                Costs (internal only)
+              </h3>
+              <p className="text-xs text-text3">Never shown to clients. Whole USD, no cents.</p>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label
+                    htmlFor="creator-field-costUsd"
+                    className="text-[11px] tracking-wide text-text3 uppercase"
+                  >
+                    Creator Cost (USD)
+                  </Label>
+                  <Input
+                    id="creator-field-costUsd"
+                    name="costUsd"
+                    type="number"
+                    min={0}
+                    step={1}
+                    readOnly={demo}
+                    defaultValue={creator.costUsd ?? ''}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label
+                    htmlFor="creator-field-partnershipPricePer30Days"
+                    className="text-[11px] tracking-wide text-text3 uppercase"
+                  >
+                    Partnership Price / 30 Days (USD)
+                  </Label>
+                  <Input
+                    id="creator-field-partnershipPricePer30Days"
+                    name="partnershipPricePer30Days"
+                    type="number"
+                    min={0}
+                    step={1}
+                    readOnly={demo}
+                    defaultValue={creator.partnershipPricePer30Days ?? ''}
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="flex flex-col gap-3">
+              <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
                 Linked Concepts
               </h3>
               {concepts.length === 0 ? (

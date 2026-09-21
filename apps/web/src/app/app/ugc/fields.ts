@@ -173,6 +173,8 @@ export interface CreatorCardRow {
   readonly shippingLocation: string | null;
   readonly trackingNumber: string | null;
   readonly internalBrief: string | null;
+  readonly costUsd: number | null;
+  readonly partnershipPricePer30Days: number | null;
 }
 
 /**

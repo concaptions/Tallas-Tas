@@ -33,6 +33,16 @@ const text = z
   .transform((value) => (value === '' ? null : value))
   .nullable();
 
+const optionalInt = z
+  .string()
+  .trim()
+  .transform((value) => {
+    if (value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.trunc(n) : null;
+  })
+  .nullable();
+
 const creatorSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1, 'Name is required.'),
@@ -45,6 +55,8 @@ const creatorSchema = z.object({
   trackingNumber: text,
   rawAssetsUrl: text,
   internalBrief: text,
+  costUsd: optionalInt,
+  partnershipPricePer30Days: optionalInt,
   conceptIds: z.array(z.string()),
   productIds: z.array(z.string()),
 });
@@ -69,6 +81,8 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     trackingNumber: single('trackingNumber'),
     rawAssetsUrl: single('rawAssetsUrl'),
     internalBrief: single('internalBrief'),
+    costUsd: single('costUsd'),
+    partnershipPricePer30Days: single('partnershipPricePer30Days'),
     conceptIds: many('conceptIds'),
     productIds: many('productIds'),
   };

@@ -50,6 +50,8 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     shippingLocation: 'Hamilton, ON',
     trackingNumber: null,
     internalBrief: null,
+    costUsd: 350,
+    partnershipPricePer30Days: 750,
   },
   {
     id: 'story-without-picture',
@@ -69,6 +71,8 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     shippingLocation: null,
     trackingNumber: null,
     internalBrief: null,
+    costUsd: null,
+    partnershipPricePer30Days: null,
   },
 ];
 

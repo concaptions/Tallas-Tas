@@ -34,6 +34,8 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     shippingLocation: row.shippingLocation,
     trackingNumber: row.trackingNumber,
     internalBrief: row.internalBrief,
+    costUsd: row.costUsd,
+    partnershipPricePer30Days: row.partnershipPricePer30Days,
   }));
 
   const rows: PartnershipRow[] = partnerships.map((row) => partnershipRow(row, now));
