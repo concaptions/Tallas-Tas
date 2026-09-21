@@ -26,6 +26,8 @@ export const serverSchema = clientSchema.extend({
   R2_BUCKET: secret.optional(),
   ANTHROPIC_API_KEY: secret.optional(),
   AIRTABLE_PAT: secret.optional(),
+  META_ACCESS_TOKEN: secret.optional(),
+  META_AD_ACCOUNT_ID: secret.optional(),
 });
 
 export type ClientEnv = z.output<typeof clientSchema>;

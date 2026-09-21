@@ -1,3 +1,4 @@
+import type { AdMetricListRow } from './ad-metrics';
 import type { AssetListRow } from './assets';
 import type { AngleListRow } from './angles';
 import type { BriefListRow } from './briefs';
@@ -100,6 +101,10 @@ const ASSET_REF_VIDEO_ID = 'cccccccc-cccc-4ccc-8ccc-000000000001';
 const ASSET_BROLL_ID = 'cccccccc-cccc-4ccc-8ccc-000000000002';
 const ASSET_RAW_ID = 'cccccccc-cccc-4ccc-8ccc-000000000003';
 const ASSET_MOOD_ID = 'cccccccc-cccc-4ccc-8ccc-000000000004';
+const METRIC_BODY_CLOCK_ID = 'dddddddd-dddd-4ddd-8ddd-000000000001';
+const METRIC_NOT_YOUR_AGE_ID = 'dddddddd-dddd-4ddd-8ddd-000000000002';
+const METRIC_DAYLIGHT_ID = 'dddddddd-dddd-4ddd-8ddd-000000000003';
+const METRIC_NINETY_MINUTES_ID = 'dddddddd-dddd-4ddd-8ddd-000000000004';
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -2151,5 +2156,76 @@ export const demoAssets: AssetListRow[] = [
     category: 'mood_board',
     conceptId: CONCEPT_DAYLIGHT_ID,
     caption: 'Mood board — morning light colour palette',
+  },
+];
+
+export const demoAdMetrics: AdMetricListRow[] = [
+  {
+    ...base(METRIC_BODY_CLOCK_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    briefId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    conceptId: CONCEPT_BODY_CLOCK_ID,
+    metaAdId: '23851234567890',
+    adName: 'VV01-B1-BodyClock-v1',
+    spend: '1245.50',
+    impressions: 89_200,
+    clicks: 3_120,
+    conversions: 156,
+    ctr: '0.0350',
+    cpc: '0.40',
+    cpa: '7.98',
+    roas: '4.20',
+    dateRange: '2026-09-01 to 2026-09-14',
+  },
+  {
+    ...base(METRIC_NOT_YOUR_AGE_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    briefId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    conceptId: CONCEPT_NOT_YOUR_AGE_ID,
+    metaAdId: '23851234567891',
+    adName: 'SI01-B1-NotYourAge-v1',
+    spend: '820.00',
+    impressions: 62_500,
+    clicks: 1_875,
+    conversions: 62,
+    ctr: '0.0300',
+    cpc: '0.44',
+    cpa: '13.23',
+    roas: '2.80',
+    dateRange: '2026-09-01 to 2026-09-14',
+  },
+  {
+    ...base(METRIC_DAYLIGHT_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    briefId: BRIEF_DAYLIGHT_MOTION_ID,
+    conceptId: CONCEPT_DAYLIGHT_ID,
+    metaAdId: '23851234567892',
+    adName: 'MG01-B1-Daylight-v1',
+    spend: '540.25',
+    impressions: 41_000,
+    clicks: 1_640,
+    conversions: 41,
+    ctr: '0.0400',
+    cpc: '0.33',
+    cpa: '13.18',
+    roas: '3.10',
+    dateRange: '2026-09-01 to 2026-09-14',
+  },
+  {
+    ...base(METRIC_NINETY_MINUTES_ID, '2026-09-10T08:00:00.000Z', '2026-09-15T08:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    briefId: BRIEF_NINETY_MINUTES_VIDEO_ID,
+    conceptId: CONCEPT_NINETY_MINUTES_ID,
+    metaAdId: '23851234567893',
+    adName: 'VV02-B1-90Minutes-v1',
+    spend: '1890.00',
+    impressions: 124_000,
+    clicks: 4_960,
+    conversions: 248,
+    ctr: '0.0400',
+    cpc: '0.38',
+    cpa: '7.62',
+    roas: '5.50',
+    dateRange: '2026-09-01 to 2026-09-14',
   },
 ];

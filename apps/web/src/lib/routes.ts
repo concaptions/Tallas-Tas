@@ -60,6 +60,7 @@ export const propagationPath = '/app/propagation';
  */
 export const onboardPath = '/app/onboard';
 export const assetsPath = '/app/assets';
+export const performancePath = '/app/performance';
 export const clientPortalPath = '/client';
 export const designSystemPath = '/design-system';
 

@@ -3,6 +3,7 @@ import {
   appPath,
   assetsPath,
   briefsPath,
+  performancePath,
   clientQueuePath,
   conceptsPath,
   copywritingPath,
@@ -57,6 +58,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { key: 'copywriting', label: 'Copywriting', icon: 'copywriting', href: copywritingPath },
       { key: 'ugc', label: 'UGC Management', icon: 'ugc', href: ugcPath },
       { key: 'assets', label: 'Asset Library', icon: 'assets', href: assetsPath },
+      { key: 'performance', label: 'Performance', icon: 'performance', href: performancePath },
     ],
   },
   {

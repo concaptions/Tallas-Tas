@@ -1,3 +1,5 @@
+export { insertAdMetric, listAdMetrics, listConceptMetrics } from './ad-metrics';
+export type { AdMetricInput, AdMetricListRow } from './ad-metrics';
 export { importAirtableExport } from './airtable-import';
 export { getAssetById, insertAsset, listAssets, listConceptAssets } from './assets';
 export type { AssetInput, AssetListRow } from './assets';
@@ -31,6 +33,7 @@ export {
   PARTNERSHIP_REFERENCE_DATE,
   PRODUCT_CSV_COLUMNS,
   STANDALONE_CONCEPT_SLUG,
+  demoAdMetrics,
   demoAssets,
   demoAngles,
   demoBrandAssignments,
