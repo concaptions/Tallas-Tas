@@ -1,5 +1,5 @@
 import {
-  createNeonDb,
+  createAutoDb,
   demoCreators,
   demoPartnershipCreators,
   getCreatorById,
@@ -90,7 +90,7 @@ export interface UgcSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

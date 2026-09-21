@@ -1,6 +1,6 @@
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
-  createNeonDb,
+  createAutoDb,
   demoBriefs,
   getBriefById,
   listBriefs,
@@ -151,7 +151,7 @@ export function toBriefRow(row: BriefListRow): BriefRow {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

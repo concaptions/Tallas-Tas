@@ -1,5 +1,5 @@
 import {
-  createNeonDb,
+  createAutoDb,
   demoProducts,
   getProductById,
   listProducts,
@@ -60,7 +60,7 @@ export interface ProductSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

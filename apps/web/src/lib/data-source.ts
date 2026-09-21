@@ -5,7 +5,7 @@ import {
   angles,
   brands,
   concepts,
-  createNeonDb,
+  createAutoDb,
   demoAngles,
   demoConcepts,
   demoPersonas,
@@ -34,7 +34,7 @@ import { isDemoMode } from './demo-mode';
  * injectable for exactly one reason: "no client was constructed" is not observable otherwise, and
  * `data-source.test.ts` proves it with a factory that throws if it is ever called.
  *
- * LIVE MODE (Clerk configured): Neon, through `createNeonDb`. The connection is opened per call and
+ * LIVE MODE (Clerk configured): Neon, through `createAutoDb`. The connection is opened per call and
  * closed in a `finally`; no module-level singleton (CLAUDE.md, "No shared mutable module state").
  *
  * The fixtures and a seeded database are row-for-row identical, ids included (`seed(db)` writes the
@@ -119,7 +119,7 @@ const DEMO_BRAND: BrandSummary = {
 const EMPTY_COUNTS: SectionCounts = { personas: 0, angles: 0, themes: 0, concepts: 0 };
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

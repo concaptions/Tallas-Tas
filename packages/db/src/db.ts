@@ -1,7 +1,9 @@
-import { Pool } from '@neondatabase/serverless';
+import { Pool as NeonPool } from '@neondatabase/serverless';
 import type { DrizzleConfig } from 'drizzle-orm';
-import { drizzle, type NeonClient } from 'drizzle-orm/neon-serverless';
+import { drizzle as drizzleNeon, type NeonClient } from 'drizzle-orm/neon-serverless';
+import { drizzle as drizzleNode } from 'drizzle-orm/node-postgres';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import { Pool as PgPool } from 'pg';
 
 import * as schema from './schema';
 
@@ -16,21 +18,45 @@ export type Schema = typeof schema;
 export type Db = PgDatabase<PgQueryResultHKT, Schema>;
 
 /** A Neon-driver instance; `$client` is whatever `createDb` was given (a `Pool` from `createNeonDb`). */
-export type NeonDb<Client extends NeonClient = Pool> = ReturnType<typeof drizzle<Schema, Client>>;
+export type NeonDb<Client extends NeonClient = NeonPool> = ReturnType<
+  typeof drizzleNeon<Schema, Client>
+>;
 
 /** Shared driver configuration, so every adapter binds the same schema. */
 export const drizzleConfig: DrizzleConfig<Schema> = { schema };
 
 /** Binds a client the Neon driver accepts (`Pool`, `PoolClient` or `Client`) to the schema. */
 export function createDb<Client extends NeonClient>(client: Client): NeonDb<Client> {
-  return drizzle(client, drizzleConfig);
+  return drizzleNeon(client, drizzleConfig);
 }
 
 /**
- * Production adapter: a connection pool to Neon over WebSocket (Postgres protocol, so
- * `db.transaction(...)` runs BEGIN/COMMIT on one connection; the HTTP driver cannot). Node 22+ has
- * a global `WebSocket`, so no polyfill. Close it with `db.$client.end()` when the process is done.
+ * Neon adapter: a connection pool over WebSocket. Use for Neon-hosted Postgres where the serverless
+ * driver's WebSocket transport is available.
  */
 export function createNeonDb(databaseUrl: string): NeonDb {
-  return createDb(new Pool({ connectionString: databaseUrl }));
+  return createDb(new NeonPool({ connectionString: databaseUrl }));
+}
+
+/**
+ * Standard Postgres adapter: a connection pool over TCP using node-postgres. Use for Railway,
+ * Supabase, self-hosted, or any Postgres that speaks the standard wire protocol. Close it with
+ * `db.$client.end()`.
+ */
+export function createNodeDb(databaseUrl: string) {
+  const pool = new PgPool({ connectionString: databaseUrl });
+  return Object.assign(drizzleNode(pool, drizzleConfig), {
+    $client: pool,
+  });
+}
+
+/**
+ * Auto-detecting adapter: uses the Neon serverless driver for `*.neon.tech` URLs (WebSocket) and
+ * the standard node-postgres driver for everything else (TCP). Close with `db.$client.end()`.
+ */
+export function createAutoDb(databaseUrl: string) {
+  if (databaseUrl.includes('.neon.tech')) {
+    return createNeonDb(databaseUrl);
+  }
+  return createNodeDb(databaseUrl);
 }

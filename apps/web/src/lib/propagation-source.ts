@@ -1,5 +1,5 @@
 import {
-  createNeonDb,
+  createAutoDb,
   demoPromotionRequests,
   demoReviewedPromotionRequests,
   listPromotionRequests,
@@ -75,7 +75,7 @@ export interface PromotionSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

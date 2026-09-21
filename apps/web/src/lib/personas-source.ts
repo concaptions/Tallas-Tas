@@ -1,5 +1,5 @@
 import {
-  createNeonDb,
+  createAutoDb,
   demoPersonas,
   getPersonaById,
   listPersonas,
@@ -58,7 +58,7 @@ export interface PersonaSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

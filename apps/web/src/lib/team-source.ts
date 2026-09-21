@@ -1,4 +1,4 @@
-import { createNeonDb, demoTeam, listTeam, type Db, type TeamListRow } from '@tas/db';
+import { createAutoDb, demoTeam, listTeam, type Db, type TeamListRow } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
@@ -53,7 +53,7 @@ export interface TeamSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

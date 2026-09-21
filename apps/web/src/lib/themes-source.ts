@@ -1,5 +1,5 @@
 import {
-  createNeonDb,
+  createAutoDb,
   demoThemes,
   getThemeById,
   listThemes,
@@ -62,7 +62,7 @@ export interface ThemeSourceDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 

@@ -1,7 +1,7 @@
 import {
   CONCEPT_CLIENT_STATUS_DEFAULT,
   CONCEPT_INTERNAL_STATUS_DEFAULT,
-  createNeonDb,
+  createAutoDb,
   demoConcepts,
   getConceptById,
   listConcepts,
@@ -127,7 +127,7 @@ export function toConceptRow(row: ConceptListRow): ConceptRow {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createNeonDb(databaseUrl);
+  const db = createAutoDb(databaseUrl);
   return { db, close: () => db.$client.end() };
 }
 
