@@ -118,6 +118,6 @@ describe('the write surface', () => {
       .filter(([, value]) => typeof value === 'function')
       .map(([name]) => name);
 
-    expect(exported).toEqual(['createThemeAction']);
+    expect(exported).toEqual(['createThemeAction', 'toggleThemeActiveAction']);
   });
 });

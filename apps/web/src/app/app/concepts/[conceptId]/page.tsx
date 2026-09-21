@@ -67,7 +67,9 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
     productName: row.productName,
   }));
 
-  const themes: ThemeOption[] = themeRows.rows.map((row) => ({ id: row.id, name: row.name }));
+  const themes: ThemeOption[] = themeRows.rows
+    .filter((row) => row.isActive)
+    .map((row) => ({ id: row.id, name: row.name }));
 
   const creators: CreatorOption[] = creatorRows.rows.map((row) => ({ id: row.id, name: row.name }));
 

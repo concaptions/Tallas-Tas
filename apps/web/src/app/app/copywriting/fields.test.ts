@@ -49,10 +49,11 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
 }
 
 describe('COPY_COLUMNS', () => {
-  it('is exactly the five columns of the ticket, in order', () => {
+  it('is exactly the six columns of the table, in order', () => {
     expect(COPY_COLUMNS).toEqual([
       'Copy title / Headline',
       'Linked Creative',
+      'Concept',
       'Funnel',
       'Status',
       'Updated',
@@ -60,7 +61,7 @@ describe('COPY_COLUMNS', () => {
   });
 
   it('names both values the first cell stacks', () => {
-    expect(COPY_COLUMNS).toHaveLength(5);
+    expect(COPY_COLUMNS).toHaveLength(6);
     expect(COPY_COLUMNS[0]).toContain('Copy title');
     expect(COPY_COLUMNS[0]).toContain(COPY_FIELD_LABELS.headline);
   });

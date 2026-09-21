@@ -1,5 +1,6 @@
-import { StatusChip } from '@tas/ui';
+import { Button, StatusChip } from '@tas/ui';
 
+import { toggleThemeActiveAction } from './actions';
 import {
   overflowLabel,
   referenceChipRow,
@@ -13,6 +14,8 @@ import {
 
 interface ThemeCardProps {
   readonly theme: ThemeCardRow;
+  readonly demo: boolean;
+  readonly onToggled: () => void;
 }
 
 /**
@@ -35,7 +38,7 @@ interface ThemeCardProps {
  * renders, and it takes `ThemeCardRow` rather than `ThemeListRow` so that preview can hand it a
  * plain object without importing `@tas/db`.
  */
-export function ThemeCard({ theme }: ThemeCardProps) {
+export function ThemeCard({ theme, demo, onToggled }: ThemeCardProps) {
   const links = referenceChipRow(theme.referenceLinks);
 
   return (
@@ -95,6 +98,28 @@ export function ThemeCard({ theme }: ThemeCardProps) {
             <StatusChip tone="mute" label={overflowLabel(links.overflow)} />
           )}
         </div>
+      )}
+
+      {demo ? null : (
+        <form
+          action={async (formData: FormData) => {
+            await toggleThemeActiveAction(formData);
+            onToggled();
+          }}
+          className="mt-auto pt-1"
+        >
+          <input type="hidden" name="id" value={theme.id} />
+          <input type="hidden" name="isActive" value={theme.isActive ? 'false' : 'true'} />
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            data-slot="theme-toggle-active"
+            className="text-xs"
+          >
+            {theme.isActive ? 'Archive' : 'Restore'}
+          </Button>
+        </form>
       )}
     </article>
   );

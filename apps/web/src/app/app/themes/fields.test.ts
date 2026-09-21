@@ -25,6 +25,7 @@ function theme(overrides: Partial<ThemeCardRow> = {}): ThemeCardRow {
     notes: 'Creator reacts over a screenshot of a review or a sleep-tracker graph.',
     referenceLinks: ['https://foreplay.example/boards/green-screen-reaction'],
     usedByBrandCount: 0,
+    isActive: true,
     ...overrides,
   };
 }

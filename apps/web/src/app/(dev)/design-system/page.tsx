@@ -222,6 +222,7 @@ const SAMPLE_THEMES = [
       'https://www.tiktok.com/@thepostpartumplan/video/7385012994771635745',
     ],
     usedByBrandCount: 0,
+    isActive: true,
   },
   {
     id: 'ds-theme-2',
@@ -231,6 +232,7 @@ const SAMPLE_THEMES = [
     notes: 'Name the problem in the first two seconds, then show the product solving it.',
     referenceLinks: ['https://foreplay.example/boards/problem-solution'],
     usedByBrandCount: 1,
+    isActive: true,
   },
   {
     id: 'ds-theme-3',
@@ -240,6 +242,7 @@ const SAMPLE_THEMES = [
     notes: null,
     referenceLinks: null,
     usedByBrandCount: 4,
+    isActive: false,
   },
 ] as const satisfies readonly ThemeCardRow[];
 
@@ -759,7 +762,7 @@ export default function DesignSystemPage() {
             </span>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {SAMPLE_THEMES.map((row) => (
-                <ThemeCard key={row.id} theme={row} />
+                <ThemeCard key={row.id} theme={row} demo onToggled={() => {}} />
               ))}
             </div>
           </div>

@@ -322,7 +322,7 @@ export const demoThemes: ThemeListRow[] = [
     assigneeId: null,
     attachments: null,
     aiAttachmentSummary: null,
-    isActive: true,
+    isActive: false,
   },
 ];
 

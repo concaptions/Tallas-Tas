@@ -131,6 +131,7 @@ export interface ThemeCardRow {
   readonly notes: string | null;
   readonly referenceLinks: readonly string[] | null;
   readonly usedByBrandCount: number;
+  readonly isActive: boolean;
 }
 
 /** A theme is in the grid when its category matches the chip row and its text matches `?q=`. */

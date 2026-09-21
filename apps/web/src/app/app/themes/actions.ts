@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { insertTheme, type ThemeInput } from '@tas/db';
+import { insertTheme, updateTheme, type ThemeInput } from '@tas/db';
 import { isThemeCategory, validateThemeDraft, type ThemeDraftField } from '@tas/domain/themes';
 import { z } from 'zod';
 
@@ -171,5 +171,47 @@ export async function createThemeAction(
     return { ok: true, id: created.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The theme could not be saved. Try again.' };
+  }
+}
+
+export interface ToggleResult {
+  readonly ok: boolean;
+  readonly error?: string;
+}
+
+const toggleSchema = z.object({
+  id: z.uuid(),
+  isActive: z.enum(['true', 'false']),
+});
+
+export async function toggleThemeActiveAction(formData: FormData): Promise<ToggleResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+
+  const parsed = toggleSchema.safeParse({
+    id: formData.get('id'),
+    isActive: formData.get('isActive'),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: 'Invalid request.' };
+  }
+
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
+    }
+    const isActive = parsed.data.isActive === 'true';
+    const updated = await withGlobalScope((db) =>
+      updateTheme(db, parsed.data.id, { isActive }, actor),
+    );
+    if (updated === null) {
+      return { ok: false, error: 'Theme not found.' };
+    }
+    revalidatePath(themesPath);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Could not update theme. Try again.' };
   }
 }

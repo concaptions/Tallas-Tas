@@ -33,6 +33,8 @@ import { ThemeCard } from './theme-card';
  *
  * The rows arrive newest edit first from `loadThemes()`, so this component never sorts.
  */
+export type ThemeTab = 'active' | 'archived';
+
 export interface ThemesWorkspaceProps {
   readonly themes: readonly ThemeListRow[];
   readonly demo: boolean;
@@ -40,6 +42,8 @@ export interface ThemesWorkspaceProps {
   readonly initialCategory: CategoryFilter;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
   readonly initialSearch: string;
+  /** The `?tab=` the page was opened with; defaults to `'active'`. */
+  readonly initialTab: ThemeTab;
 }
 
 /**
@@ -49,8 +53,11 @@ export interface ThemesWorkspaceProps {
  * `Production Style` has one, and `%20` is what survives being pasted into a chat window. A filter
  * at its default is removed rather than written, so a cleared view leaves a clean URL.
  */
-function syncUrl(category: CategoryFilter, search: string): void {
+function syncUrl(tab: ThemeTab, category: CategoryFilter, search: string): void {
   const parts: string[] = [];
+  if (tab !== 'active') {
+    parts.push(`tab=${tab}`);
+  }
   if (category !== ALL_CATEGORIES) {
     parts.push(`category=${encodeURIComponent(category)}`);
   }
@@ -66,45 +73,64 @@ export function ThemesWorkspace({
   demo,
   initialCategory,
   initialSearch,
+  initialTab,
 }: ThemesWorkspaceProps) {
   const router = useRouter();
+  const [tab, setTab] = useState<ThemeTab>(initialTab);
   const [category, setCategory] = useState<CategoryFilter>(initialCategory);
   const [search, setSearch] = useState(initialSearch);
+
+  const pickTab = useCallback(
+    (next: ThemeTab) => {
+      setTab(next);
+      syncUrl(next, category, search);
+    },
+    [category, search],
+  );
 
   const pickCategory = useCallback(
     (next: CategoryFilter) => {
       setCategory(next);
-      syncUrl(next, search);
+      syncUrl(tab, next, search);
     },
-    [search],
+    [tab, search],
   );
 
   const filter = useCallback(
     (next: string) => {
       setSearch(next);
-      syncUrl(category, next);
+      syncUrl(tab, category, next);
     },
-    [category],
+    [tab, category],
   );
 
   const clearFilters = useCallback(() => {
     setCategory(ALL_CATEGORIES);
     setSearch('');
-    syncUrl(ALL_CATEGORIES, '');
-  }, []);
+    syncUrl(tab, ALL_CATEGORIES, '');
+  }, [tab]);
 
   const saved = useCallback(() => {
     router.refresh();
   }, [router]);
 
+  const tabThemes = useMemo(
+    () => themes.filter((theme) => (tab === 'active' ? theme.isActive : !theme.isActive)),
+    [themes, tab],
+  );
+
+  const activeCount = useMemo(() => themes.filter((t) => t.isActive).length, [themes]);
+  const archivedCount = useMemo(() => themes.filter((t) => !t.isActive).length, [themes]);
+
   const term = search.trim();
   const query = term.toLowerCase();
   const visible = useMemo(
-    () => themes.filter((theme) => matchesCategory(theme, category) && matchesQuery(theme, query)),
-    [themes, category, query],
+    () =>
+      tabThemes.filter((theme) => matchesCategory(theme, category) && matchesQuery(theme, query)),
+    [tabThemes, category, query],
   );
 
-  const narrowed = visible.length !== themes.length;
+  const narrowed = visible.length !== tabThemes.length;
 
   return (
     <div className="flex flex-col gap-8">
@@ -119,12 +145,52 @@ export function ThemesWorkspace({
         <p className="text-sm text-text2">
           <span data-slot="theme-count">
             {narrowed
-              ? filteredCountLabel(visible.length, themes.length)
-              : libraryCountLabel(themes.length)}
+              ? filteredCountLabel(visible.length, tabThemes.length)
+              : libraryCountLabel(tabThemes.length)}
           </span>{' '}
           — the creative vehicle a concept is built in, shared by every brand.
         </p>
       </header>
+
+      <div
+        className="flex items-center gap-1 border-b border-line"
+        role="tablist"
+        aria-label="Theme status"
+        data-slot="theme-tabs"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'active'}
+          data-slot="tab-active"
+          onClick={() => {
+            pickTab('active');
+          }}
+          className={
+            tab === 'active'
+              ? 'border-b-2 border-accent px-3 py-2 text-sm font-medium text-accent'
+              : 'border-b-2 border-transparent px-3 py-2 text-sm font-medium text-text3 hover:text-text2'
+          }
+        >
+          Active ({activeCount})
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'archived'}
+          data-slot="tab-archived"
+          onClick={() => {
+            pickTab('archived');
+          }}
+          className={
+            tab === 'archived'
+              ? 'border-b-2 border-accent px-3 py-2 text-sm font-medium text-accent'
+              : 'border-b-2 border-transparent px-3 py-2 text-sm font-medium text-text3 hover:text-text2'
+          }
+        >
+          Archived ({archivedCount})
+        </button>
+      </div>
 
       <section aria-labelledby="themes-heading" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -180,13 +246,15 @@ export function ThemesWorkspace({
             className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface px-4 py-10 text-center"
           >
             <p className="text-sm text-text2">
-              {themes.length === 0
-                ? 'The library is empty. The first theme you add is available to every brand on the platform.'
+              {tabThemes.length === 0
+                ? tab === 'archived'
+                  ? 'No archived themes.'
+                  : 'The library is empty. The first theme you add is available to every brand on the platform.'
                 : 'No theme matches these filters. Widen the category or clear the search.'}
             </p>
-            {themes.length === 0 ? (
+            {tabThemes.length === 0 && tab === 'active' ? (
               <NewThemeDialog demo={demo} onSaved={saved} />
-            ) : (
+            ) : tabThemes.length > 0 ? (
               <Button
                 type="button"
                 variant="outline"
@@ -196,7 +264,7 @@ export function ThemesWorkspace({
               >
                 Clear filters
               </Button>
-            )}
+            ) : null}
           </div>
         ) : (
           <div
@@ -204,7 +272,7 @@ export function ThemesWorkspace({
             className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
           >
             {visible.map((theme) => (
-              <ThemeCard key={theme.id} theme={theme} />
+              <ThemeCard key={theme.id} theme={theme} demo={demo} onToggled={saved} />
             ))}
           </div>
         )}

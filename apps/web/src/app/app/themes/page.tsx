@@ -2,7 +2,7 @@ import { isDemoMode } from '@/lib/demo-mode';
 import { loadThemes } from '@/lib/themes-source';
 
 import { categoryFromParam } from './fields';
-import { ThemesWorkspace } from './themes-workspace';
+import { ThemesWorkspace, type ThemeTab } from './themes-workspace';
 
 /**
  * Themes (PRD §5.5): the GLOBAL creative library, the one table in the platform that is not
@@ -43,12 +43,17 @@ export default async function ThemesPage({ searchParams }: ThemesPageProps) {
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
 
+  const requestedTab = params.tab;
+  const initialTab: ThemeTab =
+    typeof requestedTab === 'string' && requestedTab === 'archived' ? 'archived' : 'active';
+
   return (
     <ThemesWorkspace
       themes={rows}
       demo={demo}
       initialCategory={initialCategory}
       initialSearch={initialSearch}
+      initialTab={initialTab}
     />
   );
 }
