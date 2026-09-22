@@ -62,8 +62,36 @@ export {
   updateOnboardingForm,
 } from './onboarding-forms';
 export type { OnboardingFormInput, OnboardingFormListRow } from './onboarding-forms';
+export {
+  getAiCharacterById,
+  insertAiCharacter,
+  listAiCharacters,
+  updateAiCharacter,
+} from './ai-characters';
+export type { AiCharacterInput, AiCharacterListRow } from './ai-characters';
 export { getCampaignById, insertCampaign, listCampaigns, updateCampaign } from './campaigns';
 export type { CampaignInput } from './campaigns';
+export {
+  getCollectionById,
+  insertCollection,
+  listCollections,
+  updateCollection,
+} from './collections';
+export type { CollectionInput, CollectionListRow } from './collections';
+export {
+  getCompetitiveResearchById,
+  insertCompetitiveResearch,
+  listCompetitiveResearch,
+  updateCompetitiveResearch,
+} from './competitive-research';
+export type { CompetitiveResearchInput, CompetitiveResearchListRow } from './competitive-research';
+export {
+  getCreativeDimensionById,
+  insertCreativeDimension,
+  listCreativeDimensions,
+  updateCreativeDimension,
+} from './creative-dimensions';
+export type { CreativeDimensionInput, CreativeDimensionListRow } from './creative-dimensions';
 export { baseColumns, propagationColumns } from './columns';
 export {
   insertCustomFieldSchema,
@@ -109,10 +137,14 @@ export {
   PRODUCT_CSV_COLUMNS,
   STANDALONE_CONCEPT_SLUG,
   demoAdMetrics,
+  demoAiCharacters,
   demoAssets,
   demoAngles,
   demoCampaigns,
+  demoCollections,
+  demoCompetitiveResearch,
   demoCompetitorAds,
+  demoCreativeDimensions,
   demoCreatorRankings,
   demoUploadLinks,
   demoOnboardingForms,

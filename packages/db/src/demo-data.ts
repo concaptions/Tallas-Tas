@@ -1,8 +1,12 @@
 import type { AdMetricListRow } from './ad-metrics';
+import type { AiCharacterListRow } from './ai-characters';
 import type { AssetListRow } from './assets';
 import type { AngleListRow } from './angles';
 import type { CollaborationListRow } from './collaborations';
+import type { CollectionListRow } from './collections';
 import type { CompetitorAdListRow } from './competitor-ads';
+import type { CompetitiveResearchListRow } from './competitive-research';
+import type { CreativeDimensionListRow } from './creative-dimensions';
 import type { CreatorRankingListRow } from './creator-rankings';
 import type { OnboardingFormListRow } from './onboarding-forms';
 import type { UploadLinkListRow } from './upload-links';
@@ -133,6 +137,20 @@ const COLLAB_TOMAS_1_ID = 'cccccccc-cccc-4ccc-8ccc-000000000006';
 const CAMPAIGN_BFCM_ID = 'dddddddd-dddd-4ddd-8ddd-000000000001';
 const CAMPAIGN_VDAY_ID = 'dddddddd-dddd-4ddd-8ddd-000000000002';
 const CAMPAIGN_SUMMER_ID = 'dddddddd-dddd-4ddd-8ddd-000000000003';
+
+const COLLECTION_BFCM_ID = '11223344-1122-4334-8556-000000000001';
+const COLLECTION_SUMMER_ID = '11223344-1122-4334-8556-000000000002';
+
+const DIMENSION_STORY_ID = '22334455-2233-4445-8556-000000000001';
+const DIMENSION_FEED_ID = '22334455-2233-4445-8556-000000000002';
+const DIMENSION_REEL_ID = '22334455-2233-4445-8556-000000000003';
+
+const AI_CHAR_LUNA_ID = '33445566-3344-4556-8667-000000000001';
+const AI_CHAR_MAX_ID = '33445566-3344-4556-8667-000000000002';
+
+const COMP_CASPER_ID = '44556677-4455-4667-8778-000000000001';
+const COMP_PURPLE_ID = '44556677-4455-4667-8778-000000000002';
+const COMP_HELIX_ID = '44556677-4455-4667-8778-000000000003';
 
 function demoCampaignName(holiday: string, discountOffer: string, code: string): string {
   return [holiday, discountOffer, code].join('-');
@@ -2828,6 +2846,163 @@ export const demoCampaigns: CampaignOffer[] = [
     adsLaunchDate: '2026-06-25',
     adsEndDate: '2026-07-10',
     productId: PRODUCT_MASK_ID,
+    legacyAirtableId: null,
+  },
+];
+
+export const demoCollections: CollectionListRow[] = [
+  {
+    ...propagationBase(COLLECTION_BFCM_ID, '2026-08-20T10:00:00.000Z', '2026-09-18T15:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'BFCM 2026 Collection',
+    url: 'https://niagarasleep.com/collections/bfcm',
+    campaignId: CAMPAIGN_BFCM_ID,
+    angleId: ANGLE_BODY_CLOCK_ID,
+    productId: PRODUCT_RESET_BUNDLE_ID,
+    creativeDesignNote: 'High-energy reels with before/after sleep footage',
+    copywritingId: COPY_BODY_CLOCK_ID,
+    creativeDesign2Id: BRIEF_BODY_CLOCK_VIDEO_ID,
+    legacyAirtableId: null,
+    campaignName: 'BFCM-20%OFF-BFCM26',
+    angleName: 'Your Body Clock Is Broken',
+    productName: 'Reset Bundle',
+  },
+  {
+    ...propagationBase(
+      COLLECTION_SUMMER_ID,
+      '2026-09-01T14:00:00.000Z',
+      '2026-09-15T12:00:00.000Z',
+    ),
+    brandId: DEMO_BRAND_ID,
+    name: 'Summer Cooling Collection',
+    url: 'https://niagarasleep.com/collections/summer',
+    campaignId: CAMPAIGN_SUMMER_ID,
+    angleId: ANGLE_NINETY_MINUTES_ID,
+    productId: PRODUCT_MASK_ID,
+    creativeDesignNote: null,
+    copywritingId: null,
+    creativeDesign2Id: null,
+    legacyAirtableId: null,
+    campaignName: 'Summer Sale-Buy 2 Get 1 Free-SUM26',
+    angleName: 'Ninety Minutes That Change Tomorrow',
+    productName: 'Sleep Mask Pro',
+  },
+];
+
+export const demoCreativeDimensions: CreativeDimensionListRow[] = [
+  {
+    ...propagationBase(DIMENSION_STORY_ID, '2026-08-10T09:00:00.000Z', '2026-09-16T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'IG Story / Reel',
+    dimensions: '1080x1920',
+    linkDescription: 'Story',
+    creativeDesignId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    legacyAirtableId: null,
+  },
+  {
+    ...propagationBase(DIMENSION_FEED_ID, '2026-08-10T09:30:00.000Z', '2026-09-14T10:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'IG Feed Post',
+    dimensions: '1080x1080',
+    linkDescription: 'Feed',
+    creativeDesignId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    legacyAirtableId: null,
+  },
+  {
+    ...propagationBase(DIMENSION_REEL_ID, '2026-08-12T10:00:00.000Z', '2026-09-12T14:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'FB / Meta Reel',
+    dimensions: '1080x1920',
+    linkDescription: 'Reel',
+    creativeDesignId: null,
+    legacyAirtableId: null,
+  },
+];
+
+export const demoAiCharacters: AiCharacterListRow[] = [
+  {
+    ...propagationBase(AI_CHAR_LUNA_ID, '2026-08-25T10:00:00.000Z', '2026-09-17T16:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Luna',
+    attachments: null,
+    status: 'active',
+    basicInfo:
+      'A wellness-focused AI persona who advocates for better sleep habits and holistic health.',
+    toneOfVoice:
+      'Warm, empathetic, knowledgeable — like a trusted friend who happens to be a sleep scientist.',
+    voiceLink: 'https://elevenlabs.io/voice/luna-demo',
+    personalityTraits:
+      'Patient, curious, gently persuasive. Never pushy. Backs up claims with studies.',
+    appearance:
+      'Late 20s, dark curly hair, warm brown eyes, often photographed in soft natural light.',
+    traitsAndHabits: 'Morning journaler, chamomile tea ritual, no screens after 9pm.',
+    hobbiesAndLifestyle: 'Yoga, reading sleep science papers, hiking at dawn.',
+    workAndBackground: 'Former neuroscience researcher turned wellness content creator.',
+    whyPromotesBrand:
+      'Genuinely used the weighted blanket during her PhD recovery period and credits it for breaking her insomnia cycle.',
+    legacyAirtableId: null,
+  },
+  {
+    ...propagationBase(AI_CHAR_MAX_ID, '2026-09-01T11:00:00.000Z', '2026-09-15T09:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Max',
+    attachments: null,
+    status: 'draft',
+    basicInfo: 'A fitness-oriented AI persona who frames sleep as the ultimate performance hack.',
+    toneOfVoice: 'Direct, high-energy, results-driven — a coach who actually cares about recovery.',
+    voiceLink: null,
+    personalityTraits: 'Competitive but supportive. Data-driven. Loves a good before/after.',
+    appearance: 'Early 30s, athletic build, clean-cut, often in workout or athleisure gear.',
+    traitsAndHabits: 'Tracks HRV religiously, cold showers, strict 10pm lights-out.',
+    hobbiesAndLifestyle: 'CrossFit, meal prep, biohacking podcasts.',
+    workAndBackground: 'Former D1 athlete turned personal trainer and sleep optimization coach.',
+    whyPromotesBrand:
+      'Tested the cooling mask for a sponsored challenge and saw measurable HRV improvements within two weeks.',
+    legacyAirtableId: null,
+  },
+];
+
+export const demoCompetitiveResearch: CompetitiveResearchListRow[] = [
+  {
+    ...propagationBase(COMP_CASPER_ID, '2026-08-05T10:00:00.000Z', '2026-09-18T14:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Casper Sleep',
+    type: 'Direct Competitor',
+    website: 'https://casper.com',
+    instagram: '@casper',
+    facebookPage: 'https://facebook.com/casper',
+    metaAdsLibrary:
+      'Heavy Q4 spending. Focus on lifestyle over science. Predominantly static ads with lifestyle photography. Weak on UGC.',
+    analysis:
+      'Market leader by brand awareness but slipping in DTC. Their creative is polished but lacks authenticity — an opening for UGC-heavy approach.',
+    legacyAirtableId: null,
+  },
+  {
+    ...propagationBase(COMP_PURPLE_ID, '2026-08-06T10:00:00.000Z', '2026-09-16T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Purple Mattress',
+    type: 'Direct Competitor',
+    website: 'https://purple.com',
+    instagram: '@purple',
+    facebookPage: 'https://facebook.com/purple',
+    metaAdsLibrary:
+      'Grid technology demos. Split-test heavy. Running ~120 active ads. Mostly video.',
+    analysis:
+      'Strong product differentiation narrative. Their "raw egg test" video format is iconic but wearing thin. Opportunity to counter with human testimonials.',
+    legacyAirtableId: null,
+  },
+  {
+    ...propagationBase(COMP_HELIX_ID, '2026-08-10T09:00:00.000Z', '2026-09-14T10:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: 'Helix Sleep',
+    type: 'Indirect Competitor',
+    website: 'https://helixsleep.com',
+    instagram: '@helixsleep',
+    facebookPage: null,
+    metaAdsLibrary:
+      'Quiz-funnel focused. Ads drive to their sleep quiz. Lower spend than Casper/Purple but high CVR.',
+    analysis:
+      'Personalization angle is smart. We can learn from their quiz-to-purchase funnel for our own product recommendation flow.',
     legacyAirtableId: null,
   },
 ];

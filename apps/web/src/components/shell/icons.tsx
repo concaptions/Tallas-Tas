@@ -33,6 +33,10 @@ export type IconName =
   | 'ad-spy'
   | 'creator-ranking'
   | 'upload-links'
+  | 'collections'
+  | 'creative-dimensions'
+  | 'ai-characters'
+  | 'competitive-research'
   | 'onboarding-forms';
 
 const PATHS: Record<IconName, string> = {
@@ -73,6 +77,10 @@ const PATHS: Record<IconName, string> = {
   'creator-ranking': 'M12 2l3 6 6 1-4.5 4L18 19l-6-3.5L6 19l1.5-6L3 9l6-1z',
   'upload-links':
     'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+  collections: 'M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z',
+  'creative-dimensions': 'M21 3H3v18h18zM9 3v18M3 9h18M3 15h18M15 3v18',
+  'ai-characters': 'M12 2a4 4 0 0 0-4 4v2a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4zM8.5 14h7l2 8h-11z',
+  'competitive-research': 'M2 12h4l3-9 4 18 3-9h4',
   'onboarding-forms':
     'M9 11h6M9 15h4M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 7h6',
 };

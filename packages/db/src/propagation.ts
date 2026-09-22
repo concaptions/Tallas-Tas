@@ -2,12 +2,16 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import {
+  aiCharacters,
   angles,
   brands,
   campaignsOffers,
+  collections,
+  competitiveResearch,
   concepts,
   copywriting,
   creativeBriefs,
+  creativeDimensions,
   creators,
   customFieldSchemas,
   interfaceFields,
@@ -197,6 +201,10 @@ export const PROPAGATION_TABLES: Record<string, BrandedTable> = {
   copywriting,
   creators,
   campaigns_offers: campaignsOffers,
+  collections,
+  creative_dimensions: creativeDimensions,
+  ai_characters: aiCharacters,
+  competitive_research: competitiveResearch,
 };
 
 /**
