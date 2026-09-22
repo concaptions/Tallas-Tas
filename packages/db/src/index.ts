@@ -69,10 +69,15 @@ export {
   insertCustomFieldSchema,
   listApplicableFieldSchemas,
   listCustomFieldSchemas,
+  propagateCustomFieldSchema,
   softDeleteCustomFieldSchema,
   updateCustomFieldSchema,
 } from './custom-field-schemas';
-export type { CustomFieldSchemaInput, CustomFieldSchemaListRow } from './custom-field-schemas';
+export type {
+  CustomFieldSchemaInput,
+  CustomFieldSchemaListRow,
+  PropagateCustomFieldResult,
+} from './custom-field-schemas';
 export { getConceptById, insertConcept, listConcepts, updateConcept } from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
 export { getCopyById, insertCopy, listCopy, updateCopy } from './copy';

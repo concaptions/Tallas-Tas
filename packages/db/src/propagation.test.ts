@@ -19,7 +19,7 @@ import {
   PROPAGATION_TABLES,
   resolveTemplateBrandId,
 } from './propagation';
-import { applyApprovedPromotion } from './promotion-requests';
+import { applyApprovedPromotion, setPromotionRequestStatus } from './promotion-requests';
 import { interfacePages, products } from './schema';
 import { seed } from './seed';
 import { testDb } from './testing';
@@ -449,5 +449,164 @@ describe('applyApprovedPromotion', () => {
     );
     expect(result.applied).toBe(false);
     expect(result.reason).toContain('not found');
+  });
+
+  it('propagates a custom field schema to all child brands on approval', async () => {
+    const { db, agency, templateBrand, childBrand } = await seeded();
+
+    const schema = await insertCustomFieldSchema(
+      db,
+      templateBrand.id,
+      {
+        tableName: 'products',
+        fieldKey: 'favorite_color',
+        fieldType: 'text',
+        fieldLabel: 'Favorite Color',
+        options: null,
+        sortOrder: '0',
+        createdBy: DEMO_ACTOR_ID,
+        updatedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    const request = await createPromotionRequest(
+      db,
+      {
+        brandId: templateBrand.id,
+        tableName: 'custom_field_schemas',
+        rowId: schema.id,
+        fieldName: 'favorite_color',
+        currentValue: '',
+        proposedValue: JSON.stringify({
+          tableName: 'products',
+          fieldKey: 'favorite_color',
+          fieldLabel: 'Favorite Color',
+        }),
+        requestedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    await setPromotionRequestStatus(db, agency.id, request.id, 'approved', DEMO_ACTOR_ID);
+
+    const result = await applyApprovedPromotion(db, agency.id, request.id, DEMO_ACTOR_ID);
+    expect(result.applied).toBe(true);
+    expect(result.childrenUpdated).toBeGreaterThanOrEqual(1);
+
+    const childSchemas = await listCustomFieldSchemas(db, childBrand.id, 'products');
+    expect(childSchemas.some((f) => f.fieldKey === 'favorite_color')).toBe(true);
+  });
+
+  it('skips child brands that already have the custom field schema', async () => {
+    const { db, agency, templateBrand, childBrand } = await seeded();
+
+    const schema = await insertCustomFieldSchema(
+      db,
+      templateBrand.id,
+      {
+        tableName: 'personas',
+        fieldKey: 'mood',
+        fieldType: 'select',
+        fieldLabel: 'Mood',
+        options: 'happy,sad,neutral',
+        sortOrder: '0',
+        createdBy: DEMO_ACTOR_ID,
+        updatedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    await insertCustomFieldSchema(
+      db,
+      childBrand.id,
+      {
+        tableName: 'personas',
+        fieldKey: 'mood',
+        fieldType: 'select',
+        fieldLabel: 'Mood',
+        options: 'happy,sad,neutral',
+        sortOrder: '0',
+        createdBy: DEMO_ACTOR_ID,
+        updatedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    const request = await createPromotionRequest(
+      db,
+      {
+        brandId: templateBrand.id,
+        tableName: 'custom_field_schemas',
+        rowId: schema.id,
+        fieldName: 'mood',
+        currentValue: '',
+        proposedValue: JSON.stringify({
+          tableName: 'personas',
+          fieldKey: 'mood',
+          fieldLabel: 'Mood',
+        }),
+        requestedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    await setPromotionRequestStatus(db, agency.id, request.id, 'approved', DEMO_ACTOR_ID);
+
+    const children = await listChildBrands(db, templateBrand.id);
+    const result = await applyApprovedPromotion(db, agency.id, request.id, DEMO_ACTOR_ID);
+    expect(result.applied).toBe(true);
+    expect(result.childrenUpdated).toBe(children.length - 1);
+  });
+
+  it('promoted schema is discoverable via listApplicableFieldSchemas for the child', async () => {
+    const { db, agency, templateBrand, childBrand } = await seeded();
+
+    const schema = await insertCustomFieldSchema(
+      db,
+      templateBrand.id,
+      {
+        tableName: 'angles',
+        fieldKey: 'priority',
+        fieldType: 'number',
+        fieldLabel: 'Priority',
+        options: null,
+        sortOrder: '1',
+        createdBy: DEMO_ACTOR_ID,
+        updatedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    const beforePromotion = await listApplicableFieldSchemas(db, childBrand.id, 'angles');
+    expect(beforePromotion.some((f) => f.fieldKey === 'priority')).toBe(true);
+
+    const request = await createPromotionRequest(
+      db,
+      {
+        brandId: templateBrand.id,
+        tableName: 'custom_field_schemas',
+        rowId: schema.id,
+        fieldName: 'priority',
+        currentValue: '',
+        proposedValue: JSON.stringify({
+          tableName: 'angles',
+          fieldKey: 'priority',
+          fieldLabel: 'Priority',
+        }),
+        requestedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    await setPromotionRequestStatus(db, agency.id, request.id, 'approved', DEMO_ACTOR_ID);
+    const result = await applyApprovedPromotion(db, agency.id, request.id, DEMO_ACTOR_ID);
+    expect(result.applied).toBe(true);
+
+    const afterPromotion = await listApplicableFieldSchemas(db, childBrand.id, 'angles');
+    expect(afterPromotion.some((f) => f.fieldKey === 'priority')).toBe(true);
+
+    const childDirect = await listCustomFieldSchemas(db, childBrand.id, 'angles');
+    expect(childDirect.some((f) => f.fieldKey === 'priority')).toBe(true);
   });
 });

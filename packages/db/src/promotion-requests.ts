@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 
+import { propagateCustomFieldSchema } from './custom-field-schemas';
 import type { Db } from './db';
-import { PROPAGATION_TABLES, propagateTemplateRow } from './propagation';
+import { listChildBrands, PROPAGATION_TABLES, propagateTemplateRow } from './propagation';
 import {
   brands,
   promotionRequests,
@@ -214,6 +215,19 @@ export async function applyApprovedPromotion(
 
   if (request.status !== 'approved') {
     return { applied: false, reason: `Request status is ${request.status}, not approved` };
+  }
+
+  if (request.tableName === 'custom_field_schemas' && request.rowId) {
+    const templateBrandId = request.brandId;
+    const children = await listChildBrands(db, templateBrandId);
+    const result = await propagateCustomFieldSchema(
+      db,
+      templateBrandId,
+      request.rowId,
+      actorId,
+      children.map((c) => c.id),
+    );
+    return { applied: true, childrenUpdated: result.childrenUpdated };
   }
 
   const table = PROPAGATION_TABLES[request.tableName];
