@@ -499,3 +499,10 @@ that errors is a bug report, a page showing another tenant's people is a breach.
 them, which is also what makes the refusal testable without Clerk. The demo branch of every module is
 untouched and still returns before any connection is opened. No dependency was added and no service
 cost changes.
+
+## D-010 · 2026-09-22 · @dnd-kit for Kanban drag-and-drop
+
+Sprint 5 adds a Kanban view with drag-and-drop card movement between columns. `@dnd-kit/core` +
+`@dnd-kit/sortable` + `@dnd-kit/utilities` were chosen over `react-beautiful-dnd` (unmaintained) and
+`react-dnd` (heavier). @dnd-kit is ~15 KB gzipped, React 19 compatible, and has no peer dependency
+beyond React. No hosted service, no cost.

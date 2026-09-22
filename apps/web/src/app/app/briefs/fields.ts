@@ -113,6 +113,37 @@ export function priorityView(priority: string | null): BriefPriorityView | null 
 }
 
 /**
+ * The raw fields the update action needs to rebuild FormData on a Kanban drag. Every field that
+ * `fieldsOf()` in `actions.ts` reads is here so the drag handler can construct valid FormData
+ * without a server round-trip to re-fetch the brief. Kept as plain strings (the FormData shape)
+ * so the client never parses or validates — the action does that.
+ */
+export interface BriefFormSnapshot {
+  readonly conceptId: string;
+  readonly funnel: string;
+  readonly type: string;
+  readonly version: string;
+  readonly batch: string;
+  readonly product: string;
+  readonly priority: string;
+  readonly assignee: string;
+  readonly briefToDesign: string;
+  readonly scriptContent: string;
+  readonly elementsTested: string;
+  readonly adContent: string;
+  readonly inspiration: string;
+  readonly offer: string;
+  readonly language: string;
+  readonly spellingFeedback2: string;
+  readonly angleId: string;
+  readonly productId: string;
+  readonly inspoLinks: readonly string[];
+  readonly dimensions: readonly string[];
+  readonly internalStatus: string;
+  readonly clientStatus: string;
+}
+
+/**
  * One brief as the list renders it: everything the table shows, and nothing else. Built on the
  * server so the client component never imports `@tas/db` and never resolves a status itself.
  */
@@ -128,6 +159,12 @@ export interface BriefItem {
   readonly status: BriefStatusView;
   /** `briefPath(id)` — a real route segment, because the detail is a page and not a panel. */
   readonly href: string;
+  /** Raw Kanban-groupable field values, keyed by column name. */
+  readonly kanbanFields: Record<string, string>;
+  /** First image URL from designFile or inspirationImage, for Gallery view. */
+  readonly galleryImageUrl: string | null;
+  /** All raw fields the update action needs, so Kanban drag can build FormData without re-fetching. */
+  readonly formSnapshot: BriefFormSnapshot;
 }
 
 /** How the header counts what is on screen. Singular at one, never "1 briefs". */

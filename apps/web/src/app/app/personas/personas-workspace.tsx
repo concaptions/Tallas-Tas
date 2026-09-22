@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useState, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PersonaListRow } from '@tas/db';
+import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   Button,
   StatusChip,
@@ -13,6 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from '@tas/ui';
+
+import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
+
+import type { AwarenessStage } from '@tas/db/schema';
 
 import { awarenessLabel, awarenessTone, EM_DASH } from './fields';
 import { PersonaPanel, NEW_PERSONA } from './persona-panel';
@@ -34,7 +39,12 @@ interface PersonasWorkspaceProps {
   readonly items: readonly PersonaItem[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
+  readonly initialView?: ViewType;
 }
+
+const PERSONAS_CAP = getTableCapability('personas') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
 
 /** Writes `?persona=` without a server round trip; Next.js reads the History API back. */
 function syncUrl(id: string | null): void {
@@ -47,9 +57,15 @@ function syncUrl(id: string | null): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
-export function PersonasWorkspace({ items, demo, initialSelection }: PersonasWorkspaceProps) {
+export function PersonasWorkspace({
+  items,
+  demo,
+  initialSelection,
+  initialView = 'grid',
+}: PersonasWorkspaceProps) {
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
+  const [activeView, setActiveView] = useState<ViewType>(initialView);
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -78,6 +94,36 @@ export function PersonasWorkspace({ items, demo, initialSelection }: PersonasWor
   const open = items.find((item) => item.persona.id === selection)?.persona ?? null;
   const creating = selection === NEW_PERSONA;
 
+  const kanbanItems: readonly KanbanItem[] = useMemo(() => {
+    return items.map(({ persona }) => ({
+      id: persona.id,
+      name: persona.name,
+      groupValue: persona.stageOfAwareness ?? '',
+      chipLabel: persona.stageOfAwareness ? awarenessLabel(persona.stageOfAwareness) : undefined,
+      chipTone: persona.stageOfAwareness ? awarenessTone(persona.stageOfAwareness) : undefined,
+    }));
+  }, [items]);
+
+  const kanbanColumns = useMemo(() => {
+    const seen = new Set<string>();
+    for (const item of kanbanItems) {
+      if (item.groupValue !== '') seen.add(item.groupValue);
+    }
+    return [...seen];
+  }, [kanbanItems]);
+
+  const kanbanLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const col of kanbanColumns) {
+      labels[col] = awarenessLabel(col as AwarenessStage);
+    }
+    return labels;
+  }, [kanbanColumns]);
+
+  const handleKanbanMove = useCallback(() => {
+    // Kanban drag for personas will be wired to updatePersonaAction in a follow-up
+  }, []);
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
@@ -103,65 +149,84 @@ export function PersonasWorkspace({ items, demo, initialSelection }: PersonasWor
       </header>
 
       <section aria-labelledby="personas-heading" className="flex flex-col gap-3">
-        <h2 id="personas-heading" className="text-sm font-medium text-text2">
-          Library
-        </h2>
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
-          <Table data-slot="personas-table">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-3">Name</TableHead>
-                <TableHead className="px-3">Stage of Awareness</TableHead>
-                <TableHead className="px-3">Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="personas-heading" className="text-sm font-medium text-text2">
+            Library
+          </h2>
+          <ViewSwitcher
+            tableKey="personas"
+            supportedViews={[...PERSONAS_CAP.supportedViews]}
+            activeView={activeView}
+            onViewChange={setActiveView}
+            kanbanGroupByField="stageOfAwareness"
+          />
+        </div>
+        {activeView === 'kanban' ? (
+          <KanbanBoard
+            items={kanbanItems}
+            columns={kanbanColumns}
+            columnLabels={kanbanLabels}
+            onMove={handleKanbanMove}
+            demo={demo}
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-card border border-line bg-surface">
+            <Table data-slot="personas-table">
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={3} className="px-3 py-6 text-center text-sm text-text3">
-                    No personas yet. Start with the one your best customer looks like.
-                  </TableCell>
+                  <TableHead className="px-3">Name</TableHead>
+                  <TableHead className="px-3">Stage of Awareness</TableHead>
+                  <TableHead className="px-3">Updated</TableHead>
                 </TableRow>
-              ) : (
-                items.map(({ persona, updatedLabel, updatedTitle }) => (
-                  <TableRow
-                    key={persona.id}
-                    data-slot="persona-row"
-                    data-persona-id={persona.id}
-                    data-state={persona.id === selection ? 'selected' : undefined}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={persona.name}
-                    onClick={() => {
-                      select(persona.id);
-                    }}
-                    onKeyDown={(event) => {
-                      onRowKey(event, persona.id);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
-                      {persona.name}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5">
-                      {persona.stageOfAwareness === null ? (
-                        <span className="text-text4">{EM_DASH}</span>
-                      ) : (
-                        <StatusChip
-                          tone={awarenessTone(persona.stageOfAwareness)}
-                          label={awarenessLabel(persona.stageOfAwareness)}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
-                      {updatedLabel}
+              </TableHeader>
+              <TableBody>
+                {items.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={3} className="px-3 py-6 text-center text-sm text-text3">
+                      No personas yet. Start with the one your best customer looks like.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ) : (
+                  items.map(({ persona, updatedLabel, updatedTitle }) => (
+                    <TableRow
+                      key={persona.id}
+                      data-slot="persona-row"
+                      data-persona-id={persona.id}
+                      data-state={persona.id === selection ? 'selected' : undefined}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={persona.name}
+                      onClick={() => {
+                        select(persona.id);
+                      }}
+                      onKeyDown={(event) => {
+                        onRowKey(event, persona.id);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
+                        {persona.name}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5">
+                        {persona.stageOfAwareness === null ? (
+                          <span className="text-text4">{EM_DASH}</span>
+                        ) : (
+                          <StatusChip
+                            tone={awarenessTone(persona.stageOfAwareness)}
+                            label={awarenessLabel(persona.stageOfAwareness)}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
+                        {updatedLabel}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </section>
 
       {creating || open !== null ? (

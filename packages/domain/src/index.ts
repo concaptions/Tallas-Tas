@@ -12,3 +12,4 @@ export * from './interface/index';
 export * from './notifications/index';
 export * from './propagation/index';
 export * from './onboard/index';
+export * from './views/index';

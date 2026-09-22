@@ -205,3 +205,4 @@ export type { LogNotificationInput, ResolvedRecipient } from './notification-dis
 export { withBrand } from './tenancy';
 export type { BrandedTable, BrandScope, ScopedInsertValue, ScopedUpdateSet } from './tenancy';
 export type { ScopedSelect, ScopedWrite } from './tenancy';
+export { getViewPreference, saveViewPreference } from './view-preferences';

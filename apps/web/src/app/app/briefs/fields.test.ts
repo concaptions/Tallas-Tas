@@ -18,7 +18,31 @@ import {
   type BriefItem,
 } from './fields';
 
-/** One row of the list, built the way `page.tsx` builds it. */
+const EMPTY_SNAPSHOT = {
+  conceptId: '',
+  funnel: 'TOF',
+  type: 'Video',
+  version: '1',
+  batch: '',
+  product: '',
+  priority: '',
+  assignee: '',
+  briefToDesign: '',
+  scriptContent: '',
+  elementsTested: '',
+  adContent: '',
+  inspiration: '',
+  offer: '',
+  language: '',
+  spellingFeedback2: '',
+  angleId: '',
+  productId: '',
+  inspoLinks: [] as string[],
+  dimensions: [] as string[],
+  internalStatus: 'approved',
+  clientStatus: 'pending_for_approval',
+} as const;
+
 function item(overrides: Partial<BriefItem> = {}): BriefItem {
   return {
     id: 'brief-1',
@@ -30,6 +54,9 @@ function item(overrides: Partial<BriefItem> = {}): BriefItem {
     assignee: 'Dorian Vance',
     status: internalStatusView('video', 'approved'),
     href: '/app/briefs/brief-1',
+    kanbanFields: { clientStatus: 'pending_for_approval', internalStatus: 'approved' },
+    galleryImageUrl: null,
+    formSnapshot: EMPTY_SNAPSHOT,
     ...overrides,
   };
 }

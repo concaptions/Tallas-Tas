@@ -27,3 +27,4 @@ export * from './promotion-requests';
 export * from './themes';
 export * from './upload-links';
 export * from './users';
+export * from './view-preferences';

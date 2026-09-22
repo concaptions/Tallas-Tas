@@ -176,6 +176,13 @@
       "when": 1790075801126,
       "tag": "0024_campaigns-offers",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790082205795,
+      "tag": "0025_view-preferences",
+      "breakpoints": true
     }
   ]
 }

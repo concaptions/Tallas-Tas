@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AngleListRow } from '@tas/db';
+import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -17,6 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from '@tas/ui';
+
+import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
 
 import { AnglePanel, NEW_ANGLE, type LinkOption } from './angle-panel';
 import { EM_DASH, PERSONA_CHIP_TONE, PRODUCT_CHIP_TONE, chipLabel } from './fields';
@@ -44,14 +47,18 @@ export interface AngleItem {
 
 interface AnglesWorkspaceProps {
   readonly items: readonly AngleItem[];
-  /** The brand's personas and products, loaded by the page for the panel's two dropdowns. */
   readonly personas: readonly LinkOption[];
   readonly products: readonly LinkOption[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
-  /** The `?q=` filter the page was opened with; `''` when there is none. */
   readonly initialSearch: string;
+  readonly initialView?: ViewType;
 }
+
+// Safe: 'angles' is always in TABLE_VIEW_CAPABILITIES
+const ANGLES_CAP = getTableCapability('angles') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
 
 /**
  * Writes one table-state parameter without a server round trip; Next.js reads the History API back.
@@ -82,10 +89,12 @@ export function AnglesWorkspace({
   demo,
   initialSelection,
   initialSearch,
+  initialView = 'grid',
 }: AnglesWorkspaceProps) {
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
+  const [activeView, setActiveView] = useState<ViewType>(initialView);
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -126,6 +135,35 @@ export function AnglesWorkspace({
   const open = items.find((item) => item.angle.id === selection)?.angle ?? null;
   const creating = selection === NEW_ANGLE;
 
+  const kanbanItems: readonly KanbanItem[] = useMemo(() => {
+    return visible.map(({ angle }) => ({
+      id: angle.id,
+      name: angle.name,
+      groupValue: angle.potential ?? '',
+      subtitle: angle.personaName ?? undefined,
+    }));
+  }, [visible]);
+
+  const kanbanColumns = useMemo(() => {
+    const seen = new Set<string>();
+    for (const item of kanbanItems) {
+      if (item.groupValue !== '') seen.add(item.groupValue);
+    }
+    return [...seen];
+  }, [kanbanItems]);
+
+  const kanbanLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const col of kanbanColumns) {
+      labels[col] = col.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+    return labels;
+  }, [kanbanColumns]);
+
+  const handleKanbanMove = useCallback(() => {
+    // Kanban drag for angles will be wired to updateAngleAction in a follow-up
+  }, []);
+
   const newAngle = (
     <Button
       size="sm"
@@ -162,9 +200,18 @@ export function AnglesWorkspace({
 
       <section aria-labelledby="angles-heading" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="angles-heading" className="text-sm font-medium text-text2">
-            Library
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 id="angles-heading" className="text-sm font-medium text-text2">
+              Library
+            </h2>
+            <ViewSwitcher
+              tableKey="angles"
+              supportedViews={[...ANGLES_CAP.supportedViews]}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              kanbanGroupByField="potential"
+            />
+          </div>
           <Input
             type="search"
             value={search}
@@ -178,111 +225,121 @@ export function AnglesWorkspace({
           />
         </div>
 
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
-          <Table data-slot="angles-table">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-3">Name</TableHead>
-                <TableHead className="px-3">Persona</TableHead>
-                <TableHead className="px-3">Product</TableHead>
-                <TableHead className="px-3">Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.length === 0 ? (
+        {activeView === 'kanban' ? (
+          <KanbanBoard
+            items={kanbanItems}
+            columns={kanbanColumns}
+            columnLabels={kanbanLabels}
+            onMove={handleKanbanMove}
+            demo={demo}
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-card border border-line bg-surface">
+            <Table data-slot="angles-table">
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="px-3 py-10">
-                    <div
-                      data-slot="angles-empty"
-                      className="flex flex-col items-center gap-3 text-center"
-                    >
-                      <p className="text-sm text-text2">
-                        {items.length === 0
-                          ? 'No angles yet. Start with the hypothesis you most want to test on a persona.'
-                          : `Nothing matches “${term}”. Try an angle name, a persona or a product.`}
-                      </p>
-                      {items.length === 0 ? (
-                        <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
-                          <Button
-                            size="sm"
-                            disabled={demo}
-                            className={demo ? disabledWriteClassName : undefined}
-                            onClick={() => {
-                              select(NEW_ANGLE);
-                            }}
-                            data-slot="empty-new-angle"
-                          >
-                            New angle
-                          </Button>
-                        </DisabledWrite>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            filter('');
-                          }}
-                          data-slot="clear-search"
-                        >
-                          Clear search
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
+                  <TableHead className="px-3">Name</TableHead>
+                  <TableHead className="px-3">Persona</TableHead>
+                  <TableHead className="px-3">Product</TableHead>
+                  <TableHead className="px-3">Updated</TableHead>
                 </TableRow>
-              ) : (
-                visible.map(({ angle, updatedLabel, updatedTitle }) => {
-                  return (
-                    <TableRow
-                      key={angle.id}
-                      data-slot="angle-row"
-                      data-angle-id={angle.id}
-                      data-state={angle.id === selection ? 'selected' : undefined}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={angle.name}
-                      onClick={() => {
-                        select(angle.id);
-                      }}
-                      onKeyDown={(event) => {
-                        onRowKey(event, angle.id);
-                      }}
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
-                        {angle.name}
-                      </TableCell>
-                      <TableCell className="px-3 py-1.5" title={angle.personaName ?? undefined}>
-                        {angle.personaName === null ? (
-                          <span className="text-text4">{EM_DASH}</span>
+              </TableHeader>
+              <TableBody>
+                {visible.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={4} className="px-3 py-10">
+                      <div
+                        data-slot="angles-empty"
+                        className="flex flex-col items-center gap-3 text-center"
+                      >
+                        <p className="text-sm text-text2">
+                          {items.length === 0
+                            ? 'No angles yet. Start with the hypothesis you most want to test on a persona.'
+                            : `Nothing matches “${term}”. Try an angle name, a persona or a product.`}
+                        </p>
+                        {items.length === 0 ? (
+                          <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+                            <Button
+                              size="sm"
+                              disabled={demo}
+                              className={demo ? disabledWriteClassName : undefined}
+                              onClick={() => {
+                                select(NEW_ANGLE);
+                              }}
+                              data-slot="empty-new-angle"
+                            >
+                              New angle
+                            </Button>
+                          </DisabledWrite>
                         ) : (
-                          <StatusChip
-                            tone={PERSONA_CHIP_TONE}
-                            label={chipLabel(angle.personaName)}
-                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              filter('');
+                            }}
+                            data-slot="clear-search"
+                          >
+                            Clear search
+                          </Button>
                         )}
-                      </TableCell>
-                      <TableCell className="px-3 py-1.5" title={angle.productName ?? undefined}>
-                        {angle.productName === null ? (
-                          <span className="text-text4">{EM_DASH}</span>
-                        ) : (
-                          <StatusChip
-                            tone={PRODUCT_CHIP_TONE}
-                            label={chipLabel(angle.productName)}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
-                        {updatedLabel}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  visible.map(({ angle, updatedLabel, updatedTitle }) => {
+                    return (
+                      <TableRow
+                        key={angle.id}
+                        data-slot="angle-row"
+                        data-angle-id={angle.id}
+                        data-state={angle.id === selection ? 'selected' : undefined}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={angle.name}
+                        onClick={() => {
+                          select(angle.id);
+                        }}
+                        onKeyDown={(event) => {
+                          onRowKey(event, angle.id);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
+                          {angle.name}
+                        </TableCell>
+                        <TableCell className="px-3 py-1.5" title={angle.personaName ?? undefined}>
+                          {angle.personaName === null ? (
+                            <span className="text-text4">{EM_DASH}</span>
+                          ) : (
+                            <StatusChip
+                              tone={PERSONA_CHIP_TONE}
+                              label={chipLabel(angle.personaName)}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell className="px-3 py-1.5" title={angle.productName ?? undefined}>
+                          {angle.productName === null ? (
+                            <span className="text-text4">{EM_DASH}</span>
+                          ) : (
+                            <StatusChip
+                              tone={PRODUCT_CHIP_TONE}
+                              label={chipLabel(angle.productName)}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
+                          {updatedLabel}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </section>
 
       {creating || open !== null ? (
