@@ -167,6 +167,28 @@ export {
   demoThemes,
   demoUsers,
 } from './demo-data';
+export {
+  clientCalendarEvents,
+  clientConcepts,
+  clientCopywriting,
+  clientCreatives,
+  clientCreators,
+  clientPartnershipAds,
+  clientVisibleFields,
+  listAnnotations,
+  listComments,
+} from './client-queries';
+export type {
+  ClientAnnotation,
+  ClientCalendarEvent,
+  ClientComment,
+  ClientConcept,
+  ClientCopy,
+  ClientCreative,
+  ClientCreator,
+  ClientPartnershipAd,
+  VisibleField,
+} from './client-queries';
 export type { DemoBrand } from './demo-data';
 export {
   getInterfacePageById,
