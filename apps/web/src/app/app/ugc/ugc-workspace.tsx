@@ -13,7 +13,15 @@ import {
   TabsList,
   TabsTrigger,
 } from '@tas/ui';
+import { getTableCapability, type ViewType } from '@tas/domain';
 
+import {
+  ViewSwitcher,
+  KanbanBoard,
+  GalleryView,
+  type KanbanItem,
+  type GalleryItem,
+} from '@/components/views';
 import { CreatorCard } from './creator-card';
 import { CreatorPanel, type LinkOption } from './creator-panel';
 import { PartnershipTable } from './partnership-table';
@@ -21,6 +29,7 @@ import {
   creatorCountLabel,
   DEFAULT_TAB,
   filteredCountLabel,
+  identityLine,
   matchesQuery,
   NEW_CREATOR_SOON_HINT,
   NO_CREATORS_NOTE,
@@ -36,6 +45,10 @@ import {
   type UgcTabKey,
 } from './fields';
 
+const CREATORS_CAP = getTableCapability('creators') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
+
 export interface UgcWorkspaceProps {
   readonly creators: readonly CreatorCardRow[];
   readonly partnerships: readonly PartnershipRow[];
@@ -46,6 +59,7 @@ export interface UgcWorkspaceProps {
   readonly initialSearch: string;
   readonly initialSelection: string | null;
   readonly initialCollabs: readonly CollabRow[];
+  readonly initialView?: ViewType;
 }
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
@@ -74,11 +88,13 @@ export function UgcWorkspace({
   initialSearch,
   initialSelection,
   initialCollabs,
+  initialView,
 }: UgcWorkspaceProps) {
   const router = useRouter();
   const [tab, setTab] = useState<UgcTabKey>(initialTab);
   const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
+  const [activeView, setActiveView] = useState<ViewType>(initialView ?? 'grid');
 
   const select = useCallback(
     (id: string | null) => {
@@ -130,6 +146,48 @@ export function UgcWorkspace({
     () => partnerships.filter((row) => matchesQuery(row.name, query)),
     [partnerships, query],
   );
+
+  const kanbanItems: readonly KanbanItem[] = useMemo(() => {
+    return visibleCreators.map((creator) => ({
+      id: creator.id,
+      name: creator.name,
+      groupValue: creator.internalCreatorStatus,
+      subtitle: identityLine(creator) || undefined,
+    }));
+  }, [visibleCreators]);
+
+  const kanbanColumns = useMemo(() => {
+    const seen = new Set<string>();
+    for (const item of kanbanItems) {
+      if (item.groupValue !== '') seen.add(item.groupValue);
+    }
+    return [...seen];
+  }, [kanbanItems]);
+
+  const kanbanLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const col of kanbanColumns) {
+      labels[col] = col.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+    return labels;
+  }, [kanbanColumns]);
+
+  const galleryItems: readonly GalleryItem[] = useMemo(() => {
+    return visibleCreators
+      .filter((c) => c.profilePicUrl !== null || c.videoIntroUrl !== null)
+      .map((creator) => ({
+        id: creator.id,
+        name: creator.name,
+        imageUrl: creator.profilePicUrl ?? creator.videoIntroUrl,
+        mediaType:
+          creator.videoIntroUrl !== null && creator.profilePicUrl === null ? 'video' : 'image',
+        subtitle: identityLine(creator) || undefined,
+      }));
+  }, [visibleCreators]);
+
+  const handleKanbanMove = useCallback(() => {
+    // will be wired to updateCreatorAction in a follow-up
+  }, []);
 
   const narrowed = query !== '';
   const count =
@@ -215,8 +273,27 @@ export function UgcWorkspace({
         </div>
 
         <TabsContent value="creators" className="flex min-w-0 flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <ViewSwitcher
+              tableKey="creators"
+              supportedViews={[...CREATORS_CAP.supportedViews]}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              kanbanGroupByField="internalCreatorStatus"
+            />
+          </div>
           {visibleCreators.length === 0 ? (
             emptyPanel('creators-empty', NO_CREATORS_NOTE)
+          ) : activeView === 'kanban' ? (
+            <KanbanBoard
+              items={kanbanItems}
+              columns={kanbanColumns}
+              columnLabels={kanbanLabels}
+              onMove={handleKanbanMove}
+              demo={demo}
+            />
+          ) : activeView === 'gallery' ? (
+            <GalleryView items={galleryItems} />
           ) : (
             <div
               data-slot="creator-grid"

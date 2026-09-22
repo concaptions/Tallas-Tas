@@ -3,7 +3,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ThemeListRow } from '@tas/db';
+import type { ViewType } from '@tas/domain';
+import { getTableCapability } from '@tas/domain';
 import { Button, Input } from '@tas/ui';
+
+import { KanbanBoard, type KanbanItem, ViewSwitcher } from '@/components/views';
 
 import {
   ALL_CATEGORIES,
@@ -17,6 +21,10 @@ import {
 import { GlobalBadge } from './global-badge';
 import { NewThemeDialog } from './new-theme-dialog';
 import { ThemeCard } from './theme-card';
+
+const THEMES_CAP = getTableCapability('themes') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
 
 /**
  * The Themes library: the GLOBAL badge, the header, the two filters and the card grid (PRD §5.5).
@@ -44,6 +52,8 @@ export interface ThemesWorkspaceProps {
   readonly initialSearch: string;
   /** The `?tab=` the page was opened with; defaults to `'active'`. */
   readonly initialTab: ThemeTab;
+  /** The `?view=` the page was opened with; defaults to `'grid'`. */
+  readonly initialView?: ViewType;
 }
 
 /**
@@ -74,11 +84,13 @@ export function ThemesWorkspace({
   initialCategory,
   initialSearch,
   initialTab,
+  initialView,
 }: ThemesWorkspaceProps) {
   const router = useRouter();
   const [tab, setTab] = useState<ThemeTab>(initialTab);
   const [category, setCategory] = useState<CategoryFilter>(initialCategory);
   const [search, setSearch] = useState(initialSearch);
+  const [activeView, setActiveView] = useState<ViewType>(initialView ?? 'grid');
 
   const pickTab = useCallback(
     (next: ThemeTab) => {
@@ -131,6 +143,36 @@ export function ThemesWorkspace({
   );
 
   const narrowed = visible.length !== tabThemes.length;
+
+  const kanbanItems = useMemo<KanbanItem[]>(
+    () =>
+      visible.map((theme) => ({
+        id: theme.id,
+        name: theme.name,
+        groupValue: theme.category,
+      })),
+    [visible],
+  );
+
+  const kanbanColumns = useMemo(
+    () => [...new Set(kanbanItems.map((item) => item.groupValue))],
+    [kanbanItems],
+  );
+
+  const kanbanLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        kanbanColumns.map((col) => [
+          col,
+          col.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()),
+        ]),
+      ),
+    [kanbanColumns],
+  );
+
+  const handleKanbanMove = useCallback(() => {
+    /* no-op: themes don't support drag reordering */
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">
@@ -197,6 +239,13 @@ export function ThemesWorkspace({
           <h2 id="themes-heading" className="text-sm font-medium text-text2">
             Library
           </h2>
+          <ViewSwitcher
+            tableKey="themes"
+            supportedViews={[...THEMES_CAP.supportedViews]}
+            activeView={activeView}
+            onViewChange={setActiveView}
+            kanbanGroupByField="category"
+          />
           <Input
             type="search"
             value={search}
@@ -240,7 +289,15 @@ export function ThemesWorkspace({
           })}
         </div>
 
-        {visible.length === 0 ? (
+        {activeView === 'kanban' ? (
+          <KanbanBoard
+            items={kanbanItems}
+            columns={kanbanColumns}
+            columnLabels={kanbanLabels}
+            onMove={handleKanbanMove}
+            demo={demo}
+          />
+        ) : visible.length === 0 ? (
           <div
             data-slot="themes-empty"
             className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface px-4 py-10 text-center"

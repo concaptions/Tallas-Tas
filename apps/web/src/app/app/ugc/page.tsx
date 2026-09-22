@@ -29,6 +29,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     ageBracket: row.ageBracket,
     platform: row.platform,
     profilePicUrl: row.profilePicUrl,
+    videoIntroUrl: row.videoIntroUrl,
     internalCreatorStatus: row.internalCreatorStatus,
     clientStatus: row.clientStatus,
     internalAssetsStatus: row.internalAssetsStatus,

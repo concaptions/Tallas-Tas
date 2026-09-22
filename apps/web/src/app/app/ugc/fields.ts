@@ -162,6 +162,7 @@ export interface CreatorCardRow {
   readonly ageBracket: string | null;
   readonly platform: string | null;
   readonly profilePicUrl: string | null;
+  readonly videoIntroUrl: string | null;
   readonly internalCreatorStatus: string;
   readonly clientStatus: string;
   readonly internalAssetsStatus: string;

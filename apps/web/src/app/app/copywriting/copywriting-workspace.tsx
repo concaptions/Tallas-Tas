@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, type KeyboardEvent, type MouseEvent } f
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { copyFunnelLabel } from '@tas/domain/copy';
+import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -19,6 +20,7 @@ import {
   TableRow,
 } from '@tas/ui';
 
+import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
 import { CopyPanel } from './copy-panel';
 import {
   COPY_COLUMNS,
@@ -63,7 +65,12 @@ interface CopywritingWorkspaceProps {
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
+  readonly initialView?: ViewType;
 }
+
+const COPY_CAP = getTableCapability('copywriting') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
 
 /** Writes `?copy=` and `?q=` without a server round trip; Next.js reads the History API back. */
 function syncUrl(selection: string | null, search: string): void {
@@ -81,6 +88,11 @@ function syncUrl(selection: string | null, search: string): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
+/** Capitalize a raw status value for display as a kanban column label. */
+function capitalize(value: string): string {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
 export function CopywritingWorkspace({
   items,
   creatives,
@@ -88,10 +100,12 @@ export function CopywritingWorkspace({
   demo,
   initialSelection,
   initialSearch,
+  initialView,
 }: CopywritingWorkspaceProps) {
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
+  const [activeView, setActiveView] = useState<ViewType>(initialView ?? 'grid');
 
   const select = useCallback(
     (id: string | null) => {
@@ -137,6 +151,33 @@ export function CopywritingWorkspace({
   const narrowed = visible.length !== items.length;
   const open = items.find((item) => item.id === selection) ?? null;
 
+  const kanbanItems: KanbanItem[] = useMemo(
+    () =>
+      visible.map((item) => ({
+        id: item.id,
+        name: item.title,
+        groupValue: item.status,
+        subtitle: item.headline ?? undefined,
+        chipLabel: item.statusLabel,
+        chipTone: item.statusTone,
+      })),
+    [visible],
+  );
+
+  const kanbanColumns = useMemo(
+    () => [...new Set(kanbanItems.map((ki) => ki.groupValue))],
+    [kanbanItems],
+  );
+
+  const kanbanLabels = useMemo(
+    () => Object.fromEntries(kanbanColumns.map((col) => [col, capitalize(col)])),
+    [kanbanColumns],
+  );
+
+  const handleKanbanMove = useCallback(() => {
+    /* will be wired to updateCopyAction in a follow-up */
+  }, []);
+
   /**
    * "New copy" is a write, so demo mode disables it with the standard reason. It is disabled in
    * live mode too, with its own reason: creating a copy row is explicitly out of this ticket's
@@ -170,9 +211,18 @@ export function CopywritingWorkspace({
 
       <section aria-labelledby="copywriting-heading" className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="copywriting-heading" className="text-sm font-medium text-text2">
-            Library
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 id="copywriting-heading" className="text-sm font-medium text-text2">
+              Library
+            </h2>
+            <ViewSwitcher
+              tableKey="copywriting"
+              supportedViews={[...COPY_CAP.supportedViews]}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              kanbanGroupByField="status"
+            />
+          </div>
           <Input
             type="search"
             value={search}
@@ -206,6 +256,14 @@ export function CopywritingWorkspace({
               newCopy('empty-new-copy')
             )}
           </div>
+        ) : activeView === 'kanban' ? (
+          <KanbanBoard
+            items={kanbanItems}
+            columns={kanbanColumns}
+            columnLabels={kanbanLabels}
+            onMove={handleKanbanMove}
+            demo={demo}
+          />
         ) : (
           <div className="overflow-x-auto rounded-card border border-line bg-surface">
             <Table data-slot="copy-table">
