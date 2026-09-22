@@ -11,6 +11,7 @@ import {
   demoAssets,
   demoBrandAssignments,
   demoCampaigns,
+  demoCollections,
   demoCompetitorAds,
   demoCreatorRankings,
   demoUploadLinks,
@@ -40,6 +41,7 @@ import {
   brandAssignments,
   brands,
   conceptAngles,
+  conceptCollections,
   conceptThemes,
   concepts,
   copywriting,
@@ -64,11 +66,13 @@ import {
   type UploadLink,
   type OnboardingForm,
   campaignsOffers,
+  collections,
   competitorAds,
   creatorRankings,
   uploadLinks,
   onboardingForms,
   type Brand,
+  type Collection,
   type CampaignOffer,
   type BrandAssignment,
   type Concept,
@@ -115,6 +119,7 @@ export type SeedResult = {
   notificationSettings: NotificationSetting[];
   assets: Asset[];
   adMetrics: AdMetric[];
+  collections: Collection[];
   campaigns: CampaignOffer[];
   competitorAds: CompetitorAd[];
   creatorRankings: CreatorRanking[];
@@ -200,21 +205,25 @@ type ConceptDerived =
   | Derived
   | 'angleName'
   | 'themeName'
+  | 'collectionName'
   | 'description'
   | 'painPoints'
   | 'usp'
   | 'angleIds'
-  | 'themeIds';
+  | 'themeIds'
+  | 'collectionIds';
 
 function scopedConcept<T extends { brandId: string | null }>(row: T): Omit<T, ConceptDerived> {
   const rest: Record<string, unknown> = { ...scoped(row) };
   delete rest['angleName'];
   delete rest['themeName'];
+  delete rest['collectionName'];
   delete rest['description'];
   delete rest['painPoints'];
   delete rest['usp'];
   delete rest['angleIds'];
   delete rest['themeIds'];
+  delete rest['collectionIds'];
   return rest as Omit<T, ConceptDerived>;
 }
 
@@ -268,6 +277,19 @@ function scopedNotification<T extends { brandId: string | null }>(
  * `db.insert(...)` and not a `withBrand(...)` insert: `withBrand` writes one brand's rows, and this
  * table's whole point is that an admin reads across all of them.
  */
+/**
+ * The collection fixtures' derived keys: the three names `listCollections` joins in through FKs.
+ */
+function scopedCollection<T extends { brandId: string | null }>(
+  row: T,
+): Omit<T, Derived | 'campaignName' | 'angleName' | 'productName'> {
+  const rest: Record<string, unknown> = { ...scoped(row) };
+  delete rest['campaignName'];
+  delete rest['angleName'];
+  delete rest['productName'];
+  return rest as Omit<T, Derived | 'campaignName' | 'angleName' | 'productName'>;
+}
+
 function promotionRow<T extends { brandName: string | null }>(row: T): Omit<T, 'brandName'> {
   const rest: Record<string, unknown> = { ...row };
   delete rest['brandName'];
@@ -402,6 +424,15 @@ export async function seed(db: Db): Promise<SeedResult> {
     .insert(campaignsOffers, demoCampaigns.map(scoped))
     .returning();
 
+  const seededCollections = await scope
+    .insert(collections, demoCollections.map(scopedCollection))
+    .returning();
+
+  const ccRows = demoConcepts.flatMap((c) =>
+    c.collectionIds.map((collectionId) => ({ conceptId: c.id, collectionId })),
+  );
+  if (ccRows.length > 0) await db.insert(conceptCollections).values(ccRows);
+
   const seededCompetitorAds = await scope
     .insert(competitorAds, demoCompetitorAds.map(scoped))
     .returning();
@@ -467,6 +498,7 @@ export async function seed(db: Db): Promise<SeedResult> {
     creators: seededCreators,
     assets: seededAssets,
     adMetrics: seededAdMetrics,
+    collections: seededCollections,
     campaigns: seededCampaigns,
     competitorAds: seededCompetitorAds,
     creatorRankings: seededCreatorRankings,

@@ -8,8 +8,10 @@ import {
   angleProducts,
   angles,
   assets,
+  collections,
   competitorAds,
   conceptAngles,
+  conceptCollections,
   conceptThemes,
   concepts,
   copywriting,
@@ -33,6 +35,7 @@ export interface AirtableExport {
   readonly Themes?: AirtableRecord[];
   readonly Angles?: AirtableRecord[];
   readonly Concepts?: AirtableRecord[];
+  readonly Collections?: AirtableRecord[];
   readonly 'Creative Briefs'?: AirtableRecord[];
   readonly Copywriting?: AirtableRecord[];
   readonly Creators?: AirtableRecord[];
@@ -101,6 +104,16 @@ async function importRows(
 function resolveRef(idMap: IdMap, airtableId: unknown): string | undefined {
   if (typeof airtableId !== 'string') return undefined;
   return idMap.get(airtableId);
+}
+
+function resolveRefs(idMap: IdMap, airtableIds: unknown): string[] {
+  if (!Array.isArray(airtableIds)) return [];
+  const resolved: string[] = [];
+  for (const id of airtableIds) {
+    const mapped = resolveRef(idMap, id);
+    if (mapped) resolved.push(mapped);
+  }
+  return resolved;
 }
 
 export async function importAirtableExport(
@@ -177,13 +190,25 @@ export async function importAirtableExport(
   for (const rec of data.Angles ?? []) {
     const angleId = angleMap.get(rec.id);
     if (!angleId) continue;
-    const personaId = resolveRef(personaMap, rec.fields.Persona);
-    if (personaId) {
+    const personaIds = resolveRefs(personaMap, rec.fields.Persona);
+    for (const personaId of personaIds) {
       await db.insert(anglePersonas).values({ angleId, personaId }).onConflictDoNothing();
     }
-    const productId = resolveRef(prodMap, rec.fields.Product);
-    if (productId) {
+    if (personaIds.length === 0) {
+      const personaId = resolveRef(personaMap, rec.fields.Persona);
+      if (personaId) {
+        await db.insert(anglePersonas).values({ angleId, personaId }).onConflictDoNothing();
+      }
+    }
+    const productIds = resolveRefs(prodMap, rec.fields.Product);
+    for (const productId of productIds) {
       await db.insert(angleProducts).values({ angleId, productId }).onConflictDoNothing();
+    }
+    if (productIds.length === 0) {
+      const productId = resolveRef(prodMap, rec.fields.Product);
+      if (productId) {
+        await db.insert(angleProducts).values({ angleId, productId }).onConflictDoNothing();
+      }
     }
   }
 
@@ -202,16 +227,41 @@ export async function importAirtableExport(
   );
   results.concepts = conceptResult;
 
+  const { result: collectionResult, idMap: collectionMap } = await importRows(
+    db,
+    collections,
+    data.Collections ?? [],
+    (f) => ({
+      brandId,
+      name: str(f.Name) ?? 'Untitled',
+      url: str(f.URL),
+      campaignId: resolveRef(conceptMap, f['Campaigns & Offers']),
+      creativeDesignNote: str(f['Creative Design']),
+    }),
+    actorId,
+  );
+  results.collections = collectionResult;
+
   for (const rec of data.Concepts ?? []) {
     const conceptId = conceptMap.get(rec.id);
     if (!conceptId) continue;
-    const angleId = resolveRef(angleMap, rec.fields.Angle);
-    if (angleId) {
+    const angleIds = resolveRefs(angleMap, rec.fields.Angle);
+    for (const angleId of angleIds) {
       await db.insert(conceptAngles).values({ conceptId, angleId }).onConflictDoNothing();
+    }
+    if (angleIds.length === 0) {
+      const angleId = resolveRef(angleMap, rec.fields.Angle);
+      if (angleId) {
+        await db.insert(conceptAngles).values({ conceptId, angleId }).onConflictDoNothing();
+      }
     }
     const themeId = resolveRef(themeMap, rec.fields.Theme);
     if (themeId) {
       await db.insert(conceptThemes).values({ conceptId, themeId }).onConflictDoNothing();
+    }
+    const collectionIds = resolveRefs(collectionMap, rec.fields.Collection);
+    for (const collectionId of collectionIds) {
+      await db.insert(conceptCollections).values({ conceptId, collectionId }).onConflictDoNothing();
     }
   }
 

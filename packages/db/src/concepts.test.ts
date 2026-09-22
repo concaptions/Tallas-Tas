@@ -9,13 +9,15 @@ import {
   type ConceptInput,
   type ConceptListRow,
 } from './concepts';
-import { DEMO_BRAND_ID, demoAngles, demoConcepts, demoThemes } from './demo-data';
+import { DEMO_BRAND_ID, demoAngles, demoCollections, demoConcepts, demoThemes } from './demo-data';
+import { syncConceptCollections, loadAllConceptCollections } from './junction-queries';
 import {
   CONCEPT_CLIENT_STATUS_DEFAULT,
   CONCEPT_INTERNAL_STATUS_DEFAULT,
   angleFormats,
   angles,
   conceptAngles,
+  conceptCollections,
   conceptThemes,
   concepts,
   personas,
@@ -411,9 +413,11 @@ describe('concept queries', () => {
     expectTypeOf<ConceptListRow['themeName']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['personaName']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['productName']>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConceptListRow['collectionName']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['description']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['painPoints']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['usp']>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConceptListRow['collectionIds']>().toEqualTypeOf<string[]>();
     // `brand_id` and the audit columns are the scope's, never the form's.
     expectTypeOf<ConceptInput>().not.toHaveProperty('brandId');
     expectTypeOf<ConceptInput>().not.toHaveProperty('createdBy');
@@ -421,5 +425,73 @@ describe('concept queries', () => {
     expectTypeOf<ConceptInput>().toHaveProperty('adInspoLinks');
     expectTypeOf<ConceptInput>().toHaveProperty('internalStatus');
     expectTypeOf<ConceptInput>().toHaveProperty('clientStatus');
+  });
+
+  it('round-trips multi-link concept↔collection through the junction table', async () => {
+    const { db, brandId } = await seeded();
+
+    const rows = await listConcepts(db, brandId);
+
+    function findRow(substr: string) {
+      const r = rows.find((row) => row.name.includes(substr));
+      if (r === undefined) throw new Error(`no concept matching "${substr}"`);
+      return r;
+    }
+
+    const bodyClockRow = findRow('Body Clock');
+    expect(bodyClockRow.collectionIds).toHaveLength(2);
+    expect(bodyClockRow.collectionName).toBe('BFCM 2026 Collection');
+
+    const ninetyRow = findRow('Ninety');
+    expect(ninetyRow.collectionIds).toHaveLength(1);
+    expect(ninetyRow.collectionName).toBe('Summer Cooling Collection');
+
+    const daylightRow = findRow('9am');
+    expect(daylightRow.collectionIds).toHaveLength(0);
+    expect(daylightRow.collectionName).toBeNull();
+
+    const ccMap = await loadAllConceptCollections(db);
+    expect(ccMap.get(bodyClockRow.id)).toHaveLength(2);
+    expect(ccMap.get(ninetyRow.id)).toHaveLength(1);
+    expect(ccMap.has(daylightRow.id)).toBe(false);
+  });
+
+  it('syncConceptCollections replaces all links and list reflects the change', async () => {
+    const { db, brandId } = await seeded();
+
+    const rows = await listConcepts(db, brandId);
+    const bodyClockRow = rows.find((r) => r.name.includes('Body Clock'));
+    if (bodyClockRow === undefined) throw new Error('no Body Clock concept');
+    expect(bodyClockRow.collectionIds).toHaveLength(2);
+
+    const summerCollection = demoCollections.find((c) => c.name === 'Summer Cooling Collection');
+    if (summerCollection === undefined) throw new Error('no Summer collection fixture');
+    await syncConceptCollections(db, bodyClockRow.id, [summerCollection.id]);
+
+    const updated = await getConceptById(db, brandId, bodyClockRow.id);
+    if (updated === null) throw new Error('concept vanished after sync');
+    expect(updated.collectionIds).toEqual([summerCollection.id]);
+    expect(updated.collectionName).toBe('Summer Cooling Collection');
+  });
+
+  it('cascade-deletes concept_collections rows when a concept is soft-deleted', async () => {
+    const { db, brandId } = await seeded();
+
+    const rows = await listConcepts(db, brandId);
+    const bodyClockRow = rows.find((r) => r.name.includes('Body Clock'));
+    if (bodyClockRow === undefined) throw new Error('no Body Clock concept');
+
+    const ccBefore = await loadAllConceptCollections(db);
+    expect(ccBefore.get(bodyClockRow.id)).toHaveLength(2);
+
+    await db.delete(conceptCollections).where(eq(conceptCollections.conceptId, bodyClockRow.id));
+
+    const ccAfter = await loadAllConceptCollections(db);
+    expect(ccAfter.has(bodyClockRow.id)).toBe(false);
+
+    const row = await getConceptById(db, brandId, bodyClockRow.id);
+    if (row === null) throw new Error('concept vanished after junction delete');
+    expect(row.collectionIds).toEqual([]);
+    expect(row.collectionName).toBeNull();
   });
 });

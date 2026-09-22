@@ -5,6 +5,7 @@ import {
   anglePersonas,
   angleProducts,
   conceptAngles,
+  conceptCollections,
   conceptThemes,
   creatorConcepts,
   creatorProducts,
@@ -183,6 +184,29 @@ export async function syncAngleProducts(
   }
 }
 
+// ── Concept ↔ Collections ──────────────────────────────────────────────────
+
+export async function listConceptCollectionIds(db: Db, conceptId: string): Promise<string[]> {
+  const rows = await db
+    .select({ collectionId: conceptCollections.collectionId })
+    .from(conceptCollections)
+    .where(eq(conceptCollections.conceptId, conceptId));
+  return rows.map((r) => r.collectionId);
+}
+
+export async function syncConceptCollections(
+  db: Db,
+  conceptId: string,
+  collectionIds: string[],
+): Promise<void> {
+  await db.delete(conceptCollections).where(eq(conceptCollections.conceptId, conceptId));
+  if (collectionIds.length > 0) {
+    await db
+      .insert(conceptCollections)
+      .values(collectionIds.map((collectionId) => ({ conceptId, collectionId })));
+  }
+}
+
 // ── Bulk loaders (list view: load all junction rows for a brand at once) ────
 
 export async function loadAllConceptAngles(db: Db): Promise<Map<string, string[]>> {
@@ -225,6 +249,17 @@ export async function loadAllAngleProducts(db: Db): Promise<Map<string, string[]
     const existing = map.get(r.angleId);
     if (existing) existing.push(r.productId);
     else map.set(r.angleId, [r.productId]);
+  }
+  return map;
+}
+
+export async function loadAllConceptCollections(db: Db): Promise<Map<string, string[]>> {
+  const rows = await db.select().from(conceptCollections);
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const existing = map.get(r.conceptId);
+    if (existing) existing.push(r.collectionId);
+    else map.set(r.conceptId, [r.collectionId]);
   }
   return map;
 }

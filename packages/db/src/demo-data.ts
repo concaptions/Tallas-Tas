@@ -661,16 +661,24 @@ function conceptName(batch: string, angle: AngleListRow, theme: ThemeListRow): s
  * derivable from the Angle must auto-fill"). Derived from the angle and theme rows rather than
  * retyped, so a fixture can never disagree with what `listConcepts` joins in.
  */
-function pairing(batch: string, angle: AngleListRow, theme: ThemeListRow) {
+function pairing(
+  batch: string,
+  angle: AngleListRow,
+  theme: ThemeListRow,
+  collectionIds: string[] = [],
+  collectionName: string | null = null,
+) {
   return {
     batch,
     angleIds: [angle.id],
     themeIds: [theme.id],
+    collectionIds,
     name: conceptName(batch, angle, theme),
     angleName: angle.name,
     themeName: theme.name,
     personaName: angle.personaName,
     productName: angle.productName,
+    collectionName,
     description: angle.description,
     painPoints: angle.painPoints,
     usp: angle.usp,
@@ -705,7 +713,13 @@ export const demoConcepts: ConceptListRow[] = [
       '2026-09-14T11:20:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    ...pairing('B2', notYourAge, demoTheme(THEME_GREEN_SCREEN_ID)),
+    ...pairing(
+      'B2',
+      notYourAge,
+      demoTheme(THEME_GREEN_SCREEN_ID),
+      [COLLECTION_BFCM_ID],
+      'BFCM 2026 Collection',
+    ),
     category: 'New',
     conceptStyle: 'Editing',
     formats: ['Video', 'Static'],
@@ -730,7 +744,13 @@ export const demoConcepts: ConceptListRow[] = [
       '2026-09-11T17:05:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    ...pairing('B1', bodyClock, demoTheme(THEME_PROBLEM_SOLUTION_ID)),
+    ...pairing(
+      'B1',
+      bodyClock,
+      demoTheme(THEME_PROBLEM_SOLUTION_ID),
+      [COLLECTION_BFCM_ID, COLLECTION_SUMMER_ID],
+      'BFCM 2026 Collection',
+    ),
     category: 'New',
     conceptStyle: 'Filming',
     formats: ['Video', 'Static'],
@@ -751,7 +771,7 @@ export const demoConcepts: ConceptListRow[] = [
   {
     ...propagationBase(CONCEPT_DAYLIGHT_ID, '2026-08-27T15:30:00.000Z', '2026-09-09T08:50:00.000Z'),
     brandId: DEMO_BRAND_ID,
-    ...pairing('B2', daylight, demoTheme(THEME_POV_ID)),
+    ...pairing('B2', daylight, demoTheme(THEME_POV_ID), [], null),
     category: 'Iteration',
     conceptStyle: 'AI Concept',
     formats: ['Motion Graphic', 'Video'],
@@ -773,7 +793,13 @@ export const demoConcepts: ConceptListRow[] = [
       '2026-09-04T16:35:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    ...pairing('B3', ninetyMinutes, demoTheme(THEME_YAPPER_ID)),
+    ...pairing(
+      'B3',
+      ninetyMinutes,
+      demoTheme(THEME_YAPPER_ID),
+      [COLLECTION_SUMMER_ID],
+      'Summer Cooling Collection',
+    ),
     category: 'Iteration',
     conceptStyle: 'Filming',
     formats: ['Video', 'Carousel'],

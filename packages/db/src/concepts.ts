@@ -5,10 +5,12 @@ import {
   loadAllAnglePersonas,
   loadAllAngleProducts,
   loadAllConceptAngles,
+  loadAllConceptCollections,
   loadAllConceptThemes,
 } from './junction-queries';
 import {
   angles,
+  collections,
   concepts,
   personas,
   products,
@@ -58,10 +60,12 @@ export type ConceptInput = Omit<NewConcept, ManagedColumn>;
 export type ConceptListRow = Concept & {
   angleIds: string[];
   themeIds: string[];
+  collectionIds: string[];
   angleName: string | null;
   themeName: string | null;
   personaName: string | null;
   productName: string | null;
+  collectionName: string | null;
   description: string | null;
   painPoints: string | null;
   usp: string | null;
@@ -71,6 +75,7 @@ export type ConceptListRow = Concept & {
 interface Inherited {
   conceptAngleMap: Map<string, string[]>;
   conceptThemeMap: Map<string, string[]>;
+  conceptCollectionMap: Map<string, string[]>;
   angleFields: Map<
     string,
     {
@@ -85,6 +90,7 @@ interface Inherited {
   personaNames: Map<string, string>;
   productNames: Map<string, string>;
   themeNames: Map<string, string>;
+  collectionNames: Map<string, string>;
 }
 
 /**
@@ -102,24 +108,29 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
     brandAngles,
     brandPersonas,
     brandProducts,
+    brandCollections,
     liveThemes,
     conceptAngleMap,
     conceptThemeMap,
+    conceptCollectionMap,
     anglePersonaMap,
     angleProductMap,
   ] = await Promise.all([
     scope.select(angles),
     scope.select(personas),
     scope.select(products),
+    scope.select(collections),
     db.select().from(themes).where(isNull(themes.deletedAt)),
     loadAllConceptAngles(db),
     loadAllConceptThemes(db),
+    loadAllConceptCollections(db),
     loadAllAnglePersonas(db),
     loadAllAngleProducts(db),
   ]);
   return {
     conceptAngleMap,
     conceptThemeMap,
+    conceptCollectionMap,
     angleFields: new Map(
       brandAngles.map((angle) => [
         angle.id,
@@ -136,6 +147,7 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
     personaNames: new Map(brandPersonas.map((persona) => [persona.id, persona.name])),
     productNames: new Map(brandProducts.map((product) => [product.id, product.name])),
     themeNames: new Map(liveThemes.map((theme) => [theme.id, theme.name])),
+    collectionNames: new Map(brandCollections.map((c) => [c.id, c.name])),
   };
 }
 
@@ -146,6 +158,7 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
 function withInherited(row: Concept, tables: Inherited): ConceptListRow {
   const angleIds = tables.conceptAngleMap.get(row.id) ?? [];
   const themeIds = tables.conceptThemeMap.get(row.id) ?? [];
+  const collectionIds = tables.conceptCollectionMap.get(row.id) ?? [];
 
   const firstAngleId = angleIds[0] ?? null;
   const angle = firstAngleId === null ? undefined : tables.angleFields.get(firstAngleId);
@@ -162,15 +175,19 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
   const firstProductId = productIds[0] ?? null;
 
   const firstThemeId = themeIds[0] ?? null;
+  const firstCollectionId = collectionIds[0] ?? null;
 
   return {
     ...row,
     angleIds,
     themeIds,
+    collectionIds,
     angleName: angle?.name ?? null,
     themeName: firstThemeId === null ? null : (tables.themeNames.get(firstThemeId) ?? null),
     personaName: firstPersonaId === null ? null : (tables.personaNames.get(firstPersonaId) ?? null),
     productName: firstProductId === null ? null : (tables.productNames.get(firstProductId) ?? null),
+    collectionName:
+      firstCollectionId === null ? null : (tables.collectionNames.get(firstCollectionId) ?? null),
     description: angle?.description ?? null,
     painPoints: angle?.painPoints ?? null,
     usp: angle?.usp ?? null,

@@ -1,6 +1,7 @@
 import { pgTable, primaryKey, uuid } from 'drizzle-orm/pg-core';
 
 import { angles } from './angles';
+import { collections } from './collections';
 import { concepts } from './concepts';
 import { creators } from './creators';
 import { personas } from './personas';
@@ -108,9 +109,27 @@ export const angleProducts = pgTable(
   (table) => [primaryKey({ columns: [table.angleId, table.productId] })],
 );
 
+/**
+ * Many-to-many: concept↔collection (PRD §5.7 / Airtable "Collection" multipleRecordLinks).
+ * Real Gratsi data shows this field populated on nearly every Concepts record.
+ */
+export const conceptCollections = pgTable(
+  'concept_collections',
+  {
+    conceptId: uuid('concept_id')
+      .notNull()
+      .references(() => concepts.id, { onDelete: 'cascade' }),
+    collectionId: uuid('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.conceptId, table.collectionId] })],
+);
+
 export type CreatorConcept = typeof creatorConcepts.$inferSelect;
 export type CreatorProduct = typeof creatorProducts.$inferSelect;
 export type ConceptAngle = typeof conceptAngles.$inferSelect;
 export type ConceptTheme = typeof conceptThemes.$inferSelect;
 export type AnglePersona = typeof anglePersonas.$inferSelect;
 export type AngleProduct = typeof angleProducts.$inferSelect;
+export type ConceptCollection = typeof conceptCollections.$inferSelect;
