@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CampaignOffer } from '@tas/db';
+import type { ViewType } from '@tas/domain';
+import { getTableCapability } from '@tas/domain';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -18,8 +20,14 @@ import {
   TableRow,
 } from '@tas/ui';
 
+import { TimelineView, type TimelineItem, ViewSwitcher } from '@/components/views';
+
 import { CampaignPanel, NEW_CAMPAIGN, type LinkOption } from './campaigns-panel';
 import { countLabel, EM_DASH, formatDate, matchesCampaignSearch } from './fields';
+
+const CAMPAIGNS_CAP = getTableCapability('campaigns') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
 
 export interface CampaignItem {
   readonly campaign: CampaignOffer;
@@ -33,6 +41,7 @@ interface CampaignsWorkspaceProps {
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
+  readonly initialView?: ViewType;
 }
 
 function syncUrl(key: 'campaign' | 'q', value: string | null): void {
@@ -51,10 +60,12 @@ export function CampaignsWorkspace({
   demo,
   initialSelection,
   initialSearch,
+  initialView,
 }: CampaignsWorkspaceProps) {
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
+  const [activeView, setActiveView] = useState<ViewType>(initialView ?? 'grid');
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -102,6 +113,18 @@ export function CampaignsWorkspace({
     return map;
   }, [products]);
 
+  const timelineItems: TimelineItem[] = useMemo(
+    () =>
+      visible.map(({ campaign }) => ({
+        id: campaign.id,
+        name: campaign.name,
+        startDate: campaign.adsLaunchDate,
+        endDate: campaign.adsEndDate,
+        subtitle: campaign.holiday ?? undefined,
+      })),
+    [visible],
+  );
+
   const newCampaign = (
     <Button
       size="sm"
@@ -141,6 +164,13 @@ export function CampaignsWorkspace({
           <h2 id="campaigns-heading" className="text-sm font-medium text-text2">
             Library
           </h2>
+          <ViewSwitcher
+            tableKey="campaigns"
+            supportedViews={[...CAMPAIGNS_CAP.supportedViews]}
+            activeView={activeView}
+            onViewChange={setActiveView}
+            kanbanGroupByField={null}
+          />
           <Input
             type="search"
             value={search}
@@ -154,136 +184,140 @@ export function CampaignsWorkspace({
           />
         </div>
 
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
-          <Table data-slot="campaigns-table">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-3">Name</TableHead>
-                <TableHead className="px-3">Holiday</TableHead>
-                <TableHead className="px-3">Offer</TableHead>
-                <TableHead className="px-3">Code</TableHead>
-                <TableHead className="px-3">Official Date</TableHead>
-                <TableHead className="px-3">Ads Launch</TableHead>
-                <TableHead className="px-3">Ads End</TableHead>
-                <TableHead className="px-3">Confirmed</TableHead>
-                <TableHead className="px-3">Launched</TableHead>
-                <TableHead className="px-3">Product</TableHead>
-                <TableHead className="px-3">Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.length === 0 ? (
+        {activeView === 'timeline' ? (
+          <TimelineView items={timelineItems} />
+        ) : (
+          <div className="overflow-x-auto rounded-card border border-line bg-surface">
+            <Table data-slot="campaigns-table">
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={11} className="px-3 py-10">
-                    <div
-                      data-slot="campaigns-empty"
-                      className="flex flex-col items-center gap-3 text-center"
-                    >
-                      <p className="text-sm text-text2">
-                        {items.length === 0
-                          ? 'No campaigns yet. Create your first offer to start planning ads.'
-                          : `Nothing matches "${term}". Try a campaign name, holiday or code.`}
-                      </p>
-                      {items.length === 0 ? (
-                        <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
-                          <Button
-                            size="sm"
-                            disabled={demo}
-                            className={demo ? disabledWriteClassName : undefined}
-                            onClick={() => {
-                              select(NEW_CAMPAIGN);
-                            }}
-                            data-slot="empty-new-campaign"
-                          >
-                            New campaign
-                          </Button>
-                        </DisabledWrite>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            filter('');
-                          }}
-                          data-slot="clear-search"
-                        >
-                          Clear search
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
+                  <TableHead className="px-3">Name</TableHead>
+                  <TableHead className="px-3">Holiday</TableHead>
+                  <TableHead className="px-3">Offer</TableHead>
+                  <TableHead className="px-3">Code</TableHead>
+                  <TableHead className="px-3">Official Date</TableHead>
+                  <TableHead className="px-3">Ads Launch</TableHead>
+                  <TableHead className="px-3">Ads End</TableHead>
+                  <TableHead className="px-3">Confirmed</TableHead>
+                  <TableHead className="px-3">Launched</TableHead>
+                  <TableHead className="px-3">Product</TableHead>
+                  <TableHead className="px-3">Updated</TableHead>
                 </TableRow>
-              ) : (
-                visible.map(({ campaign, updatedLabel, updatedTitle }) => (
-                  <TableRow
-                    key={campaign.id}
-                    data-slot="campaign-row"
-                    data-campaign-id={campaign.id}
-                    data-state={campaign.id === selection ? 'selected' : undefined}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={campaign.name}
-                    onClick={() => {
-                      select(campaign.id);
-                    }}
-                    onKeyDown={(event) => {
-                      onRowKey(event, campaign.id);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="px-3 py-1.5 font-mono text-xs font-medium whitespace-nowrap text-text">
-                      {campaign.name}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-nowrap">
-                      {campaign.holiday ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-nowrap">
-                      {campaign.discountOffer ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 font-mono text-xs whitespace-nowrap">
-                      {campaign.code ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-nowrap text-text2">
-                      {formatDate(campaign.officialDate)}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-nowrap text-text2">
-                      {formatDate(campaign.adsLaunchDate)}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-nowrap text-text2">
-                      {formatDate(campaign.adsEndDate)}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5">
-                      <StatusChip
-                        tone={campaign.confirmedByClient ? 'ok' : 'mute'}
-                        label={campaign.confirmedByClient ? 'Yes' : 'No'}
-                      />
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5">
-                      <StatusChip
-                        tone={campaign.launched ? 'ok' : 'mute'}
-                        label={campaign.launched ? 'Yes' : 'No'}
-                      />
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-nowrap">
-                      {campaign.productId !== null ? (
-                        <StatusChip
-                          tone="info"
-                          label={productMap.get(campaign.productId) ?? EM_DASH}
-                        />
-                      ) : (
-                        <span className="text-text4">{EM_DASH}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
-                      {updatedLabel}
+              </TableHeader>
+              <TableBody>
+                {visible.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={11} className="px-3 py-10">
+                      <div
+                        data-slot="campaigns-empty"
+                        className="flex flex-col items-center gap-3 text-center"
+                      >
+                        <p className="text-sm text-text2">
+                          {items.length === 0
+                            ? 'No campaigns yet. Create your first offer to start planning ads.'
+                            : `Nothing matches "${term}". Try a campaign name, holiday or code.`}
+                        </p>
+                        {items.length === 0 ? (
+                          <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+                            <Button
+                              size="sm"
+                              disabled={demo}
+                              className={demo ? disabledWriteClassName : undefined}
+                              onClick={() => {
+                                select(NEW_CAMPAIGN);
+                              }}
+                              data-slot="empty-new-campaign"
+                            >
+                              New campaign
+                            </Button>
+                          </DisabledWrite>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              filter('');
+                            }}
+                            data-slot="clear-search"
+                          >
+                            Clear search
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ) : (
+                  visible.map(({ campaign, updatedLabel, updatedTitle }) => (
+                    <TableRow
+                      key={campaign.id}
+                      data-slot="campaign-row"
+                      data-campaign-id={campaign.id}
+                      data-state={campaign.id === selection ? 'selected' : undefined}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={campaign.name}
+                      onClick={() => {
+                        select(campaign.id);
+                      }}
+                      onKeyDown={(event) => {
+                        onRowKey(event, campaign.id);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <TableCell className="px-3 py-1.5 font-mono text-xs font-medium whitespace-nowrap text-text">
+                        {campaign.name}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 whitespace-nowrap">
+                        {campaign.holiday ?? <span className="text-text4">{EM_DASH}</span>}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 whitespace-nowrap">
+                        {campaign.discountOffer ?? <span className="text-text4">{EM_DASH}</span>}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 font-mono text-xs whitespace-nowrap">
+                        {campaign.code ?? <span className="text-text4">{EM_DASH}</span>}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 whitespace-nowrap text-text2">
+                        {formatDate(campaign.officialDate)}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 whitespace-nowrap text-text2">
+                        {formatDate(campaign.adsLaunchDate)}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 whitespace-nowrap text-text2">
+                        {formatDate(campaign.adsEndDate)}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5">
+                        <StatusChip
+                          tone={campaign.confirmedByClient ? 'ok' : 'mute'}
+                          label={campaign.confirmedByClient ? 'Yes' : 'No'}
+                        />
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5">
+                        <StatusChip
+                          tone={campaign.launched ? 'ok' : 'mute'}
+                          label={campaign.launched ? 'Yes' : 'No'}
+                        />
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 whitespace-nowrap">
+                        {campaign.productId !== null ? (
+                          <StatusChip
+                            tone="info"
+                            label={productMap.get(campaign.productId) ?? EM_DASH}
+                          />
+                        ) : (
+                          <span className="text-text4">{EM_DASH}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
+                        {updatedLabel}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </section>
 
       {creating || open !== null ? (
