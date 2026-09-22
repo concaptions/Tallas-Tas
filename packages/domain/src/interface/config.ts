@@ -44,6 +44,7 @@ export const INTERFACE_PAGE_KEYS = [
   'copywriting',
   'ugc',
   'partnership',
+  'calendar',
 ] as const;
 
 export type InterfacePageKey = (typeof INTERFACE_PAGE_KEYS)[number];
@@ -78,7 +79,7 @@ export interface InterfacePageConfig<Field extends InterfaceFieldConfig = Interf
   readonly fields: readonly Field[];
 }
 
-/** A whole client interface: the five pages of §10, in order. */
+/** A whole client interface: the six pages of §10, in order. */
 export type InterfaceConfig<Page extends InterfacePageConfig = InterfacePageConfig> =
   readonly Page[];
 
@@ -121,7 +122,7 @@ export const DEFAULT_CONCEPT_FIELDS: readonly InterfaceFieldDefault[] = [
 ] as const;
 
 /**
- * PRD §10's five pages, in the order the client's tab strip renders them, each with the fields that
+ * PRD §10's six pages, in the order the client's tab strip renders them, each with the fields that
  * page actually carries.
  *
  * The labels are the PRD's own page titles and carry no emoji: the sidebar and the client's tab strip
@@ -171,6 +172,17 @@ export const DEFAULT_INTERFACE_PAGES: readonly InterfacePageDefault[] = [
       { fieldName: 'instagram_username', label: 'Instagram Username', clientEditable: false },
       { fieldName: 'partnership_activity', label: 'Activity', clientEditable: false },
       { fieldName: 'partnership_expires_on', label: 'Expires On', clientEditable: false },
+    ],
+  },
+  {
+    pageKey: 'calendar',
+    label: 'Promotional Calendar',
+    fields: [
+      { fieldName: 'campaign_name', label: 'Campaign', clientEditable: false },
+      { fieldName: 'holiday', label: 'Holiday', clientEditable: false },
+      { fieldName: 'official_date', label: 'Official Date', clientEditable: false },
+      { fieldName: 'ads_launch_date', label: 'Ads Launch', clientEditable: false },
+      { fieldName: 'ads_end_date', label: 'Ads End', clientEditable: false },
     ],
   },
 ] as const;

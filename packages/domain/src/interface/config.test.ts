@@ -89,6 +89,7 @@ describe('INTERFACE_PAGE_KEYS', () => {
       'copywriting',
       'ugc',
       'partnership',
+      'calendar',
     ]);
   });
 
@@ -101,13 +102,14 @@ describe('INTERFACE_PAGE_KEYS', () => {
 });
 
 describe('DEFAULT_INTERFACE_PAGES', () => {
-  it("is PRD §10's five pages, in order, with the PRD's own titles", () => {
+  it("is PRD §10's six pages, in order, with the PRD's own titles", () => {
     expect(DEFAULT_INTERFACE_PAGES.map((page) => page.pageKey)).toEqual([
       'concepts',
       'creatives',
       'copywriting',
       'ugc',
       'partnership',
+      'calendar',
     ]);
     expect(DEFAULT_INTERFACE_PAGES.map((page) => page.label)).toEqual([
       'Concepts',
@@ -115,6 +117,7 @@ describe('DEFAULT_INTERFACE_PAGES', () => {
       'Copywriting',
       'UGC Management',
       'Partnership Ads Tracking',
+      'Promotional Calendar',
     ]);
   });
 
@@ -183,7 +186,7 @@ describe('defaultInterfaceConfig', () => {
     const config = defaultInterfaceConfig();
 
     expect(config.map((page) => page.pageKey)).toEqual([...INTERFACE_PAGE_KEYS]);
-    expect(config.map((page) => page.position)).toEqual([0, 1, 2, 3, 4]);
+    expect(config.map((page) => page.position)).toEqual([0, 1, 2, 3, 4, 5]);
     for (const page of config) {
       expect(page.enabled).toBe(true);
       expect(page.fields.map((entry) => entry.position)).toEqual(
@@ -295,6 +298,7 @@ describe('enabledPages', () => {
       'Creatives',
       'UGC Management',
       'Partnership Ads Tracking',
+      'Promotional Calendar',
     ]);
   });
 
@@ -302,7 +306,7 @@ describe('enabledPages', () => {
     const config = [...defaultInterfaceConfig()].reverse();
 
     expect(enabledPages(config).map((page) => page.pageKey)).toEqual([...INTERFACE_PAGE_KEYS]);
-    expect(at(config, 0).pageKey).toBe('partnership');
+    expect(at(config, 0).pageKey).toBe('calendar');
   });
 
   it('is empty when every page is off', () => {

@@ -80,6 +80,7 @@ export const PAGE_PREVIEW_BODY: Record<InterfacePageKey, string> = {
   copywriting: 'The copy waiting on the client, each with its status and comment.',
   ugc: 'The creator deliveries, each with its status, note and tracking number.',
   partnership: 'The live partnership ads, view only — the client groups and filters, never edits.',
+  calendar: 'Campaign dates and holidays — read-only timeline, no financial details.',
 };
 
 /** A client status as its chip: the domain's own label, and the tone that label earns. */

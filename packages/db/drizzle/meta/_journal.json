@@ -190,6 +190,13 @@
       "when": 1790086081373,
       "tag": "0026_sprint2-four-tables",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790096785454,
+      "tag": "0027_clumsy_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

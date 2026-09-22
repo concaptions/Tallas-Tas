@@ -26,7 +26,7 @@ describe('loadInterfaceConfig in demo mode', () => {
 
     expect(result.source).toBe('demo');
     expect(result.rows).toEqual(demoInterfaceConfig);
-    expect(result.rows).toHaveLength(5);
+    expect(result.rows).toHaveLength(6);
     expect(connect).not.toHaveBeenCalled();
   });
 

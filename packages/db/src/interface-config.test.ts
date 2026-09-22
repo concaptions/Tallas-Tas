@@ -37,7 +37,7 @@ function hookExamples(): InterfaceFieldRow {
 }
 
 describe('migration 0010 on PGlite', () => {
-  it('seeds PRD §10’s five pages in order, identical to the fixtures', async () => {
+  it('seeds PRD §10’s six pages in order, identical to the fixtures', async () => {
     const { db, brandId } = await seeded();
 
     const pages = await listInterfaceConfig(db, brandId);
@@ -50,6 +50,7 @@ describe('migration 0010 on PGlite', () => {
       'copywriting',
       'ugc',
       'partnership',
+      'calendar',
     ]);
     expect(pages.map((page) => page.label)).toEqual([
       'Concepts',
@@ -57,6 +58,7 @@ describe('migration 0010 on PGlite', () => {
       'Copywriting',
       'UGC Management',
       'Partnership Ads Tracking',
+      'Promotional Calendar',
     ]);
     expect(pages.every((page) => page.enabled)).toBe(true);
   });
@@ -129,7 +131,7 @@ describe('interface config queries', () => {
 
     const pages = await listInterfaceConfig(db, brandId);
 
-    expect(pages.map((page) => page.position)).toEqual([-1, 0, 1, 2, 3, 4]);
+    expect(pages.map((page) => page.position)).toEqual([-1, 0, 1, 2, 3, 4, 5]);
     expect(pages[0]?.id).toBe(late.id);
     expect(pages[0]?.fields.map((field) => field.fieldName)).toEqual(['first', 'second']);
   });
@@ -158,6 +160,7 @@ describe('interface config queries', () => {
       'creatives',
       'ugc',
       'partnership',
+      'calendar',
       'partnership',
     ]);
     expect(pages.flatMap((page) => page.fields).map((field) => field.fieldName)).not.toContain(
@@ -183,7 +186,7 @@ describe('interface config queries', () => {
       .set({ deletedAt: new Date() })
       .where(eq(interfacePages.id, conceptsPage().id));
 
-    expect(await listInterfaceConfig(db, brandId)).toHaveLength(4);
+    expect(await listInterfaceConfig(db, brandId)).toHaveLength(5);
     expect(await getInterfacePageById(db, brandId, conceptsPage().id)).toBeNull();
   });
 
@@ -220,7 +223,7 @@ describe('interface config queries', () => {
     expect(off?.fields.every((field) => field.visible)).toBe(true);
     // Still listed, so the configuration screen can switch it back on.
     const pages = await listInterfaceConfig(db, brandId);
-    expect(pages).toHaveLength(5);
+    expect(pages).toHaveLength(6);
     expect(pages[2]).toMatchObject({ enabled: false });
   });
 

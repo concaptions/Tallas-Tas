@@ -236,9 +236,9 @@ export const creatorPlatforms = [
 export type CreatorPlatform = (typeof creatorPlatforms)[number];
 
 /**
- * The five pages of the client interface (`interface_pages.page_key`), PRD §10, in the order §10
+ * The six pages of the client interface (`interface_pages.page_key`), PRD §10, in the order §10
  * lists them and the client's tab strip renders them: Concepts, Creatives, Copywriting, UGC
- * Management, Partnership Ads Tracking.
+ * Management, Partnership Ads Tracking, Promotional Calendar.
  *
  * A KEY, not the label: `ugc` and `partnership` are what the row stores and what a component
  * branches on, while the label a client reads ("UGC Management") is a column of the row, so a brand
@@ -254,6 +254,7 @@ export const interfacePageKeys = [
   'copywriting',
   'ugc',
   'partnership',
+  'calendar',
 ] as const;
 export type InterfacePageKey = (typeof interfacePageKeys)[number];
 

@@ -1,6 +1,7 @@
 export * from './ad-metrics';
 export * from './agencies';
 export * from './ai-characters';
+export * from './annotations';
 export * from './assets';
 export * from './angles';
 export * from './brand-assignments';
@@ -12,6 +13,7 @@ export * from './briefs';
 export * from './campaigns';
 export * from './collaborations';
 export * from './collections';
+export * from './comments';
 export * from './competitive-research';
 export * from './concepts';
 export * from './copy';

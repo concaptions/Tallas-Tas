@@ -19,7 +19,7 @@ import type { NotificationSettingRow } from './notifications';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
 import type { PromotionRequestRow } from './promotion-requests';
-import type { CampaignOffer } from './schema';
+import type { Annotation, CampaignOffer, Comment } from './schema';
 import { brandRoles, notificationTriggers } from './schema';
 import type {
   AgencyRole,
@@ -1981,6 +1981,7 @@ const INTERFACE_PAGE_CREATIVES_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000002';
 const INTERFACE_PAGE_COPYWRITING_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000003';
 const INTERFACE_PAGE_UGC_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000004';
 const INTERFACE_PAGE_PARTNERSHIP_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000005';
+const INTERFACE_PAGE_CALENDAR_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-000000000006';
 
 /** One field of a configured page, before `interfacePage` gives it its brand, page and position. */
 type InterfaceFieldSeed = {
@@ -2024,7 +2025,7 @@ function interfacePage(
 }
 
 /**
- * The demo brand's client interface (PRD §10): the five pages in the PRD's order, all switched on,
+ * The demo brand's client interface (PRD §10): the six pages in the PRD's order, all switched on,
  * each with the fields that brand's client actually sees.
  *
  * THE DEFAULTS ARE THE DOMAIN'S. `defaultInterfaceConfig()` in `packages/domain/src/interface/` is
@@ -2196,6 +2197,38 @@ export const demoInterfaceConfig: InterfacePageRow[] = [
       id: 'cccccccc-cccc-4ccc-8ccc-000000000504',
       fieldName: 'partnership_expires_on',
       label: 'Expires On',
+      clientEditable: false,
+    },
+  ]),
+  interfacePage(INTERFACE_PAGE_CALENDAR_ID, 'calendar', 'Promotional Calendar', 5, [
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000601',
+      fieldName: 'campaign_name',
+      label: 'Campaign',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000602',
+      fieldName: 'holiday',
+      label: 'Holiday',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000603',
+      fieldName: 'official_date',
+      label: 'Official Date',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000604',
+      fieldName: 'ads_launch_date',
+      label: 'Ads Launch',
+      clientEditable: false,
+    },
+    {
+      id: 'cccccccc-cccc-4ccc-8ccc-000000000605',
+      fieldName: 'ads_end_date',
+      label: 'Ads End',
       clientEditable: false,
     },
   ]),
@@ -3010,5 +3043,138 @@ export const demoCompetitiveResearch: CompetitiveResearchListRow[] = [
     analysis:
       'Personalization angle is smart. We can learn from their quiz-to-purchase funnel for our own product recommendation flow.',
     legacyAirtableId: null,
+  },
+];
+
+const DEMO_CLIENT_USER_ID = 'user_demo_client';
+const DEMO_CLIENT_USER_NAME = 'Sarah Chen';
+
+const ANNOTATION_1_ID = 'eeeeeeee-eeee-4eee-8eee-000000000001';
+const ANNOTATION_2_ID = 'eeeeeeee-eeee-4eee-8eee-000000000002';
+const ANNOTATION_3_ID = 'eeeeeeee-eeee-4eee-8eee-000000000003';
+const ANNOTATION_4_ID = 'eeeeeeee-eeee-4eee-8eee-000000000004';
+
+export const demoAnnotations: Annotation[] = [
+  {
+    ...base(ANNOTATION_1_ID, '2026-09-18T14:30:00.000Z', '2026-09-18T14:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'creative_briefs',
+    recordId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    authorId: DEMO_CLIENT_USER_ID,
+    authorName: DEMO_CLIENT_USER_NAME,
+    kind: 'video_timestamp',
+    timestampSeconds: 12.5,
+    x: null,
+    y: null,
+    body: 'The transition here feels too abrupt — can we add a fade?',
+  },
+  {
+    ...base(ANNOTATION_2_ID, '2026-09-18T15:10:00.000Z', '2026-09-18T15:10:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'creative_briefs',
+    recordId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    authorId: DEMO_ACTOR_ID,
+    authorName: 'Callum Reed',
+    kind: 'video_timestamp',
+    timestampSeconds: 28.0,
+    x: null,
+    y: null,
+    body: 'End card needs the updated logo — new brand guidelines.',
+  },
+  {
+    ...base(ANNOTATION_3_ID, '2026-09-19T09:00:00.000Z', '2026-09-19T09:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'creative_briefs',
+    recordId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    authorId: DEMO_CLIENT_USER_ID,
+    authorName: DEMO_CLIENT_USER_NAME,
+    kind: 'image_xy',
+    timestampSeconds: null,
+    x: 0.72,
+    y: 0.35,
+    body: 'Can we make the CTA button larger? It gets lost on mobile.',
+  },
+  {
+    ...base(ANNOTATION_4_ID, '2026-09-19T10:20:00.000Z', '2026-09-19T10:20:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'creative_briefs',
+    recordId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    authorId: DEMO_ACTOR_ID,
+    authorName: 'Callum Reed',
+    kind: 'image_xy',
+    timestampSeconds: null,
+    x: 0.15,
+    y: 0.88,
+    body: 'Legal disclaimer text — check font size meets accessibility guidelines.',
+  },
+];
+
+const COMMENT_1_ID = 'ffffffff-ffff-4fff-8fff-000000000001';
+const COMMENT_2_ID = 'ffffffff-ffff-4fff-8fff-000000000002';
+const COMMENT_3_ID = 'ffffffff-ffff-4fff-8fff-000000000003';
+const COMMENT_4_ID = 'ffffffff-ffff-4fff-8fff-000000000004';
+const COMMENT_5_ID = 'ffffffff-ffff-4fff-8fff-000000000005';
+const COMMENT_6_ID = 'ffffffff-ffff-4fff-8fff-000000000006';
+
+export const demoComments: Comment[] = [
+  {
+    ...base(COMMENT_1_ID, '2026-09-17T11:00:00.000Z', '2026-09-17T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'concepts',
+    recordId: CONCEPT_BODY_CLOCK_ID,
+    parentCommentId: null,
+    authorId: DEMO_CLIENT_USER_ID,
+    authorName: DEMO_CLIENT_USER_NAME,
+    body: 'Love the body clock angle — this resonates with our Q4 messaging around holiday sleep disruption.',
+  },
+  {
+    ...base(COMMENT_2_ID, '2026-09-17T11:45:00.000Z', '2026-09-17T11:45:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'concepts',
+    recordId: CONCEPT_BODY_CLOCK_ID,
+    parentCommentId: COMMENT_1_ID,
+    authorId: DEMO_ACTOR_ID,
+    authorName: 'Callum Reed',
+    body: 'Great — we can lean into the seasonal angle. Will brief the video team on this direction.',
+  },
+  {
+    ...base(COMMENT_3_ID, '2026-09-17T14:00:00.000Z', '2026-09-17T14:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'concepts',
+    recordId: CONCEPT_NOT_YOUR_AGE_ID,
+    parentCommentId: null,
+    authorId: DEMO_CLIENT_USER_ID,
+    authorName: DEMO_CLIENT_USER_NAME,
+    body: 'Can we see a version that targets 25–34 instead of 45+? Our analytics show that demo is growing fastest.',
+  },
+  {
+    ...base(COMMENT_4_ID, '2026-09-18T16:00:00.000Z', '2026-09-18T16:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'creative_briefs',
+    recordId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    parentCommentId: null,
+    authorId: DEMO_CLIENT_USER_ID,
+    authorName: DEMO_CLIENT_USER_NAME,
+    body: 'Overall direction is strong. Two notes: the opening hook needs to be punchier, and please check the annotations I left on the timeline.',
+  },
+  {
+    ...base(COMMENT_5_ID, '2026-09-18T16:30:00.000Z', '2026-09-18T16:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'creative_briefs',
+    recordId: BRIEF_BODY_CLOCK_VIDEO_ID,
+    parentCommentId: COMMENT_4_ID,
+    authorId: DEMO_ACTOR_ID,
+    authorName: 'Callum Reed',
+    body: 'Noted — will address both annotations. New cut should be ready by Thursday.',
+  },
+  {
+    ...base(COMMENT_6_ID, '2026-09-19T10:30:00.000Z', '2026-09-19T10:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    recordType: 'creative_briefs',
+    recordId: BRIEF_NOT_YOUR_AGE_STATIC_ID,
+    parentCommentId: null,
+    authorId: DEMO_CLIENT_USER_ID,
+    authorName: DEMO_CLIENT_USER_NAME,
+    body: 'The static looks good but needs the updated product shot — the current one is from last season.',
   },
 ];
