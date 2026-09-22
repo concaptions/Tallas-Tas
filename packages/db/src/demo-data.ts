@@ -20,6 +20,7 @@ import type {
   AgencyRole,
   BrandRole,
   CreativeFunnel,
+  CreativeSource,
   CreativeType,
   InterfacePageKey,
   NotificationTriggerKey,
@@ -811,6 +812,7 @@ export const STANDALONE_CONCEPT_SLUG = 'Standalone';
  * already name the product, which in practice is the standalone static.
  */
 function creativeName(spec: {
+  source?: CreativeSource;
   funnel: CreativeFunnel;
   format: CreativeType;
   number: number;
@@ -821,7 +823,8 @@ function creativeName(spec: {
 }): string {
   const head = `${FUNNEL_LETTER[spec.funnel]}${FORMAT_LETTER[spec.format]}${String(spec.number)}`;
   const suffix = spec.product === undefined ? '' : `-${spec.product}`;
-  return `${head}-${spec.batch}-${spec.conceptName}-V${String(spec.version)}${suffix}`;
+  const prefix = spec.source === undefined ? '' : `${spec.source}-`;
+  return `${prefix}${head}-${spec.batch}-${spec.conceptName}-V${String(spec.version)}${suffix}`;
 }
 
 /**
@@ -848,7 +851,13 @@ function dimensionsFor(type: CreativeType): string[] {
 /** The generated name, the inherited names and the §8 dimensions of a brief built on a concept. */
 function fromConcept(
   concept: ConceptListRow,
-  spec: { funnel: CreativeFunnel; type: CreativeType; sequence: number; version: number },
+  spec: {
+    source: CreativeSource;
+    funnel: CreativeFunnel;
+    type: CreativeType;
+    sequence: number;
+    version: number;
+  },
 ) {
   const batch = concept.batch ?? '';
   return {
@@ -860,6 +869,7 @@ function fromConcept(
     version: spec.version,
     dimensions: dimensionsFor(spec.type),
     name: creativeName({
+      source: spec.source,
       funnel: spec.funnel,
       format: spec.type,
       number: spec.sequence,
@@ -881,6 +891,7 @@ function fromConcept(
  * join, which is precisely why the row can carry it while `productName` stays null.
  */
 function standalone(spec: {
+  source: CreativeSource;
   funnel: CreativeFunnel;
   type: CreativeType;
   sequence: number;
@@ -897,6 +908,7 @@ function standalone(spec: {
     version: spec.version,
     dimensions: dimensionsFor(spec.type),
     name: creativeName({
+      source: spec.source,
       funnel: spec.funnel,
       format: spec.type,
       number: spec.sequence,
@@ -973,7 +985,13 @@ export const demoBriefs: BriefListRow[] = [
       '2026-09-15T16:40:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    ...fromConcept(bodyClockConcept, { funnel: 'TOF', type: 'Video', sequence: 1, version: 2 }),
+    ...fromConcept(bodyClockConcept, {
+      source: 'TAS',
+      funnel: 'TOF',
+      type: 'Video',
+      sequence: 1,
+      version: 2,
+    }),
     source: 'TAS',
     priority: 'Video High',
     assignee: 'Dorian Vance',
@@ -1016,7 +1034,13 @@ export const demoBriefs: BriefListRow[] = [
       '2026-09-14T09:10:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    ...fromConcept(notYourAgeConcept, { funnel: 'TOF', type: 'Static', sequence: 1, version: 1 }),
+    ...fromConcept(notYourAgeConcept, {
+      source: 'TAS',
+      funnel: 'TOF',
+      type: 'Static',
+      sequence: 1,
+      version: 1,
+    }),
     source: 'TAS',
     priority: 'Static Average',
     assignee: 'Rhiannon Okafor',
@@ -1059,6 +1083,7 @@ export const demoBriefs: BriefListRow[] = [
     ),
     brandId: DEMO_BRAND_ID,
     ...fromConcept(daylightConcept, {
+      source: 'TAS',
       funnel: 'All Funnels',
       type: 'Motion Image',
       sequence: 1,
@@ -1105,6 +1130,7 @@ export const demoBriefs: BriefListRow[] = [
     ),
     brandId: DEMO_BRAND_ID,
     ...fromConcept(ninetyMinutesConcept, {
+      source: 'TAS',
       funnel: 'TOF',
       type: 'Video',
       sequence: 2,
@@ -1155,6 +1181,7 @@ export const demoBriefs: BriefListRow[] = [
     ),
     brandId: DEMO_BRAND_ID,
     ...standalone({
+      source: 'Client',
       funnel: 'Retargeting',
       type: 'Static',
       sequence: 1,
@@ -1208,6 +1235,7 @@ export const demoBriefs: BriefListRow[] = [
     ),
     brandId: DEMO_BRAND_ID,
     ...fromConcept(ninetyMinutesConcept, {
+      source: 'TAS',
       funnel: 'TOF',
       type: 'Carousel',
       sequence: 1,
@@ -1257,7 +1285,13 @@ export const demoBriefs: BriefListRow[] = [
       '2026-09-04T08:15:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    ...fromConcept(bodyClockConcept, { funnel: 'TOF', type: 'Video', sequence: 3, version: 1 }),
+    ...fromConcept(bodyClockConcept, {
+      source: 'TAS',
+      funnel: 'TOF',
+      type: 'Video',
+      sequence: 3,
+      version: 1,
+    }),
     source: 'TAS',
     priority: 'Video High',
     assignee: 'Dorian Vance',

@@ -21,7 +21,7 @@ import {
 
 const ROW: QueueSourceRow = {
   id: '77777777-7777-4777-8777-000000000001',
-  name: 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+  name: 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
   internalStatus: 'approved',
   brandId: '11111111-1111-4111-8111-000000000002',
   assignee: 'Dorian Vance',
@@ -134,7 +134,7 @@ describe('queueItem', () => {
     });
     expect(
       queueItem(rowWith({ designFileUrl: 'not a url', inspoLinks: [] }), '/app/briefs/x').thumbnail,
-    ).toMatchObject({ source: 'name', label: 'TV1', provider: null, url: null });
+    ).toMatchObject({ source: 'name', label: 'TAS', provider: null, url: null });
   });
 
   it('carries the stored status through untouched, so grouping stays the domain’s job', () => {

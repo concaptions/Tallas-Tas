@@ -29,7 +29,14 @@ export type { AssetCategory } from './schema/assets';
 export type { AirtableExport, AirtableRecord } from './airtable-import';
 export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
 export type { AngleInput, AngleListRow } from './angles';
-export { getBriefById, insertBrief, listBriefs, updateBrief } from './briefs';
+export {
+  getBriefById,
+  insertBrief,
+  listBriefs,
+  listBriefsByConceptId,
+  renameBrief,
+  updateBrief,
+} from './briefs';
 export type { BriefInput, BriefListRow } from './briefs';
 export {
   getUploadLinkById,

@@ -61,6 +61,7 @@ export interface BriefConceptCard {
 export interface BriefValues {
   readonly id: string;
   readonly name: string;
+  readonly source: string;
   readonly conceptId: string | null;
   readonly batch: string | null;
   readonly funnel: string;
@@ -164,6 +165,7 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
   );
 
   const name = creativeNameForConcept(concept === null ? null : concept, {
+    source: brief.source,
     funnel: brief.funnel,
     format: brief.type,
     number: brief.sequence,

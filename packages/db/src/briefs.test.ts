@@ -230,21 +230,20 @@ describe('brief fixtures', () => {
           ? STANDALONE_CONCEPT_SLUG
           : concept.name.slice(`${concept.batch ?? ''}-`.length);
       const head = `${funnelLetter[row.funnel] ?? ''}${formatLetter[row.type] ?? ''}${String(row.sequence)}`;
-      expect(row.name.startsWith(`${head}-${batch ?? ''}-${segment}-V${String(row.version)}`)).toBe(
-        true,
-      );
+      const prefix = `${row.source}-`;
+      expect(
+        row.name.startsWith(`${prefix}${head}-${batch ?? ''}-${segment}-V${String(row.version)}`),
+      ).toBe(true);
     }
 
     expect(demoBriefs.map((row) => row.name)).toEqual([
-      'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
-      'TS1-B2-It Is Not Just Your Age-Green Screen-V1',
-      'AM1-B2-Make 9am Look Like 3am-POV: X vs Y-V1',
-      'TV2-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
-      // The optional §7 product suffix, on the one brief whose concept does not name the product.
-      'RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
-      'TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
-      // The launched control: a third TOF video on the B1 concept, so the §7 number is 3.
-      'TV3-B1-Your Body Clock Is Not Broken-Problem/Solution-V1',
+      'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+      'TAS-TS1-B2-It Is Not Just Your Age-Green Screen-V1',
+      'TAS-AM1-B2-Make 9am Look Like 3am-POV: X vs Y-V1',
+      'TAS-TV2-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      'Client-RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
+      'TAS-TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      'TAS-TV3-B1-Your Body Clock Is Not Broken-Problem/Solution-V1',
     ]);
   });
 

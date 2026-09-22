@@ -225,7 +225,7 @@ describe('listCopy', () => {
     expect(attached?.creativeName).toBe(
       demoBriefs.find((brief) => brief.id === newestCopy().creativeBriefId)?.name,
     );
-    expect(attached?.creativeName).toMatch(/^TV1-/);
+    expect(attached?.creativeName).toMatch(/^TAS-TV1-/);
     expect(unattached).toBeDefined();
     expect(unattached?.creativeBriefId).toBeNull();
     expect(unattached?.creativeName).toBeNull();

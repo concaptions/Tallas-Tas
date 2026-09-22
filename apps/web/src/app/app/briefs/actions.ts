@@ -399,10 +399,12 @@ function toInput(
   sequence: number,
   internal: InternalStatusKey,
   client: ClientStatusKey,
+  source: string | null,
 ): BriefInput {
   const batch = concept?.batch ?? values.batch;
   const product = concept === null ? values.product : null;
   const name = creativeNameForConcept(concept, {
+    source,
     funnel: values.funnel,
     format: values.type,
     number: sequence,
@@ -501,7 +503,7 @@ export async function createBriefAction(
       }
 
       const sequence = nextSequence(await listBriefs(db, brandId), values.funnel, values.type);
-      const input = toInput(values, concept, sequence, internal, client);
+      const input = toInput(values, concept, sequence, internal, client, 'TAS');
       const created = await insertBrief(db, brandId, input, actor);
       return { ok: true as const, id: created.id, name: created.name, savedAt: Date.now() };
     });
@@ -614,7 +616,7 @@ export async function updateBriefAction(
         return clientRefusal;
       }
 
-      const input = toInput(values, concept, current.sequence, internal, client);
+      const input = toInput(values, concept, current.sequence, internal, client, current.source);
       const saved = await updateBrief(db, brandId, id, input, actor);
       if (saved === null) {
         return { ok: false as const, error: 'That brief is no longer available.' };

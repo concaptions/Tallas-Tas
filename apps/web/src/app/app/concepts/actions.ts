@@ -9,10 +9,13 @@ import {
   getConceptById,
   getThemeById,
   insertConcept,
+  listBriefsByConceptId,
+  renameBrief,
   updateConcept,
   type ConceptInput,
 } from '@tas/db';
 import { isAngleFormat, type AngleFormatKey } from '@tas/domain/angles';
+import { creativeNameForConcept } from '@tas/domain/creatives';
 import {
   conceptName,
   isConceptApprovalStatus,
@@ -39,7 +42,7 @@ import { z } from 'zod';
 
 import { CONCEPT_TRACK, withBrandScope } from '@/lib/concepts-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
-import { conceptPath, conceptsPath } from '@/lib/routes';
+import { briefsPath, conceptPath, conceptsPath } from '@/lib/routes';
 
 /**
  * The Concepts route's two mutations (PRD §5.7). Both follow `angles/actions.ts` exactly:
@@ -573,6 +576,27 @@ export async function updateConceptAction(
       if (saved === null) {
         return { ok: false as const, error: 'That concept is no longer available.' };
       }
+
+      // Cascade: when the concept name changed, recompute every brief that carries it.
+      if (name !== current.name) {
+        const conceptRow = { name, batch: parsed.values.batch };
+        const briefs = await listBriefsByConceptId(db, brandId, id);
+        await Promise.all(
+          briefs.map((brief) => {
+            const newName = creativeNameForConcept(conceptRow, {
+              source: brief.source,
+              funnel: brief.funnel,
+              format: brief.type,
+              number: brief.sequence,
+              version: brief.version,
+              batch: parsed.values.batch,
+              product: null,
+            });
+            return renameBrief(db, brandId, brief.id, newName, actor);
+          }),
+        );
+      }
+
       return { ok: true as const, id: saved.id, name, savedAt: Date.now() };
     });
 
@@ -584,6 +608,7 @@ export async function updateConceptAction(
     }
     revalidatePath(conceptsPath);
     revalidatePath(conceptPath(outcome.id));
+    revalidatePath(briefsPath);
     return outcome;
   } catch {
     return { ok: false, error: 'The concept could not be saved. Try again.' };

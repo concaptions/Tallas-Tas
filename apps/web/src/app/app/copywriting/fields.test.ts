@@ -32,7 +32,7 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     statusLabel: copyStatusLabel(status),
     statusTone: copyStatusTone(status),
     creativeBriefId: '77777777-7777-4777-8777-000000000001',
-    creativeName: 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+    creativeName: 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
     creativeHref: '/app/briefs/77777777-7777-4777-8777-000000000001',
     conceptId: null,
     conceptName: null,

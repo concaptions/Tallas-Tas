@@ -22,7 +22,7 @@ import {
 function item(overrides: Partial<BriefItem> = {}): BriefItem {
   return {
     id: 'brief-1',
-    name: 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+    name: 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
     conceptName: 'B1-Your Body Clock Is Not Broken-Problem/Solution',
     type: 'Video',
     typeLabel: 'Video',
@@ -197,6 +197,7 @@ describe('the fixture names and the domain formula agree', () => {
 
     expect(
       creativeNameForConcept(concept, {
+        source: brief.source,
         funnel: brief.funnel,
         format: brief.type,
         number: brief.sequence,

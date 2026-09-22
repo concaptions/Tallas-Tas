@@ -171,3 +171,34 @@ export async function updateBrief(
     .returning();
   return row ?? null;
 }
+
+/**
+ * All live briefs in the brand that belong to a concept — the rows whose name must be recomputed
+ * when the concept's own name changes. Returns raw rows (no inherited joins) because the caller
+ * only needs the fields the naming formula reads.
+ */
+export async function listBriefsByConceptId(
+  db: Db,
+  brandId: string,
+  conceptId: string,
+): Promise<CreativeBrief[]> {
+  return withBrand(db, brandId).select(creativeBriefs, eq(creativeBriefs.conceptId, conceptId));
+}
+
+/**
+ * Rename a brief: updates only the `name` column and the audit trail, nothing else. Used by the
+ * cascade that recomputes brief names when a concept's name changes.
+ */
+export async function renameBrief(
+  db: Db,
+  brandId: string,
+  id: string,
+  name: string,
+  actorId: string,
+): Promise<void> {
+  await withBrand(db, brandId).update(
+    creativeBriefs,
+    { name, updatedBy: actorId, updatedAt: new Date() },
+    eq(creativeBriefs.id, id),
+  );
+}

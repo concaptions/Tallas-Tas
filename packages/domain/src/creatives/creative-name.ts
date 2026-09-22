@@ -71,6 +71,8 @@ export type CreativeNamePart = (typeof CREATIVE_NAME_PARTS)[number];
  * mounted field is `undefined`, and both mean the same thing here.
  */
 export interface CreativeNameInput {
+  /** PRD §7: "optionally prefixed with source." A `creativeSources` key (e.g. `'TAS'`). */
+  readonly source?: string | null;
   /** A `CREATIVE_FUNNELS` key; supplies the first letter. */
   readonly funnel?: string | null;
   /** A `CREATIVE_TYPES` key; supplies the second letter. §7 calls it the FORMAT. */
@@ -148,10 +150,17 @@ export function creativeName(input: CreativeNameInput): string {
   const concept = text(input.conceptName) ?? STANDALONE_CONCEPT_SLUG;
   const version = `V${chosen.version ?? CREATIVE_NAME_PLACEHOLDER.version}`;
   const product = text(input.product);
+  const source = text(input.source);
 
-  return [head, batch, concept, version, ...(product === null ? [] : [product])].join(
-    CREATIVE_NAME_SEPARATOR,
-  );
+  const segments = [
+    ...(source === null ? [] : [source]),
+    head,
+    batch,
+    concept,
+    version,
+    ...(product === null ? [] : [product]),
+  ];
+  return segments.join(CREATIVE_NAME_SEPARATOR);
 }
 
 /**
@@ -189,6 +198,7 @@ export function creativeNameForConcept(
 ): string {
   return creativeName({
     ...spec,
+    source: spec.source,
     batch: spec.batch ?? concept?.batch ?? null,
     conceptName: concept === null ? null : conceptNameSegment(concept),
   });

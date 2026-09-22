@@ -73,9 +73,10 @@ describe('creativeName · the PRD §7 formula', () => {
     expect(creativeName({ ...spec, product: '   ' })).toBe('TV1-B1-A-B-V1');
   });
 
-  it('reproduces every demo fixture name (the same six rows `@tas/db` seeds)', () => {
+  it('reproduces every demo fixture name (the same seven rows `@tas/db` seeds)', () => {
     const fixtures = [
       {
+        source: 'TAS',
         funnel: 'TOF',
         format: 'Video',
         number: 1,
@@ -84,6 +85,7 @@ describe('creativeName · the PRD §7 formula', () => {
         version: 2,
       },
       {
+        source: 'TAS',
         funnel: 'TOF',
         format: 'Static',
         number: 1,
@@ -92,6 +94,7 @@ describe('creativeName · the PRD §7 formula', () => {
         version: 1,
       },
       {
+        source: 'TAS',
         funnel: 'All Funnels',
         format: 'Motion Image',
         number: 1,
@@ -100,6 +103,7 @@ describe('creativeName · the PRD §7 formula', () => {
         version: 1,
       },
       {
+        source: 'TAS',
         funnel: 'TOF',
         format: 'Video',
         number: 2,
@@ -108,6 +112,7 @@ describe('creativeName · the PRD §7 formula', () => {
         version: 1,
       },
       {
+        source: 'Client',
         funnel: 'Retargeting',
         format: 'Static',
         number: 1,
@@ -117,6 +122,7 @@ describe('creativeName · the PRD §7 formula', () => {
         product: 'NIGHT RESET BUNDLE',
       },
       {
+        source: 'TAS',
         funnel: 'TOF',
         format: 'Carousel',
         number: 1,
@@ -127,13 +133,51 @@ describe('creativeName · the PRD §7 formula', () => {
     ];
 
     expect(fixtures.map(creativeName)).toEqual([
-      'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
-      'TS1-B2-It Is Not Just Your Age-Green Screen-V1',
-      'AM1-B2-Make 9am Look Like 3am-POV: X vs Y-V1',
-      'TV2-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
-      'RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
-      'TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+      'TAS-TS1-B2-It Is Not Just Your Age-Green Screen-V1',
+      'TAS-AM1-B2-Make 9am Look Like 3am-POV: X vs Y-V1',
+      'TAS-TV2-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      'Client-RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
+      'TAS-TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
     ]);
+  });
+
+  it('prepends the source when given, matching the PRD §7 optional prefix', () => {
+    expect(
+      creativeName({
+        source: 'TAS',
+        funnel: 'TOF',
+        format: 'Video',
+        number: 1,
+        batch: 'B1',
+        conceptName: 'Problem/Solution-Screen Time Guilt Flip',
+        version: 1,
+      }),
+    ).toBe('TAS-TV1-B1-Problem/Solution-Screen Time Guilt Flip-V1');
+  });
+
+  it('omits the source prefix when source is null, undefined or blank', () => {
+    const spec = {
+      funnel: 'TOF',
+      format: 'Video',
+      number: 1,
+      batch: 'B1',
+      conceptName: 'A-B',
+      version: 1,
+    } as const;
+
+    for (const source of [null, undefined, '', '   ']) {
+      expect(creativeName({ ...spec, source })).toBe('TV1-B1-A-B-V1');
+    }
+  });
+
+  it('carries the source through creativeNameForConcept', () => {
+    expect(
+      creativeNameForConcept(
+        { name: 'B1-Your Body Clock Is Not Broken-Problem/Solution', batch: 'B1' },
+        { source: 'TAS', funnel: 'TOF', format: 'Video', number: 1, version: 2 },
+      ),
+    ).toBe('TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2');
   });
 
   it('takes the first letter from every funnel in the vocabulary', () => {

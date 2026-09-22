@@ -256,13 +256,12 @@ describe('the @tas/domain formula and the @tas/db copy', () => {
   it('rebuild every fixture name from the fixture row itself', () => {
     const rebuilt = demoBriefs.map((row) =>
       creativeName({
+        source: row.source,
         funnel: row.funnel,
         format: row.type,
         number: row.sequence,
         batch: row.batch,
         version: row.version,
-        // A linked brief takes its concept's `Angle-Theme` segment; a standalone takes the slug and
-        // the optional §7 product suffix, which is the only place a product reaches the name.
         conceptName:
           row.conceptName === null
             ? null
@@ -276,13 +275,13 @@ describe('the @tas/domain formula and the @tas/db copy', () => {
 
   it('pins the seven names the db handoff published, so a rename is never silent', () => {
     expect(demoBriefs.map((row) => row.name)).toEqual([
-      'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
-      'TS1-B2-It Is Not Just Your Age-Green Screen-V1',
-      'AM1-B2-Make 9am Look Like 3am-POV: X vs Y-V1',
-      'TV2-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
-      'RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
-      'TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
-      'TV3-B1-Your Body Clock Is Not Broken-Problem/Solution-V1',
+      'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+      'TAS-TS1-B2-It Is Not Just Your Age-Green Screen-V1',
+      'TAS-AM1-B2-Make 9am Look Like 3am-POV: X vs Y-V1',
+      'TAS-TV2-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      'Client-RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
+      'TAS-TC1-B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style-V1',
+      'TAS-TV3-B1-Your Body Clock Is Not Broken-Problem/Solution-V1',
     ]);
   });
 
