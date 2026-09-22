@@ -56,7 +56,7 @@ function valueOf(angle: AngleListRow | null, name: AngleFieldName): string {
   if (angle === null) {
     return '';
   }
-  const value = angle[name];
+  const value = angle[name as keyof AngleListRow];
   return typeof value === 'string' ? value : '';
 }
 
@@ -95,8 +95,8 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
   );
 
   const [name, setName] = useState(valueOf(angle, 'name'));
-  const [personaId, setPersonaId] = useState(angle?.personaId ?? NONE_VALUE);
-  const [productId, setProductId] = useState(angle?.productId ?? NONE_VALUE);
+  const [personaId, setPersonaId] = useState(angle?.personaIds[0] ?? NONE_VALUE);
+  const [productId, setProductId] = useState(angle?.productIds[0] ?? NONE_VALUE);
   const formats = angle?.formats ?? [];
   const links = linkRowsOf(angle);
 
@@ -124,7 +124,7 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
     () =>
       validateAngleDraft({
         name,
-        personaId: personaId === NONE_VALUE ? null : personaId,
+        personaIds: personaId === NONE_VALUE ? [] : [personaId],
         formats,
         adInspoLinks: links,
       }),

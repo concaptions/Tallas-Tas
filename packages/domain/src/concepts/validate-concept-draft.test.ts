@@ -4,8 +4,8 @@ import { validateConceptDraft, type ConceptDraft } from './validate-concept-draf
 
 const valid: ConceptDraft = {
   batch: 'B2',
-  angleId: '44444444-4444-4444-8444-000000000001',
-  themeId: '55555555-5555-4555-8555-000000000001',
+  angleIds: ['44444444-4444-4444-8444-000000000001'],
+  themeIds: ['55555555-5555-4555-8555-000000000001'],
   category: 'New',
 };
 
@@ -61,27 +61,15 @@ describe('validateConceptDraft · batch', () => {
 });
 
 describe('validateConceptDraft · the pairing', () => {
-  it('requires an angle', () => {
-    expect(validateConceptDraft({ ...valid, angleId: null }).fieldErrors.angleId).toBe(
-      'Pick the angle this concept is built on.',
+  it('requires at least one angle', () => {
+    expect(validateConceptDraft({ ...valid, angleIds: [] }).fieldErrors.angleIds).toBe(
+      'Pick at least one angle this concept is built on.',
     );
   });
 
-  it('treats a whitespace angle id as none', () => {
-    expect(validateConceptDraft({ ...valid, angleId: ' ' }).fieldErrors.angleId).toBe(
-      'Pick the angle this concept is built on.',
-    );
-  });
-
-  it('requires a theme', () => {
-    expect(validateConceptDraft({ ...valid, themeId: null }).fieldErrors.themeId).toBe(
-      'Pick the theme this angle is paired with.',
-    );
-  });
-
-  it('treats a whitespace theme id as none', () => {
-    expect(validateConceptDraft({ ...valid, themeId: ' ' }).fieldErrors.themeId).toBe(
-      'Pick the theme this angle is paired with.',
+  it('requires at least one theme', () => {
+    expect(validateConceptDraft({ ...valid, themeIds: [] }).fieldErrors.themeIds).toBe(
+      'Pick at least one theme this angle is paired with.',
     );
   });
 });
@@ -129,16 +117,16 @@ describe('validateConceptDraft · an empty draft', () => {
   it('reports all four required fields at once and nothing else', () => {
     const result = validateConceptDraft({
       batch: null,
-      angleId: null,
-      themeId: null,
+      angleIds: [],
+      themeIds: [],
       category: null,
     });
     expect(result.ok).toBe(false);
     expect(Object.keys(result.fieldErrors).sort()).toEqual([
-      'angleId',
+      'angleIds',
       'batch',
       'category',
-      'themeId',
+      'themeIds',
     ]);
   });
 });

@@ -1,6 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { loadAllAngleProducts, loadAllConceptAngles } from './junction-queries';
 import {
   angles,
   concepts,
@@ -56,36 +57,36 @@ export type BriefListRow = CreativeBrief & {
 
 /** Everything a brief row inherits through its concept, resolved once per call and indexed by id. */
 interface Inherited {
-  conceptFields: Map<string, { name: string; angleId: string | null }>;
-  angleFields: Map<string, { name: string; productId: string | null }>;
+  conceptFields: Map<string, { name: string }>;
+  conceptAngleMap: Map<string, string[]>;
+  angleFields: Map<string, { name: string }>;
+  angleProductMap: Map<string, string[]>;
   productNames: Map<string, string>;
 }
 
 /**
- * The three lookups a brief row needs, from three scoped reads.
+ * The lookups a brief row needs, from scoped reads plus junction table bulk loads.
  *
  * Joined in TypeScript rather than with a SQL `leftJoin`, for the reason `listConcepts` gives:
  * `withBrand` hands back a sealed query surface with no join, `where` or `$dynamic`, and that seal is
- * the guarantee a scoped read cannot be widened. All three reads are scoped, so another brand's
+ * the guarantee a scoped read cannot be widened. All entity reads are scoped, so another brand's
  * concepts, angles and products — and soft-deleted ones — are gone before a single name is
  * inherited: a brief pointing at any of them inherits null, exactly as a standalone brief does.
  */
-async function inherited(scope: BrandScope): Promise<Inherited> {
-  const [brandConcepts, brandAngles, brandProducts] = await Promise.all([
-    scope.select(concepts),
-    scope.select(angles),
-    scope.select(products),
-  ]);
+async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
+  const [brandConcepts, brandAngles, brandProducts, conceptAngleMap, angleProductMap] =
+    await Promise.all([
+      scope.select(concepts),
+      scope.select(angles),
+      scope.select(products),
+      loadAllConceptAngles(db),
+      loadAllAngleProducts(db),
+    ]);
   return {
-    conceptFields: new Map(
-      brandConcepts.map((concept) => [
-        concept.id,
-        { name: concept.name, angleId: concept.angleId },
-      ]),
-    ),
-    angleFields: new Map(
-      brandAngles.map((angle) => [angle.id, { name: angle.name, productId: angle.productId }]),
-    ),
+    conceptFields: new Map(brandConcepts.map((concept) => [concept.id, { name: concept.name }])),
+    conceptAngleMap,
+    angleFields: new Map(brandAngles.map((angle) => [angle.id, { name: angle.name }])),
+    angleProductMap,
     productNames: new Map(brandProducts.map((product) => [product.id, product.name])),
   };
 }
@@ -97,14 +98,20 @@ async function inherited(scope: BrandScope): Promise<Inherited> {
  */
 function withInherited(row: CreativeBrief, tables: Inherited): BriefListRow {
   const concept = row.conceptId === null ? undefined : tables.conceptFields.get(row.conceptId);
-  const angleId = concept?.angleId ?? null;
-  const angle = angleId === null ? undefined : tables.angleFields.get(angleId);
-  const productId = angle?.productId ?? null;
+  const firstAngleId =
+    row.conceptId === null || concept === undefined
+      ? null
+      : ((tables.conceptAngleMap.get(row.conceptId) ?? [])[0] ?? null);
+  const angle = firstAngleId === null ? undefined : tables.angleFields.get(firstAngleId);
+  const firstProductId =
+    firstAngleId === null || angle === undefined
+      ? null
+      : ((tables.angleProductMap.get(firstAngleId) ?? [])[0] ?? null);
   return {
     ...row,
     conceptName: concept?.name ?? null,
     angleName: angle?.name ?? null,
-    productName: productId === null ? null : (tables.productNames.get(productId) ?? null),
+    productName: firstProductId === null ? null : (tables.productNames.get(firstProductId) ?? null),
   };
 }
 
@@ -113,7 +120,7 @@ export async function listBriefs(db: Db, brandId: string): Promise<BriefListRow[
   const scope = withBrand(db, brandId);
   const [rows, tables] = await Promise.all([
     scope.select(creativeBriefs).orderBy(desc(creativeBriefs.updatedAt)),
-    inherited(scope),
+    inherited(db, scope),
   ]);
   return rows.map((row) => withInherited(row, tables));
 }
@@ -127,7 +134,7 @@ export async function getBriefById(
   const scope = withBrand(db, brandId);
   const [row] = await scope.select(creativeBriefs, eq(creativeBriefs.id, id)).limit(1);
   if (row === undefined) return null;
-  return withInherited(row, await inherited(scope));
+  return withInherited(row, await inherited(db, scope));
 }
 
 /**

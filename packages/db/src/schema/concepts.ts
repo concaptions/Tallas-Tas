@@ -1,10 +1,7 @@
 import { index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
-import { angles } from './angles';
 import { brands } from './brands';
-import { creators } from './creators';
-import { themes } from './themes';
 import type { AngleFormat, ConceptApprovalStatus, ConceptProductionStatus } from './enums';
 
 /**
@@ -49,8 +46,6 @@ export const concepts = pgTable(
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
-    angleId: uuid('angle_id').references(() => angles.id),
-    themeId: uuid('theme_id').references(() => themes.id),
     name: text('name').notNull(),
     batch: text('batch'),
     category: text('category'),
@@ -62,15 +57,12 @@ export const concepts = pgTable(
     approvalStatus: text('approval_status').$type<ConceptApprovalStatus>(),
     formatsToCreate: jsonb('formats_to_create').$type<string[]>().notNull().default([]),
     productionStatus: text('production_status').$type<ConceptProductionStatus>(),
-    creatorId: uuid('creator_id').references(() => creators.id),
     internalStatus: text('internal_status').notNull().default(CONCEPT_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(CONCEPT_CLIENT_STATUS_DEFAULT),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('concepts_brand_id_idx').on(table.brandId),
-    index('concepts_angle_id_idx').on(table.angleId),
-    index('concepts_theme_id_idx').on(table.themeId),
     index('concepts_template_row_id_idx').on(table.templateRowId),
   ],
 );

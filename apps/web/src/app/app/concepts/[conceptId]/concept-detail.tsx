@@ -190,8 +190,8 @@ export function ConceptDetail({
     () =>
       validateConceptDraft({
         batch: batch === NONE_VALUE ? null : batch,
-        angleId: angleId === NONE_VALUE ? null : angleId,
-        themeId: themeId === NONE_VALUE ? null : themeId,
+        angleIds: angleId === NONE_VALUE ? [] : [angleId],
+        themeIds: themeId === NONE_VALUE ? [] : [themeId],
         category: category === NONE_VALUE ? null : category,
         adInspoLinks: links,
       }),
@@ -368,7 +368,7 @@ export function ConceptDetail({
                 false,
               )}
               {renderSelect(
-                'angleId',
+                'angleIds',
                 NAME_PART_LABELS.angleName,
                 angles.map((option) => ({ key: option.id, label: option.name })),
                 angleId,
@@ -376,7 +376,7 @@ export function ConceptDetail({
                 false,
               )}
               {renderSelect(
-                'themeId',
+                'themeIds',
                 NAME_PART_LABELS.themeName,
                 themes.map((option) => ({ key: option.id, label: option.name })),
                 themeId,

@@ -2,8 +2,6 @@ import { boolean, index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
-import { personas } from './personas';
-import { products } from './products';
 import type { AngleFormat, AngleType } from './enums';
 
 /**
@@ -25,8 +23,6 @@ export const angles = pgTable(
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
-    personaId: uuid('persona_id').references(() => personas.id),
-    productId: uuid('product_id').references(() => products.id),
     name: text('name').notNull(),
     description: text('description'),
     painPoints: text('pain_points'),
@@ -44,8 +40,6 @@ export const angles = pgTable(
   },
   (table) => [
     index('angles_brand_id_idx').on(table.brandId),
-    index('angles_persona_id_idx').on(table.personaId),
-    index('angles_product_id_idx').on(table.productId),
     index('angles_template_row_id_idx').on(table.templateRowId),
   ],
 );

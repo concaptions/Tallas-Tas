@@ -11,6 +11,9 @@ import {
   insertConcept,
   listBriefsByConceptId,
   renameBrief,
+  syncConceptAngles,
+  syncConceptCreators,
+  syncConceptThemes,
   updateConcept,
   type ConceptInput,
 } from '@tas/db';
@@ -81,6 +84,8 @@ import { briefsPath, conceptPath, conceptsPath } from '@/lib/routes';
  */
 export type ConceptFieldName =
   | ConceptDraftField
+  | 'angleId'
+  | 'themeId'
   | 'conceptStyle'
   | 'formats'
   | 'hookExamples'
@@ -199,6 +204,11 @@ const conceptSchema = z.object({
   creatorId: link,
 });
 
+/** Lift a nullable single id into an array: the form still submits one value per junction. */
+function idsOf(value: string | null): string[] {
+  return value === null ? [] : [value];
+}
+
 type ConceptFormValues = z.infer<typeof conceptSchema>;
 
 /**
@@ -244,22 +254,33 @@ function failureFrom(error: z.ZodError): ConceptActionFailure {
   return { ok: false, error: NEEDS_ATTENTION, fieldErrors };
 }
 
-/** The domain's messages, in the same envelope zod's take. */
+/**
+ * The domain's messages, mapped to the form field names the UI uses. The domain validator keys
+ * errors under `angleIds`/`themeIds` (the draft's array fields), but the form's hidden inputs are
+ * named `angleId`/`themeId` (single-select, V0), so the UI's `fieldError('angleId')` needs the
+ * error under that key.
+ */
 function failureFromDraft(
   fieldErrors: Readonly<Partial<Record<ConceptDraftField, string>>>,
 ): ConceptActionFailure {
-  return { ok: false, error: NEEDS_ATTENTION, fieldErrors };
+  const mapped: Partial<Record<ConceptFieldName, string>> = {};
+  for (const [key, message] of Object.entries(fieldErrors)) {
+    const uiKey = key === 'angleIds' ? 'angleId' : key === 'themeIds' ? 'themeId' : key;
+    mapped[uiKey as ConceptFieldName] = message;
+  }
+  return { ok: false, error: NEEDS_ATTENTION, fieldErrors: mapped };
 }
 
 /**
- * A draft that passed both gates. `angleId` and `themeId` are known non-null here because
- * `validateConceptDraft` requires both — the pairing IS the concept — so the write path can look
- * their rows up without re-checking.
+ * A draft that passed both gates. `angleIds` and `themeIds` are known non-empty here because
+ * `validateConceptDraft` requires at least one of each — the pairing IS the concept — so the
+ * write path can look their rows up without re-checking.
  */
 interface ParsedConcept {
   readonly values: ConceptFormValues;
-  readonly angleId: string;
-  readonly themeId: string;
+  readonly angleIds: string[];
+  readonly themeIds: string[];
+  readonly creatorIds: string[];
 }
 
 /** Shape (zod), then rules (the domain function). Either one failing ends the write. */
@@ -269,10 +290,14 @@ function parse(formData: FormData): ParsedConcept | ConceptActionFailure {
     return failureFrom(parsed.error);
   }
 
+  const angleIds = idsOf(parsed.data.angleId);
+  const themeIds = idsOf(parsed.data.themeId);
+  const creatorIds = idsOf(parsed.data.creatorId);
+
   const draft = validateConceptDraft({
     batch: parsed.data.batch,
-    angleId: parsed.data.angleId,
-    themeId: parsed.data.themeId,
+    angleIds,
+    themeIds,
     category: parsed.data.category,
     adInspoLinks: parsed.data.adInspoLinks,
   });
@@ -280,16 +305,15 @@ function parse(formData: FormData): ParsedConcept | ConceptActionFailure {
     return failureFromDraft(draft.fieldErrors);
   }
 
-  const { angleId, themeId } = parsed.data;
-  if (angleId === null || themeId === null) {
+  if (angleIds.length === 0 || themeIds.length === 0) {
     // Unreachable: the validator above requires both. Kept so the narrowing is proved, not asserted.
     return failureFromDraft({
-      angleId: 'Pick the angle this concept is built on.',
-      themeId: 'Pick the theme this angle is paired with.',
+      angleIds: 'Pick the angle this concept is built on.',
+      themeIds: 'Pick the theme this angle is paired with.',
     });
   }
 
-  return { values: parsed.data, angleId, themeId };
+  return { values: parsed.data, angleIds, themeIds, creatorIds };
 }
 
 /**
@@ -318,8 +342,6 @@ function toInput(
   return {
     name,
     batch: values.batch,
-    angleId: values.angleId,
-    themeId: values.themeId,
     category: values.category,
     conceptStyle: style,
     formats: values.formats,
@@ -331,7 +353,6 @@ function toInput(
     approvalStatus: approval,
     productionStatus: production,
     formatsToCreate: values.formatsToCreate.filter((entry) => entry !== ''),
-    creatorId: values.creatorId,
   };
 }
 
@@ -451,15 +472,21 @@ export async function createConceptAction(
     }
 
     const outcome = await withBrandScope(async (db, brandId) => {
+      const firstAngleId = parsed.angleIds[0];
+      const firstThemeId = parsed.themeIds[0];
+      if (firstAngleId === undefined || firstThemeId === undefined) {
+        // Unreachable: parse() ensures both arrays are non-empty.
+        return failureFromDraft({ angleIds: 'Pick the angle.', themeIds: 'Pick the theme.' });
+      }
       const [angle, theme] = await Promise.all([
-        getAngleById(db, brandId, parsed.angleId),
-        getThemeById(db, parsed.themeId),
+        getAngleById(db, brandId, firstAngleId),
+        getThemeById(db, firstThemeId),
       ]);
       if (angle === null) {
-        return failureFromDraft({ angleId: 'That angle is no longer available.' });
+        return failureFromDraft({ angleIds: 'That angle is no longer available.' });
       }
       if (theme === null) {
-        return failureFromDraft({ themeId: 'That theme is no longer available.' });
+        return failureFromDraft({ themeIds: 'That theme is no longer available.' });
       }
 
       const name = conceptName({
@@ -473,6 +500,11 @@ export async function createConceptAction(
         toInput(parsed.values, name, internal, client),
         actor,
       );
+      await Promise.all([
+        syncConceptAngles(db, created.id, parsed.angleIds),
+        syncConceptThemes(db, created.id, parsed.themeIds),
+        syncConceptCreators(db, created.id, parsed.creatorIds),
+      ]);
       return { ok: true as const, id: created.id, name, savedAt: Date.now() };
     });
 
@@ -527,19 +559,25 @@ export async function updateConceptAction(
     }
 
     const outcome = await withBrandScope(async (db, brandId) => {
+      const firstAngleId = parsed.angleIds[0];
+      const firstThemeId = parsed.themeIds[0];
+      if (firstAngleId === undefined || firstThemeId === undefined) {
+        // Unreachable: parse() ensures both arrays are non-empty.
+        return failureFromDraft({ angleIds: 'Pick the angle.', themeIds: 'Pick the theme.' });
+      }
       const [current, angle, theme] = await Promise.all([
         getConceptById(db, brandId, id),
-        getAngleById(db, brandId, parsed.angleId),
-        getThemeById(db, parsed.themeId),
+        getAngleById(db, brandId, firstAngleId),
+        getThemeById(db, firstThemeId),
       ]);
       if (current === null) {
         return { ok: false as const, error: 'That concept is no longer available.' };
       }
       if (angle === null) {
-        return failureFromDraft({ angleId: 'That angle is no longer available.' });
+        return failureFromDraft({ angleIds: 'That angle is no longer available.' });
       }
       if (theme === null) {
-        return failureFromDraft({ themeId: 'That theme is no longer available.' });
+        return failureFromDraft({ themeIds: 'That theme is no longer available.' });
       }
 
       // The row's stored strings are `text`; narrow them against the machine before asking it.
@@ -576,6 +614,11 @@ export async function updateConceptAction(
       if (saved === null) {
         return { ok: false as const, error: 'That concept is no longer available.' };
       }
+      await Promise.all([
+        syncConceptAngles(db, id, parsed.angleIds),
+        syncConceptThemes(db, id, parsed.themeIds),
+        syncConceptCreators(db, id, parsed.creatorIds),
+      ]);
 
       // Cascade: when the concept name changed, recompute every brief that carries it.
       if (name !== current.name) {

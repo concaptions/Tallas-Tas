@@ -134,8 +134,8 @@ describe('with Clerk configured', () => {
     if (noAngle.ok || noTheme.ok) {
       throw new Error('half a pairing was accepted');
     }
-    expect(noAngle.fieldErrors?.angleId).toBe('Pick the angle this concept is built on.');
-    expect(noTheme.fieldErrors?.themeId).toBe('Pick the theme this angle is paired with.');
+    expect(noAngle.fieldErrors?.angleId).toBe('Pick at least one angle this concept is built on.');
+    expect(noTheme.fieldErrors?.themeId).toBe('Pick at least one theme this angle is paired with.');
   });
 
   it('rejects a category outside the vocabulary', async () => {

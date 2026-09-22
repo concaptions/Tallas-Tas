@@ -2,6 +2,12 @@ import { desc, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from './db';
 import {
+  loadAllAnglePersonas,
+  loadAllAngleProducts,
+  loadAllConceptAngles,
+  loadAllConceptThemes,
+} from './junction-queries';
+import {
   angles,
   concepts,
   personas,
@@ -45,10 +51,13 @@ export type ConceptInput = Omit<NewConcept, ManagedColumn>;
  * must auto-fill"). Every one of them is null when the link is absent or no longer live, which is
  * what the page renders as an em dash.
  *
- * `demoConcepts` satisfies `ConceptListRow[]`, so the page reads demo fixtures and database rows
- * through one type.
+ * `angleIds`, `themeIds` and `creatorIds` are the full junction sets — the UI needs them for
+ * multi-select pickers. `angleName` and `themeName` are the FIRST linked name, used for the
+ * naming formula and display.
  */
 export type ConceptListRow = Concept & {
+  angleIds: string[];
+  themeIds: string[];
   angleName: string | null;
   themeName: string | null;
   personaName: string | null;
@@ -60,54 +69,70 @@ export type ConceptListRow = Concept & {
 
 /** Everything a concept row inherits, resolved once per call and indexed by id. */
 interface Inherited {
+  conceptAngleMap: Map<string, string[]>;
+  conceptThemeMap: Map<string, string[]>;
   angleFields: Map<
     string,
     {
       name: string;
-      personaId: string | null;
-      productId: string | null;
       description: string | null;
       painPoints: string | null;
       usp: string | null;
     }
   >;
+  anglePersonaMap: Map<string, string[]>;
+  angleProductMap: Map<string, string[]>;
   personaNames: Map<string, string>;
   productNames: Map<string, string>;
   themeNames: Map<string, string>;
 }
 
 /**
- * The four lookups a concept row needs, from three scoped reads and one global one.
+ * The lookups a concept row needs, from scoped reads plus junction table bulk loads.
  *
  * Joined in TypeScript rather than with a SQL `leftJoin`, for the reason `listAngles` and
  * `listProducts` give: `withBrand` hands back a sealed query surface with no join, `where` or
  * `$dynamic` (TICKET-005 round 3), and that seal is the guarantee a scoped read cannot be widened.
- * The three branded reads are scoped, so another brand's angles, personas and products — and
- * soft-deleted ones — are gone before a single field is inherited: a concept pointing at any of them
- * inherits null, the same as a concept with no angle at all. The theme read is the global library's,
- * live rows only.
+ * The branded reads are scoped, so another brand's angles, personas and products — and soft-deleted
+ * ones — are gone before a single field is inherited. The theme read is the global library's, live
+ * rows only.
  */
 async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
-  const [brandAngles, brandPersonas, brandProducts, liveThemes] = await Promise.all([
+  const [
+    brandAngles,
+    brandPersonas,
+    brandProducts,
+    liveThemes,
+    conceptAngleMap,
+    conceptThemeMap,
+    anglePersonaMap,
+    angleProductMap,
+  ] = await Promise.all([
     scope.select(angles),
     scope.select(personas),
     scope.select(products),
     db.select().from(themes).where(isNull(themes.deletedAt)),
+    loadAllConceptAngles(db),
+    loadAllConceptThemes(db),
+    loadAllAnglePersonas(db),
+    loadAllAngleProducts(db),
   ]);
   return {
+    conceptAngleMap,
+    conceptThemeMap,
     angleFields: new Map(
       brandAngles.map((angle) => [
         angle.id,
         {
           name: angle.name,
-          personaId: angle.personaId,
-          productId: angle.productId,
           description: angle.description,
           painPoints: angle.painPoints,
           usp: angle.usp,
         },
       ]),
     ),
+    anglePersonaMap,
+    angleProductMap,
     personaNames: new Map(brandPersonas.map((persona) => [persona.id, persona.name])),
     productNames: new Map(brandProducts.map((product) => [product.id, product.name])),
     themeNames: new Map(liveThemes.map((theme) => [theme.id, theme.name])),
@@ -115,20 +140,37 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
 }
 
 /**
- * One row plus everything it inherits, null wherever a link is absent or no longer live. A concept
- * whose angle is gone inherits null for the persona and the product too: those two hops hang off the
- * angle, not off the concept, so there is nothing left to follow.
+ * One row plus everything it inherits. The naming formula uses the FIRST angle and theme; the UI
+ * gets the full id arrays for multi-select pickers.
  */
 function withInherited(row: Concept, tables: Inherited): ConceptListRow {
-  const angle = row.angleId === null ? undefined : tables.angleFields.get(row.angleId);
-  const personaId = angle?.personaId ?? null;
-  const productId = angle?.productId ?? null;
+  const angleIds = tables.conceptAngleMap.get(row.id) ?? [];
+  const themeIds = tables.conceptThemeMap.get(row.id) ?? [];
+
+  const firstAngleId = angleIds[0] ?? null;
+  const angle = firstAngleId === null ? undefined : tables.angleFields.get(firstAngleId);
+
+  const personaIds =
+    firstAngleId === null || angle === undefined
+      ? []
+      : (tables.anglePersonaMap.get(firstAngleId) ?? []);
+  const productIds =
+    firstAngleId === null || angle === undefined
+      ? []
+      : (tables.angleProductMap.get(firstAngleId) ?? []);
+  const firstPersonaId = personaIds[0] ?? null;
+  const firstProductId = productIds[0] ?? null;
+
+  const firstThemeId = themeIds[0] ?? null;
+
   return {
     ...row,
+    angleIds,
+    themeIds,
     angleName: angle?.name ?? null,
-    themeName: row.themeId === null ? null : (tables.themeNames.get(row.themeId) ?? null),
-    personaName: personaId === null ? null : (tables.personaNames.get(personaId) ?? null),
-    productName: productId === null ? null : (tables.productNames.get(productId) ?? null),
+    themeName: firstThemeId === null ? null : (tables.themeNames.get(firstThemeId) ?? null),
+    personaName: firstPersonaId === null ? null : (tables.personaNames.get(firstPersonaId) ?? null),
+    productName: firstProductId === null ? null : (tables.productNames.get(firstProductId) ?? null),
     description: angle?.description ?? null,
     painPoints: angle?.painPoints ?? null,
     usp: angle?.usp ?? null,

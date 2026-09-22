@@ -52,6 +52,20 @@ export {
   syncCreatorProducts,
   removeCreatorConcept,
   removeCreatorProduct,
+  listConceptAngleIds,
+  syncConceptAngles,
+  listConceptThemeIds,
+  syncConceptThemes,
+  listConceptCreatorIds,
+  syncConceptCreators,
+  listAnglePersonaIds,
+  syncAnglePersonas,
+  listAngleProductIds,
+  syncAngleProducts,
+  loadAllConceptAngles,
+  loadAllConceptThemes,
+  loadAllAnglePersonas,
+  loadAllAngleProducts,
 } from './junction-queries';
 export type { UploadLinkInput, UploadLinkListRow } from './upload-links';
 export {

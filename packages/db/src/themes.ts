@@ -1,7 +1,7 @@
-import { and, countDistinct, desc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, countDistinct, desc, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from './db';
-import { concepts, themes, type NewTheme, type Theme } from './schema';
+import { conceptThemes, concepts, themes, type NewTheme, type Theme } from './schema';
 
 /**
  * The Themes page's data access (PRD §5.5: the creative vehicle, the *how*). Every function takes
@@ -39,21 +39,21 @@ export type ThemeListRow = Theme & { usedByBrandCount: number };
 /**
  * `themeId -> number of distinct brands with a live concept on it`.
  *
- * Counted in SQL, unscoped and across every brand ON PURPOSE: the question this answers is "how many
- * of the platform's brands use this theme", which no single brand's scope can see. Deliberately NOT
- * `withBrand` — see the module note. `concepts.theme_id` is nullable (a concept need not name a
- * theme, CLAUDE.md non-negotiable 5's sibling rule), so the null group is excluded before the
- * grouping rather than filtered out of the map afterwards, and a theme nobody references simply has
- * no row here and reads back as 0. Soft-deleted concepts never count; the brand row itself is not
- * joined, because `concepts.brand_id` is NOT NULL and points at a live brand by foreign key.
+ * Counted in SQL via the `conceptThemes` junction table, unscoped and across every brand ON PURPOSE:
+ * the question this answers is "how many of the platform's brands use this theme", which no single
+ * brand's scope can see. Deliberately NOT `withBrand` — see the module note. A theme nobody
+ * references simply has no row here and reads back as 0. Soft-deleted concepts never count; the
+ * brand row itself is not joined, because `concepts.brand_id` is NOT NULL and points at a live brand
+ * by foreign key.
  */
 async function brandCounts(db: Db): Promise<Map<string, number>> {
   const rows = await db
-    .select({ themeId: concepts.themeId, brands: countDistinct(concepts.brandId) })
-    .from(concepts)
-    .where(and(isNotNull(concepts.themeId), isNull(concepts.deletedAt)))
-    .groupBy(concepts.themeId);
-  return new Map(rows.map((row) => [row.themeId ?? '', row.brands]));
+    .select({ themeId: conceptThemes.themeId, brands: countDistinct(concepts.brandId) })
+    .from(conceptThemes)
+    .innerJoin(concepts, eq(conceptThemes.conceptId, concepts.id))
+    .where(isNull(concepts.deletedAt))
+    .groupBy(conceptThemes.themeId);
+  return new Map(rows.map((row) => [row.themeId, row.brands]));
 }
 
 /**

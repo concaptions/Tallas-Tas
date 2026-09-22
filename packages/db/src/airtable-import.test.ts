@@ -3,7 +3,18 @@ import { describe, expect, it } from 'vitest';
 
 import { importAirtableExport, type AirtableExport } from './airtable-import';
 import { DEMO_BRAND_ID } from './demo-data';
-import { angles, concepts, creators, personas, products, themes } from './schema';
+import {
+  anglePersonas,
+  angleProducts,
+  angles,
+  conceptAngles,
+  concepts,
+  conceptThemes,
+  creators,
+  personas,
+  products,
+  themes,
+} from './schema';
 import { seed } from './seed';
 import { testDb } from './testing';
 
@@ -96,16 +107,30 @@ describe('importAirtableExport', () => {
     expect(persona?.productId).toBe(product?.id);
 
     const [angle] = await db.select().from(angles).where(eq(angles.legacyAirtableId, 'at_angle_1'));
-    expect(angle?.personaId).toBe(persona?.id);
-    expect(angle?.productId).toBe(product?.id);
+    // Persona and product links are now in junction tables.
+    const anglePersonaRows = angle
+      ? await db.select().from(anglePersonas).where(eq(anglePersonas.angleId, angle.id))
+      : [];
+    const angleProductRows = angle
+      ? await db.select().from(angleProducts).where(eq(angleProducts.angleId, angle.id))
+      : [];
+    expect(anglePersonaRows[0]?.personaId).toBe(persona?.id);
+    expect(angleProductRows[0]?.productId).toBe(product?.id);
 
     const [concept] = await db
       .select()
       .from(concepts)
       .where(eq(concepts.legacyAirtableId, 'at_concept_1'));
     const [theme] = await db.select().from(themes).where(eq(themes.legacyAirtableId, 'at_theme_1'));
-    expect(concept?.angleId).toBe(angle?.id);
-    expect(concept?.themeId).toBe(theme?.id);
+    // Angle and theme links are now in junction tables.
+    const conceptAngleRows = concept
+      ? await db.select().from(conceptAngles).where(eq(conceptAngles.conceptId, concept.id))
+      : [];
+    const conceptThemeRows = concept
+      ? await db.select().from(conceptThemes).where(eq(conceptThemes.conceptId, concept.id))
+      : [];
+    expect(conceptAngleRows[0]?.angleId).toBe(angle?.id);
+    expect(conceptThemeRows[0]?.themeId).toBe(theme?.id);
   });
 
   it('is idempotent — running twice skips all records', async () => {

@@ -21,10 +21,10 @@ import { BATCH_COUNT, CONCEPT_CATEGORY_KEYS, isBatch, isConceptCategory } from '
 export interface ConceptDraft {
   /** `null` while nothing is chosen — the Batch `<select>`'s empty option. */
   readonly batch: string | null;
-  /** The angle half of the pairing, by id. */
-  readonly angleId: string | null;
-  /** The theme half of the pairing, by id — the GLOBAL library, so no brand is involved. */
-  readonly themeId: string | null;
+  /** The angle(s) this concept is built on; at least one required. */
+  readonly angleIds: readonly string[];
+  /** The theme(s) this concept pairs with — the GLOBAL library, so no brand is involved. */
+  readonly themeIds: readonly string[];
   readonly category: string | null;
   /**
    * Raw pasted ad-inspiration URLs. Optional because a draft that has not opened the field yet
@@ -46,7 +46,8 @@ export interface ConceptDraftValidation {
  *
  * - Batch is required and must be one of `BATCHES` (B1…B20): it is the first segment of the name,
  *   and a batch outside the vocabulary would name a concept nothing can group.
- * - Angle is required, and Theme is required. A concept with one of them is not a concept yet.
+ * - At least one angle is required, and at least one theme is required. A concept with neither is
+ *   not a concept yet.
  * - Category is required and must be `New` or `Iteration`: the board and the filters treat it as a
  *   closed vocabulary, so a row outside it would be unreachable.
  * - Concept Style carries no rule: the style is often undecided while the pairing is being drafted.
@@ -63,12 +64,12 @@ export function validateConceptDraft(draft: ConceptDraft): ConceptDraftValidatio
     fieldErrors.batch = `A batch is one of B1 to B${String(BATCH_COUNT)}.`;
   }
 
-  if (draft.angleId === null || draft.angleId.trim() === '') {
-    fieldErrors.angleId = 'Pick the angle this concept is built on.';
+  if (draft.angleIds.length === 0) {
+    fieldErrors.angleIds = 'Pick at least one angle this concept is built on.';
   }
 
-  if (draft.themeId === null || draft.themeId.trim() === '') {
-    fieldErrors.themeId = 'Pick the theme this angle is paired with.';
+  if (draft.themeIds.length === 0) {
+    fieldErrors.themeIds = 'Pick at least one theme this angle is paired with.';
   }
 
   const category = draft.category?.trim() ?? '';

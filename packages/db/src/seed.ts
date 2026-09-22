@@ -32,11 +32,15 @@ import {
 } from './demo-data';
 import {
   agencies,
+  anglePersonas,
+  angleProducts,
   angles,
   adMetrics,
   assets,
   brandAssignments,
   brands,
+  conceptAngles,
+  conceptThemes,
   concepts,
   copywriting,
   creativeBriefs,
@@ -183,7 +187,24 @@ function scopedBrief<T extends { brandId: string | null }>(row: T): Omit<T, Brie
  * carries. So this list is applied to concepts only, and `scoped` above keeps the shared list it
  * can safely apply to every table.
  */
-type ConceptDerived = Derived | 'angleName' | 'themeName' | 'description' | 'painPoints' | 'usp';
+type AngleDerived = Derived | 'personaIds' | 'productIds';
+
+function scopedAngle<T extends { brandId: string | null }>(row: T): Omit<T, AngleDerived> {
+  const rest: Record<string, unknown> = { ...scoped(row) };
+  delete rest['personaIds'];
+  delete rest['productIds'];
+  return rest as Omit<T, AngleDerived>;
+}
+
+type ConceptDerived =
+  | Derived
+  | 'angleName'
+  | 'themeName'
+  | 'description'
+  | 'painPoints'
+  | 'usp'
+  | 'angleIds'
+  | 'themeIds';
 
 function scopedConcept<T extends { brandId: string | null }>(row: T): Omit<T, ConceptDerived> {
   const rest: Record<string, unknown> = { ...scoped(row) };
@@ -192,6 +213,8 @@ function scopedConcept<T extends { brandId: string | null }>(row: T): Omit<T, Co
   delete rest['description'];
   delete rest['painPoints'];
   delete rest['usp'];
+  delete rest['angleIds'];
+  delete rest['themeIds'];
   return rest as Omit<T, ConceptDerived>;
 }
 
@@ -328,13 +351,33 @@ export async function seed(db: Db): Promise<SeedResult> {
   const seededProducts = await scope.insert(products, demoProducts.map(scoped)).returning();
   const seededThemes = await db.insert(themes).values(demoThemes.map(scoped)).returning();
   const seededPersonas = await scope.insert(personas, demoPersonas.map(scoped)).returning();
-  const seededAngles = await scope.insert(angles, demoAngles.map(scoped)).returning();
+  const seededAngles = await scope.insert(angles, demoAngles.map(scopedAngle)).returning();
   const seededConcepts = await scope
     .insert(
       concepts,
       demoConcepts.map((row) => scopedConcept(row)),
     )
     .returning();
+
+  // Junction rows: the FK columns were dropped in migration 0028, so the relationships are now
+  // expressed through junction tables. The demo fixtures carry the arrays; the seed inserts them.
+  const apRows = demoAngles.flatMap((a) =>
+    a.personaIds.map((personaId) => ({ angleId: a.id, personaId })),
+  );
+  const arRows = demoAngles.flatMap((a) =>
+    a.productIds.map((productId) => ({ angleId: a.id, productId })),
+  );
+  const caRows = demoConcepts.flatMap((c) =>
+    c.angleIds.map((angleId) => ({ conceptId: c.id, angleId })),
+  );
+  const ctRows = demoConcepts.flatMap((c) =>
+    c.themeIds.map((themeId) => ({ conceptId: c.id, themeId })),
+  );
+  if (apRows.length > 0) await db.insert(anglePersonas).values(apRows);
+  if (arRows.length > 0) await db.insert(angleProducts).values(arRows);
+  if (caRows.length > 0) await db.insert(conceptAngles).values(caRows);
+  if (ctRows.length > 0) await db.insert(conceptThemes).values(ctRows);
+
   const seededBriefs = await scope
     .insert(
       creativeBriefs,

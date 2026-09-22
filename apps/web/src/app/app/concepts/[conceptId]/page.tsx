@@ -79,8 +79,8 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
       : {
           id: concept.id,
           batch: concept.batch,
-          angleId: concept.angleId,
-          themeId: concept.themeId,
+          angleId: concept.angleIds[0] ?? null,
+          themeId: concept.themeIds[0] ?? null,
           category: concept.category,
           conceptStyle: concept.conceptStyle,
           formats: concept.formats,
@@ -90,7 +90,7 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
           approvalStatus: concept.approvalStatus,
           productionStatus: concept.productionStatus,
           formatsToCreate: concept.formatsToCreate,
-          creatorId: concept.creatorId,
+          creatorId: null,
         };
 
   return (

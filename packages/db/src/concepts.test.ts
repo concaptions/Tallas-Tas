@@ -15,6 +15,8 @@ import {
   CONCEPT_INTERNAL_STATUS_DEFAULT,
   angleFormats,
   angles,
+  conceptAngles,
+  conceptThemes,
   concepts,
   personas,
   products,
@@ -108,12 +110,13 @@ describe('migration 0005 on PGlite', () => {
       adInspoLinks: [],
       internalStatus: CONCEPT_INTERNAL_STATUS_DEFAULT,
       clientStatus: CONCEPT_CLIENT_STATUS_DEFAULT,
+      batch: null,
     });
     expect(CONCEPT_INTERNAL_STATUS_DEFAULT).toBe('sent_to_video_editor');
     expect(CONCEPT_CLIENT_STATUS_DEFAULT).toBe('pending_for_approval');
-    // Both links are nullable (CLAUDE.md non-negotiable 5's sibling rule): a concept can be drafted
-    // before either is chosen, and the inherited fields then read back as clean nulls.
-    expect(row).toMatchObject({ angleId: null, themeId: null, batch: null });
+    // Junction arrays are empty when no links have been inserted yet.
+    const full = await getConceptById(db, brandId, row.id);
+    expect(full).toMatchObject({ angleIds: [], themeIds: [] });
   });
 });
 
@@ -127,8 +130,8 @@ describe('concept fixtures', () => {
   });
 
   it('pairs four distinct seeded angles with four distinct seeded themes', () => {
-    const angleIds = demoConcepts.map((row) => row.angleId);
-    const themeIds = demoConcepts.map((row) => row.themeId);
+    const angleIds = demoConcepts.map((row) => row.angleIds[0]);
+    const themeIds = demoConcepts.map((row) => row.themeIds[0]);
 
     expect(new Set(angleIds).size).toBe(4);
     expect(new Set(themeIds).size).toBe(4);
@@ -140,8 +143,8 @@ describe('concept fixtures', () => {
     // PRD §5.7 / CLAUDE.md non-negotiable 4: the name is generated from the pairing. Rebuilt here
     // from the linked rows, so a fixture that was typed rather than generated fails.
     for (const row of demoConcepts) {
-      const angle = demoAngles.find((item) => item.id === row.angleId);
-      const theme = demoThemes.find((item) => item.id === row.themeId);
+      const angle = demoAngles.find((item) => item.id === row.angleIds[0]);
+      const theme = demoThemes.find((item) => item.id === row.themeIds[0]);
       // Every part has to be really there: a `null` batch or an unresolved link would otherwise
       // slide into the template literal and make the rebuilt name pass by accident.
       const batch = row.batch;
@@ -208,7 +211,7 @@ describe('concept queries', () => {
     const { db, brandId } = await seeded();
 
     const row = await getConceptById(db, brandId, demoConcept().id);
-    const angle = demoAngles.find((item) => item.id === demoConcept().angleId);
+    const angle = demoAngles.find((item) => item.id === demoConcept().angleIds[0]);
 
     expect(row).toMatchObject({
       angleName: angle?.name,
@@ -240,10 +243,16 @@ describe('concept queries', () => {
     const { db, brandId, otherBrandId } = await seeded();
     // The template brand builds its own concept on the SAME global theme: the library is shared,
     // the concepts are not.
-    await withBrand(db, otherBrandId).insert(concepts, {
-      themeId: demoConcept().themeId,
-      name: 'B1-Template Angle-Green Screen',
-    });
+    const [otherConcept] = await withBrand(db, otherBrandId)
+      .insert(concepts, {
+        name: 'B1-Template Angle-Green Screen',
+      })
+      .returning();
+    if (otherConcept) {
+      await db
+        .insert(conceptThemes)
+        .values({ conceptId: otherConcept.id, themeId: demoConcept().themeIds[0] ?? '' });
+    }
 
     expect((await listConcepts(db, brandId)).map((row) => row.id)).toEqual(
       demoConcepts.map((row) => row.id),
@@ -258,30 +267,27 @@ describe('concept queries', () => {
     // An angle of the OTHER brand, with its own persona and product, pointed at by this brand's
     // concept: the scoped reads behind the join never see it, so every inherited field comes back
     // null rather than wrong.
-    const [foreignPersona] = await db
-      .insert(personas)
-      .values({ brandId: otherBrandId, name: 'Template persona' })
-      .returning();
-    const [foreignProduct] = await db
+    await db.insert(personas).values({ brandId: otherBrandId, name: 'Template persona' });
+    await db
       .insert(products)
-      .values({ brandId: otherBrandId, name: 'Template product', link: 'https://example.com' })
-      .returning();
+      .values({ brandId: otherBrandId, name: 'Template product', link: 'https://example.com' });
     const [foreignAngle] = await db
       .insert(angles)
       .values({
         brandId: otherBrandId,
-        personaId: foreignPersona?.id,
-        productId: foreignProduct?.id,
         name: 'Template angle',
         description: 'Template description',
         painPoints: 'Template pain points',
         usp: 'Template usp',
       })
       .returning();
-    await db
-      .update(concepts)
-      .set({ angleId: foreignAngle?.id })
-      .where(eq(concepts.id, demoConcept().id));
+    // Remove existing concept-angle links and replace with the foreign angle.
+    await db.delete(conceptAngles).where(eq(conceptAngles.conceptId, demoConcept().id));
+    if (foreignAngle) {
+      await db
+        .insert(conceptAngles)
+        .values({ conceptId: demoConcept().id, angleId: foreignAngle.id });
+    }
 
     const row = await getConceptById(db, brandId, demoConcept().id);
 
@@ -307,18 +313,18 @@ describe('concept queries', () => {
     await db
       .update(angles)
       .set({ deletedAt: new Date() })
-      .where(eq(angles.id, demoConcept().angleId ?? ''));
+      .where(eq(angles.id, demoConcept().angleIds[0] ?? ''));
     // The global theme is soft-deleted too: the library read carries `deleted_at IS NULL`.
     await db
       .update(themes)
       .set({ deletedAt: new Date() })
-      .where(eq(themes.id, demoConcept().themeId ?? ''));
+      .where(eq(themes.id, demoConcept().themeIds[0] ?? ''));
 
     expect(await getConceptById(db, brandId, unlinked.id)).toMatchObject({
       name: 'B4-Drafted-Unpaired',
-      angleId: null,
+      angleIds: [],
       angleName: null,
-      themeId: null,
+      themeIds: [],
       themeName: null,
       personaName: null,
       productName: null,
@@ -327,9 +333,9 @@ describe('concept queries', () => {
       usp: null,
     });
     expect(await getConceptById(db, brandId, demoConcept().id)).toMatchObject({
-      angleId: demoConcept().angleId,
+      angleIds: demoConcept().angleIds,
       angleName: null,
-      themeId: demoConcept().themeId,
+      themeIds: demoConcept().themeIds,
       themeName: null,
       personaName: null,
       productName: null,

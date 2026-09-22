@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
@@ -10,7 +10,16 @@ import {
   type AngleListRow,
 } from './angles';
 import { DEMO_BRAND_ID, demoAngles, demoPersonas, demoProducts } from './demo-data';
-import { angleFormats, angleTypes, angles, personas, products, type Angle } from './schema';
+import {
+  angleFormats,
+  anglePersonas,
+  angleProducts,
+  angleTypes,
+  angles,
+  personas,
+  products,
+  type Angle,
+} from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
 
@@ -97,7 +106,7 @@ describe('angle queries', () => {
     const rows = await listAngles(db, brandId);
     const perPersona = new Map<string, number>();
     for (const row of rows) {
-      const key = row.personaId ?? 'none';
+      const key = row.personaIds[0] ?? 'none';
       perPersona.set(key, (perPersona.get(key) ?? 0) + 1);
     }
 
@@ -161,10 +170,19 @@ describe('angle queries', () => {
       .insert(products)
       .values({ brandId: otherBrandId, name: 'Template product', link: 'https://example.com' })
       .returning();
-    await db
-      .update(angles)
-      .set({ personaId: foreignPersona?.id, productId: foreignProduct?.id })
-      .where(sql`${angles.id} = ${demoAngle().id}`);
+    // Replace the angle's persona and product links via junction tables.
+    await db.delete(anglePersonas).where(eq(anglePersonas.angleId, demoAngle().id));
+    await db.delete(angleProducts).where(eq(angleProducts.angleId, demoAngle().id));
+    if (foreignPersona) {
+      await db
+        .insert(anglePersonas)
+        .values({ angleId: demoAngle().id, personaId: foreignPersona.id });
+    }
+    if (foreignProduct) {
+      await db
+        .insert(angleProducts)
+        .values({ angleId: demoAngle().id, productId: foreignProduct.id });
+    }
 
     const row = await getAngleById(db, brandId, demoAngle().id);
 
@@ -185,17 +203,17 @@ describe('angle queries', () => {
     await db
       .update(personas)
       .set({ deletedAt: new Date() })
-      .where(sql`${personas.id} = ${demoAngle().personaId}`);
+      .where(sql`${personas.id} = ${demoAngle().personaIds[0]}`);
 
     expect(await getAngleById(db, brandId, unlinked.id)).toMatchObject({
       name: 'Drafted before research',
-      personaId: null,
+      personaIds: [],
       personaName: null,
-      productId: null,
+      productIds: [],
       productName: null,
     });
     expect(await getAngleById(db, brandId, demoAngle().id)).toMatchObject({
-      personaId: demoAngle().personaId,
+      personaIds: demoAngle().personaIds,
       personaName: null,
       productName: demoAngle().productName,
     });
@@ -278,7 +296,7 @@ describe('angle queries', () => {
     // Four concepts hang off four of these five angles (PRD §5.7): two on blanket angles and two on
     // mask angles, none on the bundle angle, so `listProducts` reports 2 / 2 / 0 and the fixtures
     // stay consistent with `demoProducts`.
-    expect(rows.filter((row) => row.productId === demoProducts[0]?.id)).toHaveLength(2);
+    expect(rows.filter((row) => row.productIds[0] === demoProducts[0]?.id)).toHaveLength(2);
     expect(demoProducts.map((product) => product.conceptCount)).toEqual([2, 2, 0]);
   });
 });

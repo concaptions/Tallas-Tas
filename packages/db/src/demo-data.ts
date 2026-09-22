@@ -470,9 +470,9 @@ export const demoPersonas: PersonaListRow[] = [
 const bodyClockAngle: AngleListRow = {
   ...propagationBase(ANGLE_BODY_CLOCK_ID, '2026-08-14T13:00:00.000Z', '2026-09-11T09:40:00.000Z'),
   brandId: DEMO_BRAND_ID,
-  personaId: PERSONA_SHIFT_ID,
+  personaIds: [PERSONA_SHIFT_ID],
   personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
-  productId: PRODUCT_BLANKET_ID,
+  productIds: [PRODUCT_BLANKET_ID],
   productName: 'Niagara Deep Sleep Weighted Blanket',
   name: 'Your Body Clock Is Not Broken',
   description:
@@ -516,9 +516,9 @@ export const demoAngles: AngleListRow[] = [
       '2026-09-13T11:15:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    personaId: PERSONA_PERI_ID,
+    personaIds: [PERSONA_PERI_ID],
     personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
-    productId: PRODUCT_BLANKET_ID,
+    productIds: [PRODUCT_BLANKET_ID],
     productName: 'Niagara Deep Sleep Weighted Blanket',
     name: 'It Is Not Just Your Age',
     description:
@@ -546,9 +546,9 @@ export const demoAngles: AngleListRow[] = [
   {
     ...propagationBase(ANGLE_DAYLIGHT_ID, '2026-08-21T14:45:00.000Z', '2026-09-10T08:25:00.000Z'),
     brandId: DEMO_BRAND_ID,
-    personaId: PERSONA_SHIFT_ID,
+    personaIds: [PERSONA_SHIFT_ID],
     personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
-    productId: PRODUCT_MASK_ID,
+    productIds: [PRODUCT_MASK_ID],
     productName: 'Niagara Cooling Blackout Sleep Mask',
     name: 'Make 9am Look Like 3am',
     description:
@@ -575,9 +575,9 @@ export const demoAngles: AngleListRow[] = [
       '2026-09-09T15:20:00.000Z',
     ),
     brandId: DEMO_BRAND_ID,
-    personaId: PERSONA_PARENT_ID,
+    personaIds: [PERSONA_PARENT_ID],
     personaName: 'Priya — the new parent running on broken sleep',
-    productId: PRODUCT_MASK_ID,
+    productIds: [PRODUCT_MASK_ID],
     productName: 'Niagara Cooling Blackout Sleep Mask',
     name: 'Sleep In The Ninety Minutes You Actually Get',
     description:
@@ -604,9 +604,9 @@ export const demoAngles: AngleListRow[] = [
   {
     ...propagationBase(ANGLE_THERMOSTAT_ID, '2026-08-25T16:10:00.000Z', '2026-09-06T14:05:00.000Z'),
     brandId: DEMO_BRAND_ID,
-    personaId: PERSONA_PERI_ID,
+    personaIds: [PERSONA_PERI_ID],
     personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
-    productId: PRODUCT_RESET_BUNDLE_ID,
+    productIds: [PRODUCT_RESET_BUNDLE_ID],
     productName: 'Niagara Night Reset Bundle (Blanket + Mask)',
     name: 'Nobody Wins The Thermostat Argument',
     description:
@@ -664,8 +664,8 @@ function conceptName(batch: string, angle: AngleListRow, theme: ThemeListRow): s
 function pairing(batch: string, angle: AngleListRow, theme: ThemeListRow) {
   return {
     batch,
-    angleId: angle.id,
-    themeId: theme.id,
+    angleIds: [angle.id],
+    themeIds: [theme.id],
     name: conceptName(batch, angle, theme),
     angleName: angle.name,
     themeName: theme.name,
@@ -722,7 +722,6 @@ export const demoConcepts: ConceptListRow[] = [
     approvalStatus: null,
     formatsToCreate: [],
     productionStatus: null,
-    creatorId: null,
   },
   {
     ...propagationBase(
@@ -748,7 +747,6 @@ export const demoConcepts: ConceptListRow[] = [
     approvalStatus: null,
     formatsToCreate: [],
     productionStatus: null,
-    creatorId: null,
   },
   {
     ...propagationBase(CONCEPT_DAYLIGHT_ID, '2026-08-27T15:30:00.000Z', '2026-09-09T08:50:00.000Z'),
@@ -767,7 +765,6 @@ export const demoConcepts: ConceptListRow[] = [
     approvalStatus: null,
     formatsToCreate: [],
     productionStatus: null,
-    creatorId: null,
   },
   {
     ...propagationBase(
@@ -793,7 +790,6 @@ export const demoConcepts: ConceptListRow[] = [
     approvalStatus: null,
     formatsToCreate: [],
     productionStatus: null,
-    creatorId: null,
   },
 ];
 

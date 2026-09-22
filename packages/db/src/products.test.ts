@@ -10,7 +10,7 @@ import {
   type ProductInput,
   type ProductListRow,
 } from './products';
-import { angles, concepts, products, type Product } from './schema';
+import { angleProducts, angles, concepts, products, type Product } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
 
@@ -88,10 +88,7 @@ describe('product queries', () => {
       'user_test',
     );
     // An angle with no product at all must not fall into anyone's count either.
-    await db
-      .update(angles)
-      .set({ productId: null })
-      .where(sql`true`);
+    await db.delete(angleProducts).where(sql`true`);
 
     const row = await getProductById(db, brandId, fresh.id);
 

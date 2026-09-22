@@ -13,8 +13,8 @@ import { isHttpUrl } from './inspo-links';
 /** What the panel holds while it is being edited. Optional fields are the ones with no rule yet. */
 export interface AngleDraft {
   readonly name: string;
-  /** `null` while nothing is chosen — the `<select>`'s "None" option. */
-  readonly personaId: string | null;
+  /** At least one persona is required — an angle is a hypothesis *about somebody* (PRD §5.4). */
+  readonly personaIds: readonly string[];
   readonly formats: readonly string[];
   /** Raw pasted strings. A blank row is an empty input, not a broken link. */
   readonly adInspoLinks: readonly string[];
@@ -35,8 +35,8 @@ export const ANGLE_NAME_MIN_LENGTH = 2;
  * Checks a draft.
  *
  * - Name is required and needs at least two characters once trimmed.
- * - Persona is required: an angle is a hypothesis *about somebody* (PRD §5.4). Product stays
- *   nullable, so it carries no rule.
+ * - At least one persona is required: an angle is a hypothesis *about somebody* (PRD §5.4).
+ *   Product stays optional via its junction table, so it carries no rule.
  * - At least one format, otherwise nothing can be briefed from the angle.
  * - Every ad-inspiration entry that has any text in it must be an `http(s)` URL. Blank rows are
  *   ignored, because the panel keeps an empty input at the bottom of the list.
@@ -51,8 +51,8 @@ export function validateAngleDraft(draft: AngleDraft): AngleDraftValidation {
     fieldErrors.name = `An angle name needs at least ${String(ANGLE_NAME_MIN_LENGTH)} characters.`;
   }
 
-  if (draft.personaId === null || draft.personaId.trim() === '') {
-    fieldErrors.personaId = 'Pick the persona this angle is written from.';
+  if (draft.personaIds.length === 0) {
+    fieldErrors.personaIds = 'Pick at least one persona this angle is written from.';
   }
 
   if (draft.formats.length === 0) {

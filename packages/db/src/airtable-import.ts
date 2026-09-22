@@ -4,9 +4,13 @@ import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { Db } from './db';
 import {
   adMetrics,
+  anglePersonas,
+  angleProducts,
   angles,
   assets,
   competitorAds,
+  conceptAngles,
+  conceptThemes,
   concepts,
   copywriting,
   creativeBriefs,
@@ -155,19 +159,33 @@ export async function importAirtableExport(
     db,
     angles,
     data.Angles ?? [],
-    (f) => ({
-      brandId,
-      name: str(f.Name) ?? 'Untitled',
-      description: str(f.Description),
-      personaId: resolveRef(personaMap, f.Persona),
-      productId: resolveRef(prodMap, f.Product),
-      painPoints: str(f['Pain Points']),
-      usp: str(f.USP),
-      potential: str(f.Potential),
-    }),
+    (f) => {
+      const mapped: Record<string, unknown> = {
+        brandId,
+        name: str(f.Name) ?? 'Untitled',
+        description: str(f.Description),
+        painPoints: str(f['Pain Points']),
+        usp: str(f.USP),
+        potential: str(f.Potential),
+      };
+      return mapped;
+    },
     actorId,
   );
   results.angles = angleResult;
+
+  for (const rec of data.Angles ?? []) {
+    const angleId = angleMap.get(rec.id);
+    if (!angleId) continue;
+    const personaId = resolveRef(personaMap, rec.fields.Persona);
+    if (personaId) {
+      await db.insert(anglePersonas).values({ angleId, personaId }).onConflictDoNothing();
+    }
+    const productId = resolveRef(prodMap, rec.fields.Product);
+    if (productId) {
+      await db.insert(angleProducts).values({ angleId, productId }).onConflictDoNothing();
+    }
+  }
 
   const { result: conceptResult, idMap: conceptMap } = await importRows(
     db,
@@ -177,14 +195,25 @@ export async function importAirtableExport(
       brandId,
       name: str(f.Name) ?? 'Untitled',
       batch: str(f.Batch),
-      angleId: resolveRef(angleMap, f.Angle),
-      themeId: resolveRef(themeMap, f.Theme),
       hookExamples: str(f['Hook Examples']),
       scriptIdea: str(f['Script Idea']),
     }),
     actorId,
   );
   results.concepts = conceptResult;
+
+  for (const rec of data.Concepts ?? []) {
+    const conceptId = conceptMap.get(rec.id);
+    if (!conceptId) continue;
+    const angleId = resolveRef(angleMap, rec.fields.Angle);
+    if (angleId) {
+      await db.insert(conceptAngles).values({ conceptId, angleId }).onConflictDoNothing();
+    }
+    const themeId = resolveRef(themeMap, rec.fields.Theme);
+    if (themeId) {
+      await db.insert(conceptThemes).values({ conceptId, themeId }).onConflictDoNothing();
+    }
+  }
 
   const { result: briefResult, idMap: briefMap } = await importRows(
     db,

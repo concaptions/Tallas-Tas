@@ -1,6 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { loadAllAngleProducts, loadAllConceptAngles } from './junction-queries';
 import { angles, concepts, products, type NewProduct, type Product } from './schema';
 import { withBrand, type BrandScope } from './tenancy';
 
@@ -27,27 +28,33 @@ export type ProductInput = Omit<NewProduct, ManagedColumn>;
 export type ProductListRow = Product & { conceptCount: number };
 
 /**
- * `productId -> live concept count`, counted in TypeScript over two scoped reads.
+ * `productId -> live concept count`, counted in TypeScript over junction table lookups.
  *
- * `concepts` has no product of its own: the link is `concepts.angleId` → `angles.productId`, two
- * hops. The counting happens here rather than in SQL because `withBrand` hands back a sealed query
- * surface with no join, `where` or `$dynamic` (TICKET-005 round 3), which is the guarantee that a
- * scoped read cannot be widened — the same reason `listPersonas` joins its product name in
- * TypeScript. Both reads are scoped, so a soft-deleted angle or concept, and every other brand's
- * rows, are already gone before anything is counted; an angle with a null `productId`, or one
- * pointing at a soft-deleted product, simply contributes to no product's count.
+ * `concepts` has no product of its own: the link is concept→angle (via conceptAngles junction)
+ * → product (via angleProducts junction), two hops through junction tables. The counting happens
+ * here rather than in SQL because `withBrand` hands back a sealed query surface with no join,
+ * `where` or `$dynamic` (TICKET-005 round 3), which is the guarantee that a scoped read cannot be
+ * widened. Junction tables are loaded in bulk; an angle with no linked products simply contributes
+ * to no product's count.
  */
-async function conceptCounts(scope: BrandScope): Promise<Map<string, number>> {
-  const [brandAngles, brandConcepts] = await Promise.all([
-    scope.select(angles),
+async function conceptCounts(db: Db, scope: BrandScope): Promise<Map<string, number>> {
+  const [brandConcepts, brandAngles, conceptAngleMap, angleProductMap] = await Promise.all([
     scope.select(concepts),
+    scope.select(angles),
+    loadAllConceptAngles(db),
+    loadAllAngleProducts(db),
   ]);
-  const angleProduct = new Map(brandAngles.map((angle) => [angle.id, angle.productId]));
+  const liveAngleIds = new Set(brandAngles.map((a) => a.id));
   const counts = new Map<string, number>();
   for (const concept of brandConcepts) {
-    const productId = concept.angleId === null ? null : (angleProduct.get(concept.angleId) ?? null);
-    if (productId === null) continue;
-    counts.set(productId, (counts.get(productId) ?? 0) + 1);
+    const angleIds = conceptAngleMap.get(concept.id) ?? [];
+    for (const angleId of angleIds) {
+      if (!liveAngleIds.has(angleId)) continue;
+      const productIds = angleProductMap.get(angleId) ?? [];
+      for (const productId of productIds) {
+        counts.set(productId, (counts.get(productId) ?? 0) + 1);
+      }
+    }
   }
   return counts;
 }
@@ -57,7 +64,7 @@ export async function listProducts(db: Db, brandId: string): Promise<ProductList
   const scope = withBrand(db, brandId);
   const [rows, counts] = await Promise.all([
     scope.select(products).orderBy(desc(products.updatedAt)),
-    conceptCounts(scope),
+    conceptCounts(db, scope),
   ]);
   return rows.map((row) => ({ ...row, conceptCount: counts.get(row.id) ?? 0 }));
 }
@@ -71,7 +78,7 @@ export async function getProductById(
   const scope = withBrand(db, brandId);
   const [row] = await scope.select(products, eq(products.id, id)).limit(1);
   if (row === undefined) return null;
-  return { ...row, conceptCount: (await conceptCounts(scope)).get(row.id) ?? 0 };
+  return { ...row, conceptCount: (await conceptCounts(db, scope)).get(row.id) ?? 0 };
 }
 
 /** Creates a product in the scope; `brand_id` is the scope's, whatever `values` says. */

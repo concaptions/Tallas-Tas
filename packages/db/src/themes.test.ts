@@ -2,7 +2,14 @@ import { eq, sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { DEMO_BRAND_ID, demoConcepts, demoThemes } from './demo-data';
-import { concepts, themeCategories, themes, type Theme } from './schema';
+import {
+  conceptAngles,
+  conceptThemes,
+  concepts,
+  themeCategories,
+  themes,
+  type Theme,
+} from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
 import {
@@ -195,11 +202,19 @@ describe('theme queries', () => {
 
     expect((await getThemeById(db, target.id))?.usedByBrandCount).toBe(1);
 
-    await withBrand(db, brandId).insert(concepts, {
-      angleId: seededConcept.angleId,
-      themeId: target.id,
-      name: 'B2-Your Body Clock Is Not Broken-Problem/Solution',
-    });
+    const [newConcept] = await withBrand(db, brandId)
+      .insert(concepts, {
+        name: 'B2-Your Body Clock Is Not Broken-Problem/Solution',
+      })
+      .returning();
+    if (newConcept) {
+      if (seededConcept.angleIds[0]) {
+        await db
+          .insert(conceptAngles)
+          .values({ conceptId: newConcept.id, angleId: seededConcept.angleIds[0] });
+      }
+      await db.insert(conceptThemes).values({ conceptId: newConcept.id, themeId: target.id });
+    }
 
     expect((await getThemeById(db, target.id))?.usedByBrandCount).toBe(1);
   });
@@ -208,10 +223,14 @@ describe('theme queries', () => {
     const { db, otherBrandId } = await seeded();
     const target = usedTheme();
 
-    await withBrand(db, otherBrandId).insert(concepts, {
-      themeId: target.id,
-      name: 'B1-Template Angle-Problem/Solution',
-    });
+    const [otherConcept] = await withBrand(db, otherBrandId)
+      .insert(concepts, {
+        name: 'B1-Template Angle-Problem/Solution',
+      })
+      .returning();
+    if (otherConcept) {
+      await db.insert(conceptThemes).values({ conceptId: otherConcept.id, themeId: target.id });
+    }
 
     expect((await getThemeById(db, target.id))?.usedByBrandCount).toBe(2);
     const listed = (await listThemes(db)).find((row) => row.id === target.id);
@@ -222,7 +241,14 @@ describe('theme queries', () => {
     const { db, brandId } = await seeded();
     const target = usedTheme();
 
-    await withBrand(db, brandId).softDelete(concepts, eq(concepts.themeId, target.id));
+    // Find concept ids linked to this theme via the junction table, then soft-delete them.
+    const linkedRows = await db
+      .select({ conceptId: conceptThemes.conceptId })
+      .from(conceptThemes)
+      .where(eq(conceptThemes.themeId, target.id));
+    for (const { conceptId } of linkedRows) {
+      await withBrand(db, brandId).softDelete(concepts, eq(concepts.id, conceptId));
+    }
 
     expect((await getThemeById(db, target.id))?.usedByBrandCount).toBe(0);
   });
@@ -230,9 +256,8 @@ describe('theme queries', () => {
   it('carries a theme with no concept at all as a clean zero, null link and all', async () => {
     const { db, brandId } = await seeded();
 
-    // A concept may name no theme (`concepts.theme_id` is nullable); the null group must not become
-    // a count on some theme, and must not throw on the way past.
-    await withBrand(db, brandId).insert(concepts, { themeId: null, name: 'B2-Unthemed' });
+    // A concept with no theme junction row must not become a count on any theme, and must not throw.
+    await withBrand(db, brandId).insert(concepts, { name: 'B2-Unthemed' });
 
     const rows = await listThemes(db);
 

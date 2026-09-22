@@ -1,6 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { loadAllAnglePersonas, loadAllAngleProducts } from './junction-queries';
 import { angles, personas, products, type Angle, type NewAngle } from './schema';
 import { withBrand, type BrandScope } from './tenancy';
 
@@ -20,56 +21,72 @@ type ManagedColumn =
 export type AngleInput = Omit<NewAngle, ManagedColumn>;
 
 /**
- * An angle as the list and the panel render it: the row plus the linked persona's and product's
- * names, each null when the angle has no such link or the linked row has been soft-deleted.
- * `demoAngles` satisfies `AngleListRow[]`, so the page reads demo fixtures and database rows
- * through one type.
+ * An angle as the list and the panel render it: the row plus the linked persona and product names.
+ * `personaIds` and `productIds` are the full junction sets for multi-select pickers.
+ * `personaName` and `productName` are the FIRST linked name for display.
  */
-export type AngleListRow = Angle & { personaName: string | null; productName: string | null };
+export type AngleListRow = Angle & {
+  personaIds: string[];
+  productIds: string[];
+  personaName: string | null;
+  productName: string | null;
+};
+
+interface LinkedLookups {
+  anglePersonaMap: Map<string, string[]>;
+  angleProductMap: Map<string, string[]>;
+  personaNames: Map<string, string>;
+  productNames: Map<string, string>;
+}
 
 /**
- * The two name lookups an angle row needs, from two scoped reads.
+ * The lookups an angle row needs: junction maps plus name maps from two scoped reads.
  *
  * The names are joined in TypeScript rather than with a SQL `leftJoin`: `withBrand` hands back a
  * sealed query surface with no join, `where` or `$dynamic` (TICKET-005 round 3), which is the
- * guarantee that a scoped read cannot be widened — the same reason `listPersonas` joins its product
- * name here. Both reads are scoped, so another brand's personas and products, and soft-deleted
- * ones, are gone before a single name is resolved: an angle pointing at either returns null, the
- * same as an angle with no link at all.
+ * guarantee that a scoped read cannot be widened. Both entity reads are scoped, so another brand's
+ * personas and products, and soft-deleted ones, are gone before a single name is resolved.
  */
-async function linkedNames(
-  scope: BrandScope,
-): Promise<{ personaNames: Map<string, string>; productNames: Map<string, string> }> {
-  const [brandPersonas, brandProducts] = await Promise.all([
+async function linkedLookups(db: Db, scope: BrandScope): Promise<LinkedLookups> {
+  const [brandPersonas, brandProducts, anglePersonaMap, angleProductMap] = await Promise.all([
     scope.select(personas),
     scope.select(products),
+    loadAllAnglePersonas(db),
+    loadAllAngleProducts(db),
   ]);
   return {
+    anglePersonaMap,
+    angleProductMap,
     personaNames: new Map(brandPersonas.map((persona) => [persona.id, persona.name])),
     productNames: new Map(brandProducts.map((product) => [product.id, product.name])),
   };
 }
 
-/** One row plus its two joined names, null where the link is absent or no longer live. */
-function withNames(
-  row: Angle,
-  names: { personaNames: Map<string, string>; productNames: Map<string, string> },
-): AngleListRow {
+/** One row plus its junction-resolved names, null where no link exists or the target is deleted. */
+function withNames(row: Angle, lookups: LinkedLookups): AngleListRow {
+  const personaIds = lookups.anglePersonaMap.get(row.id) ?? [];
+  const productIds = lookups.angleProductMap.get(row.id) ?? [];
+  const firstPersonaId = personaIds[0] ?? null;
+  const firstProductId = productIds[0] ?? null;
   return {
     ...row,
-    personaName: row.personaId === null ? null : (names.personaNames.get(row.personaId) ?? null),
-    productName: row.productId === null ? null : (names.productNames.get(row.productId) ?? null),
+    personaIds,
+    productIds,
+    personaName:
+      firstPersonaId === null ? null : (lookups.personaNames.get(firstPersonaId) ?? null),
+    productName:
+      firstProductId === null ? null : (lookups.productNames.get(firstProductId) ?? null),
   };
 }
 
 /** The brand's live angles, newest edit first, each with its persona and product names. */
 export async function listAngles(db: Db, brandId: string): Promise<AngleListRow[]> {
   const scope = withBrand(db, brandId);
-  const [rows, names] = await Promise.all([
+  const [rows, lookups] = await Promise.all([
     scope.select(angles).orderBy(desc(angles.updatedAt)),
-    linkedNames(scope),
+    linkedLookups(db, scope),
   ]);
-  return rows.map((row) => withNames(row, names));
+  return rows.map((row) => withNames(row, lookups));
 }
 
 /** One live angle of the brand, with its two names, or null: another brand's id never resolves. */
@@ -81,7 +98,7 @@ export async function getAngleById(
   const scope = withBrand(db, brandId);
   const [row] = await scope.select(angles, eq(angles.id, id)).limit(1);
   if (row === undefined) return null;
-  return withNames(row, await linkedNames(scope));
+  return withNames(row, await linkedLookups(db, scope));
 }
 
 /** Creates an angle in the scope; `brand_id` is the scope's, whatever `values` says. */

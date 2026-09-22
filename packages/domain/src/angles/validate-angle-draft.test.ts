@@ -8,7 +8,7 @@ const PERSONA_ID = '00000000-0000-4000-8000-555500000001';
 function draft(overrides: Partial<AngleDraft> = {}): AngleDraft {
   return {
     name: 'Sleep debt is a tax you pay in the morning',
-    personaId: PERSONA_ID,
+    personaIds: [PERSONA_ID],
     formats: ['Static', 'Video'],
     adInspoLinks: ['https://www.facebook.com/ads/library/?id=1234567890'],
     ...overrides,
@@ -41,14 +41,12 @@ describe('validateAngleDraft', () => {
     expect(validateAngleDraft(draft({ name: 'Rx' })).fieldErrors.name).toBeUndefined();
   });
 
-  it('requires a persona', () => {
-    const result = validateAngleDraft(draft({ personaId: null }));
+  it('requires at least one persona', () => {
+    const result = validateAngleDraft(draft({ personaIds: [] }));
     expect(result.ok).toBe(false);
-    expect(result.fieldErrors.personaId).toBe('Pick the persona this angle is written from.');
-  });
-
-  it('treats an empty persona id the same as None', () => {
-    expect(validateAngleDraft(draft({ personaId: '  ' })).fieldErrors.personaId).toBeDefined();
+    expect(result.fieldErrors.personaIds).toBe(
+      'Pick at least one persona this angle is written from.',
+    );
   });
 
   it('requires at least one format', () => {
@@ -83,7 +81,7 @@ describe('validateAngleDraft', () => {
   it('reports every broken field at once', () => {
     const result = validateAngleDraft({
       name: '',
-      personaId: null,
+      personaIds: [],
       formats: [],
       adInspoLinks: ['nope'],
     });
@@ -92,7 +90,7 @@ describe('validateAngleDraft', () => {
       'adInspoLinks',
       'formats',
       'name',
-      'personaId',
+      'personaIds',
     ]);
   });
 });

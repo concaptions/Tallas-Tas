@@ -13,7 +13,9 @@ import { DEMO_BRAND_ID, STANDALONE_CONCEPT_SLUG, demoBriefs, demoConcepts } from
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
   BRIEF_INTERNAL_STATUS_DEFAULT,
+  angleProducts,
   angles,
+  conceptAngles,
   concepts,
   creativeBriefs,
   creativeFunnels,
@@ -485,7 +487,7 @@ describe('brief queries', () => {
     await db
       .update(angles)
       .set({ deletedAt: new Date() })
-      .where(eq(angles.id, demoConcepts[0]?.angleId ?? ''));
+      .where(eq(angles.id, demoConcepts[0]?.angleIds[0] ?? ''));
 
     const rows = await listBriefs(db, brandId);
     const affected = rows.filter((row) => row.conceptId === demoConcepts[0]?.id);
@@ -539,12 +541,22 @@ describe('brief queries', () => {
       .returning();
     const [foreignAngle] = await db
       .insert(angles)
-      .values({ brandId: otherBrandId, productId: foreignProduct?.id, name: 'Template angle' })
+      .values({ brandId: otherBrandId, name: 'Template angle' })
       .returning();
+    if (foreignAngle && foreignProduct) {
+      await db
+        .insert(angleProducts)
+        .values({ angleId: foreignAngle.id, productId: foreignProduct.id });
+    }
     const [foreignConcept] = await db
       .insert(concepts)
-      .values({ brandId: otherBrandId, angleId: foreignAngle?.id, name: 'B1-Template-Concept' })
+      .values({ brandId: otherBrandId, name: 'B1-Template-Concept' })
       .returning();
+    if (foreignConcept && foreignAngle) {
+      await db
+        .insert(conceptAngles)
+        .values({ conceptId: foreignConcept.id, angleId: foreignAngle.id });
+    }
     await db
       .update(creativeBriefs)
       .set({ conceptId: foreignConcept?.id })

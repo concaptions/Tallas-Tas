@@ -2,6 +2,12 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import {
+  loadAllAnglePersonas,
+  loadAllAngleProducts,
+  loadAllConceptAngles,
+  loadAllConceptThemes,
+} from './junction-queries';
+import {
   angles,
   annotations,
   campaignsOffers,
@@ -60,32 +66,70 @@ export interface ClientConcept {
 }
 
 export async function clientConcepts(db: Db, brandId: string): Promise<ClientConcept[]> {
-  const rows = await db
-    .select({
-      id: concepts.id,
-      batch: concepts.batch,
-      category: concepts.category,
-      name: concepts.name,
-      conceptStyle: concepts.conceptStyle,
-      angleName: angles.name,
-      themeName: themes.name,
-      productName: products.name,
-      description: concepts.scriptIdea,
-      painPoints: angles.painPoints,
-      usp: angles.usp,
-      personaName: personas.name,
-      hookExamples: concepts.hookExamples,
-      approvalStatus: concepts.approvalStatus,
-      clientStatus: concepts.clientStatus,
-    })
-    .from(concepts)
-    .leftJoin(angles, eq(concepts.angleId, angles.id))
-    .leftJoin(themes, eq(concepts.themeId, themes.id))
-    .leftJoin(personas, eq(angles.personaId, personas.id))
-    .leftJoin(products, eq(angles.productId, products.id))
-    .where(brandScope(brandId).concepts)
-    .orderBy(asc(concepts.createdAt));
-  return rows;
+  const scope = brandScope(brandId);
+  const [conceptRows, angleRows, personaRows, productRows, themeRows, caMap, ctMap, apMap, aprMap] =
+    await Promise.all([
+      db
+        .select({
+          id: concepts.id,
+          batch: concepts.batch,
+          category: concepts.category,
+          name: concepts.name,
+          conceptStyle: concepts.conceptStyle,
+          description: concepts.scriptIdea,
+          hookExamples: concepts.hookExamples,
+          approvalStatus: concepts.approvalStatus,
+          clientStatus: concepts.clientStatus,
+        })
+        .from(concepts)
+        .where(scope.concepts)
+        .orderBy(asc(concepts.createdAt)),
+      db
+        .select({
+          id: angles.id,
+          name: angles.name,
+          painPoints: angles.painPoints,
+          usp: angles.usp,
+        })
+        .from(angles)
+        .where(and(eq(angles.brandId, brandId), isNull(angles.deletedAt))),
+      db
+        .select({ id: personas.id, name: personas.name })
+        .from(personas)
+        .where(and(eq(personas.brandId, brandId), isNull(personas.deletedAt))),
+      db
+        .select({ id: products.id, name: products.name })
+        .from(products)
+        .where(and(eq(products.brandId, brandId), isNull(products.deletedAt))),
+      db.select({ id: themes.id, name: themes.name }).from(themes).where(isNull(themes.deletedAt)),
+      loadAllConceptAngles(db),
+      loadAllConceptThemes(db),
+      loadAllAnglePersonas(db),
+      loadAllAngleProducts(db),
+    ]);
+
+  const angleMap = new Map(angleRows.map((a) => [a.id, a]));
+  const personaMap = new Map(personaRows.map((p) => [p.id, p.name]));
+  const productMap = new Map(productRows.map((p) => [p.id, p.name]));
+  const themeMap = new Map(themeRows.map((t) => [t.id, t.name]));
+
+  return conceptRows.map((c) => {
+    const firstAngleId = (caMap.get(c.id) ?? [])[0] ?? null;
+    const angle = firstAngleId ? angleMap.get(firstAngleId) : undefined;
+    const firstThemeId = (ctMap.get(c.id) ?? [])[0] ?? null;
+    const firstPersonaId = firstAngleId ? ((apMap.get(firstAngleId) ?? [])[0] ?? null) : null;
+    const firstProductId = firstAngleId ? ((aprMap.get(firstAngleId) ?? [])[0] ?? null) : null;
+    return {
+      ...c,
+      angleName: angle?.name ?? null,
+      themeName: firstThemeId ? (themeMap.get(firstThemeId) ?? null) : null,
+      productName: firstProductId ? (productMap.get(firstProductId) ?? null) : null,
+      description: c.description,
+      painPoints: angle?.painPoints ?? null,
+      usp: angle?.usp ?? null,
+      personaName: firstPersonaId ? (personaMap.get(firstPersonaId) ?? null) : null,
+    };
+  });
 }
 
 // ─── Page 2: Creatives ──────────────────────────────────────────────────────

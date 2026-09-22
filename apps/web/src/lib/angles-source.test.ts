@@ -45,7 +45,7 @@ describe('loadAngles in demo mode', () => {
 
     const perPersona = new Map<string, number>();
     for (const row of rows) {
-      const key = row.personaId ?? 'none';
+      const key = row.personaIds[0] ?? 'none';
       perPersona.set(key, (perPersona.get(key) ?? 0) + 1);
     }
     expect(perPersona.size).toBe(3);

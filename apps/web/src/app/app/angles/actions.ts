@@ -2,7 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { insertAngle, updateAngle, type AngleInput } from '@tas/db';
+import {
+  insertAngle,
+  syncAnglePersonas,
+  syncAngleProducts,
+  updateAngle,
+  type AngleInput,
+} from '@tas/db';
 import {
   isAngleFormat,
   validateAngleDraft,
@@ -41,6 +47,7 @@ import { anglesPath } from '@/lib/routes';
  */
 export type AngleFieldName =
   | AngleDraftField
+  | 'personaId'
   | 'productId'
   | 'description'
   | 'painPoints'
@@ -104,6 +111,11 @@ const angleSchema = z.object({
   exactScriptUrl: text,
 });
 
+/** Lift a nullable single id into an array: the form still submits one value per junction. */
+function idsOf(value: string | null): string[] {
+  return value === null ? [] : [value];
+}
+
 type AngleFormValues = z.infer<typeof angleSchema>;
 
 /**
@@ -144,19 +156,31 @@ function failureFrom(error: z.ZodError): AngleActionFailure {
   return { ok: false, error: 'Some fields need attention before this can be saved.', fieldErrors };
 }
 
-/** The domain's messages, in the same envelope zod's take. */
+/**
+ * The domain's messages, mapped to the form field names the UI uses. The domain validator keys
+ * errors under `personaIds` (the draft's array field), but the form's hidden input is named
+ * `personaId` (single-select, V0), so the UI's `fieldError('personaId')` needs the error under
+ * that key.
+ */
 function failureFromDraft(
   fieldErrors: Readonly<Partial<Record<AngleDraftField, string>>>,
 ): AngleActionFailure {
-  return { ok: false, error: 'Some fields need attention before this can be saved.', fieldErrors };
+  const mapped: Partial<Record<AngleFieldName, string>> = {};
+  for (const [key, message] of Object.entries(fieldErrors)) {
+    const uiKey = key === 'personaIds' ? 'personaId' : key;
+    mapped[uiKey as AngleFieldName] = message;
+  }
+  return {
+    ok: false,
+    error: 'Some fields need attention before this can be saved.',
+    fieldErrors: mapped,
+  };
 }
 
 /** The columns this page writes. A blank ad-inspiration row is an empty input, never a stored ''. */
 function toInput(values: AngleFormValues): AngleInput {
   return {
     name: values.name,
-    personaId: values.personaId,
-    productId: values.productId,
     description: values.description,
     painPoints: values.painPoints,
     usp: values.usp,
@@ -174,15 +198,20 @@ async function actorId(): Promise<string | null> {
 }
 
 /** Shape (zod), then rules (the domain function). Either one failing ends the write. */
-function parse(formData: FormData): { values: AngleInput } | AngleActionFailure {
+function parse(
+  formData: FormData,
+): { values: AngleInput; personaIds: string[]; productIds: string[] } | AngleActionFailure {
   const parsed = angleSchema.safeParse(fieldsOf(formData));
   if (!parsed.success) {
     return failureFrom(parsed.error);
   }
 
+  const personaIds = idsOf(parsed.data.personaId);
+  const productIds = idsOf(parsed.data.productId);
+
   const draft = validateAngleDraft({
     name: parsed.data.name,
-    personaId: parsed.data.personaId,
+    personaIds,
     formats: parsed.data.formats,
     adInspoLinks: parsed.data.adInspoLinks,
   });
@@ -190,7 +219,7 @@ function parse(formData: FormData): { values: AngleInput } | AngleActionFailure 
     return failureFromDraft(draft.fieldErrors);
   }
 
-  return { values: toInput(parsed.data) };
+  return { values: toInput(parsed.data), personaIds, productIds };
 }
 
 /** Creates an angle in the actor's brand. */
@@ -212,9 +241,14 @@ export async function createAngleAction(
     if (actor === null) {
       return { ok: false, error: 'Your session has expired. Sign in again to save.' };
     }
-    const created = await withBrandScope((db, brandId) =>
-      insertAngle(db, brandId, parsed.values, actor),
-    );
+    const created = await withBrandScope(async (db, brandId) => {
+      const row = await insertAngle(db, brandId, parsed.values, actor);
+      await Promise.all([
+        syncAnglePersonas(db, row.id, parsed.personaIds),
+        syncAngleProducts(db, row.id, parsed.productIds),
+      ]);
+      return row;
+    });
     if (created === null) {
       return { ok: false, error: 'This workspace has no brand yet.' };
     }
@@ -249,9 +283,16 @@ export async function updateAngleAction(
     if (actor === null) {
       return { ok: false, error: 'Your session has expired. Sign in again to save.' };
     }
-    const saved = await withBrandScope((db, brandId) =>
-      updateAngle(db, brandId, id, parsed.values, actor),
-    );
+    const saved = await withBrandScope(async (db, brandId) => {
+      const row = await updateAngle(db, brandId, id, parsed.values, actor);
+      if (row !== null) {
+        await Promise.all([
+          syncAnglePersonas(db, id, parsed.personaIds),
+          syncAngleProducts(db, id, parsed.productIds),
+        ]);
+      }
+      return row;
+    });
     if (saved === null) {
       return { ok: false, error: 'That angle is no longer available.' };
     }

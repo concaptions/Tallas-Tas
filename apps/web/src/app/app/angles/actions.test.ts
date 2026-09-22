@@ -109,7 +109,9 @@ describe('with Clerk configured', () => {
     if (result.ok) {
       throw new Error('an angle with no persona was accepted');
     }
-    expect(result.fieldErrors?.personaId).toBe('Pick the persona this angle is written from.');
+    expect(result.fieldErrors?.personaId).toBe(
+      'Pick at least one persona this angle is written from.',
+    );
   });
 
   it('rejects an angle with no format ticked', async () => {
