@@ -1,8 +1,14 @@
 'use client';
 
-import { startTransition, useActionState, useState } from 'react';
+import { startTransition, useActionState, useEffect, useRef, useState } from 'react';
 import {
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Select,
   SelectContent,
@@ -20,6 +26,7 @@ import {
 import {
   addCustomFieldAction,
   deleteCustomFieldAction,
+  promoteCustomFieldAction,
   type CustomFieldActionResult,
 } from './custom-field-actions';
 
@@ -57,10 +64,21 @@ interface CustomFieldsSectionProps {
   readonly demo: boolean;
 }
 
+interface PendingPromotion {
+  readonly schemaId: string;
+  readonly tableName: string;
+  readonly fieldKey: string;
+  readonly fieldLabel: string;
+}
+
 export function CustomFieldsSection({ fields, demo }: CustomFieldsSectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [tableName, setTableName] = useState('products');
   const [fieldType, setFieldType] = useState('text');
+  const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
+  const lastSubmission = useRef<{ tableName: string; fieldKey: string; fieldLabel: string } | null>(
+    null,
+  );
 
   const [addResult, addAction, adding] = useActionState<CustomFieldActionResult | null, FormData>(
     addCustomFieldAction,
@@ -70,8 +88,36 @@ export function CustomFieldsSection({ fields, demo }: CustomFieldsSectionProps) 
     CustomFieldActionResult | null,
     FormData
   >(deleteCustomFieldAction, null);
+  const [promoteResult, promoteAction, promoting] = useActionState<
+    CustomFieldActionResult | null,
+    FormData
+  >(promoteCustomFieldAction, null);
+
+  useEffect(() => {
+    if (addResult !== null && addResult.ok && lastSubmission.current !== null) {
+      setPendingPromotion({
+        schemaId: addResult.id,
+        ...lastSubmission.current,
+      });
+      lastSubmission.current = null;
+    }
+  }, [addResult]);
+
+  useEffect(() => {
+    if (promoteResult !== null && promoteResult.ok) {
+      setPendingPromotion(null);
+    }
+  }, [promoteResult]);
 
   function handleAdd(formData: FormData) {
+    const tn = formData.get('tableName');
+    const fk = formData.get('fieldKey');
+    const fl = formData.get('fieldLabel');
+    lastSubmission.current = {
+      tableName: typeof tn === 'string' ? tn : '',
+      fieldKey: typeof fk === 'string' ? fk : '',
+      fieldLabel: typeof fl === 'string' ? fl : '',
+    };
     startTransition(() => {
       addAction(formData);
     });
@@ -86,9 +132,22 @@ export function CustomFieldsSection({ fields, demo }: CustomFieldsSectionProps) 
     });
   }
 
+  function handlePromote() {
+    if (pendingPromotion === null) return;
+    const fd = new FormData();
+    fd.set('schemaId', pendingPromotion.schemaId);
+    fd.set('tableName', pendingPromotion.tableName);
+    fd.set('fieldKey', pendingPromotion.fieldKey);
+    fd.set('fieldLabel', pendingPromotion.fieldLabel);
+    startTransition(() => {
+      promoteAction(fd);
+    });
+  }
+
   const error =
     (addResult !== null && !addResult.ok ? addResult.error : null) ??
-    (deleteResult !== null && !deleteResult.ok ? deleteResult.error : null);
+    (deleteResult !== null && !deleteResult.ok ? deleteResult.error : null) ??
+    (promoteResult !== null && !promoteResult.ok ? promoteResult.error : null);
 
   return (
     <section aria-labelledby="custom-fields-heading" className="flex min-w-0 flex-col gap-3">
@@ -250,6 +309,39 @@ export function CustomFieldsSection({ fields, demo }: CustomFieldsSectionProps) 
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={pendingPromotion !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingPromotion(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Promote to all brands?</DialogTitle>
+            <DialogDescription>
+              The field{' '}
+              <span className="font-mono font-medium">{pendingPromotion?.fieldLabel}</span> has been
+              saved to the template. Would you like to request promotion so it appears in every
+              child brand?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPendingPromotion(null);
+              }}
+              disabled={promoting}
+            >
+              No, keep it local
+            </Button>
+            <Button onClick={handlePromote} disabled={promoting}>
+              {promoting ? 'Requesting…' : 'Yes, promote'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
+  createPromotionRequest,
   insertCustomFieldSchema,
   listTeam,
   PROPAGATION_TABLES,
@@ -181,5 +182,55 @@ export async function deleteCustomFieldAction(
     });
   } catch {
     return failure('The field could not be removed. Try again.');
+  }
+}
+
+const promoteSchema = z.object({
+  schemaId: z.uuid({ error: 'Field could not be identified.' }),
+  tableName: z.string().min(1),
+  fieldKey: z.string().min(1),
+  fieldLabel: z.string().min(1),
+});
+
+export async function promoteCustomFieldAction(
+  _previous: CustomFieldActionResult | null,
+  formData: FormData,
+): Promise<CustomFieldActionResult> {
+  if (isDemoMode()) return failure(DEMO_WRITE_REFUSAL);
+
+  const parsed = promoteSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return failure(parsed.error.issues[0]?.message ?? 'Invalid input.');
+  }
+
+  try {
+    return await requireAdmin(async (db, agencyId, userId) => {
+      const templateBrandId = await resolveTemplateBrandId(db, agencyId);
+      if (templateBrandId === null) {
+        return failure('No template brand found for this agency.');
+      }
+
+      const request = await createPromotionRequest(
+        db,
+        {
+          brandId: templateBrandId,
+          tableName: 'custom_field_schemas',
+          rowId: parsed.data.schemaId,
+          fieldName: parsed.data.fieldKey,
+          currentValue: '',
+          proposedValue: JSON.stringify({
+            tableName: parsed.data.tableName,
+            fieldKey: parsed.data.fieldKey,
+            fieldLabel: parsed.data.fieldLabel,
+          }),
+          requestedBy: userId,
+        },
+        userId,
+      );
+      revalidatePath(propagationPath);
+      return { ok: true, id: request.id, savedAt: Date.now() };
+    });
+  } catch {
+    return failure('The promotion request could not be created. Try again.');
   }
 }
