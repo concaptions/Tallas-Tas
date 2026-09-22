@@ -4,6 +4,7 @@ import type { Db } from './db';
 import {
   angles,
   brands,
+  campaignsOffers,
   concepts,
   copywriting,
   creativeBriefs,
@@ -195,6 +196,7 @@ export const PROPAGATION_TABLES: Record<string, BrandedTable> = {
   creative_briefs: creativeBriefs,
   copywriting,
   creators,
+  campaigns_offers: campaignsOffers,
 };
 
 /**

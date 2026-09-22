@@ -64,6 +64,7 @@ export const performancePath = '/app/performance';
 export const adSpyPath = '/app/ad-spy';
 export const creatorRankingPath = '/app/creator-ranking';
 export const uploadLinksPath = '/app/upload-links';
+export const campaignsPath = '/app/campaigns';
 export const onboardingFormsPath = '/app/onboarding-forms';
 /**
  * One upload link's detail route. The detail page is a real route, not a side panel, so the id

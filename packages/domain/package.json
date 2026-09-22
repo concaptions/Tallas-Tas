@@ -18,6 +18,7 @@
     "./team": "./src/team/index.ts",
     "./interface": "./src/interface/index.ts",
     "./notifications": "./src/notifications/index.ts",
+    "./campaigns": "./src/campaigns/index.ts",
     "./propagation": "./src/propagation/index.ts"
   },
   "scripts": {

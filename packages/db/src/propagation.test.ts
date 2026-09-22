@@ -213,10 +213,11 @@ describe('resolveTemplateBrandId', () => {
 });
 
 describe('PROPAGATION_TABLES', () => {
-  it('registers exactly the 7 content tables', () => {
+  it('registers exactly the 8 content tables', () => {
     const keys = Object.keys(PROPAGATION_TABLES).sort();
     expect(keys).toEqual([
       'angles',
+      'campaigns_offers',
       'concepts',
       'copywriting',
       'creative_briefs',

@@ -62,6 +62,8 @@ export {
   updateOnboardingForm,
 } from './onboarding-forms';
 export type { OnboardingFormInput, OnboardingFormListRow } from './onboarding-forms';
+export { getCampaignById, insertCampaign, listCampaigns, updateCampaign } from './campaigns';
+export type { CampaignInput } from './campaigns';
 export { baseColumns, propagationColumns } from './columns';
 export {
   insertCustomFieldSchema,
@@ -103,6 +105,7 @@ export {
   demoAdMetrics,
   demoAssets,
   demoAngles,
+  demoCampaigns,
   demoCompetitorAds,
   demoCreatorRankings,
   demoUploadLinks,

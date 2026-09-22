@@ -15,6 +15,7 @@ import type { NotificationSettingRow } from './notifications';
 import type { PersonaListRow } from './personas';
 import type { ProductListRow } from './products';
 import type { PromotionRequestRow } from './promotion-requests';
+import type { CampaignOffer } from './schema';
 import { brandRoles, notificationTriggers } from './schema';
 import type {
   AgencyRole,
@@ -128,6 +129,14 @@ const COLLAB_DANIELLE_3_ID = 'cccccccc-cccc-4ccc-8ccc-000000000003';
 const COLLAB_MARCUS_1_ID = 'cccccccc-cccc-4ccc-8ccc-000000000004';
 const COLLAB_MARCUS_2_ID = 'cccccccc-cccc-4ccc-8ccc-000000000005';
 const COLLAB_TOMAS_1_ID = 'cccccccc-cccc-4ccc-8ccc-000000000006';
+
+const CAMPAIGN_BFCM_ID = 'dddddddd-dddd-4ddd-8ddd-000000000001';
+const CAMPAIGN_VDAY_ID = 'dddddddd-dddd-4ddd-8ddd-000000000002';
+const CAMPAIGN_SUMMER_ID = 'dddddddd-dddd-4ddd-8ddd-000000000003';
+
+function demoCampaignName(holiday: string, discountOffer: string, code: string): string {
+  return [holiday, discountOffer, code].join('-');
+}
 
 /** The shared columns every demo row carries, so each fixture below states only its own fields. */
 function base(id: string, created: string, updated: string) {
@@ -2765,6 +2774,60 @@ export const demoCollaborations: CollaborationListRow[] = [
     clientStatus: 'pending_for_approval',
     assetsStatus: 'pending_for_cs_approval',
     notes: 'Initial outreach — Fiverr profile looks strong, no concept assigned yet.',
+    legacyAirtableId: null,
+  },
+];
+
+export const demoCampaigns: CampaignOffer[] = [
+  {
+    ...propagationBase(CAMPAIGN_BFCM_ID, '2026-08-15T10:00:00.000Z', '2026-09-18T14:30:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: demoCampaignName('BFCM', '20%OFF', 'BFCM26'),
+    holiday: 'BFCM',
+    discountOffer: '20%OFF',
+    code: 'BFCM26',
+    officialDate: '2026-11-27',
+    country: 'US',
+    description: 'Black Friday / Cyber Monday — blanket and mask bundles at 20% off site-wide.',
+    confirmedByClient: true,
+    launched: false,
+    adsLaunchDate: '2026-11-20',
+    adsEndDate: '2026-12-02',
+    productId: PRODUCT_RESET_BUNDLE_ID,
+    legacyAirtableId: null,
+  },
+  {
+    ...propagationBase(CAMPAIGN_VDAY_ID, '2026-08-20T09:00:00.000Z', '2026-09-15T11:00:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: demoCampaignName('Valentine', '15%OFF', 'VDAY27'),
+    holiday: 'Valentine',
+    discountOffer: '15%OFF',
+    code: 'VDAY27',
+    officialDate: '2027-02-14',
+    country: 'US',
+    description: 'Valentine gift bundles — weighted blanket positioned as a couples gift.',
+    confirmedByClient: false,
+    launched: false,
+    adsLaunchDate: '2027-02-07',
+    adsEndDate: '2027-02-16',
+    productId: PRODUCT_BLANKET_ID,
+    legacyAirtableId: null,
+  },
+  {
+    ...propagationBase(CAMPAIGN_SUMMER_ID, '2026-09-01T14:00:00.000Z', '2026-09-12T16:45:00.000Z'),
+    brandId: DEMO_BRAND_ID,
+    name: demoCampaignName('Summer Sale', 'Buy 2 Get 1 Free', 'SUM26'),
+    holiday: 'Summer Sale',
+    discountOffer: 'Buy 2 Get 1 Free',
+    code: 'SUM26',
+    officialDate: '2026-07-01',
+    country: 'US',
+    description: 'Summer clearance — cooling sleep masks at BOGO pricing.',
+    confirmedByClient: true,
+    launched: true,
+    adsLaunchDate: '2026-06-25',
+    adsEndDate: '2026-07-10',
+    productId: PRODUCT_MASK_ID,
     legacyAirtableId: null,
   },
 ];

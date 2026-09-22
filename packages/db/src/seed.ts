@@ -10,6 +10,7 @@ import {
   demoAdMetrics,
   demoAssets,
   demoBrandAssignments,
+  demoCampaigns,
   demoCompetitorAds,
   demoCreatorRankings,
   demoUploadLinks,
@@ -58,11 +59,13 @@ import {
   type CreatorRanking,
   type UploadLink,
   type OnboardingForm,
+  campaignsOffers,
   competitorAds,
   creatorRankings,
   uploadLinks,
   onboardingForms,
   type Brand,
+  type CampaignOffer,
   type BrandAssignment,
   type Concept,
   type Copy,
@@ -108,6 +111,7 @@ export type SeedResult = {
   notificationSettings: NotificationSetting[];
   assets: Asset[];
   adMetrics: AdMetric[];
+  campaigns: CampaignOffer[];
   competitorAds: CompetitorAd[];
   creatorRankings: CreatorRanking[];
   uploadLinks: UploadLink[];
@@ -351,6 +355,10 @@ export async function seed(db: Db): Promise<SeedResult> {
 
   const seededAdMetrics = await scope.insert(adMetrics, demoAdMetrics.map(scoped)).returning();
 
+  const seededCampaigns = await scope
+    .insert(campaignsOffers, demoCampaigns.map(scoped))
+    .returning();
+
   const seededCompetitorAds = await scope
     .insert(competitorAds, demoCompetitorAds.map(scoped))
     .returning();
@@ -416,6 +424,7 @@ export async function seed(db: Db): Promise<SeedResult> {
     creators: seededCreators,
     assets: seededAssets,
     adMetrics: seededAdMetrics,
+    campaigns: seededCampaigns,
     competitorAds: seededCompetitorAds,
     creatorRankings: seededCreatorRankings,
     uploadLinks: seededUploadLinks,

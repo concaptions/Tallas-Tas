@@ -169,6 +169,13 @@
       "when": 1790014681244,
       "tag": "0023_talal-feedback-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790075801126,
+      "tag": "0024_campaigns-offers",
+      "breakpoints": true
     }
   ]
 }
