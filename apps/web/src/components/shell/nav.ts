@@ -5,6 +5,7 @@ import {
   adSpyPath,
   assetsPath,
   briefsPath,
+  campaignsPath,
   collectionsPath,
   competitiveResearchPath,
   creativeDimensionsPath,
@@ -103,6 +104,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Competitive Research',
         icon: 'competitive-research',
         href: competitiveResearchPath,
+      },
+      {
+        key: 'campaigns',
+        label: 'Campaigns & Offers',
+        icon: 'campaigns',
+        href: campaignsPath,
       },
       {
         key: 'onboarding-forms',

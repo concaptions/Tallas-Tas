@@ -37,6 +37,7 @@ export type IconName =
   | 'creative-dimensions'
   | 'ai-characters'
   | 'competitive-research'
+  | 'campaigns'
   | 'onboarding-forms';
 
 const PATHS: Record<IconName, string> = {
@@ -81,6 +82,8 @@ const PATHS: Record<IconName, string> = {
   'creative-dimensions': 'M21 3H3v18h18zM9 3v18M3 9h18M3 15h18M15 3v18',
   'ai-characters': 'M12 2a4 4 0 0 0-4 4v2a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4zM8.5 14h7l2 8h-11z',
   'competitive-research': 'M2 12h4l3-9 4 18 3-9h4',
+  campaigns:
+    'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM10 14l2 2 4-4',
   'onboarding-forms':
     'M9 11h6M9 15h4M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 7h6',
 };
