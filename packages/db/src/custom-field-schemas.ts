@@ -1,7 +1,12 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from './db';
-import { customFieldSchemas, type CustomFieldSchema, type NewCustomFieldSchema } from './schema';
+import {
+  brands,
+  customFieldSchemas,
+  type CustomFieldSchema,
+  type NewCustomFieldSchema,
+} from './schema';
 import { withBrand } from './tenancy';
 
 export type CustomFieldSchemaListRow = CustomFieldSchema;
@@ -48,6 +53,26 @@ export async function updateCustomFieldSchema(
     .update(customFieldSchemas, { ...updates, updatedBy: actorId }, eq(customFieldSchemas.id, id))
     .returning();
   return row;
+}
+
+/**
+ * Returns the custom field schemas that apply to a brand: either the brand's own schemas (if it is
+ * the template) or the template brand's schemas (if it is a child). This is how a child brand
+ * discovers which custom fields its content tables should render, without needing its own copy of
+ * every schema row.
+ */
+export async function listApplicableFieldSchemas(
+  db: Db,
+  brandId: string,
+  tableName?: string,
+): Promise<CustomFieldSchemaListRow[]> {
+  const [brand] = await db
+    .select({ templateBrandId: brands.templateBrandId })
+    .from(brands)
+    .where(and(eq(brands.id, brandId), isNull(brands.deletedAt)))
+    .limit(1);
+  const resolveBrandId = brand?.templateBrandId ?? brandId;
+  return listCustomFieldSchemas(db, resolveBrandId, tableName);
 }
 
 export async function softDeleteCustomFieldSchema(

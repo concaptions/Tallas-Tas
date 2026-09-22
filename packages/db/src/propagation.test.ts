@@ -2,7 +2,11 @@ import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
 import { propagationColumns } from './columns';
-import { insertCustomFieldSchema, listCustomFieldSchemas } from './custom-field-schemas';
+import {
+  insertCustomFieldSchema,
+  listApplicableFieldSchemas,
+  listCustomFieldSchemas,
+} from './custom-field-schemas';
 import { DEMO_ACTOR_ID } from './demo-data';
 import { listInterfaceConfig } from './interface-config';
 import { onboardBrand, type InterfacePageDefault } from './onboard';
@@ -372,6 +376,65 @@ describe('custom field schemas', () => {
 
     const listed = await listCustomFieldSchemas(db, brandId, 'products');
     expect(listed.some((f) => f.id === created.id)).toBe(true);
+  });
+
+  it('listApplicableFieldSchemas resolves template schemas for a child brand', async () => {
+    const { db, templateBrand, childBrand } = await seeded();
+
+    await insertCustomFieldSchema(
+      db,
+      templateBrand.id,
+      {
+        tableName: 'products',
+        fieldKey: 'favorite_color',
+        fieldType: 'text',
+        fieldLabel: 'Favorite Color',
+        options: null,
+        sortOrder: '0',
+        createdBy: DEMO_ACTOR_ID,
+        updatedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    const fromTemplate = await listApplicableFieldSchemas(db, templateBrand.id, 'products');
+    expect(fromTemplate.some((f) => f.fieldKey === 'favorite_color')).toBe(true);
+
+    const fromChild = await listApplicableFieldSchemas(db, childBrand.id, 'products');
+    expect(fromChild.some((f) => f.fieldKey === 'favorite_color')).toBe(true);
+  });
+
+  it('onboarding copies custom field schemas from template to child brand', async () => {
+    const { db, agency, templateBrand } = await seeded();
+
+    await insertCustomFieldSchema(
+      db,
+      templateBrand.id,
+      {
+        tableName: 'campaigns_offers',
+        fieldKey: 'promo_code_type',
+        fieldType: 'select',
+        fieldLabel: 'Promo Code Type',
+        options: 'fixed,percentage,bogo',
+        sortOrder: '0',
+        createdBy: DEMO_ACTOR_ID,
+        updatedBy: DEMO_ACTOR_ID,
+      },
+      DEMO_ACTOR_ID,
+    );
+
+    const { brand: newBrand } = await onboardBrand(db, {
+      agencyId: agency.id,
+      templateBrandId: templateBrand.id,
+      name: 'Test Brand With Fields',
+      slug: 'test-brand-fields',
+      actorId: DEMO_ACTOR_ID,
+      team: [],
+      interfaceDefaults: INTERFACE_DEFAULTS,
+    });
+
+    const childSchemas = await listCustomFieldSchemas(db, newBrand.id, 'campaigns_offers');
+    expect(childSchemas.some((f) => f.fieldKey === 'promo_code_type')).toBe(true);
   });
 });
 

@@ -1,11 +1,13 @@
 import { eq } from 'drizzle-orm';
 
+import { listCustomFieldSchemas } from './custom-field-schemas';
 import type { Db } from './db';
 import { seedContentFromTemplate } from './propagation';
 import {
   agencies,
   brandAssignments,
   brands,
+  customFieldSchemas,
   interfaceFields,
   interfacePages,
   memberships,
@@ -103,6 +105,7 @@ export async function onboardBrand(db: Db, input: OnboardBrandInput): Promise<On
   );
   await seedNotificationDefaults(db, brand.id, input.actorId);
   await seedContentFromTemplate(db, input.templateBrandId, brand.id, input.actorId);
+  await seedCustomFieldSchemas(db, input.templateBrandId, brand.id, input.actorId);
 
   return { brand, assignments };
 }
@@ -230,6 +233,31 @@ async function seedNotificationDefaults(db: Db, brandId: string, actorId: string
       slackEnabled: true,
       emailEnabled: false,
       position,
+      createdBy: actorId,
+      updatedBy: actorId,
+    })),
+  );
+}
+
+async function seedCustomFieldSchemas(
+  db: Db,
+  templateBrandId: string,
+  childBrandId: string,
+  actorId: string,
+): Promise<void> {
+  const templateSchemas = await listCustomFieldSchemas(db, templateBrandId);
+  if (templateSchemas.length === 0) return;
+
+  const scope = withBrand(db, childBrandId);
+  await scope.insert(
+    customFieldSchemas,
+    templateSchemas.map((schema) => ({
+      tableName: schema.tableName,
+      fieldKey: schema.fieldKey,
+      fieldType: schema.fieldType,
+      fieldLabel: schema.fieldLabel,
+      options: schema.options,
+      sortOrder: schema.sortOrder,
       createdBy: actorId,
       updatedBy: actorId,
     })),

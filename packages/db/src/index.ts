@@ -67,6 +67,7 @@ export type { CampaignInput } from './campaigns';
 export { baseColumns, propagationColumns } from './columns';
 export {
   insertCustomFieldSchema,
+  listApplicableFieldSchemas,
   listCustomFieldSchemas,
   softDeleteCustomFieldSchema,
   updateCustomFieldSchema,

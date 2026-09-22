@@ -31,6 +31,7 @@ const TABLE_OPTIONS = [
   { value: 'creative_briefs', label: 'Creative Briefs' },
   { value: 'copywriting', label: 'Copywriting' },
   { value: 'creators', label: 'Creators' },
+  { value: 'campaigns_offers', label: 'Campaigns & Offers' },
 ] as const;
 
 const FIELD_TYPE_OPTIONS = [
