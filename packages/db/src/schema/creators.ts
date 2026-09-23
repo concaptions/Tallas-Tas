@@ -131,6 +131,8 @@ export const creators = pgTable(
     continueWorkingWith: boolean('continue_working_with'),
     extensionDays: integer('extension_days').notNull().default(0),
     partnershipPricePer30Days: integer('partnership_price_per_30_days'),
+    slackNotified: boolean('slack_notified').notNull().default(false),
+    currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
     partnershipNotes: text('partnership_notes'),
     facebookProfileUrl: text('facebook_profile_url'),
     legacyAirtableId: text('legacy_airtable_id'),

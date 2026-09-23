@@ -53,6 +53,12 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     internalBrief: null,
     costUsd: 350,
     partnershipPricePer30Days: 750,
+    forPartnershipAds: true,
+    continueWorkingWith: true,
+    extensionDays: 0,
+    slackNotified: false,
+    currentPeriodStart: null,
+    partnershipNotes: null,
   },
   {
     id: 'story-without-picture',
@@ -75,6 +81,12 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     internalBrief: null,
     costUsd: null,
     partnershipPricePer30Days: null,
+    forPartnershipAds: false,
+    continueWorkingWith: null,
+    extensionDays: 0,
+    slackNotified: false,
+    currentPeriodStart: null,
+    partnershipNotes: null,
   },
 ];
 
@@ -105,6 +117,9 @@ const SAMPLE_PARTNERSHIPS: readonly PartnershipSourceRow[] = [
     partnershipActivatedAt: new Date('2026-07-22T09:00:00.000Z'),
     partnershipPeriodDays: 60,
     extensionDays: 0,
+    continueWorkingWith: true,
+    slackNotified: true,
+    currentPeriodStart: null,
   },
   {
     id: 'story-active',
@@ -114,6 +129,9 @@ const SAMPLE_PARTNERSHIPS: readonly PartnershipSourceRow[] = [
     partnershipActivatedAt: new Date('2026-07-09T09:00:00.000Z'),
     partnershipPeriodDays: 60,
     extensionDays: 30,
+    continueWorkingWith: true,
+    slackNotified: false,
+    currentPeriodStart: null,
   },
   {
     id: 'story-expired',
@@ -123,6 +141,9 @@ const SAMPLE_PARTNERSHIPS: readonly PartnershipSourceRow[] = [
     partnershipActivatedAt: new Date('2026-04-15T09:00:00.000Z'),
     partnershipPeriodDays: 30,
     extensionDays: 0,
+    continueWorkingWith: false,
+    slackNotified: true,
+    currentPeriodStart: null,
   },
   {
     id: 'story-none',
@@ -132,6 +153,9 @@ const SAMPLE_PARTNERSHIPS: readonly PartnershipSourceRow[] = [
     partnershipActivatedAt: null,
     partnershipPeriodDays: null,
     extensionDays: 0,
+    continueWorkingWith: null,
+    slackNotified: false,
+    currentPeriodStart: null,
   },
 ];
 

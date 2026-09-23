@@ -1652,6 +1652,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipNotes:
       'Whitelisted from her own handle for the Body Clock video and the r/nursing static. Expires in three days and the top ad is still spending — get the extension signed before Sunday or Meta drops the placement mid-flight. She has already said yes verbally, it is the paperwork that is late.',
     facebookProfileUrl: 'https://www.facebook.com/danielle.okonkwo.creator',
+    slackNotified: false,
+    currentPeriodStart: null,
   },
   {
     ...propagationBase(CREATOR_MARCUS_ID, '2026-06-02T10:05:00.000Z', '2026-09-15T09:25:00.000Z'),
@@ -1693,6 +1695,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipNotes:
       'Extended by 30 days in August when the thermostat creative went from testing into the always-on set. Runs from his handle on Meta only — he has no TikTok and has asked us not to repurpose the footage there. Invoice is per 30 days and does not include the content fee above.',
     facebookProfileUrl: 'https://www.facebook.com/marcus.delacroix.mtl',
+    slackNotified: false,
+    currentPeriodStart: null,
   },
   {
     ...propagationBase(CREATOR_PRIYA_ID, '2026-03-30T15:45:00.000Z', '2026-09-14T15:10:00.000Z'),
@@ -1734,6 +1738,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipNotes:
       'One 30-day whitelisting window in April that we did not renew — her handle skews too far outside the buying audience for paid, although her organic reach on the thread posts is the reason we found her. We still book her for content; the partnership itself is closed and should not be reactivated without asking her first.',
     facebookProfileUrl: null,
+    slackNotified: false,
+    currentPeriodStart: null,
   },
   {
     ...propagationBase(CREATOR_TOMAS_ID, '2026-08-28T09:10:00.000Z', '2026-09-11T08:05:00.000Z'),
@@ -1774,6 +1780,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipPricePer30Days: null,
     partnershipNotes: null,
     facebookProfileUrl: null,
+    slackNotified: false,
+    currentPeriodStart: null,
   },
   {
     ...propagationBase(CREATOR_HANNAH_ID, '2026-07-14T11:30:00.000Z', '2026-09-08T17:45:00.000Z'),
@@ -1813,6 +1821,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipPricePer30Days: null,
     partnershipNotes: null,
     facebookProfileUrl: null,
+    slackNotified: false,
+    currentPeriodStart: null,
   },
 ];
 

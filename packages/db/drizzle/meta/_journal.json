@@ -225,6 +225,13 @@
       "when": 1790444400000,
       "tag": "0031_platform-jsonb-array",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790530800000,
+      "tag": "0032_partnership-scanner-columns",
+      "breakpoints": true
     }
   ]
 }

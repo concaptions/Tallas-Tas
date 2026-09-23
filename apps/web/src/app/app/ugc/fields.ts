@@ -176,6 +176,12 @@ export interface CreatorCardRow {
   readonly internalBrief: string | null;
   readonly costUsd: number | null;
   readonly partnershipPricePer30Days: number | null;
+  readonly forPartnershipAds: boolean;
+  readonly continueWorkingWith: boolean | null;
+  readonly extensionDays: number;
+  readonly slackNotified: boolean;
+  readonly currentPeriodStart: Date | null;
+  readonly partnershipNotes: string | null;
 }
 
 /**
@@ -211,6 +217,8 @@ export const PARTNERSHIP_COLUMNS = [
   'Activated',
   'Period',
   'Countdown',
+  'Notified',
+  'Continue?',
 ] as const;
 
 /** The stored partnership columns one table row is built from, named as the columns name them. */
@@ -222,6 +230,9 @@ export interface PartnershipSourceRow {
   readonly partnershipActivatedAt: Date | null;
   readonly partnershipPeriodDays: number | null;
   readonly extensionDays: number;
+  readonly continueWorkingWith: boolean | null;
+  readonly slackNotified: boolean;
+  readonly currentPeriodStart: Date | null;
 }
 
 /** One table row, fully resolved on the server so the client never holds a second clock. */
@@ -242,6 +253,10 @@ export interface PartnershipRow {
   readonly expiryState: PartnershipExpiryState | null;
   /** `data-near-expiry="true"`: still live, inside the highlight window. Never true once lapsed. */
   readonly nearExpiry: boolean;
+  readonly notifiedLabel: string;
+  readonly notifiedTone: ChipTone;
+  readonly continueLabel: string;
+  readonly continueTone: ChipTone;
 }
 
 /**
@@ -293,6 +308,26 @@ export function countdownCellLabel(expiry: PartnershipExpiry | null): string {
   return `${base} left`;
 }
 
+export function slackNotifiedLabel(value: boolean): string {
+  return value ? 'Sent' : EM_DASH;
+}
+
+export function slackNotifiedTone(value: boolean): ChipTone {
+  return value ? 'info' : 'mute';
+}
+
+export function continueWorkingLabel(value: boolean | null): string {
+  if (value === true) return 'Yes';
+  if (value === false) return 'No';
+  return EM_DASH;
+}
+
+export function continueWorkingTone(value: boolean | null): ChipTone {
+  if (value === true) return 'ok';
+  if (value === false) return 'bad';
+  return 'mute';
+}
+
 /**
  * One stored row as the table renders it, read against the single `now` the page resolved.
  *
@@ -326,6 +361,10 @@ export function partnershipRow(row: PartnershipSourceRow, now: Date): Partnershi
     countdownTone: expiryTone(state),
     expiryState: state,
     nearExpiry: state === 'expiring',
+    notifiedLabel: slackNotifiedLabel(row.slackNotified),
+    notifiedTone: slackNotifiedTone(row.slackNotified),
+    continueLabel: continueWorkingLabel(row.continueWorkingWith),
+    continueTone: continueWorkingTone(row.continueWorkingWith),
   };
 }
 

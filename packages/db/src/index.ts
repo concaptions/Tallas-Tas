@@ -286,6 +286,15 @@ export type {
   NotificationEvent,
   ResolvedRecipient,
 } from './notification-dispatch';
+export {
+  getExpiringPartnerships,
+  getPartnershipsDueForRenewal,
+  markSlackNotified,
+  renewPartnership,
+  runPartnershipScanner,
+  SYSTEM_ACTOR,
+} from './partnership-scanner';
+export type { ScanResult } from './partnership-scanner';
 export { withBrand } from './tenancy';
 export type { BrandedTable, BrandScope, ScopedInsertValue, ScopedUpdateSet } from './tenancy';
 export type { ScopedSelect, ScopedWrite } from './tenancy';

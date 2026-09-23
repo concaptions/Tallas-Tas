@@ -43,6 +43,16 @@ const optionalInt = z
   })
   .nullable();
 
+const optionalBool = z
+  .string()
+  .trim()
+  .transform((value) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return null;
+  })
+  .nullable();
+
 const creatorSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1, 'Name is required.'),
@@ -61,6 +71,9 @@ const creatorSchema = z.object({
   internalBrief: text,
   costUsd: optionalInt,
   partnershipPricePer30Days: optionalInt,
+  continueWorkingWith: optionalBool,
+  extensionDays: optionalInt.transform((v) => v ?? 0),
+  partnershipNotes: text,
   conceptIds: z.array(z.string()),
   productIds: z.array(z.string()),
 });
@@ -87,6 +100,9 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     internalBrief: single('internalBrief'),
     costUsd: single('costUsd'),
     partnershipPricePer30Days: single('partnershipPricePer30Days'),
+    continueWorkingWith: single('continueWorkingWith'),
+    extensionDays: single('extensionDays'),
+    partnershipNotes: single('partnershipNotes'),
     conceptIds: many('conceptIds'),
     productIds: many('productIds'),
   };

@@ -43,6 +43,12 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     internalBrief: row.internalBrief,
     costUsd: row.costUsd,
     partnershipPricePer30Days: row.partnershipPricePer30Days,
+    forPartnershipAds: row.forPartnershipAds,
+    continueWorkingWith: row.continueWorkingWith,
+    extensionDays: row.extensionDays,
+    slackNotified: row.slackNotified,
+    currentPeriodStart: row.currentPeriodStart,
+    partnershipNotes: row.partnershipNotes,
   }));
 
   const rows: PartnershipRow[] = partnerships.map((row) => partnershipRow(row, now));

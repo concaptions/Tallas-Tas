@@ -89,6 +89,12 @@ export function PartnershipTable({ rows }: PartnershipTableProps) {
                 >
                   {row.countdownLabel}
                 </TableCell>
+                <TableCell data-slot="partnership-notified">
+                  <StatusChip tone={row.notifiedTone} label={row.notifiedLabel} />
+                </TableCell>
+                <TableCell data-slot="partnership-continue">
+                  <StatusChip tone={row.continueTone} label={row.continueLabel} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

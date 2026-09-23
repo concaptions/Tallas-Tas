@@ -17,7 +17,13 @@ import {
 } from '@tas/ui';
 
 import { updateCreatorAction, type CreatorActionResult } from './actions';
-import { collabDateLabel, collabStats, type CollabRow, type CreatorCardRow } from './fields';
+import {
+  collabDateLabel,
+  collabStats,
+  isoDateLabel,
+  type CollabRow,
+  type CreatorCardRow,
+} from './fields';
 
 export interface LinkOption {
   readonly id: string;
@@ -36,6 +42,12 @@ interface CreatorPanelProps {
 
 const AGE_BRACKETS = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
 const PLATFORMS = ['instagram', 'tiktok', 'youtube', 'facebook', 'twitter'] as const;
+const EXTENSION_OPTIONS = [0, 30, 60, 90] as const;
+const CONTINUE_OPTIONS = [
+  { value: '', label: 'Undecided' },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
+] as const;
 
 export function CreatorPanel({
   creator,
@@ -328,6 +340,96 @@ export function CreatorPanel({
                 </div>
               </div>
             </section>
+
+            {creator.forPartnershipAds ? (
+              <section className="flex flex-col gap-3" data-slot="partnership-section">
+                <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                  Partnership
+                </h3>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label
+                      htmlFor="creator-field-continueWorkingWith"
+                      className="text-[11px] tracking-wide text-text3 uppercase"
+                    >
+                      Continue Working With
+                    </Label>
+                    <Select
+                      defaultValue={
+                        creator.continueWorkingWith === true
+                          ? 'true'
+                          : creator.continueWorkingWith === false
+                            ? 'false'
+                            : ''
+                      }
+                      name="continueWorkingWith"
+                      disabled={demo}
+                    >
+                      <SelectTrigger id="creator-field-continueWorkingWith" className="w-full">
+                        <SelectValue placeholder="Undecided" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONTINUE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value || '_undecided'}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label
+                      htmlFor="creator-field-extensionDays"
+                      className="text-[11px] tracking-wide text-text3 uppercase"
+                    >
+                      Extension Days
+                    </Label>
+                    <Select
+                      defaultValue={String(creator.extensionDays)}
+                      name="extensionDays"
+                      disabled={demo}
+                    >
+                      <SelectTrigger id="creator-field-extensionDays" className="w-full">
+                        <SelectValue placeholder="0" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXTENSION_OPTIONS.map((days) => (
+                          <SelectItem key={days} value={String(days)}>
+                            {days === 0 ? 'None' : `${String(days)} days`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {textField('partnershipNotes', 'Partnership Notes', creator.partnershipNotes, {
+                    readOnly: demo,
+                  })}
+
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] tracking-wide text-text3 uppercase">
+                        Slack Notified
+                      </span>
+                      <span className="font-mono text-sm text-text2">
+                        {creator.slackNotified ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    {creator.currentPeriodStart !== null ? (
+                      <div className="flex flex-col">
+                        <span className="text-[11px] tracking-wide text-text3 uppercase">
+                          Renewed At
+                        </span>
+                        <span className="font-mono text-sm text-text2">
+                          {isoDateLabel(creator.currentPeriodStart)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
             <section className="flex flex-col gap-3">
               <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">

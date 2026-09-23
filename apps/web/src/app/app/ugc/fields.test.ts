@@ -4,6 +4,8 @@ import { PARTNERSHIP_REFERENCE_DATE } from '@tas/db';
 import {
   collabDateLabel,
   collabStats,
+  continueWorkingLabel,
+  continueWorkingTone,
   countdownCellLabel,
   creatorInitials,
   creatorTracks,
@@ -18,6 +20,8 @@ import {
   periodLabel,
   creatorCountLabel,
   partnershipCountLabel,
+  slackNotifiedLabel,
+  slackNotifiedTone,
   tabFromParam,
   UGC_TABS,
   type CollabRow,
@@ -128,6 +132,9 @@ describe('partnershipRow', () => {
     partnershipActivatedAt: new Date('2026-07-22T09:00:00.000Z'),
     partnershipPeriodDays: 60,
     extensionDays: 0,
+    continueWorkingWith: true,
+    slackNotified: false,
+    currentPeriodStart: null,
   };
 
   it('reads the fixture three-day row as three days left, highlighted', () => {
@@ -199,6 +206,30 @@ describe('partnershipRow', () => {
     expect(row.expiryState).toBeNull();
     expect(row.countdownTone).toBe('mute');
     expect(row.nearExpiry).toBe(false);
+  });
+
+  it('maps scanner state to the notified and continue columns', () => {
+    const row = partnershipRow(danielle, PARTNERSHIP_REFERENCE_DATE);
+    expect(row.notifiedLabel).toBe('—');
+    expect(row.notifiedTone).toBe('mute');
+    expect(row.continueLabel).toBe('Yes');
+    expect(row.continueTone).toBe('ok');
+
+    const notified = partnershipRow(
+      { ...danielle, id: 'e', slackNotified: true, continueWorkingWith: false },
+      PARTNERSHIP_REFERENCE_DATE,
+    );
+    expect(notified.notifiedLabel).toBe('Sent');
+    expect(notified.notifiedTone).toBe('info');
+    expect(notified.continueLabel).toBe('No');
+    expect(notified.continueTone).toBe('bad');
+
+    const undecided = partnershipRow(
+      { ...danielle, id: 'f', continueWorkingWith: null },
+      PARTNERSHIP_REFERENCE_DATE,
+    );
+    expect(undecided.continueLabel).toBe('—');
+    expect(undecided.continueTone).toBe('mute');
   });
 });
 
@@ -306,5 +337,29 @@ describe('collabDateLabel', () => {
       makeCollab({ startDate: new Date('2026-09-15T08:30:00.000Z'), endDate: null }),
     );
     expect(label).toBe('2026-09-15 → ongoing');
+  });
+});
+
+describe('scanner state helpers', () => {
+  it('slackNotifiedLabel returns Sent when true, em dash when false', () => {
+    expect(slackNotifiedLabel(true)).toBe('Sent');
+    expect(slackNotifiedLabel(false)).toBe('—');
+  });
+
+  it('slackNotifiedTone returns info when notified, mute when not', () => {
+    expect(slackNotifiedTone(true)).toBe('info');
+    expect(slackNotifiedTone(false)).toBe('mute');
+  });
+
+  it('continueWorkingLabel covers the three states', () => {
+    expect(continueWorkingLabel(true)).toBe('Yes');
+    expect(continueWorkingLabel(false)).toBe('No');
+    expect(continueWorkingLabel(null)).toBe('—');
+  });
+
+  it('continueWorkingTone maps to the right chip tones', () => {
+    expect(continueWorkingTone(true)).toBe('ok');
+    expect(continueWorkingTone(false)).toBe('bad');
+    expect(continueWorkingTone(null)).toBe('mute');
   });
 });
