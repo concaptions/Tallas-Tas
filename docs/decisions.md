@@ -500,6 +500,19 @@ them, which is also what makes the refusal testable without Clerk. The demo bran
 untouched and still returns before any connection is opened. No dependency was added and no service
 cost changes.
 
+## D-030 · 2026-09-23 · `@tas/integrations` Slack and Resend wrappers (no new npm dependencies)
+
+Sprint 7 notification dispatch creates `packages/integrations` (`@tas/integrations`) with Slack DM and
+Resend email delivery wrappers. Both use `fetch()` directly against the vendor REST APIs
+(`chat.postMessage`, Resend `/emails`) rather than adding `@slack/web-api` or `resend` as npm
+dependencies. Why: the calls are single-endpoint POSTs, the SDK features (retry, pagination, rate
+limiting) are handled by the Inngest job layer when it arrives (D-023), and no credentials exist on
+the development machine so no integration can run until the human provisions them. When credentials
+are absent (`SLACK_BOT_TOKEN` / `RESEND_API_KEY` undefined), both wrappers return `{ sent: false }`
+with a descriptive error — no throw, no side effect. The `inngest` npm package and the Inngest serve
+route (planned in D-023) are deferred to when the propagation engine's Inngest functions land; the
+notification log table's `queued` status is the hand-off point. No hosted service cost.
+
 ## D-010 · 2026-09-22 · @dnd-kit for Kanban drag-and-drop
 
 Sprint 5 adds a Kanban view with drag-and-drop card movement between columns. `@dnd-kit/core` +

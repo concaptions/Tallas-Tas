@@ -2,7 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { getBriefById, insertAnnotation, insertComment, listComments, updateBrief } from '@tas/db';
+import {
+  fireNotification,
+  getBriefById,
+  insertAnnotation,
+  insertComment,
+  listComments,
+  updateBrief,
+} from '@tas/db';
 import { canTransitionClient, clientQueueAction, isClientTrackOpen } from '@tas/domain/state';
 import { z } from 'zod';
 
@@ -214,9 +221,18 @@ export async function approveRecordAction(
       }
 
       const saved = await updateBrief(db, brandId, id, { clientStatus: action.to }, actor);
-      return saved === null
-        ? failure('That creative is no longer available.')
-        : { ok: true as const, savedAt: Date.now() };
+      if (saved === null) return failure('That creative is no longer available.');
+
+      await fireNotification(db, brandId, actor, {
+        triggerKey: 'client_approved',
+        brandId,
+        subjectType: 'Brief',
+        subjectName: saved.name,
+        actorName: actor,
+        deepLink: `/app/briefs/${encodeURIComponent(id)}`,
+      });
+
+      return { ok: true as const, savedAt: Date.now() };
     });
 
     if (outcome === null) return failure('No workspace found.');
@@ -261,9 +277,18 @@ export async function requestRevisionsAction(
       }
 
       const saved = await updateBrief(db, brandId, id, { clientStatus: action.to }, actor);
-      return saved === null
-        ? failure('That creative is no longer available.')
-        : { ok: true as const, savedAt: Date.now() };
+      if (saved === null) return failure('That creative is no longer available.');
+
+      await fireNotification(db, brandId, actor, {
+        triggerKey: 'client_requested_revisions',
+        brandId,
+        subjectType: 'Brief',
+        subjectName: saved.name,
+        actorName: actor,
+        deepLink: `/app/briefs/${encodeURIComponent(id)}`,
+      });
+
+      return { ok: true as const, savedAt: Date.now() };
     });
 
     if (outcome === null) return failure('No workspace found.');

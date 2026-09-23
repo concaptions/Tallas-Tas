@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { getBriefById, updateBrief } from '@tas/db';
+import { fireNotification, getBriefById, updateBrief } from '@tas/db';
 import {
   canTransitionClient,
   clientQueueAction,
@@ -135,9 +135,20 @@ async function moveClientStatus(
       }
 
       const saved = await updateBrief(db, brandId, id, { clientStatus: action.to }, actor);
-      return saved === null
-        ? failure('That creative is no longer available.')
-        : { ok: true as const, id: saved.id, clientStatus: action.to, savedAt: Date.now() };
+      if (saved === null) return failure('That creative is no longer available.');
+
+      const triggerKey =
+        key === 'approve' ? ('client_approved' as const) : ('client_requested_revisions' as const);
+      await fireNotification(db, brandId, actor, {
+        triggerKey,
+        brandId,
+        subjectType: 'Brief',
+        subjectName: saved.name,
+        actorName: actor,
+        deepLink: briefPath(saved.id),
+      });
+
+      return { ok: true as const, id: saved.id, clientStatus: action.to, savedAt: Date.now() };
     });
 
     if (outcome === null) {

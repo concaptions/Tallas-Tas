@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
+  fireNotification,
   getBriefById,
   getConceptById,
   insertBrief,
@@ -505,6 +506,14 @@ export async function createBriefAction(
       const sequence = nextSequence(await listBriefs(db, brandId), values.funnel, values.type);
       const input = toInput(values, concept, sequence, internal, client, 'TAS');
       const created = await insertBrief(db, brandId, input, actor);
+      await fireNotification(db, brandId, actor, {
+        triggerKey: 'brief_assigned',
+        brandId,
+        subjectType: 'Brief',
+        subjectName: created.name,
+        actorName: actor,
+        deepLink: briefPath(created.id),
+      });
       return { ok: true as const, id: created.id, name: created.name, savedAt: Date.now() };
     });
 
@@ -621,6 +630,32 @@ export async function updateBriefAction(
       if (saved === null) {
         return { ok: false as const, error: 'That brief is no longer available.' };
       }
+
+      if (internal !== wasInternal) {
+        const isRevision = internal === 'videos_revisions' || internal === 'images_revisions';
+        const triggerKey = isRevision
+          ? ('internal_revisions_requested' as const)
+          : ('ad_submitted' as const);
+        await fireNotification(db, brandId, actor, {
+          triggerKey,
+          brandId,
+          subjectType: 'Brief',
+          subjectName: saved.name,
+          actorName: actor,
+          deepLink: briefPath(saved.id),
+        });
+      }
+      if (client !== wasClient && client === 'launched') {
+        await fireNotification(db, brandId, actor, {
+          triggerKey: 'creative_ready_to_launch',
+          brandId,
+          subjectType: 'Brief',
+          subjectName: saved.name,
+          actorName: actor,
+          deepLink: briefPath(saved.id),
+        });
+      }
+
       return { ok: true as const, id: saved.id, name: saved.name, savedAt: Date.now() };
     });
 

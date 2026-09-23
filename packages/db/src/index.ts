@@ -271,13 +271,21 @@ export {
   type OnboardBrandResult,
 } from './onboard';
 export {
+  dispatchNotification,
+  fireNotification,
   getChannelSettings,
   logNotification,
   markNotificationFailed,
   markNotificationSent,
   resolveRecipients,
 } from './notification-dispatch';
-export type { LogNotificationInput, ResolvedRecipient } from './notification-dispatch';
+export type {
+  DispatchResult,
+  FireNotificationParams,
+  LogNotificationInput,
+  NotificationEvent,
+  ResolvedRecipient,
+} from './notification-dispatch';
 export { withBrand } from './tenancy';
 export type { BrandedTable, BrandScope, ScopedInsertValue, ScopedUpdateSet } from './tenancy';
 export type { ScopedSelect, ScopedWrite } from './tenancy';

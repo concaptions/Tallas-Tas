@@ -1,0 +1,18 @@
+{
+  "name": "@tas/integrations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./slack": "./src/slack.ts",
+    "./resend": "./src/resend.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tas/env": "workspace:*"
+  }
+}

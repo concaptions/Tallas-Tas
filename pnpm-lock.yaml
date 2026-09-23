@@ -300,6 +300,12 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
 
+  packages/integrations:
+    dependencies:
+      '@tas/env':
+        specifier: workspace:*
+        version: link:../env
+
   packages/ui:
     dependencies:
       '@radix-ui/react-dialog':

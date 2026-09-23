@@ -2,7 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { insertCollaboration, updateCollaboration, type CollaborationInput } from '@tas/db';
+import {
+  fireNotification,
+  getCollaborationById,
+  insertCollaboration,
+  updateCollaboration,
+  type CollaborationInput,
+} from '@tas/db';
 import { z } from 'zod';
 
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
@@ -141,7 +147,10 @@ export async function updateCollabAction(
     if (actor === null) {
       return { ok: false, error: 'Your session has expired. Sign in again to save.' };
     }
-    const saved = await withBrandScope(async (db, brandId) => {
+    const result = await withBrandScope(async (db, brandId) => {
+      const old = await getCollaborationById(db, brandId, id);
+      if (old === null) return null;
+
       const patch: Partial<CollaborationInput> = {
         conceptId: parsed.data.conceptId,
         briefId: parsed.data.briefId,
@@ -153,13 +162,27 @@ export async function updateCollabAction(
         assetsStatus: parsed.data.assetsStatus,
         notes: parsed.data.notes,
       };
-      return updateCollaboration(db, brandId, id, patch, actor);
+      const saved = await updateCollaboration(db, brandId, id, patch, actor);
+      if (saved === null) return null;
+
+      if (parsed.data.internalStatus !== old.internalStatus) {
+        await fireNotification(db, brandId, actor, {
+          triggerKey: 'creator_status_changed',
+          brandId,
+          subjectType: 'Collaboration',
+          subjectName: id,
+          actorName: actor,
+          deepLink: ugcPath,
+        });
+      }
+
+      return saved;
     });
-    if (saved === null) {
+    if (result === null) {
       return { ok: false, error: 'That collaboration is no longer available.' };
     }
     revalidatePath(ugcPath);
-    return { ok: true, id: saved.id, savedAt: Date.now() };
+    return { ok: true, id: result.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The collaboration could not be saved. Try again.' };
   }
