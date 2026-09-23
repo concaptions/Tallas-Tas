@@ -45,6 +45,77 @@ function brandScope(brandId: string) {
   };
 }
 
+// ─── Themes (global library, not brand-scoped) ────────────────────────────
+
+export interface ClientTheme {
+  id: string;
+  name: string;
+  category: string;
+  isActive: boolean;
+}
+
+export async function clientThemes(db: Db): Promise<ClientTheme[]> {
+  return db
+    .select({
+      id: themes.id,
+      name: themes.name,
+      category: themes.category,
+      isActive: themes.isActive,
+    })
+    .from(themes)
+    .where(isNull(themes.deletedAt))
+    .orderBy(asc(themes.createdAt));
+}
+
+// ─── Angles (brand-scoped) ─────────────────────────────────────────────────
+
+export interface ClientAngle {
+  id: string;
+  name: string;
+  description: string | null;
+  winning: boolean;
+  personaNames: string[];
+  productNames: string[];
+}
+
+export async function clientAngles(db: Db, brandId: string): Promise<ClientAngle[]> {
+  const [angleRows, personaRows, productRows, apMap, aprMap] = await Promise.all([
+    db
+      .select({
+        id: angles.id,
+        name: angles.name,
+        description: angles.description,
+        winning: angles.winning,
+      })
+      .from(angles)
+      .where(and(eq(angles.brandId, brandId), isNull(angles.deletedAt)))
+      .orderBy(asc(angles.createdAt)),
+    db
+      .select({ id: personas.id, name: personas.name })
+      .from(personas)
+      .where(and(eq(personas.brandId, brandId), isNull(personas.deletedAt))),
+    db
+      .select({ id: products.id, name: products.name })
+      .from(products)
+      .where(and(eq(products.brandId, brandId), isNull(products.deletedAt))),
+    loadAllAnglePersonas(db),
+    loadAllAngleProducts(db),
+  ]);
+
+  const personaMap = new Map(personaRows.map((p) => [p.id, p.name]));
+  const productMap = new Map(productRows.map((p) => [p.id, p.name]));
+
+  return angleRows.map((a) => ({
+    ...a,
+    personaNames: (apMap.get(a.id) ?? [])
+      .map((pid) => personaMap.get(pid))
+      .filter((n): n is string => n !== undefined),
+    productNames: (aprMap.get(a.id) ?? [])
+      .map((pid) => productMap.get(pid))
+      .filter((n): n is string => n !== undefined),
+  }));
+}
+
 // ─── Page 1: Concepts ───────────────────────────────────────────────────────
 
 export interface ClientConcept {

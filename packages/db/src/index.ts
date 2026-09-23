@@ -21,6 +21,10 @@ export {
   updateCreatorRanking,
 } from './creator-rankings';
 export type { CreatorRankingInput, CreatorRankingListRow } from './creator-rankings';
+export { insertAnnotation } from './annotation-queries';
+export type { AnnotationInput } from './annotation-queries';
+export { insertComment } from './comment-queries';
+export type { CommentInput } from './comment-queries';
 export { importAirtableExport } from './airtable-import';
 export { getAssetById, insertAsset, listAssets, listConceptAssets, updateAsset } from './assets';
 export type { AssetInput, AssetListRow } from './assets';
@@ -182,17 +186,20 @@ export {
   demoUsers,
 } from './demo-data';
 export {
+  clientAngles,
   clientCalendarEvents,
   clientConcepts,
   clientCopywriting,
   clientCreatives,
   clientCreators,
   clientPartnershipAds,
+  clientThemes,
   clientVisibleFields,
   listAnnotations,
   listComments,
 } from './client-queries';
 export type {
+  ClientAngle,
   ClientAnnotation,
   ClientCalendarEvent,
   ClientComment,
@@ -201,6 +208,7 @@ export type {
   ClientCreative,
   ClientCreator,
   ClientPartnershipAd,
+  ClientTheme,
   VisibleField,
 } from './client-queries';
 export type { DemoBrand } from './demo-data';

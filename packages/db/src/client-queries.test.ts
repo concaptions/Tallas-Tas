@@ -2,16 +2,20 @@ import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
 import {
+  clientAngles,
   clientCalendarEvents,
   clientConcepts,
   clientCopywriting,
   clientCreatives,
   clientCreators,
   clientPartnershipAds,
+  clientThemes,
   clientVisibleFields,
   listAnnotations,
   listComments,
 } from './client-queries';
+import { insertAnnotation } from './annotation-queries';
+import { insertComment } from './comment-queries';
 import {
   annotations,
   comments,
@@ -502,5 +506,182 @@ describe('soft-deleted rows are excluded', () => {
     const after = await clientConcepts(db, brandId);
     expect(before.length).toBeGreaterThan(0);
     expect(after).toHaveLength(0);
+  });
+});
+
+// ─── clientThemes (global library) ────────────────────────────────────────
+
+describe('clientThemes', () => {
+  it('returns global themes with only safe fields', async () => {
+    const { db } = await seeded();
+    const rows = await clientThemes(db);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(Object.keys(row).sort()).toEqual(['category', 'id', 'isActive', 'name']);
+    }
+  });
+
+  it('excludes soft-deleted themes', async () => {
+    const { db } = await seeded();
+    const before = await clientThemes(db);
+    const { themes } = await import('./schema');
+    await db.update(themes).set({ deletedAt: new Date() });
+    const after = await clientThemes(db);
+    expect(before.length).toBeGreaterThan(0);
+    expect(after).toHaveLength(0);
+  });
+});
+
+// ─── clientAngles (brand-scoped with junctions) ───────────────────────────
+
+const ANGLE_ALLOWED_KEYS = ['id', 'name', 'description', 'winning', 'personaNames', 'productNames'];
+
+describe('clientAngles', () => {
+  it('returns brand-scoped angles with ONLY safe fields', async () => {
+    const { db, brandId } = await seeded();
+    const rows = await clientAngles(db, brandId);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(Object.keys(row).sort()).toEqual([...ANGLE_ALLOWED_KEYS].sort());
+      expect(Array.isArray(row.personaNames)).toBe(true);
+      expect(Array.isArray(row.productNames)).toBe(true);
+    }
+  });
+
+  it('returns empty for unknown brand', async () => {
+    const { db } = await seeded();
+    const rows = await clientAngles(db, '00000000-0000-0000-0000-000000000000');
+    expect(rows).toEqual([]);
+  });
+});
+
+// ─── insertAnnotation ─────────────────────────────────────────────────────
+
+describe('insertAnnotation', () => {
+  it('inserts a video_timestamp annotation and can list it', async () => {
+    const { db, brandId } = await seeded();
+    const ann = await insertAnnotation(
+      db,
+      brandId,
+      {
+        recordType: 'creative_brief',
+        recordId: '77777777-7777-4777-8777-000000000001',
+        authorId: 'test-actor',
+        authorName: 'Test Actor',
+        kind: 'video_timestamp',
+        timestampSeconds: 42.5,
+        x: null,
+        y: null,
+        body: 'Fix audio here',
+      },
+      'test-actor',
+    );
+
+    expect(ann.kind).toBe('video_timestamp');
+    expect(ann.timestampSeconds).toBeCloseTo(42.5);
+
+    const listed = await listAnnotations(
+      db,
+      brandId,
+      'creative_brief',
+      '77777777-7777-4777-8777-000000000001',
+    );
+    expect(listed.some((r) => r.id === ann.id)).toBe(true);
+  });
+
+  it('inserts an image_xy annotation', async () => {
+    const { db, brandId } = await seeded();
+    const ann = await insertAnnotation(
+      db,
+      brandId,
+      {
+        recordType: 'creative_brief',
+        recordId: '77777777-7777-4777-8777-000000000002',
+        authorId: 'test-actor',
+        authorName: 'Test Actor',
+        kind: 'image_xy',
+        timestampSeconds: null,
+        x: 0.25,
+        y: 0.75,
+        body: 'Adjust colour here',
+      },
+      'test-actor',
+    );
+
+    expect(ann.kind).toBe('image_xy');
+    expect(ann.x).toBeCloseTo(0.25);
+    expect(ann.y).toBeCloseTo(0.75);
+  });
+});
+
+// ─── insertComment ────────────────────────────────────────────────────────
+
+describe('insertComment', () => {
+  it('inserts a top-level comment and can list it', async () => {
+    const { db, brandId } = await seeded();
+    const comment = await insertComment(
+      db,
+      brandId,
+      {
+        recordType: 'creative_brief',
+        recordId: '77777777-7777-4777-8777-000000000001',
+        parentCommentId: null,
+        authorId: 'test-actor',
+        authorName: 'Test Actor',
+        body: 'Looks great!',
+      },
+      'test-actor',
+    );
+
+    expect(comment.parentCommentId).toBeNull();
+    expect(comment.body).toBe('Looks great!');
+
+    const listed = await listComments(
+      db,
+      brandId,
+      'creative_brief',
+      '77777777-7777-4777-8777-000000000001',
+    );
+    expect(listed.some((r) => r.id === comment.id)).toBe(true);
+  });
+
+  it('inserts a threaded reply linking to parent', async () => {
+    const { db, brandId } = await seeded();
+    const parent = await insertComment(
+      db,
+      brandId,
+      {
+        recordType: 'creative_brief',
+        recordId: '77777777-7777-4777-8777-000000000003',
+        parentCommentId: null,
+        authorId: 'user-a',
+        authorName: 'User A',
+        body: 'Top-level',
+      },
+      'user-a',
+    );
+
+    const reply = await insertComment(
+      db,
+      brandId,
+      {
+        recordType: 'creative_brief',
+        recordId: '77777777-7777-4777-8777-000000000003',
+        parentCommentId: parent.id,
+        authorId: 'user-b',
+        authorName: 'User B',
+        body: 'Reply',
+      },
+      'user-b',
+    );
+
+    expect(reply.parentCommentId).toBe(parent.id);
+    const listed = await listComments(
+      db,
+      brandId,
+      'creative_brief',
+      '77777777-7777-4777-8777-000000000003',
+    );
+    expect(listed).toHaveLength(2);
   });
 });

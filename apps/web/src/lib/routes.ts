@@ -90,6 +90,14 @@ export function creatorRankingDetailPath(id: string): string {
   return `${creatorRankingPath}/${encodeURIComponent(id)}`;
 }
 export const clientPortalPath = '/client';
+
+export function clientBrandPath(slug: string): string {
+  return `${clientPortalPath}/${encodeURIComponent(slug)}`;
+}
+
+export function clientBrandPagePath(slug: string, page: string): string {
+  return `${clientBrandPath(slug)}/${encodeURIComponent(page)}`;
+}
 export const designSystemPath = '/design-system';
 
 /**
@@ -111,7 +119,7 @@ export function briefPath(id: string): string {
 }
 
 /** Public trees: the path itself and everything below it (`/sign-in/factor-one`). */
-const publicTrees = [signInPath, signUpPath];
+const publicTrees = [signInPath, signUpPath, clientPortalPath];
 
 /** `/`, `/sign-in(.*)` and `/sign-up(.*)` are public; every other path is protected. */
 export function isPublicPath(pathname: string): boolean {
