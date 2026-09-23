@@ -74,7 +74,7 @@ describe('migration 0008 on PGlite', () => {
       ageBracket: null,
       gender: null,
       profilePicUrl: null,
-      platform: null,
+      platform: [],
       dateOfManagement: null,
       deadline: null,
       budgetPer60s: null,
@@ -215,7 +215,7 @@ describe('creator queries', () => {
     const smuggled = {
       name: 'Smuggled creator',
       brandId: otherBrandId,
-      platform: 'Billo',
+      platform: ['Billo'],
     } as unknown as CreatorInput;
 
     const row = await insertCreator(db, brandId, smuggled, 'user_test');
@@ -223,7 +223,7 @@ describe('creator queries', () => {
     expect(row).toMatchObject({
       brandId,
       name: 'Smuggled creator',
-      platform: 'Billo',
+      platform: ['Billo'],
       createdBy: 'user_test',
       updatedBy: 'user_test',
     });
@@ -297,11 +297,11 @@ describe('the partnership fixtures', () => {
     expect(new Set(demoCreators.map((row) => row.clientStatus)).size).toBe(5);
     expect(new Set(demoCreators.map((row) => row.ageBracket)).size).toBe(5);
     expect(demoCreators.map((row) => row.platform)).toEqual([
-      'Direct Management',
-      'Insense',
-      'Billo',
-      'Fiverr',
-      'Backstage',
+      ['Direct Management'],
+      ['Insense'],
+      ['Billo'],
+      ['Fiverr'],
+      ['Backstage'],
     ]);
     expect(new Set(demoCreators.map((row) => row.gender)).size).toBeGreaterThan(2);
   });

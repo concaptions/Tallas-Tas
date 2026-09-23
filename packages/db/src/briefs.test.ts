@@ -382,7 +382,9 @@ describe('brief fixtures', () => {
       expect(creativeFunnels).toContain(row.funnel);
       expect(creativeTypes).toContain(row.type);
       expect(creativePriorities).toContain(row.priority);
-      expect(creativePlatforms).toContain(row.platform);
+      for (const p of row.platform) {
+        expect(creativePlatforms).toContain(p);
+      }
       expect(row.inspoLinks.every((link) => link.startsWith('https://'))).toBe(true);
       expect(row.brandId).toBe(DEMO_BRAND_ID);
       // Every id is a hardcoded uuid, so the seed's foreign keys survive a restart.

@@ -142,7 +142,7 @@ export interface ClientCreative {
   designFile: string[] | null;
   inspirationImage: string[] | null;
   clientStatus: string;
-  platform: string | null;
+  platform: string[];
   performance: string | null;
 }
 

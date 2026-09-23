@@ -230,7 +230,7 @@ export function CreatorPanel({
                     Platform
                   </Label>
                   <Select
-                    defaultValue={creator.platform ?? undefined}
+                    defaultValue={creator.platform[0] ?? undefined}
                     name="platform"
                     disabled={demo}
                   >

@@ -80,7 +80,7 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
         funnel: row.funnel,
         type: row.type,
         source: row.source,
-        platform: row.platform ?? '',
+        platform: row.platform.join(', '),
         language: row.language ?? '',
       },
       galleryImageUrl: firstDesign ?? firstInspo,

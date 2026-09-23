@@ -9,7 +9,7 @@ import { approveCreativeAction, requestRevisionsAction } from './actions';
 interface ClientBrief {
   readonly id: string;
   readonly name: string;
-  readonly platform: string | null;
+  readonly platform: string[];
   readonly clientStatus: string;
   readonly clientStatusLabel: string;
   readonly clientStatusTone: 'ok' | 'warn' | 'bad' | 'info' | 'accent' | 'mute';
@@ -44,7 +44,9 @@ export function ClientCard({
         <h3 className="truncate font-mono text-sm text-text">{brief.name}</h3>
         <StatusChip tone={brief.clientStatusTone} label={brief.clientStatusLabel} />
       </div>
-      {brief.platform ? <p className="text-xs text-text3">{brief.platform}</p> : null}
+      {brief.platform.length > 0 ? (
+        <p className="text-xs text-text3">{brief.platform.join(', ')}</p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
         {brief.canApprove ? (

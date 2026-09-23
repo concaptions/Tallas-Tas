@@ -160,7 +160,7 @@ export interface CreatorCardRow {
   readonly name: string;
   readonly gender: string | null;
   readonly ageBracket: string | null;
-  readonly platform: string | null;
+  readonly platform: string[];
   readonly profilePicUrl: string | null;
   readonly videoIntroUrl: string | null;
   readonly internalCreatorStatus: string;
@@ -194,9 +194,10 @@ export function identityLine(row: Pick<CreatorCardRow, 'gender' | 'ageBracket'>)
   return parts.length === 0 ? EM_DASH : parts.join(' · ');
 }
 
-/** The platform chip's label: a proper noun from `@tas/domain/creators`, never a typed string. */
-export function platformChipLabel(platform: string | null): string {
-  return creatorPlatformLabel(platform);
+/** The platform chip's label: proper nouns from `@tas/domain/creators`, joined for multi-select. */
+export function platformChipLabel(platform: string[]): string {
+  if (platform.length === 0) return creatorPlatformLabel(null);
+  return platform.map((p) => creatorPlatformLabel(p)).join(', ');
 }
 
 /**

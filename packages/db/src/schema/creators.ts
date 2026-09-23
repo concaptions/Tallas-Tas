@@ -97,7 +97,7 @@ export const creators = pgTable(
     profilePicUrl: text('profile_pic_url'),
     videoIntroUrl: text('video_intro_url'),
     creatorLink: text('creator_link'),
-    platform: text('platform').$type<CreatorPlatform>(),
+    platform: jsonb('platform').$type<CreatorPlatform[]>().notNull().default([]),
     internalBrief: text('internal_brief'),
     shippingLocation: text('shipping_location'),
     trackingNumber: text('tracking_number'),

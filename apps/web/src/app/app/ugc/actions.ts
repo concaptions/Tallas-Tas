@@ -49,7 +49,11 @@ const creatorSchema = z.object({
   gender: text,
   ethnicity: text,
   ageBracket: text,
-  platform: text,
+  platform: z
+    .string()
+    .trim()
+    .transform((value) => (value === '' ? [] : [value]))
+    .pipe(z.array(z.string())),
   creatorLink: text,
   shippingLocation: text,
   trackingNumber: text,

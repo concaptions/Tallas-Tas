@@ -2,7 +2,10 @@ import { boolean, index, integer, jsonb, pgTable, text, uuid } from 'drizzle-orm
 
 import { baseColumns, propagationColumns } from '../columns';
 import { angles } from './angles';
+import { assets } from './assets';
 import { brands } from './brands';
+import { campaignsOffers } from './campaigns';
+import { collections } from './collections';
 import { concepts } from './concepts';
 import { products } from './products';
 import type {
@@ -71,6 +74,9 @@ export const creativeBriefs = pgTable(
     conceptId: uuid('concept_id').references(() => concepts.id),
     angleId: uuid('angle_id').references(() => angles.id),
     productId: uuid('product_id').references(() => products.id),
+    collectionId: uuid('collection_id').references(() => collections.id),
+    campaignOfferId: uuid('campaign_offer_id').references(() => campaignsOffers.id),
+    assetId: uuid('asset_id').references(() => assets.id),
     name: text('name').notNull(),
     batch: text('batch'),
     source: text('source').$type<CreativeSource>().notNull().default('TAS'),
@@ -85,7 +91,7 @@ export const creativeBriefs = pgTable(
     elementsTested: text('elements_tested'),
     inspoLinks: jsonb('inspo_links').$type<string[]>().notNull().default([]),
     dimensions: jsonb('dimensions').$type<string[]>().notNull().default([]),
-    platform: text('platform').$type<CreativePlatform>(),
+    platform: jsonb('platform').$type<CreativePlatform[]>().notNull().default([]),
     designFileUrl: text('design_file_url'),
     qaVideoEditor: boolean('qa_video_editor').notNull().default(false),
     qaDesigner: boolean('qa_designer').notNull().default(false),
