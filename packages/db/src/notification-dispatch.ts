@@ -173,10 +173,10 @@ export async function dispatchNotification(
     return { logIds: [], skipped: true, reason: `Unknown trigger: ${event.triggerKey}` };
   }
 
-  const settings = await getChannelSettings(db, event.brandId, event.triggerKey);
-  if (!settings) {
-    return { logIds: [], skipped: true, reason: 'No notification settings for this brand/trigger' };
-  }
+  const settings = (await getChannelSettings(db, event.brandId, event.triggerKey)) ?? {
+    slackEnabled: true,
+    emailEnabled: false,
+  };
 
   if (!settings.slackEnabled && !settings.emailEnabled) {
     return { logIds: [], skipped: true, reason: 'Both channels disabled' };

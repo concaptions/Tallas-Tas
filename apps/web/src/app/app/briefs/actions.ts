@@ -633,17 +633,27 @@ export async function updateBriefAction(
 
       if (internal !== wasInternal) {
         const isRevision = internal === 'videos_revisions' || internal === 'images_revisions';
-        const triggerKey = isRevision
-          ? ('internal_revisions_requested' as const)
-          : ('ad_submitted' as const);
-        await fireNotification(db, brandId, actor, {
-          triggerKey,
-          brandId,
-          subjectType: 'Brief',
-          subjectName: saved.name,
-          actorName: actor,
-          deepLink: briefPath(saved.id),
-        });
+        const isSubmitted = internal === 'ad_submitted' || internal === 'revisions_submitted';
+
+        if (isRevision) {
+          await fireNotification(db, brandId, actor, {
+            triggerKey: 'internal_revisions_requested',
+            brandId,
+            subjectType: 'Brief',
+            subjectName: saved.name,
+            actorName: actor,
+            deepLink: briefPath(saved.id),
+          });
+        } else if (isSubmitted) {
+          await fireNotification(db, brandId, actor, {
+            triggerKey: 'ad_submitted',
+            brandId,
+            subjectType: 'Brief',
+            subjectName: saved.name,
+            actorName: actor,
+            deepLink: briefPath(saved.id),
+          });
+        }
       }
       if (client !== wasClient && client === 'launched') {
         await fireNotification(db, brandId, actor, {

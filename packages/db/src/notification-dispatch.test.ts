@@ -213,13 +213,17 @@ describe('dispatchNotification', () => {
     expect(result.reason).toContain('Unknown trigger');
   });
 
-  it('skips for a brand with no notification settings', async () => {
+  it('defaults to slack-enabled when brand has no notification settings row', async () => {
     const { db } = await seeded();
     const event = makeEvent({ brandId: '00000000-0000-0000-0000-000000000000' });
 
     const result = await dispatchNotification(db, event, DEMO_ACTOR_ID);
 
+    // No users are assigned to this non-existent brand, so recipients are empty → skipped.
+    // The important thing is it did NOT skip because of missing settings — it got past that
+    // check and only skipped because there are no recipients.
     expect(result.skipped).toBe(true);
+    expect(result.reason).toBe('No recipients matched the trigger roles');
   });
 
   it('logs only slack when email is disabled (the default)', async () => {
