@@ -1,5 +1,6 @@
-'use server';
-
+// A server-only R2 helper (node:crypto + a signed fetch), NOT a Server Action module: it is called by
+// the `uploadFileAction` server action, never from a client, and it exports a sync guard and types, so
+// it must not carry `'use server'` (which permits only async exports).
 import { serverEnv } from '@tas/env';
 import { createHmac, createHash } from 'node:crypto';
 

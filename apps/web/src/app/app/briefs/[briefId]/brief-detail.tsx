@@ -22,6 +22,8 @@ import {
 } from '@tas/ui';
 
 import { briefPath, briefsPath } from '@/lib/routes';
+import { FileUploadDropzone } from '@/components/file-upload-dropzone';
+import { uploadFileAction } from '@/lib/upload-action';
 
 import {
   duplicateBriefAction,
@@ -380,34 +382,35 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
 
             {fact(BRIEF_HEADINGS.language, brief.language, 'brief-language')}
             {fact(BRIEF_HEADINGS.offer, brief.offer, 'brief-offer')}
-            {fact(
-              BRIEF_HEADINGS.inspirationImage,
-              brief.inspirationImage === null || brief.inspirationImage.length === 0
-                ? null
-                : `${String(brief.inspirationImage.length)} attachment(s)`,
-              'brief-inspiration-image',
-            )}
-            {fact(
-              BRIEF_HEADINGS.qaChecklistDoc,
-              brief.qaChecklistDoc === null || brief.qaChecklistDoc.length === 0
-                ? null
-                : `${String(brief.qaChecklistDoc.length)} attachment(s)`,
-              'brief-qa-checklist-doc',
-            )}
-            {fact(
-              BRIEF_HEADINGS.designFile,
-              brief.designFile === null || brief.designFile.length === 0
-                ? null
-                : `${String(brief.designFile.length)} attachment(s)`,
-              'brief-design-file',
-            )}
-            {fact(
-              BRIEF_HEADINGS.scriptAndBriefBreakdown,
-              brief.scriptAndBriefBreakdown === null || brief.scriptAndBriefBreakdown.length === 0
-                ? null
-                : `${String(brief.scriptAndBriefBreakdown.length)} attachment(s)`,
-              'brief-script-and-brief-breakdown',
-            )}
+            <FileUploadDropzone
+              name="inspirationImage"
+              label={BRIEF_HEADINGS.inspirationImage}
+              value={brief.inspirationImage ?? []}
+              accept="image/*"
+              disabled={demo}
+              action={uploadFileAction}
+            />
+            <FileUploadDropzone
+              name="qaChecklistDoc"
+              label={BRIEF_HEADINGS.qaChecklistDoc}
+              value={brief.qaChecklistDoc ?? []}
+              disabled={demo}
+              action={uploadFileAction}
+            />
+            <FileUploadDropzone
+              name="designFile"
+              label={BRIEF_HEADINGS.designFile}
+              value={brief.designFile ?? []}
+              disabled={demo}
+              action={uploadFileAction}
+            />
+            <FileUploadDropzone
+              name="scriptAndBriefBreakdown"
+              label={BRIEF_HEADINGS.scriptAndBriefBreakdown}
+              value={brief.scriptAndBriefBreakdown ?? []}
+              disabled={demo}
+              action={uploadFileAction}
+            />
           </section>
 
           <section data-slot="brief-centre" className="flex min-w-0 flex-col gap-5">

@@ -107,6 +107,10 @@ export type BriefFieldName =
   | 'angleId'
   | 'productId'
   | 'inspoLinks'
+  | 'inspirationImage'
+  | 'qaChecklistDoc'
+  | 'designFile'
+  | 'scriptAndBriefBreakdown'
   | 'dimensions'
   | 'internalStatus'
   | 'clientStatus'
@@ -234,6 +238,12 @@ const briefSchema = z.object({
   angleId: link,
   productId: link,
   inspoLinks: z.array(z.string().trim()),
+  // The four attachment arrays (PRD §5.10): stored R2 URLs the dropzone uploaded, submitted as
+  // repeated hidden inputs exactly like `inspoLinks`. Shape only — a URL is a string.
+  inspirationImage: z.array(z.string().trim()),
+  qaChecklistDoc: z.array(z.string().trim()),
+  designFile: z.array(z.string().trim()),
+  scriptAndBriefBreakdown: z.array(z.string().trim()),
   dimensions: z.array(dimension),
   internalStatus: status,
   clientStatus: status,
@@ -275,6 +285,10 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     productId: single('productId'),
     source: single('source'),
     inspoLinks: many('inspoLinks'),
+    inspirationImage: many('inspirationImage'),
+    qaChecklistDoc: many('qaChecklistDoc'),
+    designFile: many('designFile'),
+    scriptAndBriefBreakdown: many('scriptAndBriefBreakdown'),
     dimensions: many('dimensions'),
     internalStatus: single('internalStatus'),
     clientStatus: single('clientStatus'),
@@ -460,6 +474,10 @@ function toInput(
     angleId: values.angleId,
     productId: values.productId,
     inspoLinks: values.inspoLinks.filter((entry) => entry !== ''),
+    inspirationImage: values.inspirationImage.filter((entry) => entry !== ''),
+    qaChecklistDoc: values.qaChecklistDoc.filter((entry) => entry !== ''),
+    designFile: values.designFile.filter((entry) => entry !== ''),
+    scriptAndBriefBreakdown: values.scriptAndBriefBreakdown.filter((entry) => entry !== ''),
     // An untouched form submits no ratio at all, which is a fresh brief rather than a brief with no
     // delivery: PRD §8's defaults for the type fill it, from the domain table, never from a literal.
     dimensions:

@@ -103,6 +103,7 @@ import {
 } from './copywriting.stories';
 import { AdsToLaunchRowStory } from './ads-to-launch.stories';
 import { LaunchCardsEmptyStory, LaunchCardsStory } from './launch-cards.stories';
+import { FileUploadDropzoneDisabledStory, FileUploadDropzoneStory } from './file-upload.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -401,6 +402,16 @@ export default function DesignSystemPage() {
             <Switch id="ds-switch" defaultChecked />
             <Label htmlFor="ds-switch">Email notifications</Label>
           </div>
+        </div>
+      </Section>
+
+      <Section
+        title="File upload"
+        note="Attachment dropzone. Drag-and-drop or pick; uploads through the upload Server Action to R2, submits stored URLs as hidden inputs. Disabled in demo mode."
+      >
+        <div className="grid gap-5 rounded-card border border-line bg-surface p-5 sm:grid-cols-2">
+          <FileUploadDropzoneStory />
+          <FileUploadDropzoneDisabledStory />
         </div>
       </Section>
 
