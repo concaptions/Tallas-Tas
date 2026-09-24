@@ -30,6 +30,13 @@ test.describe('demo mode (no Clerk publishable key)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Niagara Sleep Solutions');
     await expect(page.getByRole('link', { name: /Personas/ }).first()).toBeVisible();
 
+    // The launch cards (ads-to-launch Phase 3) render from the same fixtures and link to the queue.
+    await expect(page.locator('[data-slot="launch-cards"]')).toContainText('Ads Ready to Launch');
+    await expect(page.locator('[data-slot="launch-cards"]')).toContainText('Launched This Week');
+    await expect(
+      page.locator('[data-slot="launch-cards"] a[href="/app/ads-to-launch"]').first(),
+    ).toBeVisible();
+
     // The signature widget renders with a locked client track.
     await expect(page.locator('[data-slot="two-track-approval"]')).toBeVisible();
     await expect(page.locator('[data-slot="client-track"]')).toHaveAttribute('data-open', 'false');

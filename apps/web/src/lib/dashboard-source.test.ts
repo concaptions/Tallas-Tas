@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import type { BriefListRow } from '@tas/db';
 
-import { buildRoleDashboard, loadRoleDashboard, roleDashboard } from './dashboard-source';
+import {
+  buildLaunchCards,
+  buildRoleDashboard,
+  loadRoleDashboard,
+  roleDashboard,
+} from './dashboard-source';
 
 describe('roleDashboard', () => {
   it('returns three items for every role', () => {
@@ -134,5 +139,41 @@ describe('loadRoleDashboard', () => {
   it('is the fixtures in demo mode, matching the sync demo dashboard', async () => {
     const live = await loadRoleDashboard('admin', { demoMode: () => true });
     expect(live).toEqual(roleDashboard('admin'));
+  });
+});
+
+describe('buildLaunchCards', () => {
+  const at = (iso: string) => new Date(iso);
+
+  it('counts the ready queue and names the three most recently edited, newest first', () => {
+    const cards = buildLaunchCards({
+      ready: [
+        { name: 'P1-OLD', updatedAt: at('2026-09-20T00:00:00Z') },
+        { name: 'NEWEST', updatedAt: at('2026-09-24T00:00:00Z') },
+        { name: 'MIDDLE', updatedAt: at('2026-09-22T00:00:00Z') },
+        { name: 'OLDEST', updatedAt: at('2026-09-18T00:00:00Z') },
+      ],
+      recent: [],
+    });
+
+    expect(cards.readyCount).toBe(4);
+    expect(cards.readyNames).toEqual(['NEWEST', 'MIDDLE', 'P1-OLD']);
+  });
+
+  it('counts everything launched in the window, paused rows included', () => {
+    const cards = buildLaunchCards({
+      ready: [],
+      recent: [{ status: 'launched' }, { status: 'paused' }],
+    });
+
+    expect(cards.launchedThisWeek).toBe(2);
+  });
+
+  it('is all zeros and no names for an empty queue', () => {
+    expect(buildLaunchCards({ ready: [], recent: [] })).toEqual({
+      readyCount: 0,
+      readyNames: [],
+      launchedThisWeek: 0,
+    });
   });
 });

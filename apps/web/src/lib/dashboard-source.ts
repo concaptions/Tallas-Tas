@@ -6,7 +6,14 @@ import { BRAND_ROLE_LABELS } from '@tas/domain';
 import { loadBriefs, type BriefSourceDeps } from './briefs-source';
 import { loadConcepts } from './concepts-source';
 import { loadCopy } from './copy-source';
-import { anglesPath, briefsPath, conceptsPath, copywritingPath, internalQueuePath } from './routes';
+import {
+  adsToLaunchPath,
+  anglesPath,
+  briefsPath,
+  conceptsPath,
+  copywritingPath,
+  internalQueuePath,
+} from './routes';
 
 export interface DashboardItem {
   readonly label: string;
@@ -122,7 +129,7 @@ function mediaBuyerItems(data: DashboardData): DashboardItem[] {
   );
   const launched = briefs.filter((b) => b.internalStatus === 'launched');
   return [
-    { label: 'Ads to launch', count: launchReady.length, href: internalQueuePath },
+    { label: 'Ads to launch', count: launchReady.length, href: adsToLaunchPath },
     { label: 'Currently live', count: launched.length, href: internalQueuePath },
     {
       label: 'Winning creatives',
@@ -195,4 +202,34 @@ export async function loadRoleDashboard(
     concepts: concepts.rows,
     copy: copy.rows,
   });
+}
+
+/**
+ * The Overview's two launch cards (PRD §13; ticket `ads-to-launch` Phase 3), projected from the
+ * launch queue the Ads to Launch page already loads — one definition of "ready" and "launched", no
+ * second query. `readyNames` are the three MOST RECENTLY EDITED ready creatives (the queue itself
+ * arrives priority-first, so it is re-sorted here); `launchedThisWeek` is every creative whose
+ * `launched_at` fell in the window, paused or not — a paused ad still went live this week.
+ */
+export interface LaunchCards {
+  readonly readyCount: number;
+  /** At most three generated creative names, newest edit first; rendered in `font-mono`. */
+  readonly readyNames: readonly string[];
+  readonly launchedThisWeek: number;
+}
+
+export interface LaunchQueueLike {
+  readonly ready: readonly { readonly name: string; readonly updatedAt: Date }[];
+  readonly recent: readonly unknown[];
+}
+
+export function buildLaunchCards(queue: LaunchQueueLike): LaunchCards {
+  const newestFirst = [...queue.ready].sort(
+    (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+  );
+  return {
+    readyCount: queue.ready.length,
+    readyNames: newestFirst.slice(0, 3).map((row) => row.name),
+    launchedThisWeek: queue.recent.length,
+  };
 }

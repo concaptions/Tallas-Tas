@@ -64,7 +64,17 @@ Follow-ups, not built: setting `launch_priority` from the page (it is displayed,
 drag handle); a paused ad launched more than 7 days ago drops out of Recently Launched and can only be
 resumed from elsewhere; notifications on launch (PRD §12 lists no launch trigger).
 
-## Phase 3 — overview integration  (TODO)
+## Phase 3 — overview integration  (DONE)
 
-Two dashboard cards reusing the phase-2 source: "Ads Ready to Launch" (count + 3 most recent) and
-"Launched This Week".
+PRD §13 ("when there are approved creatives by a client … the media should see ADS TO LAUNCH") and
+§11. Two cards on the Overview, in a "Launch" section beside the role tiles, both linking to
+`/app/ads-to-launch`: **Ads Ready to Launch** (count, plus the three most recently edited ready
+creatives in `font-mono`) and **Launched This Week** (count of everything whose `launched_at` is in the
+last seven days — paused rows included, since a paused ad still went live this week).
+
+One projection, no second query: `buildLaunchCards` in `dashboard-source.ts` reads the same
+`loadAdsToLaunch()` result the page uses. The names are re-sorted by `updated_at` because the queue
+arrives priority-first. `LaunchCardsSection` (`components/launch-cards.tsx`) has no logic of its own;
+story on `/design-system`; the demo Overview E2E asserts the section and its link. Also fixed the
+role tile drift: the media buyer's "Ads to launch" tile linked to the internal queue, now the launch
+queue.

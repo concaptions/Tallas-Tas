@@ -10,9 +10,11 @@ import {
 } from '@tas/ui';
 
 import { AccountSummary } from '@/components/account-summary';
+import { LaunchCardsSection } from '@/components/launch-cards';
 import { RoleDashboardSection } from '@/components/role-dashboard';
 import { Icon, type IconName } from '@/components/shell/icons';
-import { loadRoleDashboard } from '@/lib/dashboard-source';
+import { loadAdsToLaunch } from '@/lib/ads-to-launch-source';
+import { buildLaunchCards, loadRoleDashboard } from '@/lib/dashboard-source';
 import { loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { anglesPath, conceptsPath, personasPath, themesPath } from '@/lib/routes';
@@ -33,10 +35,12 @@ export default async function OverviewPage() {
   const demo = isDemoMode();
   // Independent reads: awaited together, not one after the other. Both share the request's
   // connection and its once-per-request brand resolution.
-  const [{ brand, counts }, dashboard] = await Promise.all([
+  const [{ brand, counts }, dashboard, launchQueue] = await Promise.all([
     loadOverview(),
     loadRoleDashboard('admin'),
+    loadAdsToLaunch(),
   ]);
+  const launchCards = buildLaunchCards(launchQueue);
 
   const cards: readonly SectionCard[] = [
     {
@@ -86,6 +90,8 @@ export default async function OverviewPage() {
       </header>
 
       <RoleDashboardSection dashboard={dashboard} />
+
+      <LaunchCardsSection cards={launchCards} />
 
       <section aria-labelledby="library-heading" className="flex flex-col gap-3">
         <h2 id="library-heading" className="text-sm font-medium text-text2">

@@ -102,6 +102,7 @@ import {
   CopyStatusChipsStory,
 } from './copywriting.stories';
 import { AdsToLaunchRowStory } from './ads-to-launch.stories';
+import { LaunchCardsEmptyStory, LaunchCardsStory } from './launch-cards.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -961,6 +962,14 @@ export default function DesignSystemPage() {
               machine allows (launch, pause or resume), disabled with a tooltip
             </h3>
             <AdsToLaunchRowStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              overview launch cards — the ready count with its three newest creatives in mono, and
+              the week's launches; then the empty state
+            </h3>
+            <LaunchCardsStory />
+            <LaunchCardsEmptyStory />
           </div>
         </div>
       </Section>
