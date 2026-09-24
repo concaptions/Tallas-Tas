@@ -39,12 +39,39 @@ export function createNeonDb(databaseUrl: string): NeonDb {
 }
 
 /**
+ * `sslmode` from the URL's own query string, mapped the way `pg-connection-string` reads it. The
+ * ambient `PGSSLMODE` is deliberately never consulted — see `createNodeDb`.
+ */
+function sslFromUrl(url: URL): boolean | { rejectUnauthorized: false } {
+  const mode = url.searchParams.get('sslmode');
+  if (mode === null || mode === 'disable') return false;
+  if (mode === 'allow' || mode === 'prefer' || mode === 'no-verify') {
+    return { rejectUnauthorized: false };
+  }
+  return true;
+}
+
+/**
  * Standard Postgres adapter: a connection pool over TCP using node-postgres. Use for Railway,
  * Supabase, self-hosted, or any Postgres that speaks the standard wire protocol. Close it with
  * `db.$client.end()`.
+ *
+ * The pool is configured field by field from the parsed URL rather than handed the string:
+ * node-postgres fills every field the config leaves unset (or falsy) from the libpq environment —
+ * `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGSSLMODE` — so a hosting dashboard
+ * holding a copied provider variable set could silently reroute the connection somewhere
+ * `DATABASE_URL` never pointed. Explicit fields make the URL the only authority.
  */
 export function createNodeDb(databaseUrl: string) {
-  const pool = new PgPool({ connectionString: databaseUrl });
+  const url = new URL(databaseUrl);
+  const pool = new PgPool({
+    host: url.hostname,
+    port: url.port === '' ? 5432 : Number(url.port),
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: url.pathname.replace(/^\//, ''),
+    ssl: sslFromUrl(url),
+  });
   return Object.assign(drizzleNode(pool, drizzleConfig), {
     $client: pool,
   });
