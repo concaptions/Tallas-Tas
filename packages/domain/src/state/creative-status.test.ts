@@ -63,16 +63,17 @@ describe('the status vocabularies', () => {
     }
   });
 
-  it('lists the client track in PRD §9 order, Revisions Needed included', () => {
+  it('lists the client track in PRD §9 order, Revisions Needed included, then Paused after Launched', () => {
     expect(CLIENT_STATUS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
       'revisions_needed',
       'launched',
+      'paused',
     ]);
   });
 
-  it('keeps the Revisions Needed branch out of the linear client stepper', () => {
+  it('keeps the Revisions Needed and Paused branches out of the linear client stepper', () => {
     expect(CLIENT_TRACK_STEPS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
@@ -155,6 +156,7 @@ describe('chipTone — the tone map over every label', () => {
   const cases: [string, ChipTone][] = [
     ['Approved', 'ok'],
     ['Launched', 'accent'],
+    ['Paused', 'warn'],
     ['Videos Revisions', 'warn'],
     ['Images Revisions', 'warn'],
     ['Revisions Submitted', 'mute'],
@@ -319,7 +321,28 @@ describe('canTransitionClient', () => {
     expect(CLIENT_TRANSITIONS.pending_for_approval).toEqual(['approved', 'revisions_needed']);
     expect(CLIENT_TRANSITIONS.approved).toEqual(['launched']);
     expect(CLIENT_TRANSITIONS.revisions_needed).toEqual(['pending_for_approval']);
-    expect(CLIENT_TRANSITIONS.launched).toEqual([]);
+    expect(CLIENT_TRANSITIONS.launched).toEqual(['paused']);
+    expect(CLIENT_TRANSITIONS.paused).toEqual(['launched']);
+  });
+
+  it('lets the media buyer pause a launched ad and resume it, with the gate open', () => {
+    expect(canTransitionClient('launched', 'launched', 'paused')).toBe(true);
+    expect(canTransitionClient('approved', 'launched', 'paused')).toBe(true);
+    expect(canTransitionClient('launched', 'paused', 'launched')).toBe(true);
+  });
+
+  it('refuses to pause from anywhere but Launched, and refuses a pause back onto the approval', () => {
+    expect(canTransitionClient('approved', 'approved', 'paused')).toBe(false);
+    expect(canTransitionClient('approved', 'pending_for_approval', 'paused')).toBe(false);
+    expect(canTransitionClient('approved', 'paused', 'approved')).toBe(false);
+    expect(canTransitionClient('approved', 'paused', 'revisions_needed')).toBe(false);
+  });
+
+  it('refuses the Launched/Paused loop while the internal gate is closed', () => {
+    for (const internal of closed) {
+      expect(canTransitionClient(internal, 'launched', 'paused')).toBe(false);
+      expect(canTransitionClient(internal, 'paused', 'launched')).toBe(false);
+    }
   });
 
   it('gives every client status an entry, so a stored value can never hit a missing row', () => {

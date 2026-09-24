@@ -72,6 +72,9 @@ describe('isOnClientQueue', () => {
   it('excludes a row whose client track is finished, even when internal is Approved', () => {
     expect(isOnClientQueue(row('a', 'approved', 'launched'))).toBe(false);
     expect(isOnClientQueue(row('a', 'launched', 'launched'))).toBe(false);
+    // Paused is a launched ad the media buyer stopped: still the media buyer's, still off the board.
+    expect(isOnClientQueue(row('a', 'launched', 'paused'))).toBe(false);
+    expect(isOnClientQueue(row('a', 'approved', 'paused'))).toBe(false);
   });
 
   it('keeps an internally Launched brief whose client status is still open', () => {
@@ -121,7 +124,7 @@ describe('clientQueueRows', () => {
 });
 
 describe('clientQueueColumns', () => {
-  it('is CLIENT_STATUS in PRD §9 order with launched removed', () => {
+  it('is CLIENT_STATUS in PRD §9 order with the media buyer states (launched, paused) removed', () => {
     expect(clientQueueColumns().map((column) => column.key)).toEqual([
       'pending_for_approval',
       'approved',
@@ -139,12 +142,13 @@ describe('clientQueueColumns', () => {
     }
   });
 
-  it('leaves CLIENT_STATUS itself untouched, launched included', () => {
+  it('leaves CLIENT_STATUS itself untouched, launched and paused included', () => {
     expect(CLIENT_STATUS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
       'revisions_needed',
       'launched',
+      'paused',
     ]);
   });
 });
@@ -157,6 +161,7 @@ describe('clientQueueColumnKey', () => {
 
   it('maps launched and any unknown status to the shared Other column', () => {
     expect(clientQueueColumnKey('launched')).toBe(QUEUE_OTHER_COLUMN.key);
+    expect(clientQueueColumnKey('paused')).toBe(QUEUE_OTHER_COLUMN.key);
     expect(clientQueueColumnKey('awaiting_legal')).toBe(QUEUE_OTHER_COLUMN.key);
   });
 });

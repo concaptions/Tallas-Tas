@@ -1078,6 +1078,8 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'approved',
     clientStatus: 'pending_for_approval',
     performance: null,
+    launchedAt: null,
+    launchPriority: null,
   },
   {
     ...propagationBase(
@@ -1129,6 +1131,8 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'static_design_in_progress',
     clientStatus: 'pending_for_approval',
     performance: null,
+    launchedAt: null,
+    launchPriority: null,
   },
   {
     ...propagationBase(
@@ -1179,6 +1183,8 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'ad_submitted',
     clientStatus: 'pending_for_approval',
     performance: null,
+    launchedAt: null,
+    launchPriority: null,
   },
   {
     ...propagationBase(
@@ -1236,6 +1242,8 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'approved',
     clientStatus: 'pending_for_approval',
     performance: null,
+    launchedAt: null,
+    launchPriority: null,
   },
   {
     ...propagationBase(
@@ -1296,6 +1304,8 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'approved',
     clientStatus: 'approved',
     performance: 'High Potential to Iterate',
+    launchedAt: null,
+    launchPriority: null,
   },
   {
     ...propagationBase(
@@ -1345,6 +1355,8 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'sent_to_video_editor',
     clientStatus: 'pending_for_approval',
     performance: null,
+    launchedAt: null,
+    launchPriority: null,
   },
   {
     // PRD §9's exclusion rule, made visible. `isClientTrackOpen('launched')` is true, so this row
@@ -1401,6 +1413,8 @@ export const demoBriefs: BriefListRow[] = [
     internalStatus: 'launched',
     clientStatus: 'launched',
     performance: 'Winning',
+    launchedAt: null,
+    launchPriority: null,
   },
 ];
 

@@ -232,6 +232,13 @@
       "when": 1790530800000,
       "tag": "0032_partnership-scanner-columns",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790617200000,
+      "tag": "0033_ads_to_launch_fields",
+      "breakpoints": true
     }
   ]
 }

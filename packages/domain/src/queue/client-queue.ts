@@ -36,10 +36,15 @@ import {
 } from '../state/queue-columns';
 
 /**
- * The one client status the board does not carry a column for, written once and used by both the
- * eligibility gate and the column list so the two cannot disagree about which status is off the board.
+ * The client statuses the board carries no column for, written once and used by both the eligibility
+ * gate and the column list so the two cannot disagree about which statuses are off the board.
+ *
+ * `launched` and `paused` are the media buyer's states, not approvals the client still owes: a client
+ * signs a creative off (`approved`) and it then lives on the media buyer's Ads-to-Launch board, where
+ * it is launched and can later be paused. Neither belongs on a board clients see, so both are off it —
+ * in the gate below and in the columns — for the same reason and by the same list.
  */
-const OFF_QUEUE_CLIENT_STATUS: ClientStatusKey = 'launched';
+const OFF_QUEUE_CLIENT_STATUSES: readonly ClientStatusKey[] = ['launched', 'paused'];
 
 /**
  * The minimum a row has to carry to be placed on the client board: the internal status the gate reads
@@ -61,7 +66,7 @@ export interface ClientQueueRow extends QueueRow {
 export function isOnClientQueue(row: ClientQueueRow): boolean {
   return (
     isClientTrackOpen(row.internalStatus as InternalStatusKey) &&
-    row.clientStatus !== OFF_QUEUE_CLIENT_STATUS
+    !OFF_QUEUE_CLIENT_STATUSES.includes(row.clientStatus as ClientStatusKey)
   );
 }
 
@@ -74,11 +79,13 @@ export function clientQueueRows<Row extends ClientQueueRow>(rows: readonly Row[]
 }
 
 /**
- * `CLIENT_STATUS` in PRD §9 order with `launched` removed — derived from the vocabulary rather than
- * retyped, so a status added to `CLIENT_STATUS` shows up as a column with no second edit.
+ * `CLIENT_STATUS` in PRD §9 order with the media buyer's states (`launched`, `paused`) removed —
+ * derived from the vocabulary and the one off-board list rather than retyped, so a client-facing
+ * status added to `CLIENT_STATUS` shows up as a column with no second edit, while a media-buyer state
+ * added to `OFF_QUEUE_CLIENT_STATUSES` stays off the board in both the gate and the columns at once.
  */
 export const CLIENT_QUEUE_COLUMNS: readonly StatusEntry<ClientStatusKey>[] = CLIENT_STATUS.filter(
-  (entry) => entry.key !== OFF_QUEUE_CLIENT_STATUS,
+  (entry) => !OFF_QUEUE_CLIENT_STATUSES.includes(entry.key),
 );
 
 /** The board's columns. A function so a caller reads it the way it reads `internalQueueColumns`. */

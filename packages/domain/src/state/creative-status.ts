@@ -115,6 +115,11 @@ export const CLIENT_STATUS = [
     label: 'Launched',
     description: 'Set by the media buyer once the ad is live in the account.',
   },
+  {
+    key: 'paused',
+    label: 'Paused',
+    description: 'Media buyer paused the live ad. Reversible — it can be resumed to Launched.',
+  },
 ] as const;
 
 /**
@@ -147,10 +152,12 @@ export type InternalStatusOrHoldKey = InternalStatusKey | OnHoldStatusKey;
  * internal track, and a linear stepper cannot honestly place it: drawn as the third row it would mark
  * Approved as `done` on a creative the client had just sent back. So a stepper walks this list and
  * names `revisions_needed` with the status chip instead, which is the treatment `ON_HOLD` gets.
+ * `paused` is the same shape at the other end — a branch off `launched`, not a step past it — so it
+ * is excluded here too and rendered as a chip rather than a fourth row that would follow Launched.
  * `CLIENT_STATUS` itself is untouched — it is the vocabulary of the stored column.
  */
 export const CLIENT_TRACK_STEPS: readonly StatusEntry<ClientStatusKey>[] = CLIENT_STATUS.filter(
-  (entry) => entry.key !== 'revisions_needed',
+  (entry) => entry.key !== 'revisions_needed' && entry.key !== 'paused',
 );
 
 export type StepState = 'done' | 'now' | 'next';
@@ -195,6 +202,9 @@ export function chipTone(label: string): ChipTone {
   if (label === 'Launched') {
     return 'accent';
   }
+  if (label === 'Paused') {
+    return 'warn';
+  }
   if (label.includes('Revisions') && !label.includes('Submitted')) {
     return 'warn';
   }
@@ -238,14 +248,17 @@ export const INTERNAL_STATIC_TRANSITIONS: TransitionTable<
 /**
  * The client track exactly as PRD §9 writes it: "Pending for Approval → Approved / Revisions Needed
  * → Launched". `pending_for_approval` branches on the client's decision; `revisions_needed` rejoins
- * at `pending_for_approval` when the team resubmits, which is the only way back onto the decision;
- * `launched` is the media buyer's terminal state.
+ * at `pending_for_approval` when the team resubmits, which is the only way back onto the decision.
+ * `launched` was the terminal state; `paused` extends the media buyer's control past it — a live ad
+ * can be paused and resumed — so `launched` and `paused` are each other's only move and the pair is
+ * a closed loop, never a way back onto the approval decision.
  */
 export const CLIENT_TRANSITIONS: TransitionTable<ClientStatusKey> = {
   pending_for_approval: ['approved', 'revisions_needed'],
   approved: ['launched'],
   revisions_needed: ['pending_for_approval'],
-  launched: [],
+  launched: ['paused'],
+  paused: ['launched'],
 };
 
 export function internalTransitionsFor(
