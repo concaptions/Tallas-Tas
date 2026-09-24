@@ -1,6 +1,11 @@
 'use client';
 
-import { OrganizationSwitcher, useAuth, useOrganizationList } from '@clerk/nextjs';
+import {
+  OrganizationList,
+  OrganizationSwitcher,
+  useAuth,
+  useOrganizationList,
+} from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -11,14 +16,14 @@ import { appPath } from '@/lib/routes';
  *
  * `ensureOrganization()` CREATES an organization for a user who has none, but it cannot SELECT one:
  * the active organization lives in the session, and Clerk only moves it from the client through
- * `setActive`. A user who already belonged to an organization — invited, or provisioned in the
- * Clerk dashboard — therefore arrived with `orgId: undefined` and stayed there forever, because
+ * `setActive`. A user who already belonged to an organization — invited, or created in the Clerk
+ * dashboard — therefore arrived with no active organization and stayed that way, because
  * `ensureOrganization` returns early as soon as it sees a membership. That is the state in which
- * every agency-scoped read falls through to `soleAgencyId` and creating a brand refuses outright.
+ * `createBrandAction` refuses and every agency-scoped read falls through to `soleAgencyId`.
  *
  * Only the unambiguous case is automatic. With two or more memberships there is no honest choice to
- * make on the person's behalf — the same reason `actorAgencyId` throws `AmbiguousBrandError` rather
- * than taking the first row — so the switcher below is the answer instead.
+ * make on the person's behalf — the same refusal to guess that makes `actorAgencyId` throw
+ * `AmbiguousBrandError` rather than take the first row — so a picker is rendered instead.
  */
 function useAutoSelectSoleOrganization(): void {
   const router = useRouter();
@@ -31,8 +36,8 @@ function useAutoSelectSoleOrganization(): void {
       return;
     }
     // A session that already carries an organization is left alone: re-selecting would fight the
-    // person's own choice in the switcher. Client-side `useAuth` reports `null`, not `undefined`,
-    // for "no active organization" — the server's `auth()` is the one that reports `undefined`.
+    // person's own choice. Client-side `useAuth` reports `null` for "none active"; the server's
+    // `auth()` reports `undefined` for the same state.
     if (orgId !== null) {
       return;
     }
@@ -44,9 +49,8 @@ function useAutoSelectSoleOrganization(): void {
       return;
     }
     // `router.refresh()` is not optional. `setActive` updates the session on the CLIENT; every
-    // server component on screen was already rendered with no `orgId`, so without a refresh the
-    // page keeps showing the organization-less render until the next navigation — which is exactly
-    // the "there is no active organization" state this hook just resolved.
+    // server component on screen was already rendered with no organization, so without a refresh
+    // the page keeps that render until the next navigation — which is the very state this resolves.
     void (async () => {
       await setActive({ organization: only.organization.id });
       router.refresh();
@@ -55,12 +59,15 @@ function useAutoSelectSoleOrganization(): void {
 }
 
 /**
- * The organization picker. Clerk-only: it reads a `ClerkProvider`, which the root layout does not
- * render in demo mode, so every caller gates on `demo` before mounting it.
+ * The shell's organization control, for the top bar.
  *
- * `hidePersonal` is deliberate. This product is organization-tenanted end to end — an agency IS a
- * Clerk organization (D-003) — so a personal account is a scope in which nothing can be read or
- * written, and offering it as a choice is offering a broken state.
+ * `hidePersonal` is deliberately NOT passed. Its documented behaviour is the inverse of its name
+ * (`@clerk/shared`: "@default true … Setting this to `false` will hide the personal account entry"),
+ * and passing it suppressed the personal entry — which left the trigger with nothing at all to draw
+ * for a user who has no active organization, so the control rendered blank. Showing the personal
+ * entry is the lesser problem by far: it is the affordance the person clicks to reach the list and
+ * pick or create a real organization. Scope safety does not depend on this widget — it is enforced
+ * in the data layer by `resolveLiveAgencyId` / `withBrand`, which read the session, not the menu.
  */
 export function OrgSwitcher() {
   useAutoSelectSoleOrganization();
@@ -68,17 +75,42 @@ export function OrgSwitcher() {
   return (
     <div data-slot="org-switcher" className="flex shrink-0 items-center">
       <OrganizationSwitcher
-        hidePersonal
         afterCreateOrganizationUrl={appPath}
         afterSelectOrganizationUrl={appPath}
-        appearance={{
-          elements: {
-            rootBox: 'flex items-center',
-            organizationSwitcherTrigger:
-              'rounded-input border border-line bg-surface2 px-2 py-1 text-text2 hover:text-text',
-          },
-        }}
+        appearance={{ elements: { rootBox: 'flex items-center' } }}
       />
+    </div>
+  );
+}
+
+/**
+ * The full picker, for a page that cannot proceed until an organization is active.
+ *
+ * `OrganizationList` rather than `OrganizationSwitcher`: a switcher is built to switch BETWEEN
+ * organizations and draws itself from the active one, so it is the wrong control precisely when
+ * there is none. The list renders memberships, pending invitations, suggestions and a create form,
+ * which is the whole set of ways out of this state.
+ *
+ * The zero-membership line matters more than it looks. If the organization exists in the Clerk
+ * dashboard but this account was never added to it, NO widget can select it — the membership has to
+ * be granted in Clerk first — and without saying so the person reads an empty list as a broken page.
+ */
+export function OrgPicker() {
+  useAutoSelectSoleOrganization();
+
+  const { isLoaded, userMemberships } = useOrganizationList({ userMemberships: true });
+  const memberships = userMemberships.data;
+  const hasNone = isLoaded && memberships !== undefined && memberships.length === 0;
+
+  return (
+    <div data-slot="org-picker" className="flex flex-col gap-3">
+      {hasNone ? (
+        <p className="text-xs text-text3">
+          This account is not a member of any organization yet. Create one below — or, if the
+          organization already exists in Clerk, add this account to it there first, then reload.
+        </p>
+      ) : null}
+      <OrganizationList afterCreateOrganizationUrl={appPath} afterSelectOrganizationUrl={appPath} />
     </div>
   );
 }

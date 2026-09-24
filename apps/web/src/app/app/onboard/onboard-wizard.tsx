@@ -4,7 +4,7 @@ import { useActionState, useState } from 'react';
 import { Button, Input, Label } from '@tas/ui';
 import { slugify } from '@tas/domain';
 
-import { OrgSwitcher } from '@/components/shell/org-switcher';
+import { OrgPicker } from '@/components/shell/org-switcher';
 import { needsOrganization } from '@/lib/organization';
 
 import { createBrandAction, type OnboardResult } from './actions';
@@ -137,7 +137,7 @@ export function OnboardWizard() {
               <p className="text-xs text-text3">
                 A brand belongs to an organization. Choose one, then submit again.
               </p>
-              <OrgSwitcher />
+              <OrgPicker />
             </div>
           )}
 
