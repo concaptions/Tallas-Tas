@@ -1,9 +1,11 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
 import { DEMO_ACTOR_ID } from './demo-data';
 import { listInterfaceConfig } from './interface-config';
 import { listNotificationSettings } from './notifications';
-import { onboardBrand, type InterfacePageDefault } from './onboard';
+import { findAgencyByClerkOrg, onboardBrand, type InterfacePageDefault } from './onboard';
+import { agencies } from './schema';
 import { seed } from './seed';
 import { testDb } from './testing';
 
@@ -202,5 +204,22 @@ describe('onboardBrand', () => {
 
     const settings = await listNotificationSettings(db, fakeBrandId);
     expect(settings).toHaveLength(0);
+  });
+});
+
+describe('findAgencyByClerkOrg', () => {
+  it('returns the TEMPLATE brand even though child brands exist in the agency', async () => {
+    const { db, agency, templateBrand } = await seeded();
+    await db.update(agencies).set({ clerkOrgId: 'org_lookup' }).where(eq(agencies.id, agency.id));
+
+    const found = await findAgencyByClerkOrg(db, 'org_lookup');
+
+    expect(found).toEqual({ agencyId: agency.id, templateBrandId: templateBrand.id });
+  });
+
+  it('returns null for an organisation no agency answers to', async () => {
+    const { db } = await seeded();
+
+    expect(await findAgencyByClerkOrg(db, 'org_unknown')).toBeNull();
   });
 });

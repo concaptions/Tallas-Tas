@@ -38,7 +38,16 @@ export async function createBrandAction(formData: FormData): Promise<OnboardResu
   const session = await auth.protect();
   const databaseUrl = serverEnv().DATABASE_URL;
   if (databaseUrl === undefined) {
-    return { ok: false, errors: [{ field: 'name', message: 'Database is not configured.' }] };
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'name',
+          message:
+            'DATABASE_URL is not set in this deployment. On Vercel, set it (non-empty) for the Production environment and redeploy — a deployment only sees the variables that existed when it was created.',
+        },
+      ],
+    };
   }
 
   const db = createAutoDb(databaseUrl);

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { listCustomFieldSchemas } from './custom-field-schemas';
 import type { Db } from './db';
@@ -276,8 +276,7 @@ export async function findAgencyByClerkOrg(
   const [template] = await db
     .select()
     .from(brands)
-    .where(eq(brands.agencyId, agency.id))
-    .orderBy(brands.isTemplate);
+    .where(and(eq(brands.agencyId, agency.id), eq(brands.isTemplate, true)));
 
   if (template === undefined) {
     return null;
