@@ -1668,6 +1668,8 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: 'https://www.facebook.com/danielle.okonkwo.creator',
     slackNotified: false,
     currentPeriodStart: null,
+    partnershipEndedAt: null,
+    requiresAttention: false,
   },
   {
     ...propagationBase(CREATOR_MARCUS_ID, '2026-06-02T10:05:00.000Z', '2026-09-15T09:25:00.000Z'),
@@ -1711,6 +1713,8 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: 'https://www.facebook.com/marcus.delacroix.mtl',
     slackNotified: false,
     currentPeriodStart: null,
+    partnershipEndedAt: null,
+    requiresAttention: false,
   },
   {
     ...propagationBase(CREATOR_PRIYA_ID, '2026-03-30T15:45:00.000Z', '2026-09-14T15:10:00.000Z'),
@@ -1754,6 +1758,8 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: null,
     slackNotified: false,
     currentPeriodStart: null,
+    partnershipEndedAt: null,
+    requiresAttention: false,
   },
   {
     ...propagationBase(CREATOR_TOMAS_ID, '2026-08-28T09:10:00.000Z', '2026-09-11T08:05:00.000Z'),
@@ -1796,6 +1802,8 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: null,
     slackNotified: false,
     currentPeriodStart: null,
+    partnershipEndedAt: null,
+    requiresAttention: false,
   },
   {
     ...propagationBase(CREATOR_HANNAH_ID, '2026-07-14T11:30:00.000Z', '2026-09-08T17:45:00.000Z'),
@@ -1837,6 +1845,8 @@ export const demoCreators: CreatorListRow[] = [
     facebookProfileUrl: null,
     slackNotified: false,
     currentPeriodStart: null,
+    partnershipEndedAt: null,
+    requiresAttention: false,
   },
 ];
 

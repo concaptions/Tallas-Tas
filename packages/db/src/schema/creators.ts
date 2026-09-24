@@ -133,6 +133,14 @@ export const creators = pgTable(
     partnershipPricePer30Days: integer('partnership_price_per_30_days'),
     slackNotified: boolean('slack_notified').notNull().default(false),
     currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
+    // Set by the scanner when a partnership auto-ends because the brand answered `continue_working_with`
+    // = false and the permission window then lapsed. Nullable: a live or undecided partnership has no
+    // end date. `partnership_activity` moves to `ended` in the same write.
+    partnershipEndedAt: timestamp('partnership_ended_at', { withTimezone: true }),
+    // Raised by the scanner when a partnership's window lapses with `continue_working_with` still null
+    // (nobody decided). The UGC page surfaces these so an undecided partnership is chased rather than
+    // silently expiring. Cleared when the decision is finally made or the partnership ends.
+    requiresAttention: boolean('requires_attention').notNull().default(false),
     partnershipNotes: text('partnership_notes'),
     facebookProfileUrl: text('facebook_profile_url'),
     legacyAirtableId: text('legacy_airtable_id'),

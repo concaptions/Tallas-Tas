@@ -28,6 +28,10 @@ export const serverSchema = clientSchema.extend({
   AIRTABLE_PAT: secret.optional(),
   META_ACCESS_TOKEN: secret.optional(),
   META_AD_ACCOUNT_ID: secret.optional(),
+  // Shared secret the Vercel Cron scheduler sends as `Authorization: Bearer <CRON_SECRET>` when it
+  // hits `/api/cron/partnership-scanner`. The route refuses any request without it, so nobody can run
+  // the cross-brand scanner by guessing the URL. Optional: unset in demo/local, where no cron runs.
+  CRON_SECRET: secret.optional(),
 });
 
 export type ClientEnv = z.output<typeof clientSchema>;

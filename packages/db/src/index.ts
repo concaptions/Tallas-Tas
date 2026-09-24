@@ -304,8 +304,12 @@ export type {
   ResolvedRecipient,
 } from './notification-dispatch';
 export {
+  endPartnership,
+  flagRequiresAttention,
   getExpiringPartnerships,
   getPartnershipsDueForRenewal,
+  getPartnershipsToEnd,
+  getUndecidedPastDeadline,
   markSlackNotified,
   renewPartnership,
   runPartnershipScanner,

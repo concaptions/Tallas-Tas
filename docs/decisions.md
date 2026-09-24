@@ -564,3 +564,32 @@ Railway (service → Settings → Region), then either move the Railway database
 fra1, or change `vercel.json` `regions` to the matching Vercel region (iad1 for us-east4, sfo1 for
 us-west2). Also confirm `DATABASE_URL` carries `sslmode=require`: without it `createNodeDb` connects
 without TLS, and the Vercel-to-Railway traffic crosses the public internet unencrypted.
+
+## D-032 · 2026-09-24 · Partnership scanner runs on Vercel Cron; auto-end and undecided-attention
+
+The partnership scanner (`runPartnershipScanner`, `@tas/db`) was dormant — no scheduler called it. It
+now has a caller: a Vercel Cron route at `apps/web/src/app/api/cron/partnership-scanner/route.ts`,
+scheduled daily in `vercel.json` (`0 6 * * *`). There is no Inngest in this stack (D-023, D-030), so a
+plain authenticated route IS the scheduler. The route authenticates the request with a new
+`CRON_SECRET` env var (Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`); with no secret set the
+route refuses everything, so demo and local deployments run nothing.
+
+Two behaviours were added to the scan, alongside the existing expiring-alert and auto-renew:
+
+- **Auto-end on "no".** A partnership with `continue_working_with = false` whose window has lapsed moves
+  to `partnership_activity = 'ended'` and stamps a new `partnership_ended_at` column (migration 0035).
+  Symmetric to the existing auto-renew, which handles `= true`.
+- **Undecided past deadline.** A partnership whose window lapsed with `continue_working_with` still null
+  raises a new `requires_attention` boolean (migration 0035) so the UGC page can chase it.
+
+**Trigger reuse (PRD §12 is sealed at eight).** Both new events alert through the existing
+`partnership_expiring` trigger for ROUTING — §12 defines exactly eight notification triggers and the
+domain test pins that count, so there is no `partnership_ended` or `partnership_needs_decision` key to
+use. The subject line carries the real event ("— partnership ended", "— needs a continue/stop
+decision"), so the recipient is not misled. **Follow-up for the human:** when §12 is extended, add
+dedicated `partnership_ended` and `partnership_needs_decision` triggers and switch these two alerts to
+them. Recorded here rather than as a code `TODO`, which the Definition of Done forbids.
+
+**Pending human verification.** No `CRON_SECRET`, no Slack token and no live database exist on the dev
+machine, so the cron's live behaviour (Vercel invoking the route on schedule, the bearer check, real
+Slack DMs) is unverified here. The scan logic itself is proven on PGlite.
