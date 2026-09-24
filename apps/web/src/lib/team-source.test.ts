@@ -74,6 +74,7 @@ describe('loadTeam in live mode', () => {
     await expect(
       loadTeam({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };
@@ -91,7 +92,11 @@ describe('loadTeam in live mode', () => {
     const db = { select: () => ({ from: () => Promise.resolve([]) }) } as unknown as Db;
 
     await expect(
-      loadTeam({ demoMode: () => false, connect: () => ({ db, close }) }),
+      loadTeam({
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: () => ({ db, close }),
+      }),
     ).resolves.toEqual({ rows: [], source: 'database' });
     expect(close).toHaveBeenCalledTimes(1);
   });
@@ -101,13 +106,14 @@ describe('loadTeam in live mode', () => {
     const close = vi.fn(() => Promise.resolve());
     const db = {
       select: () => ({
-        from: () => Promise.resolve([{ id: 'agency-1', deletedAt: null }]),
+        from: () => Promise.resolve([{ id: 'agency-1', clerkOrgId: 'org-live', deletedAt: null }]),
       }),
     } as unknown as Db;
 
     await expect(
       withAgencyScope((_db, agencyId) => Promise.resolve(agencyId), {
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: () => ({ db, close }),
       }),
     ).resolves.toBe('agency-1');

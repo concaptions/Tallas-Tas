@@ -85,11 +85,11 @@ const asOrg = (clerkOrgId: string) => (): Promise<ActorScope> =>
 const asUser = (clerkUserId: string) => (): Promise<ActorScope> =>
   Promise.resolve({ clerkOrgId: null, clerkUserId });
 
-describe('resolveLiveBrand with one agency', () => {
-  it("returns that agency's first live client workspace, never the parent template", async () => {
+describe('resolveLiveBrand scoped to the actor', () => {
+  it("returns the actor agency's first live client workspace, never the parent template", async () => {
     const db = fakeDb({ agencies: [agencyA], brands: [templateOfA, brandOfA] });
 
-    await expect(resolveLiveBrand(db, { actorScope: noActor })).resolves.toEqual({
+    await expect(resolveLiveBrand(db, { actorScope: asOrg('org-a') })).resolves.toEqual({
       id: 'brand-a',
       name: 'Brand brand-a',
       status: 'active',
@@ -99,56 +99,48 @@ describe('resolveLiveBrand with one agency', () => {
   it('answers with the id alone for the callers that only scope a query with it', async () => {
     const db = fakeDb({ agencies: [agencyA], brands: [brandOfA] });
 
-    await expect(resolveLiveBrandId(db, { actorScope: noActor })).resolves.toBe('brand-a');
+    await expect(resolveLiveBrandId(db, { actorScope: asOrg('org-a') })).resolves.toBe('brand-a');
   });
 
-  it('is not ambiguous when the second agency is soft deleted', async () => {
-    const db = fakeDb({
-      agencies: [{ ...agencyB, deletedAt: new Date('2026-09-01T00:00:00Z') }, agencyA],
-      brands: [brandOfB, brandOfA],
-    });
-
-    await expect(resolveLiveBrandId(db, { actorScope: noActor })).resolves.toBe('brand-a');
-  });
-
-  it('returns null, rather than a brand, when the one agency has no workspace yet', async () => {
+  it('returns null, rather than a brand, when the actor agency has no workspace yet', async () => {
     const db = fakeDb({ agencies: [agencyA], brands: [templateOfA] });
 
-    await expect(resolveLiveBrand(db, { actorScope: noActor })).resolves.toBeNull();
+    await expect(resolveLiveBrand(db, { actorScope: asOrg('org-a') })).resolves.toBeNull();
   });
 
   it('returns null when the database holds no agency at all', async () => {
-    await expect(resolveLiveBrand(fakeDb({}), { actorScope: noActor })).resolves.toBeNull();
+    await expect(resolveLiveBrand(fakeDb({}), { actorScope: asOrg('org-a') })).resolves.toBeNull();
   });
 });
 
-describe('resolveLiveBrand with two agencies and no actor scope', () => {
-  it('throws AmbiguousBrandError instead of returning whichever brand sorts first', async () => {
-    const db = fakeDb({ agencies: [agencyA, agencyB], brands: [brandOfA, brandOfB] });
+describe('resolveLiveBrand denies rather than guesses (2B: no soleAgency fallback)', () => {
+  it('resolves to no brand for a request with no actor scope — never the sole agency', async () => {
+    // The /client tree is public: an unauthenticated request carries no actor. Before 2B this fell
+    // back to the only agency and served its client-approved briefs to anyone; now it is empty.
+    const db = fakeDb({ agencies: [agencyA], brands: [brandOfA] });
 
-    const error = await resolveLiveBrand(db, { actorScope: noActor }).catch(
-      (cause: unknown) => cause,
-    );
-
-    expect(error).toBeInstanceOf(AmbiguousBrandError);
-    expect((error as AmbiguousBrandError).agencyIds).toEqual(['agency-a', 'agency-b']);
-    expect((error as Error).message).toMatch(/Refusing to guess/u);
+    await expect(resolveLiveBrand(db, { actorScope: noActor })).resolves.toBeNull();
+    await expect(resolveLiveBrandId(db, { actorScope: noActor })).resolves.toBeNull();
   });
 
-  it('refuses for the id-only caller too, rather than answering null and looking empty', async () => {
+  it('resolves to no brand with two agencies and no actor, rather than picking or throwing', async () => {
     const db = fakeDb({ agencies: [agencyA, agencyB], brands: [brandOfA, brandOfB] });
 
-    await expect(resolveLiveBrandId(db, { actorScope: noActor })).rejects.toBeInstanceOf(
-      AmbiguousBrandError,
-    );
+    await expect(resolveLiveBrandId(db, { actorScope: noActor })).resolves.toBeNull();
   });
 
-  it('refuses when the actor carries a scope that matches no agency', async () => {
+  it('follows the actor to its own agency, never another that sorts first', async () => {
+    const db = fakeDb({ agencies: [agencyA, agencyB], brands: [brandOfA, brandOfB] });
+
+    await expect(resolveLiveBrandId(db, { actorScope: asOrg('org-b') })).resolves.toBe('brand-b');
+  });
+
+  it('resolves to no brand when the actor scope matches no agency', async () => {
     const db = fakeDb({ agencies: [agencyA, agencyB], brands: [brandOfA, brandOfB] });
 
     await expect(
       resolveLiveBrandId(db, { actorScope: asOrg('org-elsewhere') }),
-    ).rejects.toBeInstanceOf(AmbiguousBrandError);
+    ).resolves.toBeNull();
   });
 });
 
@@ -234,7 +226,7 @@ describe('data-source in live mode', () => {
     await expect(
       currentBrand({
         demoMode: () => false,
-        actorScope: noActor,
+        actorScope: asOrg('org-a'),
         connect: (url) => {
           openings.push(url);
           return { db, close };
@@ -246,13 +238,25 @@ describe('data-source in live mode', () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('closes the pool when the resolver refuses a cross-tenant read', async () => {
+  it('closes the pool when the resolver refuses an ambiguous actor', async () => {
     vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
     const close = vi.fn(() => Promise.resolve());
-    const db = fakeDb({ agencies: [agencyA, agencyB], brands: [brandOfA, brandOfB] });
+    const db = fakeDb({
+      agencies: [agencyA, agencyB],
+      brands: [brandOfA, brandOfB],
+      users: [{ id: 'user-1', clerkUserId: 'clerk-1', deletedAt: null }],
+      memberships: [
+        { userId: 'user-1', agencyId: 'agency-a', deletedAt: null },
+        { userId: 'user-1', agencyId: 'agency-b', deletedAt: null },
+      ],
+    });
 
     await expect(
-      currentBrand({ demoMode: () => false, actorScope: noActor, connect: () => ({ db, close }) }),
+      currentBrand({
+        demoMode: () => false,
+        actorScope: asUser('clerk-1'),
+        connect: () => ({ db, close }),
+      }),
     ).rejects.toBeInstanceOf(AmbiguousBrandError);
     expect(close).toHaveBeenCalledTimes(1);
   });
@@ -280,30 +284,38 @@ describe('data-source in live mode', () => {
  * and the Team table and the promotion queue were then read with another agency's id.
  */
 describe('resolveLiveAgencyId · the one way an agency-scoped read gets its scope', () => {
-  it('answers with the only agency there is', async () => {
+  it("answers with the actor's agency, resolved from its organisation", async () => {
     const db = fakeDb({ agencies: [agencyA] });
 
-    await expect(resolveLiveAgencyId(db, { actorScope: noActor })).resolves.toBe('agency-a');
+    await expect(resolveLiveAgencyId(db, { actorScope: asOrg('org-a') })).resolves.toBe('agency-a');
   });
 
   it('answers null when there is no agency yet, so the caller reads nothing at all', async () => {
-    await expect(resolveLiveAgencyId(fakeDb({}), { actorScope: noActor })).resolves.toBeNull();
+    await expect(
+      resolveLiveAgencyId(fakeDb({}), { actorScope: asOrg('org-a') }),
+    ).resolves.toBeNull();
   });
 
-  it('refuses to choose between two agencies rather than returning the first', async () => {
+  it('answers null for a request with no actor scope, never the sole agency (2B)', async () => {
+    // The security fix: without an actor there is no scope, so there is nothing to read — not the
+    // only agency's data handed to whoever asked.
+    const db = fakeDb({ agencies: [agencyA] });
+
+    await expect(resolveLiveAgencyId(db, { actorScope: noActor })).resolves.toBeNull();
+  });
+
+  it('answers null for a no-actor request even with two agencies, rather than choosing or throwing', async () => {
     const db = fakeDb({ agencies: [agencyA, agencyB] });
 
-    await expect(resolveLiveAgencyId(db, { actorScope: noActor })).rejects.toBeInstanceOf(
-      AmbiguousBrandError,
-    );
+    await expect(resolveLiveAgencyId(db, { actorScope: noActor })).resolves.toBeNull();
   });
 
-  it('is not ambiguous when the second agency is soft deleted', async () => {
+  it("resolves the actor's agency past a soft-deleted one it does not belong to", async () => {
     const db = fakeDb({
       agencies: [{ ...agencyB, deletedAt: new Date('2026-09-01T00:00:00Z') }, agencyA],
     });
 
-    await expect(resolveLiveAgencyId(db, { actorScope: noActor })).resolves.toBe('agency-a');
+    await expect(resolveLiveAgencyId(db, { actorScope: asOrg('org-a') })).resolves.toBe('agency-a');
   });
 
   it("follows the actor's organisation, and never the first row, when two agencies exist", async () => {

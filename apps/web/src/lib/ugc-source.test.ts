@@ -102,6 +102,7 @@ describe('loadUgc in live mode', () => {
     await expect(
       loadUgc({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };
@@ -120,6 +121,7 @@ describe('loadUgc in live mode', () => {
 
     const result = await loadUgc({
       demoMode: () => false,
+      actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
       clock: () => at,
       connect: () => ({ db, close: () => Promise.resolve() }),
     });

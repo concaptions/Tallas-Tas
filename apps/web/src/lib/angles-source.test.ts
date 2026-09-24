@@ -113,6 +113,7 @@ describe('loadAngles in live mode', () => {
     await expect(
       loadAngles({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };
@@ -134,7 +135,11 @@ describe('loadAngles in live mode', () => {
     } as unknown as Db;
 
     await expect(
-      loadAngle('any', { demoMode: () => false, connect: () => ({ db, close }) }),
+      loadAngle('any', {
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: () => ({ db, close }),
+      }),
     ).rejects.toThrow('boom');
 
     expect(close).toHaveBeenCalledTimes(1);
@@ -146,7 +151,11 @@ describe('loadAngles in live mode', () => {
     const db = { select: () => ({ from: () => Promise.resolve([]) }) } as unknown as Db;
 
     await expect(
-      loadAngles({ demoMode: () => false, connect: () => ({ db, close }) }),
+      loadAngles({
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: () => ({ db, close }),
+      }),
     ).resolves.toEqual({ rows: [], source: 'database' });
     expect(close).toHaveBeenCalledTimes(1);
   });
@@ -158,7 +167,11 @@ describe('loadAngles in live mode', () => {
     const run = vi.fn(() => Promise.resolve('written'));
 
     await expect(
-      withBrandScope(run, { demoMode: () => false, connect: () => ({ db, close }) }),
+      withBrandScope(run, {
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: () => ({ db, close }),
+      }),
     ).resolves.toBeNull();
     expect(run).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalledTimes(1);

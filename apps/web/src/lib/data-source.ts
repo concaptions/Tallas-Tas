@@ -220,34 +220,28 @@ async function actorAgencyId(db: Db, deps: BrandResolverDeps): Promise<string | 
 }
 
 /**
- * The only agency there is, or a refusal. Reached only when the request has no actor scope: with one
- * agency the answer is unambiguous, with none there is nothing to read, and with more than one there
- * is no honest way to choose.
- */
-async function soleAgencyId(db: Db): Promise<string | null> {
-  const rows = (await db.select().from(agencies)).filter(isLive);
-  if (rows.length > 1) {
-    throw new AmbiguousBrandError(rows.map((row) => row.id));
-  }
-  return rows[0]?.id ?? null;
-}
-
-/**
- * THE agency in scope, and the ONE way any module gets one: the actor's when the request carries a
- * usable scope, and otherwise the only agency there is. `AmbiguousBrandError` is thrown rather than
- * picking the first row, which is the whole difference between this and the private
- * `liveAgencyId` copies `team-source.ts` and `propagation-source.ts` used to keep — those took
- * `rows.find(live)`, so a second tenant inserted before the org switcher exists would have been
- * served another agency's people and another agency's promotion requests.
+ * THE agency in scope, and the ONE way any module gets one: it is the ACTOR'S agency, resolved from
+ * the session, or nothing at all. There is deliberately no "sole agency" fallback.
  *
- * Every agency-scoped read goes through this, exactly as every brand-scoped read goes through
- * `resolveLiveBrandId`. Two resolvers, both here, neither copied.
+ * A fallback to "the only agency there is" would answer a request that carries no usable actor
+ * scope with a tenant's data anyway — which on the public `/client` tree means an unauthenticated
+ * visitor is served the agency's client-approved briefs, and on `/app` (if a swallowed Clerk error
+ * ever leaves the scope null behind `auth.protect()`) means the same. Returning `null` instead
+ * resolves to no brand and an empty workspace: deny rather than guess, the safe direction for a
+ * multi-tenant read (CLAUDE.md non-negotiables 4 and 10). A signed-in user whose organisation is
+ * not yet linked to an agency therefore sees an empty workspace, not another tenant's — the fix for
+ * that is to link the organisation (onboarding / `ensureAgencyUser`), never to widen this resolver.
+ *
+ * `actorAgencyId` still throws `AmbiguousBrandError` when an actor genuinely belongs to two
+ * agencies and has selected neither; that is a real ambiguity in the actor's own scope, not a guess
+ * across tenants. Every agency-scoped read goes through this, exactly as every brand-scoped read
+ * goes through `resolveLiveBrandId`. Two resolvers, both here, neither copied.
  */
 export async function resolveLiveAgencyId(
   db: Db,
   deps: BrandResolverDeps = {},
 ): Promise<string | null> {
-  return (await actorAgencyId(db, deps)) ?? (await soleAgencyId(db));
+  return actorAgencyId(db, deps);
 }
 
 /** A brand row, as much of it as the resolver reads. */

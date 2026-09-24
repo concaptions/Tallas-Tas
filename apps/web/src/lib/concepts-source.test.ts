@@ -86,6 +86,7 @@ describe('loadConcepts in live mode', () => {
     await expect(
       loadConcepts({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };

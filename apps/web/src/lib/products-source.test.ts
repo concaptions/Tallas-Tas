@@ -97,6 +97,7 @@ describe('loadProducts in live mode', () => {
     await expect(
       loadProducts({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };
@@ -118,7 +119,11 @@ describe('loadProducts in live mode', () => {
     } as unknown as Db;
 
     await expect(
-      loadProduct('any', { demoMode: () => false, connect: () => ({ db, close }) }),
+      loadProduct('any', {
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: () => ({ db, close }),
+      }),
     ).rejects.toThrow('boom');
 
     expect(close).toHaveBeenCalledTimes(1);
@@ -130,7 +135,11 @@ describe('loadProducts in live mode', () => {
     const db = { select: () => ({ from: () => Promise.resolve([]) }) } as unknown as Db;
 
     await expect(
-      loadProducts({ demoMode: () => false, connect: () => ({ db, close }) }),
+      loadProducts({
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: () => ({ db, close }),
+      }),
     ).resolves.toEqual({ rows: [], source: 'database' });
     expect(close).toHaveBeenCalledTimes(1);
   });

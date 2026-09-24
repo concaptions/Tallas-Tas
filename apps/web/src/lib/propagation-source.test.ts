@@ -125,6 +125,7 @@ describe('loadPromotionRequests in live mode', () => {
     await expect(
       loadPromotionRequests({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };
@@ -142,7 +143,11 @@ describe('loadPromotionRequests in live mode', () => {
     const db = { select: () => ({ from: () => Promise.resolve([]) }) } as unknown as Db;
 
     await expect(
-      loadPromotionRequests({ demoMode: () => false, connect: () => ({ db, close }) }),
+      loadPromotionRequests({
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: () => ({ db, close }),
+      }),
     ).resolves.toEqual({ rows: [], source: 'database' });
     expect(close).toHaveBeenCalledTimes(1);
   });
@@ -152,7 +157,7 @@ describe('loadPromotionRequests in live mode', () => {
     const close = vi.fn(() => Promise.resolve());
     const db = {
       select: () => ({
-        from: () => Promise.resolve([{ id: 'agency-1', deletedAt: null }]),
+        from: () => Promise.resolve([{ id: 'agency-1', clerkOrgId: 'org-live', deletedAt: null }]),
       }),
     } as unknown as Db;
     const seen: string[] = [];
@@ -163,7 +168,11 @@ describe('loadPromotionRequests in live mode', () => {
           seen.push(agencyId);
           return Promise.resolve('written');
         },
-        { demoMode: () => false, connect: () => ({ db, close }) },
+        {
+          demoMode: () => false,
+          actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+          connect: () => ({ db, close }),
+        },
       ),
     ).resolves.toBe('written');
 
