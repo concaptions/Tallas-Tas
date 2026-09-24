@@ -1,5 +1,4 @@
 import {
-  createAutoDb,
   demoNotifications,
   listNotifications,
   type Db,
@@ -9,6 +8,7 @@ import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 /**
  * Where the Notifications route gets its rows (PRD §12: "notifications go as **Slack direct
@@ -70,8 +70,7 @@ export interface NotificationSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */

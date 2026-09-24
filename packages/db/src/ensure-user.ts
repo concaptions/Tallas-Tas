@@ -42,6 +42,44 @@ export interface EnsureAgencyUserResult {
   readonly membershipCreated: boolean;
 }
 
+/**
+ * True when `ensureAgencyUser` would have nothing to do: the users row exists and, if the session's
+ * org maps to an agency, the membership does too. ONE query — users LEFT JOIN the org's agency LEFT
+ * JOIN the membership — so the steady state (every request after the first) costs a single round trip
+ * on the request's connection instead of a Clerk profile fetch plus four sequential queries.
+ *
+ * "The org maps to no agency" counts as provisioned: `ensureAgencyUser` would create no membership in
+ * that case either, so there is no work to skip to.
+ */
+export async function isAgencyUserProvisioned(
+  db: Db,
+  input: { readonly clerkUserId: string; readonly clerkOrgId: string | null },
+): Promise<boolean> {
+  if (input.clerkOrgId === null) {
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.clerkUserId, input.clerkUserId))
+      .limit(1);
+    return rows[0] !== undefined;
+  }
+  const rows = await db
+    .select({ userId: users.id, agencyId: agencies.id, membershipId: memberships.id })
+    .from(users)
+    .leftJoin(agencies, and(eq(agencies.clerkOrgId, input.clerkOrgId), isNull(agencies.deletedAt)))
+    .leftJoin(
+      memberships,
+      and(eq(memberships.userId, users.id), eq(memberships.agencyId, agencies.id)),
+    )
+    .where(eq(users.clerkUserId, input.clerkUserId))
+    .limit(1);
+  const row = rows[0];
+  if (row === undefined) {
+    return false;
+  }
+  return row.agencyId === null || row.membershipId !== null;
+}
+
 export async function ensureAgencyUser(
   db: Db,
   input: EnsureAgencyUserInput,

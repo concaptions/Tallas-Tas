@@ -31,8 +31,12 @@ interface SectionCard {
 
 export default async function OverviewPage() {
   const demo = isDemoMode();
-  const { brand, counts } = await loadOverview();
-  const dashboard = await loadRoleDashboard('admin');
+  // Independent reads: awaited together, not one after the other. Both share the request's
+  // connection and its once-per-request brand resolution.
+  const [{ brand, counts }, dashboard] = await Promise.all([
+    loadOverview(),
+    loadRoleDashboard('admin'),
+  ]);
 
   const cards: readonly SectionCard[] = [
     {

@@ -24,12 +24,19 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
   // without a ClerkProvider and Clerk middleware `auth()` throws, so in demo mode it is never called.
   if (!demo) {
     await auth.protect();
-    await ensureOrganization();
-    // After the org exists: provision the user row + membership so the roster-based guards
-    // (Team, Propagation) recognise a real Clerk account on its first visit (2D).
-    await ensureUser();
   }
-  const [brands, actor] = await Promise.all([loadBrandScope(), currentActor()]);
+  // Everything after the auth gate runs at once. None of it needs another's result within this
+  // request: `ensureOrganization` creating an org does not make it the session's active org, so
+  // `ensureUser` and `loadBrandScope` read the same `orgId` whether it ran first or not, and brand
+  // scope resolves from the org's agency, never from the membership `ensureUser` may write. Run in
+  // series these were four round-trip chains back to back on every full load; now the layout costs
+  // the slowest one. `ensureUser` provisions the roster row the Team and Propagation guards read (2D).
+  const [, , brands, actor] = await Promise.all([
+    demo ? undefined : ensureOrganization(),
+    demo ? undefined : ensureUser(),
+    loadBrandScope(),
+    currentActor(),
+  ]);
 
   return (
     <div data-slot="app-shell" className="flex min-h-screen flex-col overflow-x-hidden bg-bg">

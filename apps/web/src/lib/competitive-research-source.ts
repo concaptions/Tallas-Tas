@@ -1,5 +1,4 @@
 import {
-  createAutoDb,
   demoCompetitiveResearch,
   getCompetitiveResearchById,
   listCompetitiveResearch,
@@ -10,6 +9,7 @@ import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 export interface CompetitiveResearchListResult {
   readonly rows: CompetitiveResearchListRow[];
@@ -32,8 +32,7 @@ export interface CompetitiveResearchSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 async function withDb<T>(

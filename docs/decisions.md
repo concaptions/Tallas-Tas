@@ -519,3 +519,48 @@ Sprint 5 adds a Kanban view with drag-and-drop card movement between columns. `@
 `@dnd-kit/sortable` + `@dnd-kit/utilities` were chosen over `react-beautiful-dnd` (unmaintained) and
 `react-dnd` (heavier). @dnd-kit is ~15 KB gzipped, React 19 compatible, and has no peer dependency
 beyond React. No hosted service, no cost.
+
+## D-031 · 2026-09-24 · Page-load performance: one connection per request, and the region gap
+
+**What dominated latency (measured, not assumed).** Functions are pinned to Frankfurt (`apps/web/vercel.json`
+`"regions": ["fra1"]`; live responses carry `x-vercel-id …::fra1::…`). The Railway Postgres is not in
+Europe: server-side, `/sign-in` (no database) takes 341-381 ms while `/client/<missing-slug>` (one fresh
+pool, one SELECT) takes 1164-1368 ms, so a fresh connection from fra1 costs about 0.8-1.0 s — consistent
+with a US Railway region (us-east4 or us-west2), not europe-west4 (~8-10 ms from fra1). The proxy host
+`iriguchi.proxy.rlwy.net` resolves to an anycast Railway IP, so the region itself must be read in the
+Railway dashboard. On top of that distance, a full Overview load opened 6 separate node-postgres pools
+(about 26 physical connections, since each pool opens one per concurrent query), ran 39 queries, resolved
+the same agency and brand 5 times, and `ensureUser` fetched the Clerk profile on every request.
+
+**Changed in code** (within CLAUDE.md's rules):
+- `apps/web/src/lib/request-db.ts`: ONE pool per request via React `cache`, ended by `after()` once the
+  response is sent. The 26 identical per-module `neonConnection` helpers now delegate to it. `cache` is
+  per request, never per process, so this is not the module-level singleton CLAUDE.md forbids, and
+  `createAutoDb` remains the factory. Server Actions (where React does not memoize) still get a pool per
+  call, ended by `after`.
+- Agency and brand-scope resolution memoized per request in `data-source.ts`, keyed on that request's
+  `db`, and only when no test seam is injected, so tenancy tests still exercise the uncached resolver.
+- `ensureUser` checks `isAgencyUserProvisioned` (one query) before any Clerk call; the profile fetch
+  and the writes only happen for a user not yet provisioned.
+- The /app layout runs `ensureOrganization`, `ensureUser`, `loadBrandScope` and `currentActor` in
+  parallel after `auth.protect()`; the Overview page awaits its two loaders together.
+- `loading.tsx` for `/app` and `/client/[brandSlug]`: navigation shows a skeleton at once and dynamic
+  routes can be prefetched up to that boundary. (The /app layout does not re-run on client-side
+  navigation between /app pages — verified in Next 15.5's walk-tree-with-flight-router-state — so its
+  cost is paid on full loads, refreshes and redirects; a navigation's cost is the page's own reads.)
+- `experimental.optimizePackageImports: ['@tas/ui', '@tas/domain']` in `next.config.ts`: the barrels were
+  shipping every Radix primitive to routes that use none (config only, no dependency).
+
+**Considered and not done.** A cross-request (module-level) pool would remove even the one handshake per
+request, but it is exactly the shared mutable module state CLAUDE.md forbids, and on serverless it risks
+exhausting Railway's connection limit across instances. The infra-level equivalent is a pooler in front
+of Postgres (PgBouncer); Railway does not provide one by default and none is configured. Cross-request
+`unstable_cache` of tenant data (brand list, actor) was not added: its key cannot read cookies or the
+session inside the cached function, so a mis-keyed entry would serve one tenant's brands to another;
+per-request memoization gets the dedup without that risk.
+
+**Pending the human (the largest remaining win).** Co-locate compute and data: read the Postgres region in
+Railway (service → Settings → Region), then either move the Railway database to europe-west4 and keep
+fra1, or change `vercel.json` `regions` to the matching Vercel region (iad1 for us-east4, sfo1 for
+us-west2). Also confirm `DATABASE_URL` carries `sslmode=require`: without it `createNodeDb` connects
+without TLS, and the Vercel-to-Railway traffic crosses the public internet unencrypted.

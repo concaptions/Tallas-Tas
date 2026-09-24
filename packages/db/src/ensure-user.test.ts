@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { ensureAgencyUser } from './ensure-user';
+import { ensureAgencyUser, isAgencyUserProvisioned } from './ensure-user';
 import { agencies, memberships, users } from './schema';
 import { testDb } from './testing';
 
@@ -133,5 +133,71 @@ describe('ensureAgencyUser', () => {
     expect(result.userCreated).toBe(true);
     expect(result.agencyId).toBeNull();
     expect(result.membershipCreated).toBe(false);
+  });
+});
+
+/**
+ * The steady-state check `ensureUser` runs on every request before it would fetch the Clerk profile.
+ * It must say "provisioned" exactly when `ensureAgencyUser` would have nothing to write — never
+ * earlier, or a real user is left without the membership the Team guard reads.
+ */
+describe('isAgencyUserProvisioned', () => {
+  const admin = {
+    clerkUserId: 'user_1',
+    email: 'admin@tas.test',
+    fullName: 'Ada Admin',
+    clerkOrgId: 'org_abc',
+    isOrgAdmin: true,
+  };
+
+  it('is false for a user never seen, so the first visit still provisions', async () => {
+    const db = await testDb();
+    await seedAgency(db, 'org_abc');
+
+    await expect(
+      isAgencyUserProvisioned(db, { clerkUserId: 'user_1', clerkOrgId: 'org_abc' }),
+    ).resolves.toBe(false);
+  });
+
+  it('is true once the user row and the membership both exist', async () => {
+    const db = await testDb();
+    await seedAgency(db, 'org_abc');
+    await ensureAgencyUser(db, admin);
+
+    await expect(
+      isAgencyUserProvisioned(db, { clerkUserId: 'user_1', clerkOrgId: 'org_abc' }),
+    ).resolves.toBe(true);
+  });
+
+  it('is false when the user row exists but the membership for the active org does not', async () => {
+    const db = await testDb();
+    await seedAgency(db, 'org_abc');
+    // First seen with no active org: a users row, no membership.
+    await ensureAgencyUser(db, { ...admin, clerkOrgId: null });
+
+    await expect(
+      isAgencyUserProvisioned(db, { clerkUserId: 'user_1', clerkOrgId: 'org_abc' }),
+    ).resolves.toBe(false);
+  });
+
+  it('is true for an org that maps to no agency, where there is no membership to create', async () => {
+    const db = await testDb();
+    await ensureAgencyUser(db, { ...admin, clerkOrgId: 'org_unmapped' });
+
+    await expect(
+      isAgencyUserProvisioned(db, { clerkUserId: 'user_1', clerkOrgId: 'org_unmapped' }),
+    ).resolves.toBe(true);
+  });
+
+  it('with no active org, is true exactly when the users row exists', async () => {
+    const db = await testDb();
+
+    await expect(
+      isAgencyUserProvisioned(db, { clerkUserId: 'user_1', clerkOrgId: null }),
+    ).resolves.toBe(false);
+    await ensureAgencyUser(db, { ...admin, clerkOrgId: null });
+    await expect(
+      isAgencyUserProvisioned(db, { clerkUserId: 'user_1', clerkOrgId: null }),
+    ).resolves.toBe(true);
   });
 });

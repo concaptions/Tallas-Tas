@@ -272,6 +272,7 @@ export {
 } from './onboard';
 export {
   ensureAgencyUser,
+  isAgencyUserProvisioned,
   type EnsureAgencyUserInput,
   type EnsureAgencyUserResult,
 } from './ensure-user';

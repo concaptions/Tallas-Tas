@@ -51,6 +51,13 @@ task must be added there first.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- D-031 · co-locate the database with the functions (the largest remaining latency win). In Railway,
+  open the Postgres service → Settings → Region. If it is not europe-west4, either move it there and keep
+  `apps/web/vercel.json` at `"regions": ["fra1"]`, or set `regions` to the matching Vercel region (`iad1`
+  for us-east4, `sfo1` for us-west2). Expected: `/client/<missing-slug>` server time drops from about
+  1.2 s toward `/sign-in`'s ~0.35 s.
+- D-031 · confirm `DATABASE_URL` in Vercel ends with `?sslmode=require`. Without it `createNodeDb` connects
+  without TLS and the Vercel-to-Railway traffic is unencrypted on the public internet.
 - TICKET-003 · migration and seed against a Neon preview branch (verified on PGlite by
   `packages/db/src/seed.test.ts`). With the preview branch's connection string in `.env.local` as
   `DATABASE_URL`, or exported in the shell:

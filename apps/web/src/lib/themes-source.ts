@@ -1,14 +1,8 @@
-import {
-  createAutoDb,
-  demoThemes,
-  getThemeById,
-  listThemes,
-  type Db,
-  type ThemeListRow,
-} from '@tas/db';
+import { demoThemes, getThemeById, listThemes, type Db, type ThemeListRow } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 /**
  * Where the Themes route gets its rows (PRD §5.5). A copy of `personas-source.ts`, function for
@@ -62,8 +56,7 @@ export interface ThemeSourceDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */

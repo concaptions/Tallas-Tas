@@ -1,7 +1,9 @@
-import { brands, createAutoDb, demoBrands, type Db } from '@tas/db';
+import { brands, demoBrands, type Db } from '@tas/db';
 import { serverEnv } from '@tas/env';
+import { cache } from 'react';
 
 import { isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 export interface ClientBrand {
   readonly id: string;
@@ -15,11 +17,10 @@ interface DbConnection {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
-export async function resolveClientBrand(slug: string): Promise<ClientBrand | null> {
+async function resolveClientBrandUncached(slug: string): Promise<ClientBrand | null> {
   if (isDemoMode()) {
     const match = demoBrands.find((b) => b.slug === slug);
     return match ? { id: match.id, name: match.name, slug: match.slug } : null;
@@ -51,6 +52,14 @@ export async function resolveClientBrand(slug: string): Promise<ClientBrand | nu
     await close();
   }
 }
+
+/**
+ * The brand a client-portal URL names, once per request. The brand layout and every section page
+ * resolve the same slug, so an uncached lookup ran the brands read twice per page view; React `cache`
+ * keys on the slug for the life of one server render (a plain call outside one), so the layout and
+ * the page share a single read and nothing is kept between requests.
+ */
+export const resolveClientBrand = cache(resolveClientBrandUncached);
 
 export function defaultDemoSlug(): string {
   return demoBrands[0]?.slug ?? 'niagara-sleep-solutions';

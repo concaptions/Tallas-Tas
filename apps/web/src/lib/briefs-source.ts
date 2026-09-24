@@ -1,6 +1,5 @@
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
-  createAutoDb,
   demoBriefs,
   getBriefById,
   listBriefs,
@@ -19,6 +18,7 @@ import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 /**
  * Where the Creative Briefs route gets its rows (PRD §5.10). A copy of `personas-source.ts` /
@@ -151,8 +151,7 @@ export function toBriefRow(row: BriefListRow): BriefRow {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */

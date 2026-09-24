@@ -7,6 +7,7 @@ import { serverEnv } from '@tas/env';
 
 import { isDemoMode } from './demo-mode';
 import { resolveLiveBrandId } from './data-source';
+import { requestConnection } from './request-db';
 
 export interface ViewPreferenceResult {
   readonly viewType: ViewType;
@@ -27,18 +28,16 @@ export async function loadViewPreference(tableKey: string): Promise<ViewPreferen
   const databaseUrl = serverEnv().DATABASE_URL;
   if (!databaseUrl) return DEFAULT_PREFERENCE;
 
-  const db = createAutoDb(databaseUrl);
-  try {
-    const brandId = await resolveLiveBrandId(db);
-    if (!brandId) return DEFAULT_PREFERENCE;
-    const pref = await getViewPreference(db, userId, brandId, tableKey);
-    if (!pref) return DEFAULT_PREFERENCE;
-    const vt = pref.viewType as ViewType;
-    if (!supportsView(tableKey, vt)) return DEFAULT_PREFERENCE;
-    return { viewType: vt, kanbanGroupByField: pref.kanbanGroupByField };
-  } finally {
-    await db.$client.end();
-  }
+  // A read that page renders call directly, so it shares the render's request connection (and its
+  // once-per-request brand resolution) instead of opening a pool of its own; `after` ends it.
+  const { db } = requestConnection(databaseUrl);
+  const brandId = await resolveLiveBrandId(db);
+  if (!brandId) return DEFAULT_PREFERENCE;
+  const pref = await getViewPreference(db, userId, brandId, tableKey);
+  if (!pref) return DEFAULT_PREFERENCE;
+  const vt = pref.viewType as ViewType;
+  if (!supportsView(tableKey, vt)) return DEFAULT_PREFERENCE;
+  return { viewType: vt, kanbanGroupByField: pref.kanbanGroupByField };
 }
 
 export interface SaveViewPreferenceInput {
