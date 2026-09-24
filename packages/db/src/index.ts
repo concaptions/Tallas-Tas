@@ -271,6 +271,11 @@ export {
   type OnboardBrandResult,
 } from './onboard';
 export {
+  ensureAgencyUser,
+  type EnsureAgencyUserInput,
+  type EnsureAgencyUserResult,
+} from './ensure-user';
+export {
   dispatchNotification,
   fireNotification,
   getChannelSettings,

@@ -8,6 +8,7 @@ import { currentActor } from '@/lib/actor';
 import { loadBrandScope } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { ensureOrganization } from '@/lib/ensure-organization';
+import { ensureUser } from '@/lib/ensure-user';
 
 /**
  * The product shell: top bar, demo strip, left rail, page slot.
@@ -24,6 +25,9 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
   if (!demo) {
     await auth.protect();
     await ensureOrganization();
+    // After the org exists: provision the user row + membership so the roster-based guards
+    // (Team, Propagation) recognise a real Clerk account on its first visit (2D).
+    await ensureUser();
   }
   const [brands, actor] = await Promise.all([loadBrandScope(), currentActor()]);
 
