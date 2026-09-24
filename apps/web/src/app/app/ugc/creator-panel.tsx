@@ -300,14 +300,18 @@ export function CreatorPanel({
               <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
                 Costs (internal only)
               </h3>
-              <p className="text-xs text-text3">Never shown to clients. Whole USD, no cents.</p>
+              <p className="text-xs text-text3">
+                Never shown to clients. Whole USD, no cents. This is what TAS paid the creator
+                (Airtable &ldquo;Paid by TAS&rdquo;); the creator&rsquo;s own quoted cost is
+                imported separately and not edited here.
+              </p>
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <Label
                     htmlFor="creator-field-costUsd"
                     className="text-[11px] tracking-wide text-text3 uppercase"
                   >
-                    Creator Cost (USD)
+                    Paid by TAS (USD)
                   </Label>
                   <Input
                     id="creator-field-costUsd"
