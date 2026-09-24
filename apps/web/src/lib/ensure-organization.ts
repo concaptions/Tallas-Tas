@@ -25,6 +25,10 @@ export async function ensureOrganization(): Promise<void> {
       userId: session.userId,
     });
     if (existingOrgs.totalCount > 0) {
+      // The person already belongs to an organization but has not SELECTED one. Nothing here can
+      // fix that: the active organization lives in the session and Clerk only moves it from the
+      // client, through `setActive`. `components/shell/org-switcher.tsx` does it there — silently
+      // when there is exactly one membership, and through the switcher when there are several.
       return;
     }
 
