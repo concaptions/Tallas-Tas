@@ -31,12 +31,38 @@ diffs against the stale `0027` snapshot and re-emits five sprints of already-app
 committed `TICKET-038c` junction refactor, platform-jsonb, briefs FKs). That meta gap predates this
 work and is flagged for the human — see "Pending human verification" in the runbook.
 
-## Phase 2 — source + page + action  (TODO)
+## Phase 2 — source + page + action  (DONE, `6d00838`)
 
-`ads-to-launch-source.ts` (Ready to Launch = client Approved, `launched_at` null, sorted by
-`launch_priority` then approval date; Recently Launched = `launched_at` within 7 days, `launched_at`
-desc), page at `/app/ads-to-launch`, `selectBrandAction`-style "Mark as Launched" server action
-(the `approved → launched` transition + set `launched_at`/`launch_priority`), sidebar entry.
+`/app/ads-to-launch`, in the sidebar's Approvals group (rocket icon), scoped to the active brand:
+
+- **Ready to Launch**: client `approved`, `launched_at` null; `launch_priority` ascending with unset
+  last (Postgres ASC default), then `updated_at` desc. Control: Mark as Launched.
+- **Recently Launched**: client `launched` OR `paused`, `launched_at` within 7 days, newest first.
+  Controls: Pause (launched) / Resume (paused). Paused rows are included deliberately — Resume is the
+  only way back to live, and this is the page that draws it.
+- Each row: generated creative and concept names in `font-mono`, format with a track icon, angle,
+  `StatusChip` with the domain tone, `P<n>` priority, launch time (UTC), a Download link to the
+  design file (PRD §11), and only the one control the state machine allows.
+
+**Launch moves BOTH tracks to Launched** — PRD §9: "Launched needs to exist on the internal track too
+… that's how our team knows a creative is finished." This also keeps the Overview's "Currently
+live" tile (which counts internal `launched`) correct. Pause and resume are client-track only; the
+internal track has no paused state. `launched_at` is set on launch and kept through pause/resume.
+
+Built on the house patterns: `@tas/domain` `queue/launch-queue.ts` (status keys, 7-day window,
+`launchTransition` / `launchQueueActionsFor` over `canTransitionClient`/`canTransitionInternal`;
+`creative-status.ts` untouched); `@tas/db` `listLaunchQueue` and `transitionBriefLaunch`, a
+compare-and-set through `withBrand` that applies only while the validated statuses still hold (so
+double clicks and stale boards move a creative at most once, and never another brand's);
+`ads-to-launch-source.ts` on the request connection; actions in the Client Queue's shape (demo
+refusal, zod on the id only, target from the domain, rules checked against the stored row);
+`loading.tsx`; a `/design-system` story (UI governance rule 4). No migration, no dependency.
+
+Tests: domain 10, PGlite `@tas/db` 9, PGlite source 4, actions 11, projection 8.
+
+Follow-ups, not built: setting `launch_priority` from the page (it is displayed, not editable — no
+drag handle); a paused ad launched more than 7 days ago drops out of Recently Launched and can only be
+resumed from elsewhere; notifications on launch (PRD §12 lists no launch trigger).
 
 ## Phase 3 — overview integration  (TODO)
 
