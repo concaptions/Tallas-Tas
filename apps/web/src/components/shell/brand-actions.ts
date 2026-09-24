@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 import { createAutoDb } from '@tas/db';
 import { serverEnv } from '@tas/env';
@@ -20,8 +21,17 @@ import { appPath } from '@/lib/routes';
  * the write half of the same gate `resolveLiveBrand` applies on read, so the two cannot disagree.
  *
  * Demo mode has no session and one brand, so there is nothing to switch and nothing to persist; it
- * returns before touching a cookie or a connection. `revalidatePath` rebuilds the `/app` layout so
- * the top bar and every scoped read below it pick up the new brand on the same interaction.
+ * returns before touching a cookie or a connection.
+ *
+ * On a real switch it `revalidatePath`s the `/app` layout AND `redirect`s to `/app`. The redirect is
+ * what makes the switch actually land: a form-action `revalidatePath` alone leaves the client
+ * router free to serve the current segment from its cache, so the page could keep showing the old
+ * brand until the next navigation. A server redirect forces a fresh server render of `/app`, which
+ * re-reads the cookie through `loadBrandScope`/`resolveLiveBrand` and resolves the new brand. It
+ * also lands the switcher on the new brand's Overview, which is where a media buyer expects to be
+ * after changing workspace. `redirect` throws `NEXT_REDIRECT`, so it is called AFTER the `finally`
+ * that closes the pool — never inside the `try`, where the `finally` is fine but a `catch` would
+ * swallow it — and only on the success path, so a rejected switch does not navigate.
  */
 export async function selectBrandAction(brandId: string): Promise<void> {
   if (isDemoMode()) {
@@ -42,5 +52,9 @@ export async function selectBrandAction(brandId: string): Promise<void> {
     await db.$client.end();
   }
 
+  // Reached only when the brand was selectable and the cookie was written: the guard above returns
+  // early otherwise, and the `finally` still closes the pool on that path. So the switch succeeded,
+  // and the redirect is unconditional here.
   revalidatePath(appPath, 'layout');
+  redirect(appPath);
 }
