@@ -1,8 +1,9 @@
-import { createAutoDb, demoTeam, listTeam, type Db, type TeamListRow } from '@tas/db';
+import { demoTeam, listTeam, type Db, type TeamListRow } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 /**
  * Where the Team route gets its rows (PRD §11, §3; ticket `team.md` criterion 12). A copy of
@@ -53,8 +54,7 @@ export interface TeamSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */

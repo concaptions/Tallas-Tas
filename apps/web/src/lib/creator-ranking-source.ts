@@ -1,5 +1,4 @@
 import {
-  createAutoDb,
   demoCreatorRankings,
   getCreatorRankingById,
   listCreatorRankings,
@@ -10,6 +9,7 @@ import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 export interface CreatorRankingResult {
   readonly rows: CreatorRankingListRow[];
@@ -27,8 +27,7 @@ export interface CreatorRankingSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 async function withDb<T>(

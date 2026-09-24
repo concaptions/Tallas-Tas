@@ -1,5 +1,4 @@
 import {
-  createAutoDb,
   demoCompetitorAds,
   getCompetitorAdById,
   listCompetitorAds,
@@ -10,6 +9,7 @@ import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 export interface AdSpyResult {
   readonly rows: CompetitorAdListRow[];
@@ -27,8 +27,7 @@ export interface AdSpySourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 async function withDb<T>(deps: AdSpySourceDeps, query: (db: Db) => Promise<T>): Promise<T> {

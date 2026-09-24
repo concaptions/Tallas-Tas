@@ -8,7 +8,6 @@ import {
   clientCreators,
   clientPartnershipAds,
   clientThemes,
-  createAutoDb,
   demoAngles,
   demoCampaigns,
   demoConcepts,
@@ -28,6 +27,7 @@ import {
 import { serverEnv } from '@tas/env';
 
 import { isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 interface DbConnection {
   readonly db: Db;
@@ -35,8 +35,7 @@ interface DbConnection {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 function inFixtureMode(): boolean {

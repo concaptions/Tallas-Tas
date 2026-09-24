@@ -1,15 +1,9 @@
-import {
-  createAutoDb,
-  demoAssets,
-  getAssetById,
-  listAssets,
-  type AssetListRow,
-  type Db,
-} from '@tas/db';
+import { demoAssets, getAssetById, listAssets, type AssetListRow, type Db } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 export interface AssetListResult {
   readonly rows: AssetListRow[];
@@ -27,8 +21,7 @@ export interface AssetSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 async function withDb<T>(deps: AssetSourceDeps, query: (db: Db) => Promise<T>): Promise<T> {

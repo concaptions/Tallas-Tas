@@ -1,15 +1,9 @@
-import {
-  createAutoDb,
-  demoProducts,
-  getProductById,
-  listProducts,
-  type Db,
-  type ProductListRow,
-} from '@tas/db';
+import { demoProducts, getProductById, listProducts, type Db, type ProductListRow } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 /**
  * Where the Products route gets its rows (PRD §5.1). A copy of `personas-source.ts`, function for
@@ -60,8 +54,7 @@ export interface ProductSourceDeps extends BrandResolverDeps {
 }
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */

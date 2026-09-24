@@ -5,7 +5,6 @@ import {
   angles,
   brands,
   concepts,
-  createAutoDb,
   demoAngles,
   demoConcepts,
   demoPersonas,
@@ -18,9 +17,11 @@ import {
   type PersonaListRow,
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
+import { cache } from 'react';
 
 import { readActiveBrandId } from './active-brand';
 import { isDemoMode } from './demo-mode';
+import { requestConnection } from '@/lib/request-db';
 
 /**
  * The one place the app decides where its data comes from, and THE ONE PLACE IT DECIDES WHICH BRAND
@@ -35,8 +36,11 @@ import { isDemoMode } from './demo-mode';
  * injectable for exactly one reason: "no client was constructed" is not observable otherwise, and
  * `data-source.test.ts` proves it with a factory that throws if it is ever called.
  *
- * LIVE MODE (Clerk configured): Neon, through `createAutoDb`. The connection is opened per call and
- * closed in a `finally`; no module-level singleton (CLAUDE.md, "No shared mutable module state").
+ * LIVE MODE (Clerk configured): Postgres through `createAutoDb`, on ONE connection per request
+ * (`requestConnection`, `request-db.ts`) shared by every loader and ended by `after` once the response
+ * is sent; the agency and brand scope are resolved once per request too (`agencyIdFor`/`scopeFor`
+ * below). Both are React `cache` memos, per request, never per process — no module-level singleton
+ * (CLAUDE.md, "No shared mutable module state").
  *
  * The fixtures and a seeded database are row-for-row identical, ids included (`seed(db)` writes the
  * same rows into a child brand whose id is `DEMO_BRAND_ID`), so a page renders one branch either way.
@@ -126,8 +130,7 @@ const DEMO_BRAND: BrandSummary = {
 const EMPTY_COUNTS: SectionCounts = { personas: 0, angles: 0, themes: 0, concepts: 0 };
 
 function neonConnection(databaseUrl: string): DbConnection {
-  const db = createAutoDb(databaseUrl);
-  return { db, close: () => db.$client.end() };
+  return requestConnection(databaseUrl);
 }
 
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */
@@ -241,7 +244,51 @@ export async function resolveLiveAgencyId(
   db: Db,
   deps: BrandResolverDeps = {},
 ): Promise<string | null> {
-  return actorAgencyId(db, deps);
+  return agencyIdFor(db, deps);
+}
+
+/**
+ * Resolution, once per request. Every loader on a page used to resolve the actor's agency and brand
+ * for itself — five times on a full Overview load, two sequential whole-table reads each — although
+ * nothing about the answer changes inside one request. These memos key on the request's `db`
+ * handle, which `requestConnection` makes one object per request, so the first loader to ask does
+ * the reads and the rest share its promise (a rejection, e.g. `AmbiguousBrandError`, is shared too).
+ *
+ * The memo is taken ONLY when no seam is injected. A test that hands in `actorScope` or
+ * `activeBrandId` always gets a fresh, uncached resolution, so every tenancy test exercises the real
+ * resolver; and React `cache` does not memoize outside a server render (Vitest, Server Actions), so
+ * there it is a plain call either way. Nothing is shared across requests: a different request is a
+ * different `db` and a different cache.
+ */
+const requestAgencyId = cache((db: Db) => actorAgencyId(db, {}));
+
+function agencyIdFor(db: Db, deps: BrandResolverDeps): Promise<string | null> {
+  return deps.actorScope === undefined ? requestAgencyId(db) : actorAgencyId(db, deps);
+}
+
+/** The agency in scope, its selectable brands, and the one the request is scoped to. */
+interface ResolvedScope {
+  readonly agencyId: string | null;
+  readonly options: readonly BrandRowLike[];
+  readonly active: BrandRowLike | null;
+}
+
+async function computeScope(db: Db, deps: BrandResolverDeps): Promise<ResolvedScope> {
+  const agencyId = await agencyIdFor(db, deps);
+  if (agencyId === null) {
+    return { agencyId: null, options: [], active: null };
+  }
+  const options = agencyBrands(await db.select().from(brands), agencyId);
+  const requestedId = await (deps.activeBrandId ?? readActiveBrandId)();
+  return { agencyId, options, active: pickActiveBrand(options, requestedId) };
+}
+
+const requestScope = cache((db: Db) => computeScope(db, {}));
+
+function scopeFor(db: Db, deps: BrandResolverDeps): Promise<ResolvedScope> {
+  return deps.actorScope === undefined && deps.activeBrandId === undefined
+    ? requestScope(db)
+    : computeScope(db, deps);
 }
 
 /** A brand row, as much of it as the resolver reads. */
@@ -302,14 +349,8 @@ export async function resolveLiveBrand(
   db: Db,
   deps: BrandResolverDeps = {},
 ): Promise<BrandSummary | null> {
-  const agencyId = await resolveLiveAgencyId(db, deps);
-  if (agencyId === null) {
-    return null;
-  }
-  const options = agencyBrands(await db.select().from(brands), agencyId);
-  const requestedId = await (deps.activeBrandId ?? readActiveBrandId)();
-  const brand = pickActiveBrand(options, requestedId);
-  return brand === null ? null : toBrandSummary(brand);
+  const { active } = await scopeFor(db, deps);
+  return active === null ? null : toBrandSummary(active);
 }
 
 /** Every brand of the agency in scope, and the active one, for the switcher. */
@@ -330,13 +371,7 @@ export async function loadBrandScope(deps: DataSourceDeps = {}): Promise<BrandSc
     return { active: DEMO_BRAND, options: [DEMO_BRAND] };
   }
   return withDb(deps, async (db) => {
-    const agencyId = await resolveLiveAgencyId(db, deps);
-    if (agencyId === null) {
-      return { active: null, options: [] };
-    }
-    const options = agencyBrands(await db.select().from(brands), agencyId);
-    const requestedId = await (deps.activeBrandId ?? readActiveBrandId)();
-    const active = pickActiveBrand(options, requestedId);
+    const { active, options } = await scopeFor(db, deps);
     return {
       active: active === null ? null : toBrandSummary(active),
       options: options.map(toBrandSummary),
@@ -355,13 +390,8 @@ export async function isBrandSelectable(
   brandId: string,
   deps: BrandResolverDeps = {},
 ): Promise<boolean> {
-  const agencyId = await resolveLiveAgencyId(db, deps);
-  if (agencyId === null) {
-    return false;
-  }
-  return agencyBrands(await db.select().from(brands), agencyId).some(
-    (brand) => brand.id === brandId,
-  );
+  const { options } = await scopeFor(db, deps);
+  return options.some((brand) => brand.id === brandId);
 }
 
 /** `resolveLiveBrand`, for the callers that only ever pass the id to a scoped `@tas/db` function. */
