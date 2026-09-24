@@ -12,7 +12,7 @@ import {
 import { AccountSummary } from '@/components/account-summary';
 import { RoleDashboardSection } from '@/components/role-dashboard';
 import { Icon, type IconName } from '@/components/shell/icons';
-import { roleDashboard } from '@/lib/dashboard-source';
+import { loadRoleDashboard } from '@/lib/dashboard-source';
 import { loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { anglesPath, conceptsPath, personasPath, themesPath } from '@/lib/routes';
@@ -32,7 +32,7 @@ interface SectionCard {
 export default async function OverviewPage() {
   const demo = isDemoMode();
   const { brand, counts } = await loadOverview();
-  const dashboard = roleDashboard('admin');
+  const dashboard = await loadRoleDashboard('admin');
 
   const cards: readonly SectionCard[] = [
     {
