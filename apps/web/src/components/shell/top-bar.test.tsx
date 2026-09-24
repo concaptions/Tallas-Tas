@@ -25,10 +25,11 @@ function mounts(node: unknown, component: unknown): boolean {
 }
 
 const BRAND = { id: '11111111-1111-4111-8111-000000000001', name: 'Niagara', status: 'active' };
+const SCOPE = { active: BRAND, options: [BRAND] };
 
 describe('TopBar', () => {
   it('mounts the organization switcher for a real session', () => {
-    const tree = TopBar({ brand: BRAND, actor: DEMO_ACTOR, demo: false });
+    const tree = TopBar({ brands: SCOPE, actor: DEMO_ACTOR, demo: false });
 
     expect(mounts(tree, OrgSwitcher)).toBe(true);
   });
@@ -39,7 +40,7 @@ describe('TopBar', () => {
    * the whole shell down, on every page.
    */
   it('does not mount it in demo mode, where there is no ClerkProvider to read', () => {
-    const tree = TopBar({ brand: BRAND, actor: DEMO_ACTOR, demo: true });
+    const tree = TopBar({ brands: SCOPE, actor: DEMO_ACTOR, demo: true });
 
     expect(mounts(tree, OrgSwitcher)).toBe(false);
   });

@@ -17,22 +17,31 @@ import { onboardPath } from '@/lib/routes';
 
 import type { BrandSummary } from '@/lib/data-source';
 
+import { selectBrandAction } from './brand-actions';
 import { Icon } from './icons';
 
 export interface BrandSwitcherProps {
-  /** The working brand, or `null` when the workspace has none yet. */
-  brand: BrandSummary | null;
-  /** Demo mode has exactly one brand and no way to create another. */
+  /** Every brand the actor may switch to, in query order. Empty when the workspace has none yet. */
+  brands: readonly BrandSummary[];
+  /** The brand the workspace is scoped to, or null when there is none. Always one of `brands`. */
+  activeId: string | null;
+  /** Demo mode has exactly one brand and no session to persist a choice against. */
   readOnly: boolean;
 }
 
 /**
- * The brand a page is scoped to. One brand exists in V0, so the menu is a statement of scope rather
- * than a chooser; per-membership brands land with the switcher ticket. The status is a `StatusChip`
- * from `@tas/ui`, never a re-implemented pill (CLAUDE.md, "UI governance" 3).
+ * The brand a page is scoped to, and — when the agency has more than one — the chooser that switches
+ * between them. Selecting a brand calls `selectBrandAction`, which validates the id against the
+ * actor's agency and stores it; the whole `/app` layout then re-renders scoped to the new brand, so
+ * this menu drives the entire workspace, not just its own label.
+ *
+ * The status is a `StatusChip` from `@tas/ui`, never a re-implemented pill (CLAUDE.md, "UI
+ * governance" 3). In demo mode there is no session to hold a selection, so the list is shown but the
+ * rows are inert.
  */
-export function BrandSwitcher({ brand, readOnly }: BrandSwitcherProps) {
-  const empty = brand === null;
+export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps) {
+  const active = brands.find((brand) => brand.id === activeId) ?? null;
+  const empty = active === null;
 
   return (
     <DropdownMenu>
@@ -45,28 +54,64 @@ export function BrandSwitcher({ brand, readOnly }: BrandSwitcherProps) {
           className="max-w-[46vw] gap-2 border-line bg-surface2 text-text2 hover:text-text sm:max-w-xs"
         >
           <Icon name="building" className="size-4 shrink-0 text-text3" />
-          <span className="truncate">{empty ? 'No brands yet' : brand.name}</span>
+          <span className="truncate">{empty ? 'No brands yet' : active.name}</span>
           {empty ? null : (
-            <StatusChip tone="ok" label={brand.status} className="hidden sm:inline-flex" />
+            <StatusChip tone="ok" label={active.status} className="hidden sm:inline-flex" />
           )}
           <Icon name="chevron" className="size-3.5 shrink-0 text-text3" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel className="text-text3">Brand</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-text3">
+          {brands.length > 1 ? 'Switch brand' : 'Brand'}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {empty ? (
           <DropdownMenuItem disabled className="text-text3">
             No brands yet
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem
-            disabled={readOnly}
-            className="flex items-center justify-between gap-2 data-[disabled]:opacity-100"
-          >
-            <span className="truncate">{brand.name}</span>
-            <StatusChip tone="ok" label={brand.status} />
-          </DropdownMenuItem>
+          brands.map((brand) => {
+            const isActive = brand.id === active.id;
+            const row = (
+              <span className="flex w-full items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  {isActive ? (
+                    <Icon name="check" className="size-4 shrink-0 text-accent" />
+                  ) : (
+                    <span className="size-4 shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="truncate">{brand.name}</span>
+                </span>
+                <StatusChip tone="ok" label={brand.status} />
+              </span>
+            );
+
+            // Demo mode, the active brand, or a single-brand agency: nothing to switch to, so the
+            // row is a plain, inert item rather than a form that would submit to a no-op.
+            if (readOnly || isActive) {
+              return (
+                <DropdownMenuItem
+                  key={brand.id}
+                  disabled={readOnly}
+                  aria-current={isActive ? 'true' : undefined}
+                  className="data-[disabled]:opacity-100"
+                >
+                  {row}
+                </DropdownMenuItem>
+              );
+            }
+
+            return (
+              <form key={brand.id} action={selectBrandAction.bind(null, brand.id)}>
+                <DropdownMenuItem asChild>
+                  <button type="submit" className="w-full">
+                    {row}
+                  </button>
+                </DropdownMenuItem>
+              </form>
+            );
+          })
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

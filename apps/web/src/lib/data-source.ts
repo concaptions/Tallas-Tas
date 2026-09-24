@@ -19,6 +19,7 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
+import { readActiveBrandId } from './active-brand';
 import { isDemoMode } from './demo-mode';
 
 /**
@@ -77,6 +78,12 @@ export interface ActorScope {
 /** The seam the brand resolver takes, and therefore the seam every `*-source.ts` module passes on. */
 export interface BrandResolverDeps {
   readonly actorScope?: () => Promise<ActorScope>;
+  /**
+   * The brand the person chose in the switcher, as remembered by the cookie. A seam for the same
+   * reason `actorScope` is one: production reads it from `next/headers`, a test hands it in. It is
+   * only ever a REQUEST — `resolveLiveBrand` validates it against the agency in scope.
+   */
+  readonly activeBrandId?: () => Promise<string | null>;
 }
 
 /**
@@ -243,11 +250,54 @@ export async function resolveLiveAgencyId(
   return (await actorAgencyId(db, deps)) ?? (await soleAgencyId(db));
 }
 
+/** A brand row, as much of it as the resolver reads. */
+interface BrandRowLike {
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+  readonly isTemplate: boolean;
+  readonly agencyId: string;
+  readonly deletedAt: Date | null;
+}
+
+function toBrandSummary(row: BrandRowLike): BrandSummary {
+  return { id: row.id, name: row.name, status: row.status };
+}
+
 /**
- * THE working brand: the first live client workspace OF THE AGENCY IN SCOPE, never the parent
- * template. The agency comes from the actor when there is one, and otherwise from the database only
- * while the database can answer without guessing; `AmbiguousBrandError` is thrown rather than
- * returning a brand the actor may not belong to.
+ * Every live, non-template brand of one agency, in the query's order. The switcher's options and
+ * the single working brand are both drawn from THIS list, so "which brands exist for me" has one
+ * definition and the chooser can never offer a brand a read would then refuse.
+ */
+function agencyBrands(rows: readonly BrandRowLike[], agencyId: string): BrandRowLike[] {
+  return rows.filter((row) => isLive(row) && !row.isTemplate && row.agencyId === agencyId);
+}
+
+/**
+ * The brand a request is scoped to, chosen from the brands it is ALLOWED to see. This is the
+ * entitlement gate, and it is a pure function so the gate itself is unit-tested without a database:
+ * the requested id is honoured only when it names one of `options`, and any other value — a stale
+ * cookie, a forged one, or one pointing at another agency's brand (which is simply not in
+ * `options`) — falls through to the agency's first brand, exactly the pre-switcher behaviour.
+ */
+export function pickActiveBrand(
+  options: readonly BrandRowLike[],
+  requestedId: string | null,
+): BrandRowLike | null {
+  if (requestedId !== null) {
+    const requested = options.find((brand) => brand.id === requestedId);
+    if (requested !== undefined) {
+      return requested;
+    }
+  }
+  return options[0] ?? null;
+}
+
+/**
+ * THE working brand: the one the switcher last selected if it is still in scope, otherwise the first
+ * live client workspace OF THE AGENCY IN SCOPE, never the parent template. The agency comes from the
+ * actor when there is one, and otherwise from the database only while it can answer without guessing;
+ * `AmbiguousBrandError` is thrown rather than returning a brand the actor may not belong to.
  *
  * `brands` is read and filtered in memory rather than through a `where` clause because `@tas/web`
  * does not depend on `drizzle-orm` directly; the predicate belongs in `@tas/db` next to
@@ -262,9 +312,62 @@ export async function resolveLiveBrand(
   if (agencyId === null) {
     return null;
   }
-  const rows = (await db.select().from(brands)).filter(isLive);
-  const brand = rows.find((row) => !row.isTemplate && row.agencyId === agencyId) ?? null;
-  return brand === null ? null : { id: brand.id, name: brand.name, status: brand.status };
+  const options = agencyBrands(await db.select().from(brands), agencyId);
+  const requestedId = await (deps.activeBrandId ?? readActiveBrandId)();
+  const brand = pickActiveBrand(options, requestedId);
+  return brand === null ? null : toBrandSummary(brand);
+}
+
+/** Every brand of the agency in scope, and the active one, for the switcher. */
+export interface BrandScope {
+  /** The brand the workspace is scoped to right now, or null when the agency has none. */
+  readonly active: BrandSummary | null;
+  /** Every brand the actor may switch to, in query order. A superset containing `active`. */
+  readonly options: readonly BrandSummary[];
+}
+
+/**
+ * What the top bar needs to draw the switcher: the active brand AND the brands it can switch to.
+ * Same fixture/live split as `currentBrand`, and the active brand is chosen by the same
+ * `pickActiveBrand` gate, so the option marked active is always the one a scoped read will use.
+ */
+export async function loadBrandScope(deps: DataSourceDeps = {}): Promise<BrandScope> {
+  if (inFixtureMode(deps)) {
+    return { active: DEMO_BRAND, options: [DEMO_BRAND] };
+  }
+  return withDb(deps, async (db) => {
+    const agencyId = await resolveLiveAgencyId(db, deps);
+    if (agencyId === null) {
+      return { active: null, options: [] };
+    }
+    const options = agencyBrands(await db.select().from(brands), agencyId);
+    const requestedId = await (deps.activeBrandId ?? readActiveBrandId)();
+    const active = pickActiveBrand(options, requestedId);
+    return {
+      active: active === null ? null : toBrandSummary(active),
+      options: options.map(toBrandSummary),
+    };
+  });
+}
+
+/**
+ * Whether `brandId` is a brand the actor in scope may select — the entitlement check the
+ * `selectBrandAction` runs before it trusts a brand id from the client. Lives here, next to the
+ * resolver, so "a brand the actor owns" has ONE definition and the write path cannot drift from the
+ * read path. Never trusts the id: it is checked against the agency the SESSION resolves to.
+ */
+export async function isBrandSelectable(
+  db: Db,
+  brandId: string,
+  deps: BrandResolverDeps = {},
+): Promise<boolean> {
+  const agencyId = await resolveLiveAgencyId(db, deps);
+  if (agencyId === null) {
+    return false;
+  }
+  return agencyBrands(await db.select().from(brands), agencyId).some(
+    (brand) => brand.id === brandId,
+  );
 }
 
 /** `resolveLiveBrand`, for the callers that only ever pass the id to a scoped `@tas/db` function. */
