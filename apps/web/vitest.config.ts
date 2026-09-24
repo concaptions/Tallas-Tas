@@ -15,5 +15,10 @@ export default defineConfig({
   test: {
     name: '@tas/web',
     include: ['src/**/*.test.{ts,tsx}'],
+    // A few tests here run against PGlite (the onboard action seeds a whole brand template — interface
+    // config and every notification default — in WASM Postgres), which is genuinely slow and, at the
+    // repo root, contends with every other package's suite for the CPU. `@tas/db` sets the same value
+    // for the same reason; the 5s default fails those tests under load, not for being wrong.
+    testTimeout: 30_000,
   },
 });

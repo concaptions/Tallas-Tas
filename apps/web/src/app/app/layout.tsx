@@ -5,7 +5,7 @@ import { DemoBanner } from '@/components/shell/demo-banner';
 import { Sidebar } from '@/components/shell/sidebar';
 import { TopBar } from '@/components/shell/top-bar';
 import { currentActor } from '@/lib/actor';
-import { currentBrand } from '@/lib/data-source';
+import { loadBrandScope } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { ensureOrganization } from '@/lib/ensure-organization';
 
@@ -25,11 +25,11 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
     await auth.protect();
     await ensureOrganization();
   }
-  const [brand, actor] = await Promise.all([currentBrand(), currentActor()]);
+  const [brands, actor] = await Promise.all([loadBrandScope(), currentActor()]);
 
   return (
     <div data-slot="app-shell" className="flex min-h-screen flex-col overflow-x-hidden bg-bg">
-      <TopBar brand={brand} actor={actor} demo={demo} />
+      <TopBar brands={brands} actor={actor} demo={demo} />
       {demo ? <DemoBanner /> : null}
       <div className="flex flex-1 items-stretch">
         <Sidebar />

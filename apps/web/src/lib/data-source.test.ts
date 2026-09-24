@@ -4,8 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AmbiguousBrandError,
   currentBrand,
+  isBrandSelectable,
   listPersonaRows,
+  loadBrandScope,
   loadOverview,
+  pickActiveBrand,
   resolveLiveAgencyId,
   resolveLiveBrand,
   resolveLiveBrandId,
@@ -319,5 +322,112 @@ describe('resolveLiveAgencyId · the one way an agency-scoped read gets its scop
     await expect(resolveLiveAgencyId(db, { actorScope: asUser('clerk-1') })).resolves.toBe(
       'agency-b',
     );
+  });
+});
+
+/**
+ * THE SWITCHER. A second brand under one agency is the case the whole switcher exists for, and the
+ * case the report hit: it was stored correctly and still never appeared, because the resolver only
+ * ever returned the first. These prove the three new pieces — the pure entitlement gate, the
+ * resolver's use of it, and the option list — and, above all, that a chosen brand can never be one
+ * from another tenant.
+ */
+const secondBrandOfA = brandRow('brand-a2', agencyA.id);
+const requesting = (id: string | null) => (): Promise<string | null> => Promise.resolve(id);
+
+describe('pickActiveBrand (the entitlement gate)', () => {
+  it('honours the requested brand when it is one of the options', () => {
+    const chosen = pickActiveBrand([brandOfA, secondBrandOfA], 'brand-a2');
+
+    expect(chosen?.id).toBe('brand-a2');
+  });
+
+  it('falls back to the first option when the request names no option — a stale or forged cookie', () => {
+    const chosen = pickActiveBrand([brandOfA, secondBrandOfA], 'brand-does-not-exist');
+
+    expect(chosen?.id).toBe('brand-a');
+  });
+
+  it('falls back to the first option, never another tenant, when the request is another agency’s brand', () => {
+    // `brandOfB` belongs to agency B, so it is not in agency A's options and must be ignored.
+    const chosen = pickActiveBrand([brandOfA, secondBrandOfA], brandOfB.id);
+
+    expect(chosen?.id).toBe('brand-a');
+  });
+
+  it('is the first option when nothing is requested, exactly the pre-switcher behaviour', () => {
+    expect(pickActiveBrand([brandOfA, secondBrandOfA], null)?.id).toBe('brand-a');
+  });
+
+  it('is null when there are no options at all', () => {
+    expect(pickActiveBrand([], 'anything')).toBeNull();
+    expect(pickActiveBrand([], null)).toBeNull();
+  });
+});
+
+describe('resolveLiveBrand honouring the active-brand cookie', () => {
+  it('returns the chosen brand of the agency in scope, not merely the first', async () => {
+    const db = fakeDb({ agencies: [agencyA], brands: [brandOfA, secondBrandOfA] });
+
+    await expect(
+      resolveLiveBrand(db, { actorScope: asOrg('org-a'), activeBrandId: requesting('brand-a2') }),
+    ).resolves.toEqual({ id: 'brand-a2', name: 'Brand brand-a2', status: 'active' });
+  });
+
+  it('ignores a cookie that points at another agency’s brand and stays on its own first brand', async () => {
+    const db = fakeDb({ agencies: [agencyA], brands: [brandOfA, secondBrandOfA] });
+
+    await expect(
+      resolveLiveBrand(db, { actorScope: asOrg('org-a'), activeBrandId: requesting('brand-b') }),
+    ).resolves.toMatchObject({ id: 'brand-a' });
+  });
+});
+
+describe('loadBrandScope', () => {
+  it('lists every live non-template brand of the agency, and marks the chosen one active', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+    const db = fakeDb({ agencies: [agencyA], brands: [templateOfA, brandOfA, secondBrandOfA] });
+
+    const scope = await loadBrandScope({
+      demoMode: () => false,
+      actorScope: asOrg('org-a'),
+      activeBrandId: requesting('brand-a2'),
+      connect: () => ({ db, close: () => Promise.resolve() }),
+    });
+
+    expect(scope.active?.id).toBe('brand-a2');
+    expect(scope.options.map((brand) => brand.id)).toEqual(['brand-a', 'brand-a2']);
+  });
+
+  it('serves a single fixture brand in demo mode without a connection', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+
+    const scope = await loadBrandScope({ connect });
+
+    expect(scope.options).toHaveLength(1);
+    expect(scope.active?.name).toBe('Niagara Sleep Solutions');
+    expect(connect).not.toHaveBeenCalled();
+  });
+});
+
+describe('isBrandSelectable (the write-path entitlement check)', () => {
+  it('accepts a live brand of the actor’s own agency', async () => {
+    const db = fakeDb({ agencies: [agencyA], brands: [brandOfA, secondBrandOfA] });
+
+    await expect(isBrandSelectable(db, 'brand-a2', { actorScope: asOrg('org-a') })).resolves.toBe(
+      true,
+    );
+  });
+
+  it('rejects another agency’s brand, a template, and an unknown id', async () => {
+    const db = fakeDb({
+      agencies: [agencyA],
+      brands: [brandOfA, templateOfA, brandOfB],
+    });
+    const deps = { actorScope: asOrg('org-a') };
+
+    await expect(isBrandSelectable(db, 'brand-b', deps)).resolves.toBe(false);
+    await expect(isBrandSelectable(db, 'template-a', deps)).resolves.toBe(false);
+    await expect(isBrandSelectable(db, 'nope', deps)).resolves.toBe(false);
   });
 });
