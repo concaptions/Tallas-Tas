@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTransition } from 'react';
 
 import {
   Button,
@@ -40,6 +41,7 @@ export interface BrandSwitcherProps {
  * rows are inert.
  */
 export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps) {
+  const [isPending, startTransition] = useTransition();
   const active = brands.find((brand) => brand.id === activeId) ?? null;
   const empty = active === null;
 
@@ -58,7 +60,11 @@ export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps
           {empty ? null : (
             <StatusChip tone="ok" label={active.status} className="hidden sm:inline-flex" />
           )}
-          <Icon name="chevron" className="size-3.5 shrink-0 text-text3" />
+          {isPending ? (
+            <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-text3 border-t-transparent" />
+          ) : (
+            <Icon name="chevron" className="size-3.5 shrink-0 text-text3" />
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
@@ -103,13 +109,15 @@ export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps
             }
 
             return (
-              <form key={brand.id} action={selectBrandAction.bind(null, brand.id)}>
-                <DropdownMenuItem asChild>
-                  <button type="submit" className="w-full">
-                    {row}
-                  </button>
-                </DropdownMenuItem>
-              </form>
+              <DropdownMenuItem
+                key={brand.id}
+                disabled={isPending}
+                onSelect={() => {
+                  startTransition(() => selectBrandAction(brand.id));
+                }}
+              >
+                {row}
+              </DropdownMenuItem>
             );
           })
         )}
