@@ -46,7 +46,7 @@ export function AdSpyBoard({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-text1">Ad Spy</h1>
+        <h1 className="text-lg font-semibold text-text">Ad Spy</h1>
         <DisabledWrite active={demo}>
           <Button size="sm" disabled={demo}>
             Add Competitor
@@ -75,7 +75,7 @@ export function AdSpyBoard({
         onChange={(e) => {
           setSearch(e.target.value);
         }}
-        className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text1 placeholder:text-text4"
+        className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text4"
       />
       {filtered.length === 0 ? (
         <p className="py-8 text-center text-sm text-text3">No competitor ads tracked yet.</p>
@@ -88,7 +88,7 @@ export function AdSpyBoard({
               className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3 transition-colors hover:border-line2"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-semibold text-text1">{ad.advertiserName}</span>
+                <span className="text-sm font-semibold text-text">{ad.advertiserName}</span>
                 <span className="rounded-input bg-surface-alt px-2 py-0.5 text-[10px] text-text3 uppercase">
                   {PL[ad.platform as AdPlatform]}
                 </span>

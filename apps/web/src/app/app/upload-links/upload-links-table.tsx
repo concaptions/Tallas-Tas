@@ -22,7 +22,7 @@ export function UploadLinksTable({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-text1">Upload Links</h1>
+        <h1 className="text-lg font-semibold text-text">Upload Links</h1>
         <DisabledWrite active={demo}>
           <Button size="sm" disabled={demo}>
             Create Link
@@ -47,7 +47,7 @@ export function UploadLinksTable({
             <tbody>
               {items.map(({ link, expiresLabel, usageLabel }) => (
                 <tr key={link.id} className="border-b border-line last:border-0">
-                  <td className="px-2 py-2 font-semibold text-text1">
+                  <td className="px-2 py-2 font-semibold text-text">
                     <Link
                       href={uploadLinkPath(link.id)}
                       className="cursor-pointer hover:text-accent hover:underline"

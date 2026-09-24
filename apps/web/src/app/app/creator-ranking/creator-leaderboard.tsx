@@ -26,7 +26,7 @@ export function CreatorLeaderboard({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-text1">Creator Ranking</h1>
+        <h1 className="text-lg font-semibold text-text">Creator Ranking</h1>
         <DisabledWrite active={demo}>
           <Button size="sm" disabled={demo}>
             Refresh Rankings
@@ -70,7 +70,7 @@ export function CreatorLeaderboard({
                   <td className="px-2 py-2 text-center">
                     {MEDAL[ranking.rank] ?? `#${String(ranking.rank)}`}
                   </td>
-                  <td className="px-2 py-2 font-semibold text-text1">{ranking.creatorName}</td>
+                  <td className="px-2 py-2 font-semibold text-text">{ranking.creatorName}</td>
                   <td className="px-2 py-2">{ranking.totalAds}</td>
                   <td className="px-2 py-2">{spendLabel}</td>
                   <td className="px-2 py-2">{ranking.totalConversions}</td>

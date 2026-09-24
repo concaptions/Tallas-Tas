@@ -53,7 +53,7 @@ export function OnboardWizard() {
               }}
               placeholder="e.g. Niagara Sleep Solutions"
             />
-            {fieldError('name') && <p className="text-sm text-fail">{fieldError('name')}</p>}
+            {fieldError('name') && <p className="text-sm text-bad">{fieldError('name')}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -68,7 +68,7 @@ export function OnboardWizard() {
               placeholder="e.g. niagara-sleep-solutions"
               className="font-mono"
             />
-            {fieldError('slug') && <p className="text-sm text-fail">{fieldError('slug')}</p>}
+            {fieldError('slug') && <p className="text-sm text-bad">{fieldError('slug')}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -81,7 +81,7 @@ export function OnboardWizard() {
               }}
               placeholder="https://example.com"
             />
-            {fieldError('website') && <p className="text-sm text-fail">{fieldError('website')}</p>}
+            {fieldError('website') && <p className="text-sm text-bad">{fieldError('website')}</p>}
           </div>
 
           <div className="flex justify-end pt-2">
