@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { loadAllAngleProducts, loadAllConceptAngles } from './junction-queries';
@@ -174,6 +174,106 @@ export async function updateBrief(
       creativeBriefs,
       { ...patch, updatedBy: actorId, updatedAt: new Date() },
       eq(creativeBriefs.id, id),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * What the media buyer's launch queue asks for (PRD §11, §13; ticket `ads-to-launch` Phase 2). The
+ * status keys come from the CALLER — `@tas/domain`'s `LAUNCH_READY_CLIENT_STATUS` and
+ * `LAUNCHED_CLIENT_STATUSES` — because `@tas/db` does not depend on `@tas/domain` (the edge runs the
+ * other way, as `schema/briefs.ts` explains); this module stores and filters, the domain decides.
+ */
+export interface LaunchQueueFilter {
+  readonly readyStatus: string;
+  readonly launchedStatuses: readonly string[];
+  /** The earliest `launched_at` the "Recently Launched" list includes. */
+  readonly launchedSince: Date;
+}
+
+export interface LaunchQueueRows {
+  /** Client-approved and not yet launched: priority first (unset last), then newest edit. */
+  readonly ready: BriefListRow[];
+  /** Launched (live or paused) since `launchedSince`, most recent launch first. */
+  readonly recent: BriefListRow[];
+}
+
+/**
+ * Both halves of the launch queue in one scoped pass, each row carrying its inherited names. Postgres
+ * sorts `ASC` with NULLS LAST by default, so a brief nobody prioritised sorts after every prioritised
+ * one without a raw `NULLS LAST` fragment (which `withBrand`'s containment check would refuse).
+ */
+export async function listLaunchQueue(
+  db: Db,
+  brandId: string,
+  filter: LaunchQueueFilter,
+): Promise<LaunchQueueRows> {
+  const scope = withBrand(db, brandId);
+  const [ready, recent, tables] = await Promise.all([
+    scope
+      .select(
+        creativeBriefs,
+        and(eq(creativeBriefs.clientStatus, filter.readyStatus), isNull(creativeBriefs.launchedAt)),
+      )
+      .orderBy(asc(creativeBriefs.launchPriority), desc(creativeBriefs.updatedAt)),
+    scope
+      .select(
+        creativeBriefs,
+        and(
+          inArray(creativeBriefs.clientStatus, [...filter.launchedStatuses]),
+          gte(creativeBriefs.launchedAt, filter.launchedSince),
+        ),
+      )
+      .orderBy(desc(creativeBriefs.launchedAt)),
+    inherited(db, scope),
+  ]);
+  return {
+    ready: ready.map((row) => withInherited(row, tables)),
+    recent: recent.map((row) => withInherited(row, tables)),
+  };
+}
+
+/** One launch-queue move, validated by the caller against the domain before it gets here. */
+export interface BriefLaunchMove {
+  /** The statuses the caller validated the move FROM. The update only applies if they still hold. */
+  readonly fromClientStatus: string;
+  readonly fromInternalStatus: string;
+  readonly clientStatus: string;
+  readonly internalStatus: string;
+  /** Set on launch; omitted on pause and resume, which keep the moment the ad first went live. */
+  readonly launchedAt?: Date;
+}
+
+/**
+ * Applies a launch-queue move as a COMPARE-AND-SET: the update matches only while the brief is still
+ * in the statuses the move was validated from. Two clicks, two tabs or a board left open while a
+ * colleague moved the creative therefore apply at most once; the loser changes zero rows and gets
+ * null, the same answer as another brand's id or a soft-deleted row. Scoped by `withBrand`, so a
+ * brief of another brand can never be moved.
+ */
+export async function transitionBriefLaunch(
+  db: Db,
+  brandId: string,
+  id: string,
+  move: BriefLaunchMove,
+  actorId: string,
+): Promise<CreativeBrief | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creativeBriefs,
+      {
+        clientStatus: move.clientStatus,
+        internalStatus: move.internalStatus,
+        ...(move.launchedAt === undefined ? {} : { launchedAt: move.launchedAt }),
+        updatedBy: actorId,
+        updatedAt: new Date(),
+      },
+      and(
+        eq(creativeBriefs.id, id),
+        eq(creativeBriefs.clientStatus, move.fromClientStatus),
+        eq(creativeBriefs.internalStatus, move.fromInternalStatus),
+      ),
     )
     .returning();
   return row ?? null;

@@ -27,6 +27,13 @@ export const internalQueuePath = '/app/queue/internal';
  * `client-queue`.
  */
 export const clientQueuePath = '/app/queue/client';
+
+/**
+ * Ads to Launch (PRD §11, §13): the media buyer's queue of client-approved creatives, and what went
+ * live in the last seven days. Flat under /app like every other section; the brand comes from the
+ * session, never the URL.
+ */
+export const adsToLaunchPath = '/app/ads-to-launch';
 /**
  * The Team roster (PRD §11, §3). One flat page under `/app`, not a `settings` segment: the sidebar
  * group is called `settings`, but the page is a roster of people, and the two other pages that

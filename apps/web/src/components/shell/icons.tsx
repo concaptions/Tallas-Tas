@@ -39,7 +39,8 @@ export type IconName =
   | 'ai-characters'
   | 'competitive-research'
   | 'campaigns'
-  | 'onboarding-forms';
+  | 'onboarding-forms'
+  | 'launch';
 
 const PATHS: Record<IconName, string> = {
   overview: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
@@ -88,6 +89,8 @@ const PATHS: Record<IconName, string> = {
     'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM10 14l2 2 4-4',
   'onboarding-forms':
     'M9 11h6M9 15h4M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 7h6',
+  launch:
+    'M5 19c1.5-1.5 3.5-2 3.5-2M9.5 14.5 7 12c1-3 4-8 12-8 0 8-5 11-8 12zM7 12H4l2-3h3.5M12 17v3l3-2v-3.5M15.5 8.5h.01',
 };
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {

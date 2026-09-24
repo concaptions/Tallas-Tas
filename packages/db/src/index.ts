@@ -38,10 +38,18 @@ export {
   insertBrief,
   listBriefs,
   listBriefsByConceptId,
+  listLaunchQueue,
   renameBrief,
+  transitionBriefLaunch,
   updateBrief,
 } from './briefs';
-export type { BriefInput, BriefListRow } from './briefs';
+export type {
+  BriefInput,
+  BriefLaunchMove,
+  BriefListRow,
+  LaunchQueueFilter,
+  LaunchQueueRows,
+} from './briefs';
 export {
   getUploadLinkById,
   getUploadLinkByToken,

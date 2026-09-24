@@ -1,4 +1,5 @@
 import {
+  adsToLaunchPath,
   aiCharactersPath,
   anglesPath,
   appPath,
@@ -134,6 +135,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Client Queue',
         icon: 'queue-client',
         href: clientQueuePath,
+      },
+      {
+        key: 'ads-to-launch',
+        label: 'Ads to Launch',
+        icon: 'launch',
+        href: adsToLaunchPath,
       },
     ],
   },

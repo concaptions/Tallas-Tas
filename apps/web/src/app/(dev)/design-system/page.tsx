@@ -101,6 +101,7 @@ import {
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
 } from './copywriting.stories';
+import { AdsToLaunchRowStory } from './ads-to-launch.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -953,6 +954,13 @@ export default function DesignSystemPage() {
               client column — CLIENT_STATUS minus Launched, from the domain, empty columns kept
             </h3>
             <ClientQueueColumnStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              ads to launch row — client chip, generated names in mono, the one move the state
+              machine allows (launch, pause or resume), disabled with a tooltip
+            </h3>
+            <AdsToLaunchRowStory />
           </div>
         </div>
       </Section>
