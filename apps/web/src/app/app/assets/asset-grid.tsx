@@ -48,7 +48,7 @@ export function AssetLibrary({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-text1">Asset Library</h1>
+        <h1 className="text-lg font-semibold text-text">Asset Library</h1>
         <DisabledWrite active={demo}>
           <Button size="sm" disabled={demo}>
             Upload
@@ -77,7 +77,7 @@ export function AssetLibrary({
         onChange={(e) => {
           setSearch(e.target.value);
         }}
-        className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text1 placeholder:text-text4"
+        className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text4"
       />
       {filtered.length === 0 ? (
         <p className="py-8 text-center text-sm text-text3">
@@ -99,7 +99,7 @@ export function AssetLibrary({
                   {L[asset.category]}
                 </span>
               </div>
-              <p className="truncate font-mono text-sm text-text1">{asset.filename}</p>
+              <p className="truncate font-mono text-sm text-text">{asset.filename}</p>
               {asset.caption !== null && (
                 <p className="line-clamp-2 text-xs text-text2">{asset.caption}</p>
               )}

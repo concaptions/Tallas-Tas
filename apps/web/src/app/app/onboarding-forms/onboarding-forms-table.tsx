@@ -24,7 +24,7 @@ export function OnboardingFormsTable({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-text1">Onboarding Forms</h1>
+        <h1 className="text-lg font-semibold text-text">Onboarding Forms</h1>
         <DisabledWrite active={demo}>
           <Button size="sm" disabled={demo}>
             New Form
@@ -49,7 +49,7 @@ export function OnboardingFormsTable({
               {items.map(({ form, fieldCount }) => (
                 <tr key={form.id} className="border-b border-line last:border-0">
                   <td className="px-2 py-2">
-                    <div className="font-semibold text-text1">{form.title}</div>
+                    <div className="font-semibold text-text">{form.title}</div>
                     {form.description !== null && (
                       <div className="text-xs text-text3">{form.description}</div>
                     )}

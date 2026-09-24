@@ -47,7 +47,7 @@ export function PerformanceTracker({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-text1">Performance Tracker</h1>
+        <h1 className="text-lg font-semibold text-text">Performance Tracker</h1>
         <DisabledWrite active={demo}>
           <Button size="sm" disabled={demo}>
             Sync Meta
@@ -68,7 +68,7 @@ export function PerformanceTracker({
             className="rounded-card border border-line bg-surface p-3 text-center"
           >
             <p className="text-xs text-text3">{card.label}</p>
-            <p className="mt-1 text-xl font-semibold text-text1">{card.value}</p>
+            <p className="mt-1 text-xl font-semibold text-text">{card.value}</p>
           </div>
         ))}
       </div>
@@ -93,7 +93,7 @@ export function PerformanceTracker({
         onChange={(e) => {
           setSearch(e.target.value);
         }}
-        className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text1 placeholder:text-text4"
+        className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text4"
       />
       {sorted.length === 0 ? (
         <p className="py-8 text-center text-sm text-text3">No performance data yet.</p>
@@ -141,7 +141,7 @@ export function PerformanceTracker({
                     }}
                     className="cursor-pointer border-b border-line last:border-0 hover:bg-surface2"
                   >
-                    <td className="truncate px-2 py-2 font-mono text-text1">{metric.adName}</td>
+                    <td className="truncate px-2 py-2 font-mono text-text">{metric.adName}</td>
                     <td className="px-2 py-2">{spendLabel}</td>
                     <td className="px-2 py-2">{impressionsLabel}</td>
                     <td className="px-2 py-2">{clicksLabel}</td>
