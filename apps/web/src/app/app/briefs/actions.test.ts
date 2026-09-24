@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createBriefAction, toggleQaAction, updateBriefAction } from './actions';
+import {
+  createBriefAction,
+  duplicateBriefAction,
+  toggleQaAction,
+  updateBriefAction,
+} from './actions';
 
 /** The actions call `revalidatePath`, which only exists inside a Next request. */
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -67,6 +72,12 @@ describe('in demo mode (no Clerk publishable key)', () => {
     expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
   });
 
+  it('refuses to duplicate, before it even looks at the id', async () => {
+    const result = await duplicateBriefAction(null, form({ id: 'whatever' }));
+
+    expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
+  });
+
   it('refuses a submission that is complete nonsense, still without throwing', async () => {
     await expect(createBriefAction(null, new FormData())).resolves.toEqual({
       ok: false,
@@ -101,6 +112,25 @@ describe('with Clerk configured', () => {
       throw new Error('an unknown funnel was accepted');
     }
     expect(result.fieldErrors?.funnel).toBe('That is not one of the three funnels.');
+  });
+
+  it('rejects a source that is not one of the two', async () => {
+    configured();
+
+    const result = await createBriefAction(null, form({ ...filled, source: 'Agency' }));
+
+    if (result.ok) {
+      throw new Error('an unknown source was accepted');
+    }
+    expect(result.fieldErrors?.source).toBe('That is not one of the two sources.');
+  });
+
+  it('rejects a duplicate whose id is missing, before it reaches the actor lookup', async () => {
+    configured();
+
+    const result = await duplicateBriefAction(null, form({}));
+
+    expect(result).toEqual({ ok: false, error: 'This brief could not be identified.' });
   });
 
   it('rejects a version the dropdown does not offer, rather than clamping it', async () => {

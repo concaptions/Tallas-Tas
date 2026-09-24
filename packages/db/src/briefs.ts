@@ -293,6 +293,100 @@ export async function listBriefsByConceptId(
 }
 
 /**
+ * The columns a duplicate does NOT copy from its source, each re-set to a fresh value by
+ * `duplicateBrief`: the scope/clock/actor columns, the two-track status, the launch and performance
+ * history, the QA ticks, the legacy id and the propagation lineage. `satisfies` proves every name is
+ * a real column, so the list cannot silently drift from the schema.
+ */
+const DUPLICATE_RESET_FIELDS = [
+  'id',
+  'brandId',
+  'createdAt',
+  'updatedAt',
+  'createdBy',
+  'updatedBy',
+  'deletedAt',
+  'templateRowId',
+  'overriddenFields',
+  'name',
+  'sequence',
+  'internalStatus',
+  'clientStatus',
+  'launchedAt',
+  'launchPriority',
+  'performance',
+  'legacyAirtableId',
+  'qaVideoEditor',
+  'qaDesigner',
+  'qaStrategist',
+] as const satisfies readonly (keyof CreativeBrief)[];
+
+/** The source row's fields that carry over to a copy: everything except `DUPLICATE_RESET_FIELDS`. */
+function copyableBriefFields(source: CreativeBrief): Partial<NewCreativeBrief> {
+  const omit = new Set<string>(DUPLICATE_RESET_FIELDS);
+  const copy: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (!omit.has(key)) {
+      copy[key] = value;
+    }
+  }
+  return copy;
+}
+
+/**
+ * Copies a live brief of the brand into a new one, or null when the id belongs to another brand or a
+ * soft-deleted row — the scope makes those the same outcome.
+ *
+ * Every editable field carries over (concept and its links, the prose, the attachments, the ratios).
+ * What does NOT carry: the NAME and the SEQUENCE, which the caller regenerates from the §7 formula so
+ * the copy has its own number (a duplicate is never renamed by hand — non-negotiable 6 — so it is not
+ * "name (Copy)"); the two-track STATUS, reset to the caller's defaults, because a copy has not been
+ * built or approved; `launched_at`/`launch_priority`, cleared because it has not launched; the three
+ * QA ticks, `performance` and `legacy_airtable_id`, none of which a fresh copy has earned; and the
+ * propagation lineage (`template_row_id`, `overridden_fields`), because a copy is a new local row, not
+ * a propagated one.
+ */
+export async function duplicateBrief(
+  db: Db,
+  brandId: string,
+  sourceId: string,
+  overrides: {
+    readonly name: string;
+    readonly sequence: number;
+    readonly internalStatus: string;
+    readonly clientStatus: string;
+  },
+  actorId: string,
+): Promise<CreativeBrief | null> {
+  const scope = withBrand(db, brandId);
+  const [source] = await scope.select(creativeBriefs, eq(creativeBriefs.id, sourceId)).limit(1);
+  if (source === undefined) {
+    return null;
+  }
+  const [row] = await scope
+    .insert(creativeBriefs, {
+      ...copyableBriefFields(source),
+      name: overrides.name,
+      sequence: overrides.sequence,
+      internalStatus: overrides.internalStatus,
+      clientStatus: overrides.clientStatus,
+      launchedAt: null,
+      launchPriority: null,
+      performance: null,
+      legacyAirtableId: null,
+      qaVideoEditor: false,
+      qaDesigner: false,
+      qaStrategist: false,
+      templateRowId: null,
+      overriddenFields: [],
+      createdBy: actorId,
+      updatedBy: actorId,
+    })
+    .returning();
+  return row ?? null;
+}
+
+/**
  * Rename a brief: updates only the `name` column and the audit trail, nothing else. Used by the
  * cascade that recomputes brief names when a concept's name changes.
  */

@@ -153,6 +153,28 @@ export interface CreativeLanguageEntry {
   readonly label: string;
 }
 
+/**
+ * PRD §5.10 "Source (TAS / Client)": who briefed the creative. `TAS` is the house default (a brief
+ * the agency originates); `Client` is one the client asked for. The value is the optional leading
+ * segment of the §7 creative name (`creativeName`), which is why it lives beside the other name
+ * vocabularies. `@tas/db` keeps its own `creativeSources` tuple for the column; the two are asserted
+ * equal in `apps/web`, the same arrangement `creativeFunnels` documents.
+ */
+export const CREATIVE_SOURCES = [
+  { key: 'TAS', label: 'TAS' },
+  { key: 'Client', label: 'Client' },
+] as const satisfies readonly { key: string; label: string }[];
+
+export type CreativeSourceKey = (typeof CREATIVE_SOURCES)[number]['key'];
+
+export const CREATIVE_SOURCE_KEYS: readonly CreativeSourceKey[] = CREATIVE_SOURCES.map(
+  (entry) => entry.key,
+);
+
+export function isCreativeSource(value: string): value is CreativeSourceKey {
+  return CREATIVE_SOURCE_KEYS.includes(value as CreativeSourceKey);
+}
+
 export const CREATIVE_LANGUAGES = [
   { key: 'English', label: 'English' },
   { key: 'Spanish', label: 'Spanish' },

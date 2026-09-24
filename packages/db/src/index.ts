@@ -34,6 +34,7 @@ export type { AirtableExport, AirtableRecord } from './airtable-import';
 export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
 export type { AngleInput, AngleListRow } from './angles';
 export {
+  duplicateBrief,
   getBriefById,
   insertBrief,
   listBriefs,

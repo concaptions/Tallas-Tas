@@ -8,6 +8,8 @@ import {
   CREATIVE_FUNNELS,
   CREATIVE_PRIORITIES,
   CREATIVE_PRIORITY_KEYS,
+  CREATIVE_SOURCE_KEYS,
+  CREATIVE_SOURCES,
   CREATIVE_TYPE_KEYS,
   CREATIVE_TYPES,
   CREATIVE_VERSIONS,
@@ -26,6 +28,7 @@ import {
   isCreativeDimension,
   isCreativeFunnel,
   isCreativePriority,
+  isCreativeSource,
   isCreativeType,
   isCreativeVersion,
   prioritySlaHours,
@@ -275,5 +278,23 @@ describe('dimensionEntries · a stored array as a grid', () => {
         ...dimensionsFor(type),
       ]);
     }
+  });
+});
+
+describe('the creative sources vocabulary (PRD §7 optional source prefix)', () => {
+  it('holds the two sources of `creativeSources`, in order', () => {
+    expect(CREATIVE_SOURCE_KEYS).toEqual(['TAS', 'Client']);
+  });
+
+  it('labels each source with its own key (no separate display string)', () => {
+    expect(CREATIVE_SOURCES.map((entry) => entry.label)).toEqual(['TAS', 'Client']);
+  });
+
+  it('narrows a known source and rejects anything else', () => {
+    expect(isCreativeSource('TAS')).toBe(true);
+    expect(isCreativeSource('Client')).toBe(true);
+    expect(isCreativeSource('client')).toBe(false);
+    expect(isCreativeSource('Agency')).toBe(false);
+    expect(isCreativeSource('')).toBe(false);
   });
 });

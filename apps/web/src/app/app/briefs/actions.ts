@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
+  duplicateBrief,
   fireNotification,
   getBriefById,
   getConceptById,
@@ -18,12 +19,14 @@ import {
   dimensionsFor,
   isCreativeDimension,
   isCreativeFunnel,
+  isCreativeSource,
   isCreativePriority,
   isCreativeType,
   isCreativeVersion,
   nextSequence,
   type CreativeDimensionKey,
   type CreativeFunnelKey,
+  type CreativeSourceKey,
   type CreativePriorityKey,
   type CreativeTypeKey,
 } from '@tas/domain/creatives';
@@ -84,6 +87,7 @@ import { briefPath, briefsPath } from '@/lib/routes';
 /** The fields the page can show a message under. */
 export type BriefFieldName =
   | 'conceptId'
+  | 'source'
   | 'funnel'
   | 'type'
   | 'version'
@@ -153,6 +157,22 @@ const type = z
   .transform((value): CreativeTypeKey => value);
 
 /**
+ * The Source dropdown (PRD §5.10): TAS or Client, the optional leading segment of the §7 name. Absent
+ * means "leave it where it is" — a create defaults it to TAS, an update keeps the stored value — so
+ * it is optional rather than defaulted here, the same reason the statuses are.
+ */
+const source = z
+  .string()
+  .trim()
+  .transform((value) => (value === '' ? null : value))
+  .nullable()
+  .refine(
+    (value) => value === null || isCreativeSource(value),
+    'That is not one of the two sources.',
+  )
+  .transform((value): CreativeSourceKey | null => (value === null ? null : value));
+
+/**
  * The Version dropdown (PRD §7, ticket criterion 7): V1…V6, and nothing else. A version outside the
  * dropdown is a tampered submission, not a strategist's mistake, so it is refused rather than
  * clamped — a clamped version would silently rename the creative.
@@ -195,6 +215,7 @@ const status = text;
  */
 const briefSchema = z.object({
   conceptId: link,
+  source,
   funnel,
   type,
   version,
@@ -252,6 +273,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     spellingFeedback2: single('spellingFeedback2'),
     angleId: single('angleId'),
     productId: single('productId'),
+    source: single('source'),
     inspoLinks: many('inspoLinks'),
     dimensions: many('dimensions'),
     internalStatus: single('internalStatus'),
@@ -418,6 +440,9 @@ function toInput(
     name,
     conceptId: values.conceptId,
     batch,
+    // The source column and the name's leading segment are written from the same value, so they can
+    // never disagree. `null` only reaches here when a caller chose not to change it, so it is left off.
+    ...(source === null ? {} : { source: source as BriefInput['source'] }),
     funnel: values.funnel,
     type: values.type,
     version: values.version,
@@ -504,7 +529,7 @@ export async function createBriefAction(
       }
 
       const sequence = nextSequence(await listBriefs(db, brandId), values.funnel, values.type);
-      const input = toInput(values, concept, sequence, internal, client, 'TAS');
+      const input = toInput(values, concept, sequence, internal, client, values.source ?? 'TAS');
       const created = await insertBrief(db, brandId, input, actor);
       await fireNotification(db, brandId, actor, {
         triggerKey: 'brief_assigned',
@@ -625,7 +650,14 @@ export async function updateBriefAction(
         return clientRefusal;
       }
 
-      const input = toInput(values, concept, current.sequence, internal, client, current.source);
+      const input = toInput(
+        values,
+        concept,
+        current.sequence,
+        internal,
+        client,
+        values.source ?? current.source,
+      );
       const saved = await updateBrief(db, brandId, id, input, actor);
       if (saved === null) {
         return { ok: false as const, error: 'That brief is no longer available.' };
@@ -679,6 +711,88 @@ export async function updateBriefAction(
     return outcome;
   } catch {
     return { ok: false, error: 'The brief could not be saved. Try again.' };
+  }
+}
+
+/**
+ * Duplicates a brief of the actor's brand into a new one (PRD §5.10).
+ *
+ * The source is read INSIDE the scope, so another brand's id — or a soft-deleted one — never
+ * resolves and cannot be copied. The name and the §7 number are REGENERATED (`nextSequence` +
+ * `creativeNameForConcept`), never carried over: a creative name is generated, not typed
+ * (non-negotiable 6), so the copy is its own numbered creative rather than "name (Copy)". The
+ * two-track status resets to the track's first step and Pending, `launched_at`/`launch_priority`
+ * clear, and the QA ticks reset — a copy has not been built, approved or launched. `duplicateBrief`
+ * carries every other field, including the attachments and the concept link.
+ *
+ * A standalone brief's optional product suffix is not reconstructed (there is no product column to
+ * read it back from — it lives only inside the stored name), so a standalone-with-product copy is
+ * named without the suffix; a linked brief, which never takes one, is identical but for the number.
+ */
+export async function duplicateBriefAction(
+  _previous: BriefActionResult | null,
+  formData: FormData,
+): Promise<BriefActionResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+  const id = formData.get('id');
+  if (typeof id !== 'string' || id === '') {
+    return { ok: false, error: 'This brief could not be identified.' };
+  }
+
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
+    }
+
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const source = await getBriefById(db, brandId, id);
+      if (source === null) {
+        return { ok: false as const, error: 'That brief is no longer available.' };
+      }
+      const concept =
+        source.conceptId === null ? null : await getConceptById(db, brandId, source.conceptId);
+      const track = creativeTrack(source.type);
+      const sequence = nextSequence(await listBriefs(db, brandId), source.funnel, source.type);
+      const name = creativeNameForConcept(concept, {
+        source: source.source,
+        funnel: source.funnel,
+        format: source.type,
+        number: sequence,
+        version: source.version,
+        batch: source.batch,
+        product: null,
+      });
+      const created = await duplicateBrief(
+        db,
+        brandId,
+        id,
+        {
+          name,
+          sequence,
+          internalStatus: trackStart(track),
+          clientStatus: BRIEF_CLIENT_STATUS_DEFAULT,
+        },
+        actor,
+      );
+      if (created === null) {
+        return { ok: false as const, error: 'That brief is no longer available.' };
+      }
+      return { ok: true as const, id: created.id, name: created.name, savedAt: Date.now() };
+    });
+
+    if (outcome === null) {
+      return { ok: false, error: 'This workspace has no brand yet.' };
+    }
+    if (!outcome.ok) {
+      return outcome;
+    }
+    revalidateBrief(outcome.id);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The brief could not be duplicated. Try again.' };
   }
 }
 

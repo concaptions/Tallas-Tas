@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { creativeNameForConcept } from '@tas/domain/creatives';
+import { CREATIVE_SOURCES, creativeNameForConcept } from '@tas/domain/creatives';
 import type { ClientStatusKey, CreativeTrack, InternalStatusKey } from '@tas/domain/state';
 import {
   Button,
@@ -21,9 +21,14 @@ import {
   TwoTrackApproval,
 } from '@tas/ui';
 
-import { briefsPath } from '@/lib/routes';
+import { briefPath, briefsPath } from '@/lib/routes';
 
-import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '../actions';
+import {
+  duplicateBriefAction,
+  updateBriefAction,
+  type BriefActionResult,
+  type BriefFieldName,
+} from '../actions';
 import { runSpellCheckAction, type SpellCheckActionResult } from '../spell-check-action';
 import {
   BRIEF_HEADINGS,
@@ -147,12 +152,23 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
     FormData
   >(runSpellCheckAction, null);
   const [version, setVersion] = useState(String(brief.version));
+  const [sourceValue, setSourceValue] = useState<string>(brief.source);
+  const [dupState, dupAction, dupPending] = useActionState<BriefActionResult | null, FormData>(
+    duplicateBriefAction,
+    null,
+  );
 
   useEffect(() => {
     if (state !== null && state.ok) {
       router.refresh();
     }
   }, [state, router]);
+
+  useEffect(() => {
+    if (dupState !== null && dupState.ok) {
+      router.push(briefPath(dupState.id));
+    }
+  }, [dupState, router]);
 
   /**
    * The §7 product suffix, read back out of the stored name — the only place it lives, because it
@@ -165,7 +181,7 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
   );
 
   const name = creativeNameForConcept(concept === null ? null : concept, {
-    source: brief.source,
+    source: sourceValue,
     funnel: brief.funnel,
     format: brief.type,
     number: brief.sequence,
@@ -204,7 +220,24 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
         >
           ← All creative briefs
         </Link>
-        <BriefName name={name} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <BriefName name={name} />
+          <form action={dupAction} className="shrink-0">
+            <input type="hidden" name="id" value={brief.id} />
+            <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={demo || dupPending}
+                data-slot="brief-duplicate"
+                className={disabledWriteClassName}
+              >
+                {dupPending ? 'Duplicating…' : 'Duplicate'}
+              </Button>
+            </DisabledWrite>
+          </form>
+        </div>
       </div>
 
       <div className="grid min-w-0 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:grid-cols-[minmax(0,30fr)_minmax(0,45fr)_minmax(0,25fr)]">
@@ -261,6 +294,36 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
 
             {fact(BRIEF_HEADINGS.assignee, brief.assignee, 'brief-assignee')}
             {fact(BRIEF_HEADINGS.type, creativeTypeLabel(brief.type), 'brief-type')}
+
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label
+                htmlFor="brief-field-source"
+                className="text-[11px] tracking-wide text-text3 uppercase"
+              >
+                Source
+              </Label>
+              <Select value={sourceValue} onValueChange={setSourceValue} disabled={demo}>
+                <SelectTrigger
+                  id="brief-field-source"
+                  className="w-full"
+                  aria-label="Source"
+                  data-slot="brief-source"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CREATIVE_SOURCES.map((option) => (
+                    <SelectItem key={option.key} value={option.key}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="source" value={sourceValue} />
+              {fieldError('source') === undefined ? null : (
+                <p className="text-xs text-bad">{fieldError('source')}</p>
+              )}
+            </div>
 
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label
