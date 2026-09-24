@@ -94,7 +94,7 @@ export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps
             );
 
             // Demo mode, the active brand, or a single-brand agency: nothing to switch to, so the
-            // row is a plain, inert item rather than a form that would submit to a no-op.
+            // row is a plain, inert item with no handler.
             if (readOnly || isActive) {
               return (
                 <DropdownMenuItem
@@ -108,6 +108,12 @@ export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps
               );
             }
 
+            // The switch runs from Radix's `onSelect`, NEVER from a `<form>` inside the item. Selecting
+            // an item closes the menu, which unmounts its content before the browser performs a
+            // submit button's default action, so a form here never submits: the browser logs "Form
+            // submission canceled because the form is not connected" and the server action is never
+            // called. That was the brand-switching bug; reproduced and confirmed against a real
+            // Next build. `brand-switcher.test.ts` keeps a form from coming back.
             return (
               <DropdownMenuItem
                 key={brand.id}
