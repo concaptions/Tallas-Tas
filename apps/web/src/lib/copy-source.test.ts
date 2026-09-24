@@ -148,6 +148,7 @@ describe('loadCopy in live mode', () => {
     await expect(
       loadCopy({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };
@@ -169,9 +170,13 @@ describe('loadCopy in live mode', () => {
     } as unknown as Db;
     const connectSpy = vi.fn(() => ({ db, close }));
 
-    await expect(loadCopyWorkspace({ demoMode: () => false, connect: connectSpy })).rejects.toThrow(
-      'boom',
-    );
+    await expect(
+      loadCopyWorkspace({
+        demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
+        connect: connectSpy,
+      }),
+    ).rejects.toThrow('boom');
 
     expect(connectSpy).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);

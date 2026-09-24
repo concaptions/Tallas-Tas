@@ -75,6 +75,7 @@ describe('loadInterfaceConfig in live mode', () => {
     await expect(
       loadInterfaceConfig({
         demoMode: () => false,
+        actorScope: () => Promise.resolve({ clerkOrgId: 'org-live', clerkUserId: null }),
         connect: (url) => {
           openings.push(url);
           return { db, close };

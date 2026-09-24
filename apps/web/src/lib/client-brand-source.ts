@@ -33,8 +33,17 @@ export async function resolveClientBrand(slug: string): Promise<ClientBrand | nu
 
   const { db, close } = neonConnection(databaseUrl);
   try {
+    // The client portal resolves a brand by slug alone, so the filter is the only gate on what a
+    // slug can reach. A TEMPLATE brand is the parent every child is seeded from — it is never a
+    // client's workspace and must never be served through this door, so it is excluded here beside
+    // the soft-delete check. (Filtered in memory rather than a `where` clause because `@tas/web`
+    // does not depend on `drizzle-orm` — the same reason `resolveLiveBrand` reads and filters.)
+    //
+    // This narrows WHAT a slug resolves to; it does not authenticate WHO is asking. Real client
+    // authorisation — a per-brand access token or magic link, so a guessed slug is not enough —
+    // is the V1 follow-up tracked in the ticket; nothing here should be read as providing it.
     const rows = (await db.select().from(brands)).filter(
-      (r) => r.slug === slug && r.deletedAt === null,
+      (r) => r.slug === slug && r.deletedAt === null && !r.isTemplate,
     );
     const row = rows[0];
     return row ? { id: row.id, name: row.name, slug: row.slug } : null;
