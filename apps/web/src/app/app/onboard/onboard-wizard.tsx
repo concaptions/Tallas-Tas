@@ -4,6 +4,9 @@ import { useActionState, useState } from 'react';
 import { Button, Input, Label } from '@tas/ui';
 import { slugify } from '@tas/domain';
 
+import { OrgSwitcher } from '@/components/shell/org-switcher';
+import { needsOrganization } from '@/lib/organization';
+
 import { createBrandAction, type OnboardResult } from './actions';
 
 const INITIAL_STATE: OnboardResult = { ok: true };
@@ -38,7 +41,7 @@ export function OnboardWizard() {
     <div className="rounded-card border border-line bg-surface p-6">
       {step === 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-medium text-text1">Brand details</h2>
+          <h2 className="text-lg font-medium text-text">Brand details</h2>
 
           <div className="space-y-1.5">
             <Label htmlFor="brand-name">Brand name</Label>
@@ -97,21 +100,21 @@ export function OnboardWizard() {
 
       {step === 1 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-medium text-text1">Review</h2>
+          <h2 className="text-lg font-medium text-text">Review</h2>
 
           <dl className="space-y-2 text-sm">
             <div className="flex gap-2">
               <dt className="font-medium text-text2">Name:</dt>
-              <dd className="text-text1">{name}</dd>
+              <dd className="text-text">{name}</dd>
             </div>
             <div className="flex gap-2">
               <dt className="font-medium text-text2">Slug:</dt>
-              <dd className="font-mono text-text1">{slug}</dd>
+              <dd className="font-mono text-text">{slug}</dd>
             </div>
             {website && (
               <div className="flex gap-2">
                 <dt className="font-medium text-text2">Website:</dt>
-                <dd className="text-text1">{website}</dd>
+                <dd className="text-text">{website}</dd>
               </div>
             )}
           </dl>
@@ -122,8 +125,19 @@ export function OnboardWizard() {
           </p>
 
           {!state.ok && (
-            <div className="rounded-input border border-fail/30 bg-fail/5 px-3 py-2 text-sm text-fail">
+            <div className="rounded-input border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
               {errors.map((e) => e.message).join('. ')}
+            </div>
+          )}
+
+          {/* A missing ACTIVE organization is not something a form field can fix, so the refusal is
+              answered with the picker itself rather than with a message the reader cannot act on. */}
+          {needsOrganization(errors) && (
+            <div className="flex flex-col gap-2 rounded-input border border-line bg-surface2 px-3 py-3">
+              <p className="text-xs text-text3">
+                A brand belongs to an organization. Choose one, then submit again.
+              </p>
+              <OrgSwitcher />
             </div>
           )}
 

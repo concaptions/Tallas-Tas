@@ -5,6 +5,7 @@ import type { DemoActor } from '@/lib/demo-mode';
 import { appPath } from '@/lib/routes';
 
 import { BrandSwitcher } from './brand-switcher';
+import { OrgSwitcher } from './org-switcher';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
 
@@ -32,6 +33,8 @@ export function TopBar({ brand, actor, demo }: TopBarProps) {
         <BrandSwitcher brand={brand} readOnly={demo} />
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {/* Clerk-only: no ClerkProvider exists in demo mode, so the switcher cannot mount there. */}
+        {demo ? null : <OrgSwitcher />}
         <ThemeToggle />
         <UserMenu actor={actor} demo={demo} />
       </div>

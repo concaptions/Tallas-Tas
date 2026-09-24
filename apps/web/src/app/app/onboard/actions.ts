@@ -3,6 +3,8 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import { createAutoDb, onboardBrand, type OnboardBrandInput } from '@tas/db';
+
+import { NO_ACTIVE_ORGANIZATION_MESSAGE } from '@/lib/organization';
 import { defaultInterfaceConfig, slugify, validateBrandDraft, type BrandRole } from '@tas/domain';
 import { serverEnv } from '@tas/env';
 
@@ -55,7 +57,10 @@ export async function createBrandAction(formData: FormData): Promise<OnboardResu
     const { findAgencyByClerkOrg } = await import('@tas/db');
     const orgId = session.orgId;
     if (orgId === undefined) {
-      return { ok: false, errors: [{ field: 'name', message: 'No organization found.' }] };
+      return {
+        ok: false,
+        errors: [{ field: 'name', message: NO_ACTIVE_ORGANIZATION_MESSAGE }],
+      };
     }
 
     const agency = await findAgencyByClerkOrg(db, orgId);
@@ -78,6 +83,26 @@ export async function createBrandAction(formData: FormData): Promise<OnboardResu
       team,
       interfaceDefaults: defaults,
     });
+  } catch (error) {
+    // A network errno (ENOTFOUND, ECONNREFUSED, ETIMEDOUT, …) means the HOST is wrong or
+    // unreachable; a Postgres SQLSTATE ('23505', …) means the database answered.
+    const code = (error as { code?: string }).code;
+    if (code !== undefined && /^E[A-Z_]+$/.test(code)) {
+      const host = new URL(databaseUrl).hostname;
+      return {
+        ok: false,
+        errors: [
+          {
+            field: 'name',
+            message: `Could not reach the database at ${host} (${code}). DATABASE_URL must point at a host reachable from this deployment — on Railway that is the public proxy URL (DATABASE_PUBLIC_URL), not the internal one.`,
+          },
+        ],
+      };
+    }
+    return {
+      ok: false,
+      errors: [{ field: 'name', message: 'The brand could not be created. Try again.' }],
+    };
   } finally {
     await db.$client.end();
   }
