@@ -2,6 +2,7 @@ import {
   demoPromotionRequests,
   demoReviewedPromotionRequests,
   type PromotionRequestRow,
+  type PropagationRun,
 } from '@tas/db';
 import { PROMOTION_STATUS } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
@@ -19,10 +20,12 @@ import {
   emptyTitle,
   filterNote,
   promotionCountLabel,
+  PROPAGATION_TRIGGER_LABELS,
   resolveStatusFilter,
   statusFilterHref,
   statusQuery,
   toPromotionItem,
+  toPropagationRunItem,
 } from './fields';
 
 /** One fixed instant, so every relative string below is a value rather than a moving target. */
@@ -192,6 +195,54 @@ describe('decidedByLabel', () => {
     const undated: PromotionRequestRow = { ...requireRow(approved), reviewedAt: null };
 
     expect(decidedByLabel(undated, NOW)).toBeNull();
+  });
+});
+
+function runRow(overrides: Partial<PropagationRun> = {}): PropagationRun {
+  return {
+    id: 'run-1',
+    brandId: null,
+    createdAt: new Date('2026-09-18T06:10:00.000Z'),
+    updatedAt: new Date('2026-09-18T06:10:00.000Z'),
+    createdBy: 'user_admin',
+    updatedBy: 'user_admin',
+    deletedAt: null,
+    templateBrandId: 'template-1',
+    tableName: 'products',
+    trigger: 'update',
+    templateRowId: 'row-9',
+    childrenUpdated: 3,
+    skipped: 1,
+    ...overrides,
+  };
+}
+
+describe('toPropagationRunItem', () => {
+  it('resolves a ledger row, labelling the trigger and formatting the run time once', () => {
+    const item = toPropagationRunItem(runRow(), NOW);
+
+    expect(item.id).toBe('run-1');
+    expect(item.tableName).toBe('products');
+    expect(item.triggerLabel).toBe('Row updated');
+    expect(item.childrenUpdated).toBe(3);
+    expect(item.skipped).toBe(1);
+    expect(item.actor).toBe('user_admin');
+    // NOW is two hours after the fixed createdAt.
+    expect(item.ranAt).toContain('hour');
+  });
+
+  it('carries a null actor through for an unattended run', () => {
+    expect(toPropagationRunItem(runRow({ createdBy: null }), NOW).actor).toBeNull();
+  });
+
+  it('has a label for every trigger the engine can log', () => {
+    for (const trigger of Object.keys(PROPAGATION_TRIGGER_LABELS)) {
+      expect(
+        PROPAGATION_TRIGGER_LABELS[trigger as keyof typeof PROPAGATION_TRIGGER_LABELS],
+      ).toBeTruthy();
+    }
+    expect(PROPAGATION_TRIGGER_LABELS.sweep).toBe('Full re-sync');
+    expect(PROPAGATION_TRIGGER_LABELS.seed).toBe('Brand seeded');
   });
 });
 

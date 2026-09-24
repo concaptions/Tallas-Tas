@@ -16,3 +16,4 @@ export * from './diff-summary';
 export * from './describe-promotion';
 export * from './plan';
 export * from './review';
+export * from './overrides';

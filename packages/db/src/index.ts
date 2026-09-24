@@ -254,6 +254,8 @@ export type {
   CreatePromotionInput,
   PropagationResult,
 } from './propagation';
+export { listPropagationRuns, logPropagationRun } from './propagation-runs';
+export type { PropagationRunInput } from './propagation-runs';
 export {
   applyApprovedPromotion,
   listPendingPromotionRequests,

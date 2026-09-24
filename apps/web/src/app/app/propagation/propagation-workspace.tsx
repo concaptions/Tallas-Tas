@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@tas/ui';
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@tas/ui';
 
 import {
   approvePromotionAction,
@@ -16,11 +16,13 @@ import {
   PROMOTION_FILTERS,
   PROPAGATION_ENFORCEMENT_NOTE,
   REJECT_PROMPT,
+  RUN_HISTORY_EMPTY,
   emptyAction,
   emptyTitle,
   filterNote,
   promotionCountLabel,
   type PromotionItem,
+  type PropagationRunItem,
   type PromotionStatusFilter,
 } from './fields';
 import { PromotionTable, type PromotionDecision } from './promotion-row';
@@ -57,6 +59,8 @@ export interface PropagationWorkspaceProps {
   readonly items: readonly PromotionItem[];
   readonly customFields: readonly CustomFieldItem[];
   readonly childBrands: readonly ChildBrandItem[];
+  /** The propagation ledger, newest first — the Run History tab. Empty in demo mode. */
+  readonly runs: readonly PropagationRunItem[];
   readonly demo: boolean;
   /** The state the address asked for, already resolved by `resolveStatusFilter`. */
   readonly filter: PromotionStatusFilter;
@@ -76,6 +80,7 @@ export function PropagationWorkspace({
   items,
   customFields,
   childBrands,
+  runs,
   demo,
   filter,
   demoAccessNote,
@@ -187,75 +192,141 @@ export function PropagationWorkspace({
         )}
       </header>
 
-      <section aria-labelledby="propagation-heading" className="flex min-w-0 flex-col gap-3">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-          <h2 id="propagation-heading" className="text-sm font-medium text-text2">
+      <Tabs
+        defaultValue="requests"
+        data-slot="propagation-tabs"
+        className="flex min-w-0 flex-col gap-6"
+      >
+        <TabsList>
+          <TabsTrigger value="requests" data-tab="requests">
             Requests
-          </h2>
-          <div
-            data-slot="status-filter"
-            role="group"
-            aria-label="Filter promotion requests by status"
-            className="flex min-w-0 flex-wrap items-center gap-1.5"
-          >
-            {PROMOTION_FILTERS.map((option) => {
-              const active = option.key === filter;
-              return (
-                <Button
-                  key={option.key}
-                  asChild
-                  size="sm"
-                  variant={active ? 'secondary' : 'outline'}
-                  className="h-8 max-w-full truncate"
-                >
-                  <Link
-                    href={option.href}
-                    data-slot="status-filter-option"
-                    data-status={option.key}
-                    data-active={active}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    {option.label}
-                  </Link>
-                </Button>
-              );
-            })}
-          </div>
-        </div>
+          </TabsTrigger>
+          <TabsTrigger value="custom-fields" data-tab="custom-fields">
+            Custom Fields
+          </TabsTrigger>
+          <TabsTrigger value="runs" data-tab="runs">
+            Run History
+          </TabsTrigger>
+        </TabsList>
 
-        {demo || items.length === 0 ? null : (
-          <p data-slot="reject-prompt" className="text-xs text-text4">
-            {REJECT_PROMPT}
-          </p>
-        )}
-
-        <PromotionTable
-          items={items}
-          demo={demo}
-          savingId={savingId}
-          notes={notes}
-          onNote={onNote}
-          onDecide={onDecide}
-          noteErrorId={attempt?.requestId ?? null}
-          noteError={failure?.fieldErrors?.note ?? null}
-          emptyState={
-            <div
-              data-slot="propagation-empty"
-              className="flex flex-col items-center gap-3 text-center"
-            >
-              <p className="text-sm font-medium text-text2">{emptyTitle(filter)}</p>
-              <p className="max-w-prose text-[13px] leading-relaxed text-text3">{EMPTY_BODY}</p>
-              <Button asChild variant="outline" size="sm" data-slot="empty-action">
-                <Link href={way.href}>{way.label}</Link>
-              </Button>
+        <TabsContent value="requests" className="flex min-w-0 flex-col gap-8">
+          <section aria-labelledby="propagation-heading" className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+              <h2 id="propagation-heading" className="text-sm font-medium text-text2">
+                Requests
+              </h2>
+              <div
+                data-slot="status-filter"
+                role="group"
+                aria-label="Filter promotion requests by status"
+                className="flex min-w-0 flex-wrap items-center gap-1.5"
+              >
+                {PROMOTION_FILTERS.map((option) => {
+                  const active = option.key === filter;
+                  return (
+                    <Button
+                      key={option.key}
+                      asChild
+                      size="sm"
+                      variant={active ? 'secondary' : 'outline'}
+                      className="h-8 max-w-full truncate"
+                    >
+                      <Link
+                        href={option.href}
+                        data-slot="status-filter-option"
+                        data-status={option.key}
+                        data-active={active}
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        {option.label}
+                      </Link>
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
-          }
-        />
-      </section>
 
-      <PropagationControls childBrands={childBrands} demo={demo} />
+            {demo || items.length === 0 ? null : (
+              <p data-slot="reject-prompt" className="text-xs text-text4">
+                {REJECT_PROMPT}
+              </p>
+            )}
 
-      <CustomFieldsSection fields={customFields} demo={demo} />
+            <PromotionTable
+              items={items}
+              demo={demo}
+              savingId={savingId}
+              notes={notes}
+              onNote={onNote}
+              onDecide={onDecide}
+              noteErrorId={attempt?.requestId ?? null}
+              noteError={failure?.fieldErrors?.note ?? null}
+              emptyState={
+                <div
+                  data-slot="propagation-empty"
+                  className="flex flex-col items-center gap-3 text-center"
+                >
+                  <p className="text-sm font-medium text-text2">{emptyTitle(filter)}</p>
+                  <p className="max-w-prose text-[13px] leading-relaxed text-text3">{EMPTY_BODY}</p>
+                  <Button asChild variant="outline" size="sm" data-slot="empty-action">
+                    <Link href={way.href}>{way.label}</Link>
+                  </Button>
+                </div>
+              }
+            />
+          </section>
+
+          <PropagationControls childBrands={childBrands} demo={demo} />
+        </TabsContent>
+
+        <TabsContent value="custom-fields" className="flex min-w-0 flex-col gap-8">
+          <CustomFieldsSection fields={customFields} demo={demo} />
+        </TabsContent>
+
+        <TabsContent value="runs" className="flex min-w-0 flex-col gap-4">
+          <RunHistory runs={runs} />
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+/**
+ * The Run History tab: every propagation the engine logged for this agency's template, newest first
+ * (PRD §14.1, "One template, propagated"). Read-only — nobody edits a ledger — so there is no demo
+ * guard here; demo mode simply has no history and lands on the empty state. The table name is a
+ * system identifier and renders in `font-mono`, as auto-generated output does everywhere in this app.
+ */
+function RunHistory({ runs }: { readonly runs: readonly PropagationRunItem[] }) {
+  if (runs.length === 0) {
+    return (
+      <p data-slot="runs-empty" className="max-w-prose text-sm text-text3">
+        {RUN_HISTORY_EMPTY}
+      </p>
+    );
+  }
+  return (
+    <ul data-slot="run-history" className="flex min-w-0 flex-col gap-2">
+      {runs.map((run) => (
+        <li
+          key={run.id}
+          data-slot="run-row"
+          className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-card border border-line bg-surface2 p-3"
+        >
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-sm font-medium text-text2">
+              {run.triggerLabel} — <span className="font-mono text-text3">{run.tableName}</span>
+            </span>
+            <span className="text-xs text-text4" title={run.ranAtTitle}>
+              {run.ranAt}
+              {run.actor === null ? null : <> · {run.actor}</>}
+            </span>
+          </div>
+          <span data-slot="run-counts" className="font-mono text-xs text-text3">
+            {run.childrenUpdated} updated · {run.skipped} skipped
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }

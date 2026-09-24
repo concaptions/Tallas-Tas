@@ -1,4 +1,4 @@
-import type { PromotionRequestRow } from '@tas/db';
+import type { PromotionRequestRow, PropagationRun, PropagationTrigger } from '@tas/db';
 import {
   PROMOTION_STATUS,
   PROMOTION_STATUS_INITIAL,
@@ -185,6 +185,52 @@ export function toPromotionItem(row: PromotionRequestRow, now: Date): PromotionI
     reviewNote: row.reviewNote,
   };
 }
+
+/**
+ * How each ledger `trigger` reads in the Run History tab. The keys are exhaustive over
+ * `PropagationTrigger`, so a new trigger cannot be added to the engine without a label here.
+ */
+export const PROPAGATION_TRIGGER_LABELS: Record<PropagationTrigger, string> = {
+  insert: 'Row added',
+  update: 'Row updated',
+  soft_delete: 'Row removed',
+  seed: 'Brand seeded',
+  interface: 'Interface config',
+  sweep: 'Full re-sync',
+};
+
+/** A single propagation the engine ran, resolved for the Run History table. */
+export interface PropagationRunItem {
+  readonly id: string;
+  /** The table the run touched, a system identifier — the cell renders it in `font-mono`. */
+  readonly tableName: string;
+  readonly triggerLabel: string;
+  readonly childrenUpdated: number;
+  readonly skipped: number;
+  /** "2 hours ago", formatted on the server with one shared `now`. */
+  readonly ranAt: string;
+  readonly ranAtTitle: string;
+  /** The actor who triggered it, or null when the engine ran it unattended. */
+  readonly actor: string | null;
+}
+
+/** One ledger row, resolved. `now` is a parameter so the whole table shares one instant. */
+export function toPropagationRunItem(run: PropagationRun, now: Date): PropagationRunItem {
+  return {
+    id: run.id,
+    tableName: run.tableName,
+    triggerLabel: PROPAGATION_TRIGGER_LABELS[run.trigger],
+    childrenUpdated: run.childrenUpdated,
+    skipped: run.skipped,
+    ranAt: relativeTime(run.createdAt, now),
+    ranAtTitle: absoluteTime(run.createdAt),
+    actor: run.createdBy,
+  };
+}
+
+/** The Run History tab's empty state, shown when no propagation has been logged yet. */
+export const RUN_HISTORY_EMPTY =
+  'No propagations have run yet. They appear here as the template fans changes out to its brands.';
 
 /** "3 requests", or "1 request" — the count the heading states for the state being shown. */
 export function promotionCountLabel(count: number): string {

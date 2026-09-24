@@ -3,11 +3,13 @@ import {
   demoReviewedPromotionRequests,
   listChildBrands,
   listCustomFieldSchemas,
+  listPropagationRuns,
   listPromotionRequests,
   resolveTemplateBrandId,
   type CustomFieldSchemaListRow,
   type Db,
   type PromotionRequestRow,
+  type PropagationRun,
 } from '@tas/db';
 import { PROMOTION_STATUS_INITIAL, type PromotionStatusKey } from '@tas/domain/state';
 import { serverEnv } from '@tas/env';
@@ -259,5 +261,31 @@ export async function loadChildBrands(
       brands: children.map((b) => ({ id: b.id, name: b.name, status: b.status })),
       source: 'database' as const,
     };
+  });
+}
+
+export interface PropagationRunListResult {
+  readonly rows: PropagationRun[];
+  readonly source: PromotionSourceKind;
+}
+
+/**
+ * The Run History tab's rows: every propagation the engine has logged for the agency's template,
+ * newest first. Demo mode has no propagation history — the ledger is a live-only operational log,
+ * the same way `loadCustomFieldSchemas` returns nothing in demo — so the tab shows its empty state.
+ */
+export async function loadPropagationRuns(
+  deps: PromotionSourceDeps = {},
+): Promise<PropagationRunListResult> {
+  if (inDemoMode(deps)) {
+    return { rows: [], source: 'demo' };
+  }
+  return withDb(deps, async (db) => {
+    const agencyId = await resolveLiveAgencyId(db, deps);
+    if (agencyId === null) return { rows: [], source: 'database' as const };
+    const templateBrandId = await resolveTemplateBrandId(db, agencyId);
+    if (templateBrandId === null) return { rows: [], source: 'database' as const };
+    const rows = await listPropagationRuns(db, templateBrandId);
+    return { rows, source: 'database' as const };
   });
 }

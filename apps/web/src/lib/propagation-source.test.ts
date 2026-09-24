@@ -5,6 +5,7 @@ import {
   loadPromotionRequest,
   loadPromotionRequests,
   loadPromotionRequestsByStatus,
+  loadPropagationRuns,
   withAgencyScope,
 } from './propagation-source';
 
@@ -66,6 +67,18 @@ describe('loadPromotionRequests in demo mode', () => {
     const settled = demoReviewedPromotionRequests.map((row) => row.id);
 
     expect(rows.some((row) => settled.includes(row.id))).toBe(false);
+  });
+});
+
+describe('loadPropagationRuns in demo mode', () => {
+  it('returns no history and constructs no database client, even with DATABASE_URL set', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+
+    const result = await loadPropagationRuns({ connect });
+
+    expect(result.source).toBe('demo');
+    expect(result.rows).toEqual([]);
+    expect(connect).not.toHaveBeenCalled();
   });
 });
 

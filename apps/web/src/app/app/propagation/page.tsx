@@ -10,6 +10,7 @@ import {
   loadChildBrands,
   loadCustomFieldSchemas,
   loadPromotionRequestsByStatus,
+  loadPropagationRuns,
 } from '@/lib/propagation-source';
 import { currentTeamActor } from '@/lib/team-actor';
 import { loadTeam } from '@/lib/team-source';
@@ -19,7 +20,9 @@ import {
   resolveStatusFilter,
   statusQuery,
   toPromotionItem,
+  toPropagationRunItem,
   type PromotionItem,
+  type PropagationRunItem,
 } from './fields';
 import type { CustomFieldItem } from './custom-fields-section';
 import { PropagationWorkspace } from './propagation-workspace';
@@ -89,13 +92,19 @@ export default async function PropagationPage({ searchParams }: PropagationPageP
   const params = await searchParams;
   const filter = resolveStatusFilter(params.status);
 
-  const [{ rows: team }, { rows }, { rows: customFields }, { brands: childBrands }] =
-    await Promise.all([
-      loadTeam(),
-      loadPromotionRequestsByStatus(statusQuery(filter)),
-      loadCustomFieldSchemas(),
-      loadChildBrands(),
-    ]);
+  const [
+    { rows: team },
+    { rows },
+    { rows: customFields },
+    { brands: childBrands },
+    { rows: runs },
+  ] = await Promise.all([
+    loadTeam(),
+    loadPromotionRequestsByStatus(statusQuery(filter)),
+    loadCustomFieldSchemas(),
+    loadChildBrands(),
+    loadPropagationRuns(),
+  ]);
 
   if (!canSeePropagationPage(await currentTeamActor(team))) {
     return <NotAdmin />;
@@ -104,6 +113,7 @@ export default async function PropagationPage({ searchParams }: PropagationPageP
   const demo = isDemoMode();
   const now = new Date();
   const items: PromotionItem[] = rows.map((row) => toPromotionItem(row, now));
+  const runItems: PropagationRunItem[] = runs.map((run) => toPropagationRunItem(run, now));
   const fieldItems: CustomFieldItem[] = customFields.map((f) => ({
     id: f.id,
     tableName: f.tableName,
@@ -119,6 +129,7 @@ export default async function PropagationPage({ searchParams }: PropagationPageP
       items={items}
       customFields={fieldItems}
       childBrands={childBrands}
+      runs={runItems}
       demo={demo}
       filter={filter}
       adminNote={PROPAGATION_ADMIN_NOTE}

@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { logPropagationRun } from './propagation-runs';
 import {
   aiCharacters,
   angles,
@@ -180,6 +181,18 @@ export async function propagateInterfaceConfig(
     childrenUpdated++;
   }
 
+  await logPropagationRun(
+    db,
+    {
+      templateBrandId,
+      tableName: 'interface_config',
+      trigger: 'interface',
+      childrenUpdated,
+      skipped: 0,
+    },
+    actorId,
+  );
+
   return {
     childrenUpdated,
     pagesPerChild: templatePages.length,
@@ -289,6 +302,18 @@ export async function seedContentFromTemplate(
     tablesProcessed.push(tableName);
   }
 
+  await logPropagationRun(
+    db,
+    {
+      templateBrandId,
+      tableName: 'all',
+      trigger: 'seed',
+      childrenUpdated: 1,
+      skipped: 0,
+    },
+    actorId,
+  );
+
   return {
     childrenUpdated: 1,
     tablesProcessed,
@@ -316,8 +341,23 @@ export async function propagateTemplateRow(
   const table = PROPAGATION_TABLES[tableName];
   if (!table) throw new Error(`Table ${tableName} is not in the propagation registry`);
 
+  // Every path out of this function records one ledger row, so the Run History tab shows the parent
+  // row that fanned out and how many children took it — a no-op run (no children, no template row)
+  // is logged too, because "the propagation ran and reached nobody" is itself worth seeing.
+  const finish = async (result: {
+    childrenUpdated: number;
+    skipped: number;
+  }): Promise<{ childrenUpdated: number; skipped: number }> => {
+    await logPropagationRun(
+      db,
+      { templateBrandId, tableName, trigger, templateRowId, ...result },
+      actorId,
+    );
+    return result;
+  };
+
   const children = await listChildBrands(db, templateBrandId);
-  if (children.length === 0) return { childrenUpdated: 0, skipped: 0 };
+  if (children.length === 0) return finish({ childrenUpdated: 0, skipped: 0 });
 
   if (trigger === 'soft_delete') {
     let updated = 0;
@@ -333,7 +373,7 @@ export async function propagateTemplateRow(
         .returning();
       updated += rows.length;
     }
-    return { childrenUpdated: updated, skipped: children.length - updated };
+    return finish({ childrenUpdated: updated, skipped: children.length - updated });
   }
 
   const templateScope = withBrand(db, templateBrandId);
@@ -343,7 +383,7 @@ export async function propagateTemplateRow(
       eq((table as unknown as Record<string, unknown>).id as ReturnType<typeof sql>, templateRowId),
     )
     .limit(1);
-  if (!templateRow) return { childrenUpdated: 0, skipped: children.length };
+  if (!templateRow) return finish({ childrenUpdated: 0, skipped: children.length });
 
   const columns = getTableColumns(table);
   const copyableColumns = columns.filter((col) => !MANAGED_PROPAGATION_COLUMNS.has(col));
@@ -408,7 +448,7 @@ export async function propagateTemplateRow(
     }
   }
 
-  return { childrenUpdated: updated, skipped };
+  return finish({ childrenUpdated: updated, skipped });
 }
 
 /**
@@ -507,6 +547,18 @@ export async function propagateAllContent(
 
     tablesProcessed.push(tableName);
   }
+
+  await logPropagationRun(
+    db,
+    {
+      templateBrandId,
+      tableName: 'all',
+      trigger: 'sweep',
+      childrenUpdated: children.length,
+      skipped: 0,
+    },
+    actorId,
+  );
 
   return {
     childrenUpdated: children.length,

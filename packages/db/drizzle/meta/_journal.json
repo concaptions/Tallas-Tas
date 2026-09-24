@@ -239,6 +239,13 @@
       "when": 1790617200000,
       "tag": "0033_ads_to_launch_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790703600000,
+      "tag": "0034_propagation-runs",
+      "breakpoints": true
     }
   ]
 }
