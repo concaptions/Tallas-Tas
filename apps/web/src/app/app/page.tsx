@@ -13,7 +13,7 @@ import { AccountSummary } from '@/components/account-summary';
 import { RoleDashboardSection } from '@/components/role-dashboard';
 import { Icon, type IconName } from '@/components/shell/icons';
 import { loadRoleDashboard } from '@/lib/dashboard-source';
-import { loadOverview } from '@/lib/data-source';
+import { loadActiveRole, loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { anglesPath, conceptsPath, personasPath, themesPath } from '@/lib/routes';
 
@@ -31,11 +31,15 @@ interface SectionCard {
 
 export default async function OverviewPage() {
   const demo = isDemoMode();
-  // Independent reads: awaited together, not one after the other. Both share the request's
+  // The dashboard is drawn for the current user's role on the active brand (Sprint 12); resolved
+  // first because the role decides which tiles `loadRoleDashboard` counts. Demo mode and anyone
+  // without a role here resolve to `admin` — the all-cards view, unchanged from before role detection.
+  const role = await loadActiveRole();
+  // Independent reads: awaited together, not one after the other. All share the request's
   // connection and its once-per-request brand resolution.
   const [{ brand, counts }, dashboard] = await Promise.all([
     loadOverview(),
-    loadRoleDashboard('admin'),
+    loadRoleDashboard(role),
   ]);
 
   const cards: readonly SectionCard[] = [

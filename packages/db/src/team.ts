@@ -149,3 +149,52 @@ export const listTeamMembers = listTeam;
 
 /** `TeamListRow` under the row-shaped name; see `listTeamMembers`. */
 export type TeamMemberRow = TeamListRow;
+
+/** The role the Overview dashboard is drawn for: agency Admin, or a per-brand role, or none. */
+export type DashboardRole = BrandRole | 'admin';
+
+/**
+ * The current user's role for the active brand, for the role-aware Overview (Sprint 12). An agency
+ * Admin (a `memberships.role = 'admin'` row) sees the Admin dashboard on every brand; otherwise the
+ * `brand_assignments` role on THIS brand decides. Null when the user has no row here — the caller
+ * falls back to the Admin (all-cards) view, so nobody is left with a blank Overview. Not `withBrand`:
+ * it resolves who the caller IS before any brand scope, from the Clerk id the session already holds.
+ */
+export async function getActiveBrandRole(
+  db: Db,
+  brandId: string,
+  clerkUserId: string,
+): Promise<DashboardRole | null> {
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.clerkUserId, clerkUserId), isNull(users.deletedAt)))
+    .limit(1);
+  if (user === undefined) return null;
+
+  const [admin] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.userId, user.id),
+        eq(memberships.role, 'admin'),
+        isNull(memberships.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (admin !== undefined) return 'admin';
+
+  const [assignment] = await db
+    .select({ role: brandAssignments.role })
+    .from(brandAssignments)
+    .where(
+      and(
+        eq(brandAssignments.userId, user.id),
+        eq(brandAssignments.brandId, brandId),
+        isNull(brandAssignments.deletedAt),
+      ),
+    )
+    .limit(1);
+  return assignment?.role ?? null;
+}

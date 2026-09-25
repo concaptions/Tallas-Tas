@@ -101,6 +101,7 @@ import {
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
 } from './copywriting.stories';
+import { RoleDashboardAdminStory, RoleDashboardMediaBuyerStory } from './role-dashboard.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -953,6 +954,20 @@ export default function DesignSystemPage() {
               client column — CLIENT_STATUS minus Launched, from the domain, empty columns kept
             </h3>
             <ClientQueueColumnStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Overview role dashboard"
+        note="Sprint 12: the Overview draws a different card set for the current user's role. Admin (CSM pipeline plus the spell-check-flags tile) and Media Buyer (launch-focused), over the demo fixtures."
+      >
+        <div className="flex flex-col gap-6 sm:flex-row">
+          <div className="flex-1">
+            <RoleDashboardAdminStory />
+          </div>
+          <div className="flex-1">
+            <RoleDashboardMediaBuyerStory />
           </div>
         </div>
       </Section>
