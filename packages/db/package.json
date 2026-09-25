@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:seed": "tsx src/scripts/seed.ts",
-    "airtable-import": "tsx src/scripts/airtable-import.ts"
+    "airtable-import": "tsx src/scripts/airtable-import.ts",
+    "migrate-urls": "tsx src/scripts/migrate-airtable-urls.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
