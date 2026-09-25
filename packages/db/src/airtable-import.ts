@@ -41,6 +41,14 @@ export interface AirtableExport {
   readonly Collections?: AirtableRecord[];
   readonly 'Creative Briefs'?: AirtableRecord[];
   readonly Copywriting?: AirtableRecord[];
+  /**
+   * Sprint 11: the Gratsi base keeps its copy in TWO tables — "Meta Copywriting" (mapped to
+   * `Copywriting`) and "Youtube Copywriting". Meta was empty in the first import, so this is the
+   * fallback source; the engine reads it only when `Copywriting` is empty/absent (see the copywriting
+   * import). Its field names match Meta's except the primary copy, which is
+   * `Descriptions (90 caractères max)`.
+   */
+  readonly 'Youtube Copywriting'?: AirtableRecord[];
   readonly Creators?: AirtableRecord[];
   readonly Assets?: AirtableRecord[];
   readonly 'Ad Metrics'?: AirtableRecord[];
@@ -427,14 +435,24 @@ export async function importAirtableExport(
   );
   results.creativeBriefs = briefResult;
 
+  // Meta Copywriting first (existing behavior); fall back to Youtube Copywriting when Meta is
+  // empty or absent (Sprint 11). Both feed the same table through one mapper, whose field-name
+  // fallbacks already cover the two tables — bar the primary copy, added below.
+  const copyRecords =
+    data.Copywriting && data.Copywriting.length > 0
+      ? data.Copywriting
+      : (data['Youtube Copywriting'] ?? []);
+
   const { result: copyResult, idMap: copyMap } = await importRows(
     db,
     copywriting,
-    data.Copywriting ?? [],
+    copyRecords,
     (f) => ({
       brandId,
       copyNumber: copyNumberFromText(f['Copy Number'] ?? f['Copy #']),
-      primaryCopy: str(f['Primary Copy'] ?? f.Descriptions),
+      primaryCopy: str(
+        f['Primary Copy'] ?? f.Descriptions ?? f['Descriptions (90 caractères max)'],
+      ),
       headline: str(f.Headline),
       linkDescription: str(f['Link Description'] ?? f['News Feed']),
       cta: str(f.CTA),
@@ -725,8 +743,8 @@ export async function importAirtableExport(
     }
   }
 
-  // Copywriting → creativeBriefId + conceptId + productId FKs
-  for (const rec of data.Copywriting ?? []) {
+  // Copywriting → creativeBriefId + conceptId + productId FKs (same Meta-or-Youtube source)
+  for (const rec of copyRecords) {
     const copyId = copyMap.get(rec.id);
     if (!copyId) continue;
     const f = rec.fields;

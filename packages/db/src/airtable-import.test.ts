@@ -424,3 +424,59 @@ describe('importAirtableExport', () => {
     expect(none?.platform).toEqual([]);
   });
 });
+
+describe('Youtube Copywriting fallback (Sprint 11)', () => {
+  it('imports Youtube Copywriting when Meta is empty, mapping its fields to the copywriting columns', async () => {
+    const db = await seeded();
+    const fixture: AirtableExport = {
+      'Youtube Copywriting': [
+        {
+          id: 'at_yt_1',
+          fields: {
+            'Copy #': 'Copy 3',
+            'Descriptions (90 caractères max)': 'Wine, simplified.',
+            Headline: 'Boxed but better',
+            'News Feed': 'Try the sampler',
+            CTA: 'Shop Now',
+            Funnel: 'TOF',
+            USED: true,
+            Winning: false,
+          },
+        },
+      ],
+    };
+
+    const results = await importAirtableExport(db, fixture, DEMO_BRAND_ID, 'migration-actor');
+
+    expect(results.copywriting?.imported).toBe(1);
+    const [copy] = await db
+      .select()
+      .from(copywriting)
+      .where(eq(copywriting.legacyAirtableId, 'at_yt_1'));
+    expect(copy?.copyNumber).toBe(3);
+    expect(copy?.primaryCopy).toBe('Wine, simplified.');
+    expect(copy?.headline).toBe('Boxed but better');
+    expect(copy?.linkDescription).toBe('Try the sampler');
+    expect(copy?.used).toBe(true);
+  });
+
+  it('prefers Meta Copywriting when both are present, ignoring the Youtube source', async () => {
+    const db = await seeded();
+    const fixture: AirtableExport = {
+      Copywriting: [
+        { id: 'at_meta_1', fields: { 'Primary Copy': 'From Meta', Headline: 'Meta H' } },
+      ],
+      'Youtube Copywriting': [
+        { id: 'at_yt_2', fields: { 'Descriptions (90 caractères max)': 'From Youtube' } },
+      ],
+    };
+
+    const results = await importAirtableExport(db, fixture, DEMO_BRAND_ID, 'migration-actor');
+
+    expect(results.copywriting?.imported).toBe(1);
+    const imported = (await db.select().from(copywriting))
+      .map((row) => row.legacyAirtableId)
+      .filter((id) => id === 'at_meta_1' || id === 'at_yt_2');
+    expect(imported).toEqual(['at_meta_1']);
+  });
+});
