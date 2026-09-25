@@ -6,6 +6,7 @@ import {
   currentBrand,
   isBrandSelectable,
   listPersonaRows,
+  loadActiveRole,
   loadBrandScope,
   loadOverview,
   pickActiveBrand,
@@ -208,6 +209,13 @@ describe('data-source in demo mode', () => {
     const rows = await listPersonaRows({ connect });
 
     expect(rows.length).toBeGreaterThan(0);
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it('resolves the dashboard role to admin, constructing no client', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+
+    await expect(loadActiveRole({ connect })).resolves.toBe('admin');
     expect(connect).not.toHaveBeenCalled();
   });
 });

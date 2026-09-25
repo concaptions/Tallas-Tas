@@ -139,6 +139,35 @@ function mediaBuyerItems(data: DashboardData): DashboardItem[] {
   ];
 }
 
+/**
+ * Whether a brief's stored spell-check result is an actual flag, not a clean pass or nothing. The
+ * checker writes "No issues found." on a clean run (see `spell-check.ts`); that and a blank value are
+ * not errors.
+ */
+export function hasSpellingIssues(feedback: string | null): boolean {
+  if (feedback === null) return false;
+  const trimmed = feedback.trim();
+  return trimmed !== '' && !/no issues found/i.test(trimmed);
+}
+
+/**
+ * The Admin dashboard (Sprint 12): the CSM pipeline tiles plus a spell-check-flags tile — the count
+ * of briefs whose auto/Re-run spell check left feedback. Admin previously aliased to the CSM tiles;
+ * this gives it its own set. The all-brand aggregate and propagation cards the sprint sketches are
+ * already elsewhere on the Overview (the section cards and the propagation page), so they are not
+ * duplicated here.
+ */
+function adminItems(data: DashboardData): DashboardItem[] {
+  return [
+    ...csmItems(data),
+    {
+      label: 'Briefs with spell-check flags',
+      count: data.briefs.filter((brief) => hasSpellingIssues(brief.spellingFeedback)).length,
+      href: briefsPath,
+    },
+  ];
+}
+
 const BUILDERS: Record<BrandRole, (data: DashboardData) => DashboardItem[]> = {
   strategist: strategistItems,
   video_editor: editorItems,
@@ -157,16 +186,12 @@ const DEMO_DASHBOARD_DATA: DashboardData = {
 
 /** The role's tiles over whichever data it is handed — the one pure builder, demo or live. */
 export function buildRoleDashboard(role: BrandRole | 'admin', data: DashboardData): RoleDashboard {
-  const effectiveRole: BrandRole = role === 'admin' ? 'csm' : role;
-  const builder = BUILDERS[effectiveRole];
+  if (role === 'admin') {
+    return { roleLabel: 'Admin', items: adminItems(data) };
+  }
   return {
-    roleLabel:
-      role === 'admin'
-        ? 'Admin'
-        : role === 'video_editor'
-          ? 'Creative Items'
-          : BRAND_ROLE_LABELS[effectiveRole],
-    items: builder(data),
+    roleLabel: role === 'video_editor' ? 'Creative Items' : BRAND_ROLE_LABELS[role],
+    items: BUILDERS[role](data),
   };
 }
 

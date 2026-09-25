@@ -5,12 +5,24 @@ import type { BriefListRow } from '@tas/db';
 import {
   buildLaunchCards,
   buildRoleDashboard,
+  hasSpellingIssues,
   loadRoleDashboard,
   roleDashboard,
 } from './dashboard-source';
 
+describe('hasSpellingIssues', () => {
+  it('is true only for real flags, not a clean pass, blank, or null', () => {
+    expect(hasSpellingIssues('Inconsistent hyphenation: day-time')).toBe(true);
+    expect(hasSpellingIssues('No issues found.')).toBe(false);
+    expect(hasSpellingIssues('  no issues found  ')).toBe(false);
+    expect(hasSpellingIssues('   ')).toBe(false);
+    expect(hasSpellingIssues('')).toBe(false);
+    expect(hasSpellingIssues(null)).toBe(false);
+  });
+});
+
 describe('roleDashboard', () => {
-  it('returns three items for every role', () => {
+  it('returns well-formed items for every role — three per brand role, four for admin', () => {
     const roles = [
       'strategist',
       'video_editor',
@@ -21,7 +33,7 @@ describe('roleDashboard', () => {
     ] as const;
     for (const role of roles) {
       const d = roleDashboard(role);
-      expect(d.items).toHaveLength(3);
+      expect(d.items).toHaveLength(role === 'admin' ? 4 : 3);
       expect(d.roleLabel.length).toBeGreaterThan(0);
       for (const item of d.items) {
         expect(item.href).toMatch(/^\/app\//);
@@ -70,10 +82,14 @@ describe('roleDashboard', () => {
     expect(labels).toContain('Winning creatives');
   });
 
-  it('admin defaults to CSM view', () => {
+  it('admin keeps the CSM pipeline tiles and adds the spell-check-flags tile', () => {
     const admin = roleDashboard('admin');
     const csm = roleDashboard('csm');
-    expect(admin.items.map((i) => i.label)).toEqual(csm.items.map((i) => i.label));
+    const adminLabels = admin.items.map((i) => i.label);
+    for (const label of csm.items.map((i) => i.label)) {
+      expect(adminLabels).toContain(label);
+    }
+    expect(adminLabels).toContain('Briefs with spell-check flags');
     expect(admin.roleLabel).toBe('Admin');
   });
 

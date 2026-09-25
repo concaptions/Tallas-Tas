@@ -9,10 +9,12 @@ import {
   demoConcepts,
   demoPersonas,
   demoThemes,
+  getActiveBrandRole,
   listPersonas,
   memberships,
   themes,
   users,
+  type DashboardRole,
   type Db,
   type PersonaListRow,
 } from '@tas/db';
@@ -443,6 +445,29 @@ export async function loadOverview(deps: DataSourceDeps = {}): Promise<Overview>
         concepts: scoped(conceptRows),
       },
     };
+  });
+}
+
+/**
+ * The role the Overview draws its dashboard for (Sprint 12): the current user's role on the active
+ * brand. In fixture/demo mode there is no identity to ask, so it is `admin` — the all-cards view,
+ * unchanged from before role detection. In live mode the brand and the Clerk user are resolved from
+ * the session, then `getActiveBrandRole` decides; anyone without a row here also falls back to
+ * `admin`, so no one gets a blank Overview.
+ */
+export async function loadActiveRole(deps: DataSourceDeps = {}): Promise<DashboardRole> {
+  if (inFixtureMode(deps)) {
+    return 'admin';
+  }
+  return withDb(deps, async (db) => {
+    const [brandId, scope] = await Promise.all([
+      resolveLiveBrandId(db, deps),
+      (deps.actorScope ?? clerkActorScope)(),
+    ]);
+    if (brandId === null || scope.clerkUserId === null) {
+      return 'admin';
+    }
+    return (await getActiveBrandRole(db, brandId, scope.clerkUserId)) ?? 'admin';
   });
 }
 

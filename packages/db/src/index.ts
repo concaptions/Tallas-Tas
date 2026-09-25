@@ -279,8 +279,8 @@ export type {
 export * from './schema';
 export { seed } from './seed';
 export type { SeedResult } from './seed';
-export { listTeam, listTeamMembers } from './team';
-export type { TeamListRow, TeamMemberRow, TeamRole } from './team';
+export { getActiveBrandRole, listTeam, listTeamMembers } from './team';
+export type { DashboardRole, TeamListRow, TeamMemberRow, TeamRole } from './team';
 export { getThemeById, insertTheme, listThemes, updateTheme } from './themes';
 export type { ThemeInput, ThemeListRow } from './themes';
 export {
