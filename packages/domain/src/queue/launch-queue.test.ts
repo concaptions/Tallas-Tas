@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   LAUNCHED_CLIENT_STATUSES,
+  LAUNCH_PAUSED_CLIENT_STATUS,
+  LAUNCH_PRIORITIES,
   LAUNCH_QUEUE_ACTIONS,
   LAUNCH_READY_CLIENT_STATUS,
   RECENTLY_LAUNCHED_DAYS,
+  isLaunchPriority,
   launchQueueAction,
   launchQueueActionsFor,
   launchTransition,
@@ -38,6 +41,26 @@ describe('the launch queue vocabulary', () => {
       'Resume',
     ]);
     expect(launchQueueAction('delete')).toBeUndefined();
+  });
+});
+
+describe('the paused status and priority range', () => {
+  it('names paused as one of the launched statuses', () => {
+    expect(LAUNCH_PAUSED_CLIENT_STATUS).toBe('paused');
+    expect(LAUNCHED_CLIENT_STATUSES).toContain(LAUNCH_PAUSED_CLIENT_STATUS);
+  });
+
+  it('offers priorities 1 through 10, in order', () => {
+    expect(LAUNCH_PRIORITIES).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  });
+
+  it('accepts an integer 1–10 and rejects everything else', () => {
+    expect(LAUNCH_PRIORITIES.every(isLaunchPriority)).toBe(true);
+    expect(isLaunchPriority(0)).toBe(false);
+    expect(isLaunchPriority(11)).toBe(false);
+    expect(isLaunchPriority(2.5)).toBe(false);
+    expect(isLaunchPriority(-1)).toBe(false);
+    expect(isLaunchPriority(Number.NaN)).toBe(false);
   });
 });
 

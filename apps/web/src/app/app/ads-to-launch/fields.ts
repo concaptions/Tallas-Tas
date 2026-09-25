@@ -37,6 +37,8 @@ export interface LaunchQueueItem {
   readonly statusTone: ChipTone;
   /** `P1`, `P2`, … or null when the media buyer set none. */
   readonly priorityLabel: string | null;
+  /** The raw priority (1…10) or null — the value the editable dropdown starts on. */
+  readonly priority: number | null;
   /** `YYYY-MM-DD HH:MM UTC`, or null before launch. */
   readonly launchedAtLabel: string | null;
   /** The creative file to download (PRD §11), or null when none is attached. */
@@ -85,6 +87,7 @@ export function launchQueueItem(row: BriefRow, href: string): LaunchQueueItem {
     statusLabel: status.label,
     statusTone: status.tone,
     priorityLabel: priorityLabel(row.launchPriority),
+    priority: row.launchPriority,
     launchedAtLabel: launchedAtLabel(row.launchedAt),
     downloadUrl: downloadUrlOf(row),
     controls: launchQueueActionsFor(row.track, row.internalStatus, row.clientStatus).map(

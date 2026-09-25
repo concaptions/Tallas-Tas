@@ -14,6 +14,16 @@ const mocks = vi.hoisted(() => ({
         actor: string,
       ) => Promise<unknown>
     >(),
+  setLaunchPriority:
+    vi.fn<
+      (
+        db: unknown,
+        brandId: string,
+        id: string,
+        priority: number,
+        actor: string,
+      ) => Promise<unknown>
+    >(),
 }));
 
 /** `revalidatePath` only exists inside a Next request. */
@@ -30,6 +40,7 @@ vi.mock('@tas/db', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tas/db')>()),
   getBriefById: mocks.getBriefById,
   transitionBriefLaunch: mocks.transitionBriefLaunch,
+  setLaunchPriority: mocks.setLaunchPriority,
 }));
 
 /** Runs the action body against a stand-in db with the actor's brand already resolved. */
@@ -40,7 +51,12 @@ vi.mock('@/lib/briefs-source', async (importOriginal) => ({
   ),
 }));
 
-import { markAsLaunchedAction, markAsPausedAction, resumeLaunchedAction } from './actions';
+import {
+  markAsLaunchedAction,
+  markAsPausedAction,
+  resumeLaunchedAction,
+  updateLaunchPriorityAction,
+} from './actions';
 
 const ID = '77777777-7777-4777-8777-000000000001';
 
@@ -72,6 +88,7 @@ afterEach(() => {
   mocks.auth.mockReset();
   mocks.getBriefById.mockReset();
   mocks.transitionBriefLaunch.mockReset();
+  mocks.setLaunchPriority.mockReset();
 });
 
 describe('in demo mode', () => {
@@ -200,5 +217,83 @@ describe('markAsPausedAction and resumeLaunchedAction', () => {
     expect((await resumeLaunchedAction(null, form({ id: ID }))).ok).toBe(false);
 
     expect(mocks.transitionBriefLaunch).not.toHaveBeenCalled();
+  });
+});
+
+describe('updateLaunchPriorityAction', () => {
+  it('refuses in demo mode before touching anything', async () => {
+    const result = await updateLaunchPriorityAction(null, form({ id: ID, priority: '2' }));
+
+    expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
+    expect(mocks.getBriefById).not.toHaveBeenCalled();
+  });
+
+  it('sets a valid priority (1–10) on a ready creative', async () => {
+    configured();
+    mocks.getBriefById.mockResolvedValue(stored('approved', 'approved'));
+    mocks.setLaunchPriority.mockResolvedValue({ id: ID });
+
+    const result = await updateLaunchPriorityAction(null, form({ id: ID, priority: '3' }));
+
+    expect(result).toMatchObject({ ok: true, id: ID, priority: 3 });
+    const call = mocks.setLaunchPriority.mock.calls[0];
+    if (call === undefined) throw new Error('no priority was written');
+    const [, brandId, id, priority, actor] = call;
+    expect(brandId).toBe('brand-1');
+    expect(id).toBe(ID);
+    expect(priority).toBe(3);
+    expect(actor).toBe('user_buyer_1');
+  });
+
+  it('rejects a priority outside 1–10, before any read or write', async () => {
+    configured();
+
+    const tooHigh = await updateLaunchPriorityAction(null, form({ id: ID, priority: '11' }));
+    const zero = await updateLaunchPriorityAction(null, form({ id: ID, priority: '0' }));
+    const notNumber = await updateLaunchPriorityAction(null, form({ id: ID, priority: 'first' }));
+
+    for (const result of [tooHigh, zero, notNumber]) {
+      expect(result).toEqual({
+        ok: false,
+        error: 'That is not a valid priority for this creative.',
+      });
+    }
+    expect(mocks.getBriefById).not.toHaveBeenCalled();
+    expect(mocks.setLaunchPriority).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed id before any read', async () => {
+    configured();
+
+    const result = await updateLaunchPriorityAction(
+      null,
+      form({ id: 'not-a-uuid', priority: '2' }),
+    );
+
+    expect(result).toEqual({ ok: false, error: 'That is not a valid priority for this creative.' });
+    expect(mocks.getBriefById).not.toHaveBeenCalled();
+  });
+
+  it("refuses another brand's brief: the scoped read finds nothing, so nothing is written", async () => {
+    configured();
+    mocks.getBriefById.mockResolvedValue(null);
+
+    const result = await updateLaunchPriorityAction(null, form({ id: ID, priority: '2' }));
+
+    expect(result).toEqual({ ok: false, error: 'That creative is no longer available.' });
+    expect(mocks.setLaunchPriority).not.toHaveBeenCalled();
+  });
+
+  it('reports a lost race when the compare-and-set matches nothing (already launched)', async () => {
+    configured();
+    mocks.getBriefById.mockResolvedValue(stored('approved', 'approved'));
+    mocks.setLaunchPriority.mockResolvedValue(null);
+
+    const result = await updateLaunchPriorityAction(null, form({ id: ID, priority: '2' }));
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'This creative changed while you were looking at it. Reload and try again.',
+    });
   });
 });

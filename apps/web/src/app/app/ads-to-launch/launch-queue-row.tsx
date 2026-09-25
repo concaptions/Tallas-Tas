@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useActionState } from 'react';
+import { LAUNCH_PRIORITIES } from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -16,8 +17,10 @@ import {
   markAsLaunchedAction,
   markAsPausedAction,
   resumeLaunchedAction,
+  updateLaunchPriorityAction,
   type LaunchActionFailure,
   type LaunchActionResult,
+  type LaunchPriorityResult,
 } from './actions';
 import type { LaunchQueueItem } from './fields';
 
@@ -32,9 +35,11 @@ import type { LaunchQueueItem } from './fields';
 interface LaunchQueueRowProps {
   readonly item: LaunchQueueItem;
   readonly demo: boolean;
+  /** True only in "Ready to Launch": the priority becomes an editable dropdown instead of a badge. */
+  readonly editablePriority?: boolean;
 }
 
-export function LaunchQueueRow({ item, demo }: LaunchQueueRowProps) {
+export function LaunchQueueRow({ item, demo, editablePriority = false }: LaunchQueueRowProps) {
   const [launchState, launch, launching] = useActionState<LaunchActionResult | null, FormData>(
     markAsLaunchedAction,
     null,
@@ -47,9 +52,13 @@ export function LaunchQueueRow({ item, demo }: LaunchQueueRowProps) {
     resumeLaunchedAction,
     null,
   );
+  const [priorityState, setPriority, prioritising] = useActionState<
+    LaunchPriorityResult | null,
+    FormData
+  >(updateLaunchPriorityAction, null);
   const dispatch = { launch, pause, resume } as const;
   const pending = launching || pausing || resuming;
-  const failure = [launchState, pauseState, resumeState].find(
+  const failure = [launchState, pauseState, resumeState, priorityState].find(
     (state): state is LaunchActionFailure => state !== null && !state.ok,
   );
 
@@ -60,7 +69,35 @@ export function LaunchQueueRow({ item, demo }: LaunchQueueRowProps) {
     >
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex min-w-0 items-center gap-2">
-          {item.priorityLabel === null ? null : (
+          {editablePriority ? (
+            <form action={setPriority} className="shrink-0">
+              <input type="hidden" name="id" value={item.id} />
+              <label className="sr-only" htmlFor={`priority-${item.id}`}>
+                Launch priority for {item.name}
+              </label>
+              <select
+                id={`priority-${item.id}`}
+                name="priority"
+                defaultValue={item.priority === null ? '' : String(item.priority)}
+                disabled={demo || prioritising}
+                data-slot="priority-select"
+                onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                className="rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2 disabled:opacity-50"
+                title={demo ? DEMO_WRITE_HINT : 'Set the launch priority'}
+              >
+                {item.priority === null && (
+                  <option value="" disabled>
+                    P—
+                  </option>
+                )}
+                {LAUNCH_PRIORITIES.map((value) => (
+                  <option key={value} value={value}>
+                    P{value}
+                  </option>
+                ))}
+              </select>
+            </form>
+          ) : item.priorityLabel === null ? null : (
             <span className="shrink-0 rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2">
               {item.priorityLabel}
             </span>

@@ -1,15 +1,19 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { listLaunchQueue, transitionBriefLaunch } from './briefs';
+import { listLaunchQueue, setLaunchPriority, transitionBriefLaunch } from './briefs';
 import { agencies, brands, creativeBriefs } from './schema';
 import { testDb, type PgliteDb } from './testing';
 
 /**
- * The launch queue's two reads and its one write, against real Postgres (PGlite). The status keys
- * are passed in exactly as `@tas/domain`'s launch-queue constants hand them over.
+ * The launch queue's reads and writes, against real Postgres (PGlite). The status keys are passed in
+ * exactly as `@tas/domain`'s launch-queue constants hand them over.
  */
-const FILTER_BASE = { readyStatus: 'approved', launchedStatuses: ['launched', 'paused'] };
+const FILTER_BASE = {
+  readyStatus: 'approved',
+  launchedStatuses: ['launched', 'paused'],
+  pausedStatus: 'paused',
+};
 const NOW = new Date('2026-09-24T12:00:00Z');
 const SINCE = new Date('2026-09-17T12:00:00Z');
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000);
@@ -132,6 +136,69 @@ describe('listLaunchQueue', () => {
 
     expect(queue.ready).toEqual([]);
     expect(queue.recent).toEqual([]);
+    expect(queue.paused).toEqual([]);
+  });
+
+  it('Paused is every paused row at ANY age — including one older than the recent window', async () => {
+    const db = await testDb();
+    const { mine, other } = await twoBrands(db);
+    await brief(db, mine, { name: 'PAUSED-2D', clientStatus: 'paused', launchedAt: daysAgo(2) });
+    await brief(db, mine, { name: 'PAUSED-30D', clientStatus: 'paused', launchedAt: daysAgo(30) });
+    await brief(db, mine, { name: 'LIVE-1D', clientStatus: 'launched', launchedAt: daysAgo(1) });
+    await brief(db, other, {
+      name: 'OTHER-PAUSED',
+      clientStatus: 'paused',
+      launchedAt: daysAgo(1),
+    });
+
+    const queue = await listLaunchQueue(db, mine, { ...FILTER_BASE, launchedSince: SINCE });
+
+    // Newest launch first, both ages present, this brand only.
+    expect(names(queue.paused)).toEqual(['PAUSED-2D', 'PAUSED-30D']);
+    // The 30-day paused ad is in Paused but NOT in Recently Launched (the whole point of Gap 2).
+    expect(names(queue.recent)).not.toContain('PAUSED-30D');
+    expect(names(queue.recent)).toContain('PAUSED-2D');
+  });
+});
+
+describe('setLaunchPriority', () => {
+  it('sets the priority on a ready (unlaunched) brief and records the actor', async () => {
+    const db = await testDb();
+    const { mine } = await twoBrands(db);
+    const id = await brief(db, mine, { name: 'READY', clientStatus: 'approved' });
+
+    const saved = await setLaunchPriority(db, mine, id, 3, 'user_buyer');
+
+    expect(saved?.launchPriority).toBe(3);
+    expect(saved?.updatedBy).toBe('user_buyer');
+  });
+
+  it('refuses to prioritise a brief that has already launched (compare-and-set on launched_at)', async () => {
+    const db = await testDb();
+    const { mine } = await twoBrands(db);
+    const id = await brief(db, mine, {
+      name: 'LIVE',
+      clientStatus: 'launched',
+      launchedAt: daysAgo(1),
+    });
+
+    const saved = await setLaunchPriority(db, mine, id, 2, 'user_buyer');
+
+    expect(saved).toBeNull();
+    const [row] = await db.select().from(creativeBriefs).where(eq(creativeBriefs.id, id));
+    expect(row?.launchPriority).toBeNull();
+  });
+
+  it("cannot prioritise another brand's brief: the scope changes nothing", async () => {
+    const db = await testDb();
+    const { mine, other } = await twoBrands(db);
+    const id = await brief(db, other, { name: 'THEIRS', clientStatus: 'approved' });
+
+    const saved = await setLaunchPriority(db, mine, id, 1, 'user_buyer');
+
+    expect(saved).toBeNull();
+    const [row] = await db.select().from(creativeBriefs).where(eq(creativeBriefs.id, id));
+    expect(row?.launchPriority).toBeNull();
   });
 });
 

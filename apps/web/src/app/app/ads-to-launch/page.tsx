@@ -29,9 +29,19 @@ interface LaunchSectionProps {
   readonly empty: string;
   readonly items: readonly LaunchQueueItem[];
   readonly demo: boolean;
+  /** True only for "Ready to Launch", where the priority is an editable dropdown. */
+  readonly editablePriority?: boolean;
 }
 
-function LaunchSection({ id, title, note, empty, items, demo }: LaunchSectionProps) {
+function LaunchSection({
+  id,
+  title,
+  note,
+  empty,
+  items,
+  demo,
+  editablePriority = false,
+}: LaunchSectionProps) {
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -50,7 +60,12 @@ function LaunchSection({ id, title, note, empty, items, demo }: LaunchSectionPro
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item) => (
-            <LaunchQueueRow key={item.id} item={item} demo={demo} />
+            <LaunchQueueRow
+              key={item.id}
+              item={item}
+              demo={demo}
+              editablePriority={editablePriority}
+            />
           ))}
         </ul>
       )}
@@ -60,10 +75,11 @@ function LaunchSection({ id, title, note, empty, items, demo }: LaunchSectionPro
 
 export default async function AdsToLaunchPage() {
   const demo = isDemoMode();
-  const [{ ready, recent }, brand] = await Promise.all([loadAdsToLaunch(), currentBrand()]);
+  const [{ ready, recent, paused }, brand] = await Promise.all([loadAdsToLaunch(), currentBrand()]);
 
   const readyItems = ready.map((row) => launchQueueItem(row, briefPath(row.id)));
   const recentItems = recent.map((row) => launchQueueItem(row, briefPath(row.id)));
+  const pausedItems = paused.map((row) => launchQueueItem(row, briefPath(row.id)));
 
   return (
     <div className="flex flex-col gap-8">
@@ -80,10 +96,11 @@ export default async function AdsToLaunchPage() {
       <LaunchSection
         id="ready-to-launch"
         title="Ready to Launch"
-        note="Signed off by the client and not launched yet. Priority first, then the newest."
+        note="Signed off by the client and not launched yet. Priority first, then the newest. Set a priority (1–10) to move a creative up the queue."
         empty="Nothing is waiting. Creatives appear here once the client approves them."
         items={readyItems}
         demo={demo}
+        editablePriority
       />
 
       <LaunchSection
@@ -92,6 +109,15 @@ export default async function AdsToLaunchPage() {
         note={`Live or paused, launched in the last ${String(RECENTLY_LAUNCHED_DAYS)} days. Most recent first.`}
         empty={`Nothing launched in the last ${String(RECENTLY_LAUNCHED_DAYS)} days.`}
         items={recentItems}
+        demo={demo}
+      />
+
+      <LaunchSection
+        id="paused"
+        title="Paused"
+        note="Every paused ad, however long ago it launched — so an old paused ad can still be resumed."
+        empty="Nothing is paused."
+        items={pausedItems}
         demo={demo}
       />
     </div>

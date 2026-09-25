@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { getBriefById, transitionBriefLaunch } from '@tas/db';
+import { getBriefById, setLaunchPriority, transitionBriefLaunch } from '@tas/db';
 import {
+  isLaunchPriority,
   launchQueueAction,
   launchTransition,
   type ClientStatusKey,
@@ -164,4 +165,71 @@ export async function resumeLaunchedAction(
   formData: FormData,
 ): Promise<LaunchActionResult> {
   return moveLaunchStatus('resume', formData);
+}
+
+export interface LaunchPrioritySuccess {
+  readonly ok: true;
+  readonly id: string;
+  readonly priority: number;
+  readonly savedAt: number;
+}
+
+export type LaunchPriorityResult = LaunchPrioritySuccess | LaunchActionFailure;
+
+/**
+ * The media buyer's sort key on "Ready to Launch" (PRD §11): set this creative's `launch_priority`
+ * to a number 1…10. Same house pattern as the moves above — refuse in demo before anything; zod owns
+ * the shape (`isLaunchPriority` is the domain's 1…10 rule, so a tampered form cannot store an absurd
+ * value); the write is `setLaunchPriority`, a compare-and-set scoped by `withBrand` that lands only
+ * while the brief is still unlaunched, so a priority written against a stale board is dropped rather
+ * than applied to an ad a colleague already launched. Never throws.
+ */
+export async function updateLaunchPriorityAction(
+  _previous: LaunchPriorityResult | null,
+  formData: FormData,
+): Promise<LaunchPriorityResult> {
+  if (isDemoMode()) {
+    return failure(DEMO_WRITE_REFUSAL);
+  }
+
+  const parsed = z
+    .object({
+      id: z.uuid(),
+      priority: z.coerce.number().refine(isLaunchPriority, 'That is not a priority from 1 to 10.'),
+    })
+    .safeParse({ id: formData.get('id'), priority: formData.get('priority') });
+  if (!parsed.success) {
+    return failure('That is not a valid priority for this creative.');
+  }
+  const { id, priority } = parsed.data;
+
+  try {
+    const { userId: actor } = await auth();
+    if (actor === null) {
+      return failure('Your session has expired. Sign in again to save.');
+    }
+
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const found = await getBriefById(db, brandId, id);
+      if (found === null) {
+        return failure('That creative is no longer available.');
+      }
+      const saved = await setLaunchPriority(db, brandId, id, priority, actor);
+      if (saved === null) {
+        return failure('This creative changed while you were looking at it. Reload and try again.');
+      }
+      return { ok: true as const, id: saved.id, priority, savedAt: Date.now() };
+    });
+
+    if (outcome === null) {
+      return failure('This workspace has no brand yet.');
+    }
+    if (!outcome.ok) {
+      return outcome;
+    }
+    revalidateMove(outcome.id);
+    return outcome;
+  } catch {
+    return failure('The priority could not be saved. Try again.');
+  }
 }

@@ -1,6 +1,7 @@
 import { demoBriefs, listLaunchQueue, type Db } from '@tas/db';
 import {
   LAUNCHED_CLIENT_STATUSES,
+  LAUNCH_PAUSED_CLIENT_STATUS,
   LAUNCH_READY_CLIENT_STATUS,
   recentlyLaunchedSince,
 } from '@tas/domain/state';
@@ -28,6 +29,8 @@ import { requestConnection, type DbConnection } from './request-db';
 export interface AdsToLaunchResult {
   readonly ready: BriefRow[];
   readonly recent: BriefRow[];
+  /** Every paused creative, at any age — the section that keeps an old paused ad resumable. */
+  readonly paused: BriefRow[];
   readonly source: BriefSourceKind;
 }
 
@@ -76,6 +79,8 @@ export async function loadAdsToLaunch(
           row.launchedAt !== null &&
           row.launchedAt >= since,
       ),
+      // Every paused row, regardless of `launchedAt` — the same rule the live query uses.
+      paused: rows.filter((row) => row.clientStatus === LAUNCH_PAUSED_CLIENT_STATUS),
       source: 'demo',
     };
   }
@@ -83,16 +88,18 @@ export async function loadAdsToLaunch(
   return withDb(deps, async (db) => {
     const brandId = await resolveLiveBrandId(db, deps);
     if (brandId === null) {
-      return { ready: [], recent: [], source: 'database' };
+      return { ready: [], recent: [], paused: [], source: 'database' };
     }
     const queue = await listLaunchQueue(db, brandId, {
       readyStatus: LAUNCH_READY_CLIENT_STATUS,
       launchedStatuses: LAUNCHED_CLIENT_STATUSES,
       launchedSince: since,
+      pausedStatus: LAUNCH_PAUSED_CLIENT_STATUS,
     });
     return {
       ready: queue.ready.map(toBriefRow),
       recent: queue.recent.map(toBriefRow),
+      paused: queue.paused.map(toBriefRow),
       source: 'database',
     };
   });

@@ -116,6 +116,19 @@ describe('loadAdsToLaunch in live mode', () => {
     expect(names(queue.recent)).toEqual(['LIVE-1D', 'PAUSED-2D']);
   });
 
+  it('Paused lists every paused ad at any age — a 30-day-old one is here, not in Recently Launched', async () => {
+    const { db, mine, other } = await workspace();
+    await brief(db, mine, 'PAUSED-2D', { clientStatus: 'paused', launchedAt: daysAgo(2) });
+    await brief(db, mine, 'PAUSED-30D', { clientStatus: 'paused', launchedAt: daysAgo(30) });
+    await brief(db, mine, 'LIVE-1D', { clientStatus: 'launched', launchedAt: daysAgo(1) });
+    await brief(db, other, 'OTHER-PAUSED', { clientStatus: 'paused', launchedAt: daysAgo(1) });
+
+    const queue = await loadAdsToLaunch(live(db, mine));
+
+    expect(names(queue.paused)).toEqual(['PAUSED-2D', 'PAUSED-30D']);
+    expect(names(queue.recent)).not.toContain('PAUSED-30D');
+  });
+
   it('switching the active brand switches the queue, never mixing the two', async () => {
     const { db, mine, other } = await workspace();
     await brief(db, mine, 'MINE', { clientStatus: 'approved' });

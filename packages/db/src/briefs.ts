@@ -190,6 +190,8 @@ export interface LaunchQueueFilter {
   readonly launchedStatuses: readonly string[];
   /** The earliest `launched_at` the "Recently Launched" list includes. */
   readonly launchedSince: Date;
+  /** The client status of a paused ad; the "Paused" list is every row in it, at any age. */
+  readonly pausedStatus: string;
 }
 
 export interface LaunchQueueRows {
@@ -197,6 +199,8 @@ export interface LaunchQueueRows {
   readonly ready: BriefListRow[];
   /** Launched (live or paused) since `launchedSince`, most recent launch first. */
   readonly recent: BriefListRow[];
+  /** Every paused row, regardless of when it launched — newest launch first. */
+  readonly paused: BriefListRow[];
 }
 
 /**
@@ -210,7 +214,7 @@ export async function listLaunchQueue(
   filter: LaunchQueueFilter,
 ): Promise<LaunchQueueRows> {
   const scope = withBrand(db, brandId);
-  const [ready, recent, tables] = await Promise.all([
+  const [ready, recent, paused, tables] = await Promise.all([
     scope
       .select(
         creativeBriefs,
@@ -226,11 +230,17 @@ export async function listLaunchQueue(
         ),
       )
       .orderBy(desc(creativeBriefs.launchedAt)),
+    // Every paused row, at ANY age — this is the one list not bounded by `launchedSince`, so a
+    // paused ad older than the "Recently Launched" window still has a home and a Resume button.
+    scope
+      .select(creativeBriefs, eq(creativeBriefs.clientStatus, filter.pausedStatus))
+      .orderBy(desc(creativeBriefs.launchedAt)),
     inherited(db, scope),
   ]);
   return {
     ready: ready.map((row) => withInherited(row, tables)),
     recent: recent.map((row) => withInherited(row, tables)),
+    paused: paused.map((row) => withInherited(row, tables)),
   };
 }
 
@@ -274,6 +284,31 @@ export async function transitionBriefLaunch(
         eq(creativeBriefs.clientStatus, move.fromClientStatus),
         eq(creativeBriefs.internalStatus, move.fromInternalStatus),
       ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * Sets the media buyer's `launch_priority` on a brief still waiting to launch — a compare-and-set
+ * scoped by `withBrand`: the update matches only while the brief has NOT launched yet
+ * (`launched_at IS NULL`), so a priority written against a stale board cannot land on a creative a
+ * colleague already launched. Returns the row, or null when the id is another brand's, soft-deleted,
+ * or no longer in the ready queue — the same "nothing changed" answer the launch move gives. The
+ * caller validates the number is a real §11 priority (`isLaunchPriority`) before it gets here.
+ */
+export async function setLaunchPriority(
+  db: Db,
+  brandId: string,
+  id: string,
+  priority: number,
+  actorId: string,
+): Promise<CreativeBrief | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creativeBriefs,
+      { launchPriority: priority, updatedBy: actorId, updatedAt: new Date() },
+      and(eq(creativeBriefs.id, id), isNull(creativeBriefs.launchedAt)),
     )
     .returning();
   return row ?? null;

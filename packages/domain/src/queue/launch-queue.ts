@@ -27,8 +27,34 @@ export const LAUNCH_READY_CLIENT_STATUS: ClientStatusKey = 'approved';
 /** The client statuses of a creative that has been launched — live, or live and then paused. */
 export const LAUNCHED_CLIENT_STATUSES: readonly ClientStatusKey[] = ['launched', 'paused'];
 
+/**
+ * The client status of a paused ad. The "Paused" section lists every creative in this status
+ * regardless of when it launched, because a paused ad older than `RECENTLY_LAUNCHED_DAYS` falls out
+ * of "Recently Launched" and would otherwise have nowhere to be resumed from.
+ */
+export const LAUNCH_PAUSED_CLIENT_STATUS: ClientStatusKey = 'paused';
+
 /** How far back "Recently Launched" reaches, in days. */
 export const RECENTLY_LAUNCHED_DAYS = 7;
+
+/**
+ * The media buyer's manual sort key on the "Ready to Launch" list: an integer 1…10, 1 first. Bounded
+ * rather than open so the row's dropdown has a fixed set and a tampered form cannot store an absurd
+ * value. `null` (unset) is not a priority — it sorts after every set one (Postgres NULLS LAST).
+ */
+export const LAUNCH_PRIORITY_MIN = 1;
+export const LAUNCH_PRIORITY_MAX = 10;
+
+/** Every selectable priority, 1…10 in order — the dropdown's options. */
+export const LAUNCH_PRIORITIES: readonly number[] = Array.from(
+  { length: LAUNCH_PRIORITY_MAX - LAUNCH_PRIORITY_MIN + 1 },
+  (_unused, index) => LAUNCH_PRIORITY_MIN + index,
+);
+
+/** Whether a number is a valid launch priority: an integer within 1…10. */
+export function isLaunchPriority(value: number): boolean {
+  return Number.isInteger(value) && value >= LAUNCH_PRIORITY_MIN && value <= LAUNCH_PRIORITY_MAX;
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

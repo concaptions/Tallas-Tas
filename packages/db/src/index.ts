@@ -41,6 +41,7 @@ export {
   listBriefsByConceptId,
   listLaunchQueue,
   renameBrief,
+  setLaunchPriority,
   transitionBriefLaunch,
   updateBrief,
 } from './briefs';

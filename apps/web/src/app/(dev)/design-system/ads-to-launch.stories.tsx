@@ -8,7 +8,8 @@ import { LaunchQueueRow } from '@/app/app/ads-to-launch/launch-queue-row';
  * renders, in the three states a row can hold — client Approved with Mark as Launched, Launched with
  * Pause, Paused with Resume — each drawing the one control `launchTransition` allows. Controls are
  * mounted in their DISABLED (demo) state, as every design-system write control is: a live button here
- * would be a real Server Action behind a reference page.
+ * would be a real Server Action behind a reference page. The Ready row shows the editable priority
+ * dropdown (also disabled in demo); the others keep the static badge.
  */
 const SAMPLES: readonly LaunchQueueItem[] = [
   {
@@ -22,6 +23,7 @@ const SAMPLES: readonly LaunchQueueItem[] = [
     statusLabel: 'Approved',
     statusTone: 'ok',
     priorityLabel: 'P1',
+    priority: 1,
     launchedAtLabel: null,
     downloadUrl: 'https://frame.example/niagara/tv1-b1-v2-master',
     controls: [
@@ -43,6 +45,7 @@ const SAMPLES: readonly LaunchQueueItem[] = [
     statusLabel: 'Launched',
     statusTone: 'accent',
     priorityLabel: null,
+    priority: null,
     launchedAtLabel: '2026-09-22 14:05 UTC',
     downloadUrl: null,
     controls: [
@@ -64,6 +67,7 @@ const SAMPLES: readonly LaunchQueueItem[] = [
     statusLabel: 'Paused',
     statusTone: 'warn',
     priorityLabel: null,
+    priority: null,
     launchedAtLabel: '2026-09-19 09:30 UTC',
     downloadUrl: null,
     controls: [{ key: 'resume', label: 'Resume', description: 'The paused ad is live again.' }],
@@ -74,7 +78,12 @@ export function AdsToLaunchRowStory() {
   return (
     <ul className="flex flex-col gap-2">
       {SAMPLES.map((item) => (
-        <LaunchQueueRow key={item.id} item={item} demo />
+        <LaunchQueueRow
+          key={item.id}
+          item={item}
+          demo
+          editablePriority={item.id === 'ds-launch-ready'}
+        />
       ))}
     </ul>
   );

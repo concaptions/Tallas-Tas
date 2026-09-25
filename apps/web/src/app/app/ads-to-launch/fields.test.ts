@@ -72,6 +72,7 @@ describe('launchQueueItem', () => {
     expect(item.controls.map((control) => control.key)).toEqual(['launch']);
     expect(item.statusLabel).toBe('Approved');
     expect(item.priorityLabel).toBe('P2');
+    expect(item.priority).toBe(2);
     expect(item.href).toBe('/app/briefs/x');
   });
 
