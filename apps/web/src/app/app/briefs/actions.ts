@@ -45,6 +45,7 @@ import { z } from 'zod';
 import { withBrandScope } from '@/lib/briefs-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefPath, briefsPath } from '@/lib/routes';
+import { maybeSpellCheckDesignFile } from '@/lib/spell-check-runner';
 
 /**
  * The Creative Briefs route's three mutations (PRD §5.10). All three follow `angles/actions.ts` and
@@ -714,6 +715,24 @@ export async function updateBriefAction(
           actorName: actor,
           deepLink: briefPath(saved.id),
         });
+      }
+
+      // Sprint 9: a newly uploaded Design File auto-fires the spell checker over the brief's copy
+      // (the same check the Re-run button runs), and stores the result so the page shows it on this
+      // save's revalidation. Best-effort — a missing ANTHROPIC_API_KEY or a slow/failing API never
+      // blocks or fails the save, and only a NEW design file (not the other attachments, not a
+      // resubmit) triggers it. The action already refused in demo mode, so `demo` is false here.
+      try {
+        await maybeSpellCheckDesignFile({
+          db,
+          brandId,
+          brief: saved,
+          actorId: actor,
+          previousDesignFile: current.designFile,
+          demo: false,
+        });
+      } catch {
+        // A spell-check failure is never allowed to turn a successful save into a failed one.
       }
 
       return { ok: true as const, id: saved.id, name: saved.name, savedAt: Date.now() };
