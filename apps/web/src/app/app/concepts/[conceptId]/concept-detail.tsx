@@ -35,7 +35,6 @@ import {
   CONCEPT_APPROVAL_STATUSES,
   CONCEPT_CATEGORIES,
   CONCEPT_GROUPS,
-  CONCEPT_PRODUCTION_STATUSES,
   CONCEPT_STYLES,
   DEMO_FOOTER_NOTICE,
   EM_DASH,
@@ -153,12 +152,16 @@ export function ConceptDetail({
   const [batch, setBatch] = useState(concept?.batch ?? NONE_VALUE);
   const [angleId, setAngleId] = useState(concept?.angleId ?? NONE_VALUE);
   const [themeId, setThemeId] = useState(concept?.themeId ?? NONE_VALUE);
+  /** Required fields the viewer tried to submit without; empty until they press Save (P2B-5). */
+  const [missingRequired, setMissingRequired] = useState<readonly string[]>([]);
   const [category, setCategory] = useState(concept?.category ?? NONE_VALUE);
   const [conceptStyle, setConceptStyle] = useState(concept?.conceptStyle ?? NONE_VALUE);
   const [formats, setFormats] = useState<readonly string[]>(concept?.formats ?? []);
   const [links, setLinks] = useState<readonly string[]>(() => linkRowsOf(concept));
   const [approvalStatus, setApprovalStatus] = useState(concept?.approvalStatus ?? NONE_VALUE);
-  const [productionStatus, setProductionStatus] = useState(concept?.productionStatus ?? NONE_VALUE);
+  // Read-only now that the control is gone (P2B-5): the value is kept solely so the hidden input
+  // submits what is stored instead of clearing the column.
+  const [productionStatus] = useState(concept?.productionStatus ?? NONE_VALUE);
   const [formatsToCreate, setFormatsToCreate] = useState<readonly string[]>(
     concept?.formatsToCreate ?? [],
   );
@@ -200,9 +203,33 @@ export function ConceptDetail({
 
   const inherited = inheritedFromAngle(angle);
 
-  /** The server's message for a field, if the last submission carried one. */
-  const fieldError = (field: ConceptFieldName): string | undefined =>
-    state !== null && !state.ok ? state.fieldErrors?.[field] : undefined;
+  /**
+   * Batch, Angle and Theme are REQUIRED (P2B-5, Talal 2026-09-28). They are the three parts the
+   * concept's generated name is assembled from, so a concept without them has no name — which is why
+   * the form refuses to submit rather than letting the server reject it after a round trip.
+   */
+  const REQUIRED_MESSAGES: Record<string, string> = {
+    batch: 'Batch is required',
+    angleIds: 'Angle is required',
+    themeIds: 'Theme is required',
+  };
+
+  const unsetRequired = useMemo<readonly string[]>(() => {
+    const out: string[] = [];
+    if (batch === NONE_VALUE) out.push('batch');
+    if (angleId === NONE_VALUE) out.push('angleIds');
+    if (themeId === NONE_VALUE) out.push('themeIds');
+    return out;
+  }, [batch, angleId, themeId]);
+
+  /**
+   * The message a field shows: the browser's "required" takes precedence over the server's, so a
+   * field the viewer just left empty says so immediately instead of after a failed submit.
+   */
+  const fieldError = (field: ConceptFieldName): string | undefined => {
+    if (missingRequired.includes(field)) return REQUIRED_MESSAGES[field];
+    return state !== null && !state.ok ? state.fieldErrors?.[field] : undefined;
+  };
 
   const blocked = demo || !validation.ok;
   const blockedHint = demo
@@ -333,7 +360,20 @@ export function ConceptDetail({
       </div>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <form action={formAction} className="flex min-w-0 flex-col gap-7">
+        <form
+          action={formAction}
+          onSubmit={(event) => {
+            // Blocks the submit entirely when Batch, Angle or Theme is unset, and surfaces the
+            // message on each offending field through `fieldError` (P2B-5).
+            if (unsetRequired.length > 0) {
+              event.preventDefault();
+              setMissingRequired(unsetRequired);
+              return;
+            }
+            setMissingRequired([]);
+          }}
+          className="flex min-w-0 flex-col gap-7"
+        >
           {creating ? null : <input type="hidden" name="id" value={concept.id} />}
           {formats.map((key) => (
             <input key={key} type="hidden" name="formats" value={key} />
@@ -465,14 +505,11 @@ export function ConceptDetail({
                 setApprovalStatus,
                 demo,
               )}
-              {renderSelect(
-                'productionStatus',
-                'Production Status',
-                CONCEPT_PRODUCTION_STATUSES,
-                productionStatus,
-                setProductionStatus,
-                demo,
-              )}
+              {/*
+                Production Status is deliberately NOT rendered (P2B-5, Talal 2026-09-28: "take it
+                out"). The column still exists and the hidden input above still round-trips whatever
+                is stored, so hiding the control cannot silently blank the field on a save.
+              */}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
