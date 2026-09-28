@@ -1,4 +1,13 @@
-import { boolean, index, integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
 import { angles } from './angles';
@@ -109,6 +118,13 @@ export const creativeBriefs = pgTable(
     offer: text('offer'),
     internalStatus: text('internal_status').notNull().default(BRIEF_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(BRIEF_CLIENT_STATUS_DEFAULT),
+    // The media buyer's launch queue (PRD §9: client Approved "moves to the media buyer queue").
+    // `launched_at` is set when client_status moves to `launched`; it is a real timestamp rather than
+    // a reading of `updated_at`, which any later edit would bump — the "Recently Launched" window
+    // needs the moment of launch, not the moment of last touch. `launch_priority` is the media
+    // buyer's manual sort key, nullable because most rows carry no explicit priority.
+    launchedAt: timestamp('launched_at', { withTimezone: true }),
+    launchPriority: integer('launch_priority'),
     performance: text('performance').$type<CreativePerformance>(),
     legacyAirtableId: text('legacy_airtable_id'),
   },

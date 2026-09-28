@@ -30,6 +30,7 @@ export * from './onboarding-forms';
 export * from './personas';
 export * from './products';
 export * from './promotion-requests';
+export * from './propagation-runs';
 export * from './themes';
 export * from './upload-links';
 export * from './users';
