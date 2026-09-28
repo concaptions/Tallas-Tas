@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CreativeTrack } from '@tas/domain/state';
 import {
@@ -10,19 +10,13 @@ import {
   DisabledWrite,
   Input,
   StatusChip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from '@tas/ui';
 
 import { conceptPath } from '@/lib/routes';
+import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 
 import { ConceptBoard } from './concept-board';
 import {
-  CONCEPT_COLUMNS,
   EM_DASH,
   NEW_CONCEPT,
   NO_CONCEPTS_NOTE,
@@ -94,6 +88,55 @@ function syncUrl(view: ConceptView, search: string): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
+/**
+ * The Airtable-style grid columns for the Concepts table view (P2A-3). Headers match
+ * `CONCEPT_COLUMNS`; the generated name keeps its `concept-row-name` hook and `font-mono`, and the
+ * Internal Status column renders a `<StatusChip>` exactly as the plain table did.
+ */
+const CONCEPT_GRID_COLUMNS: readonly GridColumn<ConceptItem>[] = [
+  {
+    key: 'name',
+    header: 'Name',
+    frozen: true,
+    minWidth: 220,
+    sortValue: (item) => item.name,
+    render: (item) => (
+      <span data-slot="concept-row-name" className="font-mono text-xs">
+        {item.name}
+      </span>
+    ),
+  },
+  {
+    key: 'batch',
+    header: 'Batch',
+    sortValue: (item) => item.batch,
+    render: (item) =>
+      item.batch === null ? (
+        <span className="text-text4">{EM_DASH}</span>
+      ) : (
+        <span className="font-mono text-xs">{item.batch}</span>
+      ),
+  },
+  {
+    key: 'angle',
+    header: 'Angle',
+    sortValue: (item) => item.angleName,
+    render: (item) => item.angleName ?? <span className="text-text4">{EM_DASH}</span>,
+  },
+  {
+    key: 'theme',
+    header: 'Theme',
+    sortValue: (item) => item.themeName,
+    render: (item) => item.themeName ?? <span className="text-text4">{EM_DASH}</span>,
+  },
+  {
+    key: 'status',
+    header: 'Internal Status',
+    sortValue: (item) => item.status.label,
+    render: (item) => <StatusChip tone={item.status.tone} label={item.status.label} />,
+  },
+];
+
 export function ConceptsWorkspace({
   items,
   track,
@@ -136,13 +179,6 @@ export function ConceptsWorkspace({
   const create = useCallback(() => {
     router.push(conceptPath(NEW_CONCEPT));
   }, [router]);
-
-  const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, item: ConceptItem) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      open(item);
-    }
-  };
 
   const query = search.trim().toLowerCase();
   const visible = useMemo(
@@ -240,57 +276,19 @@ export function ConceptsWorkspace({
         ) : view === 'board' ? (
           <ConceptBoard columns={columns} onOpen={open} />
         ) : (
-          <div className="overflow-x-auto rounded-card border border-line bg-surface">
-            <Table data-slot="concepts-table">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  {CONCEPT_COLUMNS.map((column) => (
-                    <TableHead key={column} className="px-3">
-                      {column}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    data-slot="concept-row"
-                    data-concept-id={item.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={item.name}
-                    onClick={() => {
-                      open(item);
-                    }}
-                    onKeyDown={(event) => {
-                      onRowKey(event, item);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <TableCell
-                      data-slot="concept-row-name"
-                      className="px-3 py-1.5 font-mono text-xs whitespace-normal text-text"
-                    >
-                      {item.name}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 font-mono text-xs text-text2">
-                      {item.batch ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-normal text-text2">
-                      {item.angleName ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-normal text-text2">
-                      {item.themeName ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5">
-                      <StatusChip tone={item.status.tone} label={item.status.label} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <AirtableGrid
+            tableKey="concepts"
+            columns={CONCEPT_GRID_COLUMNS}
+            rows={visible}
+            rowId={(item) => item.id}
+            rowLabel={(item) => item.name}
+            rowAttributes={(item) => ({ 'data-concept-id': item.id })}
+            onRowClick={(item) => {
+              open(item);
+            }}
+            tableSlot="concepts-table"
+            rowSlot="concept-row"
+          />
         )}
       </section>
     </div>

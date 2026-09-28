@@ -22,8 +22,16 @@ Sprint 5 already shipped `view-switcher.tsx`, `gallery-view.tsx`, `kanban-board.
 - [x] typecheck 6/6, lint clean, vitest 1970
 - [ ] **`products.spec.ts` E2E must be confirmed green on CI/Vercel** (Playwright can't run locally: offline fonts + auth). Confirm before wiring the rest.
 
-### P2A-3..7 Wire the other 5 tables (FOLLOW-ON — one sub-commit each, ≤300 LOC)
-- [ ] Personas, Angles, Themes, Concepts, UGC: same swap + per-table column config; match each page's E2E contract (themes/ugc/briefs specs exist). **Do only after P2A-2's E2E is confirmed on CI.**
+### P2A-3 Wire the clean table-view tables (Products E2E confirmed green on dev machine)
+Recon (2026-09-28) found only Products/Personas/Concepts have a real inline `<Table>` to swap;
+Angles is high-risk (StatusChip tones + format-chip column + positional td), and **Themes + UGC
+are card-by-design** (their "grid" is a card gallery / creator cards) — forcing a table there is a
+UX change, not a swap, so they are left as cards (they satisfy the gallery half of the spec).
+- [x] **Personas** (`8db5040`) — grid-view `<Table>` → `<AirtableGrid>`; Stage renders StatusChip; ViewSwitcher/Kanban/panel untouched
+- [x] **Concepts** (this commit) — table-view `<Table>` → `<AirtableGrid>`; name keeps `concept-row-name`+font-mono, status renders StatusChip; board/view-toggle untouched
+- [ ] Each table's E2E confirmed on the dev machine (`playwright test e2e/{personas,concepts}.spec.ts`)
+- [~] **Angles** — deferred (high-risk blind match); pick up if desired
+- [—] **Themes, UGC** — intentionally NOT wired (card-by-design; would need a product decision to become tables)
 - [ ] Gallery on all 6 (UGC card image = profile pic); List unchanged; Kanban only on UGC
 - [ ] Per-table column configs pass sortValue + inline renderers (badges/link-counts/checkbox icons)
 
