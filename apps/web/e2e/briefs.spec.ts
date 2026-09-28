@@ -26,8 +26,11 @@ const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
 const NOT_YOUR_AGE_STATIC = '77777777-7777-4777-8777-000000000002';
 const BUNDLE_STANDALONE = '77777777-7777-4777-8777-000000000005';
 
-const BODY_CLOCK_NAME = 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
-const BUNDLE_NAME = 'RS1-B4-Standalone-V3-NIGHT RESET BUNDLE';
+// The generated creative name carries the Source prefix (Airtable "Source-(Funnel)(Type)(Number)-…"):
+// TAS for internal briefs, Client for client-sourced ones. These constants were stale — the spec
+// predated the source prefix in the naming formula and only ran once the demo webServer was fixed.
+const BODY_CLOCK_NAME = 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
+const BUNDLE_NAME = 'Client-RS1-B4-Standalone-V3-NIGHT RESET BUNDLE';
 
 test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
   test.skip(
