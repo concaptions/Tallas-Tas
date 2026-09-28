@@ -38,7 +38,21 @@ export default defineConfig({
     ? {
         command: 'pnpm --filter @tas/web dev',
         url: baseURL,
-        reuseExistingServer: true,
+        // The E2E suite is demo mode (no Clerk, in-repo fixtures — the describe blocks
+        // `test.skip(clerkKeys() !== undefined)`). The dev server also loads `.env.local`, so a
+        // developer with Clerk keys there gets a LIVE server under a demo run: every `/app/*` route
+        // 307s to a Clerk sign-in page and all demo tests fail (and cold-start as "Cannot navigate to
+        // invalid URL"). Pinning these empty forces the launched server to demo mode regardless of
+        // `.env.local` — `@tas/env` treats the empty string as unset, and `@next/env` will not
+        // override an already-set process var. (Read via literals, not `process.env`, per the repo's
+        // env-access rule; a future live-mode E2E setup would supply real keys here.)
+        env: {
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
+          CLERK_SECRET_KEY: '',
+        },
+        // Never reuse a server that happens to be on the port — it may be a live-mode dev server,
+        // which is exactly the misconfiguration above. Always start the pinned demo-mode server.
+        reuseExistingServer: false,
         timeout: 120_000,
       }
     : undefined,
