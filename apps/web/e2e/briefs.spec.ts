@@ -118,6 +118,31 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="kanban-board"]')).toHaveCount(0);
   });
 
+  // P2B-3. The table's own click still navigates (covered by the ?view=grid test below); this covers
+  // the board's quick-look panel, which deliberately does NOT navigate.
+  test('a Kanban card opens the quick-look panel beside the board, and "Open full page" leaves for the detail route', async ({
+    page,
+  }) => {
+    await page.goto(briefsPath);
+    const card = page.locator(`[data-slot="kanban-card"][data-card-id="${BODY_CLOCK}"]`);
+    await card.click();
+
+    const panel = page.locator('[data-slot="brief-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('[data-slot="brief-panel-title"]')).toHaveText(BODY_CLOCK_NAME);
+    // Not a modal: the board is still there beside it, and the URL has not moved.
+    await expect(page.locator('[data-slot="kanban-board"]')).toBeVisible();
+    await expect(page).not.toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-slot="brief-panel"]')).toHaveCount(0);
+
+    // The full page is one button further.
+    await card.click();
+    await page.locator('[data-slot="brief-panel-open-full"]').click();
+    await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));
+  });
+
   test('a row click lands on the detail route, and Back restores the list', async ({ page }) => {
     await page.goto(`${briefsPath}?view=grid`);
     await page.locator(`[data-brief-id="${BODY_CLOCK}"]`).click();

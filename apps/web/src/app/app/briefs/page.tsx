@@ -1,4 +1,5 @@
 import { supportsView, type ViewType } from '@tas/domain';
+import { creativeFunnelLabel } from '@tas/domain/creatives';
 
 import type { BriefRow } from '@/lib/briefs-source';
 import { loadBriefs } from '@/lib/briefs-source';
@@ -8,6 +9,7 @@ import { briefPath } from '@/lib/routes';
 
 import { BriefsWorkspace } from './briefs-workspace';
 import {
+  clientStatusView,
   creativeTypeLabel,
   internalStatusView,
   priorityView,
@@ -82,6 +84,9 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       priority: priorityView(row.priority),
       assignee: row.assignee,
       status: internalStatusView(row.track, row.internalStatus),
+      clientStatus: clientStatusView(row.clientStatus),
+      funnelLabel: creativeFunnelLabel(row.funnel),
+      sourceLabel: row.source,
       href: briefPath(row.id),
       kanbanFields: {
         clientStatus: row.clientStatus,

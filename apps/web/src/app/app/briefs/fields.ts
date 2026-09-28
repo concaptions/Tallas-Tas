@@ -13,6 +13,7 @@ import {
 } from '@tas/domain/creatives';
 import type { InspoLinkKind } from '@tas/domain/angles';
 import {
+  CLIENT_STATUS,
   chipTone,
   internalStatusFor,
   internalTransitionsFor,
@@ -93,6 +94,24 @@ export function internalStatusView(track: CreativeTrack, key: InternalStatusKey)
     : { key: entry.key, label: entry.label, tone: chipTone(entry.label) };
 }
 
+/** The client-facing status as its chip — the board sidebar's Client Status line (P2B-3). */
+export interface BriefClientStatusView {
+  readonly key: string;
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+/**
+ * The view of one stored client status. Total the same way `internalStatusView` is: an unknown key
+ * renders its own value muted rather than an empty cell.
+ */
+export function clientStatusView(key: string): BriefClientStatusView {
+  const entry = CLIENT_STATUS.find((step) => step.key === key);
+  return entry === undefined
+    ? { key, label: key, tone: 'mute' }
+    : { key: entry.key, label: entry.label, tone: chipTone(entry.label) };
+}
+
 /** A priority as its chip: the label, the tone the clock earns it, and the SLA it promises. */
 export interface BriefPriorityView {
   readonly label: string;
@@ -157,6 +176,11 @@ export interface BriefItem {
   readonly priority: BriefPriorityView | null;
   readonly assignee: string | null;
   readonly status: BriefStatusView;
+  /** The client-facing track, for the board sidebar's quick read (P2B-3). */
+  readonly clientStatus: BriefClientStatusView;
+  /** Funnel and Source as the sidebar shows them; Source is stored display-ready ("TAS"/"Client"). */
+  readonly funnelLabel: string;
+  readonly sourceLabel: string;
   /** `briefPath(id)` — a real route segment, because the detail is a page and not a panel. */
   readonly href: string;
   /** Raw Kanban-groupable field values, keyed by column name. */

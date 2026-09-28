@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -49,6 +49,12 @@ interface KanbanBoardProps {
   readonly columnLabels: Record<string, string>;
   readonly onMove: (itemId: string, newValue: string) => void;
   readonly demo: boolean;
+  /**
+   * Opens a card without leaving the board (the briefs quick-look panel, P2B-3). Optional: a board
+   * that passes nothing keeps drag-only cards, so Personas is unchanged. A click that followed a
+   * DRAG is swallowed, so dropping a card never also opens it.
+   */
+  readonly onCardClick?: (item: KanbanItem) => void;
 }
 
 function KanbanCard({ item, isDragging }: { item: KanbanItem; isDragging?: boolean }) {
@@ -89,14 +95,32 @@ function KanbanCard({ item, isDragging }: { item: KanbanItem; isDragging?: boole
   );
 }
 
-function DraggableCard({ item }: { item: KanbanItem }) {
+function DraggableCard({
+  item,
+  onActivate,
+}: {
+  item: KanbanItem;
+  onActivate?: (item: KanbanItem) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
     data: { item },
   });
 
   return (
-    <div ref={setNodeRef} {...listeners} {...attributes} className={isDragging ? 'opacity-30' : ''}>
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={
+        onActivate === undefined
+          ? undefined
+          : () => {
+              onActivate(item);
+            }
+      }
+      className={isDragging ? 'opacity-30' : ''}
+    >
       <KanbanCard item={item} />
     </div>
   );
@@ -106,10 +130,12 @@ function KanbanColumn({
   value,
   label,
   items,
+  onActivate,
 }: {
   value: string;
   label: string;
   items: readonly KanbanItem[];
+  onActivate?: (item: KanbanItem) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: value });
 
@@ -128,15 +154,33 @@ function KanbanColumn({
       </div>
       <div className="flex flex-col gap-2 overflow-y-auto p-2" style={{ minHeight: '100px' }}>
         {items.map((item) => (
-          <DraggableCard key={item.id} item={item} />
+          <DraggableCard key={item.id} item={item} onActivate={onActivate} />
         ))}
       </div>
     </div>
   );
 }
 
-export function KanbanBoard({ items, columns, columnLabels, onMove, demo }: KanbanBoardProps) {
+export function KanbanBoard({
+  items,
+  columns,
+  columnLabels,
+  onMove,
+  demo,
+  onCardClick,
+}: KanbanBoardProps) {
   const [activeItem, setActiveItem] = useState<KanbanItem | null>(null);
+  // dnd-kit only starts a drag past its 5px activation distance, so a plain click never reaches
+  // `onDragEnd`. The pointerup that ENDS a drag does still fire a click, which this swallows.
+  const justDragged = useRef(false);
+
+  const activate = useCallback(
+    (item: KanbanItem) => {
+      if (justDragged.current) return;
+      onCardClick?.(item);
+    },
+    [onCardClick],
+  );
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -166,6 +210,11 @@ export function KanbanBoard({ items, columns, columnLabels, onMove, demo }: Kanb
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setActiveItem(null);
+      justDragged.current = true;
+      // One macrotask later the next click is a genuine click again.
+      window.setTimeout(() => {
+        justDragged.current = false;
+      }, 0);
       if (demo) return;
       const { active, over } = event;
       if (!over) return;
@@ -188,6 +237,7 @@ export function KanbanBoard({ items, columns, columnLabels, onMove, demo }: Kanb
             value={col}
             label={columnLabels[col] ?? col}
             items={grouped.get(col) ?? []}
+            onActivate={onCardClick === undefined ? undefined : activate}
           />
         ))}
       </div>

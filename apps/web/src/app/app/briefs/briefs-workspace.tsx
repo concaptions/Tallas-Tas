@@ -27,6 +27,7 @@ import {
 } from '@/components/views';
 
 import { updateBriefAction } from './actions';
+import { BriefPanel } from './brief-panel';
 import {
   BRIEF_COLUMNS,
   EM_DASH,
@@ -95,6 +96,18 @@ export function BriefsWorkspace({
     [router],
   );
 
+  // The board's quick-look panel (P2B-3): a card click opens it beside the columns instead of
+  // navigating away. The full page is one button further, so triaging a column costs no navigation.
+  const [panelId, setPanelId] = useState<string | null>(null);
+
+  const openPanel = useCallback((card: KanbanItem) => {
+    setPanelId(card.id);
+  }, []);
+
+  const closePanel = useCallback(() => {
+    setPanelId(null);
+  }, []);
+
   const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, item: BriefItem) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -109,6 +122,8 @@ export function BriefsWorkspace({
   );
 
   const narrowed = visible.length !== items.length;
+
+  const panelItem = items.find((item) => item.id === panelId) ?? null;
 
   const handleKanbanMove = useCallback(
     (itemId: string, newValue: string) => {
@@ -307,6 +322,7 @@ export function BriefsWorkspace({
             columnLabels={kanbanLabels}
             onMove={handleKanbanMove}
             demo={demo}
+            onCardClick={openPanel}
           />
         ) : activeView === 'gallery' ? (
           <GalleryView items={galleryItems} />
@@ -380,6 +396,10 @@ export function BriefsWorkspace({
           </div>
         )}
       </section>
+
+      {panelItem === null ? null : (
+        <BriefPanel item={panelItem} onClose={closePanel} onOpenFull={open} />
+      )}
     </div>
   );
 }
