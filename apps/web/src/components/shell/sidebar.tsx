@@ -39,6 +39,17 @@ export function Sidebar() {
               const isActive = section.key === active;
               const shared =
                 'flex items-center justify-center gap-3 rounded-input px-2.5 py-2 text-sm md:justify-start';
+              // A content section shows its friendly emoji (P2D); everything else keeps its lucide icon.
+              const glyph = section.emoji ? (
+                <span
+                  aria-hidden
+                  className="grid size-4 shrink-0 place-items-center text-sm leading-none"
+                >
+                  {section.emoji}
+                </span>
+              ) : (
+                <Icon name={section.icon} className="size-4 shrink-0" />
+              );
 
               if (section.href === undefined) {
                 return (
@@ -48,7 +59,7 @@ export function Sidebar() {
                       title={`${section.label} — not available yet`}
                       className={cn(shared, 'cursor-not-allowed text-text4 select-none')}
                     >
-                      <Icon name={section.icon} className="size-4 shrink-0" />
+                      {glyph}
                       <span className="hidden flex-1 truncate md:inline">{section.label}</span>
                       <SoonChip className="ml-auto hidden md:inline-flex" />
                     </div>
@@ -70,7 +81,7 @@ export function Sidebar() {
                         : 'text-text2 hover:bg-surface3 hover:text-text',
                     )}
                   >
-                    <Icon name={section.icon} className="size-4 shrink-0" />
+                    {glyph}
                     <span className="hidden flex-1 truncate md:inline">{section.label}</span>
                   </Link>
                 </li>

@@ -14,3 +14,12 @@
     @apply bg-bg text-text font-sans;
   }
 }
+
+@layer components {
+  /* The signature TAS purple gradient (P2D, client feedback Sep 28). The colour literal lives in
+     tokens.css; this utility only references the token, so the no-hex rule holds. Used on the primary
+     brand surfaces (top bar, primary CTA). */
+  .bg-brand-gradient {
+    background-image: var(--accent-gradient);
+  }
+}

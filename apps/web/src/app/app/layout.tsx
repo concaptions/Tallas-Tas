@@ -45,7 +45,9 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
       <div className="flex flex-1 items-stretch">
         <Sidebar />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-5xl">{children}</div>
+          {/* Full-width content (P2D, client feedback Sep 28): tables stretch to fill wide screens
+              instead of sitting inside a narrow centred column. */}
+          <div className="w-full">{children}</div>
         </main>
       </div>
     </div>

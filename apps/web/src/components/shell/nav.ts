@@ -42,6 +42,9 @@ export interface NavSection {
   readonly key: string;
   readonly label: string;
   readonly icon: IconName;
+  /** A friendly emoji shown in place of the icon for the content sections (P2D, client feedback
+   *  Sep 28: "emojis are more friendly"). Sections without one keep their lucide icon. */
+  readonly emoji?: string;
   /** Present only for a section that is actually reachable. */
   readonly href?: string;
 }
@@ -57,18 +60,30 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     key: 'workspace',
     sections: [
-      { key: 'overview', label: 'Overview', icon: 'overview', href: appPath },
-      { key: 'products', label: 'Products', icon: 'products', href: productsPath },
-      { key: 'personas', label: 'Personas', icon: 'personas', href: personasPath },
-      { key: 'angles', label: 'Angles', icon: 'angles', href: anglesPath },
-      { key: 'themes', label: 'Themes', icon: 'themes', href: themesPath },
-      { key: 'concepts', label: 'Concepts', icon: 'concepts', href: conceptsPath },
-      { key: 'briefs', label: 'Creative Briefs', icon: 'briefs', href: briefsPath },
-      { key: 'copywriting', label: 'Copywriting', icon: 'copywriting', href: copywritingPath },
-      { key: 'ugc', label: 'UGC Management', icon: 'ugc', href: ugcPath },
-      { key: 'assets', label: 'Asset Library', icon: 'assets', href: assetsPath },
-      { key: 'performance', label: 'Performance', icon: 'performance', href: performancePath },
-      { key: 'ad-spy', label: 'Ad Spy', icon: 'ad-spy', href: adSpyPath },
+      { key: 'overview', label: 'Overview', icon: 'overview', emoji: '🏠', href: appPath },
+      { key: 'products', label: 'Products', icon: 'products', emoji: '📦', href: productsPath },
+      { key: 'personas', label: 'Personas', icon: 'personas', emoji: '🎭', href: personasPath },
+      { key: 'angles', label: 'Angles', icon: 'angles', emoji: '🎯', href: anglesPath },
+      { key: 'themes', label: 'Themes', icon: 'themes', emoji: '🎨', href: themesPath },
+      { key: 'concepts', label: 'Concepts', icon: 'concepts', emoji: '💡', href: conceptsPath },
+      { key: 'briefs', label: 'Creative Briefs', icon: 'briefs', emoji: '📋', href: briefsPath },
+      {
+        key: 'copywriting',
+        label: 'Copywriting',
+        icon: 'copywriting',
+        emoji: '✍️',
+        href: copywritingPath,
+      },
+      { key: 'ugc', label: 'UGC Management', icon: 'ugc', emoji: '🎬', href: ugcPath },
+      { key: 'assets', label: 'Asset Library', icon: 'assets', emoji: '🗂️', href: assetsPath },
+      {
+        key: 'performance',
+        label: 'Performance',
+        icon: 'performance',
+        emoji: '📈',
+        href: performancePath,
+      },
+      { key: 'ad-spy', label: 'Ad Spy', icon: 'ad-spy', emoji: '🕵️', href: adSpyPath },
       {
         key: 'creator-ranking',
         label: 'Creator Ranking',
