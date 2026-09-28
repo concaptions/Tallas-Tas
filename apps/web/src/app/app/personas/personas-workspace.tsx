@@ -1,21 +1,13 @@
 'use client';
 
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PersonaListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
-import {
-  Button,
-  StatusChip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@tas/ui';
+import { Button, StatusChip } from '@tas/ui';
 
 import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
+import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 
 import type { AwarenessStage } from '@tas/db/schema';
 
@@ -57,6 +49,43 @@ function syncUrl(id: string | null): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
+/**
+ * The Airtable-style grid columns for the Personas grid view (P2A-3). The Stage-of-Awareness column
+ * keeps rendering a `<StatusChip>` (never bare text) so the automation that counts the chips inside
+ * the table stays green; the frozen name column and the headers are unchanged from the plain table.
+ */
+const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
+  {
+    key: 'name',
+    header: 'Name',
+    frozen: true,
+    minWidth: 200,
+    sortValue: (item) => item.persona.name,
+    render: (item) => <span className="font-medium">{item.persona.name}</span>,
+  },
+  {
+    key: 'stageOfAwareness',
+    header: 'Stage of Awareness',
+    sortValue: (item) => item.persona.stageOfAwareness,
+    render: (item) =>
+      item.persona.stageOfAwareness === null ? (
+        <span className="text-text4">{EM_DASH}</span>
+      ) : (
+        <StatusChip
+          tone={awarenessTone(item.persona.stageOfAwareness)}
+          label={awarenessLabel(item.persona.stageOfAwareness)}
+        />
+      ),
+  },
+  {
+    key: 'updated',
+    header: 'Updated',
+    sortValue: (item) => item.updatedTitle,
+    cellTitle: (item) => item.updatedTitle,
+    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
+  },
+];
+
 export function PersonasWorkspace({
   items,
   demo,
@@ -83,13 +112,6 @@ export function PersonasWorkspace({
     },
     [router, select],
   );
-
-  const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, id: string) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      select(id);
-    }
-  };
 
   const open = items.find((item) => item.persona.id === selection)?.persona ?? null;
   const creating = selection === NEW_PERSONA;
@@ -170,62 +192,21 @@ export function PersonasWorkspace({
             demo={demo}
           />
         ) : (
-          <div className="overflow-x-auto rounded-card border border-line bg-surface">
-            <Table data-slot="personas-table">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-3">Name</TableHead>
-                  <TableHead className="px-3">Stage of Awareness</TableHead>
-                  <TableHead className="px-3">Updated</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.length === 0 ? (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={3} className="px-3 py-6 text-center text-sm text-text3">
-                      No personas yet. Start with the one your best customer looks like.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map(({ persona, updatedLabel, updatedTitle }) => (
-                    <TableRow
-                      key={persona.id}
-                      data-slot="persona-row"
-                      data-persona-id={persona.id}
-                      data-state={persona.id === selection ? 'selected' : undefined}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={persona.name}
-                      onClick={() => {
-                        select(persona.id);
-                      }}
-                      onKeyDown={(event) => {
-                        onRowKey(event, persona.id);
-                      }}
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
-                        {persona.name}
-                      </TableCell>
-                      <TableCell className="px-3 py-1.5">
-                        {persona.stageOfAwareness === null ? (
-                          <span className="text-text4">{EM_DASH}</span>
-                        ) : (
-                          <StatusChip
-                            tone={awarenessTone(persona.stageOfAwareness)}
-                            label={awarenessLabel(persona.stageOfAwareness)}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
-                        {updatedLabel}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <AirtableGrid
+            tableKey="personas"
+            columns={PERSONA_COLUMNS}
+            rows={items}
+            rowId={(item) => item.persona.id}
+            rowLabel={(item) => item.persona.name}
+            rowAttributes={(item) => ({ 'data-persona-id': item.persona.id })}
+            selectedId={selection}
+            onRowClick={(item) => {
+              select(item.persona.id);
+            }}
+            tableSlot="personas-table"
+            rowSlot="persona-row"
+            empty="No personas yet. Start with the one your best customer looks like."
+          />
         )}
       </section>
 
