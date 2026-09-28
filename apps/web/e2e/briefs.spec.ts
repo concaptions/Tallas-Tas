@@ -38,7 +38,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
   test('lists the seven fixtures in six columns, with the standalone chip in the concept cell', async ({
     page,
   }) => {
-    await page.goto(briefsPath);
+    await page.goto(`${briefsPath}?view=grid`);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Briefs');
     await expect(page.locator('[data-slot="brief-count"]')).toHaveText(briefsLabel(BRIEF_COUNT));
@@ -85,14 +85,15 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
   test('the search narrows the list into ?q= and the empty state offers a way out', async ({
     page,
   }) => {
-    await page.goto(briefsPath);
+    await page.goto(`${briefsPath}?view=grid`);
 
     await page.locator('[data-slot="brief-search"]').fill('standalone');
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(1);
     await expect(page.locator('[data-slot="brief-count"]')).toHaveText(
       `1 of ${briefsLabel(BRIEF_COUNT)}`,
     );
-    await expect(page).toHaveURL(/\?q=standalone/);
+    // `?view=grid` is kept alongside `?q=`, so match the query param in either position.
+    await expect(page).toHaveURL(/[?&]q=standalone/);
 
     // A filter that matches nothing says so in words and offers to clear itself.
     await page.locator('[data-slot="brief-search"]').fill('zzzzz');
@@ -102,8 +103,20 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
   });
 
-  test('a row click lands on the detail route, and Back restores the list', async ({ page }) => {
+  test('opens on the Kanban board by default, with the table reachable via ?view=grid', async ({
+    page,
+  }) => {
     await page.goto(briefsPath);
+    await expect(page.locator('[data-slot="kanban-board"]')).toBeVisible();
+    await expect(page.locator('[data-slot="briefs-table"]')).toHaveCount(0);
+
+    await page.goto(`${briefsPath}?view=grid`);
+    await expect(page.locator('[data-slot="briefs-table"]')).toBeVisible();
+    await expect(page.locator('[data-slot="kanban-board"]')).toHaveCount(0);
+  });
+
+  test('a row click lands on the detail route, and Back restores the list', async ({ page }) => {
+    await page.goto(`${briefsPath}?view=grid`);
     await page.locator(`[data-brief-id="${BODY_CLOCK}"]`).click();
 
     await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));

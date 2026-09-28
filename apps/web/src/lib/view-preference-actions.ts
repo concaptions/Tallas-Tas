@@ -14,29 +14,33 @@ export interface ViewPreferenceResult {
   readonly kanbanGroupByField: string | null;
 }
 
-const DEFAULT_PREFERENCE: ViewPreferenceResult = {
-  viewType: 'grid',
-  kanbanGroupByField: null,
-};
-
-export async function loadViewPreference(tableKey: string): Promise<ViewPreferenceResult> {
-  if (isDemoMode()) return DEFAULT_PREFERENCE;
+/**
+ * The view a table opens in when the viewer has saved no preference (and in demo mode, where prefs
+ * are not stored). Grid for most tables; a caller passes its own — Briefs opens on Kanban, the
+ * media-buyer/strategist board being the primary view (P2B, Talal's LuckyFours approval).
+ */
+export async function loadViewPreference(
+  tableKey: string,
+  defaultView: ViewType = 'grid',
+): Promise<ViewPreferenceResult> {
+  const fallback: ViewPreferenceResult = { viewType: defaultView, kanbanGroupByField: null };
+  if (isDemoMode()) return fallback;
 
   const { userId } = await auth();
-  if (!userId) return DEFAULT_PREFERENCE;
+  if (!userId) return fallback;
 
   const databaseUrl = serverEnv().DATABASE_URL;
-  if (!databaseUrl) return DEFAULT_PREFERENCE;
+  if (!databaseUrl) return fallback;
 
   // A read that page renders call directly, so it shares the render's request connection (and its
   // once-per-request brand resolution) instead of opening a pool of its own; `after` ends it.
   const { db } = requestConnection(databaseUrl);
   const brandId = await resolveLiveBrandId(db);
-  if (!brandId) return DEFAULT_PREFERENCE;
+  if (!brandId) return fallback;
   const pref = await getViewPreference(db, userId, brandId, tableKey);
-  if (!pref) return DEFAULT_PREFERENCE;
+  if (!pref) return fallback;
   const vt = pref.viewType as ViewType;
-  if (!supportsView(tableKey, vt)) return DEFAULT_PREFERENCE;
+  if (!supportsView(tableKey, vt)) return fallback;
   return { viewType: vt, kanbanGroupByField: pref.kanbanGroupByField };
 }
 

@@ -1,3 +1,5 @@
+import { supportsView, type ViewType } from '@tas/domain';
+
 import type { BriefRow } from '@/lib/briefs-source';
 import { loadBriefs } from '@/lib/briefs-source';
 import { loadViewPreference } from '@/lib/view-preference-actions';
@@ -48,9 +50,18 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
   const [{ rows }, params, viewPref] = await Promise.all([
     loadBriefs(),
     searchParams,
-    loadViewPreference('briefs'),
+    // Briefs open on Kanban by default (P2B) — the media-buyer/strategist board is the primary view.
+    loadViewPreference('briefs', 'kanban'),
   ]);
   const demo = isDemoMode();
+
+  // `?view=` overrides the default/saved view when it names a view Briefs supports, so a table (or
+  // gallery) is reachable and shareable by URL even though Kanban is the default.
+  const requestedView =
+    typeof params.view === 'string' && supportsView('briefs', params.view as ViewType)
+      ? (params.view as ViewType)
+      : null;
+  const initialView = requestedView ?? viewPref.viewType;
 
   const items: BriefItem[] = rows.map((row) => {
     const firstDesign =
@@ -96,7 +107,7 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       items={items}
       demo={demo}
       initialSearch={initialSearch}
-      initialView={viewPref.viewType}
+      initialView={initialView}
       initialKanbanField={viewPref.kanbanGroupByField}
     />
   );

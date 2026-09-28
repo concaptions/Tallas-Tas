@@ -137,7 +137,7 @@ export function KanbanBoard({ items, columns, columnLabels, onMove, demo }: Kanb
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      <div data-slot="kanban-board" className="flex gap-3 overflow-x-auto pb-4">
         {columns.map((col) => (
           <KanbanColumn
             key={col}
