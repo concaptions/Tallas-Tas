@@ -11,7 +11,8 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { Card, CardContent, StatusChip } from '@tas/ui';
+import { Card, CardContent, cn, StatusChip } from '@tas/ui';
+import type { ChipTone } from '@tas/domain/state';
 
 export interface KanbanItem {
   readonly id: string;
@@ -19,9 +20,28 @@ export interface KanbanItem {
   readonly groupValue: string;
   readonly subtitle?: string;
   readonly chipLabel?: string;
-  readonly chipTone?: 'ok' | 'warn' | 'bad' | 'info' | 'accent' | 'mute';
+  readonly chipTone?: ChipTone;
   readonly href?: string;
+  /**
+   * Extra labelled chips under the name — the briefs board surfaces priority and type here. Optional,
+   * so a board that wants the plain card (Personas) passes nothing and renders exactly as before.
+   */
+  readonly badges?: readonly { readonly label: string; readonly tone: ChipTone }[];
+  /** Who the record is assigned to; absent or null renders no assignee line. */
+  readonly assignee?: string | null;
+  /** Colours the card's left stripe by stage, so a column reads at a glance. */
+  readonly accentTone?: ChipTone;
 }
+
+/** The left stripe colour per stage tone. Semantic token classes only — no literals. */
+const ACCENT_STRIPE: Record<ChipTone, string> = {
+  ok: 'border-l-ok',
+  warn: 'border-l-warn',
+  bad: 'border-l-bad',
+  info: 'border-l-info',
+  accent: 'border-l-accent',
+  mute: 'border-l-line2',
+};
 
 interface KanbanBoardProps {
   readonly items: readonly KanbanItem[];
@@ -34,12 +54,36 @@ interface KanbanBoardProps {
 function KanbanCard({ item, isDragging }: { item: KanbanItem; isDragging?: boolean }) {
   return (
     <Card
-      className={`cursor-grab border-line bg-surface transition-shadow ${isDragging ? 'rotate-2 shadow-lg opacity-80' : 'hover:shadow-md'}`}
+      data-slot="kanban-card"
+      data-card-id={item.id}
+      className={cn(
+        'cursor-grab border-line bg-surface transition-shadow',
+        item.accentTone === undefined ? undefined : `border-l-4 ${ACCENT_STRIPE[item.accentTone]}`,
+        isDragging ? 'rotate-2 opacity-80 shadow-lg' : 'hover:shadow-md',
+      )}
     >
-      <CardContent className="flex flex-col gap-1 p-3">
+      <CardContent className="flex flex-col gap-1.5 p-3">
         <span className="text-sm font-medium text-text">{item.name}</span>
         {item.subtitle && <span className="text-xs text-text3">{item.subtitle}</span>}
-        {item.chipLabel && <StatusChip tone={item.chipTone ?? 'mute'} label={item.chipLabel} />}
+        {item.badges && item.badges.length > 0 ? (
+          <span className="flex flex-wrap items-center gap-1">
+            {item.badges.map((badge) => (
+              <StatusChip key={badge.label} tone={badge.tone} label={badge.label} />
+            ))}
+          </span>
+        ) : null}
+        {item.chipLabel === undefined && (item.assignee ?? null) === null ? null : (
+          <span className="flex flex-wrap items-center justify-between gap-1">
+            {item.chipLabel === undefined ? (
+              <span />
+            ) : (
+              <StatusChip tone={item.chipTone ?? 'mute'} label={item.chipLabel} />
+            )}
+            {(item.assignee ?? null) === null ? null : (
+              <span className="text-xs text-text3">{item.assignee}</span>
+            )}
+          </span>
+        )}
       </CardContent>
     </Card>
   );

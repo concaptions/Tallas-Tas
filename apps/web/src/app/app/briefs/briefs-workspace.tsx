@@ -155,6 +155,9 @@ export function BriefsWorkspace({
     [demo, items, kanbanField],
   );
 
+  // The board card carries what a media buyer scans for (P2B-2): the generated name, the concept it
+  // belongs to, priority and type as chips, the assignee, and a left stripe coloured by the stage the
+  // card sits in. Every tone comes from the domain's `chipTone`, never a locally chosen colour.
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
     return visible.map((item) => ({
       id: item.id,
@@ -163,6 +166,14 @@ export function BriefsWorkspace({
       subtitle: item.conceptName ?? STANDALONE_CONCEPT_SLUG,
       chipLabel: item.status.label,
       chipTone: item.status.tone,
+      accentTone: item.status.tone,
+      assignee: item.assignee,
+      badges: [
+        ...(item.priority === null
+          ? []
+          : [{ label: item.priority.label, tone: item.priority.tone }]),
+        { label: item.typeLabel, tone: 'mute' as const },
+      ],
       href: item.href,
     }));
   }, [visible, kanbanField]);
