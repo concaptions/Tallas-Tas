@@ -34,6 +34,8 @@ export interface GridColumn<Row> {
   readonly align?: 'left' | 'right' | 'center';
   readonly render: (row: Row) => ReactNode;
   readonly sortValue?: (row: Row) => string | number | null;
+  /** A tooltip for the whole cell — e.g. the full URL behind a truncated host. */
+  readonly cellTitle?: (row: Row) => string | undefined;
 }
 
 export interface AirtableGridProps<Row> {
@@ -45,6 +47,14 @@ export interface AirtableGridProps<Row> {
   readonly onRowClick?: (row: Row) => void;
   readonly selectedId?: string | null;
   readonly empty?: ReactNode;
+  /** `data-slot` for the `<table>` — lets a page keep its existing test/automation hooks. */
+  readonly tableSlot?: string;
+  /** `data-slot` for each `<tr>` (default `grid-row`). */
+  readonly rowSlot?: string;
+  /** Extra attributes for each row (e.g. `data-product-id`), so a page's selectors survive the swap. */
+  readonly rowAttributes?: (row: Row) => Readonly<Record<string, string | undefined>>;
+  /** The accessible name of a clickable row (e.g. the record's name); falls back to the row id. */
+  readonly rowLabel?: (row: Row) => string;
 }
 
 /**
@@ -60,6 +70,10 @@ export function AirtableGrid<Row>({
   onRowClick,
   selectedId,
   empty,
+  tableSlot = 'airtable-grid',
+  rowSlot = 'grid-row',
+  rowAttributes,
+  rowLabel,
 }: AirtableGridProps<Row>) {
   const [sort, setSort] = useState<SortState | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
@@ -124,7 +138,7 @@ export function AirtableGrid<Row>({
       </div>
 
       <div className="w-full overflow-x-auto rounded-card border border-line bg-surface">
-        <table className="w-full min-w-max border-collapse text-sm" data-slot="airtable-grid">
+        <table className="w-full min-w-max border-collapse text-sm" data-slot={tableSlot}>
           <thead>
             <tr className="border-b border-line">
               {visibleColumns.map((column) => (
@@ -173,26 +187,41 @@ export function AirtableGrid<Row>({
             ) : (
               sortedRows.map((row) => {
                 const id = rowId(row);
+                const clickable = onRowClick !== undefined;
+                const activate = clickable
+                  ? () => {
+                      onRowClick(row);
+                    }
+                  : undefined;
                 return (
                   <tr
                     key={id}
-                    data-slot="grid-row"
+                    data-slot={rowSlot}
                     data-state={id === selectedId ? 'selected' : undefined}
-                    onClick={
-                      onRowClick === undefined
-                        ? undefined
-                        : () => {
-                            onRowClick(row);
+                    {...rowAttributes?.(row)}
+                    role={clickable ? 'button' : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    aria-label={rowLabel ? rowLabel(row) : clickable ? id : undefined}
+                    onClick={activate}
+                    onKeyDown={
+                      clickable
+                        ? (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              activate?.();
+                            }
                           }
+                        : undefined
                     }
                     className={cn(
                       'border-b border-line/60 last:border-b-0 data-[state=selected]:bg-accent-soft',
-                      onRowClick !== undefined && 'cursor-pointer hover:bg-surface3',
+                      clickable && 'cursor-pointer hover:bg-surface3',
                     )}
                   >
                     {visibleColumns.map((column) => (
                       <td
                         key={column.key}
+                        title={column.cellTitle?.(row)}
                         className={cn(
                           'px-3 py-1.5 whitespace-nowrap text-text2',
                           column.align === 'right' && 'text-right',

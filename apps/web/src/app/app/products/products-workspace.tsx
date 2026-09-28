@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ProductListRow } from '@tas/db';
 import { toCsv } from '@tas/domain/csv';
@@ -11,13 +11,9 @@ import {
   DisabledWrite,
   Input,
   PropagationBadge,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from '@tas/ui';
+
+import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 
 import { EM_DASH } from './fields';
 import { NEW_PRODUCT, ProductPanel } from './product-panel';
@@ -99,6 +95,51 @@ function matches(item: ProductItem, query: string): boolean {
   return [name, link, collectionLink ?? ''].some((value) => value.toLowerCase().includes(query));
 }
 
+/**
+ * The Airtable-style grid columns for Products (P2A): the frozen name column carries the propagation
+ * badge; the two link columns show the host and keep the full URL in the cell title; every column but
+ * the collection link is sortable. Column order and headers are the same the plain table used, so the
+ * page's existing automation contract is unchanged.
+ */
+const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
+  {
+    key: 'name',
+    header: 'Product name',
+    frozen: true,
+    minWidth: 200,
+    sortValue: (item) => item.product.name,
+    render: (item) => (
+      <span className="flex items-center gap-1.5 font-medium">
+        {item.product.name}
+        <PropagationBadge
+          templateRowId={item.product.templateRowId}
+          overriddenFields={item.product.overriddenFields}
+        />
+      </span>
+    ),
+  },
+  {
+    key: 'link',
+    header: 'Landing page URL',
+    sortValue: (item) => item.linkHost,
+    cellTitle: (item) => item.product.link,
+    render: (item) => item.linkHost,
+  },
+  {
+    key: 'collection',
+    header: 'Collection link',
+    cellTitle: (item) => item.product.collectionLink ?? undefined,
+    render: (item) => item.collectionHost ?? <span className="text-text4">{EM_DASH}</span>,
+  },
+  {
+    key: 'updated',
+    header: 'Updated',
+    sortValue: (item) => item.updatedTitle,
+    cellTitle: (item) => item.updatedTitle,
+    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
+  },
+];
+
 export function ProductsWorkspace({
   items,
   demo,
@@ -131,13 +172,6 @@ export function ProductsWorkspace({
     },
     [router, select],
   );
-
-  const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, id: string) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      select(id);
-    }
-  };
 
   const term = search.trim();
   const query = term.toLowerCase();
@@ -223,100 +257,55 @@ export function ProductsWorkspace({
           />
         </div>
 
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
-          <Table data-slot="products-table">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-3">Product name</TableHead>
-                <TableHead className="px-3">Landing page URL</TableHead>
-                <TableHead className="px-3">Collection link</TableHead>
-                <TableHead className="px-3">Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="px-3 py-10">
-                    <div
-                      data-slot="products-empty"
-                      className="flex flex-col items-center gap-3 text-center"
-                    >
-                      <p className="text-sm text-text2">
-                        {items.length === 0
-                          ? 'No products yet. Start with the landing page you are sending traffic to.'
-                          : `Nothing matches “${term}”. Try a product name or a domain.`}
-                      </p>
-                      {items.length === 0 ? (
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            select(NEW_PRODUCT);
-                          }}
-                          data-slot="empty-new-product"
-                        >
-                          New product
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            filter('');
-                          }}
-                          data-slot="clear-search"
-                        >
-                          Clear search
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+        <AirtableGrid
+          tableKey="products"
+          columns={PRODUCT_COLUMNS}
+          rows={visible}
+          rowId={(item) => item.product.id}
+          rowLabel={(item) => item.product.name}
+          rowAttributes={(item) => ({ 'data-product-id': item.product.id })}
+          selectedId={selection}
+          onRowClick={(item) => {
+            select(item.product.id);
+          }}
+          tableSlot="products-table"
+          rowSlot="product-row"
+          empty={
+            <div
+              data-slot="products-empty"
+              className="flex flex-col items-center gap-3 text-center"
+            >
+              <p className="text-sm text-text2">
+                {items.length === 0
+                  ? 'No products yet. Start with the landing page you are sending traffic to.'
+                  : `Nothing matches “${term}”. Try a product name or a domain.`}
+              </p>
+              {items.length === 0 ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    select(NEW_PRODUCT);
+                  }}
+                  data-slot="empty-new-product"
+                >
+                  New product
+                </Button>
               ) : (
-                visible.map(({ product, linkHost, collectionHost, updatedLabel, updatedTitle }) => (
-                  <TableRow
-                    key={product.id}
-                    data-slot="product-row"
-                    data-product-id={product.id}
-                    data-state={product.id === selection ? 'selected' : undefined}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={product.name}
-                    onClick={() => {
-                      select(product.id);
-                    }}
-                    onKeyDown={(event) => {
-                      onRowKey(event, product.id);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
-                      <span className="flex items-center gap-1.5">
-                        {product.name}
-                        <PropagationBadge
-                          templateRowId={product.templateRowId}
-                          overriddenFields={product.overriddenFields}
-                        />
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text2" title={product.link}>
-                      {linkHost}
-                    </TableCell>
-                    <TableCell
-                      className="px-3 py-1.5 text-text2"
-                      title={product.collectionLink ?? undefined}
-                    >
-                      {collectionHost ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
-                      {updatedLabel}
-                    </TableCell>
-                  </TableRow>
-                ))
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    filter('');
+                  }}
+                  data-slot="clear-search"
+                >
+                  Clear search
+                </Button>
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+          }
+        />
       </section>
 
       {creating || open !== null ? (

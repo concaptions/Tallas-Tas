@@ -16,8 +16,14 @@ Sprint 5 already shipped `view-switcher.tsx`, `gallery-view.tsx`, `kanban-board.
 - [x] typecheck 6/6, lint clean, test 1970
 - [ ] **Visual confirmation pending deploy** — verify freeze/scroll/Fields on the deployed /design-system page
 
-### P2A-2..7 Wire per table (FOLLOW-ON — one sub-commit each, ≤300 LOC)
-- [ ] Products, Personas, Angles, Themes, Concepts, UGC: replace the bespoke inline `<Table>` with `<AirtableGrid>` + a per-table column config; make Grid the default view
+### P2A-2 Products wired (DONE — pending E2E confirmation on CI)
+- [x] Grid gained contract-preserving hooks (`tableSlot`/`rowSlot`/`rowAttributes`/`rowLabel`, per-column `cellTitle`, row keyboard a11y) so a page keeps its automation contract after the swap
+- [x] `products-workspace.tsx` replaces the inline `<Table>` with `<AirtableGrid>` + `PRODUCT_COLUMNS`; matched `products.spec.ts` exactly (headers, `product-row`/`data-product-id`, `td.nth(1)` title, `aria-label`=name, empty-state slots)
+- [x] typecheck 6/6, lint clean, vitest 1970
+- [ ] **`products.spec.ts` E2E must be confirmed green on CI/Vercel** (Playwright can't run locally: offline fonts + auth). Confirm before wiring the rest.
+
+### P2A-3..7 Wire the other 5 tables (FOLLOW-ON — one sub-commit each, ≤300 LOC)
+- [ ] Personas, Angles, Themes, Concepts, UGC: same swap + per-table column config; match each page's E2E contract (themes/ugc/briefs specs exist). **Do only after P2A-2's E2E is confirmed on CI.**
 - [ ] Gallery on all 6 (UGC card image = profile pic); List unchanged; Kanban only on UGC
 - [ ] Per-table column configs pass sortValue + inline renderers (badges/link-counts/checkbox icons)
 
