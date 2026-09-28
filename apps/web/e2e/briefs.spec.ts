@@ -137,10 +137,13 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-slot="brief-panel"]')).toHaveCount(0);
 
-    // The full page is one button further.
+    // The full page is one button further. This is usually the run's FIRST navigation into the
+    // dynamic /app/briefs/[id] route, which `next dev` compiles on demand — the same cold-compile
+    // cost the config header describes, where the URL does change, just later than the 15s default
+    // expect budget. Only this assertion waits longer; nothing about it is relaxed.
     await card.click();
     await page.locator('[data-slot="brief-panel-open-full"]').click();
-    await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));
+    await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`), { timeout: 45_000 });
   });
 
   test('a row click lands on the detail route, and Back restores the list', async ({ page }) => {

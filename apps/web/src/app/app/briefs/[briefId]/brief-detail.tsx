@@ -496,6 +496,39 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
           </section>
         </aside>
       </div>
+
+      {/*
+        The brief's history (P2B-4). Nothing records edits yet — there is no audit/activity table in
+        `packages/db/src/schema` — so this ships as the real container with its empty state rather
+        than a placeholder that would have to be thrown away: when the audit trail lands it appends
+        `<li>` rows into this same scrollable list and the empty state simply stops rendering.
+      */}
+      <section
+        data-slot="brief-activity"
+        aria-labelledby="brief-activity-heading"
+        className="flex min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-4"
+      >
+        <h2 id="brief-activity-heading" className="text-sm font-medium text-text2">
+          Activity
+        </h2>
+        <ol
+          data-slot="brief-activity-list"
+          className="flex max-h-64 flex-col gap-2 overflow-y-auto"
+        >
+          <li
+            data-slot="brief-activity-empty"
+            className="flex flex-col items-center gap-1 py-8 text-center"
+          >
+            <span aria-hidden className="text-2xl">
+              🕓
+            </span>
+            <p className="text-sm text-text2">Activity tracking coming soon</p>
+            <p className="text-xs text-text3">
+              Edits, status changes and comments will appear here once the audit trail ships.
+            </p>
+          </li>
+        </ol>
+      </section>
     </div>
   );
 }
