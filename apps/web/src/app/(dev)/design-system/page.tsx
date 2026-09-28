@@ -102,6 +102,7 @@ import {
   CopyStatusChipsStory,
 } from './copywriting.stories';
 import { RoleDashboardAdminStory, RoleDashboardMediaBuyerStory } from './role-dashboard.stories';
+import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -829,6 +830,26 @@ export default function DesignSystemPage() {
               auto-name — font-mono, never an input, complete and half-filled
             </h3>
             <ConceptNamePreviewStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Airtable-style grid (P2A)"
+        note="The reusable read-only grid the 6 data tables adopt: full-width, horizontal scroll with a frozen Name column, click-to-sort headers, and a Fields menu to show/hide columns (remembered per viewer). Try scrolling it sideways and toggling Fields."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              grid — frozen name column, inline cells, sortable headers
+            </h3>
+            <AirtableGridStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              empty — friendly state
+            </h3>
+            <AirtableGridEmptyStory />
           </div>
         </div>
       </Section>

@@ -8,15 +8,21 @@ Sprint 5 already shipped `view-switcher.tsx`, `gallery-view.tsx`, `kanban-board.
 (Sprint 5). This ticket makes **Grid** truly Airtable-like and confirms Gallery, on the
 6 data tables: Products, Personas, Angles, Themes, Concepts, UGC Management.
 
-## Acceptance criteria
-- [ ] Grid view is the DEFAULT for all 6 tables
-- [ ] Grid: full-width (no wasted side margins), horizontal scroll with all columns, freeze the primary/name column (min), inline cell display (no click-to-open)
-- [ ] Grid: show/hide fields toggle, filter + sort controls, grouping option
-- [ ] Gallery works on all 6; UGC uses creator profile pic as the card image; customizable card fields
-- [ ] List view unchanged (sidebar-open-on-click)
-- [ ] Kanban only on UGC (process table) among these 6; no Kanban on the other 5
-- [ ] Per-user view persistence verified (no cross-user bleed); underlying data shared
-- [ ] `/design-system` stories updated; typecheck/lint/test green
+## Sub-tickets
+### P2A-1 Reusable `<AirtableGrid>` component (DONE — component only, no live page touched)
+- [x] `components/views/airtable-grid.tsx` — full-width, `overflow-x-auto`, `min-w-max`, frozen primary column (`sticky left-0`), inline `render` per column, click-to-sort headers, Fields menu (`DropdownMenuCheckboxItem`) to show/hide columns
+- [x] Column visibility remembered per viewer (localStorage, guarded for SSR/private/node) — `airtable-grid-logic.ts`
+- [x] Pure logic unit-tested (`airtable-grid-logic.test.ts`, 6 tests); `/design-system` story added (grid + empty)
+- [x] typecheck 6/6, lint clean, test 1970
+- [ ] **Visual confirmation pending deploy** — verify freeze/scroll/Fields on the deployed /design-system page
+
+### P2A-2..7 Wire per table (FOLLOW-ON — one sub-commit each, ≤300 LOC)
+- [ ] Products, Personas, Angles, Themes, Concepts, UGC: replace the bespoke inline `<Table>` with `<AirtableGrid>` + a per-table column config; make Grid the default view
+- [ ] Gallery on all 6 (UGC card image = profile pic); List unchanged; Kanban only on UGC
+- [ ] Per-table column configs pass sortValue + inline renderers (badges/link-counts/checkbox icons)
+
+## Notes
+Do P2A-2+ only after the grid is visually approved on the deployed design-system page.
 
 ## Notes
 Import colours/fonts/radii from the token layer; status values from `@tas/domain/state`;
