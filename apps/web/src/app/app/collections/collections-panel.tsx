@@ -1,8 +1,19 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import type { CollectionListRow } from '@tas/db';
-import { Button, disabledWriteClassName, DisabledWrite, Input, Label } from '@tas/ui';
+import {
+  Button,
+  disabledWriteClassName,
+  DisabledWrite,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@tas/ui';
 
 import {
   createCollectionAction,
@@ -22,8 +33,13 @@ export const NEW_COLLECTION = 'new';
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 
+/** The Select's "no campaign" value; a uuid can never be this word. */
+const NONE_VALUE = 'none';
+
 interface CollectionPanelProps {
   readonly collection: CollectionListRow | null;
+  /** The campaign picker's options (TASK 5): names, not hand-typed uuids. */
+  readonly campaigns: readonly { readonly id: string; readonly name: string }[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -49,8 +65,15 @@ function valueOf(collection: CollectionListRow | null, name: CollectionFieldName
  * there is no picker in this ticket's scope, only the create/edit form itself. In demo mode the
  * fields are read-only and the footer says so instead of saving.
  */
-export function CollectionPanel({ collection, demo, onClose, onSaved }: CollectionPanelProps) {
+export function CollectionPanel({
+  collection,
+  campaigns,
+  demo,
+  onClose,
+  onSaved,
+}: CollectionPanelProps) {
   const creating = collection === null;
+  const [campaignId, setCampaignId] = useState(collection?.campaignId ?? NONE_VALUE);
   const action = creating ? createCollectionAction : updateCollectionAction;
   const [state, formAction, pending] = useActionState<CollectionActionResult | null, FormData>(
     action,
@@ -81,6 +104,56 @@ export function CollectionPanel({ collection, demo, onClose, onSaved }: Collecti
   const renderField = (field: CollectionField) => {
     const id = `collection-field-${field.name}`;
     const error = fieldError(field.name);
+
+    // The campaign link is a picker over names (TASK 5: Collections ↔ Campaigns), not a uuid box.
+    if (field.name === 'campaignId') {
+      return (
+        <div key={field.name} className="flex flex-col gap-1.5">
+          <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+            {field.label}
+            <span className="ml-1.5 text-text4 normal-case">optional</span>
+          </Label>
+          <Select
+            value={campaignId === NONE_VALUE ? undefined : campaignId}
+            onValueChange={setCampaignId}
+            disabled={demo}
+          >
+            <SelectTrigger
+              id={id}
+              className="w-full"
+              aria-label={field.label}
+              data-slot="collection-campaignId"
+            >
+              <SelectValue placeholder="None" />
+            </SelectTrigger>
+            <SelectContent>
+              {campaigns.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {campaignId !== NONE_VALUE && !demo ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCampaignId(NONE_VALUE);
+              }}
+              className="self-start text-xs text-text3 underline-offset-2 hover:text-text2 hover:underline"
+            >
+              Clear campaign
+            </button>
+          ) : null}
+          <input
+            type="hidden"
+            name="campaignId"
+            value={campaignId === NONE_VALUE ? '' : campaignId}
+          />
+          {error === undefined ? null : <p className="text-xs text-bad">{error}</p>}
+        </div>
+      );
+    }
 
     return (
       <div key={field.name} className="flex flex-col gap-1.5">

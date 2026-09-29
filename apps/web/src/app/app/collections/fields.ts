@@ -38,8 +38,8 @@ export const COLLECTION_FIELDS: readonly CollectionField[] = [
   },
   {
     name: 'campaignId',
-    label: 'Campaign ID',
-    placeholder: 'Campaign UUID',
+    label: 'Campaign',
+    placeholder: 'None',
     required: false,
   },
   {

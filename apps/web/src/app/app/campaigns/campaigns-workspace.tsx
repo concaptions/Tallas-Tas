@@ -38,6 +38,8 @@ export interface CampaignItem {
 interface CampaignsWorkspaceProps {
   readonly items: readonly CampaignItem[];
   readonly products: readonly LinkOption[];
+  /** campaignId -> the names of the collections pointing at it, for the panel's read-only list. */
+  readonly collectionNames: Readonly<Record<string, readonly string[]>>;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -57,6 +59,7 @@ function syncUrl(key: 'campaign' | 'q', value: string | null): void {
 export function CampaignsWorkspace({
   items,
   products,
+  collectionNames,
   demo,
   initialSelection,
   initialSearch,
@@ -325,6 +328,7 @@ export function CampaignsWorkspace({
           key={selection}
           campaign={creating ? null : open}
           products={products}
+          linkedCollections={creating || open === null ? [] : (collectionNames[open.id] ?? [])}
           demo={demo}
           onClose={close}
           onSaved={saved}

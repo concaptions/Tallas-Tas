@@ -1,6 +1,7 @@
 import type { ViewType } from '@tas/domain';
 
 import { loadCampaigns } from '@/lib/campaigns-source';
+import { loadCollections } from '@/lib/collections-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
@@ -15,9 +16,10 @@ interface CampaignsPageProps {
 }
 
 export default async function CampaignsPage({ searchParams }: CampaignsPageProps) {
-  const [{ rows }, productRows, params] = await Promise.all([
+  const [{ rows }, productRows, collectionRows, params] = await Promise.all([
     loadCampaigns(),
     loadProducts(),
+    loadCollections(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -30,6 +32,14 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
   }));
 
   const products: LinkOption[] = productRows.rows.map(({ id, name }) => ({ id, name }));
+
+  // The campaigns side of Collections ↔ Campaigns (TASK 5): `collections.campaign_id` read the
+  // other way round, so the panel can NAME the collections running on a campaign.
+  const collectionNames: Record<string, string[]> = {};
+  for (const collection of collectionRows.rows) {
+    if (collection.campaignId === null) continue;
+    (collectionNames[collection.campaignId] ??= []).push(collection.name);
+  }
 
   const requested = params.campaign;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -47,6 +57,7 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     <CampaignsWorkspace
       items={items}
       products={products}
+      collectionNames={collectionNames}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

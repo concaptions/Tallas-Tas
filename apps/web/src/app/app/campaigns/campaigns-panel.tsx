@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  StatusChip,
 } from '@tas/ui';
 
 import {
@@ -37,6 +38,8 @@ export interface LinkOption {
 interface CampaignPanelProps {
   readonly campaign: CampaignOffer | null;
   readonly products: readonly LinkOption[];
+  /** Names of the collections whose `campaign_id` points here; the link is edited on their side. */
+  readonly linkedCollections: readonly string[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -55,7 +58,14 @@ function boolOf(campaign: CampaignOffer | null, name: 'confirmedByClient' | 'lau
   return campaign[name];
 }
 
-export function CampaignPanel({ campaign, products, demo, onClose, onSaved }: CampaignPanelProps) {
+export function CampaignPanel({
+  campaign,
+  products,
+  linkedCollections,
+  demo,
+  onClose,
+  onSaved,
+}: CampaignPanelProps) {
   const creating = campaign === null;
   const action = creating ? createCampaignAction : updateCampaignAction;
   const [state, formAction, pending] = useActionState<CampaignActionResult | null, FormData>(
@@ -258,6 +268,26 @@ export function CampaignPanel({ campaign, products, demo, onClose, onSaved }: Ca
                 </div>
               </section>
             ))}
+
+            {creating ? null : (
+              <section className="flex flex-col gap-3">
+                <h3 className="border-b border-line pb-1 text-sm font-medium text-text2">
+                  Linked collections
+                </h3>
+                <div className="flex flex-wrap items-center gap-2" data-slot="campaign-collections">
+                  {linkedCollections.length === 0 ? (
+                    <span className="text-xs text-text3">
+                      No collection runs on this campaign yet. A collection chooses its campaign
+                      from its own panel.
+                    </span>
+                  ) : (
+                    linkedCollections.map((name) => (
+                      <StatusChip key={name} tone="info" label={name} />
+                    ))
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         </div>
 

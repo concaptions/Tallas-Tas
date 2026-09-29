@@ -1,4 +1,5 @@
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadCollections } from '@/lib/collections-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
@@ -25,7 +26,13 @@ interface CollectionsPageProps {
 }
 
 export default async function CollectionsPage({ searchParams }: CollectionsPageProps) {
-  const [{ rows }, params] = await Promise.all([loadCollections(), searchParams]);
+  const [{ rows }, campaignRows, params] = await Promise.all([
+    loadCollections(),
+    loadCampaigns(),
+    searchParams,
+  ]);
+  // The campaign picker's options (TASK 5): names, so nobody hand-types a uuid again.
+  const campaigns = campaignRows.rows.map(({ id, name }) => ({ id, name }));
   const demo = isDemoMode();
   const now = new Date();
 
@@ -45,6 +52,7 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
   return (
     <CollectionsWorkspace
       items={items}
+      campaigns={campaigns}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

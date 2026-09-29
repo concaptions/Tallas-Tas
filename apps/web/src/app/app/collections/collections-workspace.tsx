@@ -52,6 +52,8 @@ export interface CollectionItem {
 
 interface CollectionsWorkspaceProps {
   readonly items: readonly CollectionItem[];
+  /** The campaign picker's options, loaded once by the page. */
+  readonly campaigns: readonly { readonly id: string; readonly name: string }[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
@@ -74,6 +76,7 @@ function syncUrl(key: 'collection' | 'q', value: string | null): void {
 
 export function CollectionsWorkspace({
   items,
+  campaigns,
   demo,
   initialSelection,
   initialSearch,
@@ -288,6 +291,7 @@ export function CollectionsWorkspace({
         <CollectionPanel
           key={selection}
           collection={creating ? null : open}
+          campaigns={campaigns}
           demo={demo}
           onClose={close}
           onSaved={saved}
