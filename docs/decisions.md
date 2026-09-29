@@ -551,3 +551,22 @@ Railway (service → Settings → Region), then either move the Railway database
 fra1, or change `vercel.json` `regions` to the matching Vercel region (iad1 for us-east4, sfo1 for
 us-west2). Also confirm `DATABASE_URL` carries `sslmode=require`: without it `createNodeDb` connects
 without TLS, and the Vercel-to-Railway traffic crosses the public internet unencrypted.
+
+## 2026-09-29 — Record linking: V0 constraints (TASK 5 audit)
+
+The seven Airtable link pairs were audited and the missing read sides fixed (products→angles,
+personas→angles, concepts→persona/product columns, concept→creatives, concept↔creator reads,
+campaign→collections). Two constraints are DELIBERATE for V0 rather than gaps:
+
+1. **First-linked display and single-select editors.** The junctions are many-to-many, but the
+   angle panel's Persona/Product, the concept editor's Theme/Creator and the collection's Campaign
+   are single Selects, and list cells show the FIRST linked name. Saving through one of these
+   Selects replaces the whole junction set with the one chosen id — fine for demo data (all
+   single-linked) but LOSSY for rows imported from Airtable with multiple links. Converting these
+   to multi-select chip pickers (the UGC panel already has the pattern) is the follow-up before
+   the October migration runs against real data.
+
+2. **One-way link editing.** A link is edited from the side that names it in Airtable (angle edits
+   its personas/products, collection chooses its campaign, brief chooses its concept, concept
+   chooses its creator/theme); the other side is a read-only list. This mirrors ownership, keeps
+   one write path per link, and avoids duelling syncs.

@@ -376,6 +376,7 @@ export const demoPersonas: PersonaListRow[] = [
     brandId: DEMO_BRAND_ID,
     productId: PRODUCT_BLANKET_ID,
     productName: 'Niagara Deep Sleep Weighted Blanket',
+    angleNames: ['Make 9am Look Like 3am', 'Your Body Clock Is Not Broken'],
     name: 'Marcus — the rotating-shift nurse who cannot switch off',
     dayInTheLife:
       'Clocks out of a twelve-hour night shift at 07:30, drives home in full daylight, eats a meal his body thinks is dinner and gets into bed at 09:00 with the bins being collected outside. He lies there wired for ninety minutes, sleeps in broken ninety-minute blocks until mid-afternoon, wakes with his heart going, and is back on the ward at 19:00. On his two days off he tries to flip back to a normal schedule for his family and sleeps worse than on shift.',
@@ -408,6 +409,7 @@ export const demoPersonas: PersonaListRow[] = [
     brandId: DEMO_BRAND_ID,
     productId: PRODUCT_MASK_ID,
     productName: 'Niagara Cooling Blackout Sleep Mask',
+    angleNames: ['Sleep In The Ninety Minutes You Actually Get'],
     name: 'Priya — the new parent running on broken sleep',
     dayInTheLife:
       'Up at 02:10, 04:00 and 05:40 with a seven-month-old. Hands the baby to her partner at 06:30 and gets a two-hour window she mostly spends staring at the ceiling because the room is already bright and she is listening for the monitor. Works from home through a fog, naps badly at 13:00 while the baby naps well, and dreads the evening because she knows exactly how the night goes.',
@@ -440,6 +442,7 @@ export const demoPersonas: PersonaListRow[] = [
     brandId: DEMO_BRAND_ID,
     productId: PRODUCT_BLANKET_ID,
     productName: 'Niagara Deep Sleep Weighted Blanket',
+    angleNames: ['It Is Not Just Your Age', 'Nobody Wins The Thermostat Argument'],
     name: 'Denise — peri-menopausal, awake at 3am with night sweats',
     dayInTheLife:
       'Falls asleep easily at 22:30 and is wide awake at 03:10, soaked through, throwing the duvet off and pulling it back on for the next two hours. Gets up at 06:30 having slept four hours, runs a team of nine on caffeine, loses a word mid-sentence in the 10:00 stand-up and hears herself blame her age. By 21:00 she is exhausted, and by 03:10 she is awake again.',

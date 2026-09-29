@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  StatusChip,
 } from '@tas/ui';
 
 import { createPersonaAction, updatePersonaAction, type PersonaActionResult } from './actions';
@@ -178,6 +179,29 @@ export function PersonaPanel({ persona, demo, onClose, onSaved }: PersonaPanelPr
                 <div className="flex flex-col gap-4">{group.fields.map(renderField)}</div>
               </section>
             ))}
+
+            {creating ? null : (
+              <section className="flex flex-col gap-3">
+                <h3
+                  data-slot="persona-group-heading"
+                  className="border-b border-line pb-1 text-sm font-medium text-text2"
+                >
+                  Linked angles
+                </h3>
+                <div className="flex flex-wrap items-center gap-2" data-slot="persona-angles">
+                  {persona.angleNames.length === 0 ? (
+                    <span className="text-xs text-text3">
+                      No angle is written from this persona yet. Link one from the angle&apos;s
+                      panel.
+                    </span>
+                  ) : (
+                    persona.angleNames.map((angleName) => (
+                      <StatusChip key={angleName} tone="info" label={angleName} />
+                    ))
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         </div>
 
