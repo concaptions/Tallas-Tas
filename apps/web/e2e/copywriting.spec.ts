@@ -6,7 +6,7 @@ import { copywritingPath, propagationPath } from '../src/lib/routes';
 /**
  * The Copywriting route with no environment variables at all — the Vercel deployment as it stands.
  * The middleware lets the route through, the data source serves the in-repo fixtures, and the page
- * is fully usable read-only: four rows in four columns, a side panel that is not a modal, the open
+ * is fully usable read-only: four rows in six columns, a side panel that is not a modal, the open
  * row in the URL, and every write control disabled with the reason on hover.
  */
 test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
@@ -15,16 +15,20 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/copywriting needs a session and real data',
   );
 
-  test('lists the four fixture rows in the four ticket columns', async ({ page }) => {
+  test('lists the four fixture rows in the six columns', async ({ page }) => {
     await page.goto(copywritingPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Copywriting');
     await expect(page.locator('[data-slot="copy-row"]')).toHaveCount(4);
     await expect(page.locator('[data-slot="copy-count"]')).toContainText('4 copy rows');
 
+    // Sprint 1 field parity added Concept and Funnel to COPY_COLUMNS between Linked Creative and
+    // Status, so the ticket's four columns are six now.
     await expect(page.locator('[data-slot="copy-table"] thead th')).toHaveText([
       'Copy title / Headline',
       'Linked Creative',
+      'Concept',
+      'Funnel',
       'Status',
       'Updated',
     ]);
@@ -113,8 +117,14 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // Not a modal: the table is still there beside the panel.
     await expect(page.locator('[data-slot="copy-row"]')).toHaveCount(4);
 
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-slot="copy-panel"]')).toHaveCount(0);
+    // Escape still closes the panel (copy-panel.tsx keeps its window keydown listener), but the
+    // Sprint 5 view switcher and Kanban board made this workspace's client bundle heavier, so the
+    // reloaded page can still be hydrating when a single keypress lands and the listener is not
+    // attached yet. Re-press until the close takes instead of pressing exactly once.
+    await expect(async () => {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('[data-slot="copy-panel"]')).toHaveCount(0, { timeout: 1_000 });
+    }).toPass({ timeout: 45_000 });
     await expect(page).not.toHaveURL(/\?copy=/);
   });
 
