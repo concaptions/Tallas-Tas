@@ -35,17 +35,19 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     'Clerk keys present: /app/interface-config needs a session and real data',
   );
 
-  test('renders both columns, five pages, and twelve fields under Concepts', async ({ page }) => {
+  test('renders both columns, six pages, and twelve fields under Concepts', async ({ page }) => {
     await page.goto(interfaceConfigPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interface Config');
     await expect(page.locator('[data-slot="config-tree"]')).toBeVisible();
     await expect(page.locator('[data-slot="config-preview"]')).toBeVisible();
 
-    // The five pages of PRD §10, in order, each with a switch that is on.
+    // The six pages of PRD §10, in order, each with a switch that is on. `INTERFACE_PAGE_KEYS`
+    // in `@tas/domain/interface` grew a sixth entry — 'calendar' (Promotional Calendar) — and
+    // `demoInterfaceConfig` seeds it enabled like the rest, so the tree renders six page nodes.
     const pages = page.locator('[data-slot="page-node"]');
-    await expect(pages).toHaveCount(5);
-    await expect(pages.locator('[data-slot="config-toggle"]')).toHaveCount(5);
+    await expect(pages).toHaveCount(6);
+    await expect(pages.locator('[data-slot="config-toggle"]')).toHaveCount(6);
     for (const toggle of await pages.locator('[data-slot="config-toggle"]').all()) {
       await expect(toggle).toHaveAttribute('aria-checked', 'true');
     }
@@ -108,15 +110,16 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     await page.goto(interfaceConfigPath);
     await markPage(page);
 
+    // Six tabs now: the Promotional Calendar page joined PRD §10's tab strip.
     const tabs = page.locator('[data-slot="preview-tab"]');
-    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveCount(6);
 
     const pageToggle = page
       .locator(`[data-slot="page-node"][data-page-key="${COPYWRITING}"]`)
       .locator('[data-slot="config-toggle"]');
     await pageToggle.click();
 
-    await expect(tabs).toHaveCount(4);
+    await expect(tabs).toHaveCount(5);
     await expect(
       page.locator(`[data-slot="preview-tab"][data-page-key="${COPYWRITING}"]`),
     ).toHaveCount(0);
@@ -129,7 +132,7 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     expect(await stillTheSameDocument(page)).toBe(true);
 
     await pageToggle.click();
-    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveCount(6);
   });
 
   test('every field off is a legitimate configuration, and the preview says so', async ({
@@ -211,7 +214,8 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(interfaceConfigPath);
 
-    await expect(page.locator('[data-slot="page-node"]')).toHaveCount(5);
+    // Six pages since the Promotional Calendar landed in `INTERFACE_PAGE_KEYS`.
+    await expect(page.locator('[data-slot="page-node"]')).toHaveCount(6);
     // Stacked to one column, with the tree first.
     const tree = await page.locator('[data-slot="config-tree"]').boundingBox();
     const preview = await page.locator('[data-slot="config-preview"]').boundingBox();
