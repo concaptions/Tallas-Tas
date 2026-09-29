@@ -60,7 +60,9 @@ const BRIEF_COUNT = OCCUPIED_STATUSES.reduce((total, [, count]) => total + count
 const briefsLabel = (count: number): string => `${String(count)} briefs`;
 
 const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
-const BODY_CLOCK_NAME = 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
+// PRD §7's optional SOURCE prefix shipped: the fixture seeds `source: 'TAS'` and the name formula
+// (`creativeName` in @tas/domain/creatives) now leads with it, so the rendered name gained `TAS-`.
+const BODY_CLOCK_NAME = 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
 
 /** The three briefs `DEMO_QUEUE_ASSIGNEE` owns, in three different columns. */
 const MINE_IDS = [
