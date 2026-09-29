@@ -106,6 +106,16 @@ export const CREATOR_STATUS = [
     label: 'Video Delivered',
     description: 'Footage is in. The assets track takes over from here.',
   },
+  {
+    key: 'draft',
+    label: 'Draft',
+    description: 'A row someone is still assembling; not yet put in front of the client.',
+  },
+  {
+    key: 'internal_revisions',
+    label: 'Internal Revisions',
+    description: 'Pulled back for internal changes before it faces the client again.',
+  },
 ] as const satisfies readonly StatusEntry[];
 
 /**
@@ -323,6 +333,8 @@ export function creatorStatusTone(value: string): ChipTone {
     due_shipment: 'warn',
     filming_in_progress: 'accent',
     video_delivered: 'ok',
+    draft: 'mute',
+    internal_revisions: 'warn',
   };
   return isCreatorStatus(value) ? tones[value] : 'mute';
 }

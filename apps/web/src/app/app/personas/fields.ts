@@ -86,7 +86,9 @@ export const PERSONA_FIELDS: readonly PersonaField[] = PERSONA_FIELD_GROUPS.flat
 /** The human label and chip tone of each of Breakthrough Advertising's five stages. */
 const STAGE_PRESENTATION: Record<AwarenessStage, { label: string; tone: ChipTone }> = {
   unaware: { label: 'Unaware', tone: 'mute' },
+  unaware_to_problem_aware: { label: 'Unaware → Problem Aware', tone: 'warn' },
   problem_aware: { label: 'Problem Aware', tone: 'warn' },
+  problem_aware_to_solution_aware: { label: 'Problem Aware → Solution Aware', tone: 'info' },
   solution_aware: { label: 'Solution Aware', tone: 'info' },
   product_aware: { label: 'Product Aware', tone: 'info' },
   most_aware: { label: 'Most Aware', tone: 'ok' },

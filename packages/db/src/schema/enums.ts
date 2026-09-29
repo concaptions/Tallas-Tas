@@ -35,7 +35,11 @@ export const brandStatusEnum = pgEnum('brand_status', brandStatuses);
  */
 export const awarenessStages = [
   'unaware',
+  // Airtable's two transition options: a persona can sit BETWEEN stages, and the client's real
+  // records use these ranges, so the enum carries them between their endpoints (sprint 2026-09-29).
+  'unaware_to_problem_aware',
   'problem_aware',
+  'problem_aware_to_solution_aware',
   'solution_aware',
   'product_aware',
   'most_aware',
@@ -177,7 +181,14 @@ export const creativePriorities = [
 export type CreativePriority = (typeof creativePriorities)[number];
 
 /** Where the finished ad is placed (`creative_briefs.platform`), PRD §5.10. */
-export const creativePlatforms = ['Meta', 'Google', 'TikTok', 'YouTube', 'Website'] as const;
+export const creativePlatforms = [
+  'Meta',
+  'Google',
+  'TikTok',
+  'Pushowl',
+  'YouTube',
+  'Website',
+] as const;
 export type CreativePlatform = (typeof creativePlatforms)[number];
 
 /** How the ad did once live (`creative_briefs.performance`), PRD §5.10; null until it has run. */

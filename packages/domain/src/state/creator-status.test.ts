@@ -49,6 +49,8 @@ describe('the three creator tracks', () => {
       'due_shipment',
       'filming_in_progress',
       'video_delivered',
+      'draft',
+      'internal_revisions',
     ]);
     expect(CREATOR_ASSETS_STATUS_KEYS).toEqual([
       'pending_for_cs_approval',
@@ -67,6 +69,8 @@ describe('the three creator tracks', () => {
       'Due Shipment',
       'Filming In Progress',
       'Video Delivered',
+      'Draft',
+      'Internal Revisions',
     ]);
     expect(CREATOR_INTERNAL_STATUS.map((entry) => entry.label)).toEqual([
       'Request',

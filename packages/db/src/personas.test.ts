@@ -49,7 +49,7 @@ async function seeded(): Promise<{ db: PgliteDb; brandId: string; otherBrandId: 
 }
 
 describe('migration 0002 on PGlite', () => {
-  it('applies, creating the awareness_stage enum with the five PRD §5.4 stages', async () => {
+  it('applies, creating the awareness_stage enum: the five PRD §5.4 stages plus the two Airtable transitions', async () => {
     const db = await testDb();
 
     const { rows } = await db.execute<{ enumlabel: string }>(
@@ -60,7 +60,9 @@ describe('migration 0002 on PGlite', () => {
     expect(rows.map((row) => row.enumlabel)).toEqual([...awarenessStages]);
     expect(awarenessStages).toEqual([
       'unaware',
+      'unaware_to_problem_aware',
       'problem_aware',
+      'problem_aware_to_solution_aware',
       'solution_aware',
       'product_aware',
       'most_aware',

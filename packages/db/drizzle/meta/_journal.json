@@ -260,6 +260,13 @@
       "idx": 36,
       "when": 1790876400000,
       "tag": "0036_client-asset-folders"
+    },
+    {
+      "version": "7",
+      "breakpoints": true,
+      "idx": 37,
+      "when": 1790962800000,
+      "tag": "0037_awareness-transition-stages"
     }
   ]
 }
