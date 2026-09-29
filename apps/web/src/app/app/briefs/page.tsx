@@ -104,12 +104,24 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
     };
   });
 
+  // The Overview's metric cards land here with `?status=` (internal key) or `?client=` (client
+  // key) — a filtered table view (TASK 6). Keys, never labels, so the filter cannot drift.
+  const statusParam =
+    typeof params.status === 'string' && params.status !== '' ? params.status : null;
+  const clientParam =
+    typeof params.client === 'string' && params.client !== '' ? params.client : null;
+  const visibleItems = items.filter(
+    (item) =>
+      (statusParam === null || item.kanbanFields.internalStatus === statusParam) &&
+      (clientParam === null || item.kanbanFields.clientStatus === clientParam),
+  );
+
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
 
   return (
     <BriefsWorkspace
-      items={items}
+      items={visibleItems}
       demo={demo}
       initialSearch={initialSearch}
       initialView={initialView}

@@ -10,9 +10,11 @@ import {
 } from '@tas/ui';
 
 import { AccountSummary } from '@/components/account-summary';
+import { MetricCards } from '@/components/overview/metric-cards';
+import { PipelineChart } from '@/components/overview/pipeline-chart';
 import { RoleDashboardSection } from '@/components/role-dashboard';
 import { Icon, type IconName } from '@/components/shell/icons';
-import { loadRoleDashboard } from '@/lib/dashboard-source';
+import { loadOverviewPanels } from '@/lib/dashboard-source';
 import { loadActiveRole, loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { anglesPath, conceptsPath, personasPath, themesPath } from '@/lib/routes';
@@ -37,9 +39,9 @@ export default async function OverviewPage() {
   const role = await loadActiveRole();
   // Independent reads: awaited together, not one after the other. All share the request's
   // connection and its once-per-request brand resolution.
-  const [{ brand, counts }, dashboard] = await Promise.all([
+  const [{ brand, counts }, { dashboard, metrics, pipeline }] = await Promise.all([
     loadOverview(),
-    loadRoleDashboard(role),
+    loadOverviewPanels(role),
   ]);
 
   const cards: readonly SectionCard[] = [
@@ -88,6 +90,10 @@ export default async function OverviewPage() {
               : 'Everything briefed for this brand.'}
         </p>
       </header>
+
+      <MetricCards cards={metrics} />
+
+      <PipelineChart steps={pipeline} />
 
       <RoleDashboardSection dashboard={dashboard} />
 

@@ -102,6 +102,11 @@ import {
   CopyStatusChipsStory,
 } from './copywriting.stories';
 import { RoleDashboardAdminStory, RoleDashboardMediaBuyerStory } from './role-dashboard.stories';
+import {
+  OverviewMetricsAdminStory,
+  OverviewMetricsEditorStory,
+  OverviewPipelineStory,
+} from './overview.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
@@ -989,6 +994,15 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex-1">
             <RoleDashboardMediaBuyerStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <OverviewMetricsAdminStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <OverviewMetricsEditorStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <OverviewPipelineStory />
           </div>
         </div>
       </Section>

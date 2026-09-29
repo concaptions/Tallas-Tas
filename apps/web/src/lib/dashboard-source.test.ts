@@ -7,6 +7,9 @@ import {
   hasSpellingIssues,
   loadRoleDashboard,
   roleDashboard,
+  buildOverviewMetrics,
+  buildPipeline,
+  overviewMetrics,
 } from './dashboard-source';
 
 describe('hasSpellingIssues', () => {
@@ -127,8 +130,13 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
         brief({ internalStatus: 'approved', clientStatus: 'approved' }),
         brief({ internalStatus: 'launched' }),
       ],
-      concepts: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }],
+      concepts: [
+        { id: 'c1', approvalStatus: null },
+        { id: 'c2', approvalStatus: null },
+        { id: 'c3', approvalStatus: null },
+      ],
       copy: [{ status: 'pending_for_client_review' }, { status: 'approved' }],
+      creators: [{ clientStatus: 'draft' }],
     };
 
     const buyer = buildRoleDashboard('media_buyer', data);
@@ -143,7 +151,7 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
   });
 
   it('is empty-counted for empty data, never a fixture count', () => {
-    const empty = buildRoleDashboard('admin', { briefs: [], concepts: [], copy: [] });
+    const empty = buildRoleDashboard('admin', { briefs: [], concepts: [], copy: [], creators: [] });
     for (const item of empty.items) {
       expect(item.count).toBe(0);
     }
@@ -154,5 +162,95 @@ describe('loadRoleDashboard', () => {
   it('is the fixtures in demo mode, matching the sync demo dashboard', async () => {
     const live = await loadRoleDashboard('admin', { demoMode: () => true });
     expect(live).toEqual(roleDashboard('admin'));
+  });
+});
+
+describe('overview metric cards (TASK 6)', () => {
+  const data = {
+    briefs: [
+      // clientStatus pinned off the pending value: the fixture default IS pending_for_approval,
+      // and the awaiting_client card must count exactly the one brief the test marks.
+      brief({ internalStatus: 'sent_to_video_editor', clientStatus: 'approved' }),
+      brief({ internalStatus: 'sent_to_designer', clientStatus: 'approved' }),
+      brief({ internalStatus: 'video_editing_in_progress', clientStatus: 'approved' }),
+      brief({ internalStatus: 'static_design_in_progress', clientStatus: 'approved' }),
+      brief({ internalStatus: 'ad_submitted', clientStatus: 'approved' }),
+      brief({ internalStatus: 'approved', clientStatus: 'pending_for_approval' }),
+    ],
+    concepts: [
+      { id: 'c1', approvalStatus: null },
+      { id: 'c2', approvalStatus: 'pending_client' },
+      { id: 'c3', approvalStatus: 'approved' },
+    ],
+    copy: [],
+    creators: [
+      { clientStatus: null },
+      { clientStatus: 'pending_for_approval' },
+      { clientStatus: 'draft' },
+      { clientStatus: 'approved' },
+    ],
+  };
+
+  it('admin sees all eight cards, counted with the domain keys', () => {
+    const cards = buildOverviewMetrics('admin', data);
+    expect(cards.map((c) => c.key)).toEqual([
+      'concepts_pending',
+      'creators_pending',
+      'sent_to_video_editor',
+      'sent_to_designer',
+      'video_editing_in_progress',
+      'static_design_in_progress',
+      'ad_submitted',
+      'awaiting_client',
+    ]);
+    expect(cards.map((c) => c.count)).toEqual([2, 3, 1, 1, 1, 1, 1, 1]);
+  });
+
+  it('brief cards click through to the table already filtered by KEY, never a label', () => {
+    const cards = buildOverviewMetrics('admin', data);
+    expect(cards.find((c) => c.key === 'sent_to_video_editor')?.href).toBe(
+      '/app/briefs?status=sent_to_video_editor&view=grid',
+    );
+    expect(cards.find((c) => c.key === 'awaiting_client')?.href).toBe(
+      '/app/briefs?client=pending_for_approval&view=grid',
+    );
+  });
+
+  it('scopes the set to the role: editor gets three video cards, client only the client one', () => {
+    expect(buildOverviewMetrics('video_editor', data).map((c) => c.key)).toEqual([
+      'sent_to_video_editor',
+      'video_editing_in_progress',
+      'ad_submitted',
+    ]);
+    expect(buildOverviewMetrics('client', data).map((c) => c.key)).toEqual(['awaiting_client']);
+  });
+
+  it('renders over the demo fixtures without throwing, eight cards for admin', () => {
+    expect(overviewMetrics('admin')).toHaveLength(8);
+  });
+});
+
+describe('buildPipeline (TASK 6)', () => {
+  it('walks the video ladder then the static-only steps, and the counts sum to the briefs', () => {
+    const briefs = [
+      brief({ internalStatus: 'sent_to_video_editor' }),
+      brief({ internalStatus: 'sent_to_designer' }),
+      brief({ internalStatus: 'launched' }),
+    ];
+    const steps = buildPipeline(briefs);
+    expect(steps.map((s) => s.key)).toEqual([
+      'sent_to_video_editor',
+      'video_editing_in_progress',
+      'ad_submitted',
+      'videos_revisions',
+      'revisions_submitted',
+      'approved',
+      'launched',
+      'sent_to_designer',
+      'static_design_in_progress',
+      'images_revisions',
+    ]);
+    expect(steps.reduce((sum, s) => sum + s.count, 0)).toBe(briefs.length);
+    expect(steps.find((s) => s.key === 'sent_to_designer')?.count).toBe(1);
   });
 });

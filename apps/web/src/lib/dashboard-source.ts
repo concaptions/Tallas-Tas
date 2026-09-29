@@ -1,12 +1,21 @@
 import type { BriefListRow } from '@tas/db';
-import { demoBriefs, demoConcepts, demoCopy } from '@tas/db';
+import { demoBriefs, demoConcepts, demoCopy, demoCreators } from '@tas/db';
 import type { BrandRole } from '@tas/domain';
 import { BRAND_ROLE_LABELS } from '@tas/domain';
+import { INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS } from '@tas/domain/state';
 
 import { loadBriefs, type BriefSourceDeps } from './briefs-source';
 import { loadConcepts } from './concepts-source';
 import { loadCopy } from './copy-source';
-import { anglesPath, briefsPath, conceptsPath, copywritingPath, internalQueuePath } from './routes';
+import {
+  anglesPath,
+  briefsPath,
+  conceptsPath,
+  copywritingPath,
+  internalQueuePath,
+  ugcPath,
+} from './routes';
+import { loadUgc } from './ugc-source';
 
 export interface DashboardItem {
   readonly label: string;
@@ -28,8 +37,10 @@ export interface RoleDashboard {
  */
 export interface DashboardData {
   readonly briefs: readonly BriefListRow[];
-  readonly concepts: readonly { readonly id: string }[];
+  readonly concepts: readonly { readonly id: string; readonly approvalStatus: string | null }[];
   readonly copy: readonly { readonly status: string }[];
+  /** The creator's CLIENT-facing track (`client_status`), the one 'Creators Pending' counts. */
+  readonly creators: readonly { readonly clientStatus: string | null }[];
 }
 
 function briefsIn(briefs: readonly BriefListRow[], statuses: readonly string[]): number {
@@ -175,7 +186,147 @@ const DEMO_DASHBOARD_DATA: DashboardData = {
   briefs: demoBriefs,
   concepts: demoConcepts,
   copy: demoCopy,
+  creators: demoCreators,
 };
+
+// ── Overview metric cards (TASK 6) ──────────────────────────────────────────
+
+export interface MetricCard {
+  readonly key: string;
+  readonly emoji: string;
+  readonly label: string;
+  readonly count: number;
+  readonly href: string;
+}
+
+/**
+ * The eight pipeline cards, counted with the domain's own KEYS — never a label string — and each
+ * linking to the table view already filtered to what it counted (`?status=` / `?client=` on the
+ * Briefs table). The two non-brief cards land on their tables unfiltered: pending is those
+ * tables' resting state.
+ */
+function allMetricCards(data: DashboardData): MetricCard[] {
+  const { briefs, concepts, creators } = data;
+  const briefHref = (param: 'status' | 'client', key: string) =>
+    `${briefsPath}?${param}=${key}&view=grid`;
+  return [
+    {
+      key: 'concepts_pending',
+      emoji: '💡',
+      label: 'Concepts Pending',
+      count: concepts.filter(
+        (c) => c.approvalStatus === null || c.approvalStatus === 'pending_client',
+      ).length,
+      href: conceptsPath,
+    },
+    {
+      key: 'creators_pending',
+      emoji: '🎬',
+      label: 'Creators Pending',
+      count: creators.filter(
+        (c) =>
+          c.clientStatus === null ||
+          c.clientStatus === 'pending_for_approval' ||
+          c.clientStatus === 'draft',
+      ).length,
+      href: ugcPath,
+    },
+    {
+      key: 'sent_to_video_editor',
+      emoji: '📹',
+      label: 'Sent to Video Editor',
+      count: briefsIn(briefs, ['sent_to_video_editor']),
+      href: briefHref('status', 'sent_to_video_editor'),
+    },
+    {
+      key: 'sent_to_designer',
+      emoji: '🎨',
+      label: 'Sent to Designer',
+      count: briefsIn(briefs, ['sent_to_designer']),
+      href: briefHref('status', 'sent_to_designer'),
+    },
+    {
+      key: 'video_editing_in_progress',
+      emoji: '⚡',
+      label: 'Videos in Progress',
+      count: briefsIn(briefs, ['video_editing_in_progress']),
+      href: briefHref('status', 'video_editing_in_progress'),
+    },
+    {
+      key: 'static_design_in_progress',
+      emoji: '🖌️',
+      label: 'Designs in Progress',
+      count: briefsIn(briefs, ['static_design_in_progress']),
+      href: briefHref('status', 'static_design_in_progress'),
+    },
+    {
+      key: 'ad_submitted',
+      emoji: '👀',
+      label: 'Awaiting Internal Review',
+      count: briefsIn(briefs, ['ad_submitted']),
+      href: briefHref('status', 'ad_submitted'),
+    },
+    {
+      key: 'awaiting_client',
+      emoji: '📨',
+      label: 'Awaiting Client Review',
+      count: briefs.filter((b) => b.clientStatus === 'pending_for_approval').length,
+      href: briefHref('client', 'pending_for_approval'),
+    },
+  ];
+}
+
+/** Which of the eight cards each role scans for. Admin, CSM and strategist run the whole pipeline. */
+const CARD_KEYS_BY_ROLE: Record<BrandRole | 'admin', readonly string[] | 'all'> = {
+  admin: 'all',
+  csm: 'all',
+  strategist: 'all',
+  video_editor: ['sent_to_video_editor', 'video_editing_in_progress', 'ad_submitted'],
+  designer: ['sent_to_designer', 'static_design_in_progress', 'ad_submitted'],
+  media_buyer: ['ad_submitted', 'awaiting_client'],
+  client: ['awaiting_client'],
+};
+
+/** The role's cards over whichever data it is handed — pure, demo or live. */
+export function buildOverviewMetrics(role: BrandRole | 'admin', data: DashboardData): MetricCard[] {
+  const cards = allMetricCards(data);
+  const keys = CARD_KEYS_BY_ROLE[role];
+  return keys === 'all' ? cards : cards.filter((card) => keys.includes(card.key));
+}
+
+// ── Pipeline chart (TASK 6) ─────────────────────────────────────────────────
+
+export interface PipelineStep {
+  readonly key: string;
+  readonly label: string;
+  readonly count: number;
+}
+
+/**
+ * Briefs per internal status, in ladder order: the video track's seven steps, with the static
+ * track's track-specific steps merged in after their video analogues (the rest are shared).
+ * Every brief rests at exactly one step, so the counts sum to the brief count.
+ */
+export function buildPipeline(briefs: readonly BriefListRow[]): PipelineStep[] {
+  const seen = new Set<string>();
+  const ladder: { key: string; label: string }[] = [];
+  for (const track of [INTERNAL_VIDEO_STATUS, INTERNAL_STATIC_STATUS]) {
+    for (const step of track) {
+      if (seen.has(step.key)) continue;
+      seen.add(step.key);
+      ladder.push({ key: step.key, label: step.label });
+    }
+  }
+  return ladder.map((step) => ({
+    ...step,
+    count: briefs.filter((b) => b.internalStatus === step.key).length,
+  }));
+}
+
+/** The demo metrics, synchronously — for the design-system story and the unit tests. */
+export function overviewMetrics(role: BrandRole | 'admin'): MetricCard[] {
+  return buildOverviewMetrics(role, DEMO_DASHBOARD_DATA);
+}
 
 /** The role's tiles over whichever data it is handed — the one pure builder, demo or live. */
 export function buildRoleDashboard(role: BrandRole | 'admin', data: DashboardData): RoleDashboard {
@@ -206,18 +357,42 @@ export function roleDashboard(role: BrandRole | 'admin'): RoleDashboard {
  * duplicating three brand-scoped queries into this module. `loadBriefs` returns `BriefRow`, a
  * `BriefListRow` plus a derived `track`, which satisfies `DashboardData.briefs` structurally.
  */
+export interface OverviewPanels {
+  readonly dashboard: RoleDashboard;
+  readonly metrics: MetricCard[];
+  readonly pipeline: PipelineStep[];
+}
+
 export async function loadRoleDashboard(
   role: BrandRole | 'admin',
   deps: BriefSourceDeps = {},
 ): Promise<RoleDashboard> {
-  const [briefs, concepts, copy] = await Promise.all([
+  return (await loadOverviewPanels(role, deps)).dashboard;
+}
+
+/**
+ * Everything the Overview's role-aware sections render — the role tiles, the eight metric cards
+ * and the pipeline chart — over ONE load of the four tables, so the page never reads briefs twice.
+ */
+export async function loadOverviewPanels(
+  role: BrandRole | 'admin',
+  deps: BriefSourceDeps = {},
+): Promise<OverviewPanels> {
+  const [briefs, concepts, copy, creators] = await Promise.all([
     loadBriefs(deps),
     loadConcepts(deps),
     loadCopy(deps),
+    loadUgc(deps),
   ]);
-  return buildRoleDashboard(role, {
+  const data: DashboardData = {
     briefs: briefs.rows,
     concepts: concepts.rows,
     copy: copy.rows,
-  });
+    creators: creators.creators,
+  };
+  return {
+    dashboard: buildRoleDashboard(role, data),
+    metrics: buildOverviewMetrics(role, data),
+    pipeline: buildPipeline(data.briefs),
+  };
 }

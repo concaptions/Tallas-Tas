@@ -38,6 +38,25 @@ test.describe('demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('body')).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   });
 
+  test('the pipeline cards count the fixtures and click through to the filtered table (TASK 6)', async ({
+    page,
+  }) => {
+    await page.goto(appPath);
+
+    // Eight cards for the demo visitor (admin scope), and the chart below them.
+    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(8);
+    await expect(page.locator('[data-slot="overview-pipeline"]')).toBeVisible();
+
+    // The card carries the fixture count and lands on the Briefs table already filtered.
+    const card = page.locator('[data-slot="overview-metric"][data-metric="sent_to_video_editor"]');
+    const count = Number(await card.locator('[data-slot="overview-metric-count"]').innerText());
+    await card.click();
+    await expect(page).toHaveURL(/\/app\/briefs\?status=sent_to_video_editor&view=grid$/, {
+      timeout: 45_000,
+    });
+    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(count, { timeout: 45_000 });
+  });
+
   test('the design system page is reachable without a session', async ({ page }) => {
     await page.goto('/design-system');
 
