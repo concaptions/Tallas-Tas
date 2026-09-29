@@ -173,13 +173,24 @@ export interface ConceptItem {
   readonly name: string;
   readonly batch: string | null;
   readonly angleName: string | null;
+  /** Inherited THROUGH the angle (first linked persona/product), never stored on the concept. */
+  readonly personaName: string | null;
+  readonly productName: string | null;
   readonly themeName: string | null;
   readonly status: ConceptStatusView;
   readonly href: string;
 }
 
-/** The table's five columns, in the one order the ticket fixes. */
-export const CONCEPT_COLUMNS = ['Name', 'Batch', 'Angle', 'Theme', 'Internal Status'] as const;
+/** The table's seven columns: Persona and Product ride along from the angle (TASK 5). */
+export const CONCEPT_COLUMNS = [
+  'Name',
+  'Batch',
+  'Angle',
+  'Persona',
+  'Product',
+  'Theme',
+  'Internal Status',
+] as const;
 
 /** How the header counts what is on screen. Singular at one, never "1 concepts". */
 export function conceptCountLabel(count: number): string {
@@ -209,6 +220,8 @@ export function matchesQuery(item: ConceptItem, query: string): boolean {
     item.name,
     item.batch ?? '',
     item.angleName ?? '',
+    item.personaName ?? '',
+    item.productName ?? '',
     item.themeName ?? '',
     item.status.label,
   ].some((value) => value.toLowerCase().includes(query));

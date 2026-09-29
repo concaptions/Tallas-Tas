@@ -10,12 +10,15 @@ import {
   type CreatorInput,
   type CreatorListRow,
 } from './creators';
+import { getConceptById } from './concepts';
 import {
   DEMO_BRAND_ID,
   PARTNERSHIP_REFERENCE_DATE,
+  demoConcepts,
   demoCreators,
   demoPartnershipCreators,
 } from './demo-data';
+import { syncCreatorConcepts } from './junction-queries';
 import { creators, type Creator } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
@@ -246,6 +249,24 @@ describe('creator queries', () => {
       updatedBy: 'user_test',
     });
     expect(own?.updatedAt.getTime()).toBeGreaterThan(target.updatedAt.getTime());
+  });
+});
+
+describe('the creator ↔ concept junction (TASK 5)', () => {
+  it('reads conceptIds from the junction, so a synced link survives a reload on both sides', async () => {
+    const { db, brandId } = await seeded();
+    const tomas = (await listCreators(db, brandId)).find((c) => c.name === 'Tomás Ferreira');
+    if (tomas === undefined) throw new Error('seed lost Tomás');
+    expect(tomas.conceptIds).toEqual([]);
+
+    const target = demoConcepts[0];
+    if (target === undefined) throw new Error('no demo concept');
+    await syncCreatorConcepts(db, tomas.id, [target.id]);
+
+    // The exact read the UGC panel re-opens with — the junction, never the legacy jsonb column.
+    expect((await getCreatorById(db, brandId, tomas.id))?.conceptIds).toEqual([target.id]);
+    // And the concept detail sees the same pairing from its side.
+    expect((await getConceptById(db, brandId, target.id))?.creatorIds).toContain(tomas.id);
   });
 });
 

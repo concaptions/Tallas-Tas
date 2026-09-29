@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { creators, type Creator, type NewCreator } from './schema';
+import { loadAllCreatorConcepts, loadAllCreatorProducts } from './junction-queries';
 import { withBrand } from './tenancy';
 
 /**
@@ -37,14 +38,35 @@ export type CreatorInput = Omit<NewCreator, ManagedColumn>;
  * It is the row and nothing else — there is no joined column today, because PRD §5.8's links
  * (Concepts to film, Products, Raw assets) are not in this ticket. The alias exists anyway, and is
  * what everything outside this package names, for the reason `PersonaListRow` does: `demoCreators`
- * satisfies `CreatorListRow[]`, so a page reads demo fixtures and database rows through ONE type,
- * and the day a link lands the joined column is added here rather than in every consumer.
+ * satisfies `CreatorListRow[]`, so a page reads demo fixtures and database rows through ONE type.
+ *
+ * `conceptIds`/`productIds` are read from the `creator_concepts`/`creator_products` junction
+ * tables, which is where the UGC panel's save writes them (`syncCreatorConcepts`). The identically
+ * named jsonb columns on `creators` are a legacy shape nothing writes; overriding them here is what
+ * makes a saved link survive a reload.
  */
 export type CreatorListRow = Creator;
 
+function withLinks(
+  row: Creator,
+  conceptMap: Map<string, string[]>,
+  productMap: Map<string, string[]>,
+): CreatorListRow {
+  return {
+    ...row,
+    conceptIds: conceptMap.get(row.id) ?? [],
+    productIds: productMap.get(row.id) ?? [],
+  };
+}
+
 /** The brand's live creators, newest edit first. */
 export async function listCreators(db: Db, brandId: string): Promise<CreatorListRow[]> {
-  return withBrand(db, brandId).select(creators).orderBy(desc(creators.updatedAt));
+  const [rows, conceptMap, productMap] = await Promise.all([
+    withBrand(db, brandId).select(creators).orderBy(desc(creators.updatedAt)),
+    loadAllCreatorConcepts(db),
+    loadAllCreatorProducts(db),
+  ]);
+  return rows.map((row) => withLinks(row, conceptMap, productMap));
 }
 
 /**
@@ -58,9 +80,14 @@ export async function listCreators(db: Db, brandId: string): Promise<CreatorList
  * whether a row has lapsed is `daysUntilPartnershipExpiry` in `packages/domain`, not a filter here.
  */
 export async function listPartnershipCreators(db: Db, brandId: string): Promise<CreatorListRow[]> {
-  return withBrand(db, brandId)
-    .select(creators, eq(creators.forPartnershipAds, true))
-    .orderBy(desc(creators.updatedAt));
+  const [rows, conceptMap, productMap] = await Promise.all([
+    withBrand(db, brandId)
+      .select(creators, eq(creators.forPartnershipAds, true))
+      .orderBy(desc(creators.updatedAt)),
+    loadAllCreatorConcepts(db),
+    loadAllCreatorProducts(db),
+  ]);
+  return rows.map((row) => withLinks(row, conceptMap, productMap));
 }
 
 /** One live creator of the brand, or null: another brand's id never resolves. */
@@ -70,7 +97,12 @@ export async function getCreatorById(
   id: string,
 ): Promise<CreatorListRow | null> {
   const [row] = await withBrand(db, brandId).select(creators, eq(creators.id, id)).limit(1);
-  return row ?? null;
+  if (row === undefined) return null;
+  const [conceptMap, productMap] = await Promise.all([
+    loadAllCreatorConcepts(db),
+    loadAllCreatorProducts(db),
+  ]);
+  return withLinks(row, conceptMap, productMap);
 }
 
 /** Creates a creator in the scope; `brand_id` is the scope's, whatever `values` says. */

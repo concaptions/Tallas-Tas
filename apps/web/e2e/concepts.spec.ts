@@ -6,7 +6,7 @@ import { conceptPath, conceptsPath } from '../src/lib/routes';
 /**
  * The Concepts route with no environment variables at all — the Vercel deployment as it stands.
  * The middleware lets the route through, the data source serves the in-repo fixtures, and both
- * pages are fully usable read-only: four concepts in a five-column table, the same four grouped on
+ * pages are fully usable read-only: four concepts in a seven-column table, the same four grouped on
  * a board, a real detail route with a generated name that is not a field, five inherited fields
  * that are not editable, the two-track rail with the client bar shut, and every write disabled with
  * a reason.
@@ -26,7 +26,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/concepts needs a session and real data',
   );
 
-  test('opens on the table, with the five columns in order and the four fixtures', async ({
+  test('opens on the table, with the seven columns in order and the four fixtures', async ({
     page,
   }) => {
     await page.goto(conceptsPath);
@@ -39,10 +39,14 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
     await expect(page.locator('[data-slot="concept-board"]')).toHaveCount(0);
 
+    // TASK 5: Persona and Product ride along from the linked angle, so the table carries seven
+    // columns now — an intentional UX change, updated with the feature.
     await expect(page.locator('[data-slot="concepts-table"] thead th')).toHaveText([
       'Name',
       'Batch',
       'Angle',
+      'Persona',
+      'Product',
       'Theme',
       'Internal Status',
     ]);

@@ -124,6 +124,18 @@ const CONCEPT_GRID_COLUMNS: readonly GridColumn<ConceptItem>[] = [
     render: (item) => item.angleName ?? <span className="text-text4">{EM_DASH}</span>,
   },
   {
+    key: 'persona',
+    header: 'Persona',
+    sortValue: (item) => item.personaName,
+    render: (item) => item.personaName ?? <span className="text-text4">{EM_DASH}</span>,
+  },
+  {
+    key: 'product',
+    header: 'Product',
+    sortValue: (item) => item.productName,
+    render: (item) => item.productName ?? <span className="text-text4">{EM_DASH}</span>,
+  },
+  {
     key: 'theme',
     header: 'Theme',
     sortValue: (item) => item.themeName,

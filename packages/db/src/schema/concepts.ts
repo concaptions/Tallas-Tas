@@ -22,8 +22,9 @@ export const CONCEPT_CLIENT_STATUS_DEFAULT = 'pending_for_approval';
 /**
  * One Angle paired with one Theme (PRD §5.7). `name` is the auto-generated `Batch-Angle-Theme`
  * string (CLAUDE.md non-negotiable 6) and is never typed by hand; the formula itself belongs to
- * `packages/domain`. `theme_id` points at the global theme library, which carries no brand, and
- * both links are nullable — a concept can be drafted before either is chosen.
+ * `packages/domain`. The angle and theme links live in the `concept_angles` and `concept_themes`
+ * junction tables (`junction-tables.ts`), not as columns here, and both are optional — a concept
+ * can be drafted before either is chosen.
  *
  * `formats` and `ad_inspo_links` are `jsonb` arrays, not pg enum arrays, exactly as on `angles`:
  * PRD §5.7 makes Formats a multi-select, so a row carries a set. `formats` shares the `angleFormats`

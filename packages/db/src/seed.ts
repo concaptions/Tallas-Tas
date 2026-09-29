@@ -43,6 +43,8 @@ import {
   conceptAngles,
   conceptCollections,
   conceptThemes,
+  creatorConcepts,
+  creatorProducts,
   concepts,
   copywriting,
   creativeBriefs,
@@ -415,6 +417,16 @@ export async function seed(db: Db): Promise<SeedResult> {
     .returning();
 
   const seededCreators = await scope.insert(creators, demoCreators.map(scoped)).returning();
+
+  // The creator ↔ concept pairing, junction-expressed like the angle and concept links above.
+  const crRows = demoCreators.flatMap((c) =>
+    c.conceptIds.map((conceptId) => ({ creatorId: c.id, conceptId })),
+  );
+  const cpRows = demoCreators.flatMap((c) =>
+    c.productIds.map((productId) => ({ creatorId: c.id, productId })),
+  );
+  if (crRows.length > 0) await db.insert(creatorConcepts).values(crRows);
+  if (cpRows.length > 0) await db.insert(creatorProducts).values(cpRows);
 
   const seededAssets = await scope.insert(assets, demoAssets.map(scoped)).returning();
 

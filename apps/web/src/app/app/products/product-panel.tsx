@@ -165,6 +165,22 @@ export function ProductPanel({ product, demo, onClose, onSaved }: ProductPanelPr
                     </span>
                   </div>
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">
+                    Linked angles
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2" data-slot="product-angles">
+                    {product.angleNames.length === 0 ? (
+                      <span className="text-xs text-text3">
+                        No angle points at this product yet. Link one from the angle&apos;s panel.
+                      </span>
+                    ) : (
+                      product.angleNames.map((angleName) => (
+                        <StatusChip key={angleName} tone="info" label={angleName} />
+                      ))
+                    )}
+                  </div>
+                </div>
               </section>
             )}
           </div>

@@ -220,6 +220,40 @@ export async function loadAllConceptAngles(db: Db): Promise<Map<string, string[]
   return map;
 }
 
+export async function loadAllCreatorConcepts(db: Db): Promise<Map<string, string[]>> {
+  const rows = await db.select().from(creatorConcepts);
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const existing = map.get(r.creatorId);
+    if (existing) existing.push(r.conceptId);
+    else map.set(r.creatorId, [r.conceptId]);
+  }
+  return map;
+}
+
+export async function loadAllCreatorProducts(db: Db): Promise<Map<string, string[]>> {
+  const rows = await db.select().from(creatorProducts);
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const existing = map.get(r.creatorId);
+    if (existing) existing.push(r.productId);
+    else map.set(r.creatorId, [r.productId]);
+  }
+  return map;
+}
+
+/** The concept side of `creator_concepts` — the same rows as `loadAllCreatorConcepts`, keyed the other way. */
+export async function loadAllConceptCreators(db: Db): Promise<Map<string, string[]>> {
+  const rows = await db.select().from(creatorConcepts);
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const existing = map.get(r.conceptId);
+    if (existing) existing.push(r.creatorId);
+    else map.set(r.conceptId, [r.creatorId]);
+  }
+  return map;
+}
+
 export async function loadAllConceptThemes(db: Db): Promise<Map<string, string[]>> {
   const rows = await db.select().from(conceptThemes);
   const map = new Map<string, string[]>();

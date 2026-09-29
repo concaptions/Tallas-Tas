@@ -25,6 +25,8 @@ function item(id: string, status: (typeof INTERNAL_VIDEO_STATUS)[number]['key'])
     name: `B1-Angle-Theme-${id}`,
     batch: 'B1',
     angleName: 'Angle',
+    personaName: null,
+    productName: null,
     themeName: 'Theme',
     status: internalStatusView('video', status),
     href: `/app/concepts/${id}`,
@@ -171,7 +173,15 @@ describe('the page contract', () => {
   });
 
   it('names the five table columns in the ticket order', () => {
-    expect(CONCEPT_COLUMNS).toEqual(['Name', 'Batch', 'Angle', 'Theme', 'Internal Status']);
+    expect(CONCEPT_COLUMNS).toEqual([
+      'Name',
+      'Batch',
+      'Angle',
+      'Persona',
+      'Product',
+      'Theme',
+      'Internal Status',
+    ]);
   });
 
   it('names the three blocks of the detail page in order', () => {

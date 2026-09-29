@@ -207,6 +207,7 @@ export const demoProducts: ProductListRow[] = [
     link: 'https://niagarasleep.example/products/deep-sleep-weighted-blanket',
     collectionLink: 'https://niagarasleep.example/collections/sleep-essentials',
     conceptCount: 2,
+    angleNames: ['It Is Not Just Your Age', 'Your Body Clock Is Not Broken'],
   },
   {
     ...propagationBase(PRODUCT_MASK_ID, '2026-08-02T09:05:00.000Z', '2026-09-09T11:30:00.000Z'),
@@ -215,6 +216,7 @@ export const demoProducts: ProductListRow[] = [
     link: 'https://niagarasleep.example/products/cooling-blackout-sleep-mask',
     collectionLink: null,
     conceptCount: 2,
+    angleNames: ['Make 9am Look Like 3am', 'Sleep In The Ninety Minutes You Actually Get'],
   },
   {
     ...propagationBase(
@@ -227,6 +229,7 @@ export const demoProducts: ProductListRow[] = [
     link: 'https://niagarasleep.example/products/night-reset-bundle',
     collectionLink: 'https://niagarasleep.example/collections/shift-worker-sleep-kit',
     conceptCount: 0,
+    angleNames: ['Nobody Wins The Thermostat Argument'],
   },
 ];
 
@@ -672,6 +675,7 @@ function pairing(
     batch,
     angleIds: [angle.id],
     themeIds: [theme.id],
+    creatorIds: [],
     collectionIds,
     name: conceptName(batch, angle, theme),
     angleName: angle.name,
@@ -720,6 +724,7 @@ export const demoConcepts: ConceptListRow[] = [
       [COLLECTION_BFCM_ID],
       'BFCM 2026 Collection',
     ),
+    creatorIds: [CREATOR_DANIELLE_ID],
     category: 'New',
     conceptStyle: 'Editing',
     formats: ['Video', 'Static'],
@@ -751,6 +756,7 @@ export const demoConcepts: ConceptListRow[] = [
       [COLLECTION_BFCM_ID, COLLECTION_SUMMER_ID],
       'BFCM 2026 Collection',
     ),
+    creatorIds: [CREATOR_DANIELLE_ID],
     category: 'New',
     conceptStyle: 'Filming',
     formats: ['Video', 'Static'],
@@ -772,6 +778,7 @@ export const demoConcepts: ConceptListRow[] = [
     ...propagationBase(CONCEPT_DAYLIGHT_ID, '2026-08-27T15:30:00.000Z', '2026-09-09T08:50:00.000Z'),
     brandId: DEMO_BRAND_ID,
     ...pairing('B2', daylight, demoTheme(THEME_POV_ID), [], null),
+    creatorIds: [CREATOR_MARCUS_ID],
     category: 'Iteration',
     conceptStyle: 'AI Concept',
     formats: ['Motion Graphic', 'Video'],
@@ -800,6 +807,7 @@ export const demoConcepts: ConceptListRow[] = [
       [COLLECTION_SUMMER_ID],
       'Summer Cooling Collection',
     ),
+    creatorIds: [CREATOR_PRIYA_ID],
     category: 'Iteration',
     conceptStyle: 'Filming',
     formats: ['Video', 'Carousel'],
@@ -1652,7 +1660,7 @@ export const demoCreators: CreatorListRow[] = [
     clientNote:
       'She is the one. Keep her on the night-shift angles and do not put her in anything menopause-adjacent — different audience, and she is thirty.',
     rawAssetsUrl: null,
-    conceptIds: [],
+    conceptIds: [CONCEPT_BODY_CLOCK_ID, CONCEPT_NOT_YOUR_AGE_ID],
     productIds: [],
     instagramUsername: '@danielle.sleeps.late',
     forPartnershipAds: true,
@@ -1696,7 +1704,7 @@ export const demoCreators: CreatorListRow[] = [
     internalAssetsStatus: 'pending_for_cs_approval',
     clientNote: null,
     rawAssetsUrl: null,
-    conceptIds: [],
+    conceptIds: [CONCEPT_DAYLIGHT_ID],
     productIds: [],
     instagramUsername: '@marcus.after.midnight',
     forPartnershipAds: true,
@@ -1742,7 +1750,7 @@ export const demoCreators: CreatorListRow[] = [
     clientNote:
       'Love her, but the second cut has the brand name in the first two seconds and the first one did not. That is the whole difference. Send it back and ask for the cold open.',
     rawAssetsUrl: null,
-    conceptIds: [],
+    conceptIds: [CONCEPT_NINETY_MINUTES_ID],
     productIds: [],
     instagramUsername: '@priya.at.3am',
     forPartnershipAds: true,

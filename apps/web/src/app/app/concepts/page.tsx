@@ -42,6 +42,8 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     name: row.name,
     batch: row.batch,
     angleName: row.angleName,
+    personaName: row.personaName,
+    productName: row.productName,
     themeName: row.themeName,
     status: internalStatusView(CONCEPT_TRACK, row.internalStatus),
     href: conceptPath(row.id),

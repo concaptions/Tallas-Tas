@@ -25,7 +25,7 @@ export type ProductInput = Omit<NewProduct, ManagedColumn>;
  * concepts of the brand whose angle points at this product. `demoProducts` satisfies
  * `ProductListRow[]`, so the page reads demo fixtures and database rows through one type.
  */
-export type ProductListRow = Product & { conceptCount: number };
+export type ProductListRow = Product & { conceptCount: number; angleNames: string[] };
 
 /**
  * `productId -> live concept count`, counted in TypeScript over junction table lookups.
@@ -37,7 +37,13 @@ export type ProductListRow = Product & { conceptCount: number };
  * widened. Junction tables are loaded in bulk; an angle with no linked products simply contributes
  * to no product's count.
  */
-async function conceptCounts(db: Db, scope: BrandScope): Promise<Map<string, number>> {
+interface LinkedWork {
+  counts: Map<string, number>;
+  /** productId -> the live angles that point at it, in the angles' own order. */
+  angleNames: Map<string, string[]>;
+}
+
+async function linkedWork(db: Db, scope: BrandScope): Promise<LinkedWork> {
   const [brandConcepts, brandAngles, conceptAngleMap, angleProductMap] = await Promise.all([
     scope.select(concepts),
     scope.select(angles),
@@ -56,17 +62,33 @@ async function conceptCounts(db: Db, scope: BrandScope): Promise<Map<string, num
       }
     }
   }
-  return counts;
+  // The same junction, read the other way round: which live angles point at each product. This is
+  // the products side of Angles ↔ Products, so the panel can NAME the angles, not just count hops.
+  const angleNames = new Map<string, string[]>();
+  for (const angle of brandAngles) {
+    for (const productId of angleProductMap.get(angle.id) ?? []) {
+      const names = angleNames.get(productId) ?? [];
+      names.push(angle.name);
+      angleNames.set(productId, names);
+    }
+  }
+  // Alphabetical, because the scoped read carries no ORDER BY and heap order is not a contract.
+  for (const names of angleNames.values()) names.sort((a, b) => a.localeCompare(b));
+  return { counts, angleNames };
 }
 
-/** The brand's live products, newest edit first, each with its linked concept count. */
+/** The brand's live products, newest edit first, each with its linked concept count and angles. */
 export async function listProducts(db: Db, brandId: string): Promise<ProductListRow[]> {
   const scope = withBrand(db, brandId);
-  const [rows, counts] = await Promise.all([
+  const [rows, linked] = await Promise.all([
     scope.select(products).orderBy(desc(products.updatedAt)),
-    conceptCounts(db, scope),
+    linkedWork(db, scope),
   ]);
-  return rows.map((row) => ({ ...row, conceptCount: counts.get(row.id) ?? 0 }));
+  return rows.map((row) => ({
+    ...row,
+    conceptCount: linked.counts.get(row.id) ?? 0,
+    angleNames: linked.angleNames.get(row.id) ?? [],
+  }));
 }
 
 /** One live product of the brand, with its concept count, or null: another brand's id never resolves. */
@@ -78,7 +100,12 @@ export async function getProductById(
   const scope = withBrand(db, brandId);
   const [row] = await scope.select(products, eq(products.id, id)).limit(1);
   if (row === undefined) return null;
-  return { ...row, conceptCount: (await conceptCounts(db, scope)).get(row.id) ?? 0 };
+  const linked = await linkedWork(db, scope);
+  return {
+    ...row,
+    conceptCount: linked.counts.get(row.id) ?? 0,
+    angleNames: linked.angleNames.get(row.id) ?? [],
+  };
 }
 
 /** Creates a product in the scope; `brand_id` is the scope's, whatever `values` says. */
