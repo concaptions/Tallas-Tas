@@ -1,8 +1,8 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { sql } from 'drizzle-orm';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 import { serverEnv } from '@tas/env';
 
@@ -12,35 +12,52 @@ import {
   type AirtableExport,
   type ImportWarnings,
 } from '../airtable-import';
-import { createAutoDb } from '../db';
+import { createAutoDb, type Db } from '../db';
 
 /**
- * Prod lags the repo's journal (verified 2026-09-29: 33 of 38 applied; the import needs 0036's
- * client_asset_folders and 0037's enum values). A LIVE run applies them properly — recorded in
- * drizzle's journal table — BEFORE the import transaction. A DRY run instead executes the missing
- * files' SQL inside the same transaction as the import, so the preview is faithful and the
- * rollback leaves the schema untouched. (`ALTER TYPE … ADD VALUE` runs in-tx on PG12+; the new
- * values are not used by any imported row, so the same-transaction restriction never bites.)
+ * Prod's DDL is AHEAD of its migration journal in places (verified 2026-09-29: `launched_at`
+ * exists with no 0033 journal row), so neither a journal count nor drizzle's own migrator can
+ * apply the tail cleanly. This applies every journal entry newer than the last recorded one,
+ * statement by statement inside a SAVEPOINT, tolerating "already exists" (42701/42P07/42710) —
+ * and then records the journal row exactly as drizzle would (sha256 of the file, the journal
+ * timestamp). Runs inside the import transaction: a dry run rolls all of it back.
  */
-async function applyPendingMigrationsInTx(tx: {
-  execute: (q: ReturnType<typeof sql.raw>) => Promise<unknown>;
-}): Promise<string[]> {
+async function applyPendingMigrations(tx: Db): Promise<string[]> {
   const journal = JSON.parse(
     readFileSync(path.join('drizzle', 'meta', '_journal.json'), 'utf-8'),
-  ) as {
-    entries: { tag: string }[];
-  };
-  const appliedRes = (await tx.execute(
-    sql.raw('SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations'),
-  )) as { rows?: { n: number }[] };
-  const applied = appliedRes.rows?.[0]?.n ?? 0;
-  const pending = journal.entries.slice(applied);
+  ) as { entries: { tag: string; when: number }[] };
+  const latestRes = (await tx.execute(
+    sql.raw(
+      'SELECT coalesce(max(created_at), 0)::bigint AS latest FROM drizzle.__drizzle_migrations',
+    ),
+  )) as { rows?: { latest: string | number }[] };
+  const latest = Number(latestRes.rows?.[0]?.latest ?? 0);
+  const pending = journal.entries.filter((entry) => entry.when > latest);
+
   for (const entry of pending) {
     const file = readFileSync(path.join('drizzle', `${entry.tag}.sql`), 'utf-8');
     for (const statement of file.split('--> statement-breakpoint')) {
       const trimmed = statement.trim();
-      if (trimmed.length > 0) await tx.execute(sql.raw(trimmed));
+      if (trimmed.length === 0) continue;
+      try {
+        await tx.transaction(async (sp) => {
+          await sp.execute(sql.raw(trimmed));
+        });
+      } catch (e) {
+        const code = (e as { cause?: { code?: string } }).cause?.code;
+        if (code === '42701' || code === '42P07' || code === '42710') {
+          console.log(`  [migrations] already in place, skipping: ${trimmed.slice(0, 80)}`);
+          continue;
+        }
+        throw e;
+      }
     }
+    const hash = createHash('sha256').update(file).digest('hex');
+    await tx.execute(
+      sql.raw(
+        `INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('${hash}', ${String(entry.when)})`,
+      ),
+    );
   }
   return pending.map((entry) => entry.tag);
 }
@@ -128,11 +145,6 @@ async function main(): Promise<void> {
   // update and junction write against the real database and then rolls the transaction back, so
   // the printed report is exactly what a live run would commit; a live run that fails anywhere
   // rolls back the same way and leaves nothing half-imported.
-  if (!dryRun) {
-    // Recorded properly in drizzle's journal table; additive DDL only (0033–0037).
-    await migrate(db, { migrationsFolder: 'drizzle' });
-  }
-
   const warnings = emptyWarnings();
   // A property, not a `let`: TS does not flow-narrow closure assignments, and a plain variable
   // would read as always-null after the transaction callback.
@@ -141,11 +153,11 @@ async function main(): Promise<void> {
   };
   try {
     await db.transaction(async (tx) => {
-      if (dryRun) {
-        const previewed = await applyPendingMigrationsInTx(tx);
-        if (previewed.length > 0)
-          console.log(`\n[DRY RUN] previewing pending migrations: ${previewed.join(', ')}`);
-      }
+      const migrated = await applyPendingMigrations(tx);
+      if (migrated.length > 0)
+        console.log(
+          `\n${dryRun ? '[DRY RUN] previewing' : 'Applying'} pending migrations: ${migrated.join(', ')}`,
+        );
       run.results = await importAirtableExport(
         tx,
         data,
