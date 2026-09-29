@@ -100,14 +100,16 @@ export const conceptApprovalStatuses = [
 export type ConceptApprovalStatus = (typeof conceptApprovalStatuses)[number];
 
 /**
- * Production lifecycle of a concept (`concepts.production_status`), Airtable v5.1.
+ * Production lifecycle of a concept (`concepts.production_status`) — the six options the
+ * Airtable base actually carries (sprint 2026-09-29 schema sync).
  */
 export const conceptProductionStatuses = [
-  'not_started',
-  'scripting',
-  'filming',
-  'in_edit',
-  'ready',
+  'to_do',
+  'in_progress',
+  'filming_in_progress',
+  'sent_to_design',
+  'done',
+  'launched',
 ] as const;
 export type ConceptProductionStatus = (typeof conceptProductionStatuses)[number];
 

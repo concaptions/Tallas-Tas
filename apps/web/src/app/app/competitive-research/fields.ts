@@ -28,12 +28,7 @@ export interface CompetitiveResearchFieldGroup {
 }
 
 /** `type` is presented as a select, but the column is plain text — free entry stays possible. */
-export const COMPETITIVE_RESEARCH_TYPE_OPTIONS: readonly string[] = [
-  'Direct Competitor',
-  'Indirect Competitor',
-  'Aspirational Competitor',
-  'Adjacent Market',
-];
+export const COMPETITIVE_RESEARCH_TYPE_OPTIONS: readonly string[] = ['Competitor', 'Inspiration'];
 
 /** The two headings the panel renders, in this order, and nothing else is editable. */
 export const COMPETITIVE_RESEARCH_FIELD_GROUPS: readonly CompetitiveResearchFieldGroup[] = [

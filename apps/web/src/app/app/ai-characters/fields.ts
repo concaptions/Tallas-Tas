@@ -25,14 +25,18 @@ export type AiCharacterFieldName =
   | 'workAndBackground'
   | 'whyPromotesBrand';
 
-export type AiCharacterStatus = 'active' | 'draft' | 'archived';
+export type AiCharacterStatus = 'draft' | 'pending_for_approval' | 'approved';
 
-export const AI_CHARACTER_STATUSES: readonly AiCharacterStatus[] = ['active', 'draft', 'archived'];
+export const AI_CHARACTER_STATUSES: readonly AiCharacterStatus[] = [
+  'draft',
+  'pending_for_approval',
+  'approved',
+];
 
 const STATUS_PRESENTATION: Record<AiCharacterStatus, { label: string; tone: ChipTone }> = {
-  active: { label: 'Active', tone: 'ok' },
   draft: { label: 'Draft', tone: 'mute' },
-  archived: { label: 'Archived', tone: 'bad' },
+  pending_for_approval: { label: 'Pending for Approval', tone: 'info' },
+  approved: { label: 'Approved', tone: 'ok' },
 };
 
 /** The three statuses in their canonical order, ready for the Select and the table's chip. */
@@ -58,7 +62,7 @@ export function aiCharacterStatusTone(status: string): ChipTone {
 export interface AiCharacterField {
   readonly name: AiCharacterFieldName;
   readonly label: string;
-  /** `input` is one line, `textarea` is prose, `status` is the active/draft/archived Select. */
+  /** `input` is one line, `textarea` is prose, `status` is the draft/pending-for-approval/approved Select. */
   readonly kind: 'input' | 'textarea' | 'status';
 }
 

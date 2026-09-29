@@ -52,11 +52,12 @@ export interface ConceptProductionStatusEntry {
 }
 
 export const CONCEPT_PRODUCTION_STATUSES = [
-  { key: 'not_started', label: 'Not Started' },
-  { key: 'scripting', label: 'Scripting' },
-  { key: 'filming', label: 'Filming' },
-  { key: 'in_edit', label: 'In Edit' },
-  { key: 'ready', label: 'Ready' },
+  { key: 'to_do', label: 'To Do' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'filming_in_progress', label: 'Filming in Progress' },
+  { key: 'sent_to_design', label: 'Sent to Design' },
+  { key: 'done', label: 'Done' },
+  { key: 'launched', label: 'Launched' },
 ] as const satisfies readonly { key: string; label: string }[];
 
 export type ConceptProductionStatusKey = (typeof CONCEPT_PRODUCTION_STATUSES)[number]['key'];
