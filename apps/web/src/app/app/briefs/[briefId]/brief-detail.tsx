@@ -4,7 +4,12 @@ import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { creativeNameForConcept } from '@tas/domain/creatives';
-import type { ClientStatusKey, CreativeTrack, InternalStatusKey } from '@tas/domain/state';
+import type {
+  ChipTone,
+  ClientStatusKey,
+  CreativeTrack,
+  InternalStatusKey,
+} from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -21,7 +26,7 @@ import {
   TwoTrackApproval,
 } from '@tas/ui';
 
-import { briefsPath } from '@/lib/routes';
+import { briefsPath, copywritingPath } from '@/lib/routes';
 
 import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '../actions';
 import { runSpellCheckAction, type SpellCheckActionResult } from '../spell-check-action';
@@ -63,6 +68,8 @@ export interface BriefValues {
   readonly name: string;
   readonly source: string;
   readonly conceptId: string | null;
+  readonly designFileUrl: string | null;
+  readonly platform: readonly string[];
   readonly batch: string | null;
   readonly funnel: string;
   readonly type: string;
@@ -101,6 +108,16 @@ interface BriefDetailProps {
   readonly concept: BriefConceptCard | null;
   /** Every concept of the brand, for moving this brief between concepts (TASK 5). */
   readonly conceptOptions: readonly { readonly id: string; readonly name: string }[];
+  /** The linked collection's and asset's names, resolved on the server; null when unlinked. */
+  readonly collectionName: string | null;
+  readonly assetName: string | null;
+  /** The Meta Copywriting rows tied to this brief, precomputed views (TABLE 7 parity). */
+  readonly copyLinks: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly statusLabel: string;
+    readonly statusTone: ChipTone;
+  }[];
   /** Which internal ladder this brief is graded on, carried on the row by `briefs-source`. */
   readonly track: CreativeTrack;
   readonly internal: InternalStatusKey;
@@ -145,6 +162,9 @@ export function BriefDetail({
   brief,
   concept,
   conceptOptions,
+  collectionName,
+  assetName,
+  copyLinks,
   track,
   internal,
   client,
@@ -300,6 +320,8 @@ export function BriefDetail({
 
             {fact(BRIEF_HEADINGS.assignee, brief.assignee, 'brief-assignee')}
             {fact(BRIEF_HEADINGS.type, creativeTypeLabel(brief.type), 'brief-type')}
+            {fact(BRIEF_HEADINGS.source, brief.source, 'brief-source')}
+            {fact(BRIEF_HEADINGS.funnel, brief.funnel, 'brief-funnel')}
 
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label
@@ -384,6 +406,45 @@ export function BriefDetail({
                 : `${String(brief.scriptAndBriefBreakdown.length)} attachment(s)`,
               'brief-script-and-brief-breakdown',
             )}
+
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="text-[11px] tracking-wide text-text3 uppercase">
+                {BRIEF_HEADINGS.designLinkUrl}
+              </span>
+              {brief.designFileUrl === null ? (
+                <span data-slot="brief-design-link" className="text-sm text-text4">
+                  {EM_DASH}
+                </span>
+              ) : (
+                <a
+                  href={brief.designFileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-slot="brief-design-link"
+                  className="text-sm break-all text-accent underline-offset-2 hover:underline"
+                >
+                  {brief.designFileUrl}
+                </a>
+              )}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="text-[11px] tracking-wide text-text3 uppercase">
+                {BRIEF_HEADINGS.platform}
+              </span>
+              <span className="flex flex-wrap gap-1.5" data-slot="brief-platform">
+                {brief.platform.length === 0 ? (
+                  <span className="text-sm text-text4">{EM_DASH}</span>
+                ) : (
+                  brief.platform.map((platform) => (
+                    <StatusChip key={platform} tone="mute" label={platform} />
+                  ))
+                )}
+              </span>
+            </div>
+
+            {fact(BRIEF_HEADINGS.collection, collectionName, 'brief-collection')}
+            {fact(BRIEF_HEADINGS.asset, assetName, 'brief-asset')}
           </section>
 
           <section data-slot="brief-centre" className="flex min-w-0 flex-col gap-5">
@@ -542,6 +603,35 @@ export function BriefDetail({
         than a placeholder that would have to be thrown away: when the audit trail lands it appends
         `<li>` rows into this same scrollable list and the empty state simply stops rendering.
       */}
+      <section className="flex flex-col gap-2" data-slot="brief-copywriting">
+        <h2 className="text-sm font-medium text-text2">{BRIEF_HEADINGS.metaCopywriting}</h2>
+        {copyLinks.length === 0 ? (
+          <p className="text-xs leading-relaxed text-text3" data-slot="brief-copywriting-empty">
+            No copywriting is tied to this creative yet.
+          </p>
+        ) : (
+          <ol className="flex flex-col gap-1.5" data-slot="brief-copywriting-list">
+            {copyLinks.map((copy) => (
+              <li key={copy.id}>
+                <Link
+                  href={`${copywritingPath}?copy=${copy.id}`}
+                  data-slot="brief-copy-link"
+                  data-copy-id={copy.id}
+                  className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2 transition-colors hover:border-accent-line hover:bg-surface3"
+                >
+                  <span className="text-xs break-words text-text2">{copy.label}</span>
+                  <StatusChip
+                    tone={copy.statusTone}
+                    label={copy.statusLabel}
+                    className="self-start"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
       <section
         data-slot="brief-activity"
         aria-labelledby="brief-activity-heading"

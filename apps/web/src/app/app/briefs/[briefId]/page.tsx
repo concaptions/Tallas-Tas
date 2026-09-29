@@ -1,7 +1,12 @@
 import { notFound } from 'next/navigation';
 
+import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
+
+import { loadAssets } from '@/lib/assets-source';
 import { loadBriefById } from '@/lib/briefs-source';
+import { loadCollections } from '@/lib/collections-source';
 import { loadConcepts } from '@/lib/concepts-source';
+import { loadCopy } from '@/lib/copy-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { conceptPath } from '@/lib/routes';
 
@@ -27,11 +32,36 @@ interface BriefPageProps {
 
 export default async function BriefPage({ params }: BriefPageProps) {
   const { briefId } = await params;
-  const [{ brief }, conceptRows] = await Promise.all([loadBriefById(briefId), loadConcepts()]);
+  const [{ brief }, conceptRows, collectionRows, assetRows, copyRows] = await Promise.all([
+    loadBriefById(briefId),
+    loadConcepts(),
+    loadCollections(),
+    loadAssets(),
+    loadCopy(),
+  ]);
   if (brief === null) {
     notFound();
   }
   const demo = isDemoMode();
+
+  // TABLE 7 parity (TASK 8): the linked collection's and asset's names, and the Meta Copywriting
+  // rows whose creative_brief_id points here — all resolved on the server, views precomputed.
+  const collectionName =
+    brief.collectionId === null
+      ? null
+      : (collectionRows.rows.find((row) => row.id === brief.collectionId)?.name ?? null);
+  const assetName =
+    brief.assetId === null
+      ? null
+      : (assetRows.rows.find((row) => row.id === brief.assetId)?.filename ?? null);
+  const copyLinks = copyRows.rows
+    .filter((row) => row.creativeBriefId === brief.id)
+    .map((row) => ({
+      id: row.id,
+      label: row.headline ?? row.primaryCopy ?? 'Untitled copy',
+      statusLabel: copyStatusLabel(row.status),
+      statusTone: copyStatusTone(row.status),
+    }));
 
   // Every concept of the brand, so the detail can move a brief between concepts (TASK 5). The
   // save recomputes the generated name from whichever concept is chosen.
@@ -59,6 +89,8 @@ export default async function BriefPage({ params }: BriefPageProps) {
     name: brief.name,
     source: brief.source,
     conceptId: brief.conceptId,
+    designFileUrl: brief.designFileUrl,
+    platform: brief.platform,
     batch: brief.batch,
     funnel: brief.funnel,
     type: brief.type,
@@ -94,6 +126,9 @@ export default async function BriefPage({ params }: BriefPageProps) {
       brief={values}
       concept={concept}
       conceptOptions={conceptOptions}
+      collectionName={collectionName}
+      assetName={assetName}
+      copyLinks={copyLinks}
       track={brief.track}
       internal={brief.internalStatus}
       client={brief.clientStatus}
