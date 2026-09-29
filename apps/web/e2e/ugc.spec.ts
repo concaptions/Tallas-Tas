@@ -29,9 +29,17 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('UGC Management');
     await expect(page.locator('[data-slot="ugc-tabs"]')).toBeVisible();
-    await expect(page.locator('[data-slot="tabs-trigger"]')).toHaveText([
+    // Sprint 5 multi-view architecture: the Creators panel now mounts a ViewSwitcher whose
+    // Grid/Kanban/Gallery triggers share `data-slot="tabs-trigger"`, so the workspace tabs are the
+    // ones carrying `data-tab` and the view triggers are the ones without it.
+    await expect(page.locator('[data-slot="tabs-trigger"][data-tab]')).toHaveText([
       'Creators',
       'Partnership Ads',
+    ]);
+    await expect(page.locator('[data-slot="tabs-trigger"]:not([data-tab])')).toHaveText([
+      'Grid',
+      'Kanban',
+      'Gallery',
     ]);
 
     const cards = page.locator('[data-slot="creator-card"]');
