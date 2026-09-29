@@ -6,13 +6,16 @@ import { themesPath } from '../src/lib/routes';
 /**
  * The Themes route with no environment variables at all — the Vercel deployment as it stands.
  * The middleware lets the route through, the data source serves the in-repo fixtures, and the page
- * is fully usable read-only: the GLOBAL badge, six cards across the three categories, two filters
- * that live in the URL, an empty state that says so in words, and every write disabled with a
- * reason.
+ * is fully usable read-only: the GLOBAL badge, five active cards across the three categories,
+ * two filters that live in the URL, an empty state that says so in words, and every write
+ * disabled with a reason.
  *
  * The fixtures are `demoThemes` in `packages/db/src/demo-data.ts`: six themes, newest edit first,
- * two per category, and exactly one of them (Problem/Solution) actually used by a brand — so the
- * singular "Used by 1 brand" appears once and "Used by no brands yet" five times.
+ * two per category. One of them (Spring x Soccer, Seasonal) is `isActive: false`, and the
+ * workspace now splits the library into Active/Archived tabs that open on Active — so the grid
+ * shows FIVE cards by default and the sixth sits behind the Archived tab. Four active themes are
+ * each used by the one demo brand ("Used by 1 brand"), leaving Holiday Gifting as the only active
+ * worded zero.
  */
 const PROBLEM_SOLUTION = 'Problem/Solution';
 
@@ -46,7 +49,7 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     expect(badgeBox?.y ?? 0).toBeLessThan(headingBox?.y ?? 0);
   });
 
-  test('renders the six fixtures as cards, never a table, each with its chip and usage line', async ({
+  test('renders the five active fixtures as cards, never a table, each with its chip and usage line', async ({
     page,
   }) => {
     await page.goto(themesPath);
@@ -54,12 +57,16 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Themes');
     await expect(page.locator('table')).toHaveCount(0);
 
+    // The library now opens on an Active/Archived tab split. Spring x Soccer is the one archived
+    // fixture, so the default Active tab shows five of the six cards and counts both tabs.
     const cards = page.locator('[data-slot="theme-card"]');
-    await expect(cards).toHaveCount(6);
+    await expect(cards).toHaveCount(5);
+    await expect(page.locator('[data-slot="tab-active"]')).toHaveText('Active (5)');
+    await expect(page.locator('[data-slot="tab-archived"]')).toHaveText('Archived (1)');
 
     // Every card carries a category chip and a usage line; neither is ever blank.
     await expect(cards.locator('[data-slot="status-chip"]').first()).toBeVisible();
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       const card = cards.nth(index);
       await expect(card.locator('[data-slot="status-chip"]').first()).not.toHaveText('');
       await expect(card.locator('[data-slot="theme-usage"]')).not.toHaveText('');
@@ -67,17 +74,18 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
 
     // Zero reads as words, never "0 brands"; a used theme reads singular. The demo brand's four
     // concepts sit on four different themes, and the aggregate counts distinct BRANDS, so four cards
-    // read "Used by 1 brand" and the remaining two read the worded zero.
+    // read "Used by 1 brand". The other worded zero (Spring x Soccer) is archived, leaving
+    // Holiday Gifting as the only zero on the Active tab.
     const used = cards.filter({ hasText: PROBLEM_SOLUTION });
     await expect(used.locator('[data-slot="theme-usage"]')).toHaveText('Used by 1 brand');
     await expect(page.getByText('Used by 1 brand')).toHaveCount(4);
-    await expect(page.getByText('Used by no brands yet')).toHaveCount(2);
+    await expect(page.getByText('Used by no brands yet')).toHaveCount(1);
     await expect(page.getByText('0 brands')).toHaveCount(0);
     await expect(page.getByText('Used by 4 brands')).toHaveCount(0);
 
     // The count line is the platform's, not the brand's — the point of a global library.
     await expect(page.locator('[data-slot="theme-count"]')).toHaveText(
-      '6 themes across the whole platform',
+      '5 themes across the whole platform',
     );
 
     // The reference links are host-only chips, so a swipe-file URL cannot widen a card.
@@ -117,11 +125,12 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
       page.locator('[data-slot="category-filter"][data-category="Production Style"]'),
     ).toHaveAttribute('aria-pressed', 'true');
 
+    // Spring x Soccer is archived, so Holiday Gifting is the only Seasonal card on the Active tab.
     await page.locator('[data-slot="category-filter"][data-category="Seasonal"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(1);
 
     await page.locator('[data-slot="category-filter"][data-category="All"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(5);
     await expect(page).not.toHaveURL(/category=/);
   });
 
@@ -132,8 +141,10 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
 
     await page.locator('[data-slot="theme-search"]').fill('green');
     await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(1);
+    // The narrowed total is the Active tab's five, not the library's six: the archived
+    // Spring x Soccer fixture is not part of the grid being filtered.
     await expect(page.locator('[data-slot="theme-count"]')).toHaveText(
-      '1 of 6 themes across the whole platform',
+      '1 of 5 themes across the whole platform',
     );
     await expect(page).toHaveURL(/\?q=green/);
 
@@ -147,7 +158,7 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     await expect(empty).toContainText('No theme matches these filters');
 
     await empty.locator('[data-slot="clear-filters"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(6);
+    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(5);
     await expect(page).not.toHaveURL(/[?&](q|category)=/);
 
     // Both filters are URL-backed, so a narrowed library is a shareable link.
@@ -178,7 +189,8 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(themesPath);
 
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(6);
+    // Five cards: the Active tab hides the one archived fixture.
+    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(5);
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
