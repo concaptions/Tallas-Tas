@@ -42,13 +42,14 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="persona-panel-title"]')).toHaveText(name);
 
-    // All five groups, in the order the design specifies.
+    // The five field groups in design order, plus the TASK 5 read-only Linked angles section.
     await expect(panel.locator('[data-slot="persona-group-heading"]')).toHaveText([
       'Identity',
       'Desires',
       'Barriers',
       'Buying Behaviour',
       'Language',
+      'Linked angles',
     ]);
 
     // Open state is in the URL, so a refresh reopens it and the link is shareable.

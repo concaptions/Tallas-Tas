@@ -22,6 +22,8 @@ interface PersonasPageProps {
 
 export default async function PersonasPage({ searchParams }: PersonasPageProps) {
   const [{ rows }, params] = await Promise.all([loadPersonas(), searchParams]);
+  const requestedSearch = params.q;
+  const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
   const demo = isDemoMode();
   const now = new Date();
 
@@ -34,5 +36,12 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
   const requested = params.persona;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
 
-  return <PersonasWorkspace items={items} demo={demo} initialSelection={selection} />;
+  return (
+    <PersonasWorkspace
+      items={items}
+      demo={demo}
+      initialSelection={selection}
+      initialSearch={initialSearch}
+    />
+  );
 }

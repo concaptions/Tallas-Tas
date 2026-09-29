@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PersonaListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
-import { Button, StatusChip } from '@tas/ui';
+import { Button, Input, StatusChip } from '@tas/ui';
 
 import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
@@ -31,6 +31,8 @@ interface PersonasWorkspaceProps {
   readonly items: readonly PersonaItem[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
+  /** The `?q=` filter the page was opened with; `''` when there is none. */
+  readonly initialSearch: string;
   readonly initialView?: ViewType;
 }
 
@@ -47,6 +49,28 @@ function syncUrl(id: string | null): void {
     url.searchParams.set('persona', id);
   }
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+}
+
+/** Writes `?q=` the same way, so the filter survives a refresh and is a shareable link. */
+function syncSearch(query: string): void {
+  const url = new URL(window.location.href);
+  if (query === '') {
+    url.searchParams.delete('q');
+  } else {
+    url.searchParams.set('q', query);
+  }
+  window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+}
+
+/** The search reads what the grid shows: name, product, linked angles and the awareness stage. */
+function matches(item: PersonaItem, query: string): boolean {
+  const { persona } = item;
+  return [
+    persona.name,
+    persona.productName ?? '',
+    persona.angleNames.join(' '),
+    persona.stageOfAwareness === null ? '' : awarenessLabel(persona.stageOfAwareness),
+  ].some((value) => value.toLowerCase().includes(query));
 }
 
 /**
@@ -90,9 +114,11 @@ export function PersonasWorkspace({
   items,
   demo,
   initialSelection,
+  initialSearch,
   initialView = 'grid',
 }: PersonasWorkspaceProps) {
   const router = useRouter();
+  const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [activeView, setActiveView] = useState<ViewType>(initialView);
 
@@ -113,18 +139,29 @@ export function PersonasWorkspace({
     [router, select],
   );
 
+  const filter = useCallback((next: string) => {
+    setSearch(next);
+    syncSearch(next);
+  }, []);
+
+  const query = search.trim().toLowerCase();
+  const visible = useMemo(
+    () => (query === '' ? items : items.filter((item) => matches(item, query))),
+    [items, query],
+  );
+
   const open = items.find((item) => item.persona.id === selection)?.persona ?? null;
   const creating = selection === NEW_PERSONA;
 
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
-    return items.map(({ persona }) => ({
+    return visible.map(({ persona }) => ({
       id: persona.id,
       name: persona.name,
       groupValue: persona.stageOfAwareness ?? '',
       chipLabel: persona.stageOfAwareness ? awarenessLabel(persona.stageOfAwareness) : undefined,
       chipTone: persona.stageOfAwareness ? awarenessTone(persona.stageOfAwareness) : undefined,
     }));
-  }, [items]);
+  }, [visible]);
 
   const kanbanColumns = useMemo(() => {
     const seen = new Set<string>();
@@ -164,7 +201,9 @@ export function PersonasWorkspace({
         </div>
         <p className="text-sm text-text2">
           <span data-slot="persona-count">
-            {items.length} {items.length === 1 ? 'persona' : 'personas'}
+            {visible.length === items.length
+              ? `${String(items.length)} ${items.length === 1 ? 'persona' : 'personas'}`
+              : `${String(visible.length)} of ${String(items.length)} personas`}
           </span>{' '}
           — the research every angle is written from.
         </p>
@@ -175,13 +214,26 @@ export function PersonasWorkspace({
           <h2 id="personas-heading" className="text-sm font-medium text-text2">
             Library
           </h2>
-          <ViewSwitcher
-            tableKey="personas"
-            supportedViews={[...PERSONAS_CAP.supportedViews]}
-            activeView={activeView}
-            onViewChange={setActiveView}
-            kanbanGroupByField="stageOfAwareness"
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => {
+                filter(event.target.value);
+              }}
+              placeholder="Search name, product, angle or stage"
+              aria-label="Search personas"
+              data-slot="persona-search"
+              className="h-8 w-full sm:w-64"
+            />
+            <ViewSwitcher
+              tableKey="personas"
+              supportedViews={[...PERSONAS_CAP.supportedViews]}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              kanbanGroupByField="stageOfAwareness"
+            />
+          </div>
         </div>
         {activeView === 'kanban' ? (
           <KanbanBoard
@@ -195,7 +247,7 @@ export function PersonasWorkspace({
           <AirtableGrid
             tableKey="personas"
             columns={PERSONA_COLUMNS}
-            rows={items}
+            rows={visible}
             rowId={(item) => item.persona.id}
             rowLabel={(item) => item.persona.name}
             rowAttributes={(item) => ({ 'data-persona-id': item.persona.id })}
