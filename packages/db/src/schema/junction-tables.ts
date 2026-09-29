@@ -1,6 +1,8 @@
 import { pgTable, primaryKey, uuid } from 'drizzle-orm/pg-core';
 
 import { angles } from './angles';
+import { creativeBriefs } from './briefs';
+import { clientAssetFolders } from './client-asset-folders';
 import { collections } from './collections';
 import { concepts } from './concepts';
 import { creators } from './creators';
@@ -133,3 +135,23 @@ export type ConceptTheme = typeof conceptThemes.$inferSelect;
 export type AnglePersona = typeof anglePersonas.$inferSelect;
 export type AngleProduct = typeof angleProducts.$inferSelect;
 export type ConceptCollection = typeof conceptCollections.$inferSelect;
+
+/**
+ * Many-to-many: brief↔client-asset-folder (Airtable TABLE 7 "Assets" ↔ TABLE 14 "(Internal)
+ * Creative Design"). A brief points at the external folders its material lives in; the folder page
+ * reads the same rows back the other way.
+ */
+export const briefAssetFolders = pgTable(
+  'brief_asset_folders',
+  {
+    briefId: uuid('brief_id')
+      .notNull()
+      .references(() => creativeBriefs.id, { onDelete: 'cascade' }),
+    folderId: uuid('folder_id')
+      .notNull()
+      .references(() => clientAssetFolders.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.briefId, table.folderId] })],
+);
+
+export type BriefAssetFolder = typeof briefAssetFolders.$inferSelect;

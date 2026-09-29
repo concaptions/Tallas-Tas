@@ -35,3 +35,4 @@ export * from './themes';
 export * from './upload-links';
 export * from './users';
 export * from './view-preferences';
+export * from './client-asset-folders';
