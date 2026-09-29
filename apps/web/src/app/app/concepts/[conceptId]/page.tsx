@@ -2,16 +2,21 @@ import { notFound } from 'next/navigation';
 import { CONCEPT_CLIENT_STATUS_DEFAULT, CONCEPT_INTERNAL_STATUS_DEFAULT } from '@tas/db';
 
 import { loadAngles } from '@/lib/angles-source';
+import { loadBriefsByConceptId } from '@/lib/briefs-source';
 import { CONCEPT_TRACK, loadConceptById } from '@/lib/concepts-source';
 import { loadCreators } from '@/lib/ugc-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadThemes } from '@/lib/themes-source';
 
+import { briefPath } from '@/lib/routes';
+
+import { internalStatusView as briefStatusView } from '../../briefs/fields';
 import { NEW_CONCEPT } from '../fields';
 import {
   ConceptDetail,
   type AngleOption,
   type ConceptFormValues,
+  type ConceptCreativeItem,
   type CreatorOption,
   type ThemeOption,
 } from './concept-detail';
@@ -57,6 +62,20 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
     notFound();
   }
 
+  // The creatives already built on this concept (TASK 5: Briefs → Concepts, the concept side).
+  // Status views are computed here so the client component never touches the state machine.
+  const creativeRows = creating ? [] : (await loadBriefsByConceptId(conceptId)).rows;
+  const creatives: ConceptCreativeItem[] = creativeRows.map((row) => {
+    const status = briefStatusView(row.track, row.internalStatus);
+    return {
+      id: row.id,
+      name: row.name,
+      statusLabel: status.label,
+      statusTone: status.tone,
+      href: briefPath(row.id),
+    };
+  });
+
   const angles: AngleOption[] = angleRows.rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -90,12 +109,13 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
           approvalStatus: concept.approvalStatus,
           productionStatus: concept.productionStatus,
           formatsToCreate: concept.formatsToCreate,
-          creatorId: null,
+          creatorId: concept.creatorIds[0] ?? null,
         };
 
   return (
     <ConceptDetail
       concept={values}
+      creatives={creatives}
       angles={angles}
       themes={themes}
       creators={creators}

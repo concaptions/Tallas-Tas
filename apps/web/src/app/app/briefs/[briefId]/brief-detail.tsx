@@ -93,9 +93,14 @@ export interface BriefValues {
   readonly qaStrategist: boolean;
 }
 
+/** A value no uuid can be, so the Select can offer "Standalone" without an empty item value. */
+const STANDALONE_VALUE = 'standalone';
+
 interface BriefDetailProps {
   readonly brief: BriefValues;
   readonly concept: BriefConceptCard | null;
+  /** Every concept of the brand, for moving this brief between concepts (TASK 5). */
+  readonly conceptOptions: readonly { readonly id: string; readonly name: string }[];
   /** Which internal ladder this brief is graded on, carried on the row by `briefs-source`. */
   readonly track: CreativeTrack;
   readonly internal: InternalStatusKey;
@@ -136,7 +141,15 @@ const FORM_ID = 'brief-form';
  * changes nothing but the string in the browser, and watching the formula work is the one thing the
  * demo deployment exists to show.
  */
-export function BriefDetail({ brief, concept, track, internal, client, demo }: BriefDetailProps) {
+export function BriefDetail({
+  brief,
+  concept,
+  conceptOptions,
+  track,
+  internal,
+  client,
+  demo,
+}: BriefDetailProps) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<BriefActionResult | null, FormData>(
     updateBriefAction,
@@ -146,6 +159,7 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
     SpellCheckActionResult | null,
     FormData
   >(runSpellCheckAction, null);
+  const [conceptChoice, setConceptChoice] = useState(brief.conceptId ?? STANDALONE_VALUE);
   const [version, setVersion] = useState(String(brief.version));
 
   useEffect(() => {
@@ -210,7 +224,11 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
       <div className="grid min-w-0 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:grid-cols-[minmax(0,30fr)_minmax(0,45fr)_minmax(0,25fr)]">
         <form id={FORM_ID} action={formAction} className="contents">
           <input type="hidden" name="id" value={brief.id} />
-          <input type="hidden" name="conceptId" value={brief.conceptId ?? ''} />
+          <input
+            type="hidden"
+            name="conceptId"
+            value={conceptChoice === STANDALONE_VALUE ? '' : conceptChoice}
+          />
           <input type="hidden" name="funnel" value={brief.funnel} />
           <input type="hidden" name="type" value={brief.type} />
           <input type="hidden" name="batch" value={brief.batch ?? ''} />
@@ -230,19 +248,40 @@ export function BriefDetail({ brief, concept, track, internal, client, demo }: B
           <input type="hidden" name="spellingFeedback2" value={brief.spellingFeedback2 ?? ''} />
 
           <section data-slot="brief-left" className="flex min-w-0 flex-col gap-5">
+            <div className="flex min-w-0 flex-col gap-2">
+              <Label
+                htmlFor="brief-field-concept"
+                className="text-[11px] tracking-wide text-text3 uppercase"
+              >
+                {BRIEF_HEADINGS.concept}
+              </Label>
+              <Select value={conceptChoice} onValueChange={setConceptChoice} disabled={demo}>
+                <SelectTrigger
+                  id="brief-field-concept"
+                  className="w-full"
+                  aria-label={BRIEF_HEADINGS.concept}
+                  data-slot="brief-concept-select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={STANDALONE_VALUE}>{STANDALONE_CONCEPT_SLUG}</SelectItem>
+                  {conceptOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      <span className="font-mono text-xs">{option.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {concept === null ? (
               <div className="flex flex-col gap-2" data-slot="brief-concept-standalone">
-                <span className="text-[11px] tracking-wide text-text3 uppercase">
-                  {BRIEF_HEADINGS.concept}
-                </span>
                 <StatusChip tone="mute" label={STANDALONE_CONCEPT_SLUG} className="self-start" />
                 <p className="text-xs leading-relaxed text-text3">{STANDALONE_NOTE}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                <span className="text-[11px] tracking-wide text-text3 uppercase">
-                  {BRIEF_HEADINGS.concept}
-                </span>
                 <Link
                   href={concept.href}
                   data-slot="brief-concept"

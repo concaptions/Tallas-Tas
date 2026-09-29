@@ -9,7 +9,12 @@ import {
   validateConceptDraft,
   type InheritedAngle,
 } from '@tas/domain/concepts';
-import type { ClientStatusKey, CreativeTrack, InternalStatusKey } from '@tas/domain/state';
+import type {
+  ChipTone,
+  ClientStatusKey,
+  CreativeTrack,
+  InternalStatusKey,
+} from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -22,6 +27,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  StatusChip,
   Textarea,
   TwoTrackApproval,
 } from '@tas/ui';
@@ -87,9 +93,20 @@ export interface ConceptFormValues {
   readonly creatorId: string | null;
 }
 
+/** One creative built on this concept, precomputed on the server (no state machine in here). */
+export interface ConceptCreativeItem {
+  readonly id: string;
+  readonly name: string;
+  readonly statusLabel: string;
+  readonly statusTone: ChipTone;
+  readonly href: string;
+}
+
 interface ConceptDetailProps {
   /** `null` while creating: the same form, submitted to `createConceptAction`. */
   readonly concept: ConceptFormValues | null;
+  /** The briefs whose `concept_id` points here, empty while creating. */
+  readonly creatives: readonly ConceptCreativeItem[];
   readonly angles: readonly AngleOption[];
   readonly themes: readonly ThemeOption[];
   readonly creators: readonly CreatorOption[];
@@ -133,6 +150,7 @@ function linkRowsOf(concept: ConceptFormValues | null): string[] {
  */
 export function ConceptDetail({
   concept,
+  creatives,
   angles,
   themes,
   creators,
@@ -682,6 +700,42 @@ export function ConceptDetail({
         <aside data-slot="concept-rail" className="flex min-w-0 flex-col gap-3">
           <h2 className="text-sm font-medium text-text2">Approval</h2>
           <TwoTrackApproval track={track} internal={internal} client={client} clientOnly={false} />
+
+          {concept === null ? null : (
+            <section className="flex flex-col gap-2 pt-2" data-slot="concept-creatives">
+              <h2 className="text-sm font-medium text-text2">Creatives</h2>
+              {creatives.length === 0 ? (
+                <p
+                  className="text-xs leading-relaxed text-text3"
+                  data-slot="concept-creatives-empty"
+                >
+                  No creatives yet. A brief built on this concept will appear here.
+                </p>
+              ) : (
+                <ol className="flex flex-col gap-1.5" data-slot="concept-creatives-list">
+                  {creatives.map((creative) => (
+                    <li key={creative.id}>
+                      <Link
+                        href={creative.href}
+                        data-slot="concept-creative"
+                        data-brief-id={creative.id}
+                        className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2 transition-colors hover:border-accent-line hover:bg-surface3"
+                      >
+                        <span className="font-mono text-[11px] break-words text-text">
+                          {creative.name}
+                        </span>
+                        <StatusChip
+                          tone={creative.statusTone}
+                          label={creative.statusLabel}
+                          className="self-start"
+                        />
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          )}
         </aside>
       </div>
     </div>

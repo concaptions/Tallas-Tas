@@ -192,6 +192,31 @@ export async function loadBriefs(deps: BriefSourceDeps = {}): Promise<BriefListR
 }
 
 /**
+ * Every brief built ON one concept, newest edit first — the concept detail's "Creatives" list
+ * (TASK 5: Briefs → Concepts, read from the concept side). Same shape as `loadBriefs`, same
+ * demo/live split, filtered by the FK the brief stores.
+ */
+export async function loadBriefsByConceptId(
+  conceptId: string,
+  deps: BriefSourceDeps = {},
+): Promise<BriefListResult> {
+  if (inDemoMode(deps)) {
+    const rows = demoBriefs.filter((row) => row.conceptId === conceptId);
+    return { rows: rows.map(toBriefRow), source: 'demo' };
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    // `listBriefs` (not `listBriefsByConceptId`) because only the list read carries the joins
+    // `toBriefRow` narrows; a brand's briefs are one bounded read either way.
+    const rows = brandId === null ? [] : await listBriefs(db, brandId);
+    return {
+      rows: rows.filter((row) => row.conceptId === conceptId).map(toBriefRow),
+      source: 'database',
+    };
+  });
+}
+
+/**
  * One brief by id, or null — the detail page turns that null into `notFound()` rather than
  * crashing. In demo mode the fixtures are searched; the database is not touched.
  */

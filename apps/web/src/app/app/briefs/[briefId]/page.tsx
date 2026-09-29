@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { loadBriefById } from '@/lib/briefs-source';
+import { loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { conceptPath } from '@/lib/routes';
 
@@ -26,11 +27,15 @@ interface BriefPageProps {
 
 export default async function BriefPage({ params }: BriefPageProps) {
   const { briefId } = await params;
-  const { brief } = await loadBriefById(briefId);
+  const [{ brief }, conceptRows] = await Promise.all([loadBriefById(briefId), loadConcepts()]);
   if (brief === null) {
     notFound();
   }
   const demo = isDemoMode();
+
+  // Every concept of the brand, so the detail can move a brief between concepts (TASK 5). The
+  // save recomputes the generated name from whichever concept is chosen.
+  const conceptOptions = conceptRows.rows.map((row) => ({ id: row.id, name: row.name }));
 
   /**
    * The concept card, or `null` for the PRD §8 standalone. `conceptName` is the concept's own
@@ -88,6 +93,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
     <BriefDetail
       brief={values}
       concept={concept}
+      conceptOptions={conceptOptions}
       track={brief.track}
       internal={brief.internalStatus}
       client={brief.clientStatus}
