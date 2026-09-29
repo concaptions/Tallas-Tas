@@ -8,7 +8,9 @@ import {
   angleProducts,
   angles,
   campaignsOffers,
+  clientAssetFolders,
   collections,
+  competitiveResearch,
   conceptAngles,
   conceptCollections,
   concepts,
@@ -333,15 +335,48 @@ describe('importAirtableExport', () => {
     expect(rows[0]?.collectionId).toBe(coll?.id);
   });
 
-  it('is idempotent — running twice skips all records', async () => {
+  it('re-running UPSERTS: no duplicates, every existing row updated in place', async () => {
     const db = await seeded();
     await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
+    const before = (await db.select({ id: products.id }).from(products)).length;
     const results = await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
 
     expect(results.products?.imported).toBe(0);
-    expect(results.products?.skipped).toBe(2);
-    expect(results.themes?.skipped).toBe(1);
-    expect(results.campaignsOffers?.skipped).toBe(1);
+    expect(results.products?.updated).toBe(2);
+    expect(results.themes?.updated).toBe(1);
+    expect(results.campaignsOffers?.updated).toBe(1);
+    expect((await db.select({ id: products.id }).from(products)).length).toBe(before);
+  });
+
+  it('an upsert heals a field the first run mapped wrong', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
+    // Simulate the first import's damage: a blindly-normalized status key on the stored row.
+    const [row] = await db
+      .select({ id: concepts.id })
+      .from(concepts)
+      .where(eq(concepts.legacyAirtableId, 'at_concept_1'));
+    if (!row) throw new Error('concept missing');
+    await db
+      .update(concepts)
+      .set({ productionStatus: 'filming_concept' as never })
+      .where(eq(concepts.id, row.id));
+
+    const withStatus: AirtableExport = {
+      ...FIXTURE,
+      Concepts: [
+        {
+          id: 'at_concept_1',
+          fields: { ...FIXTURE.Concepts?.[0]?.fields, 'Production Status': 'Filming Concept' },
+        },
+      ],
+    };
+    await importAirtableExport(db, withStatus, DEMO_BRAND_ID, 'migration-actor');
+    const [healed] = await db
+      .select({ productionStatus: concepts.productionStatus })
+      .from(concepts)
+      .where(eq(concepts.id, row.id));
+    expect(healed?.productionStatus).toBe('filming_in_progress');
   });
 
   it('handles empty export gracefully', async () => {
@@ -478,5 +513,213 @@ describe('Youtube Copywriting fallback (Sprint 11)', () => {
       .map((row) => row.legacyAirtableId)
       .filter((id) => id === 'at_meta_1' || id === 'at_yt_2');
     expect(imported).toEqual(['at_meta_1']);
+  });
+});
+
+describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
+  /** A slice of the real base: per-person statuses, concept-held pairings, record-link dimensions. */
+  const GRATSI: AirtableExport = {
+    Products: [
+      {
+        id: 'g_prod_1',
+        fields: {
+          'Product Name / Landing Page Name': 'Gratsi Red',
+          Link: 'https://gratsi.example/red',
+        },
+      },
+    ],
+    Personas: [
+      {
+        id: 'g_pers_1',
+        fields: {
+          Name: 'Boxed-wine sceptic',
+          'Problem-Solution Awareness Level': 'Completely Unaware',
+        },
+      },
+    ],
+    Themes: [{ id: 'g_theme_1', fields: { Name: 'Taste Test', Status: 'Todo' } }],
+    Angles: [
+      { id: 'g_angle_1', fields: { Name: 'No headache wine', Description: 'low sulfites' } },
+    ],
+    Concepts: [
+      {
+        id: 'g_concept_1',
+        fields: {
+          Name: 'B1-No headache-Taste Test',
+          Angle: ['g_angle_1'],
+          Personas: ['g_pers_1'],
+          Product: ['g_prod_1'],
+          Batch: 'B1',
+          Status: 'Pending For Approval',
+          'Production Status': 'Editing Concept',
+        },
+      },
+    ],
+    '(Internal) Creative Dimensions': [
+      { id: 'g_dim_1', fields: { Name: '1:1', Dimensions: '1080x1080' } },
+      { id: 'g_dim_2', fields: { Name: '9:16', Dimensions: '1080x1920' } },
+    ],
+    'Creative Briefs': [
+      {
+        id: 'g_brief_1',
+        fields: {
+          Name: 'TAS-TV1-B1-No headache-V1',
+          Type: 'Image',
+          Priority: 'Average (3 days)',
+          'Internal Status': 'Video editing in progress Feriel',
+          'Client Status': 'Pending for Approval',
+          Language: 'English(USA)',
+          Platform: ['Meta', 'Tiktok'],
+          Dimensions: ['g_dim_1', 'g_dim_2'],
+          Source: 'Facebook Reels',
+          Funnel: 'TAS',
+          Concept: ['g_concept_1'],
+        },
+      },
+    ],
+    Creators: [
+      {
+        id: 'g_creator_1',
+        fields: {
+          'Creator name (Filled by UGC Manager)': 'Marta',
+          Status: 'Draft',
+          'Creator Status': 'Waiting for assets',
+          'Partnership Activity': 'Yes',
+          'Concept to film': ['g_concept_1'],
+        },
+      },
+    ],
+    'Competitive research': [
+      {
+        id: 'g_comp_1',
+        fields: { Name: 'Boxt', Type: 'Inspirations', Insta: '@boxt', 'FB Page': 'fb.com/boxt' },
+      },
+    ],
+    'Client Assets Organisation': [
+      {
+        id: 'g_folder_1',
+        fields: {
+          'Name [Folder]': 'Brand shots',
+          Description: 'Hero photography',
+          Location: 'https://drive.example/x',
+        },
+      },
+    ],
+  };
+
+  it('maps every live select label onto the domain keys, never a minted one', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, GRATSI, DEMO_BRAND_ID, 'migration-actor');
+
+    const [concept] = await db
+      .select()
+      .from(concepts)
+      .where(eq(concepts.legacyAirtableId, 'g_concept_1'));
+    expect(concept?.approvalStatus).toBe('pending_client');
+    expect(concept?.productionStatus).toBe('in_progress');
+
+    const [brief] = await db
+      .select()
+      .from(creativeBriefs)
+      .where(eq(creativeBriefs.legacyAirtableId, 'g_brief_1'));
+    expect(brief?.internalStatus).toBe('video_editing_in_progress');
+    expect(brief?.clientStatus).toBe('pending_for_approval');
+    expect(brief?.type).toBe('Static');
+    expect(brief?.priority).toBe('Static Average');
+    expect(brief?.language).toBe('English');
+    expect(brief?.platform).toEqual(['Meta', 'TikTok']);
+    // Record-link dimensions resolve to the dimension NAMES, never recXXX ids.
+    expect(brief?.dimensions).toEqual(['1:1', '9:16']);
+    // Junk select options fall back to the column defaults instead of importing garbage.
+    expect(brief?.source).toBe('TAS');
+    expect(brief?.funnel).toBe('TOF');
+
+    const [theme] = await db.select().from(themes).where(eq(themes.legacyAirtableId, 'g_theme_1'));
+    expect(theme?.status).toBe('not_started');
+
+    const [persona] = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.legacyAirtableId, 'g_pers_1'));
+    expect(persona?.stageOfAwareness).toBe('unaware');
+  });
+
+  it('routes the two creator status tracks onto their real domains (they were swapped)', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, GRATSI, DEMO_BRAND_ID, 'migration-actor');
+    const [creator] = await db
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 'g_creator_1'));
+    expect(creator?.clientStatus).toBe('draft');
+    expect(creator?.internalCreatorStatus).toBe('approved');
+    expect(creator?.partnershipActivity).toBe('active');
+  });
+
+  it('infers angle→persona/product junctions from the concept-held pairing', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, GRATSI, DEMO_BRAND_ID, 'migration-actor');
+    const [angle] = await db.select().from(angles).where(eq(angles.legacyAirtableId, 'g_angle_1'));
+    if (!angle) throw new Error('angle missing');
+    expect(
+      await db.select().from(anglePersonas).where(eq(anglePersonas.angleId, angle.id)),
+    ).toHaveLength(1);
+    expect(
+      await db.select().from(angleProducts).where(eq(angleProducts.angleId, angle.id)),
+    ).toHaveLength(1);
+  });
+
+  it('imports the three previously-skipped tables', async () => {
+    const db = await seeded();
+    const results = await importAirtableExport(db, GRATSI, DEMO_BRAND_ID, 'migration-actor');
+    expect(results.competitiveResearch?.imported).toBe(1);
+    expect(results.clientAssetFolders?.imported).toBe(1);
+    expect(results.creativeDimensions?.imported).toBe(2);
+
+    const [comp] = await db
+      .select()
+      .from(competitiveResearch)
+      .where(eq(competitiveResearch.legacyAirtableId, 'g_comp_1'));
+    expect(comp?.type).toBe('Inspiration');
+    expect(comp?.instagram).toBe('@boxt');
+    const [folder] = await db
+      .select()
+      .from(clientAssetFolders)
+      .where(eq(clientAssetFolders.legacyAirtableId, 'g_folder_1'));
+    expect(folder?.name).toBe('Brand shots');
+    expect(folder?.locationUrl).toBe('https://drive.example/x');
+  });
+
+  it('a re-import REPLACES junction sets, so a wrong link from the first run disappears', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, GRATSI, DEMO_BRAND_ID, 'migration-actor');
+    const [creator] = await db
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 'g_creator_1'));
+    if (!creator) throw new Error('creator missing');
+    // Fabricate the first import's damage: a creator linked to a concept it never filmed.
+    const [strayConcept] = await db
+      .select()
+      .from(concepts)
+      .where(eq(concepts.brandId, DEMO_BRAND_ID))
+      .limit(1);
+    if (!strayConcept) throw new Error('no concept');
+    await db
+      .insert(creatorConcepts)
+      .values({ creatorId: creator.id, conceptId: strayConcept.id })
+      .onConflictDoNothing();
+
+    await importAirtableExport(db, GRATSI, DEMO_BRAND_ID, 'migration-actor');
+    const links = await db
+      .select()
+      .from(creatorConcepts)
+      .where(eq(creatorConcepts.creatorId, creator.id));
+    const [gratsiConcept] = await db
+      .select()
+      .from(concepts)
+      .where(eq(concepts.legacyAirtableId, 'g_concept_1'));
+    expect(links).toHaveLength(1);
+    expect(links[0]?.conceptId).toBe(gratsiConcept?.id);
   });
 });

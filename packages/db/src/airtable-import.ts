@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
@@ -9,7 +9,9 @@ import {
   angles,
   assets,
   campaignsOffers,
+  clientAssetFolders,
   collections,
+  competitiveResearch,
   competitorAds,
   conceptAngles,
   conceptCollections,
@@ -17,6 +19,7 @@ import {
   concepts,
   copywriting,
   creativeBriefs,
+  creativeDimensions,
   creatorConcepts,
   creatorProducts,
   creatorRankings,
@@ -56,13 +59,42 @@ export interface AirtableExport {
   readonly 'Creator Rankings'?: AirtableRecord[];
   readonly 'Upload Links'?: AirtableRecord[];
   readonly 'Campaigns & Offers'?: AirtableRecord[];
+  /** Sprint 2026-09-29: three Gratsi tables that previously had no Drizzle home. */
+  readonly 'Competitive research'?: AirtableRecord[];
+  readonly 'Client Assets Organisation'?: AirtableRecord[];
+  readonly '(Internal) Creative Dimensions'?: AirtableRecord[];
 }
 
 interface TableResult {
   imported: number;
+  /** Rows whose `legacy_airtable_id` already existed and were UPDATED with the current mapping. */
+  updated: number;
   skipped: number;
   failed: number;
   errors: string[];
+}
+
+/**
+ * Everything the dry run must surface (Sprint 2026-09-29): select values no map recognised,
+ * link references that resolved to nothing, and attachment traffic. Collected per run, printed
+ * by the script, identical between a dry run and a live one.
+ */
+export interface ImportWarnings {
+  /** `table.field: "raw value" xN` — a select label no explicit map covers. */
+  unmappedValues: Map<string, number>;
+  /** `table.field` — Airtable record ids that resolved to no imported row. */
+  brokenRefs: Map<string, number>;
+  attachmentsCaptured: number;
+  general: string[];
+}
+
+export function emptyWarnings(): ImportWarnings {
+  return { unmappedValues: new Map(), brokenRefs: new Map(), attachmentsCaptured: 0, general: [] };
+}
+
+function warnValue(w: ImportWarnings, where: string, raw: string): void {
+  const key = `${where}: "${raw}"`;
+  w.unmappedValues.set(key, (w.unmappedValues.get(key) ?? 0) + 1);
 }
 
 type IdMap = Map<string, string>;
@@ -109,6 +141,19 @@ function firstAttachmentUrl(v: unknown): string | undefined {
   return urls?.[0];
 }
 
+/** `attachmentUrls`, counted: the dry run reports how many attachment URLs were captured. */
+function att(w: ImportWarnings, v: unknown): string[] | undefined {
+  const urls = attachmentUrls(v);
+  if (urls) w.attachmentsCaptured += urls.length;
+  return urls;
+}
+
+function attFirst(w: ImportWarnings, v: unknown): string | undefined {
+  const url = firstAttachmentUrl(v);
+  if (url !== undefined) w.attachmentsCaptured += 1;
+  return url;
+}
+
 function collaboratorName(v: unknown): string | undefined {
   if (typeof v === 'object' && v !== null) {
     if ('name' in v && typeof v.name === 'string') return v.name;
@@ -139,6 +184,218 @@ function normalizeStatusKey(v: unknown): string | undefined {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_|_$/g, '');
+}
+
+/**
+ * Sprint 2026-09-29: the first import normalized Gratsi's select labels blindly, which wrote keys
+ * the state machines do not know ("video_editing_in_progress_feriel", "sent_to_nadish",
+ * "filming_concept", "todo", …). Every status-bearing field now goes through an EXPLICIT map from
+ * the base's live options (fetched 2026-09-29 from appllDG4OmkK2Hdnn) to `@tas/domain/state` /
+ * enum keys. A label outside the map falls back to the normalized key and is logged, so new
+ * Airtable options surface in the dry run instead of silently minting keys.
+ *
+ * `null` in a map means "deliberately no destination" (logged, stored as NULL).
+ */
+type StatusMap = Record<string, string | null>;
+
+const MAPS = {
+  // Concepts.'Production Status' → conceptProductionStatuses (to_do…launched, TASK 2b).
+  conceptProduction: {
+    done: 'done',
+    filming_in_progress: 'filming_in_progress',
+    sent_to_design: 'sent_to_design',
+    editing_concept: 'in_progress',
+    filming_concept: 'filming_in_progress',
+    // An approval outcome, not a production stage; `conceptApproval` has no denied-after-approval
+    // state either, so the production column stays NULL and the dry run counts it.
+    declined_by_client: null,
+  },
+  // Concepts.'Status' → conceptApprovalStatuses. "Pending For Approval" is pending_client here —
+  // the blind normalize wrote pending_for_approval, a key the concept vocabulary never had.
+  conceptApproval: {
+    pending_for_approval: 'pending_client',
+    approved: 'approved',
+    denied: 'rejected',
+  },
+  // Creative Design.'Internal Status' → INTERNAL_VIDEO/STATIC_STATUS keys. Feriel and Nadish are
+  // Gratsi's video editors; their per-person stages collapse onto the domain ladder.
+  briefInternal: {
+    sent_to_designer: 'sent_to_designer',
+    sent_to_feriel: 'sent_to_video_editor',
+    sent_to_nadish: 'sent_to_video_editor',
+    video_editing_in_progress_feriel: 'video_editing_in_progress',
+    video_editing_in_progress_nadish: 'video_editing_in_progress',
+    video_editing_on_hold: 'on_hold',
+    video_revision_feriel: 'videos_revisions',
+    video_revision_nadish: 'videos_revisions',
+    ad_submitted: 'ad_submitted',
+    approved: 'approved',
+    images_revisions: 'images_revisions',
+    revisions_submitted: 'revisions_submitted',
+    design_submitted: 'ad_submitted',
+  },
+  // Creative Design.'Client Status' → CLIENT_STATUS: the four labels normalize onto the keys 1:1.
+  briefClient: {
+    pending_for_approval: 'pending_for_approval',
+    approved: 'approved',
+    revisions_needed: 'revisions_needed',
+    launched: 'launched',
+  },
+  // UGC.'Status' options ARE the creator CLIENT track's keys (CREATOR_STATUS), 1:1. The first
+  // import routed this field to internal_creator_status — the tracks were swapped.
+  creatorClient: {
+    pending_for_approval: 'pending_for_approval',
+    approved: 'approved',
+    disapproved: 'disapproved',
+    video_delivered: 'video_delivered',
+    due_shipment: 'due_shipment',
+    filming_in_progress: 'filming_in_progress',
+    draft: 'draft',
+    internal_revisions: 'internal_revisions',
+    revisions_needed: 'revisions_needed',
+  },
+  // UGC.'Creator Status' (operational waiting states) → INTERNAL_CREATOR_STATUS, best effort:
+  // request → waiting on the creator, approved → creator locked in, revisions_needed → waiting on
+  // a re-delivery. "Declined the brief" has no internal home and stays NULL (logged).
+  creatorInternal: {
+    waiting_for_creator_s_response_on_the_brief: 'request',
+    declined_the_brief: null,
+    waiting_for_assets: 'approved',
+    waiting_for_revision: 'revisions_needed',
+    assets_delivered: 'approved',
+  },
+  // 'Partnership Activity': the stray "Yes" means an active partnership (decided Sprint 1).
+  partnershipActivity: {
+    yes: 'active',
+    active: 'active',
+    not_active: 'not_active',
+    ended: 'ended',
+  },
+  // Themes.'Status' → the theme_status ENUM. The blind "todo" made the whole insert fail, which
+  // is why only 3 of Gratsi's themes survived the first import.
+  themeStatus: { todo: 'not_started', in_progress: 'in_progress', done: 'done' },
+  // Personas.'Problem-Solution Awareness Level' → awareness_stage ENUM.
+  awareness: {
+    completely_unaware: 'unaware',
+    unaware: 'unaware',
+    problem_aware: 'problem_aware',
+    solution_aware: 'solution_aware',
+    product_aware: 'product_aware',
+    most_aware: 'most_aware',
+  },
+  // Meta Copywriting.'Status' → COPY_STATUS keys (1:1 through normalize).
+  copyStatus: {
+    pending_for_client_review: 'pending_for_client_review',
+    edited_by_client: 'edited_by_client',
+    approved: 'approved',
+    disapproved: 'disapproved',
+    revisions_needed: 'revisions_needed',
+  },
+  // Competitive research.'Type' is presented as a select over ['Competitor', 'Inspiration'].
+  competitiveType: {
+    competitor: 'Competitor',
+    inspiration: 'Inspiration',
+    inspirations: 'Inspiration',
+  },
+} satisfies Record<string, StatusMap>;
+
+/** Applies one map: exact hit → key, miss → normalized fallback + warning, null hit → NULL + warning. */
+function mapStatus(
+  w: ImportWarnings,
+  where: string,
+  map: StatusMap,
+  v: unknown,
+): string | undefined {
+  const normalized = normalizeStatusKey(v);
+  if (normalized === undefined) return undefined;
+  if (normalized in map) {
+    const mapped = map[normalized];
+    if (mapped === null) {
+      warnValue(w, `${where} (deliberately unmapped)`, String(v));
+      return undefined;
+    }
+    return mapped;
+  }
+  warnValue(w, where, String(v));
+  return normalized;
+}
+
+/** Label-typed columns (type, priority, language, platform, source, funnel) keep LABELS, sanitised. */
+function mapCreativeType(w: ImportWarnings, v: unknown): string | undefined {
+  const s = str(v);
+  if (s === undefined) return undefined;
+  const known: Record<string, string> = {
+    Video: 'Video',
+    Static: 'Static',
+    Image: 'Static',
+    Carousel: 'Carousel',
+    'Motion Image': 'Motion Image',
+  };
+  if (s in known) return known[s];
+  warnValue(w, 'creativeBriefs.type', s);
+  return undefined; // column default: Video
+}
+
+function mapPriority(w: ImportWarnings, v: unknown, type: string | undefined): string | undefined {
+  const s = str(v);
+  if (s === undefined) return undefined;
+  const isStatic = type === 'Static' || type === 'Carousel';
+  if (/high/i.test(s)) return isStatic ? 'Static High' : 'Video High';
+  if (/average/i.test(s)) return isStatic ? 'Static Average' : 'Video Average';
+  warnValue(w, 'creativeBriefs.priority', s);
+  return undefined;
+}
+
+function mapPlatforms(w: ImportWarnings, v: unknown): string[] {
+  const known: Record<string, string> = {
+    Meta: 'Meta',
+    Google: 'Google',
+    Tiktok: 'TikTok',
+    TikTok: 'TikTok',
+    Pushowl: 'Pushowl',
+    Website: 'Website',
+    YouTube: 'YouTube',
+  };
+  const out: string[] = [];
+  for (const entry of multiSelectArr(v)) {
+    const mapped = known[entry];
+    if (mapped === undefined) warnValue(w, 'creativeBriefs.platform', entry);
+    else out.push(mapped);
+  }
+  return out;
+}
+
+function mapLanguage(w: ImportWarnings, v: unknown): string | undefined {
+  const s = str(v);
+  if (s === undefined) return undefined;
+  if (/^english/i.test(s)) return 'English';
+  warnValue(w, 'creativeBriefs.language', s);
+  return undefined;
+}
+
+function mapSource(w: ImportWarnings, v: unknown): string | undefined {
+  const s = str(v);
+  if (s === undefined) return undefined;
+  if (s === 'TAS' || s === 'Client') return s;
+  warnValue(w, 'creativeBriefs.source', s);
+  return undefined; // column default: TAS
+}
+
+function mapBriefFunnel(w: ImportWarnings, v: unknown): string | undefined {
+  const s = str(v);
+  if (s === undefined) return undefined;
+  if (s === 'TOF' || s === 'RETARGETTING' || s === 'ALL FUNNELS') return s;
+  warnValue(w, 'creativeBriefs.funnel', s);
+  return undefined; // column default: TOF
+}
+
+function mapCopyFunnel(w: ImportWarnings, v: unknown): string | undefined {
+  const s = str(v);
+  if (s === undefined) return undefined;
+  if (s === 'TOF' || s === 'MOF' || s === 'BOF') return s;
+  if (/^retarget/i.test(s)) return 'Retargeting';
+  warnValue(w, 'copywriting.funnel', s);
+  return undefined;
 }
 
 function selectToBool(v: unknown): boolean | null {
@@ -186,7 +443,7 @@ async function importRows(
   mapFn: (fields: Record<string, unknown>) => Record<string, unknown>,
   actorId: string,
 ): Promise<{ result: TableResult; idMap: IdMap }> {
-  const result: TableResult = { imported: 0, skipped: 0, failed: 0, errors: [] };
+  const result: TableResult = { imported: 0, updated: 0, skipped: 0, failed: 0, errors: [] };
   const idMap: IdMap = new Map();
 
   for (const rec of records) {
@@ -196,22 +453,42 @@ async function importRows(
       .where(eq(table.legacyAirtableId, rec.id))
       .limit(1);
     if (existing.length > 0) {
-      result.skipped++;
-      idMap.set(rec.id, String(existing[0]?.id));
+      // Sprint 2026-09-29: a row from an earlier import is UPDATED with the current mapping, not
+      // skipped — this is what heals the dropped fields and the blindly-normalized status keys the
+      // first Gratsi run left behind. `created_*` and the id stay; the mapped columns are rewritten.
+      const existingId = String(existing[0]?.id);
+      idMap.set(rec.id, existingId);
+      try {
+        // A nested transaction is a SAVEPOINT: a bad row rolls back alone instead of aborting
+        // the import's surrounding transaction (Postgres poisons an aborted tx otherwise).
+        await db.transaction(async (sp) => {
+          const mapped = mapFn(rec.fields);
+          await sp
+            .update(table)
+            .set({ ...mapped, updatedBy: actorId, updatedAt: new Date() })
+            .where(eq(table.id, existingId));
+        });
+        result.updated++;
+      } catch (e) {
+        result.failed++;
+        result.errors.push(`${rec.id}: ${e instanceof Error ? e.message : String(e)}`);
+      }
       continue;
     }
     try {
-      const mapped = mapFn(rec.fields);
-      const [row] = await db
-        .insert(table)
-        .values({
-          ...mapped,
-          legacyAirtableId: rec.id,
-          createdBy: actorId,
-          updatedBy: actorId,
-        } as never)
-        .returning({ id: table.id });
-      if (row) idMap.set(rec.id, String(row.id));
+      await db.transaction(async (sp) => {
+        const mapped = mapFn(rec.fields);
+        const [row] = await sp
+          .insert(table)
+          .values({
+            ...mapped,
+            legacyAirtableId: rec.id,
+            createdBy: actorId,
+            updatedBy: actorId,
+          } as never)
+          .returning({ id: table.id });
+        if (row) idMap.set(rec.id, String(row.id));
+      });
       result.imported++;
     } catch (e) {
       result.failed++;
@@ -226,12 +503,20 @@ function resolveRef(idMap: IdMap, airtableId: unknown): string | undefined {
   return idMap.get(airtableId);
 }
 
-function resolveRefs(idMap: IdMap, airtableIds: unknown): string[] {
+function resolveRefs(
+  idMap: IdMap,
+  airtableIds: unknown,
+  w?: ImportWarnings,
+  where?: string,
+): string[] {
   if (!Array.isArray(airtableIds)) return [];
   const resolved: string[] = [];
   for (const id of airtableIds) {
     const mapped = resolveRef(idMap, id);
     if (mapped) resolved.push(mapped);
+    else if (w && where && typeof id === 'string' && id.startsWith('rec')) {
+      w.brokenRefs.set(where, (w.brokenRefs.get(where) ?? 0) + 1);
+    }
   }
   return resolved;
 }
@@ -248,8 +533,10 @@ export async function importAirtableExport(
   data: AirtableExport,
   brandId: string,
   actorId: string,
+  warnings: ImportWarnings = emptyWarnings(),
 ): Promise<Record<string, TableResult>> {
   const results: Record<string, TableResult> = {};
+  const w = warnings;
 
   // ━━ Pass 1: Insert records with data columns (no cross-table FKs) ━━
 
@@ -276,8 +563,8 @@ export async function importAirtableExport(
       category: matchThemeCategory(f.Category),
       notes: str(f.Notes),
       assigneeId: collaboratorName(f.Assignee),
-      status: normalizeStatusKey(f.Status),
-      attachments: attachmentUrls(f.Attachments),
+      status: mapStatus(w, 'themes.status', MAPS.themeStatus, f.Status),
+      attachments: att(w, f.Attachments),
       aiAttachmentSummary: aiTextValue(f['Attachment Summary']),
       isActive: f['Is Active'] !== false,
     }),
@@ -322,7 +609,10 @@ export async function importAirtableExport(
       painPoints: str(f['Pain Points']),
       successFactors: str(f['Success Factors']),
       perceivedBarriers: str(f['Perceived Barriers']),
-      stageOfAwareness: normalizeStatusKey(
+      stageOfAwareness: mapStatus(
+        w,
+        'personas.stageOfAwareness',
+        MAPS.awareness,
         f['Problem-Solution Awareness Level'] ?? f['Stage of Awareness'],
       ),
       buyingTriggers: str(f['Buying Triggers']),
@@ -372,9 +662,19 @@ export async function importAirtableExport(
       adInspoLinks: splitLinksToArr(f['Ad Inspo Links']),
       hookExamples: str(f['Hook Examples'] ?? f.Hooks),
       scriptIdea: str(f['Script Idea'] ?? f.Script),
-      approvalStatus: normalizeStatusKey(f.Status ?? f['Approval Status']),
+      approvalStatus: mapStatus(
+        w,
+        'concepts.approvalStatus',
+        MAPS.conceptApproval,
+        f.Status ?? f['Approval Status'],
+      ),
       formatsToCreate: multiSelectArr(f['Formats to Create']),
-      productionStatus: normalizeStatusKey(f['Production Status']),
+      productionStatus: mapStatus(
+        w,
+        'concepts.productionStatus',
+        MAPS.conceptProduction,
+        f['Production Status'],
+      ),
     }),
     actorId,
   );
@@ -394,43 +694,81 @@ export async function importAirtableExport(
   );
   results.collections = collectionResult;
 
+  // Gratsi's Dimensions field is record links into "(Internal) Creative Dimensions"; the brief
+  // column stores the dimension NAMES ('1:1', '9:16', …), so the links resolve through the export
+  // itself — never store a recXXX id in a jsonb of ratios (the first import did exactly that).
+  const dimensionNameByRecId = new Map<string, string>();
+  for (const rec of data['(Internal) Creative Dimensions'] ?? []) {
+    const name = str(rec.fields.Name) ?? str(rec.fields.Dimensions);
+    if (name !== undefined) dimensionNameByRecId.set(rec.id, name);
+  }
+  const resolveDimensions = (v: unknown): string[] => {
+    if (!Array.isArray(v)) return [];
+    const out: string[] = [];
+    for (const entry of v) {
+      if (typeof entry !== 'string') continue;
+      const name = dimensionNameByRecId.get(entry);
+      if (name !== undefined) out.push(name);
+      else if (entry.startsWith('rec'))
+        w.brokenRefs.set(
+          'creativeBriefs.dimensions',
+          (w.brokenRefs.get('creativeBriefs.dimensions') ?? 0) + 1,
+        );
+      else out.push(entry);
+    }
+    return out;
+  };
+
   const { result: briefResult, idMap: briefMap } = await importRows(
     db,
     creativeBriefs,
     data['Creative Briefs'] ?? [],
-    (f) => ({
-      brandId,
-      name: str(f.Name) ?? 'Untitled',
-      batch: str(f.Batch),
-      source: str(f.Source),
-      funnel: str(f.Funnel),
-      type: str(f.Type),
-      priority: str(f.Priority),
-      assignee: str(f.Assignee) ?? collaboratorName(f.Assignee),
-      briefToDesign: str(f['Brief to Design'] ?? f['Brief to Design/Editing']),
-      scriptContent: str(f['Script Content'] ?? f['Script / Ad Content']),
-      adContent: str(f['Ad Content']),
-      elementsTested: str(f['Elements we are Testing']),
-      inspoLinks: strArr(f['Inspo Links']),
-      dimensions: strArr(f.Dimensions),
-      platform: multiSelectArr(f.Platform),
-      designFileUrl: str(f['Design Link URL']),
-      qaVideoEditor: bool(f['Video Editor QA']),
-      qaDesigner: bool(f['Graphic Designer QA'] ?? f['Designer QA']),
-      qaStrategist: bool(f['Creative Strategist QA'] ?? f['Strategist QA']),
-      spellingFeedback: str(f['Spelling Feedback']),
-      spellingFeedback2: str(f['Spelling Feedback 2']),
-      clickForAiSpellChecker: bool(f['Click for AI Spell Checker Again']),
-      inspirationImage: attachmentUrls(f.Inspiration),
-      qaChecklistDoc: attachmentUrls(f['QA Checklist Doc']),
-      designFile: attachmentUrls(f['Design File']),
-      scriptAndBriefBreakdown: attachmentUrls(f['Script & brief breakdown ']),
-      language: str(f.Language),
-      offer: str(f.Offer),
-      internalStatus: normalizeStatusKey(f['Internal Status']),
-      clientStatus: normalizeStatusKey(f['Client Status']),
-      performance: str(f.Performance),
-    }),
+    (f) => {
+      const type = mapCreativeType(w, f.Type);
+      return {
+        brandId,
+        name: str(f.Name) ?? 'Untitled',
+        batch: str(f.Batch),
+        source: mapSource(w, f.Source),
+        funnel: mapBriefFunnel(w, f.Funnel),
+        type,
+        priority: mapPriority(w, f.Priority, type),
+        assignee: str(f.Assignee) ?? collaboratorName(f.Assignee),
+        briefToDesign: str(f['Brief to Design'] ?? f['Brief to Design/Editing']),
+        scriptContent: str(f['Script Content'] ?? f['Script / Ad Content']),
+        adContent: str(f['Ad Content']),
+        elementsTested: str(f['Elements we are Testing']),
+        inspoLinks: strArr(f['Inspo Links']),
+        dimensions: resolveDimensions(f.Dimensions),
+        platform: mapPlatforms(w, f.Platform),
+        designFileUrl: str(f['Design Link URL']),
+        qaVideoEditor: bool(f['Video Editor QA']),
+        qaDesigner: bool(f['Graphic Designer QA'] ?? f['Designer QA']),
+        qaStrategist: bool(f['Creative Strategist QA'] ?? f['Strategist QA']),
+        spellingFeedback: str(f['Spelling Feedback']),
+        spellingFeedback2: str(f['Spelling Feedback 2']),
+        clickForAiSpellChecker: bool(f['Click for AI Spell Checker Again']),
+        inspirationImage: att(w, f.Inspiration),
+        qaChecklistDoc: att(w, f['QA Checklist Doc']),
+        designFile: att(w, f['Design File']),
+        scriptAndBriefBreakdown: att(w, f['Script & brief breakdown ']),
+        language: mapLanguage(w, f.Language),
+        offer: str(f.Offer),
+        internalStatus: mapStatus(
+          w,
+          'creativeBriefs.internalStatus',
+          MAPS.briefInternal,
+          f['Internal Status'],
+        ),
+        clientStatus: mapStatus(
+          w,
+          'creativeBriefs.clientStatus',
+          MAPS.briefClient,
+          f['Client Status'],
+        ),
+        performance: str(f.Performance),
+      };
+    },
     actorId,
   );
   results.creativeBriefs = briefResult;
@@ -456,13 +794,13 @@ export async function importAirtableExport(
       headline: str(f.Headline),
       linkDescription: str(f['Link Description'] ?? f['News Feed']),
       cta: str(f.CTA),
-      funnel: str(f.Funnel),
+      funnel: mapCopyFunnel(w, f.Funnel),
       used: bool(f.USED ?? f.Used),
       winning: bool(f.Winning),
       metaRating: num(f['Meta Rating']),
       clickForAiSpellChecker: bool(f['Click for AI Spell Checker Again']),
       spellingFeedback: str(f['Spelling Feedback']),
-      status: normalizeStatusKey(f.Status),
+      status: mapStatus(w, 'copywriting.status', MAPS.copyStatus, f.Status),
       clientComment: str(f["Client's Comment"] ?? f['Client Comment']),
     }),
     actorId,
@@ -480,8 +818,8 @@ export async function importAirtableExport(
       ageBracket: str(f.Age ?? f['Age Bracket']),
       gender: str(f.Gender),
       ethnicity: str(f.Ethnicity),
-      profilePicUrl: firstAttachmentUrl(f["Creator's Profile Pic"]) ?? str(f['Profile Pic URL']),
-      videoIntroUrl: firstAttachmentUrl(f["Creator's video Intro"]) ?? str(f['Video Intro URL']),
+      profilePicUrl: attFirst(w, f["Creator's Profile Pic"]) ?? str(f['Profile Pic URL']),
+      videoIntroUrl: attFirst(w, f["Creator's video Intro"]) ?? str(f['Video Intro URL']),
       creatorLink: str(f['Creator Link']),
       platform: multiSelectArr(f.Platform),
       internalBrief: str(f['Additional Note - TAS Team'] ?? f['Internal Brief']),
@@ -493,13 +831,30 @@ export async function importAirtableExport(
       creatorCost: currencyInt(f["Creator's cost (USD) - Internal"] ?? f['Creator Cost']),
       costUsd: currencyInt(f['Paid by TAS'] ?? f['Cost USD']),
       rawAssetsUrl: str(f['Raw assets'] ?? f['Raw Assets URL']),
-      internalCreatorStatus: normalizeStatusKey(f.Status ?? f['Internal Creator Status']),
-      clientStatus: normalizeStatusKey(f['Creator Status'] ?? f['Client Status']),
+      // Sprint 2026-09-29: the tracks were SWAPPED in the first import. UGC's 'Status' options are
+      // exactly the creator CLIENT track's keys; 'Creator Status' is the operational internal one.
+      clientStatus: mapStatus(
+        w,
+        'creators.clientStatus',
+        MAPS.creatorClient,
+        f.Status ?? f['Client Status'],
+      ),
+      internalCreatorStatus: mapStatus(
+        w,
+        'creators.internalCreatorStatus',
+        MAPS.creatorInternal,
+        f['Creator Status'] ?? f['Internal Creator Status'],
+      ),
       internalAssetsStatus: normalizeStatusKey(f['Internal Assets Status']),
       clientNote: str(f["(Client's) Note or Comments"] ?? f['Client Note']),
       instagramUsername: str(f['Instagram Username']),
       forPartnershipAds: bool(f['For Partnership Ads']),
-      partnershipActivity: normalizeStatusKey(f['Partnership Activity'] ?? f['Partnership Status']),
+      partnershipActivity: mapStatus(
+        w,
+        'creators.partnershipActivity',
+        MAPS.partnershipActivity,
+        f['Partnership Activity'] ?? f['Partnership Status'],
+      ),
       partnershipActivatedAt: dateToTimestamp(
         f['Date of Partnership Activation'] ?? f['Partnership Activated At'],
       ),
@@ -621,7 +976,91 @@ export async function importAirtableExport(
   );
   results.uploadLinks = uploadLinkResult;
 
+  // Competitive research (Sprint 2026-09-29: previously "import manually")
+  const { result: competitiveResult } = await importRows(
+    db,
+    competitiveResearch,
+    data['Competitive research'] ?? [],
+    (f) => ({
+      brandId,
+      name: str(f.Name) ?? 'Untitled',
+      type: mapStatus(w, 'competitiveResearch.type', MAPS.competitiveType, f.Type),
+      website: str(f.Website),
+      instagram: str(f.Insta ?? f.Instagram),
+      facebookPage: str(f['FB Page'] ?? f['Facebook Page']),
+      metaAdsLibrary: str(f['Meta Ads Library']),
+      analysis: str(f.Analysis),
+    }),
+    actorId,
+  );
+  results.competitiveResearch = competitiveResult;
+
+  // Client Assets Organisation → client_asset_folders (TASK 1's table). The base's own link back
+  // to Creative Design is a TEXT column, so no brief_asset_folders junction can be resolved from
+  // record ids — folders import standalone and the dry run says so.
+  const { result: folderResult } = await importRows(
+    db,
+    clientAssetFolders,
+    data['Client Assets Organisation'] ?? [],
+    (f) => ({
+      brandId,
+      name: str(f['Name [Folder]'] ?? f.Name) ?? 'Untitled',
+      description: str(f.Description),
+      locationUrl: str(f.Location ?? f['Location URL']),
+    }),
+    actorId,
+  );
+  results.clientAssetFolders = folderResult;
+  if ((data['Client Assets Organisation'] ?? []).length > 0) {
+    w.general.push(
+      'Client Assets Organisation: the base links folders to Creative Design through a TEXT field, so no brief_asset_folders junction rows can be derived from this import.',
+    );
+  }
+
+  // (Internal) Creative Dimensions → creative_dimensions (the names also resolve brief dimensions)
+  const { result: dimensionResult } = await importRows(
+    db,
+    creativeDimensions,
+    data['(Internal) Creative Dimensions'] ?? [],
+    (f) => ({
+      brandId,
+      name: str(f.Name) ?? 'Untitled',
+      dimensions: str(f.Dimensions),
+      linkDescription: str(f['Link Description']),
+    }),
+    actorId,
+  );
+  results.creativeDimensions = dimensionResult;
+
   // ━━ Pass 2: Resolve cross-table FKs and junction tables ━━
+
+  // Sprint 2026-09-29: junction sets for the records THIS import touches are rebuilt from scratch,
+  // so wrong links from the first run (the mis-mapped creator↔concept pairings) do not survive a
+  // re-import. Only rows whose owning record is in the import are cleared; hand-made links on
+  // records outside the export are untouched. Junction rows carry no audit columns — the in-app
+  // sync helpers hard-replace them the same way.
+  const clear = async (
+    junction:
+      | typeof anglePersonas
+      | typeof angleProducts
+      | typeof conceptAngles
+      | typeof conceptThemes
+      | typeof conceptCollections
+      | typeof creatorConcepts
+      | typeof creatorProducts,
+    column: AnyPgColumn,
+    ids: IdMap,
+  ) => {
+    const values = [...ids.values()];
+    if (values.length > 0) await db.delete(junction).where(inArray(column, values));
+  };
+  await clear(anglePersonas, anglePersonas.angleId, angleMap);
+  await clear(angleProducts, angleProducts.angleId, angleMap);
+  await clear(conceptAngles, conceptAngles.conceptId, conceptMap);
+  await clear(conceptThemes, conceptThemes.conceptId, conceptMap);
+  await clear(conceptCollections, conceptCollections.conceptId, conceptMap);
+  await clear(creatorConcepts, creatorConcepts.creatorId, creatorMap);
+  await clear(creatorProducts, creatorProducts.creatorId, creatorMap);
 
   // Angles → anglePersonas + angleProducts
   for (const rec of data.Angles ?? []) {
@@ -694,9 +1133,34 @@ export async function importAirtableExport(
       }
     }
 
-    const collectionIds = resolveRefs(collectionMap, rec.fields.Collection);
+    const collectionIds = resolveRefs(
+      collectionMap,
+      rec.fields.Collection,
+      w,
+      'concepts.Collection',
+    );
     for (const collectionId of collectionIds) {
       await db.insert(conceptCollections).values({ conceptId, collectionId }).onConflictDoNothing();
+    }
+
+    // Gratsi models the persona/product pairing ON THE CONCEPT ('Personas' and 'Product' record
+    // links), while this schema inherits both through the angle. The angle-level links are
+    // inferred here — concept's angles × concept's personas/products — so the app's inheritance
+    // chain (concept → angle → persona/product) lights up. Deduped by the junction PK.
+    const inferredPersonaIds = resolveRefs(
+      personaMap,
+      rec.fields.Personas ?? rec.fields.Persona,
+      w,
+      'concepts.Personas',
+    );
+    const inferredProductIds = resolveRefs(prodMap, rec.fields.Product, w, 'concepts.Product');
+    for (const angleId of angleIds.length > 0 ? angleIds : []) {
+      for (const personaId of inferredPersonaIds) {
+        await db.insert(anglePersonas).values({ angleId, personaId }).onConflictDoNothing();
+      }
+      for (const productId of inferredProductIds) {
+        await db.insert(angleProducts).values({ angleId, productId }).onConflictDoNothing();
+      }
     }
   }
 
@@ -770,6 +1234,8 @@ export async function importAirtableExport(
     const conceptIds = resolveRefs(
       conceptMap,
       rec.fields['Concept to film'] ?? rec.fields.Concepts,
+      w,
+      "creators.'Concept to film'",
     );
     for (const conceptId of conceptIds) {
       await db.insert(creatorConcepts).values({ creatorId, conceptId }).onConflictDoNothing();
