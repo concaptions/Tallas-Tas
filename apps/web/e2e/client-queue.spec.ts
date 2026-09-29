@@ -43,7 +43,9 @@ const ON_BOARD = [
 const WITH_CONTROLS = ON_BOARD.filter((entry) => entry.status === 'pending_for_approval');
 
 const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
-const BODY_CLOCK_NAME = 'TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
+// PRD §7's optional source prefix shipped: the fixture passes `source: 'TAS'` through
+// `creativeName` in `packages/db/src/demo-data.ts`, so the generated name now starts with it.
+const BODY_CLOCK_NAME = 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
 
 /** Internally launched and client-launched: the client owes it nothing, so it must not appear. */
 const LAUNCHED = '77777777-7777-4777-8777-000000000007';
@@ -208,7 +210,8 @@ test.describe('client queue in demo mode (no Clerk publishable key)', () => {
     await expect(link).toHaveAttribute('href', briefPath(BODY_CLOCK));
     await link.click();
 
-    await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));
+    // First client-side hop into the briefs route may compile it; same budget as briefs.spec.ts.
+    await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`), { timeout: 45_000 });
     await expect(page.locator('[data-slot="brief-name"]')).toHaveText(BODY_CLOCK_NAME);
 
     await page.goBack();
