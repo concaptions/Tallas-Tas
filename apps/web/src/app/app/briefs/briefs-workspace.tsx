@@ -201,13 +201,18 @@ export function BriefsWorkspace({
     return [...seen];
   }, [kanbanItems]);
 
+  // Column headers are the domain's own status labels ("Sent to Video Editor",
+  // "Pending for Approval"), never a re-capitalised key: both groupable fields are
+  // status tracks and every item already carries their views, so the header can
+  // never drift from `@tas/domain/state`.
   const kanbanLabels = useMemo(() => {
     const labels: Record<string, string> = {};
-    for (const col of kanbanColumns) {
-      labels[col] = col.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    for (const item of visible) {
+      labels[item.status.key] = item.status.label;
+      labels[item.clientStatus.key] = item.clientStatus.label;
     }
     return labels;
-  }, [kanbanColumns]);
+  }, [visible]);
 
   const galleryItems: readonly GalleryItem[] = useMemo(() => {
     return visible
