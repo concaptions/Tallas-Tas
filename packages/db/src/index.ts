@@ -299,3 +299,5 @@ export { getViewPreference, saveViewPreference } from './view-preferences';
 // ── Module parity (2026-10-01): query layers + demo fixtures, one file per module ──
 export * from './copy-types';
 export * from './demo-copy-types';
+export * from './creative-modules';
+export * from './demo-creative-modules';
