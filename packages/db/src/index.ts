@@ -296,3 +296,6 @@ export { withBrand } from './tenancy';
 export type { BrandedTable, BrandScope, ScopedInsertValue, ScopedUpdateSet } from './tenancy';
 export type { ScopedSelect, ScopedWrite } from './tenancy';
 export { getViewPreference, saveViewPreference } from './view-preferences';
+// ── Module parity (2026-10-01): query layers + demo fixtures, one file per module ──
+export * from './copy-types';
+export * from './demo-copy-types';
