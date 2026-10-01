@@ -690,8 +690,9 @@ const MODULES: readonly ModuleEntry[] = [
     label: 'Themes',
     path: themesPath,
     heading: 'Themes',
-    rowSlot: 'theme-card',
-    opens: { inRow: true },
+    rowSlot: 'theme-row',
+    // A grid row opens the theme panel, which hosts the labelled card (P2A grid wiring).
+    opens: { panelSlot: 'theme-panel' },
     fields: [
       // The typed name is the card's heading (ticket criterion 4: name, category chip, usage).
       { gratsi: 'Name', slot: 'theme-name' },

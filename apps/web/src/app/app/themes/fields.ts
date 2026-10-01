@@ -244,10 +244,14 @@ export const THEME_FIELD_LABELS = {
 /** What an empty row shows: the same dash every workspace table uses, never a blank under a label. */
 export const EMPTY_FIELD = '—';
 
-/** A text field as the card shows it: trimmed, or `null` when there is nothing to show. */
+/**
+ * A text field as the card shows it: trimmed, or `null` when there is nothing to show. A literal
+ * `"null"` / `"undefined"` is an import artefact (a collaborator cell serialised as text), never a
+ * value a reader should see, so it reads as empty too.
+ */
 export function textValue(value: string | null | undefined): string | null {
   const text = value?.trim() ?? '';
-  return text === '' ? null : text;
+  return text === '' || text === 'null' || text === 'undefined' ? null : text;
 }
 
 export interface ThemeStatusChip {
@@ -267,20 +271,22 @@ export function statusChip(status: string | null | undefined): ThemeStatusChip |
 export interface AssigneeValue {
   readonly text: string;
   /**
-   * True when the card is showing the stored `assignee_id` itself because no live user matched it:
-   * a system value, so it renders in `font-mono` the way every id and generated name does.
+   * True when the card is showing the stored `assignee_id` itself because no live user matched it.
+   * An imported Gratsi row stores the Airtable collaborator's display NAME there ("Talal"), so it
+   * renders as plain text like a resolved name — never in mono, never as "null" or a blank chip —
+   * and the flag only drives the tooltip and the `data-resolved` hook.
    */
   readonly mono: boolean;
 }
 
-/** The tooltip on an unresolved assignee, so the mono value explains itself. */
+/** The tooltip on an unresolved assignee, so the stored value explains itself. */
 export const UNRESOLVED_ASSIGNEE_HINT =
-  'Stored assignee value; it matches no user on the platform.';
+  'Stored assignee value from the Airtable import; it matches no user on the platform yet.';
 
 /**
  * The Assignee row: the resolved full name when `@tas/db` found the user, else the stored value
  * itself — an imported Gratsi row stores the Airtable collaborator's name there, and hiding it would
- * hide the one clue to who owns the theme — or `null` for the dash.
+ * hide the one clue to who owns the theme — or `null` for the dash. Both read as plain text.
  */
 export function assigneeValue(
   theme: Pick<ThemeCardRow, 'assigneeId' | 'assigneeName'>,

@@ -43,6 +43,10 @@ export default async function ThemesPage({ searchParams }: ThemesPageProps) {
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
 
+  const requestedTheme = params.theme;
+  const initialSelection =
+    typeof requestedTheme === 'string' && requestedTheme !== '' ? requestedTheme : null;
+
   const requestedTab = params.tab;
   const initialTab: ThemeTab =
     typeof requestedTab === 'string' && requestedTab === 'archived' ? 'archived' : 'active';
@@ -54,6 +58,7 @@ export default async function ThemesPage({ searchParams }: ThemesPageProps) {
       initialCategory={initialCategory}
       initialSearch={initialSearch}
       initialTab={initialTab}
+      initialSelection={initialSelection}
     />
   );
 }

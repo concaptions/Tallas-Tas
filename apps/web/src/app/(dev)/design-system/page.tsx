@@ -142,6 +142,7 @@ import {
   YoutubeCopyStatusChipsStory,
 } from './youtube-copywriting.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
+import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -890,6 +891,18 @@ export default function DesignSystemPage() {
               empty — friendly state
             </h3>
             <AirtableGridEmptyStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              cell primitives — what every grid column composes
+            </h3>
+            <GridCellsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              theme panel — a grid row opens the labelled card
+            </h3>
+            <ThemePanelStory />
           </div>
         </div>
       </Section>

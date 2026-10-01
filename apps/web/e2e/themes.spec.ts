@@ -49,34 +49,50 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     expect(badgeBox?.y ?? 0).toBeLessThan(headingBox?.y ?? 0);
   });
 
-  test('renders the five active fixtures as cards, never a table, each with its chip and usage line', async ({
+  test('opens on the grid: five active rows, every stored column, the name frozen', async ({
     page,
   }) => {
     await page.goto(themesPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Themes');
-    await expect(page.locator('table')).toHaveCount(0);
 
-    // The library now opens on an Active/Archived tab split. Spring x Soccer is the one archived
-    // fixture, so the default Active tab shows five of the six cards and counts both tabs.
-    const cards = page.locator('[data-slot="theme-card"]');
-    await expect(cards).toHaveCount(5);
+    // The library opens on an Active/Archived tab split. Spring x Soccer is the one archived
+    // fixture, so the default Active tab shows five of the six rows and counts both tabs.
+    const rows = page.locator('[data-slot="theme-row"]');
+    await expect(rows).toHaveCount(5);
     await expect(page.locator('[data-slot="tab-active"]')).toHaveText('Active (5)');
     await expect(page.locator('[data-slot="tab-archived"]')).toHaveText('Archived (1)');
 
-    // Every card carries a category chip and a usage line; neither is ever blank.
-    await expect(cards.locator('[data-slot="status-chip"]').first()).toBeVisible();
+    // Every stored field of a theme is a column, readable without opening a row.
+    await expect(page.locator('[data-slot="themes-table"] thead th')).toHaveText([
+      'Name',
+      'Category',
+      'Status',
+      'Assignee',
+      'Notes',
+      'Attachments',
+      'Attachment Summary',
+      'Reference Links',
+      'Used by',
+      'Active',
+    ]);
+    await expect(page.locator('[data-slot="themes-table"] thead th').first()).toHaveCSS(
+      'position',
+      'sticky',
+    );
+
+    // Every row carries a category chip and a usage line; neither is ever blank.
     for (let index = 0; index < 5; index += 1) {
-      const card = cards.nth(index);
-      await expect(card.locator('[data-slot="status-chip"]').first()).not.toHaveText('');
-      await expect(card.locator('[data-slot="theme-usage"]')).not.toHaveText('');
+      const row = rows.nth(index);
+      await expect(row.locator('[data-slot="status-chip"]').first()).not.toHaveText('');
+      await expect(row.locator('[data-slot="theme-usage"]')).not.toHaveText('');
     }
 
     // Zero reads as words, never "0 brands"; a used theme reads singular. The demo brand's four
-    // concepts sit on four different themes, and the aggregate counts distinct BRANDS, so four cards
+    // concepts sit on four different themes, and the aggregate counts distinct BRANDS, so four rows
     // read "Used by 1 brand". The other worded zero (Spring x Soccer) is archived, leaving
     // Holiday Gifting as the only zero on the Active tab.
-    const used = cards.filter({ hasText: PROBLEM_SOLUTION });
+    const used = rows.filter({ hasText: PROBLEM_SOLUTION });
     await expect(used.locator('[data-slot="theme-usage"]')).toHaveText('Used by 1 brand');
     await expect(page.getByText('Used by 1 brand')).toHaveCount(4);
     await expect(page.getByText('Used by no brands yet')).toHaveCount(1);
@@ -88,10 +104,41 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
       '5 themes across the whole platform',
     );
 
-    // The reference links are host-only chips, so a swipe-file URL cannot widen a card.
-    await expect(
-      cards.filter({ hasText: 'Yapper Style' }).locator('[data-slot="theme-link"]').first(),
-    ).toHaveText('foreplay.example');
+    // An assignee cell never reads "null": the fixtures store none, so every cell is the dash.
+    await expect(page.locator('[data-slot="theme-assignee"]')).toHaveCount(5);
+    await expect(page.getByText('null', { exact: true })).toHaveCount(0);
+  });
+
+  test('a row opens the theme panel with the full card, the URL carries it, Escape closes it', async ({
+    page,
+  }) => {
+    await page.goto(themesPath);
+
+    const row = page.locator('[data-slot="theme-row"]').filter({ hasText: 'Yapper Style' });
+    await row.click();
+
+    const panel = page.locator('[data-slot="theme-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('[data-slot="theme-panel-title"]')).toHaveText('Yapper Style');
+    await expect(page).toHaveURL(/theme=/);
+
+    // The panel hosts the labelled card: the reference links are host-only chips there.
+    await expect(panel.locator('[data-slot="theme-card"]')).toHaveCount(1);
+    await expect(panel.locator('[data-slot="theme-link"]').first()).toHaveText('foreplay.example');
+
+    // NOT a modal: the grid stays beside it.
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(5);
+
+    await page.reload();
+    await expect(page.locator('[data-slot="theme-panel"]')).toBeVisible();
+
+    // After a reload the panel is visible before React has hydrated its window listener, so a
+    // single Escape can land on nothing; retry until the handler is live (the Angles pattern).
+    await expect(async () => {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('[data-slot="theme-panel"]')).toHaveCount(0, { timeout: 1_000 });
+    }).toPass();
+    await expect(page).not.toHaveURL(/theme=/);
   });
 
   test('the category chips filter the grid, write ?category= and survive a reload', async ({
@@ -108,7 +155,7 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     ]);
 
     await page.locator('[data-slot="category-filter"][data-category="Framework"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(2);
     await expect(page).toHaveURL(/\?category=Framework/);
     await expect(
       page.locator('[data-slot="category-filter"][data-category="Framework"]'),
@@ -116,21 +163,21 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
 
     // A category with a space round-trips through the URL as %20 and comes back selected.
     await page.locator('[data-slot="category-filter"][data-category="Production Style"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(2);
     await expect(page).toHaveURL(/\?category=Production%20Style/);
 
     await page.reload();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(2);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(2);
     await expect(
       page.locator('[data-slot="category-filter"][data-category="Production Style"]'),
     ).toHaveAttribute('aria-pressed', 'true');
 
     // Spring x Soccer is archived, so Holiday Gifting is the only Seasonal card on the Active tab.
     await page.locator('[data-slot="category-filter"][data-category="Seasonal"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(1);
 
     await page.locator('[data-slot="category-filter"][data-category="All"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(5);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(5);
     await expect(page).not.toHaveURL(/category=/);
   });
 
@@ -140,7 +187,7 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     await page.goto(themesPath);
 
     await page.locator('[data-slot="theme-search"]').fill('green');
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(1);
     // The narrowed total is the Active tab's five, not the library's six: the archived
     // Spring x Soccer fixture is not part of the grid being filtered.
     await expect(page.locator('[data-slot="theme-count"]')).toHaveText(
@@ -151,20 +198,20 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     // Green Screen is a Production Style, so pairing the search with Framework matches nothing
     // and the empty state is reached by COMBINING the two filters, not by either one alone.
     await page.locator('[data-slot="category-filter"][data-category="Framework"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(0);
 
     const empty = page.locator('[data-slot="themes-empty"]');
     await expect(empty).toBeVisible();
     await expect(empty).toContainText('No theme matches these filters');
 
     await empty.locator('[data-slot="clear-filters"]').click();
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(5);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(5);
     await expect(page).not.toHaveURL(/[?&](q|category)=/);
 
     // Both filters are URL-backed, so a narrowed library is a shareable link.
     await page.goto(`${themesPath}?category=Framework&q=problem`);
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(1);
-    await expect(page.locator('[data-slot="theme-card"]')).toContainText(PROBLEM_SOLUTION);
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="theme-row"]')).toContainText(PROBLEM_SOLUTION);
   });
 
   test('every write is disabled with a reason', async ({ page }) => {
@@ -185,12 +232,14 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="new-theme-dialog"]')).toHaveCount(0);
   });
 
-  test('fits a 390px phone with no horizontal page scroll', async ({ page }) => {
+  test('fits a 390px phone with no horizontal page scroll; the grid scrolls inside itself', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(themesPath);
 
-    // Five cards: the Active tab hides the one archived fixture.
-    await expect(page.locator('[data-slot="theme-card"]')).toHaveCount(5);
+    // Five rows: the Active tab hides the one archived fixture.
+    await expect(page.locator('[data-slot="theme-row"]')).toHaveCount(5);
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

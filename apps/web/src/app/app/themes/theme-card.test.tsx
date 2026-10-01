@@ -84,16 +84,23 @@ describe('ThemeCard', () => {
     expect(markup.match(/—/g)).toHaveLength(4);
   });
 
-  it('shows the resolved assignee as prose and an unresolved stored value in mono', () => {
+  it('shows the resolved assignee and an unresolved stored name both as plain text', () => {
     const resolved = html({ assigneeId: 'user_seed_csm', assigneeName: 'Callum Ashworth' });
     expect(resolved).toContain('data-slot="theme-assignee" data-resolved="true">Callum Ashworth<');
     expect(resolved).not.toContain(UNRESOLVED_ASSIGNEE_HINT);
 
+    // An imported Gratsi row stores the Airtable collaborator's name: plain text, never mono, never
+    // "null" and never a blank chip.
     const stored = html({ assigneeId: 'Alex Rivera' });
     expect(stored).toMatch(
-      /data-slot="theme-assignee" data-resolved="false" title="[^"]+" class="font-mono text-xs">Alex Rivera</,
+      /data-slot="theme-assignee" data-resolved="false" title="[^"]+">Alex Rivera</,
     );
+    expect(stored).not.toMatch(/data-slot="theme-assignee"[^>]*class="font-mono/);
     expect(stored).toContain(UNRESOLVED_ASSIGNEE_HINT);
+
+    const serialisedNull = html({ assigneeId: 'null' });
+    expect(serialisedNull).not.toContain('>null<');
+    expect(serialisedNull).not.toContain('data-slot="theme-assignee"');
   });
 
   it('renders the note, the attachments as file-name chips with an overflow count, and the summary', () => {
