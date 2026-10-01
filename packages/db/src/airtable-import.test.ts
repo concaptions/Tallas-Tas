@@ -1,12 +1,14 @@
 import { eq } from 'drizzle-orm';
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
-import { importAirtableExport, type AirtableExport } from './airtable-import';
+import { emptyWarnings, importAirtableExport, type AirtableExport } from './airtable-import';
 import { DEMO_BRAND_ID } from './demo-data';
 import {
   anglePersonas,
   angleProducts,
   angles,
+  campaignConcepts,
   campaignsOffers,
   clientAssetFolders,
   collections,
@@ -15,14 +17,34 @@ import {
   conceptCollections,
   concepts,
   conceptThemes,
+  copyTypes,
   copywriting,
+  copywritingCampaigns,
+  copywritingCopyTypes,
   creativeBriefs,
+  creativeModuleAngles,
+  creativeModuleDesigns,
+  creativeModules,
+  creativeReporting,
+  creativeSheetItems,
   creatorConcepts,
   creatorProducts,
   creators,
+  emailCampaignCampaigns,
+  emailCampaignCollections,
+  emailCampaignProducts,
+  emailCampaigns,
+  emailFlowCampaigns,
+  emailFlows,
   personas,
   products,
+  smCampaignFeedTasks,
   themes,
+  youtubeCopy,
+  youtubeCopyCampaigns,
+  youtubeCopyCollections,
+  youtubeCopyCopyTypes,
+  youtubeCopyProducts,
 } from './schema';
 import { seed } from './seed';
 import { testDb } from './testing';
@@ -460,8 +482,8 @@ describe('importAirtableExport', () => {
   });
 });
 
-describe('Youtube Copywriting fallback (Sprint 11)', () => {
-  it('imports Youtube Copywriting when Meta is empty, mapping its fields to the copywriting columns', async () => {
+describe('Youtube Copywriting has its own table (Prompt 3, 2026-10-01; was a fallback in Sprint 11)', () => {
+  it('imports Youtube Copywriting into youtube_copy with the enums.ts keys, never into copywriting', async () => {
     const db = await seeded();
     const fixture: AirtableExport = {
       'Youtube Copywriting': [
@@ -483,19 +505,25 @@ describe('Youtube Copywriting fallback (Sprint 11)', () => {
 
     const results = await importAirtableExport(db, fixture, DEMO_BRAND_ID, 'migration-actor');
 
-    expect(results.copywriting?.imported).toBe(1);
+    expect(results.copywriting?.imported).toBe(0);
+    expect(results.youtubeCopy?.imported).toBe(1);
     const [copy] = await db
       .select()
-      .from(copywriting)
-      .where(eq(copywriting.legacyAirtableId, 'at_yt_1'));
+      .from(youtubeCopy)
+      .where(eq(youtubeCopy.legacyAirtableId, 'at_yt_1'));
     expect(copy?.copyNumber).toBe(3);
-    expect(copy?.primaryCopy).toBe('Wine, simplified.');
+    expect(copy?.descriptions).toBe('Wine, simplified.');
     expect(copy?.headline).toBe('Boxed but better');
-    expect(copy?.linkDescription).toBe('Try the sampler');
+    expect(copy?.newsFeed).toBe('Try the sampler');
+    expect(copy?.cta).toBe('shop_now');
+    expect(copy?.funnel).toBe('tof');
     expect(copy?.used).toBe(true);
+    expect((await db.select().from(copywriting)).map((row) => row.legacyAirtableId)).not.toContain(
+      'at_yt_1',
+    );
   });
 
-  it('prefers Meta Copywriting when both are present, ignoring the Youtube source', async () => {
+  it('Meta and Youtube copy land in their own tables when both are present', async () => {
     const db = await seeded();
     const fixture: AirtableExport = {
       Copywriting: [
@@ -509,10 +537,16 @@ describe('Youtube Copywriting fallback (Sprint 11)', () => {
     const results = await importAirtableExport(db, fixture, DEMO_BRAND_ID, 'migration-actor');
 
     expect(results.copywriting?.imported).toBe(1);
-    const imported = (await db.select().from(copywriting))
+    expect(results.youtubeCopy?.imported).toBe(1);
+    const meta = (await db.select().from(copywriting))
       .map((row) => row.legacyAirtableId)
       .filter((id) => id === 'at_meta_1' || id === 'at_yt_2');
-    expect(imported).toEqual(['at_meta_1']);
+    expect(meta).toEqual(['at_meta_1']);
+    const [yt] = await db
+      .select()
+      .from(youtubeCopy)
+      .where(eq(youtubeCopy.legacyAirtableId, 'at_yt_2'));
+    expect(yt?.descriptions).toBe('From Youtube');
   });
 });
 
@@ -797,5 +831,587 @@ describe('a re-import follows the base, it never keeps stale values (2026-10-01)
     await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
     const [healed] = await db.select().from(creators).where(eq(creators.id, creator.id));
     expect(healed?.internalCreatorStatus).toBe('request');
+  });
+});
+
+describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)', () => {
+  /**
+   * One record per new table, shaped like the live base's field dump (scratchpad
+   * new-tables-fields.txt / gratsi-meta.json), with the links between them and a few of the
+   * lookups and formulas Airtable ships alongside the stored fields.
+   */
+  const PARITY: AirtableExport = {
+    Products: [
+      {
+        id: 'p_prod_1',
+        fields: {
+          'Product Name / Landing Page Name': 'Gratsi White',
+          Link: 'https://gratsi.example/white',
+        },
+      },
+    ],
+    Collections: [
+      {
+        id: 'p_coll_1',
+        fields: { 'Main Collection': 'Summer Whites', URL: 'https://gratsi.example/summer' },
+      },
+    ],
+    'Campaigns & Offers': [
+      {
+        id: 'p_camp_1',
+        fields: {
+          Name: 'July 4-15% OFF-JULY15',
+          Holiday: 'July 4',
+          'Discount Offer': '15% OFF',
+          Code: 'JULY15',
+          // Named "Angles" in the base, links the CONCEPTS table.
+          Angles: ['p_concept_1'],
+          Product: ['Gratsi White'],
+        },
+      },
+    ],
+    Angles: [{ id: 'p_angle_1', fields: { Name: 'Summer sipping' } }],
+    Concepts: [
+      {
+        id: 'p_concept_1',
+        fields: { Name: 'B2-Summer sipping-Taste Test', Angle: ['p_angle_1'], Batch: 'B2' },
+      },
+    ],
+    'Creative Briefs': [
+      {
+        id: 'p_brief_1',
+        fields: {
+          Name: 'TAS-SV1-B2-Summer sipping-V1',
+          Type: 'Static',
+          'Internal Status': 'Approved',
+          'Client Status': 'Approved',
+        },
+      },
+    ],
+    '(Internal) Copy Type': [
+      { id: 'p_ct_1', fields: { Name: 'Testimonial', Description: 'Customer words' } },
+    ],
+    Copywriting: [
+      {
+        id: 'p_meta_1',
+        fields: {
+          'Copy #': 'Copy 2',
+          Descriptions: 'Chilled and ready',
+          Status: 'Approved',
+          'Copy Type': ['p_ct_1'],
+          'Campaign Code': ['p_camp_1'],
+          Creative: ['p_brief_1'],
+          Offer: ['15% OFF'],
+        },
+      },
+    ],
+    'Youtube Copywriting': [
+      {
+        id: 'p_yt_1',
+        fields: {
+          'Copy #': 'Copy 7',
+          Status: 'Edited By Client',
+          Collections: ['p_coll_1'],
+          Product: ['p_prod_1'],
+          Angle: 'Summer sipping',
+          'Descriptions (90 caractères max)': 'Pour, sip, repeat.',
+          Headline: 'Boxed, better',
+          'News Feed': 'Summer sampler',
+          CTA: 'Get Offer',
+          'Campaign Code': ['p_camp_1'],
+          Offer: ['15% OFF'],
+          Funnel: 'MOF & BOF',
+          'Copy Type': ['p_ct_1'],
+          USED: true,
+          Winning: true,
+          'Meta Rating': 4,
+          'Created By': { id: 'usrAbc', email: 'c@tas.example', name: 'Copywriter' },
+        },
+      },
+    ],
+    '(Internal) Creative Modules': [
+      {
+        id: 'p_mod_1',
+        fields: {
+          'Module Name': 'Taste-test pattern',
+          // Named "Concepts" in the base, links the ANGLES table.
+          Concepts: ['p_angle_1'],
+          'Foreplay Link': 'https://foreplay.co/board/1',
+          '(Internal) Creative Design': ['p_brief_1'],
+        },
+      },
+    ],
+    'Creative Sheet': [
+      {
+        id: 'p_sheet_1',
+        fields: {
+          Name: 'September-TAS-SV1-B2-Summer sipping-V1',
+          'Creative Name': ['p_brief_1'],
+          'Performance (from Creative Name)': ['Winner'],
+          'Internal Status': 'Static Design in Progress',
+          Status: 'Revisions Submitted',
+          'QA Checklist Doc': [{ url: 'https://dl.airtable.example/qa.pdf' }],
+          'Video Editor QA': true,
+          'Graphic Designer QA': false,
+          "Client's Comments": 'Bigger logo please',
+          Used: true,
+          'Denied/revisions needed': true,
+          Winning: 'Best Performing',
+          Created: '2026-09-02T10:00:00.000Z',
+          'Click for AI Spell Checker Again': true,
+          'Spelling Feedback': 'No issues',
+        },
+      },
+      // A sheet row whose brief is not in the export: lands with brief_id NULL, counted once.
+      { id: 'p_sheet_2', fields: { 'Creative Name': ['recNotInExport'], Status: 'Denied' } },
+    ],
+    'SM Campaign Management Feed': [
+      {
+        id: 'p_sm_1',
+        fields: {
+          'Task Name': 'Post the July reel',
+          Platform: 'Tiktok',
+          'Due Date': '2026-07-03T15:00:00.000Z',
+          Status: 'In progress',
+          Notes: 'Vertical cut',
+          'Reminder Trigger': 'No',
+        },
+      },
+    ],
+    'Email Campaigns Management': [
+      {
+        id: 'p_ec_1',
+        fields: {
+          Name: 'July 4 blast',
+          'Campaign Purpose': 'Holiday promo',
+          Status: 'Client: Design Pending for Approval',
+          'Send Date': '2026-07-01',
+          'Copywriting Due Date': '2026-06-21',
+          Copywriting: 'Celebrate with a glass',
+          'Design Due Date': '2026-06-26',
+          Assignee: { id: 'usrEll', email: 'ella@tas.example', name: 'Ella' },
+          'Copy Link': 'https://docs.example/copy',
+          Design: [{ url: 'https://dl.airtable.example/design.png' }],
+          'Klaviyo Link': 'https://klaviyo.example/1',
+          Assets: [
+            { url: 'https://dl.airtable.example/a1.png' },
+            { url: 'https://dl.airtable.example/a2.png' },
+          ],
+          Type: 'Blog Post/Educational',
+          Channel: 'Push Notification',
+          'Campaigns & Offers': ['p_camp_1'],
+          '(Internal) Product': ['p_prod_1'],
+          '(Internal) Collections': ['p_coll_1'],
+        },
+      },
+    ],
+    'Email Flows Management': [
+      {
+        id: 'p_ef_1',
+        fields: {
+          'Flow Name': 'Welcome series',
+          'Expected Setup Date': '2026-08-15',
+          'Flow Purpose': 'Onboard new subscribers',
+          Status: 'Live',
+          Copywriting: 'Hi there',
+          Design: [{ url: 'https://dl.airtable.example/flow.png' }],
+          'Klaviyo Link': 'https://klaviyo.example/flow',
+          Type: 'SMS',
+          'Campaigns & Offers': ['p_camp_1'],
+          Inspo: [{ url: 'https://dl.airtable.example/inspo.png' }],
+          Assignee: { id: 'usrFin', name: 'Finn' },
+        },
+      },
+    ],
+    'Creative Reporting': [
+      {
+        id: 'p_rep_1',
+        fields: {
+          'Name + Angle + Offer': 'SV1 - Summer sipping - 15% OFF',
+          Notes: 'Strong hook',
+          'Ad Design': [{ url: 'https://dl.airtable.example/ad.png' }],
+          'Ad Link': 'https://fb.example/ads/1',
+          CTR: 0.0412,
+          'Thumb-Stop Rate': 31.5,
+          Results: 42,
+          CPA: 18.75,
+          'Target CPA': 20,
+          'Difference CPA': -1.25,
+          ROAS: 3.21,
+          'Target ROAS': 3,
+        },
+      },
+    ],
+  };
+
+  it('lands a row in every new table, with every select stored as its vocabulary key', async () => {
+    const db = await seeded();
+    const results = await importAirtableExport(db, PARITY, DEMO_BRAND_ID, 'migration-actor');
+
+    for (const table of [
+      'copyTypes',
+      'youtubeCopy',
+      'creativeModules',
+      'smCampaignFeedTasks',
+      'emailCampaigns',
+      'emailFlows',
+      'creativeReporting',
+    ]) {
+      expect(results[table]?.records, table).toBe(1);
+      expect(results[table]?.imported, table).toBe(1);
+      expect(results[table]?.failed, table).toBe(0);
+    }
+    expect(results.creativeSheetItems?.records).toBe(2);
+    expect(results.creativeSheetItems?.imported).toBe(2);
+
+    const [sheet] = await db
+      .select()
+      .from(creativeSheetItems)
+      .where(eq(creativeSheetItems.legacyAirtableId, 'p_sheet_1'));
+    const [brief] = await db
+      .select()
+      .from(creativeBriefs)
+      .where(eq(creativeBriefs.legacyAirtableId, 'p_brief_1'));
+    expect(sheet?.briefId).toBe(brief?.id);
+    expect(sheet?.internalStatus).toBe('static_design_in_progress');
+    expect(sheet?.status).toBe('revisions_submitted');
+    expect(sheet?.winning).toBe('best_performing');
+    expect(sheet?.qaChecklistDoc).toEqual(['https://dl.airtable.example/qa.pdf']);
+    expect(sheet?.qaVideoEditor).toBe(true);
+    expect(sheet?.qaDesigner).toBe(false);
+    expect(sheet?.used).toBe(true);
+    expect(sheet?.deniedRevisionsNeeded).toBe(true);
+    expect(sheet?.spellCheckRequested).toBe(true);
+    expect(sheet?.clientComments).toBe('Bigger logo please');
+    const [orphanSheet] = await db
+      .select()
+      .from(creativeSheetItems)
+      .where(eq(creativeSheetItems.legacyAirtableId, 'p_sheet_2'));
+    expect(orphanSheet?.briefId).toBeNull();
+    expect(orphanSheet?.status).toBe('denied');
+
+    const [yt] = await db
+      .select()
+      .from(youtubeCopy)
+      .where(eq(youtubeCopy.legacyAirtableId, 'p_yt_1'));
+    expect(yt?.copyNumber).toBe(7);
+    expect(yt?.status).toBe('edited_by_client');
+    expect(yt?.cta).toBe('get_offer');
+    expect(yt?.funnel).toBe('mof_bof');
+    expect(yt?.angle).toBe('Summer sipping');
+    expect(yt?.metaRating).toBe(4);
+    expect(yt?.winning).toBe(true);
+
+    const [module] = await db
+      .select()
+      .from(creativeModules)
+      .where(eq(creativeModules.legacyAirtableId, 'p_mod_1'));
+    expect(module?.moduleName).toBe('Taste-test pattern');
+    expect(module?.foreplayLink).toBe('https://foreplay.co/board/1');
+
+    const [sm] = await db
+      .select()
+      .from(smCampaignFeedTasks)
+      .where(eq(smCampaignFeedTasks.legacyAirtableId, 'p_sm_1'));
+    expect(sm?.platform).toBe('tiktok');
+    expect(sm?.status).toBe('in_progress');
+    expect(sm?.dueDate).toEqual(new Date('2026-07-03T15:00:00.000Z'));
+
+    const [ec] = await db
+      .select()
+      .from(emailCampaigns)
+      .where(eq(emailCampaigns.legacyAirtableId, 'p_ec_1'));
+    expect(ec?.status).toBe('client_design_pending_for_approval');
+    expect(ec?.type).toBe('blog_post_educational');
+    expect(ec?.channel).toBe('push_notification');
+    expect(ec?.sendDate).toBe('2026-07-01');
+    expect(ec?.assigneeId).toBe('Ella');
+    expect(ec?.assets).toEqual([
+      'https://dl.airtable.example/a1.png',
+      'https://dl.airtable.example/a2.png',
+    ]);
+
+    const [ef] = await db
+      .select()
+      .from(emailFlows)
+      .where(eq(emailFlows.legacyAirtableId, 'p_ef_1'));
+    expect(ef?.status).toBe('live');
+    expect(ef?.type).toBe('sms');
+    expect(ef?.expectedSetupDate).toBe('2026-08-15');
+    expect(ef?.inspo).toEqual(['https://dl.airtable.example/inspo.png']);
+    expect(ef?.assigneeId).toBe('Finn');
+
+    const [report] = await db
+      .select()
+      .from(creativeReporting)
+      .where(eq(creativeReporting.legacyAirtableId, 'p_rep_1'));
+    expect(report?.nameAngleOffer).toBe('SV1 - Summer sipping - 15% OFF');
+    expect(report?.briefId).toBeNull();
+    expect(report?.ctr).toBe('0.0412');
+    expect(report?.thumbStopRate).toBe('31.50');
+    expect(report?.results).toBe('42.0');
+    expect(report?.cpa).toBe('18.75');
+    expect(report?.targetCpa).toBe('20.00');
+    expect(report?.roas).toBe('3.21');
+    expect(report?.targetRoas).toBe('3.0');
+    expect(report?.adDesign).toEqual(['https://dl.airtable.example/ad.png']);
+
+    const [copyType] = await db
+      .select()
+      .from(copyTypes)
+      .where(eq(copyTypes.legacyAirtableId, 'p_ct_1'));
+    expect(copyType?.name).toBe('Testimonial');
+  });
+
+  it('resolves every new junction, including the two links the base mis-names', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, PARITY, DEMO_BRAND_ID, 'migration-actor');
+
+    const one = async (
+      table: PgTable & { legacyAirtableId: AnyPgColumn; id: AnyPgColumn },
+      legacyId: string,
+    ): Promise<string> => {
+      const [row] = await db
+        .select({ id: table.id })
+        .from(table)
+        .where(eq(table.legacyAirtableId, legacyId));
+      if (!row) throw new Error(`${legacyId} not imported`);
+      return String(row.id);
+    };
+    const [angleId, conceptId, briefId, campaignId, productId, collectionId, copyTypeId] =
+      await Promise.all([
+        one(angles, 'p_angle_1'),
+        one(concepts, 'p_concept_1'),
+        one(creativeBriefs, 'p_brief_1'),
+        one(campaignsOffers, 'p_camp_1'),
+        one(products, 'p_prod_1'),
+        one(collections, 'p_coll_1'),
+        one(copyTypes, 'p_ct_1'),
+      ]);
+    const moduleId = await one(creativeModules, 'p_mod_1');
+    const ytId = await one(youtubeCopy, 'p_yt_1');
+    const metaId = await one(copywriting, 'p_meta_1');
+    const ecId = await one(emailCampaigns, 'p_ec_1');
+    const efId = await one(emailFlows, 'p_ef_1');
+
+    // Creative Modules."Concepts" → angles; "(Internal) Creative Design" → briefs.
+    expect(
+      await db
+        .select()
+        .from(creativeModuleAngles)
+        .where(eq(creativeModuleAngles.moduleId, moduleId)),
+    ).toEqual([{ moduleId, angleId }]);
+    expect(
+      await db
+        .select()
+        .from(creativeModuleDesigns)
+        .where(eq(creativeModuleDesigns.moduleId, moduleId)),
+    ).toEqual([{ moduleId, briefId }]);
+
+    // Campaigns & Offers."Angles" → concepts.
+    expect(
+      await db
+        .select()
+        .from(campaignConcepts)
+        .where(eq(campaignConcepts.campaignOfferId, campaignId)),
+    ).toEqual([{ campaignOfferId: campaignId, conceptId }]);
+
+    // Youtube copy: Collections, Product, Campaign Code, Copy Type.
+    expect(
+      await db
+        .select()
+        .from(youtubeCopyCollections)
+        .where(eq(youtubeCopyCollections.youtubeCopyId, ytId)),
+    ).toEqual([{ youtubeCopyId: ytId, collectionId }]);
+    expect(
+      await db
+        .select()
+        .from(youtubeCopyProducts)
+        .where(eq(youtubeCopyProducts.youtubeCopyId, ytId)),
+    ).toEqual([{ youtubeCopyId: ytId, productId }]);
+    expect(
+      await db
+        .select()
+        .from(youtubeCopyCampaigns)
+        .where(eq(youtubeCopyCampaigns.youtubeCopyId, ytId)),
+    ).toEqual([{ youtubeCopyId: ytId, campaignOfferId: campaignId }]);
+    expect(
+      await db
+        .select()
+        .from(youtubeCopyCopyTypes)
+        .where(eq(youtubeCopyCopyTypes.youtubeCopyId, ytId)),
+    ).toEqual([{ youtubeCopyId: ytId, copyTypeId }]);
+
+    // Meta copy: Copy Type and Campaign Code (the brief FK still lands through "Creative").
+    expect(
+      await db.select().from(copywritingCopyTypes).where(eq(copywritingCopyTypes.copyId, metaId)),
+    ).toEqual([{ copyId: metaId, copyTypeId }]);
+    expect(
+      await db.select().from(copywritingCampaigns).where(eq(copywritingCampaigns.copyId, metaId)),
+    ).toEqual([{ copyId: metaId, campaignOfferId: campaignId }]);
+    const [meta] = await db.select().from(copywriting).where(eq(copywriting.id, metaId));
+    expect(meta?.creativeBriefId).toBe(briefId);
+
+    // Email campaigns: three junctions; email flows: one.
+    expect(
+      await db
+        .select()
+        .from(emailCampaignCampaigns)
+        .where(eq(emailCampaignCampaigns.emailCampaignId, ecId)),
+    ).toEqual([{ emailCampaignId: ecId, campaignOfferId: campaignId }]);
+    expect(
+      await db
+        .select()
+        .from(emailCampaignProducts)
+        .where(eq(emailCampaignProducts.emailCampaignId, ecId)),
+    ).toEqual([{ emailCampaignId: ecId, productId }]);
+    expect(
+      await db
+        .select()
+        .from(emailCampaignCollections)
+        .where(eq(emailCampaignCollections.emailCampaignId, ecId)),
+    ).toEqual([{ emailCampaignId: ecId, collectionId }]);
+    expect(
+      await db.select().from(emailFlowCampaigns).where(eq(emailFlowCampaigns.emailFlowId, efId)),
+    ).toEqual([{ emailFlowId: efId, campaignOfferId: campaignId }]);
+  });
+
+  it('a re-run upserts every new table in place and rebuilds its junctions without duplicates', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, PARITY, DEMO_BRAND_ID, 'migration-actor');
+    const countAll = async () =>
+      Promise.all([
+        db.select().from(youtubeCopy),
+        db.select().from(creativeSheetItems),
+        db.select().from(creativeModules),
+        db.select().from(emailCampaigns),
+        db.select().from(emailFlows),
+        db.select().from(creativeReporting),
+        db.select().from(smCampaignFeedTasks),
+        db.select().from(copyTypes),
+        db.select().from(youtubeCopyCollections),
+        db.select().from(creativeModuleAngles),
+        db.select().from(campaignConcepts),
+        db.select().from(emailCampaignProducts),
+        db.select().from(emailFlowCampaigns),
+        db.select().from(copywritingCopyTypes),
+      ]).then((sets) => sets.map((rows) => rows.length));
+    const before = await countAll();
+
+    const results = await importAirtableExport(db, PARITY, DEMO_BRAND_ID, 'migration-actor');
+
+    for (const table of [
+      'copyTypes',
+      'youtubeCopy',
+      'creativeModules',
+      'smCampaignFeedTasks',
+      'emailCampaigns',
+      'emailFlows',
+      'creativeReporting',
+    ]) {
+      expect(results[table]?.imported, table).toBe(0);
+      expect(results[table]?.updated, table).toBe(1);
+    }
+    expect(results.creativeSheetItems?.updated).toBe(2);
+    expect(await countAll()).toEqual(before);
+  });
+
+  it('reports every exported field no mapper or pass-2 step read, and nothing one did', async () => {
+    const db = await seeded();
+    const warnings = emptyWarnings();
+    await importAirtableExport(db, PARITY, DEMO_BRAND_ID, 'migration-actor', warnings);
+
+    const sheet = warnings.unmappedFields.get('Creative Sheet');
+    expect(sheet?.get('Performance (from Creative Name)')).toBe(1);
+    expect(sheet?.get('Name')).toBe(1);
+    expect(sheet?.get('Created')).toBe(1);
+    expect(sheet?.has('Internal Status')).toBe(false);
+    expect(sheet?.has('Creative Name')).toBe(false);
+    expect(sheet?.has("Client's Comments")).toBe(false);
+
+    expect(
+      warnings.unmappedFields.get('SM Campaign Management Feed')?.get('Reminder Trigger'),
+    ).toBe(1);
+    expect(warnings.unmappedFields.get('Creative Reporting')?.get('Difference CPA')).toBe(1);
+    expect(warnings.unmappedFields.get('Email Campaigns Management')?.get('Design Due Date')).toBe(
+      1,
+    );
+    const yt = warnings.unmappedFields.get('Youtube Copywriting');
+    expect(yt?.get('Offer')).toBe(1);
+    expect(yt?.get('Created By')).toBe(1);
+    expect(yt?.has('Campaign Code')).toBe(false);
+    expect(warnings.unmappedFields.get('Campaigns & Offers')?.has('Angles')).toBe(false);
+    // Every field of a Creative Module is read, so the table has no entry at all.
+    expect(warnings.unmappedFields.has('(Internal) Creative Modules')).toBe(false);
+
+    // The sheet row whose brief is outside the export is counted, not failed.
+    expect(warnings.brokenRefs.get("creativeSheetItems.'Creative Name'")).toBe(1);
+  });
+  it('stores the Gratsi-only fields: angle status, concept description/pain points/USP/client comments, creator payment date/info request/Slack flag, campaign promotional ideas', async () => {
+    const db = await seeded();
+    const fixture: AirtableExport = {
+      ...FIXTURE,
+      Angles: [
+        { id: 'at_angle_1', fields: { ...FIXTURE.Angles?.[0]?.fields, Status: 'Needs Revisions' } },
+      ],
+      Concepts: [
+        {
+          id: 'at_concept_1',
+          fields: {
+            ...FIXTURE.Concepts?.[0]?.fields,
+            Decription: 'Reframe the rota as the problem',
+            'Pain Points': 'Cannot sleep in daylight',
+            USP: 'Pressure without heat',
+            "Client's Comments": 'Keep the uniforms generic',
+          },
+        },
+      ],
+      Creators: [
+        {
+          id: 'at_creator_1',
+          fields: {
+            ...FIXTURE.Creators?.[0]?.fields,
+            'Payment Date': '2026-09-12',
+            'Creator Info Request': 'Send the shipping address',
+            'Slack Notified ': true,
+          },
+        },
+      ],
+      'Campaigns & Offers': [
+        {
+          id: 'at_camp_1',
+          fields: {
+            ...FIXTURE['Campaigns & Offers']?.[0]?.fields,
+            'Promotional Ideas': 'Bundle the pillow',
+          },
+        },
+      ],
+    };
+    await importAirtableExport(db, fixture, DEMO_BRAND_ID, 'migration-actor');
+
+    const [angle] = await db.select().from(angles).where(eq(angles.legacyAirtableId, 'at_angle_1'));
+    expect(angle?.status).toBe('needs_revisions');
+    const [concept] = await db
+      .select()
+      .from(concepts)
+      .where(eq(concepts.legacyAirtableId, 'at_concept_1'));
+    expect(concept).toMatchObject({
+      description: 'Reframe the rota as the problem',
+      painPoints: 'Cannot sleep in daylight',
+      usp: 'Pressure without heat',
+      clientComments: 'Keep the uniforms generic',
+    });
+    const [creator] = await db
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 'at_creator_1'));
+    expect(creator?.paymentDate?.toISOString().slice(0, 10)).toBe('2026-09-12');
+    expect(creator?.creatorInfoRequest).toBe('Send the shipping address');
+    expect(creator?.slackNotified).toBe(true);
+    const [campaign] = await db
+      .select()
+      .from(campaignsOffers)
+      .where(eq(campaignsOffers.legacyAirtableId, 'at_camp_1'));
+    expect(campaign?.promotionalIdeas).toBe('Bundle the pillow');
   });
 });

@@ -7,6 +7,7 @@ import {
   importAirtableExport,
   type AirtableExport,
   type ImportWarnings,
+  type TableResult,
 } from '../airtable-import';
 import { createAutoDb } from '../db';
 import { applyPendingMigrations } from './migrate-prod';
@@ -19,20 +20,30 @@ class DryRunRollback extends Error {
 }
 
 function printReport(
-  results: Record<
-    string,
-    { imported: number; updated: number; skipped: number; failed: number; errors: string[] }
-  >,
+  results: Record<string, TableResult>,
   warnings: ImportWarnings,
+  dryRun: boolean,
 ): void {
-  console.log('\nPer table (imported / updated / skipped / failed):');
+  const verb = dryRun ? 'would write' : 'wrote';
+  console.log(`\nPer table (Airtable records | ${verb}: imported/updated/skipped/failed):`);
   for (const [table, r] of Object.entries(results)) {
     console.log(
-      `  ${table}: ${String(r.imported)} / ${String(r.updated)} / ${String(r.skipped)} / ${String(r.failed)}`,
+      `  ${table}: Airtable records: ${String(r.records)} | ${verb}: ${String(r.imported)}/${String(r.updated)}/${String(r.skipped)}/${String(r.failed)}`,
     );
     for (const err of r.errors) console.log(`    ERROR: ${err}`);
   }
   console.log(`\nAttachment URLs captured: ${String(warnings.attachmentsCaptured)}`);
+  if (warnings.unmappedFields.size > 0) {
+    console.log(
+      '\nUNMAPPED FIELDS — present in the export, read by no mapper or pass-2 step (lookups, formulas and system fields are expected here; a stored field in this list is a gap):',
+    );
+    for (const [table, fields] of [...warnings.unmappedFields.entries()].sort()) {
+      console.log(`  ${table} (${String(fields.size)} fields):`);
+      for (const [field, n] of [...fields.entries()].sort()) {
+        console.log(`    ${JSON.stringify(field)} x${String(n)}`);
+      }
+    }
+  }
   if (warnings.unmappedValues.size > 0) {
     console.log(
       '\nSelect values outside the explicit maps (stored as normalized key, or NULL where marked):',
@@ -122,7 +133,7 @@ async function main(): Promise<void> {
 
   if (run.results === null) throw new Error('import produced no results');
   console.log(dryRun ? '\n[DRY RUN — TRANSACTION ROLLED BACK, NOTHING WRITTEN]' : '\n[COMMITTED]');
-  printReport(run.results, warnings);
+  printReport(run.results, warnings, dryRun);
 
   await db.$client.end();
 }

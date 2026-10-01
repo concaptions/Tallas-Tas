@@ -1,6 +1,11 @@
 /**
  * Complete Airtable → Drizzle field mapping for the Gratsi base (appllDG4OmkK2Hdnn).
- * Generated from the live Airtable schema + Drizzle schema audit on 2026-09-23.
+ * Generated from the live Airtable schema + Drizzle schema audit on 2026-09-23; extended on
+ * 2026-10-01 (Prompt 3) when the last seven live tables got a Drizzle home and the importer began
+ * reading EVERY table of the base. The ids below are documentation only — the fetcher resolves
+ * tables by NAME (`airtable-tables.ts`). The engine (`../airtable-import.ts`) is the source of truth
+ * for what is written; its dry run prints the per-table UNMAPPED-FIELDS list straight from the
+ * export, so this file no longer has to enumerate every lookup a table carries.
  *
  * Handler types:
  *   text         singleLineText | multilineText → Drizzle text
@@ -71,22 +76,46 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         default: 'Untitled',
       },
       Link: { drizzleColumn: 'link', handler: 'text', required: true, default: '' },
-      Angles: { drizzleColumn: null, handler: 'skip', note: 'Reverse link from angles' },
-      'UGC Management': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
-      '(Internal) Creative Design': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
+      Angles: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Angles › Product into angle_products (the gate derives this from inverseLinkFieldId)',
+      },
+      'UGC Management': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from UGC Management › Products into creator_products (the gate derives this from inverseLinkFieldId)',
+      },
+      '(Internal) Creative Design': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Creative Design › (Internal) Product into creative_briefs.product_id (the gate derives this from inverseLinkFieldId)',
+      },
       '(Internal) Creative Design 2': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Internal ref text',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
       },
-      'Youtube Copywriting': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
-      'Creative Sheet': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
+      'Youtube Copywriting': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Youtube Copywriting › Product into youtube_copy_products (the gate derives this from inverseLinkFieldId)',
+      },
+      'Creative Sheet': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
       'Email Campaigns Management copy': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Reverse link',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
       },
-      'Table 17': { drizzleColumn: null, handler: 'skip', note: 'Internal link' },
+      'Table 17': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Email Campaigns Management › (Internal) Product into email_campaign_products (the gate derives this from inverseLinkFieldId)',
+      },
     },
   },
 
@@ -131,11 +160,7 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       'Official Date': { drizzleColumn: 'officialDate', handler: 'date' },
       Country: { drizzleColumn: 'country', handler: 'text' },
       Description: { drizzleColumn: 'description', handler: 'text' },
-      'Promotional Ideas': {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'No Drizzle column; richText field',
-      },
+      'Promotional Ideas': { drizzleColumn: 'promotionalIdeas', handler: 'richText' },
       Interested: {
         drizzleColumn: 'confirmedByClient',
         handler: 'checkbox',
@@ -146,22 +171,47 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       'Ads End Date': { drizzleColumn: 'adsEndDate', handler: 'date' },
       'Discount Offer': { drizzleColumn: 'discountOffer', handler: 'text' },
       Code: { drizzleColumn: 'code', handler: 'text' },
-      Collections: { drizzleColumn: null, handler: 'skip', note: 'Reverse link from collections' },
+      Collections: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from (Internal) Collections › Campaigns & Offers into collections.campaign_id (the gate derives this from inverseLinkFieldId)',
+      },
       Product: {
         drizzleColumn: null,
         handler: 'skip',
         note: 'multipleLookupValues, not a direct link',
       },
-      COPY: { drizzleColumn: null, handler: 'skip', note: 'Reverse link from copywriting' },
-      Angles: { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
-      'Design attached': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
-      'Email Campaigns': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
+      COPY: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Youtube Copywriting › Campaign Code into youtube_copy_campaigns (the gate derives this from inverseLinkFieldId)',
+      },
+      Angles: {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'campaignConcepts',
+        note: 'Links the CONCEPTS table despite its name (schema/campaign-links.ts)',
+      },
+      'Design attached': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      'Email Campaigns': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Email Campaigns Management › Campaigns & Offers into email_campaign_campaigns (the gate derives this from inverseLinkFieldId)',
+      },
       'Email Campaigns Management copy': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Reverse link',
+        note: 'Reverse link; the junction/FK is written from Email Flows Management › Campaigns & Offers into email_flow_campaigns (the gate derives this from inverseLinkFieldId)',
       },
-      'Ads Copywriting copy': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
+      'Ads Copywriting copy': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Meta Copywriting › Campaign Code into copywriting_campaigns (the gate derives this from inverseLinkFieldId)',
+      },
     },
   },
 
@@ -192,7 +242,11 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         handler: 'richText',
         note: 'Closest match to coreDesires',
       },
-      Angles: { drizzleColumn: null, handler: 'skip', note: 'Reverse link from angles' },
+      Angles: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Angles › Personas into angle_personas (the gate derives this from inverseLinkFieldId)',
+      },
       'Problem-Solution Awareness Level': {
         drizzleColumn: 'stageOfAwareness',
         handler: 'select',
@@ -209,20 +263,28 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
     fields: {
       Name: { drizzleColumn: 'name', handler: 'text', required: true, default: 'Untitled' },
       Status: {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'No status column on angles; Drizzle uses potential + winning',
+        drizzleColumn: 'status',
+        handler: 'select',
+        note: 'The approval track (angleStatuses tuple); Potential and Winning are separate columns',
       },
       Potential: { drizzleColumn: 'potential', handler: 'select' },
       Description: { drizzleColumn: 'description', handler: 'text' },
-      Creators: { drizzleColumn: null, handler: 'skip', note: 'Reverse link from creators' },
-      Concepts: { drizzleColumn: null, handler: 'skip', note: 'Reverse link from concepts' },
+      Creators: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Link to UGC Management with no mapped inverse; empty on all 43 live rows; excluded in docs/decisions.md',
+      },
+      Concepts: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Concepts › Angles into concept_angles (the gate derives this from inverseLinkFieldId)',
+      },
       'Product (from Angles)': { drizzleColumn: null, handler: 'skip', note: 'Lookup field' },
       'Personas (from Angles)': { drizzleColumn: null, handler: 'skip', note: 'Lookup field' },
       '(Internal) Creative Modules': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'No Drizzle table for Creative Modules',
+        note: 'Reverse link; the junction/FK is written from (Internal) Creative Modules › Concepts (which links Angles) into creative_module_angles (the gate derives this from inverseLinkFieldId)',
       },
       'Formats to create': {
         drizzleColumn: 'formats',
@@ -233,7 +295,7 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       '(Internal) Creative Design': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Internal ref text',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
       },
       Brief: { drizzleColumn: 'briefUrl', handler: 'text' },
       'Exact Script': { drizzleColumn: 'exactScriptUrl', handler: 'text' },
@@ -244,14 +306,26 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       Winning: { drizzleColumn: 'winning', handler: 'checkbox' },
       'Internal Notes': { drizzleColumn: 'internalNotes', handler: 'text' },
-      'Creative Sheet': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
+      'Creative Sheet': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
       '(Internal) Creative Design 2': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Reverse link',
+        note: 'Reverse link; the junction/FK is written from Creative Design › Angle into creative_briefs.angle_id (the gate derives this from inverseLinkFieldId)',
       },
-      'UGC Management copy': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
-      'Concepts copy': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
+      'UGC Management copy': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      'Concepts copy': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
     },
   },
 
@@ -265,11 +339,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       Batch: { drizzleColumn: 'batch', handler: 'select' },
       Theme: {
         drizzleColumn: null,
-        handler: 'skip',
-        note:
-          'multipleSelects in Gratsi (not a record link). ' +
-          'Cannot resolve to theme IDs. ' +
-          'Match by name to themes table in Pass 2 if needed.',
+        handler: 'multiSelect',
+        junctionTable: 'conceptThemes',
+        note: 'multipleSelects in Gratsi (not a record link): matched by theme NAME against the global themes library',
       },
       Angle: {
         drizzleColumn: null,
@@ -292,13 +364,15 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       Performance: { drizzleColumn: null, handler: 'skip', note: 'Lookup field' },
       Product: {
         drizzleColumn: null,
-        handler: 'skip',
-        note: 'multipleRecordLinks but no concept→product FK or junction in Drizzle',
+        handler: 'multiLink',
+        junctionTable: 'angleProducts',
+        note: "Gratsi pairs the product on the concept; the importer infers angle_products for each of the concept's angles so the angle → product inheritance chain lights up",
       },
       Personas: {
         drizzleColumn: null,
-        handler: 'skip',
-        note: 'multipleRecordLinks but no concept→persona FK or junction in Drizzle',
+        handler: 'multiLink',
+        junctionTable: 'anglePersonas',
+        note: "As Product: inferred angle_personas across the concept's angles",
       },
       Status: {
         drizzleColumn: 'approvalStatus',
@@ -306,9 +380,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         note: 'Airtable "Status" → approvalStatus. Map values to ConceptApprovalStatus',
       },
       Decription: {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'Typo in Airtable field name. No description column on concepts.',
+        drizzleColumn: 'description',
+        handler: 'text',
+        note: "The live base's own spelling of the field",
       },
       Script: { drizzleColumn: 'scriptIdea', handler: 'richText' },
       Collection: {
@@ -317,34 +391,30 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         junctionTable: 'conceptCollections',
         note: 'Resolve collection IDs in Pass 2',
       },
-      'Pain Points': {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'No painPoints column on concepts (exists on angles)',
-      },
-      USP: {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'No usp column on concepts (exists on angles)',
-      },
+      'Pain Points': { drizzleColumn: 'painPoints', handler: 'richText' },
+      USP: { drizzleColumn: 'usp', handler: 'richText' },
       Hooks: { drizzleColumn: 'hookExamples', handler: 'richText' },
-      "Client's Comments": {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'No clientComments column on concepts',
-      },
+      "Client's Comments": { drizzleColumn: 'clientComments', handler: 'text' },
       'UGC Management': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Reverse link from creators; handled in creators import',
+        note: 'Reverse link; the junction/FK is written from UGC Management › Concept to film into creator_concepts (the gate derives this from inverseLinkFieldId)',
       },
       'Campaigns & Offers': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'No concept→campaign FK or junction in Drizzle',
+        note: 'Reverse link; the junction/FK is written from Campaigns & Offers › Angles (which links Concepts) into campaign_concepts (the gate derives this from inverseLinkFieldId)',
       },
-      '(Internal) Creative Design': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
-      'UGC Management copy': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
+      '(Internal) Creative Design': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Creative Design › Concept into creative_briefs.concept_id (the gate derives this from inverseLinkFieldId)',
+      },
+      'UGC Management copy': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
     },
   },
 
@@ -371,7 +441,11 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         handler: 'singleLink',
         note: 'Resolve campaign ID in Pass 2 — existing script has a BUG: resolves against conceptMap',
       },
-      'Creative Sheet': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
+      'Creative Sheet': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
       Angles: {
         drizzleColumn: 'angleId',
         handler: 'singleLink',
@@ -380,21 +454,33 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       '(Internal) Product': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'singleLineText in Gratsi, not a record link. Cannot resolve.',
+        note: 'Single-line text in Gratsi where the platform has product_id; empty on all 5 live rows; excluded in docs/decisions.md',
       },
-      '(Internal) Creative Design': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
-      '(Internal) Creative Design 2': {
+      '(Internal) Creative Design': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Internal ref text',
+        note: 'Reverse link; the junction/FK is written from Creative Design › (Internal) Collections 3 into creative_briefs.collection_id (the gate derives this from inverseLinkFieldId)',
       },
-      'Table 17': { drizzleColumn: null, handler: 'skip', note: 'Internal link' },
+      '(Internal) Creative Design 2': {
+        drizzleColumn: 'creativeDesignNote',
+        handler: 'text',
+        note: 'Loose text beside the real link; kept as the design note',
+      },
+      'Table 17': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Email Campaigns Management › (Internal) Collections into email_campaign_collections (the gate derives this from inverseLinkFieldId)',
+      },
       'Email Campaigns Management copy': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Internal ref text',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
       },
-      'Ads Copywriting copy': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
+      'Ads Copywriting copy': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Link to Meta Copywriting; empty on all 5 live rows and the base holds 0 Meta rows; excluded in docs/decisions.md',
+      },
     },
   },
 
@@ -482,7 +568,7 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       'Creative Module': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'No Creative Modules table in Drizzle',
+        note: 'Reverse link; the junction/FK is written from (Internal) Creative Modules › (Internal) Creative Design into creative_module_designs (the gate derives this from inverseLinkFieldId)',
       },
       'Last Modified': {
         drizzleColumn: null,
@@ -506,7 +592,11 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         handler: 'singleLink',
         note: 'Resolve collection ID in Pass 2',
       },
-      'Creative Sheet': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
+      'Creative Sheet': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Creative Sheet › Creative Name into creative_sheet_items.brief_id (the gate derives this from inverseLinkFieldId)',
+      },
       'Ads Copywriting copy': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
       'Meta Copywriting': { drizzleColumn: null, handler: 'skip', note: 'Reverse link' },
       'Script & brief breakdown ': {
@@ -539,9 +629,21 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         handler: 'select',
         note: 'Map to COPY_STATUS domain keys',
       },
-      Collections: { drizzleColumn: null, handler: 'skip', note: 'Resolved through brief' },
-      Product: { drizzleColumn: null, handler: 'skip', note: 'Text ref, not a link' },
-      Angle: { drizzleColumn: null, handler: 'skip', note: 'Text ref, not a link' },
+      Collections: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Link to Collections whose inverse (Ads Copywriting copy) is unmapped; 0 Meta rows in the base; excluded in docs/decisions.md',
+      },
+      Product: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      Angle: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
       Descriptions: {
         drizzleColumn: 'primaryCopy',
         handler: 'richText',
@@ -554,12 +656,22 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         note: 'Airtable "News Feed" = Meta link description field',
       },
       CTA: { drizzleColumn: 'cta', handler: 'select', note: 'Map to CopyCta enum values' },
-      'Campaign Code': { drizzleColumn: null, handler: 'skip', note: 'Link to campaigns' },
+      'Campaign Code': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'copywritingCampaigns',
+        note: 'Resolve campaign IDs in Pass 2',
+      },
       Offer: { drizzleColumn: null, handler: 'skip', note: 'Lookup from campaign' },
       'Campaign (from Campaign)': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
       'Code (from Campaign)': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
       Funnel: { drizzleColumn: 'funnel', handler: 'select', note: 'Map to CopyFunnel values' },
-      'Copy Type': { drizzleColumn: null, handler: 'skip', note: 'No Drizzle column' },
+      'Copy Type': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'copywritingCopyTypes',
+        note: 'Resolve copy-type IDs in Pass 2 (rows live in copy_types)',
+      },
       "Client's Comment": { drizzleColumn: 'clientComment', handler: 'text' },
       Creative: {
         drizzleColumn: 'creativeBriefId',
@@ -569,7 +681,7 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       '(Internal) Creative Design': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Alternate link to creative; use Creative field instead',
+        note: 'Second link to Creative Design beside Creative; the platform keeps one creative_brief_id; excluded in docs/decisions.md',
       },
       'Collection URL': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
       'Link (from Product)': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
@@ -582,9 +694,21 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       'Products (from Collections)': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
       'Created By': { drizzleColumn: null, handler: 'skip', note: 'Use createdBy from audit cols' },
-      'Creative Reporting': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
-      'Creative Sheet': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
-      '(Internal) Product': { drizzleColumn: null, handler: 'skip', note: 'Internal ref text' },
+      'Creative Reporting': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      'Creative Sheet': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      '(Internal) Product': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
       '⚠️ Please Change the Status of the copy': {
         drizzleColumn: null,
         handler: 'skip',
@@ -593,7 +717,7 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       '(Internal) Creative Design 2': {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'Internal ref text',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
       },
     },
   },
@@ -682,9 +806,13 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         handler: 'currency',
         note: 'Payment by TAS → costUsd column',
       },
-      'Payment Date': { drizzleColumn: null, handler: 'skip', note: 'No Drizzle column' },
-      Concepts: { drizzleColumn: null, handler: 'skip', note: 'Reverse link from concepts' },
-      'Creator Info Request': { drizzleColumn: null, handler: 'skip', note: 'No Drizzle column' },
+      'Payment Date': { drizzleColumn: 'paymentDate', handler: 'date' },
+      Concepts: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Second link to Concepts beside Concept to film, empty on all 70 live rows; excluded in docs/decisions.md',
+      },
+      'Creator Info Request': { drizzleColumn: 'creatorInfoRequest', handler: 'richText' },
       "Creator's cost (USD)": {
         drizzleColumn: null,
         handler: 'skip',
@@ -695,7 +823,11 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         handler: 'date',
       },
       'Notify Flag': { drizzleColumn: null, handler: 'skip', note: 'Formula, computed' },
-      'Slack Notified ': { drizzleColumn: null, handler: 'skip', note: 'No Drizzle column' },
+      'Slack Notified ': {
+        drizzleColumn: 'slackNotified',
+        handler: 'checkbox',
+        note: 'The live field name carries a trailing space',
+      },
       'Partnership Time Period (days)': {
         drizzleColumn: 'partnershipPeriodDays',
         handler: 'number',
@@ -716,6 +848,358 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       'Notes for Partnership ads': { drizzleColumn: 'partnershipNotes', handler: 'text' },
       'Instagram Username': { drizzleColumn: 'instagramUsername', handler: 'text' },
+    },
+  },
+
+  // ── Prompt 3 (2026-10-01): the seven tables the importer used to skip, plus Youtube Copywriting ──
+  // Only STORED fields are listed; lookups/formulas/system fields show up in the dry run's
+  // UNMAPPED-FIELDS report instead of being enumerated here.
+
+  copyTypes: {
+    airtableTable: '(Internal) Copy Type',
+    airtableTableId: 'tblQiBPj9ypCmYxev',
+    drizzleImport: 'copyTypes',
+    importOrder: 11,
+    fields: {
+      Name: { drizzleColumn: 'name', handler: 'text', required: true, default: 'Untitled' },
+      Description: { drizzleColumn: 'description', handler: 'text' },
+      Copywriting: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Youtube Copywriting › Copy Type into youtube_copy_copy_types (the gate derives this from inverseLinkFieldId)',
+      },
+      'Ads Copywriting copy': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Meta Copywriting › Copy Type into copywriting_copy_types (the gate derives this from inverseLinkFieldId)',
+      },
+    },
+  },
+
+  youtubeCopy: {
+    airtableTable: 'Youtube Copywriting',
+    airtableTableId: 'tblVR1UmkbDoDzJ7z',
+    drizzleImport: 'youtubeCopy',
+    importOrder: 12,
+    fields: {
+      'Copy #': { drizzleColumn: 'copyNumber', handler: 'text', note: 'Parse to integer' },
+      Status: { drizzleColumn: 'status', handler: 'select', note: 'COPY_STATUS keys' },
+      Angle: { drizzleColumn: 'angle', handler: 'text' },
+      'Descriptions (90 caractères max)': { drizzleColumn: 'descriptions', handler: 'richText' },
+      Headline: { drizzleColumn: 'headline', handler: 'text' },
+      'News Feed': { drizzleColumn: 'newsFeed', handler: 'text' },
+      CTA: { drizzleColumn: 'cta', handler: 'select', note: 'youtubeCopyCtas keys' },
+      Funnel: { drizzleColumn: 'funnel', handler: 'select', note: 'youtubeCopyFunnels keys' },
+      "Client's Comment": { drizzleColumn: 'clientComment', handler: 'text' },
+      USED: { drizzleColumn: 'used', handler: 'checkbox' },
+      Winning: { drizzleColumn: 'winning', handler: 'checkbox' },
+      'Meta Rating': { drizzleColumn: 'metaRating', handler: 'number', note: 'rating → integer' },
+      Collections: {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'youtubeCopyCollections',
+      },
+      Product: { drizzleColumn: null, handler: 'multiLink', junctionTable: 'youtubeCopyProducts' },
+      'Campaign Code': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'youtubeCopyCampaigns',
+      },
+      'Copy Type': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'youtubeCopyCopyTypes',
+      },
+      'Creative Reporting': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      'Creative Sheet': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      '(Internal) Product': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      '(Internal) Creative Design': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
+      },
+      '⚠️ Please Change the Status of the copy': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'UI instruction banner, not data; excluded in docs/decisions.md',
+      },
+    },
+  },
+
+  creativeModules: {
+    airtableTable: '(Internal) Creative Modules',
+    airtableTableId: 'tblzS73a9JrJGiV2J',
+    drizzleImport: 'creativeModules',
+    importOrder: 13,
+    fields: {
+      'Module Name': {
+        drizzleColumn: 'moduleName',
+        handler: 'text',
+        required: true,
+        default: 'Untitled',
+      },
+      'Foreplay Link': { drizzleColumn: 'foreplayLink', handler: 'text' },
+      Concepts: {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'creativeModuleAngles',
+        note: 'Links the ANGLES table despite its name (schema/creative-modules.ts)',
+      },
+      '(Internal) Creative Design': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'creativeModuleDesigns',
+      },
+    },
+  },
+
+  creativeSheetItems: {
+    airtableTable: 'Creative Sheet',
+    airtableTableId: 'tblGC0TxnHI7lKaNQ',
+    drizzleImport: 'creativeSheetItems',
+    importOrder: 14,
+    fields: {
+      Name: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Formula (month + brief name); computed by the query layer',
+      },
+      'Creative Name': {
+        drizzleColumn: 'briefId',
+        handler: 'singleLink',
+        note: 'First link → creative_briefs; nullable',
+      },
+      'Internal Status': {
+        drizzleColumn: 'internalStatus',
+        handler: 'select',
+        note: 'creativeSheetInternalStatuses keys',
+      },
+      Status: { drizzleColumn: 'status', handler: 'select', note: 'creativeSheetStatuses keys' },
+      'QA Checklist Doc': { drizzleColumn: 'qaChecklistDoc', handler: 'attachment' },
+      'Video Editor QA': { drizzleColumn: 'qaVideoEditor', handler: 'checkbox' },
+      'Graphic Designer QA': { drizzleColumn: 'qaDesigner', handler: 'checkbox' },
+      'Creative Strategist QA': { drizzleColumn: 'qaStrategist', handler: 'checkbox' },
+      "Client's Comments": { drizzleColumn: 'clientComments', handler: 'text' },
+      Used: { drizzleColumn: 'used', handler: 'checkbox' },
+      'Denied/revisions needed': { drizzleColumn: 'deniedRevisionsNeeded', handler: 'checkbox' },
+      Winning: { drizzleColumn: 'winning', handler: 'select', note: 'creativeSheetWinning keys' },
+      'Click for AI Spell Checker Again': {
+        drizzleColumn: 'spellCheckRequested',
+        handler: 'checkbox',
+      },
+      'Spelling Feedback': { drizzleColumn: 'spellingFeedback', handler: 'text' },
+    },
+  },
+
+  smCampaignFeedTasks: {
+    airtableTable: 'SM Campaign Management Feed',
+    airtableTableId: 'tblLRajTW55XEhVhk',
+    drizzleImport: 'smCampaignFeedTasks',
+    importOrder: 15,
+    fields: {
+      'Task Name': {
+        drizzleColumn: 'taskName',
+        handler: 'text',
+        required: true,
+        default: 'Untitled',
+      },
+      Platform: { drizzleColumn: 'platform', handler: 'select', note: 'smPlatforms keys' },
+      'Due Date': { drizzleColumn: 'dueDate', handler: 'dateTime' },
+      Status: { drizzleColumn: 'status', handler: 'select', note: 'smTaskStatuses keys' },
+      Notes: { drizzleColumn: 'notes', handler: 'text' },
+      'Reminder Trigger': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Clock-dependent formula; computed by the query layer',
+      },
+    },
+  },
+
+  emailCampaigns: {
+    airtableTable: 'Email Campaigns Management',
+    airtableTableId: 'tblABjVpwRpYtY7de',
+    drizzleImport: 'emailCampaigns',
+    importOrder: 16,
+    fields: {
+      Name: { drizzleColumn: 'name', handler: 'text', required: true, default: 'Untitled' },
+      'Campaign Purpose': { drizzleColumn: 'campaignPurpose', handler: 'text' },
+      Status: { drizzleColumn: 'status', handler: 'select', note: 'emailCampaignStatuses keys' },
+      'Send Date': { drizzleColumn: 'sendDate', handler: 'date' },
+      Copywriting: { drizzleColumn: 'copywriting', handler: 'richText' },
+      Assignee: { drizzleColumn: 'assigneeId', handler: 'collaborator' },
+      'Copy Link': { drizzleColumn: 'copyLink', handler: 'text' },
+      Design: { drizzleColumn: 'design', handler: 'attachment' },
+      'Klaviyo Link': { drizzleColumn: 'klaviyoLink', handler: 'text' },
+      Assets: { drizzleColumn: 'assets', handler: 'attachment' },
+      Type: { drizzleColumn: 'type', handler: 'select', note: 'emailCampaignTypes keys' },
+      Channel: { drizzleColumn: 'channel', handler: 'select', note: 'emailChannels keys' },
+      'Campaigns & Offers': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'emailCampaignCampaigns',
+      },
+      '(Internal) Product': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'emailCampaignProducts',
+      },
+      '(Internal) Collections': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'emailCampaignCollections',
+      },
+      'Copywriting Due Date': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Formula off Send Date',
+      },
+      'Design Due Date': { drizzleColumn: null, handler: 'skip', note: 'Formula off Send Date' },
+    },
+  },
+
+  emailFlows: {
+    airtableTable: 'Email Flows Management',
+    airtableTableId: 'tblubVflAQZgJSxcF',
+    drizzleImport: 'emailFlows',
+    importOrder: 17,
+    fields: {
+      'Flow Name': {
+        drizzleColumn: 'flowName',
+        handler: 'text',
+        required: true,
+        default: 'Untitled',
+      },
+      'Expected Setup Date': { drizzleColumn: 'expectedSetupDate', handler: 'date' },
+      'Flow Purpose': { drizzleColumn: 'flowPurpose', handler: 'text' },
+      Status: { drizzleColumn: 'status', handler: 'select', note: 'emailFlowStatuses keys' },
+      Copywriting: { drizzleColumn: 'copywriting', handler: 'richText' },
+      Design: { drizzleColumn: 'design', handler: 'attachment' },
+      'Klaviyo Link': { drizzleColumn: 'klaviyoLink', handler: 'text' },
+      Type: { drizzleColumn: 'type', handler: 'select', note: 'emailChannels keys' },
+      Inspo: { drizzleColumn: 'inspo', handler: 'attachment' },
+      Assignee: { drizzleColumn: 'assigneeId', handler: 'collaborator' },
+      'Campaigns & Offers': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'emailFlowCampaigns',
+      },
+      'Copywriting Due Date': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Formula off Expected Setup Date',
+      },
+      'Design Due Date': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Formula off Expected Setup Date',
+      },
+    },
+  },
+
+  creativeReporting: {
+    airtableTable: 'Creative Reporting',
+    airtableTableId: 'tblgW4bwDSSeqihlr',
+    drizzleImport: 'creativeReporting',
+    importOrder: 18,
+    fields: {
+      'Name + Angle + Offer': {
+        drizzleColumn: 'nameAngleOffer',
+        handler: 'text',
+        required: true,
+        default: 'Untitled',
+      },
+      Notes: { drizzleColumn: 'notes', handler: 'text' },
+      'Ad Design': { drizzleColumn: 'adDesign', handler: 'attachment' },
+      'Ad Link': { drizzleColumn: 'adLink', handler: 'text' },
+      CTR: {
+        drizzleColumn: 'ctr',
+        handler: 'number',
+        note: 'percent → numeric(6,4) as a fraction',
+      },
+      'Thumb-Stop Rate': { drizzleColumn: 'thumbStopRate', handler: 'number' },
+      Results: { drizzleColumn: 'results', handler: 'number' },
+      CPA: { drizzleColumn: 'cpa', handler: 'currency', note: 'numeric(10,2), cents kept' },
+      'Target CPA': { drizzleColumn: 'targetCpa', handler: 'currency', note: 'numeric(10,2)' },
+      ROAS: { drizzleColumn: 'roas', handler: 'number' },
+      'Target ROAS': { drizzleColumn: 'targetRoas', handler: 'number' },
+      'Difference CPA': { drizzleColumn: null, handler: 'skip', note: 'Formula: cpa - target_cpa' },
+      'Creative Name': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Invalid formula in the base',
+      },
+      'Creative Name (from Creative)': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Orphaned lookup; brief_id has no live Airtable source',
+      },
+    },
+  },
+
+  competitiveResearch: {
+    airtableTable: 'Competitive research',
+    airtableTableId: 'tbl9W6v78tKWznN9S',
+    drizzleImport: 'competitiveResearch',
+    importOrder: 19,
+    fields: {
+      Name: { drizzleColumn: 'name', handler: 'text', required: true, default: 'Untitled' },
+      Type: { drizzleColumn: 'type', handler: 'select', note: 'Competitor | Inspiration' },
+      Website: { drizzleColumn: 'website', handler: 'text' },
+      Insta: { drizzleColumn: 'instagram', handler: 'text' },
+      'FB Page': { drizzleColumn: 'facebookPage', handler: 'text' },
+      'Meta Ads Library': { drizzleColumn: 'metaAdsLibrary', handler: 'text' },
+      Analysis: { drizzleColumn: 'analysis', handler: 'text' },
+    },
+  },
+
+  clientAssetFolders: {
+    airtableTable: 'Client Assets Organisation',
+    airtableTableId: 'tbldFmPU6AWg62Fll',
+    drizzleImport: 'clientAssetFolders',
+    importOrder: 20,
+    fields: {
+      'Name [Folder]': {
+        drizzleColumn: 'name',
+        handler: 'text',
+        required: true,
+        default: 'Untitled',
+      },
+      Description: { drizzleColumn: 'description', handler: 'text' },
+      Location: { drizzleColumn: 'locationUrl', handler: 'text' },
+      '(Internal) Creative Design': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Single-line text, not a link, so no brief_asset_folders rows can be derived; excluded in docs/decisions.md',
+      },
+    },
+  },
+
+  creativeDimensions: {
+    airtableTable: '(Internal) Creative Dimensions',
+    airtableTableId: 'tblli0Y76yJvG56zK',
+    drizzleImport: 'creativeDimensions',
+    importOrder: 21,
+    fields: {
+      Name: { drizzleColumn: 'name', handler: 'text', required: true, default: 'Untitled' },
+      Dimensions: { drizzleColumn: 'dimensions', handler: 'text' },
+      'Link Description': { drizzleColumn: 'linkDescription', handler: 'select' },
+      '(Internal) Creative Design': {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Reverse link; the junction/FK is written from Creative Design › Dimensions into creative_briefs.dimensions (by placement name) (the gate derives this from inverseLinkFieldId)',
+      },
     },
   },
 } as const;
@@ -756,57 +1240,60 @@ export const JUNCTION_MAPPINGS = {
     airtableField: 'Products',
     note: 'UGC Management.Products is multipleRecordLinks.',
   },
+  // Prompt 3 (2026-10-01)
+  copywritingCopyTypes: {
+    sourceTable: 'copywriting',
+    airtableField: 'Copy Type',
+    note: 'Meta Copywriting."Copy Type" → copy_types rows.',
+  },
+  copywritingCampaigns: {
+    sourceTable: 'copywriting',
+    airtableField: 'Campaign Code',
+    note: 'Meta Copywriting."Campaign Code" (prefers a single link).',
+  },
+  youtubeCopyCollections: { sourceTable: 'youtubeCopy', airtableField: 'Collections', note: '' },
+  youtubeCopyProducts: { sourceTable: 'youtubeCopy', airtableField: 'Product', note: '' },
+  youtubeCopyCampaigns: { sourceTable: 'youtubeCopy', airtableField: 'Campaign Code', note: '' },
+  youtubeCopyCopyTypes: { sourceTable: 'youtubeCopy', airtableField: 'Copy Type', note: '' },
+  creativeModuleAngles: {
+    sourceTable: 'creativeModules',
+    airtableField: 'Concepts',
+    note: 'The field is NAMED Concepts but links the Gratsi ANGLES table.',
+  },
+  creativeModuleDesigns: {
+    sourceTable: 'creativeModules',
+    airtableField: '(Internal) Creative Design',
+    note: '',
+  },
+  campaignConcepts: {
+    sourceTable: 'campaignsOffers',
+    airtableField: 'Angles',
+    note: 'The field is NAMED Angles but links the Gratsi CONCEPTS table.',
+  },
+  emailCampaignCampaigns: {
+    sourceTable: 'emailCampaigns',
+    airtableField: 'Campaigns & Offers',
+    note: '',
+  },
+  emailCampaignProducts: {
+    sourceTable: 'emailCampaigns',
+    airtableField: '(Internal) Product',
+    note: '',
+  },
+  emailCampaignCollections: {
+    sourceTable: 'emailCampaigns',
+    airtableField: '(Internal) Collections',
+    note: '',
+  },
+  emailFlowCampaigns: { sourceTable: 'emailFlows', airtableField: 'Campaigns & Offers', note: '' },
 } as const;
 
-export const SKIPPED_AIRTABLE_TABLES = [
-  {
-    name: 'Email Campaigns Management',
-    reason: 'No Drizzle table. Email management is out of scope for V0.',
-  },
-  {
-    name: 'Email Flows Management',
-    reason: 'No Drizzle table. Email flows out of scope for V0.',
-  },
-  {
-    name: 'Youtube Copywriting',
-    reason:
-      'Same structure as Meta Copywriting. Import separately if needed, mapping to same copywriting table.',
-  },
-  {
-    name: 'Creative Sheet',
-    reason: 'View/reporting layer. All data originates from Creative Design records.',
-  },
-  {
-    name: '(Internal) Creative Modules',
-    reason: 'No Drizzle table. Module grouping not in V0.',
-  },
-  {
-    name: 'Creative Reporting',
-    reason:
-      'Partially maps to adMetrics but field structure differs significantly. Import manually.',
-  },
-  {
-    name: 'SM Campaign Management Feed',
-    reason: 'No Drizzle table. Social media scheduling out of scope.',
-  },
-  {
-    name: '(Internal) Creative Dimensions',
-    reason:
-      'Drizzle table exists (creativeDimensions) but only holds dimension name strings. Import if needed.',
-  },
-  {
-    name: '(Internal) Copy Type',
-    reason: 'No Drizzle table. Copy types are not separate records in V0.',
-  },
-  {
-    name: 'Competitive research',
-    reason: 'Maps loosely to competitorAds but field structure differs. Import manually.',
-  },
-  {
-    name: 'Client Assets Organisation',
-    reason: 'No Drizzle table. Asset organization is folder-level metadata.',
-  },
-] as const;
+/**
+ * Every table of the live Gratsi base is imported as of 2026-10-01 (Prompt 3); the former
+ * `SKIPPED_AIRTABLE_TABLES` list is gone with its last entry. What a table carries that the import
+ * leaves behind is no longer declared here: the dry run's UNMAPPED-FIELDS report lists it from the
+ * export itself.
+ */
 
 export const DRIZZLE_COLUMNS_WITHOUT_AIRTABLE_SOURCE = {
   products: ['collectionLink'],
@@ -837,6 +1324,8 @@ export const DRIZZLE_COLUMNS_WITHOUT_AIRTABLE_SOURCE = {
   ],
   copywriting: ['conceptId', 'productId', 'clickForAiSpellChecker', 'spellingFeedback'],
   creators: ['forPartnershipAds', 'internalAssetsStatus', 'conceptIds', 'productIds'],
+  // The base's link from a report to a creative was deleted; only an orphaned lookup remains.
+  creativeReporting: ['briefId'],
 } as const;
 
 export function coverageSummary(): {
