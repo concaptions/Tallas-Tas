@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
+import { syncCampaignConcepts, syncCopywritingCampaigns } from './junction-queries';
 import { campaignConcepts, copywritingCampaigns } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
@@ -48,12 +49,10 @@ describe('campaign link junctions on PGlite', () => {
     }
     const unknownCampaign = '00000000-0000-4000-8000-000000000000';
 
-    await db
-      .insert(copywritingCampaigns)
-      .values({ copyId: aCopy.id, campaignOfferId: aCampaign.id });
-    await db
-      .insert(campaignConcepts)
-      .values({ campaignOfferId: aCampaign.id, conceptId: aConcept.id });
+    // The seed already links these fixtures; the sync functions replace a side's set, so linking
+    // again through them is idempotent where a raw insert would hit the composite primary key.
+    await syncCopywritingCampaigns(db, aCopy.id, [aCampaign.id]);
+    await syncCampaignConcepts(db, aCampaign.id, [aConcept.id]);
 
     expect(await db.select().from(copywritingCampaigns)).toContainEqual({
       copyId: aCopy.id,
