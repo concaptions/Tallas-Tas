@@ -70,8 +70,11 @@ One-time setup on the Clerk dev instance: create the user above with that passwo
 member of the organisation that maps to the seeded brand (`agencies.clerk_org_id`), so `/app` opens
 on data the Start test can act on. `apps/web/e2e/support/clerk-login.ts` signs that user in once per
 Playwright worker (testing token + password strategy) and reuses the saved storage state under
-`test-results/.auth/` (gitignored) for every page of that worker. The Start test snapshots the brief
-it picks and restores status, assignee and activity rows in `afterEach` whether it passed or not.
+`test-results/.auth/` (gitignored) for every page of that worker. The live specs live in
+`apps/web/e2e/live/` and run in the `live` Playwright project against a second dev server on port
+3001; every other spec stays in the `chromium` project against the pinned demo server on 3000, so
+one `pnpm test:e2e` runs both. The Start test snapshots the brief it picks and the `briefGuard`
+fixture restores status, assignee and activity rows in teardown whether it passed or not.
 
 Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PASSWORD=… DATABASE_URL_E2E=… pnpm test:e2e`
 (Turbo passes exactly these names through to the Playwright task, `turbo.json`).
@@ -84,6 +87,10 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   `0042_activity-log` and `0043_brief-due-date` to production before deploying:
   `pnpm --filter @tas/db migrate-prod -- --dry-run` then `pnpm --filter @tas/db migrate-prod -- --apply`.
   All four are verified on PGlite by the full suite; none has been applied to Neon.
+- E2E-LIVE-02 · with the four live-mode variables exported (runbook, "Playwright live mode"), run
+  `pnpm test:e2e` and confirm the `live` project reports `briefs-start.spec.ts` as passed, not
+  skipped, and that the picked brief is back in Incoming afterwards. Not run here: this session had
+  no Clerk dev instance or seeded E2E database.
 - VIEWS-01 · as two different Clerk users on the same brand, create a view on `/app/angles`, hide a
   field, reload: the field stays hidden for that user and visible for the other.
 - VIEWS-04 · with R2 credentials set, upload a showcase video from a creator's panel and play it inline.

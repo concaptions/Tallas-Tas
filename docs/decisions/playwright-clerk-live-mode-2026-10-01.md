@@ -93,3 +93,16 @@ Four secrets, not three; the runbook entry would say so.
 
 Hard rules kept: no secret in the repo; the live project is skipped (reported, never green) when
 the variables are absent, and green only when it really signed in and wrote the row.
+
+## Outcome (Phase 2, 2026-10-01)
+
+- Branched from `claude/festive-euler-9578qg`, where the live Start test and `activity_log` exist.
+- CI created from scratch: `.github/workflows/e2e.yml` runs `pnpm test:e2e` on PRs and pushes to
+  `main` with the four repository secrets, and fails a same-repo ref whose secret set is partial.
+- The live test moved to `apps/web/e2e/live/briefs-start.spec.ts` and runs in its own Playwright
+  project against a second dev server on port 3001, so the demo suite keeps running against the
+  demo server in the same invocation (D-014).
+- Teardown: `snapshotBrief` / `restoreBrief` in `@tas/db` (PGlite-tested, idempotent), wired through
+  the `briefGuard` fixture in `apps/web/e2e/support/brief-reset.ts`.
+- Phase 3 (a local run with one-time keys) could not happen in this session: no keys were present.
+  Recorded under "Pending human verification" as E2E-LIVE-02.

@@ -41,9 +41,12 @@ export const test = base.extend<Record<never, never>, { workerSession: WorkerSes
         '.auth',
         `worker-${String(workerInfo.parallelIndex)}.json`,
       );
+      // A context made from `browser` directly carries none of the project's `use` options, so
+      // the live project's baseURL is passed by hand; relative `goto`s below depend on it.
+      const baseURL = workerInfo.project.use.baseURL;
       if (!existsSync(storageStatePath)) {
         mkdirSync(dirname(storageStatePath), { recursive: true });
-        const page = await browser.newPage();
+        const page = await browser.newPage({ baseURL });
         // Clerk's helper needs a public page that loads Clerk before it can sign in.
         await page.goto(signInPath);
         await clerk.signIn({
@@ -61,7 +64,7 @@ export const test = base.extend<Record<never, never>, { workerSession: WorkerSes
         await page.close();
       }
 
-      const context = await browser.newContext({ storageState: storageStatePath });
+      const context = await browser.newContext({ baseURL, storageState: storageStatePath });
       const page = await context.newPage();
       await setupClerkTestingToken({ page });
       await page.goto(appPath);

@@ -8,10 +8,11 @@ import { briefPath, briefsPath } from '../src/lib/routes';
  * Under Editing, Under Review — the Start button on an Incoming card, the quick-look panel, and the
  * full page's facts, stage chip, Scripts table and Activity log.
  *
- * Demo mode has no session and refuses every write, so the demo block proves the board, the
- * mapping, the disabled Start with its reason, and the full page. The live block — Start a brief,
- * see it move, see the log name the status change and the user — needs Clerk keys and a database
- * and skips itself without them (D-008), exactly as `auth.spec.ts` does.
+ * Demo mode has no session and refuses every write, so this file proves the board, the mapping,
+ * the disabled Start with its reason, and the full page. The live half — Start a brief, see it
+ * move, see the log name the status change and the user — is `e2e/live/briefs-start.spec.ts`,
+ * which runs in the `live` Playwright project against a Clerk dev instance and the E2E database
+ * and skips itself without them (D-008).
  */
 /** `demoBriefs`: the one Incoming fixture (sent_to_video_editor), a carousel on the video track. */
 const NINETY_MINUTES_CAROUSEL = '77777777-7777-4777-8777-000000000006';
@@ -128,44 +129,5 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="brief-activity-empty"]')).toContainText(
       'No activity yet',
     );
-  });
-});
-
-test.describe('editor board with Clerk and a database', () => {
-  test.skip(
-    clerkKeys() === undefined,
-    'No Clerk keys: Start writes a status and an activity row, which demo mode refuses (D-008)',
-  );
-
-  test('Start moves an Incoming brief to Under Editing and the log names the status change and the user', async ({
-    page,
-  }) => {
-    await page.goto(EDITOR_BOARD);
-    const board = page.locator('[data-slot="kanban-board"]');
-    const columns = board.locator(':scope > div');
-    const card = columns.nth(0).locator('[data-slot="kanban-card"]').first();
-    const id = await card.getAttribute('data-card-id');
-    expect(id).not.toBeNull();
-
-    // The signed-in user, as the shell names them.
-    const account =
-      (await page.locator('[data-slot="user-menu"]').getAttribute('aria-label')) ?? '';
-    const who = account.replace(/^Account:\s*/, '').trim();
-
-    await card.locator('[data-slot="brief-start"]').click();
-
-    await expect(columns.nth(1).locator(`[data-card-id="${id ?? ''}"]`)).toHaveCount(1);
-    await expect(columns.nth(0).locator(`[data-card-id="${id ?? ''}"]`)).toHaveCount(0);
-
-    await page.goto(briefPath(id ?? ''));
-    const entry = page
-      .locator('[data-slot="brief-activity-entry"][data-field="internalStatus"]')
-      .first();
-    await expect(entry.locator('[data-slot="brief-activity-new"]')).toContainText('in_progress');
-    await expect(entry.locator('[data-slot="brief-activity-actor"]')).toHaveText(who);
-    await expect(
-      page.locator('[data-slot="brief-activity-entry"][data-field="assignee"]').first(),
-    ).toBeVisible();
-    await expect(page.locator('[data-slot="brief-assignee"]')).toHaveText(who);
   });
 });
