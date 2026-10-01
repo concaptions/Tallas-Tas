@@ -7,6 +7,11 @@ import { withBrand } from './tenancy';
 type ManagedColumn =
   'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'deletedAt';
 
+/**
+ * Every writable campaign column, derived from the table so a new column (most recently
+ * `promotionalIdeas`, Airtable "Promotional Ideas") reaches `insertCampaign`, `updateCampaign` and
+ * the `listCampaigns` row without a second list to keep in step. `campaigns.test.ts` pins that.
+ */
 export type CampaignInput = Omit<NewCampaignOffer, ManagedColumn>;
 
 export async function listCampaigns(db: Db, brandId: string): Promise<CampaignOffer[]> {

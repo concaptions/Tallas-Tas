@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CAMPAIGN_FIELD_GROUPS,
   countLabel,
   emailCampaignHref,
   emailCampaignLink,
@@ -18,6 +19,37 @@ import {
 const BFCM = 'dddddddd-dddd-4ddd-8ddd-000000000001';
 const VDAY = 'dddddddd-dddd-4ddd-8ddd-000000000002';
 const SUMMER = 'dddddddd-dddd-4ddd-8ddd-000000000003';
+
+describe('CAMPAIGN_FIELD_GROUPS', () => {
+  /** The group the panel renders the free-text columns in; it must exist for the next asserts. */
+  function campaignDetails() {
+    const group = CAMPAIGN_FIELD_GROUPS.find((g) => g.heading === 'Campaign Details');
+    if (group === undefined) throw new Error('the Campaign Details group is missing');
+    return group;
+  }
+
+  it('places Promotional Ideas directly after Description, both as textareas', () => {
+    const names = campaignDetails().fields.map((field) => field.name);
+    const description = names.indexOf('description');
+
+    expect(description).toBeGreaterThanOrEqual(0);
+    expect(names[description + 1]).toBe('promotionalIdeas');
+    expect(campaignDetails().fields[description]?.type).toBe('textarea');
+    expect(campaignDetails().fields[description + 1]?.type).toBe('textarea');
+  });
+
+  it('labels the field with the exact Airtable name, which the E2E spec matches verbatim', () => {
+    const field = campaignDetails().fields.find((f) => f.name === 'promotionalIdeas');
+
+    expect(field).toMatchObject({ label: 'Promotional Ideas', required: false });
+  });
+
+  it('declares each field name once across every group', () => {
+    const names = CAMPAIGN_FIELD_GROUPS.flatMap((group) => group.fields.map((f) => f.name));
+
+    expect(new Set(names).size).toBe(names.length);
+  });
+});
 
 describe('countLabel', () => {
   it('is singular at one and plural otherwise', () => {

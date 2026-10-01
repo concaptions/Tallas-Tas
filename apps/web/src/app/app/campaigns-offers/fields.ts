@@ -55,6 +55,13 @@ export const CAMPAIGN_FIELD_GROUPS: readonly CampaignFieldGroup[] = [
         required: false,
         type: 'textarea',
       },
+      {
+        name: 'promotionalIdeas',
+        label: 'Promotional Ideas',
+        placeholder: 'Bundles, gifts with purchase, creator tie-ins',
+        required: false,
+        type: 'textarea',
+      },
     ],
   },
   {

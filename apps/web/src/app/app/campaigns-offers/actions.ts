@@ -17,6 +17,7 @@ export type CampaignFieldName =
   | 'officialDate'
   | 'country'
   | 'description'
+  | 'promotionalIdeas'
   | 'confirmedByClient'
   | 'launched'
   | 'adsLaunchDate'
@@ -65,6 +66,8 @@ const campaignSchema = z.object({
   officialDate: optionalDate,
   country: optionalText,
   description: optionalText,
+  /** Airtable "Promotional Ideas" (rich text): free text, stored verbatim, empty means NULL. */
+  promotionalIdeas: optionalText,
   confirmedByClient: z.coerce.boolean().default(false),
   launched: z.coerce.boolean().default(false),
   adsLaunchDate: optionalDate,
@@ -111,6 +114,7 @@ function parse(formData: FormData): { values: CampaignInput } | CampaignActionFa
       officialDate: rest.officialDate ?? null,
       country: rest.country ?? null,
       description: rest.description ?? null,
+      promotionalIdeas: rest.promotionalIdeas ?? null,
       adsLaunchDate: rest.adsLaunchDate ?? null,
       adsEndDate: rest.adsEndDate ?? null,
       productId: rest.productId ?? null,
