@@ -90,8 +90,59 @@ export interface CopyItem {
   readonly spellingFeedback: string | null;
   /** The client writes this, we never do. Read-only wherever it appears. */
   readonly clientComment: string | null;
+  /**
+   * The copy types this row is tagged with (Airtable "Copy Type", `copywriting_copy_types`). The
+   * copy side OWNS this link, so the panel edits it; the Copy Types page reads the same rows back.
+   */
+  readonly copyTypeIds: readonly string[];
+  /**
+   * The campaigns this row is linked to (Airtable "Campaign Code", `copywriting_campaigns`).
+   * Read-only in the panel: see `CAMPAIGNS_READ_ONLY_NOTE`.
+   */
+  readonly campaigns: readonly LinkedCampaign[];
   readonly updatedLabel: string;
   readonly updatedTitle: string;
+}
+
+/** One toggle of the panel's Copy Types picker: a copy type's id and its name. */
+export interface CopyTypeChoice {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** One campaign a copy row is linked to, as the panel lists it: a label and, when known, a link. */
+export interface LinkedCampaign {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string | null;
+}
+
+/**
+ * `copyId -> copyTypeIds`, inverted from the copy types' own linked-copy lists. The junction is owned
+ * by the copy side, but the brand's types arrive from the Copy Types source already carrying their
+ * Meta copies — demo fixtures and database rows alike — so the page inverts that list rather than
+ * reading the junction a second time. A type with no Meta copies contributes nothing, and a copy
+ * tagged with two types lists both, in the order the types arrived (newest edit first), which is
+ * the order the picker renders them.
+ */
+export function copyTypeIdsByCopy(
+  copyTypes: readonly {
+    readonly id: string;
+    readonly metaCopies: readonly { readonly id: string }[];
+  }[],
+): Map<string, string[]> {
+  const byCopy = new Map<string, string[]>();
+  for (const copyType of copyTypes) {
+    for (const copy of copyType.metaCopies) {
+      const existing = byCopy.get(copy.id);
+      if (existing === undefined) {
+        byCopy.set(copy.id, [copyType.id]);
+      } else if (!existing.includes(copyType.id)) {
+        existing.push(copyType.id);
+      }
+    }
+  }
+  return byCopy;
 }
 
 /** One option of the panel's Linked Creative select: a brief's id and its generated §7 name. */
@@ -200,10 +251,12 @@ export const NO_FUNNEL_VALUE = 'none';
 /** What the "No funnel" option reads as. */
 export const NO_FUNNEL_LABEL = 'No funnel';
 
-/** The two headings above the panel's selects, stated once so the E2E assertion agrees with them. */
+/** The panel's section headings, stated once so the E2E assertions agree with them. */
 export const COPY_HEADINGS = {
   copy: 'Copy',
   creative: 'Creative & Status',
+  copyTypes: 'Copy Types',
+  campaigns: 'Campaigns & Offers',
   details: 'Details',
   clientComment: "Client's Comment",
 } as const;
@@ -211,6 +264,25 @@ export const COPY_HEADINGS = {
 /** The one sentence under the read-only client comment, so nobody hunts for the missing input. */
 export const CLIENT_COMMENT_NOTE =
   'Written by the client in their approval interface. Read-only here.';
+
+/** Under the Copy Types picker: which side owns the link, so nobody looks for it on the other. */
+export const COPY_TYPES_HINT =
+  'The kinds of copy this row is tagged with. Owned here; the Copy Types page reads them back.';
+
+/** The picker with nothing to pick from: a brand that has not created a copy type yet. */
+export const NO_COPY_TYPES_NOTE =
+  'No copy types in this brand yet. Create one on the Copy Types page.';
+
+/** The campaigns list with nothing in it — the ordinary case for copy that is not offer-led. */
+export const NO_CAMPAIGNS_NOTE = 'No campaign is linked to this copy yet.';
+
+/**
+ * Why the Campaigns & Offers list is read-only here although the copy side owns the link in
+ * Airtable: `@tas/db` ships no writer (and no reader) for `copywriting_campaigns` yet, so a picker
+ * would have nothing to submit to. The list is the shape the page fills once one exists.
+ */
+export const CAMPAIGNS_READ_ONLY_NOTE =
+  'Linking a campaign from this panel ships with the campaign-links writer.';
 
 /** How the header counts what is on screen. Singular at one, never "1 copies". */
 export function copyCountLabel(count: number): string {

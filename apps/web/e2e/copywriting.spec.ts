@@ -8,7 +8,14 @@ import { copywritingPath, propagationPath } from '../src/lib/routes';
  * The middleware lets the route through, the data source serves the in-repo fixtures, and the page
  * is fully usable read-only: four rows in six columns, a side panel that is not a modal, the open
  * row in the URL, and every write control disabled with the reason on hover.
+ *
+ * The two record links the copy side owns (module parity, phase 2) render from the same fixtures:
+ * `demoCopyTypes` tags Copy #1 with "Problem / Agitate / Solve" and nothing else, which is what the
+ * picker must show pressed, and `copywriting_campaigns` has no fixture — nor a writer — so the
+ * Campaigns & Offers list is the read-only empty state with its reason.
  */
+const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
+
 test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
   test.skip(
     clerkKeys() !== undefined,
@@ -52,12 +59,12 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="copy-row-unlinked"]')).toHaveText('—');
   });
 
-  test('the sidebar links Copywriting and marks it active, with no Soon chip on it', async ({
+  test('the sidebar links Meta Copywriting and marks it active, with no Soon chip on it', async ({
     page,
   }) => {
     await page.goto(copywritingPath);
 
-    const link = page.getByRole('link', { name: 'Copywriting' });
+    const link = page.getByRole('link', { name: 'Meta Copywriting', exact: true });
     await expect(link).toHaveAttribute('href', copywritingPath);
     await expect(link).toHaveAttribute('aria-current', 'page');
 
@@ -140,7 +147,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await chip.click();
 
     // The cell stops the row's own click, so this is a navigation and not a panel.
-    await expect(page).toHaveURL(/\/app\/briefs\//);
+    await expect(page).toHaveURL(/\/app\/creative-design\//);
     await expect(page.locator('[data-slot="copy-panel"]')).toHaveCount(0);
   });
 
@@ -169,6 +176,45 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // The submitted value is a hidden id, not something anyone types.
     await expect(panel.locator('input[name="creativeBriefId"]')).toHaveAttribute('type', 'hidden');
     await expect(panel.locator('input[type="text"][name="creativeBriefId"]')).toHaveCount(0);
+  });
+
+  test('the panel carries the Copy Types picker with the fixture tag pressed, and the read-only campaigns list', async ({
+    page,
+  }) => {
+    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('[data-slot="copy-panel-title"]')).toHaveText('Copy #1');
+
+    // "Copy Type" (multipleRecordLinks → copy_types, owned by the copy side): a chip picker
+    // labelled by its heading, one toggle per copy type of the brand, the row's one tag pressed.
+    const picker = panel.locator('[data-slot="copy-copy-types"]');
+    await expect(picker).toBeVisible();
+    await expect(picker).toHaveAttribute('aria-labelledby', 'copy-copy-types-heading');
+    await expect(panel.locator('#copy-copy-types-heading')).toHaveText('Copy Types');
+    await expect(picker.locator('[data-slot="copy-type-toggle"]')).toHaveCount(4);
+    const pressed = picker.locator('[data-slot="copy-type-toggle"][aria-pressed="true"]');
+    await expect(pressed).toHaveCount(1);
+    await expect(pressed).toHaveText('Problem / Agitate / Solve');
+
+    // The selection travels as repeated hidden ids behind an empty-valued marker, never as text.
+    await expect(panel.locator('[data-slot="copy-types-marker"]')).toHaveAttribute('value', '');
+    await expect(panel.locator('input[name="copyTypeIds"]:not([value=""])')).toHaveCount(1);
+    await expect(panel.locator('input[type="text"][name="copyTypeIds"]')).toHaveCount(0);
+
+    // A write, so every toggle is inert in demo mode — and still shows which tag is on.
+    for (const toggle of await picker.locator('[data-slot="copy-type-toggle"]').all()) {
+      await expect(toggle).toBeDisabled();
+    }
+
+    // "Campaign Code" (multipleRecordLinks → campaigns_offers): read-only, empty, and it says why
+    // there is no picker instead of leaving a gap.
+    const campaigns = panel.locator('[data-slot="copy-campaigns"]');
+    await expect(campaigns).toBeVisible();
+    await expect(campaigns).toContainText('No campaign is linked to this copy yet.');
+    await expect(campaigns.locator('[data-slot="status-chip"]')).toHaveCount(0);
+    await expect(panel).toContainText('ships with the campaign-links writer');
   });
 
   test('the panel is read-only and the save is disabled with the reason on hover', async ({

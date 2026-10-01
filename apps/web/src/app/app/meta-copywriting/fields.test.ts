@@ -3,14 +3,17 @@ import { COPY_STATUS, copyStatusLabel, copyStatusTone } from '@tas/domain/state'
 import { describe, expect, it } from 'vitest';
 
 import {
+  CAMPAIGNS_READ_ONLY_NOTE,
   COPY_COLUMNS,
   COPY_FIELDS,
+  COPY_HEADINGS,
   COUNTER_TONE_CLASS,
   CTA_OPTIONS,
   NO_CREATIVE_LABEL,
   NO_CREATIVE_VALUE,
   STATUS_OPTIONS,
   copyCountLabel,
+  copyTypeIdsByCopy,
   counterLabel,
   counterTone,
   filteredCopyCountLabel,
@@ -42,11 +45,63 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     metaRating: null,
     spellingFeedback: null,
     clientComment: null,
+    copyTypeIds: ['c0b7a1d3-0013-4013-8013-000000000001'],
+    campaigns: [],
     updatedLabel: 'yesterday',
     updatedTitle: '2026-09-16 11:20',
     ...overrides,
   };
 }
+
+/** A copy type as `loadCopyTypes` hands it to the page: its id and the Meta copies tagged with it. */
+function copyType(id: string, metaCopyIds: readonly string[]) {
+  return { id, metaCopies: metaCopyIds.map((copyId) => ({ id: copyId })) };
+}
+
+const COPY_A = '88888888-8888-4888-8888-000000000001';
+const COPY_B = '88888888-8888-4888-8888-000000000002';
+const TYPE_PAS = 'c0b7a1d3-0013-4013-8013-000000000001';
+const TYPE_TESTIMONIAL = 'c0b7a1d3-0013-4013-8013-000000000002';
+const TYPE_UNUSED = 'c0b7a1d3-0013-4013-8013-000000000004';
+
+describe('copyTypeIdsByCopy', () => {
+  it('inverts each type’s Meta copies into the ids the copy is tagged with', () => {
+    const byCopy = copyTypeIdsByCopy([
+      copyType(TYPE_PAS, [COPY_A, COPY_B]),
+      copyType(TYPE_TESTIMONIAL, [COPY_B]),
+    ]);
+
+    expect(byCopy.get(COPY_A)).toEqual([TYPE_PAS]);
+    expect(byCopy.get(COPY_B)).toEqual([TYPE_PAS, TYPE_TESTIMONIAL]);
+  });
+
+  it('gives a copy tagged with nothing no entry, so the page falls back to an empty list', () => {
+    const byCopy = copyTypeIdsByCopy([copyType(TYPE_PAS, [COPY_A]), copyType(TYPE_UNUSED, [])]);
+
+    expect(byCopy.has(COPY_B)).toBe(false);
+    expect([...byCopy.values()].flat()).not.toContain(TYPE_UNUSED);
+  });
+
+  it('keeps the order the types arrived in and stores a repeated link once', () => {
+    const byCopy = copyTypeIdsByCopy([
+      copyType(TYPE_TESTIMONIAL, [COPY_A]),
+      copyType(TYPE_PAS, [COPY_A, COPY_A]),
+    ]);
+
+    expect(byCopy.get(COPY_A)).toEqual([TYPE_TESTIMONIAL, TYPE_PAS]);
+  });
+});
+
+describe('the two record-link sections', () => {
+  it('names them the way Airtable does, so the E2E assertions and the panel agree', () => {
+    expect(COPY_HEADINGS.copyTypes).toBe('Copy Types');
+    expect(COPY_HEADINGS.campaigns).toBe('Campaigns & Offers');
+  });
+
+  it('says why the campaigns list has no picker rather than leaving the gap unexplained', () => {
+    expect(CAMPAIGNS_READ_ONLY_NOTE).toContain('ships with');
+  });
+});
 
 describe('COPY_COLUMNS', () => {
   it('is exactly the six columns of the table, in order', () => {

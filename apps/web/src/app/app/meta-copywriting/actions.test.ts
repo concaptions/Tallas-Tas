@@ -17,6 +17,13 @@ import { updateCopyAction, type CopyActionResult, type CopyActionSuccess } from 
  * re-running the rules here at all — the panel's disabled button is a courtesy, not a guarantee.
  */
 
+/** One call the action made to the copy-type sync, exactly as the query layer received it. */
+interface SyncedCopyTypes {
+  readonly brandId: string;
+  readonly copyId: string;
+  readonly copyTypeIds: readonly string[];
+}
+
 interface Seam {
   /** Null stands for a session that expired between rendering the panel and submitting it. */
   actor: string | null;
@@ -24,6 +31,8 @@ interface Seam {
   stored: CopyListRow | null;
   /** Whether the submitted creative resolves INSIDE the scope. */
   briefResolves: boolean;
+  /** Every `syncCopywritingCopyTypesInBrand` call, so a test can assert it ran once or never. */
+  synced: SyncedCopyTypes[];
 }
 
 /** Values the mocked seams read at call time, so a test can move the ground under one action. */
@@ -31,6 +40,7 @@ const seam = vi.hoisted<Seam>(() => ({
   actor: 'user_2TESTACTOR',
   stored: null,
   briefResolves: true,
+  synced: [],
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -45,7 +55,7 @@ vi.mock('@/lib/copy-source', () => ({
     run({} as Db, 'brand-under-test'),
 }));
 
-/** Only the three scoped calls the action makes; every other export stays the real one. */
+/** Only the four scoped calls the action makes; every other export stays the real one. */
 vi.mock('@tas/db', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tas/db')>()),
   getCopyById: (): Promise<CopyListRow | null> => Promise.resolve(seam.stored),
@@ -53,6 +63,15 @@ vi.mock('@tas/db', async (importOriginal) => ({
     Promise.resolve(seam.briefResolves ? { id } : null),
   updateCopy: (_db: Db, _brandId: string, id: string): Promise<{ id: string }> =>
     Promise.resolve({ id }),
+  syncCopywritingCopyTypesInBrand: (
+    _db: Db,
+    brandId: string,
+    copyId: string,
+    copyTypeIds: readonly string[],
+  ): Promise<void> => {
+    seam.synced.push({ brandId, copyId, copyTypeIds });
+    return Promise.resolve();
+  },
 }));
 
 /** The row every test patches: a real fixture, so the stored side of a merge is a real row. */
@@ -92,6 +111,22 @@ function formWithoutId(): FormData {
   return data;
 }
 
+/**
+ * The submission with the Copy Types picker on it, exactly as the panel posts it: the empty-valued
+ * marker first, then one repeated `copyTypeIds` entry per pressed toggle.
+ */
+function formWithCopyTypes(copyTypeIds: readonly string[]): FormData {
+  const data = form(filled);
+  data.append('copyTypeIds', '');
+  for (const id of copyTypeIds) {
+    data.append('copyTypeIds', id);
+  }
+  return data;
+}
+
+const TYPE_PAS = 'c0b7a1d3-0013-4013-8013-000000000001';
+const TYPE_OFFER_LED = 'c0b7a1d3-0013-4013-8013-000000000003';
+
 /** Clerk configured is what makes it live mode; demo mode is the absence of the key. */
 function live(): void {
   vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
@@ -112,6 +147,7 @@ afterEach(() => {
   seam.stored = null;
   seam.actor = 'user_2TESTACTOR';
   seam.briefResolves = true;
+  seam.synced = [];
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -272,6 +308,50 @@ describe('with Clerk configured · a key that was not submitted', () => {
     );
 
     expect(saved(result, 'a partial save was judged as a clear').id).toBe(STORED.id);
+  });
+});
+
+describe('with Clerk configured · the copy types the row is tagged with', () => {
+  it('replaces the tags with exactly the pressed toggles, inside the scope, after the row saved', async () => {
+    live();
+
+    const result = await updateCopyAction(null, formWithCopyTypes([TYPE_PAS, TYPE_OFFER_LED]));
+
+    expect(saved(result, 'a save with two copy types was refused').id).toBe(STORED.id);
+    expect(seam.synced).toEqual([
+      { brandId: 'brand-under-test', copyId: STORED.id, copyTypeIds: [TYPE_PAS, TYPE_OFFER_LED] },
+    ]);
+  });
+
+  it('clears every tag when the picker was on the form with nothing pressed', async () => {
+    live();
+
+    // The marker alone: the picker was there, and no toggle was on. That is a clear, not a skip.
+    const result = await updateCopyAction(null, formWithCopyTypes([]));
+
+    expect(saved(result, 'a save that cleared the copy types was refused').id).toBe(STORED.id);
+    expect(seam.synced).toEqual([
+      { brandId: 'brand-under-test', copyId: STORED.id, copyTypeIds: [] },
+    ]);
+  });
+
+  it('leaves the tags alone when the form never carried the picker', async () => {
+    live();
+
+    const result = await updateCopyAction(null, form(filled));
+
+    expect(saved(result, 'a save without the picker was refused').id).toBe(STORED.id);
+    expect(seam.synced).toEqual([]);
+  });
+
+  it('syncs nothing when the row itself did not save', async () => {
+    live();
+    seam.stored = null;
+
+    const result = await updateCopyAction(null, formWithCopyTypes([TYPE_PAS]));
+
+    expect(result).toEqual({ ok: false, error: 'That copy is no longer available.' });
+    expect(seam.synced).toEqual([]);
   });
 });
 

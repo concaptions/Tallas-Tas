@@ -2,12 +2,13 @@ import { copyTitle } from '@tas/domain/copy';
 import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
 import { loadCopyWorkspace } from '@/lib/copy-source';
+import { loadCopyTypes } from '@/lib/copy-types-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { briefPath } from '@/lib/routes';
 
 import { CopywritingWorkspace } from './copywriting-workspace';
-import type { CopyItem } from './fields';
+import { copyTypeIdsByCopy, type CopyItem } from './fields';
 
 /**
  * Copywriting (PRD §5.11): "Ad copy, written separately but tied to the creative. Keep this table
@@ -28,18 +29,28 @@ import type { CopyItem } from './fields';
  *
  * The open row lives in `?copy=` and the search in `?q=`, so both are shareable links. The rows
  * arrive newest edit first from `loadCopyWorkspace()`, so this page never sorts.
+ *
+ * TWO RECORD LINKS THE COPY SIDE OWNS (module parity, phase 2). Copy Types come from
+ * `loadCopyTypes()` — demo fixtures or the scoped query, each type already carrying its Meta copies
+ * — and are inverted here, once, into `copyTypeIds` per row; the panel's picker writes them back
+ * through `updateCopyAction`. Campaigns & Offers (`copywriting_campaigns`) has neither a reader nor
+ * a writer in `@tas/db` yet — nothing loads the junction and nothing, importer included, writes it
+ * — so every row's `campaigns` list is empty until `loadAllCopywritingCampaigns` ships, and the
+ * panel renders the list read-only and says so. The shape is the one the page fills then.
  */
 interface CopywritingPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function CopywritingPage({ searchParams }: CopywritingPageProps) {
-  const [{ rows, creatives, concepts }, params] = await Promise.all([
+  const [{ rows, creatives, concepts }, copyTypeResult, params] = await Promise.all([
     loadCopyWorkspace(),
+    loadCopyTypes(),
     searchParams,
   ]);
   const demo = isDemoMode();
   const now = new Date();
+  const typeIdsByCopy = copyTypeIdsByCopy(copyTypeResult.rows);
 
   const items: CopyItem[] = rows.map((row) => ({
     id: row.id,
@@ -62,6 +73,8 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
     metaRating: row.metaRating,
     spellingFeedback: row.spellingFeedback,
     clientComment: row.clientComment,
+    copyTypeIds: typeIdsByCopy.get(row.id) ?? [],
+    campaigns: [],
     updatedLabel: relativeTime(row.updatedAt, now),
     updatedTitle: absoluteTime(row.updatedAt),
   }));
@@ -78,6 +91,10 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
       items={items}
       creatives={creatives.map((creative) => ({ id: creative.id, name: creative.name }))}
       concepts={concepts.map((concept) => ({ id: concept.id, name: concept.name }))}
+      copyTypes={copyTypeResult.rows.map((copyType) => ({
+        id: copyType.id,
+        name: copyType.name,
+      }))}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

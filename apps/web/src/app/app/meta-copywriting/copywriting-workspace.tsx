@@ -35,6 +35,7 @@ import {
   matchesQuery,
   type ConceptChoice,
   type CopyItem,
+  type CopyTypeChoice,
   type CreativeChoice,
 } from './fields';
 
@@ -62,6 +63,8 @@ interface CopywritingWorkspaceProps {
   readonly items: readonly CopyItem[];
   readonly creatives: readonly CreativeChoice[];
   readonly concepts: readonly ConceptChoice[];
+  /** The brand's copy types, for the panel's picker; the page resolved them, this file never does. */
+  readonly copyTypes: readonly CopyTypeChoice[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -97,6 +100,7 @@ export function CopywritingWorkspace({
   items,
   creatives,
   concepts,
+  copyTypes,
   demo,
   initialSelection,
   initialSearch,
@@ -361,6 +365,7 @@ export function CopywritingWorkspace({
           item={open}
           creatives={creatives}
           concepts={concepts}
+          copyTypes={copyTypes}
           demo={demo}
           onClose={close}
           onSaved={saved}

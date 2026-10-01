@@ -5,6 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import {
   getBriefById,
   getCopyById,
+  syncCopywritingCopyTypesInBrand,
   updateCopy,
   type CopyInput,
   type CopyListRow,
@@ -60,6 +61,14 @@ import { copywritingPath } from '@/lib/routes';
  *
  * CLIENT'S COMMENT IS OUT OF SCOPE (ticket). No schema key here reads it, so `client_comment` is
  * never written by this action and a row that carries one keeps it through every save.
+ *
+ * COPY TYPES ARE THE ONE LINK THIS ACTION SYNCS (Airtable "Copy Type", `copywriting_copy_types`;
+ * the copy side owns it). The panel posts the picker as repeated `copyTypeIds` inputs, the first of
+ * them empty-valued as the marker that the picker was on the form: present means "replace the tags
+ * with exactly these ids" (none pressed clears them), absent means "leave the tags alone", the same
+ * contract as every other key. The write is `syncCopywritingCopyTypesInBrand`, which drops any id
+ * that is not one of the brand's live copy types — tenancy at the query layer, not in this form.
+ * `copywriting_campaigns` has no writer in `@tas/db`, so no campaign key is read here.
  */
 
 /** The fields the panel can show a message under: the domain's draft fields, one vocabulary. */
@@ -139,13 +148,18 @@ const copySchema = z.object({
   used: optionalBool,
   winning: optionalBool,
   metaRating: optionalInt,
+  copyTypeIds: z.array(z.string().min(1)).optional(),
 });
 
 type CopyFormValues = z.infer<typeof copySchema>;
 
+/** The one repeated key: every value of it is an id, except the empty-valued marker. */
+const COPY_TYPE_IDS_KEY = 'copyTypeIds';
+
 /**
  * `FormData` to the schema's input. A key the form did not submit is left out entirely rather than
- * turned into `''`, so `undefined` survives into `CopyFormValues` and means "unchanged".
+ * turned into `''`, so `undefined` survives into `CopyFormValues` and means "unchanged". The copy
+ * type ids are the one key read with `getAll`; the empty marker is dropped and never an id.
  */
 function fieldsOf(formData: FormData): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
@@ -166,6 +180,11 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
       const value = formData.get(key);
       fields[key] = typeof value === 'string' ? value : '';
     }
+  }
+  if (formData.has(COPY_TYPE_IDS_KEY)) {
+    fields[COPY_TYPE_IDS_KEY] = formData
+      .getAll(COPY_TYPE_IDS_KEY)
+      .filter((value): value is string => typeof value === 'string' && value !== '');
   }
   return fields;
 }
@@ -358,9 +377,13 @@ export async function updateCopyAction(
       }
 
       const saved = await updateCopy(db, brandId, id, checked.values, actor);
-      return saved === null
-        ? { ok: false as const, error: 'That copy is no longer available.' }
-        : success(saved.id, checked.validation);
+      if (saved === null) {
+        return { ok: false as const, error: 'That copy is no longer available.' };
+      }
+      if (values.copyTypeIds !== undefined) {
+        await syncCopywritingCopyTypesInBrand(db, brandId, saved.id, values.copyTypeIds);
+      }
+      return success(saved.id, checked.validation);
     });
 
     if (outcome === null) {

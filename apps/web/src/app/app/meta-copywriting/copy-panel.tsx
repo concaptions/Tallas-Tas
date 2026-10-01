@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   Button,
   disabledWriteClassName,
@@ -19,15 +20,19 @@ import { validateCopyDraft, type CopyDraft } from '@tas/domain/copy';
 
 import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './actions';
 import {
+  CAMPAIGNS_READ_ONLY_NOTE,
   CLIENT_COMMENT_NOTE,
   COPY_FIELDS,
   COPY_HEADINGS,
+  COPY_TYPES_HINT,
   COUNTER_TONE_CLASS,
   CTA_OPTIONS,
   DEMO_FOOTER_NOTICE,
   FUNNEL_OPTIONS,
+  NO_CAMPAIGNS_NOTE,
   NO_CONCEPT_LABEL,
   NO_CONCEPT_VALUE,
+  NO_COPY_TYPES_NOTE,
   NO_CREATIVE_LABEL,
   NO_CREATIVE_VALUE,
   NO_FUNNEL_LABEL,
@@ -38,6 +43,7 @@ import {
   type ConceptChoice,
   type CopyField,
   type CopyItem,
+  type CopyTypeChoice,
   type CreativeChoice,
 } from './fields';
 
@@ -61,12 +67,25 @@ import {
  *
  * CLIENT'S COMMENT IS READ-ONLY. PRD §5.11 gives that column to the client, so it is rendered as
  * prose when there is one and never submitted by any save.
+ *
+ * COPY TYPES ARE A CHIP PICKER THE COPY SIDE OWNS (Airtable "Copy Type", `copywriting_copy_types`),
+ * the UGC creator panel's concept-toggle pattern: one `aria-pressed` toggle per type of the brand,
+ * the selection posted as repeated `copyTypeIds` hidden inputs. The first of those is EMPTY-VALUED
+ * on purpose: it marks that the picker was on the form at all, so the action can tell "nothing
+ * pressed" (clear every tag) from "this save never carried the picker" (leave the tags alone) —
+ * the same "absent means unchanged" contract every other key of this form keeps.
+ *
+ * CAMPAIGNS & OFFERS IS A READ-ONLY LIST. The copy side owns that link too, but `@tas/db` ships no
+ * writer for `copywriting_campaigns` yet, so the panel shows what the page handed it and says why
+ * there is no picker (`CAMPAIGNS_READ_ONLY_NOTE`) rather than offering a toggle with nothing to
+ * submit to.
  */
 
 interface CopyPanelProps {
   readonly item: CopyItem;
   readonly creatives: readonly CreativeChoice[];
   readonly concepts: readonly ConceptChoice[];
+  readonly copyTypes: readonly CopyTypeChoice[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: () => void;
@@ -120,15 +139,32 @@ function detailDraftOf(item: CopyItem): DetailDraft {
   };
 }
 
-export function CopyPanel({ item, creatives, concepts, demo, onClose, onSaved }: CopyPanelProps) {
+export function CopyPanel({
+  item,
+  creatives,
+  concepts,
+  copyTypes,
+  demo,
+  onClose,
+  onSaved,
+}: CopyPanelProps) {
   const [state, formAction, pending] = useActionState<CopyActionResult | null, FormData>(
     updateCopyAction,
     null,
   );
   const [draft, setDraft] = useState<CopyDraft>(() => draftOf(item));
   const [detailDraft, setDetailDraft] = useState<DetailDraft>(() => detailDraftOf(item));
+  const [selectedCopyTypeIds, setSelectedCopyTypeIds] = useState<readonly string[]>(
+    item.copyTypeIds,
+  );
 
   const validation = useMemo(() => validateCopyDraft(draft), [draft]);
+
+  const toggleCopyType = useCallback((id: string) => {
+    setSelectedCopyTypeIds((current) =>
+      current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id],
+    );
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -268,6 +304,10 @@ export function CopyPanel({ item, creatives, concepts, demo, onClose, onSaved }:
 
       <form action={formAction} className="flex min-h-0 flex-1 flex-col">
         <input type="hidden" name="id" value={item.id} />
+        <input type="hidden" name="copyTypeIds" value="" data-slot="copy-types-marker" />
+        {selectedCopyTypeIds.map((copyTypeId) => (
+          <input key={copyTypeId} type="hidden" name="copyTypeIds" value={copyTypeId} />
+        ))}
 
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-7">
@@ -419,6 +459,77 @@ export function CopyPanel({ item, creatives, concepts, demo, onClose, onSaved }:
                   </p>
                 )}
               </div>
+            </section>
+
+            <section className="flex flex-col gap-3">
+              <h3
+                id="copy-copy-types-heading"
+                data-slot="copy-group-heading"
+                className="border-b border-line pb-1 text-sm font-medium text-text2"
+              >
+                {COPY_HEADINGS.copyTypes}
+              </h3>
+              {copyTypes.length === 0 ? (
+                <p data-slot="copy-copy-types" className="text-sm text-text3">
+                  {NO_COPY_TYPES_NOTE}
+                </p>
+              ) : (
+                <div
+                  role="group"
+                  aria-labelledby="copy-copy-types-heading"
+                  data-slot="copy-copy-types"
+                  className="flex flex-wrap gap-2"
+                >
+                  {copyTypes.map((copyType) => {
+                    const on = selectedCopyTypeIds.includes(copyType.id);
+                    return (
+                      <button
+                        key={copyType.id}
+                        type="button"
+                        disabled={demo}
+                        aria-pressed={on}
+                        data-slot="copy-type-toggle"
+                        onClick={() => {
+                          toggleCopyType(copyType.id);
+                        }}
+                        className={
+                          on
+                            ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase disabled:cursor-not-allowed'
+                            : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase hover:border-line2 hover:text-text2 disabled:cursor-not-allowed'
+                        }
+                      >
+                        {copyType.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-text3">{COPY_TYPES_HINT}</p>
+            </section>
+
+            <section className="flex flex-col gap-3">
+              <h3
+                data-slot="copy-group-heading"
+                className="border-b border-line pb-1 text-sm font-medium text-text2"
+              >
+                {COPY_HEADINGS.campaigns}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2" data-slot="copy-campaigns">
+                {item.campaigns.length === 0 ? (
+                  <span className="text-xs text-text3">{NO_CAMPAIGNS_NOTE}</span>
+                ) : (
+                  item.campaigns.map((campaign) =>
+                    campaign.href === null ? (
+                      <StatusChip key={campaign.id} tone="info" label={campaign.label} />
+                    ) : (
+                      <Link key={campaign.id} href={campaign.href} className="inline-flex">
+                        <StatusChip tone="info" label={campaign.label} />
+                      </Link>
+                    ),
+                  )
+                )}
+              </div>
+              <p className="text-xs text-text3">{CAMPAIGNS_READ_ONLY_NOTE}</p>
             </section>
 
             <section className="flex flex-col gap-3">
