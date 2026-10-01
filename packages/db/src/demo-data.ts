@@ -495,6 +495,7 @@ const bodyClockAngle: AngleListRow = {
   potential:
     'High — the only angle we have that speaks to the occupational audience in their own terms.',
   winning: true,
+  status: 'approved',
   internalNotes:
     'Built off the r/nursing thread the strategist pulled in the August research round. Keep the word "wellness" out of every script; two of the three nurses we interviewed used it as an insult. Media buyer wants this tested against the generic bedtime framing at equal spend before we scale.',
   clientNotes:
@@ -541,6 +542,7 @@ export const demoAngles: AngleListRow[] = [
     potential:
       'High — the largest untapped segment in the account and the only angle that names the dismissal out loud.',
     winning: true,
+    status: 'approved',
     internalNotes:
       'Copy has to be checked by someone who has lived it; the first draft read as a brand explaining menopause to women who have it. No lavender, no candles, no soft-focus bathroom. The claim about breathable channels needs the fabric spec on screen or the media buyer will not run it.',
     clientNotes:
@@ -568,6 +570,7 @@ export const demoAngles: AngleListRow[] = [
     potential:
       'Medium — narrow audience, but the cheapest angle in the batch to produce and the easiest to prove on camera.',
     winning: false,
+    status: 'pending_for_approval',
     internalNotes:
       'The motion graphic is the whole angle: lux meter reading in the corner, curtains open, mask on, number drops. Needs a real meter on the shoot day, not a post-production overlay — if a nurse works out we faked the number the comments will end the angle.',
     clientNotes: null,
@@ -600,6 +603,7 @@ export const demoAngles: AngleListRow[] = [
     potential:
       'High — the cheapest product in the range at the price point this audience will approve for themselves.',
     winning: false,
+    status: 'revised',
     internalNotes:
       'Every script must say "blocks light, not sound" in the first ten seconds; the objection about not hearing the baby killed the first round of comments before anyone reached the offer. Shoot in a real flat with east-facing windows, not the studio.',
     clientNotes:
@@ -625,6 +629,7 @@ export const demoAngles: AngleListRow[] = [
     adInspoLinks: ['https://www.instagram.com/reel/C7pLd4vNqR2/'],
     potential: 'Medium — untested with couples, but the bundle is the highest-margin line we sell.',
     winning: false,
+    status: 'pending_for_approval',
     internalNotes:
       'Do not let this become a comedy sketch about a nagging wife; the reference ad gets close to it. The husband has to be an ally by the second beat or the angle reads as mocking the audience we are selling to.',
     clientNotes: null,
@@ -664,8 +669,14 @@ function conceptName(batch: string, angle: AngleListRow, theme: ThemeListRow): s
 
 /**
  * The pairing itself, plus everything the concept INHERITS from its angle (PRD §5.7: "everything
- * derivable from the Angle must auto-fill"). Derived from the angle and theme rows rather than
- * retyped, so a fixture can never disagree with what `listConcepts` joins in.
+ * derivable from the Angle must auto-fill"): the names, and the angle's hypothesis, pain points and
+ * USP under the `angle*` keys `listConcepts` resolves them to. Derived from the angle and theme rows
+ * rather than retyped, so a fixture can never disagree with what `listConcepts` joins in.
+ *
+ * The concept's OWN `description`, `painPoints`, `usp` and `clientComments` are deliberately NOT
+ * here: they are stored columns of the concept row (Gratsi module parity), nothing inherits them,
+ * and every fixture states its own — so a fixture that forgot one fails to compile rather than
+ * silently carrying the angle's text as the concept's.
  */
 function pairing(
   batch: string,
@@ -683,13 +694,13 @@ function pairing(
     campaignIds: [],
     name: conceptName(batch, angle, theme),
     angleName: angle.name,
+    angleDescription: angle.description,
+    anglePainPoints: angle.painPoints,
+    angleUsp: angle.usp,
     themeName: theme.name,
     personaName: angle.personaName,
     productName: angle.productName,
     collectionName,
-    description: angle.description,
-    painPoints: angle.painPoints,
-    usp: angle.usp,
   };
 }
 
@@ -706,9 +717,11 @@ const ninetyMinutes = demoAngle(ANGLE_NINETY_MINUTES_ID);
  * `isClientTrackOpen` is false on all four and the client bar stays shut on every demo row; each
  * therefore also sits at the first client status, `pending_for_approval`.
  *
- * `angleName`, `themeName`, `personaName`, `productName`, `description`, `painPoints` and `usp` are
- * what `listConcepts` inherits from the angle, so the fixtures satisfy `ConceptListRow[]` and the
- * Concepts page reads demo rows and database rows through one type.
+ * `angleName`, `themeName`, `personaName`, `productName`, `angleDescription`, `anglePainPoints` and
+ * `angleUsp` are what `listConcepts` inherits from the angle, so the fixtures satisfy
+ * `ConceptListRow[]` and the Concepts page reads demo rows and database rows through one type.
+ * `description`, `painPoints`, `usp` and `clientComments` are each concept's OWN stored prose and
+ * differ from the paired angle's on every fixture, so a test can tell the two apart.
  *
  * The array is in `updated_at` descending order, the order `listConcepts` returns, so a test can
  * compare the two directly. The oldest batch has travelled furthest down the internal track.
@@ -741,6 +754,12 @@ export const demoConcepts: ConceptListRow[] = [
       '"My doctor wrote \'peri-menopausal\' on the notes and sent me home. Here is what she did not write." / "Three forty-seven. Every night. Ask me how I know what the ceiling looks like." / "Reading the thread where four hundred women describe the exact same night."',
     scriptIdea:
       'Creator stands beside a full-screen grab of the r/Menopause thread about 3am waking and reads two comments aloud, tapping the screen as she goes — the green screen carries the proof so the script never has to claim it. She lands on the line about being told it is just her age, then cuts to the blanket: one shot of the quilted channels, one sentence on pressure without heat. Closes on her own bed at 3am with the lamp off and the ninety-night trial on screen.',
+    description:
+      "Shift the blame from the sleeper to the night. The green-screen proof lets a creator read strangers' 3am posts instead of claiming the problem herself, so the blanket arrives as the answer to a shared pattern rather than a personal failing.",
+    painPoints:
+      'Wakes at the same hour every night. Has been told it is just her age. Dreads the ceiling more than the alarm.',
+    usp: 'Quilted pressure channels that settle the body without heat, so the 3am wake-up has nothing to feed on.',
+    clientComments: null,
     internalStatus: 'video_editing_in_progress',
     clientStatus: 'pending_for_approval',
     approvalStatus: null,
@@ -774,6 +793,12 @@ export const demoConcepts: ConceptListRow[] = [
       '"Six years of nights. It is not you that is broken, it is the rota." / "If you can sleep at 9am in a bright room, you are not tired — you are equipped." / "Nurses: stop calling this a sleep problem."',
     scriptIdea:
       'Open on a nurse pulling into the driveway in full morning sun, still in scrubs. Two seconds of the problem: bins, dog, daylight through thin curtains. He says the line about the rota being the abnormal thing. Cut to the blanket going on, one line on breathable weight versus sedation, then the same man asleep with the room still bright. End on him leaving for the 19:00 shift clear-eyed, with the trial window on screen.',
+    description:
+      'Treat the rota as the abnormal thing, not the nurse. Equipment framing: the blanket is kit for a job the body was never designed for, which removes the wellness objection before it is raised.',
+    painPoints:
+      'Cannot fall asleep in daylight. Wakes every ninety minutes. Treats exhaustion as a character flaw.',
+    usp: 'Breathable weight that signals sleep by pressure instead of sedation, so nothing lingers into the next shift.',
+    clientComments: 'Client: keep the hospital footage generic, no identifiable uniforms.',
     internalStatus: 'videos_revisions',
     clientStatus: 'pending_for_approval',
     approvalStatus: null,
@@ -793,6 +818,12 @@ export const demoConcepts: ConceptListRow[] = [
       '"POV: your bedroom at 3am versus your bedroom at 9am. Same room. Ninety times the light." / "The curtains are not the problem. The number in the corner is." / "Your body cannot tell the time. It can only count photons."',
     scriptIdea:
       'Split frame, held for the whole ad: left side is the room at 03:00, right side the same room at 09:00, a real lux meter burned into each corner. The voiceover says the shift worker is not failing at sleep, he is being out-lit a hundred to one. The mask goes on over the right-hand frame and that side drops to the left-hand reading, meter and all. One line that it travels to the on-call room, then the offer. The meter must be filmed live on the day, never added in post.',
+    description:
+      'Run the trial as the hook. Ninety nights is long enough that the offer itself carries the credibility, so the creative only has to make the first night vivid.',
+    painPoints:
+      'Has bought and returned two weighted blankets that ran hot. Does not believe a third will be different.',
+    usp: 'A trial longer than the doubt: ninety nights, free return, no questions.',
+    clientComments: null,
     internalStatus: 'ad_submitted',
     clientStatus: 'pending_for_approval',
     approvalStatus: null,
@@ -825,6 +856,11 @@ export const demoConcepts: ConceptListRow[] = [
       '"Nobody is giving you eight hours. I am talking about the ninety minutes you already have." / "It blocks light, not sound. You will still hear him. That is the entire point." / "The handover is at seven. This is what I do with it."',
     scriptIdea:
       'One creator, one take, straight down the barrel, no B-roll: a parent on the sofa in a bright east-facing flat during the morning handover. She says out loud that more sleep is not on offer and she has stopped listening to anyone who promises it, then sells the window she actually gets. The objection goes in the first ten seconds — blocks light, not sound — and she holds the mask up to camera while she says it. Ends on her lying down with the room still bright and the monitor audibly on.',
+    description:
+      'Couples angle for the bundle: two sleepers, one bed, different needs. The split-weight story is the whole concept, told from the side of the lighter sleeper.',
+    painPoints: 'Partner runs hot, she runs cold. Every blanket is a compromise one of them loses.',
+    usp: 'Two weights in one bundle so neither sleeper gives anything up.',
+    clientComments: null,
     internalStatus: 'sent_to_video_editor',
     clientStatus: 'pending_for_approval',
     approvalStatus: null,
@@ -1684,6 +1720,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipNotes:
       'Whitelisted from her own handle for the Body Clock video and the r/nursing static. Expires in three days and the top ad is still spending — get the extension signed before Sunday or Meta drops the placement mid-flight. She has already said yes verbally, it is the paperwork that is late.',
     facebookProfileUrl: 'https://www.facebook.com/danielle.okonkwo.creator',
+    paymentDate: new Date('2026-09-12T00:00:00.000Z'),
+    creatorInfoRequest: 'Please send your shipping address and the handle to whitelist.',
     slackNotified: false,
     currentPeriodStart: null,
     partnershipEndedAt: null,
@@ -1729,6 +1767,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipNotes:
       'Extended by 30 days in August when the thermostat creative went from testing into the always-on set. Runs from his handle on Meta only — he has no TikTok and has asked us not to repurpose the footage there. Invoice is per 30 days and does not include the content fee above.',
     facebookProfileUrl: 'https://www.facebook.com/marcus.delacroix.mtl',
+    paymentDate: new Date('2026-09-12T00:00:00.000Z'),
+    creatorInfoRequest: null,
     slackNotified: false,
     currentPeriodStart: null,
     partnershipEndedAt: null,
@@ -1774,6 +1814,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipNotes:
       'One 30-day whitelisting window in April that we did not renew — her handle skews too far outside the buying audience for paid, although her organic reach on the thread posts is the reason we found her. We still book her for content; the partnership itself is closed and should not be reactivated without asking her first.',
     facebookProfileUrl: null,
+    paymentDate: null,
+    creatorInfoRequest: null,
     slackNotified: false,
     currentPeriodStart: null,
     partnershipEndedAt: null,
@@ -1818,6 +1860,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipPricePer30Days: null,
     partnershipNotes: null,
     facebookProfileUrl: null,
+    paymentDate: null,
+    creatorInfoRequest: null,
     slackNotified: false,
     currentPeriodStart: null,
     partnershipEndedAt: null,
@@ -1861,6 +1905,8 @@ export const demoCreators: CreatorListRow[] = [
     partnershipPricePer30Days: null,
     partnershipNotes: null,
     facebookProfileUrl: null,
+    paymentDate: null,
+    creatorInfoRequest: null,
     slackNotified: false,
     currentPeriodStart: null,
     partnershipEndedAt: null,

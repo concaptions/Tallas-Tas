@@ -2,7 +2,7 @@ import { boolean, index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
-import type { AngleFormat, AngleType } from './enums';
+import type { AngleFormat, AngleStatusesKey, AngleType } from './enums';
 
 /**
  * The hypothesis a strategist writes from a persona (PRD §5.6). `description` is the hypothesis
@@ -32,6 +32,8 @@ export const angles = pgTable(
     adInspoLinks: jsonb('ad_inspo_links').$type<string[]>().notNull().default([]),
     potential: text('potential'),
     winning: boolean('winning').notNull().default(false),
+    // Gratsi's approval track for an angle (TABLE Angles › Status); nullable, 12 of 43 live rows are blank.
+    status: text('status').$type<AngleStatusesKey>(),
     internalNotes: text('internal_notes'),
     clientNotes: text('client_notes'),
     briefUrl: text('brief_url'),

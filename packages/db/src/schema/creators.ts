@@ -143,6 +143,8 @@ export const creators = pgTable(
     requiresAttention: boolean('requires_attention').notNull().default(false),
     partnershipNotes: text('partnership_notes'),
     facebookProfileUrl: text('facebook_profile_url'),
+    paymentDate: timestamp('payment_date', { withTimezone: true }),
+    creatorInfoRequest: text('creator_info_request'),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [

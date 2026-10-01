@@ -55,6 +55,12 @@ export const concepts = pgTable(
     adInspoLinks: jsonb('ad_inspo_links').$type<string[]>().notNull().default([]),
     hookExamples: text('hook_examples'),
     scriptIdea: text('script_idea'),
+    // Gratsi carries these on the concept itself (all 102 live rows have a description and pain
+    // points, 90 a USP); they are not inherited from the angle.
+    description: text('description'),
+    painPoints: text('pain_points'),
+    usp: text('usp'),
+    clientComments: text('client_comments'),
     approvalStatus: text('approval_status').$type<ConceptApprovalStatus>(),
     formatsToCreate: jsonb('formats_to_create').$type<string[]>().notNull().default([]),
     productionStatus: text('production_status').$type<ConceptProductionStatus>(),

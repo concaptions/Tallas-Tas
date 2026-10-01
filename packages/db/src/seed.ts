@@ -160,7 +160,7 @@ async function insertOne<T extends PgTable>(
  * constraint wants. The derived columns go the same way — `productName` and `personaName` are the
  * names `listPersonas` and `listAngles` join in, `conceptCount` is the linked-concept count
  * `listProducts` counts and `usedByBrandCount` the distinct-brand count `listThemes` counts, none of
- * them a column of the table the row is inserted into. The concept fixtures carry five more derived
+ * them a column of the table the row is inserted into. The concept fixtures carry more derived
  * keys, stripped by `scopedConcept` below, which is deliberately not folded into this list.
  */
 type Derived = 'brandId' | 'productName' | 'personaName' | 'conceptCount' | 'usedByBrandCount';
@@ -190,11 +190,13 @@ function scopedBrief<T extends { brandId: string | null }>(row: T): Omit<T, Brie
 }
 
 /**
- * The concept fixtures' derived keys. A concept inherits seven fields from its angle
- * (`listConcepts`), and three of them — `description`, `painPoints` and `usp` — are named after real
- * columns on OTHER tables: `personas.pain_points` is a column a persona fixture legitimately
- * carries. So this list is applied to concepts only, and `scoped` above keeps the shared list it
- * can safely apply to every table.
+ * The concept fixtures' derived keys: the names `listConcepts` joins in through the angle, the
+ * theme and the collection, the angle's three prose fields it reads through the same link
+ * (`angleDescription`, `anglePainPoints`, `angleUsp`), and the junction id arrays the seed writes to
+ * their own tables below. `description`, `painPoints` and `usp` are deliberately NOT in this list:
+ * since the Gratsi parity migration they are the concept's OWN columns (`schema/concepts.ts`),
+ * carried by the fixture and stored row for row. This list is applied to concepts only, and `scoped`
+ * above keeps the shared list it can safely apply to every table.
  */
 type AngleDerived = Derived | 'personaIds' | 'productIds';
 
@@ -208,11 +210,11 @@ function scopedAngle<T extends { brandId: string | null }>(row: T): Omit<T, Angl
 type ConceptDerived =
   | Derived
   | 'angleName'
+  | 'angleDescription'
+  | 'anglePainPoints'
+  | 'angleUsp'
   | 'themeName'
   | 'collectionName'
-  | 'description'
-  | 'painPoints'
-  | 'usp'
   | 'angleIds'
   | 'themeIds'
   | 'collectionIds';
@@ -220,11 +222,11 @@ type ConceptDerived =
 function scopedConcept<T extends { brandId: string | null }>(row: T): Omit<T, ConceptDerived> {
   const rest: Record<string, unknown> = { ...scoped(row) };
   delete rest['angleName'];
+  delete rest['angleDescription'];
+  delete rest['anglePainPoints'];
+  delete rest['angleUsp'];
   delete rest['themeName'];
   delete rest['collectionName'];
-  delete rest['description'];
-  delete rest['painPoints'];
-  delete rest['usp'];
   delete rest['angleIds'];
   delete rest['themeIds'];
   delete rest['collectionIds'];

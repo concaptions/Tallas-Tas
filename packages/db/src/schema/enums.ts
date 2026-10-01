@@ -562,3 +562,18 @@ export const youtubeCopyCtas = [
   { key: 'download', label: 'Download' },
 ] as const satisfies readonly { key: string; label: string }[];
 export type YoutubeCopyCtasKey = (typeof youtubeCopyCtas)[number]['key'];
+
+/**
+ * Angles "Status" (`angles.status`): the client-approval track of an angle, a different axis from
+ * Potential and Winning (which grade performance). Options pulled verbatim from the live Gratsi base
+ * `tblRlcp1ibmS7U7HG` ("Angles" → "Status") on 2026-10-01; keys are the labels normalized the way the
+ * importer normalizes every select.
+ */
+export const angleStatuses = [
+  { key: 'pending_for_approval', label: 'Pending For Approval' },
+  { key: 'revised', label: 'Revised' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'needs_revisions', label: 'Needs Revisions' },
+  { key: 'revisions_submitted', label: 'Revisions Submitted' },
+] as const satisfies readonly { key: string; label: string }[];
+export type AngleStatusesKey = (typeof angleStatuses)[number]['key'];
