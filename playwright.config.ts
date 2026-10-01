@@ -1,11 +1,20 @@
 import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
+import { liveE2eEnv } from './apps/web/src/lib/live-e2e-env';
+
 const baseURL = 'http://localhost:3000';
 
 // Playwright launches `webServer` before it discovers tests, so the dev server is declared only once
 // apps/web exists (TICKET-002). Until then `--pass-with-no-tests` turns the run into a no-op.
 const webAppPresent = existsSync(new URL('./apps/web/package.json', import.meta.url));
+
+/**
+ * Live mode (docs/runbook.md, "Playwright live mode"): all four `*_TEST` / `*_E2E` variables present
+ * hands the launched server a Clerk dev instance and the seeded E2E database, and the Clerk-gated
+ * tests run instead of skipping. Absent, the server is pinned to demo mode below.
+ */
+const live = liveE2eEnv();
 
 export default defineConfig({
   testDir: 'apps/web/e2e',
@@ -45,11 +54,19 @@ export default defineConfig({
         // invalid URL"). Pinning these empty forces the launched server to demo mode regardless of
         // `.env.local` — `@tas/env` treats the empty string as unset, and `@next/env` will not
         // override an already-set process var. (Read via literals, not `process.env`, per the repo's
-        // env-access rule; a future live-mode E2E setup would supply real keys here.)
-        env: {
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
-          CLERK_SECRET_KEY: '',
-        },
+        // env-access rule.) In live mode the same names carry the E2E instance and database, so the
+        // developer's own `.env.local` keys never reach the run either way.
+        env:
+          live === undefined
+            ? {
+                NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
+                CLERK_SECRET_KEY: '',
+              }
+            : {
+                NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: live.publishableKey,
+                CLERK_SECRET_KEY: live.secretKey,
+                DATABASE_URL: live.databaseUrl,
+              },
         // Never reuse a server that happens to be on the port — it may be a live-mode dev server,
         // which is exactly the misconfiguration above. Always start the pinned demo-mode server.
         reuseExistingServer: false,

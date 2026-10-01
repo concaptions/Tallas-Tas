@@ -47,6 +47,35 @@ Turborepo, whose strict environment mode hands a task only the variables `turbo.
 `dev` and `test:e2e` (D-013), so a shell export reaches them; any other variable exported for a Turbo
 task must be added there first.
 
+## Playwright live mode
+
+The demo-mode suite needs no credentials. The Clerk-gated specs (the Start block in
+`apps/web/e2e/briefs-editor.spec.ts`) run only when all four live-mode variables are set, named
+exactly as the repository secrets. Add them in GitHub → Settings → Secrets and variables → Actions →
+Repository secrets; locally export the same four names for one run and never write them to a file
+in the repo:
+
+| Secret | What it holds |
+| --- | --- |
+| `CLERK_PUBLISHABLE_KEY_TEST` | Publishable key of the Clerk **development** instance used for E2E (never production). |
+| `CLERK_SECRET_KEY_TEST` | Secret key of the same instance; `@clerk/testing` mints the testing token with it. |
+| `CLERK_E2E_USER_PASSWORD` | Password of the pre-created E2E user, `tas-e2e+clerk_test@example.com` (override the address with the non-secret `CLERK_E2E_USER_EMAIL`). |
+| `DATABASE_URL_E2E` | Connection string of a Neon branch seeded with `pnpm --filter @tas/db db:seed`; the live tests write to it and reset what they changed. |
+
+Set all four or none. With none the suite runs in demo mode and the live tests report themselves
+skipped (D-008); with some of them `liveE2eEnv()` (`apps/web/src/lib/live-e2e-env.ts`) fails the run
+naming the missing ones, so a secret that was never added cannot turn into a silent skip.
+
+One-time setup on the Clerk dev instance: create the user above with that password, and make them a
+member of the organisation that maps to the seeded brand (`agencies.clerk_org_id`), so `/app` opens
+on data the Start test can act on. `apps/web/e2e/support/clerk-login.ts` signs that user in once per
+Playwright worker (testing token + password strategy) and reuses the saved storage state under
+`test-results/.auth/` (gitignored) for every page of that worker. The Start test snapshots the brief
+it picks and restores status, assignee and activity rows in `afterEach` whether it passed or not.
+
+Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PASSWORD=… DATABASE_URL_E2E=… pnpm test:e2e`
+(Turbo passes exactly these names through to the Playwright task, `turbo.json`).
+
 ## Pending human verification
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
