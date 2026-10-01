@@ -311,3 +311,5 @@ export * from './creative-reporting';
 export * from './demo-creative-reporting';
 export * from './email-campaigns';
 export * from './demo-email-campaigns';
+export * from './email-flows';
+export * from './demo-email-flows';
