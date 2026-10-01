@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { AngleListRow } from '@tas/db';
 import { validateAngleDraft, type AngleTypeKey } from '@tas/domain/angles';
 import {
@@ -16,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
   SoonChip,
+  StatusChip,
   Textarea,
 } from '@tas/ui';
 
@@ -23,11 +25,13 @@ import { createAngleAction, updateAngleAction, type AngleActionResult } from './
 import {
   ANGLE_FIELD_GROUPS,
   ANGLE_TYPES,
+  CREATIVE_MODULE_CHIP_TONE,
   NONE_OPTION_LABEL,
   NONE_VALUE,
   NOT_SET,
   TYPE_SOON_HINT,
   type AngleFieldName,
+  type LinkedRecord,
 } from './fields';
 
 /** The `?angle=` value that means "the panel is open on an angle that does not exist yet". */
@@ -46,9 +50,41 @@ interface AnglePanelProps {
   readonly angle: AngleListRow | null;
   readonly personas: readonly LinkOption[];
   readonly products: readonly LinkOption[];
+  /** The creative modules that link this angle (`creative_module_angles`), read-only. */
+  readonly creativeModules: readonly LinkedRecord[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
+}
+
+/** What the Creative modules list says when no module links the angle. */
+export const NO_CREATIVE_MODULES_NOTICE =
+  'No creative module groups this angle yet. Link it from the module’s panel.';
+
+/**
+ * One read-only linked record: the shared chip, wrapped in a link when the record has somewhere to
+ * go. Never a button and never a picker — the link is owned by the other table, and this is its
+ * reflection.
+ */
+function LinkedRecordChip({ record, slot }: { record: LinkedRecord; slot: string }) {
+  const chip = <StatusChip tone={record.chip ?? CREATIVE_MODULE_CHIP_TONE} label={record.label} />;
+  if (record.href === undefined) {
+    return (
+      <span data-slot={slot} data-record-id={record.id}>
+        {chip}
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={record.href}
+      data-slot={slot}
+      data-record-id={record.id}
+      className="rounded-input transition-opacity hover:opacity-80"
+    >
+      {chip}
+    </Link>
+  );
 }
 
 /** The stored value of one prose field, as the form's default. */
@@ -85,8 +121,21 @@ function linkRowsOf(angle: AngleListRow | null): string[] {
  * The save button is disabled by `validateAngleDraft` from `@tas/domain/angles` — the same function
  * the Server Action re-runs before it writes. No rule is restated here. In demo mode every write is
  * disabled through `DisabledWrite` and the footer says so instead of saving.
+ *
+ * Below the six groups, an existing angle shows "Linked work": the creative modules that link it
+ * through `creative_module_angles`, the pattern of the Products panel's "Linked angles". The list is
+ * read-only here — a module chooses its angles from its own panel, and each chip links there — so
+ * it sits outside the field groups and posts nothing. A new angle has no links yet and no section.
  */
-export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }: AnglePanelProps) {
+export function AnglePanel({
+  angle,
+  personas,
+  products,
+  creativeModules,
+  demo,
+  onClose,
+  onSaved,
+}: AnglePanelProps) {
   const creating = angle === null;
   const action = creating ? createAngleAction : updateAngleAction;
   const [state, formAction, pending] = useActionState<AngleActionResult | null, FormData>(
@@ -360,6 +409,42 @@ export function AnglePanel({ angle, personas, products, demo, onClose, onSaved }
                 </div>
               </section>
             ))}
+
+            {creating ? null : (
+              <section className="flex flex-col gap-3">
+                <h3
+                  data-slot="angle-linked-heading"
+                  className="border-b border-line pb-1 text-sm font-medium text-text2"
+                >
+                  Linked work
+                </h3>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">
+                    Creative modules
+                  </span>
+                  <div
+                    className="flex flex-wrap items-center gap-2"
+                    data-slot="angle-creative-modules"
+                  >
+                    {creativeModules.length === 0 ? (
+                      <span className="text-xs text-text3">{NO_CREATIVE_MODULES_NOTICE}</span>
+                    ) : (
+                      creativeModules.map((record) => (
+                        <LinkedRecordChip
+                          key={record.id}
+                          record={record}
+                          slot="angle-creative-module"
+                        />
+                      ))
+                    )}
+                  </div>
+                  <p className="text-xs text-text3">
+                    Modules that group this angle. Read-only here; a module picks its angles from
+                    its own panel.
+                  </p>
+                </div>
+              </section>
+            )}
           </div>
         </div>
 

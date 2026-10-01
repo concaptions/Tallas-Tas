@@ -9,6 +9,8 @@ import {
 } from '@tas/domain/angles';
 import type { ChipTone } from '@tas/domain/state';
 
+import { creativeModulesPath } from '@/lib/routes';
+
 import type { AngleFieldName } from './actions';
 
 /**
@@ -45,6 +47,58 @@ export const NONE_VALUE = '';
 export const PERSONA_CHIP_TONE: ChipTone = 'info';
 export const PRODUCT_CHIP_TONE: ChipTone = 'mute';
 export const FORMAT_CHIP_TONE: ChipTone = 'accent';
+export const CREATIVE_MODULE_CHIP_TONE: ChipTone = 'info';
+
+/**
+ * One row of a read-only linked-record list in the panel: what the chip says, where it goes, and
+ * the tone it carries. Plain data, so the server page can build it and hand it to the client panel
+ * without the panel ever importing `@tas/db`.
+ */
+export interface LinkedRecord {
+  readonly id: string;
+  readonly label: string;
+  readonly href?: string;
+  readonly chip?: ChipTone;
+}
+
+/** The Creative Modules page with this module's panel open — the same `?module=` its own rows use. */
+export function creativeModuleHref(id: string): string {
+  return `${creativeModulesPath}?module=${encodeURIComponent(id)}`;
+}
+
+/** The slice of a creative module row this page reads: `creative_module_angles`, inverted. */
+export interface CreativeModuleLinkSource {
+  readonly id: string;
+  readonly moduleName: string;
+  readonly angleIds: readonly string[];
+}
+
+/**
+ * `creative_module_angles` read from the angle's side: `angleId -> [module, …]`, each module once
+ * per angle it links, alphabetical by name so the panel's order does not depend on which module
+ * was edited last. An angle no module links is absent, and the caller reads that as an empty list.
+ * A plain object rather than a `Map` because it crosses the server → client prop boundary.
+ */
+export function indexCreativeModulesByAngle(
+  modules: readonly CreativeModuleLinkSource[],
+): Record<string, LinkedRecord[]> {
+  const byAngle: Record<string, LinkedRecord[]> = {};
+  for (const creativeModule of modules) {
+    const record: LinkedRecord = {
+      id: creativeModule.id,
+      label: creativeModule.moduleName,
+      href: creativeModuleHref(creativeModule.id),
+      chip: CREATIVE_MODULE_CHIP_TONE,
+    };
+    for (const angleId of new Set(creativeModule.angleIds)) {
+      (byAngle[angleId] ??= []).push(record);
+    }
+  }
+  for (const records of Object.values(byAngle)) {
+    records.sort((a, b) => a.label.localeCompare(b.label));
+  }
+  return byAngle;
+}
 
 /**
  * How many format chips a table row shows before the rest collapse into `+N`. Three is what fits

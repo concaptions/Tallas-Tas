@@ -1,17 +1,24 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { anglesPath } from '../src/lib/routes';
+import { anglesPath, creativeModulesPath } from '../src/lib/routes';
 
 /**
  * The Angles route with no environment variables at all — the Vercel deployment as it stands.
  * The middleware lets the route through, the data source serves the in-repo fixtures, and the page
  * is fully usable read-only: five rows, four columns, a side panel that is not a modal, the open
- * angle in the URL, document links in the Resources group, and every write control disabled with a
- * reason.
+ * angle in the URL, document links in the Resources group, the creative modules that link the angle
+ * (the other side of `creative_module_angles`, from `demoCreativeModules`), and every write control
+ * disabled with a reason.
  */
 const BODY_CLOCK = '55555555-5555-4555-8555-000000000001';
+const NOT_YOUR_AGE = '55555555-5555-4555-8555-000000000003';
 const DAYLIGHT = '55555555-5555-4555-8555-000000000004';
+
+/** `demoCreativeModules`: "Problem → Solution Hooks" links Body Clock and Not Your Age. */
+const MODULE_PROBLEM_SOLUTION = '1234abcd-1234-4abc-8abc-000000000001';
+/** "Daylight Proof Demos" links only Daylight. */
+const MODULE_DAYLIGHT_PROOF = '1234abcd-1234-4abc-8abc-000000000002';
 
 test.describe('angles in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -152,6 +159,71 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     await expect(brief).toHaveValue('');
     await expect(script).toHaveValue('');
     await expect(brief).toHaveClass(/font-mono/);
+  });
+
+  test('the panel lists the creative modules that link the angle, read-only, each a link to its module', async ({
+    page,
+  }) => {
+    await page.goto(`${anglesPath}?angle=${BODY_CLOCK}`);
+
+    const panel = page.locator('[data-slot="angle-panel"]');
+
+    // "Linked work" sits below the six field groups and is NOT one of them: the group-heading
+    // assertion elsewhere in this file still sees exactly six.
+    await expect(panel.locator('[data-slot="angle-linked-heading"]')).toHaveText('Linked work');
+    await expect(panel.locator('[data-slot="angle-group-heading"]')).toHaveCount(6);
+
+    // Body Clock is linked by one fixture module. The chip is the shared StatusChip, and the
+    // record is an anchor to the Creative Modules page with that module's panel open — the link
+    // is edited from the module's side, so here it only navigates.
+    const modules = panel.locator('[data-slot="angle-creative-modules"]');
+    await expect(modules).toBeVisible();
+    const records = modules.locator('[data-slot="angle-creative-module"]');
+    await expect(records).toHaveCount(1);
+    await expect(records.first()).toHaveAttribute('data-record-id', MODULE_PROBLEM_SOLUTION);
+    await expect(records.first()).toHaveAttribute(
+      'href',
+      `${creativeModulesPath}?module=${MODULE_PROBLEM_SOLUTION}`,
+    );
+    const chip = records.first().locator('[data-slot="status-chip"]');
+    await expect(chip).toHaveText('Problem → Solution Hooks');
+    await expect(chip).toHaveAttribute('data-tone', 'info');
+
+    // Nothing in the section is a form control: read-only means no toggle, no picker, no input.
+    await expect(modules.locator('button, input, [role="combobox"]')).toHaveCount(0);
+
+    // The same module links Not Your Age; Daylight is linked by a different one. The list is the
+    // junction read from the angle's side, not a count copied onto the row.
+    await page.goto(`${anglesPath}?angle=${NOT_YOUR_AGE}`);
+    await expect(
+      page.locator('[data-slot="angle-creative-module"][data-record-id]'),
+    ).toHaveAttribute('data-record-id', MODULE_PROBLEM_SOLUTION);
+
+    await page.goto(`${anglesPath}?angle=${DAYLIGHT}`);
+    const daylight = page.locator('[data-slot="angle-creative-module"]');
+    await expect(daylight).toHaveCount(1);
+    await expect(daylight).toHaveAttribute('data-record-id', MODULE_DAYLIGHT_PROOF);
+    await expect(daylight.locator('[data-slot="status-chip"]')).toHaveText('Daylight Proof Demos');
+
+    // Following the chip lands on the module's own panel.
+    await daylight.click();
+    await expect(page).toHaveURL(
+      new RegExp(`${creativeModulesPath}\\?module=${MODULE_DAYLIGHT_PROOF}`),
+    );
+    await expect(page.locator('[data-slot="creative-module-panel-title"]')).toHaveText(
+      'Daylight Proof Demos',
+    );
+  });
+
+  test('a new angle has no linked work yet, so the section is absent', async ({ page }) => {
+    // Demo disables the "New angle" button, so reach the create state the way the URL does.
+    await page.goto(`${anglesPath}?angle=new`);
+
+    const panel = page.locator('[data-slot="angle-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('[data-slot="angle-panel-title"]')).toHaveText('New angle');
+    await expect(panel.locator('[data-slot="angle-linked-heading"]')).toHaveCount(0);
+    await expect(panel.locator('[data-slot="angle-creative-modules"]')).toHaveCount(0);
   });
 
   test('every write is disabled with a reason', async ({ page }) => {

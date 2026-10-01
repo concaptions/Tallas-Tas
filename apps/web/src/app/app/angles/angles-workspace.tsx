@@ -22,7 +22,13 @@ import {
 import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
 
 import { AnglePanel, NEW_ANGLE, type LinkOption } from './angle-panel';
-import { EM_DASH, PERSONA_CHIP_TONE, PRODUCT_CHIP_TONE, chipLabel } from './fields';
+import {
+  EM_DASH,
+  PERSONA_CHIP_TONE,
+  PRODUCT_CHIP_TONE,
+  chipLabel,
+  type LinkedRecord,
+} from './fields';
 
 /**
  * The Angles table, its header actions and its side panel (PRD §5.6).
@@ -38,6 +44,10 @@ import { EM_DASH, PERSONA_CHIP_TONE, PRODUCT_CHIP_TONE, chipLabel } from './fiel
  * a blank rectangle.
  *
  * Five columns and no sort: `loadAngles()` already returns the rows newest edit first.
+ *
+ * `creativeModulesByAngle` is the page's inversion of `creative_module_angles`, keyed by angle id;
+ * the workspace only picks the open angle's list out of it for the panel. An angle with no entry
+ * has no linked module, and the panel says so.
  */
 export interface AngleItem {
   readonly angle: AngleListRow;
@@ -45,10 +55,14 @@ export interface AngleItem {
   readonly updatedTitle: string;
 }
 
+/** No linked records: one frozen empty list, so an absent key never allocates per render. */
+const NO_RECORDS: readonly LinkedRecord[] = [];
+
 interface AnglesWorkspaceProps {
   readonly items: readonly AngleItem[];
   readonly personas: readonly LinkOption[];
   readonly products: readonly LinkOption[];
+  readonly creativeModulesByAngle: Readonly<Record<string, readonly LinkedRecord[]>>;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -86,6 +100,7 @@ export function AnglesWorkspace({
   items,
   personas,
   products,
+  creativeModulesByAngle,
   demo,
   initialSelection,
   initialSearch,
@@ -134,6 +149,8 @@ export function AnglesWorkspace({
 
   const open = items.find((item) => item.angle.id === selection)?.angle ?? null;
   const creating = selection === NEW_ANGLE;
+  const openCreativeModules =
+    open === null ? NO_RECORDS : (creativeModulesByAngle[open.id] ?? NO_RECORDS);
 
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
     return visible.map(({ angle }) => ({
@@ -348,6 +365,7 @@ export function AnglesWorkspace({
           angle={creating ? null : open}
           personas={personas}
           products={products}
+          creativeModules={openCreativeModules}
           demo={demo}
           onClose={close}
           onSaved={saved}
