@@ -799,15 +799,18 @@ export function BriefDetail({
             ) : null}
             <form action={spellAction}>
               <input type="hidden" name="id" value={brief.id} />
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                disabled={spellPending}
-                data-slot="brief-spelling-rerun"
-              >
-                {spellPending ? 'Checking…' : 'Run AI spell check'}
-              </Button>
+              <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  disabled={demo || spellPending}
+                  data-slot="brief-spelling-rerun"
+                  className={disabledWriteClassName}
+                >
+                  {spellPending ? 'Checking…' : 'Run AI spell check'}
+                </Button>
+              </DisabledWrite>
             </form>
           </section>
 
