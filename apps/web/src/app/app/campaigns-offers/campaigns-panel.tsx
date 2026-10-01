@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { CampaignOffer } from '@tas/db';
 import {
   Button,
@@ -24,7 +25,7 @@ import {
   type CampaignActionResult,
   type CampaignFieldName,
 } from './actions';
-import { CAMPAIGN_FIELD_GROUPS, NOT_SET } from './fields';
+import { CAMPAIGN_FIELD_GROUPS, NOT_SET, type LinkedRecord } from './fields';
 
 export const NEW_CAMPAIGN = 'new';
 const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
@@ -40,9 +41,77 @@ interface CampaignPanelProps {
   readonly products: readonly LinkOption[];
   /** Names of the collections whose `campaign_id` points here; the link is edited on their side. */
   readonly linkedCollections: readonly string[];
+  /** Email campaigns linked here through `email_campaign_campaigns`; edited on their side. */
+  readonly linkedEmailCampaigns: readonly LinkedRecord[];
+  /** Email flows linked here through `email_flow_campaigns`; edited on their side. */
+  readonly linkedEmailFlows: readonly LinkedRecord[];
+  /** YouTube copy carrying this campaign code (`youtube_copy_campaigns`); edited on its side. */
+  readonly linkedYoutubeCopy: readonly LinkedRecord[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
+}
+
+interface LinkedRecordsSectionProps {
+  readonly heading: string;
+  /** The `data-slot` of the list, stable whether it holds links or the empty sentence. */
+  readonly slot: string;
+  readonly links: readonly LinkedRecord[];
+  /** What the section says when nothing links here, naming where the link IS edited. */
+  readonly empty: string;
+  /** The labels are generated titles (`Copy 3 · …`), which the design system sets in `font-mono`. */
+  readonly mono?: boolean;
+}
+
+/**
+ * One read-only list of records that point at this campaign from their own panel: a link into the
+ * other module's page per row, with its status chip when the row carries one. The shape of the
+ * "Linked angles" list on the product and persona panels, with a link in place of a plain chip.
+ */
+function LinkedRecordsSection({
+  heading,
+  slot,
+  links,
+  empty,
+  mono = false,
+}: LinkedRecordsSectionProps) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h3 className="border-b border-line pb-1 text-sm font-medium text-text2">{heading}</h3>
+      <div className="flex flex-col gap-2" data-slot={slot}>
+        {links.length === 0 ? (
+          <span className="text-xs text-text3">{empty}</span>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {links.map((link) => (
+              <li
+                key={link.id}
+                data-slot="campaign-linked-record"
+                data-linked-id={link.id}
+                className="flex flex-wrap items-center gap-2"
+              >
+                {link.href === undefined ? (
+                  <span className={mono ? 'font-mono text-xs text-text' : 'text-sm text-text'}>
+                    {link.label}
+                  </span>
+                ) : (
+                  <Link
+                    href={link.href}
+                    className={`${mono ? 'font-mono text-xs' : 'text-sm'} rounded-input text-text underline-offset-2 hover:text-accent hover:underline`}
+                  >
+                    {link.label}
+                  </Link>
+                )}
+                {link.chip === undefined ? null : (
+                  <StatusChip tone={link.chip.tone} label={link.chip.label} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function valueOf(campaign: CampaignOffer | null, name: CampaignFieldName): string {
@@ -62,6 +131,9 @@ export function CampaignPanel({
   campaign,
   products,
   linkedCollections,
+  linkedEmailCampaigns,
+  linkedEmailFlows,
+  linkedYoutubeCopy,
   demo,
   onClose,
   onSaved,
@@ -287,6 +359,30 @@ export function CampaignPanel({
                   )}
                 </div>
               </section>
+            )}
+
+            {creating ? null : (
+              <>
+                <LinkedRecordsSection
+                  heading="Email campaigns"
+                  slot="campaign-email-campaigns"
+                  links={linkedEmailCampaigns}
+                  empty="No email campaign runs on this campaign yet. An email campaign picks its campaigns from its own panel."
+                />
+                <LinkedRecordsSection
+                  heading="Email flows"
+                  slot="campaign-email-flows"
+                  links={linkedEmailFlows}
+                  empty="No email flow runs on this campaign yet. A flow picks its campaigns from its own panel."
+                />
+                <LinkedRecordsSection
+                  heading="YouTube copy"
+                  slot="campaign-youtube-copy"
+                  links={linkedYoutubeCopy}
+                  empty="No YouTube copy carries this campaign code yet. A copy picks its campaign from its own panel."
+                  mono
+                />
+              </>
             )}
           </div>
         </div>

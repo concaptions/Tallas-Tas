@@ -1,3 +1,11 @@
+import { copyStatusLabel, copyStatusTone, type ChipTone } from '@tas/domain/state';
+
+import { emailCampaignsPath, emailFlowsPath, youtubeCopywritingPath } from '@/lib/routes';
+
+import {
+  copyNumberLabel,
+  SELECTION_PARAM as YOUTUBE_COPY_SELECTION_PARAM,
+} from '../youtube-copywriting/fields';
 import type { CampaignFieldName } from './actions';
 
 export type { CampaignFieldName };
@@ -131,4 +139,107 @@ export function formatDate(value: string | null): string {
   } catch {
     return value;
   }
+}
+
+// ── The other side of the campaign links (Airtable module parity, phase 2) ─────────────────────
+//
+// Email Campaigns, Email Flows and YouTube Copywriting each pick their campaigns from THEIR panel
+// (`email_campaign_campaigns`, `email_flow_campaigns`, `youtube_copy_campaigns`). The campaign
+// panel reads those junctions back the other way round, read-only, so a campaign can name what
+// runs on it — the Airtable inverse fields "Email Campaigns", "Email Flows" and "COPY". The rows
+// arrive through the sibling modules' sources (demo-aware), `page.tsx` inverts them with
+// `indexByCampaign`, and the panel renders plain `LinkedRecord`s. Nothing here reads a database.
+
+/** One record linked to a campaign from the other side of a junction, as the panel renders it. */
+export interface LinkedRecord {
+  readonly id: string;
+  /** What the row is called on its own page: a typed name, or a generated title (`Copy 3 · …`). */
+  readonly label: string;
+  /** The other module's page, opened on this row. */
+  readonly href?: string;
+  /** A status beside the label, labelled and toned by `@tas/domain/state` before it reaches the UI. */
+  readonly chip?: { readonly tone: ChipTone; readonly label: string };
+}
+
+/**
+ * The URL parameters the sibling pages keep their open row in. Each is the key that module's
+ * `syncUrl` writes; the YouTube one is exported by that module, the two email ones are literals
+ * there, restated here so the campaign panel can deep-link into each page.
+ */
+export const EMAIL_CAMPAIGN_SELECTION_PARAM = 'emailCampaign';
+export const EMAIL_FLOW_SELECTION_PARAM = 'email-flow';
+
+export function emailCampaignHref(id: string): string {
+  return `${emailCampaignsPath}?${EMAIL_CAMPAIGN_SELECTION_PARAM}=${encodeURIComponent(id)}`;
+}
+
+export function emailFlowHref(id: string): string {
+  return `${emailFlowsPath}?${EMAIL_FLOW_SELECTION_PARAM}=${encodeURIComponent(id)}`;
+}
+
+export function youtubeCopyHref(id: string): string {
+  return `${youtubeCopywritingPath}?${YOUTUBE_COPY_SELECTION_PARAM}=${encodeURIComponent(id)}`;
+}
+
+/**
+ * `Copy 3 · Two Sleepers. One Bed.` — the generated title (`copyNumberLabel`, the one place it is
+ * built) and the headline, or the title alone when the copy has no headline yet. Rendered in
+ * `font-mono` because the title is system output.
+ */
+export function youtubeCopyLinkLabel(copyNumber: number, headline: string | null): string {
+  const title = copyNumberLabel(copyNumber);
+  const trimmed = headline?.trim() ?? '';
+  return trimmed === '' ? title : `${title} · ${trimmed}`;
+}
+
+export function emailCampaignLink(row: {
+  readonly id: string;
+  readonly name: string;
+}): LinkedRecord {
+  return { id: row.id, label: row.name, href: emailCampaignHref(row.id) };
+}
+
+export function emailFlowLink(row: {
+  readonly id: string;
+  readonly flowName: string;
+}): LinkedRecord {
+  return { id: row.id, label: row.flowName, href: emailFlowHref(row.id) };
+}
+
+export function youtubeCopyLink(row: {
+  readonly id: string;
+  readonly copyNumber: number;
+  readonly headline: string | null;
+  readonly status: string;
+}): LinkedRecord {
+  return {
+    id: row.id,
+    label: youtubeCopyLinkLabel(row.copyNumber, row.headline),
+    href: youtubeCopyHref(row.id),
+    chip: { tone: copyStatusTone(row.status), label: copyStatusLabel(row.status) },
+  };
+}
+
+/**
+ * A many-to-many read from the far side: rows that each carry the campaign ids they link to,
+ * inverted into `campaignId -> links` so the panel can list what points at the open campaign. Row
+ * order is kept (every source arrives newest edit first), a campaign id repeated within one row
+ * yields one link, and a campaign nothing links to has no key — the caller's `?? []` is the empty
+ * state.
+ */
+export function indexByCampaign<Row>(
+  rows: readonly Row[],
+  campaignIdsOf: (row: Row) => readonly string[],
+  toLink: (row: Row) => LinkedRecord,
+): Record<string, LinkedRecord[]> {
+  const index: Record<string, LinkedRecord[]> = {};
+  for (const row of rows) {
+    const campaignIds = new Set(campaignIdsOf(row));
+    if (campaignIds.size === 0) continue;
+    const link = toLink(row);
+    for (const campaignId of campaignIds) {
+      (index[campaignId] ??= []).push(link);
+    }
+  }
+  return index;
 }

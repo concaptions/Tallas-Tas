@@ -23,7 +23,13 @@ import {
 import { TimelineView, type TimelineItem, ViewSwitcher } from '@/components/views';
 
 import { CampaignPanel, NEW_CAMPAIGN, type LinkOption } from './campaigns-panel';
-import { countLabel, EM_DASH, formatDate, matchesCampaignSearch } from './fields';
+import {
+  countLabel,
+  EM_DASH,
+  formatDate,
+  matchesCampaignSearch,
+  type LinkedRecord,
+} from './fields';
 
 const CAMPAIGNS_CAP = getTableCapability('campaigns') as NonNullable<
   ReturnType<typeof getTableCapability>
@@ -40,6 +46,12 @@ interface CampaignsWorkspaceProps {
   readonly products: readonly LinkOption[];
   /** campaignId -> the names of the collections pointing at it, for the panel's read-only list. */
   readonly collectionNames: Readonly<Record<string, readonly string[]>>;
+  /** campaignId -> the email campaigns linked to it (`email_campaign_campaigns`), read-only here. */
+  readonly emailCampaignLinks: Readonly<Record<string, readonly LinkedRecord[]>>;
+  /** campaignId -> the email flows linked to it (`email_flow_campaigns`), read-only here. */
+  readonly emailFlowLinks: Readonly<Record<string, readonly LinkedRecord[]>>;
+  /** campaignId -> the YouTube copy carrying its code (`youtube_copy_campaigns`), read-only here. */
+  readonly youtubeCopyLinks: Readonly<Record<string, readonly LinkedRecord[]>>;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -60,6 +72,9 @@ export function CampaignsWorkspace({
   items,
   products,
   collectionNames,
+  emailCampaignLinks,
+  emailFlowLinks,
+  youtubeCopyLinks,
   demo,
   initialSelection,
   initialSearch,
@@ -109,6 +124,10 @@ export function CampaignsWorkspace({
 
   const open = items.find((item) => item.campaign.id === selection)?.campaign ?? null;
   const creating = selection === NEW_CAMPAIGN;
+  /** A row being created has no id yet, so nothing can link to it. */
+  const openId = creating || open === null ? null : open.id;
+  const linksOf = <T,>(index: Readonly<Record<string, readonly T[]>>): readonly T[] =>
+    openId === null ? [] : (index[openId] ?? []);
 
   const productMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -328,7 +347,10 @@ export function CampaignsWorkspace({
           key={selection}
           campaign={creating ? null : open}
           products={products}
-          linkedCollections={creating || open === null ? [] : (collectionNames[open.id] ?? [])}
+          linkedCollections={linksOf(collectionNames)}
+          linkedEmailCampaigns={linksOf(emailCampaignLinks)}
+          linkedEmailFlows={linksOf(emailFlowLinks)}
+          linkedYoutubeCopy={linksOf(youtubeCopyLinks)}
           demo={demo}
           onClose={close}
           onSaved={saved}
