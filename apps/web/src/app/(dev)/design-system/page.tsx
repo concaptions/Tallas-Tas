@@ -164,6 +164,7 @@ import {
 } from './propagation.stories';
 import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
 import { TeamEmptyStory, TeamTableStory } from './team.stories';
+import { AngleStatusStory } from './angles.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
 
 export const metadata = {
@@ -955,6 +956,13 @@ export default function DesignSystemPage() {
             <CopyCounterStory />
           </div>
         </div>
+      </Section>
+
+      <Section
+        title="Angles: the approval Status chip"
+        note="Every tone of the angle Status vocabulary (angles/fields.ts), plus the unset state. Mounted from the route's own view functions, never re-drawn here."
+      >
+        <AngleStatusStory />
       </Section>
 
       <Section
