@@ -6,29 +6,23 @@ import type { AirtableRecord } from '../airtable-import';
 
 /**
  * Fetches the Gratsi base into the export-JSON shape `airtable-import.ts` consumes
- * (Sprint 2026-09-29). Table IDs, not names, so a rename in Airtable cannot silently
- * drop a table from the export. Read-only against Airtable; writes one local file.
+ * (Sprint 2026-09-29; by-name resolution 2026-10-01). Every table is resolved by its NAME in the
+ * base's own metadata — ids collide across the template and Gratsi bases (see airtable-tables.ts). Read-only against Airtable; writes one local file.
  *
  *   pnpm --filter @tas/db airtable-fetch -- --base appllDG4OmkK2Hdnn --out /tmp/gratsi-export.json
  */
 
-/** exportKey → Airtable table id (Gratsi base appllDG4OmkK2Hdnn, fetched 2026-09-29). */
-const TABLES: Record<string, string> = {
-  Products: 'tblfvfJMYNBz2OYYw',
-  Themes: 'tbl1aFLMJXxhdVKiz',
-  'Campaigns & Offers': 'tblRNaWCVa1cCIwLL',
-  Personas: 'tblyt7X4VjHxtMDVS',
-  Angles: 'tblRlcp1ibmS7U7HG',
-  Concepts: 'tbl4UFSFcynlS2Pkn',
-  Collections: 'tbl6LBNrRqa6Hh4I2',
-  'Creative Briefs': 'tblhU5yVNhVDwykUt',
-  Copywriting: 'tblZpBYPTcZcmQ1Kf',
-  'Youtube Copywriting': 'tblVR1UmkbDoDzJ7z',
-  Creators: 'tblRsVqiqUaZRcQYd',
-  'Competitive research': 'tbl9W6v78tKWznN9S',
-  'Client Assets Organisation': 'tbldFmPU6AWg62Fll',
-  '(Internal) Creative Dimensions': 'tblli0Y76yJvG56zK',
-};
+import { GRATSI_TABLES, resolveTableIds, type AirtableTableMeta } from '../airtable-tables';
+
+/** The base's own table list, so every table resolves by NAME in that base (never a baked-in id). */
+async function fetchTableMeta(pat: string, baseId: string): Promise<AirtableTableMeta[]> {
+  const res = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+    headers: { Authorization: `Bearer ${pat}` },
+  });
+  if (!res.ok) throw new Error(`metadata: HTTP ${String(res.status)} ${await res.text()}`);
+  const body = (await res.json()) as { tables: { id: string; name: string }[] };
+  return body.tables.map((table) => ({ id: table.id, name: table.name }));
+}
 
 function flag(name: string): string | undefined {
   const idx = process.argv.indexOf(name);
@@ -66,8 +60,9 @@ async function main(): Promise<void> {
   const pat = serverEnv().AIRTABLE_PAT;
   if (!pat) throw new Error('AIRTABLE_PAT is required (in .env.local)');
 
+  const tableIds = resolveTableIds(await fetchTableMeta(pat, baseId), GRATSI_TABLES, baseId);
   const data: Record<string, AirtableRecord[]> = {};
-  for (const [exportKey, tableId] of Object.entries(TABLES)) {
+  for (const [exportKey, tableId] of Object.entries(tableIds)) {
     data[exportKey] = await fetchTable(pat, baseId, tableId);
     console.log(`  ${exportKey}: ${String(data[exportKey].length)} records`);
   }

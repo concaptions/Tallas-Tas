@@ -315,3 +315,4 @@ export * from './email-flows';
 export * from './demo-email-flows';
 export * from './youtube-copy';
 export * from './demo-youtube-copy';
+export * from './airtable-tables';
