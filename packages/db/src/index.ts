@@ -26,7 +26,14 @@ export type { AnnotationInput } from './annotation-queries';
 export { insertComment } from './comment-queries';
 export type { CommentInput } from './comment-queries';
 export { importAirtableExport } from './airtable-import';
-export { getAssetById, insertAsset, listAssets, listConceptAssets, updateAsset } from './assets';
+export {
+  getAssetById,
+  insertAsset,
+  listAssets,
+  listConceptAssets,
+  listCreatorAssets,
+  updateAsset,
+} from './assets';
 export type { AssetInput, AssetListRow } from './assets';
 export { assetCategories } from './schema/assets';
 export type { AssetCategory } from './schema/assets';
@@ -296,6 +303,16 @@ export { withBrand } from './tenancy';
 export type { BrandedTable, BrandScope, ScopedInsertValue, ScopedUpdateSet } from './tenancy';
 export type { ScopedSelect, ScopedWrite } from './tenancy';
 export { getViewPreference, saveViewPreference } from './view-preferences';
+export {
+  activateUserTableView,
+  createUserTableView,
+  deleteUserTableView,
+  getUserTableView,
+  listUserTableViews,
+  renameUserTableView,
+  updateUserTableViewConfig,
+  type UserTableViewConfigInput,
+} from './user-table-views';
 // ── Module parity (2026-10-01): query layers + demo fixtures, one file per module ──
 export * from './copy-types';
 export * from './demo-copy-types';

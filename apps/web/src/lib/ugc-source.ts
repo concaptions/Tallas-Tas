@@ -1,12 +1,15 @@
 import {
+  demoAssets,
   demoCollaborations,
   demoCreators,
   demoPartnershipCreators,
   getCreatorById,
   listCollaborations,
+  listCreatorAssets,
   listCreators,
   listPartnershipCreators,
   PARTNERSHIP_REFERENCE_DATE,
+  type AssetListRow,
   type CollaborationListRow,
   type CreatorListRow,
   type Db,
@@ -192,6 +195,30 @@ export async function loadCreator(id: string, deps: UgcSourceDeps = {}): Promise
     const brandId = await resolveLiveBrandId(db, deps);
     const creator = brandId === null ? null : await getCreatorById(db, brandId, id);
     return { creator, source: 'database' };
+  });
+}
+
+export interface CreatorVideoListResult {
+  readonly rows: readonly AssetListRow[];
+  readonly source: UgcSourceKind;
+}
+
+/**
+ * A creator's showcase videos (Sprint 7, UGC media): the `assets` rows linked to the creator,
+ * newest first. The same attachment storage every other upload uses — one table, one R2 bucket —
+ * filtered by `creator_id` rather than a second media table.
+ */
+export async function loadCreatorVideos(
+  creatorId: string,
+  deps: UgcSourceDeps = {},
+): Promise<CreatorVideoListResult> {
+  if (inDemoMode(deps)) {
+    return { rows: demoAssets.filter((row) => row.creatorId === creatorId), source: 'demo' };
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    const rows = brandId === null ? [] : await listCreatorAssets(db, brandId, creatorId);
+    return { rows, source: 'database' };
   });
 }
 

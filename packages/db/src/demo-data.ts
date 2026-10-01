@@ -2611,6 +2611,7 @@ export const demoAssets: AssetListRow[] = [
     url: '/demo/assets/competitor-sleep-ad.mp4',
     category: 'reference',
     conceptId: CONCEPT_BODY_CLOCK_ID,
+    creatorId: null,
     caption: 'Competitor ad — body clock angle on Meta',
   },
   {
@@ -2623,6 +2624,7 @@ export const demoAssets: AssetListRow[] = [
     url: '/demo/assets/blanket-texture-closeup.jpg',
     category: 'broll',
     conceptId: null,
+    creatorId: null,
     caption: 'Reusable B-roll — product texture close-up',
   },
   {
@@ -2635,6 +2637,7 @@ export const demoAssets: AssetListRow[] = [
     url: '/demo/assets/danielle-take-3.mov',
     category: 'raw_asset',
     conceptId: CONCEPT_NOT_YOUR_AGE_ID,
+    creatorId: null,
     caption: null,
   },
   {
@@ -2647,6 +2650,7 @@ export const demoAssets: AssetListRow[] = [
     url: '/demo/assets/daylight-mood-ref.png',
     category: 'mood_board',
     conceptId: CONCEPT_DAYLIGHT_ID,
+    creatorId: null,
     caption: 'Mood board — morning light colour palette',
   },
 ];

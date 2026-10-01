@@ -281,6 +281,20 @@
       "idx": 39,
       "when": 1791052800000,
       "tag": "0039_gratsi-field-parity"
+    },
+    {
+      "version": "7",
+      "breakpoints": true,
+      "idx": 40,
+      "when": 1791056400000,
+      "tag": "0040_user-table-views"
+    },
+    {
+      "version": "7",
+      "breakpoints": true,
+      "idx": 41,
+      "when": 1791060000000,
+      "tag": "0041_creator-showcase-videos"
     }
   ]
 }

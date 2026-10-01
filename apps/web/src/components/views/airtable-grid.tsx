@@ -1,16 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  Button,
-  cn,
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@tas/ui';
+import { applyUserView, type UserViewConfig, type UserViewSort } from '@tas/domain';
+import { cn } from '@tas/ui';
 
 import {
   cycleSort,
@@ -20,6 +12,7 @@ import {
   writeHiddenColumns,
   type SortState,
 } from './airtable-grid-logic';
+import { FieldsMenu } from './fields-menu';
 
 /**
  * One column of the grid. `render` draws the cell inline (text, a coloured badge, a link count, a
@@ -55,12 +48,22 @@ export interface AirtableGridProps<Row> {
   readonly rowAttributes?: (row: Row) => Readonly<Record<string, string | undefined>>;
   /** The accessible name of a clickable row (e.g. the record's name); falls back to the row id. */
   readonly rowLabel?: (row: Row) => string;
+  /**
+   * The viewer's active view (Sprint 7, VIEWS-01). When given, the grid is controlled by it: the
+   * column order, visibility and freeze come from `applyUserView`, the sort is `view.sort`, and a
+   * header click reports through `onSortChange` instead of changing local state. The Fields menu
+   * then lives in the page's toolbar (it toggles the same view), so the grid renders none of its own.
+   */
+  readonly view?: UserViewConfig;
+  readonly onSortChange?: (sort: UserViewSort | null) => void;
 }
 
 /**
  * An Airtable-style read-only grid (P2A): full-width, horizontally scrollable with every column
- * visible, a frozen primary column, click-to-sort headers, and a Fields menu to show/hide columns
- * (remembered per viewer). Inline editing is intentionally out of scope for this pass.
+ * visible, a frozen primary column, click-to-sort headers, and a Fields menu to show/hide columns.
+ * Uncontrolled, the hidden columns are remembered per browser; given a `view`, the viewer's saved
+ * view decides order, visibility, freeze and sort (Sprint 7, VIEWS-01). Inline editing is
+ * intentionally out of scope.
  */
 export function AirtableGrid<Row>({
   tableKey,
@@ -74,19 +77,27 @@ export function AirtableGrid<Row>({
   rowSlot = 'grid-row',
   rowAttributes,
   rowLabel,
+  view,
+  onSortChange,
 }: AirtableGridProps<Row>) {
-  const [sort, setSort] = useState<SortState | null>(null);
+  const [localSort, setLocalSort] = useState<SortState | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  const controlled = view !== undefined;
 
   // Read the remembered hidden columns after mount only — localStorage is a client store, and reading
-  // it during render would desync server and client HTML.
+  // it during render would desync server and client HTML. A controlled grid reads its view instead.
   useEffect(() => {
-    setHidden(readHiddenColumns(tableKey));
-  }, [tableKey]);
+    if (!controlled) setHidden(readHiddenColumns(tableKey));
+  }, [controlled, tableKey]);
+
+  const sort: SortState | null = controlled ? view.sort : localSort;
 
   const visibleColumns = useMemo(
-    () => columns.filter((column) => !hidden.has(column.key)),
-    [columns, hidden],
+    () =>
+      controlled
+        ? applyUserView(columns, view)
+        : columns.filter((column) => !hidden.has(column.key)),
+    [columns, controlled, hidden, view],
   );
 
   const sortedRows = useMemo(() => {
@@ -95,6 +106,18 @@ export function AirtableGrid<Row>({
     if (column?.sortValue === undefined) return rows;
     return sortRows(rows, column.sortValue, sort.direction);
   }, [rows, sort, columns]);
+
+  const onHeaderClick = useCallback(
+    (key: string) => {
+      const next = cycleSort(sort, key);
+      if (controlled) {
+        onSortChange?.(next);
+      } else {
+        setLocalSort(next);
+      }
+    },
+    [controlled, onSortChange, sort],
+  );
 
   const onToggleColumn = useCallback(
     (key: string) => {
@@ -109,33 +132,15 @@ export function AirtableGrid<Row>({
 
   return (
     <div className="flex w-full flex-col gap-2">
-      <div className="flex justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" size="sm" data-slot="grid-fields">
-              Fields
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-            <DropdownMenuLabel>Show fields</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {columns.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column.key}
-                checked={!hidden.has(column.key)}
-                onCheckedChange={() => {
-                  onToggleColumn(column.key);
-                }}
-                onSelect={(event) => {
-                  event.preventDefault();
-                }}
-              >
-                {column.header}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {controlled ? null : (
+        <div className="flex justify-end">
+          <FieldsMenu
+            fields={columns.map((column) => ({ key: column.key, label: column.header }))}
+            isVisible={(key) => !hidden.has(key)}
+            onToggle={onToggleColumn}
+          />
+        </div>
+      )}
 
       <div className="w-full overflow-x-auto rounded-card border border-line bg-surface">
         <table className="w-full min-w-max border-collapse text-sm" data-slot={tableSlot}>
@@ -159,7 +164,7 @@ export function AirtableGrid<Row>({
                     <button
                       type="button"
                       onClick={() => {
-                        setSort((current) => cycleSort(current, column.key));
+                        onHeaderClick(column.key);
                       }}
                       className="inline-flex items-center gap-1 hover:text-text"
                     >

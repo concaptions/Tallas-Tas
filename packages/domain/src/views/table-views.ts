@@ -140,7 +140,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   concepts: {
     tableKey: 'concepts',
     label: 'Concepts',
-    supportedViews: ['grid', 'kanban'],
+    supportedViews: ['grid', 'kanban', 'gallery'],
     kanbanFields: [
       { field: 'approvalStatus', label: 'Approval Status' },
       { field: 'productionStatus', label: 'Production Status' },
@@ -183,7 +183,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   personas: {
     tableKey: 'personas',
     label: 'Personas',
-    supportedViews: ['grid', 'kanban'],
+    supportedViews: ['grid', 'kanban', 'gallery'],
     kanbanFields: [{ field: 'stageOfAwareness', label: 'Stage of Awareness' }],
     galleryFields: [],
     timelineDates: null,
@@ -199,18 +199,18 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   themes: {
     tableKey: 'themes',
     label: 'Themes',
-    supportedViews: ['grid', 'kanban'],
+    supportedViews: ['grid', 'kanban', 'gallery'],
     kanbanFields: [
       { field: 'category', label: 'Category' },
       { field: 'status', label: 'Status' },
     ],
-    galleryFields: [],
+    galleryFields: [{ field: 'attachments', label: 'First attachment', mediaType: 'image' }],
     timelineDates: null,
   },
   angles: {
     tableKey: 'angles',
     label: 'Angles',
-    supportedViews: ['grid', 'kanban'],
+    supportedViews: ['grid', 'kanban', 'gallery'],
     kanbanFields: [{ field: 'potential', label: 'Potential' }],
     galleryFields: [],
     timelineDates: null,
@@ -226,7 +226,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   products: {
     tableKey: 'products',
     label: 'Products',
-    supportedViews: ['grid'],
+    supportedViews: ['grid', 'gallery'],
     kanbanFields: [],
     galleryFields: [],
     timelineDates: null,

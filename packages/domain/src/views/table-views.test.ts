@@ -17,11 +17,19 @@ describe('TABLE_VIEW_CAPABILITIES', () => {
     }
   });
 
-  it('gallery is only listed when galleryFields is non-empty', () => {
+  it('galleryFields is only listed on tables that support the gallery', () => {
+    // A table may offer the gallery with no media field: its cards then show the record's initial
+    // on a coloured tile (Sprint 7). The reverse never holds — a media field with no gallery is dead.
     for (const cap of Object.values(TABLE_VIEW_CAPABILITIES)) {
-      if (cap.supportedViews.includes('gallery')) {
-        expect(cap.galleryFields.length).toBeGreaterThan(0);
+      if (cap.galleryFields.length > 0) {
+        expect(cap.supportedViews).toContain('gallery');
       }
+    }
+  });
+
+  it('the six core tables all offer the gallery', () => {
+    for (const key of ['products', 'personas', 'angles', 'themes', 'concepts', 'creators']) {
+      expect(TABLE_VIEW_CAPABILITIES[key]?.supportedViews, key).toContain('gallery');
     }
   });
 
@@ -43,10 +51,10 @@ describe('TABLE_VIEW_CAPABILITIES', () => {
     });
   });
 
-  it('products is grid-only', () => {
+  it('products is grid and gallery, never kanban (it has no status to group by)', () => {
     const cap = TABLE_VIEW_CAPABILITIES['products'];
     expect(cap).toBeDefined();
-    expect(cap?.supportedViews).toEqual(['grid']);
+    expect(cap?.supportedViews).toEqual(['grid', 'gallery']);
   });
 });
 

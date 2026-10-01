@@ -3,9 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
+  insertAsset,
+  isR2Available,
   syncCreatorConcepts,
   syncCreatorProducts,
   updateCreator,
+  uploadToR2,
   type CreatorInput,
 } from '@tas/db';
 import { isCreatorInternalStatus, isCreatorStatus } from '@tas/domain/state';
@@ -19,6 +22,8 @@ import {
   CONTINUE_WORKING_WITH_UNDECIDED,
   continueWorkingWithValue,
   isContinueWorkingWithKey,
+  MAX_SHOWCASE_VIDEO_BYTES,
+  R2_UNAVAILABLE_HINT,
 } from './fields';
 
 export interface CreatorActionSuccess {
@@ -222,5 +227,97 @@ export async function updateCreatorAction(
     return { ok: true, id: saved.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The creator could not be saved. Try again.' };
+  }
+}
+
+export interface VideoUploadSuccess {
+  readonly ok: true;
+  readonly id: string;
+  readonly url: string;
+  readonly savedAt: number;
+}
+
+export type VideoUploadResult = VideoUploadSuccess | CreatorActionFailure;
+
+const uploadSchema = z.object({
+  creatorId: z.uuid(),
+  caption: text,
+});
+
+/** A file name safe for an object key: the base name, lower-cased, nothing but word characters and dots. */
+function safeFileName(name: string): string {
+  const base = name.split(/[\\/]/).pop() ?? 'video';
+  const cleaned = base
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return cleaned === '' ? 'video' : cleaned;
+}
+
+/**
+ * Uploads one showcase video for a creator (Sprint 7, UGC media): the file goes to R2 through the
+ * shared `uploadToR2`, then one `assets` row is written with `creator_id` set and the
+ * `showcase_video` category — the existing attachment storage, reused, so the Assets page, the
+ * re-hosting scripts and this panel all read one table. Several uploads make several rows; the panel
+ * lists them newest first with inline playback. Refused in demo mode, without a session, without
+ * the bucket, for a non-video file and past `MAX_SHOWCASE_VIDEO_BYTES`.
+ */
+export async function uploadCreatorVideoAction(
+  _previous: VideoUploadResult | null,
+  formData: FormData,
+): Promise<VideoUploadResult> {
+  if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
+
+  const parsed = uploadSchema.safeParse({
+    creatorId: formData.get('creatorId'),
+    caption: formData.get('caption') ?? '',
+  });
+  if (!parsed.success) return { ok: false, error: 'Invalid request.' };
+
+  const file = formData.get('video');
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: 'Choose a video file to upload.' };
+  }
+  if (!file.type.startsWith('video/')) {
+    return { ok: false, error: 'Only video files can be uploaded here.' };
+  }
+  if (file.size > MAX_SHOWCASE_VIDEO_BYTES) {
+    return { ok: false, error: 'That video is over 250 MB. Compress it and try again.' };
+  }
+
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: 'Your session has expired. Sign in again to upload.' };
+  if (!isR2Available()) return { ok: false, error: R2_UNAVAILABLE_HINT };
+
+  try {
+    const saved = await withBrandScope(async (db, brandId) => {
+      const key = `${brandId}/creators/${parsed.data.creatorId}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+      const uploaded = await uploadToR2(key, await file.arrayBuffer(), file.type);
+      if (!uploaded.ok) throw new Error(uploaded.error);
+      return insertAsset(
+        db,
+        brandId,
+        {
+          filename: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+          r2Key: uploaded.r2Key,
+          url: uploaded.url,
+          category: 'showcase_video',
+          conceptId: null,
+          creatorId: parsed.data.creatorId,
+          caption: parsed.data.caption,
+        },
+        userId,
+      );
+    });
+    if (saved === null) return { ok: false, error: 'No brand is selected for this workspace.' };
+    revalidatePath(ugcPath);
+    return { ok: true, id: saved.id, url: saved.url, savedAt: Date.now() };
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'The upload failed. Try again.',
+    };
   }
 }
