@@ -17,6 +17,7 @@ import {
   conceptViewFromParam,
   filteredConceptCountLabel,
   internalStatusView,
+  EMPTY_CONCEPT_RECORD,
   internalStatusViews,
   matchesQuery,
   type ConceptItem,
@@ -25,6 +26,7 @@ import {
 /** One list item in the shape the page builds, with only the fields a test cares about set. */
 function item(id: string, status: (typeof INTERNAL_VIDEO_STATUS)[number]['key']): ConceptItem {
   return {
+    ...EMPTY_CONCEPT_RECORD,
     id,
     name: `B1-Angle-Theme-${id}`,
     batch: 'B1',

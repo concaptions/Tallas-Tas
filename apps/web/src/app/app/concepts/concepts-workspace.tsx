@@ -14,6 +14,7 @@ import {
 
 import { conceptPath } from '@/lib/routes';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
 
 import { ConceptBoard } from './concept-board';
 import {
@@ -89,9 +90,10 @@ function syncUrl(view: ConceptView, search: string): void {
 }
 
 /**
- * The Airtable-style grid columns for the Concepts table view (P2A-3). Headers match
+ * The Airtable-style grid columns for the Concepts table view (P2A-3). The first seven headers are
  * `CONCEPT_COLUMNS`; the generated name keeps its `concept-row-name` hook and `font-mono`, and the
- * Internal Status column renders a `<StatusChip>` exactly as the plain table did.
+ * two status tracks render a `<StatusChip>` each. Every other stored column follows, so a concept is
+ * readable end to end without opening it. Production Status is hidden on purpose (docs/decisions.md).
  */
 const CONCEPT_GRID_COLUMNS: readonly GridColumn<ConceptItem>[] = [
   {
@@ -146,6 +148,83 @@ const CONCEPT_GRID_COLUMNS: readonly GridColumn<ConceptItem>[] = [
     header: 'Internal Status',
     sortValue: (item) => item.status.label,
     render: (item) => <StatusChip tone={item.status.tone} label={item.status.label} />,
+  },
+  {
+    key: 'clientStatus',
+    header: 'Client Status',
+    sortValue: (item) => item.clientStatus.label,
+    render: (item) => <StatusChip tone={item.clientStatus.tone} label={item.clientStatus.label} />,
+  },
+  {
+    key: 'approvalStatus',
+    header: 'Approval Status',
+    sortValue: (item) => item.approvalStatusLabel,
+    render: (item) => <TextCell value={item.approvalStatusLabel} />,
+  },
+  {
+    key: 'category',
+    header: 'Category',
+    sortValue: (item) => item.categoryLabel,
+    render: (item) => <TextCell value={item.categoryLabel} />,
+  },
+  {
+    key: 'conceptStyle',
+    header: 'Concept Style',
+    sortValue: (item) => item.styleLabel,
+    render: (item) => <TextCell value={item.styleLabel} />,
+  },
+  {
+    key: 'formatsToCreate',
+    header: 'Formats to create',
+    render: (item) => (
+      <ChipListCell
+        chips={item.formatsToCreate.map((format) => ({ label: format, tone: 'accent' }))}
+      />
+    ),
+  },
+  {
+    key: 'hookExamples',
+    header: 'Hook Examples',
+    render: (item) => <TextCell value={item.hookExamples} />,
+  },
+  {
+    key: 'scriptIdea',
+    header: 'Script Idea',
+    render: (item) => <TextCell value={item.scriptIdea} />,
+  },
+  {
+    key: 'description',
+    header: 'Description',
+    render: (item) => <TextCell value={item.description} />,
+  },
+  {
+    key: 'painPoints',
+    header: 'Pain Points',
+    render: (item) => <TextCell value={item.painPoints} />,
+  },
+  { key: 'usp', header: 'USP', render: (item) => <TextCell value={item.usp} /> },
+  {
+    key: 'clientComments',
+    header: 'Client Comments',
+    render: (item) => <TextCell value={item.clientComments} />,
+  },
+  {
+    key: 'collection',
+    header: 'Collection',
+    sortValue: (item) => item.collectionName,
+    render: (item) => <TextCell value={item.collectionName} />,
+  },
+  {
+    key: 'creators',
+    header: 'Creators',
+    sortValue: (item) => item.creatorCount,
+    render: (item) => <CountCell count={item.creatorCount} noun="creator" />,
+  },
+  {
+    key: 'adInspo',
+    header: 'Ad Inspo',
+    sortValue: (item) => item.adInspoCount,
+    render: (item) => <CountCell count={item.adInspoCount} noun="link" />,
   },
 ];
 

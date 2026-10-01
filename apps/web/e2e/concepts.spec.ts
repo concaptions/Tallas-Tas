@@ -49,7 +49,26 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Product',
       'Theme',
       'Internal Status',
+      'Client Status',
+      'Approval Status',
+      'Category',
+      'Concept Style',
+      'Formats to create',
+      'Hook Examples',
+      'Script Idea',
+      'Description',
+      'Pain Points',
+      'USP',
+      'Client Comments',
+      'Collection',
+      'Creators',
+      'Ad Inspo',
     ]);
+    // Production Status is hidden from the grid on purpose (docs/decisions.md); the name is frozen.
+    await expect(page.locator('[data-slot="concepts-table"] thead th').first()).toHaveCSS(
+      'position',
+      'sticky',
+    );
 
     const rows = page.locator('[data-slot="concept-row"]');
     await expect(rows).toHaveCount(4);
@@ -60,9 +79,12 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(name).toHaveCSS('font-family', /mono/i);
 
     // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill.
+    // One Internal Status chip and one Client Status chip per row (two-track approval, PRD §9).
     const chips = page.locator('[data-slot="concept-row"] [data-slot="status-chip"]');
-    await expect(chips).toHaveCount(4);
-    const revisions = page.locator(`[data-concept-id="${BODY_CLOCK}"] [data-slot="status-chip"]`);
+    await expect(chips).toHaveCount(8);
+    const revisions = page
+      .locator(`[data-concept-id="${BODY_CLOCK}"] [data-slot="status-chip"]`)
+      .first();
     await expect(revisions).toHaveText('Videos Revisions');
     await expect(revisions).toHaveAttribute('data-tone', 'warn');
   });
