@@ -570,3 +570,29 @@ campaign→collections). Two constraints are DELIBERATE for V0 rather than gaps:
    its personas/products, collection chooses its campaign, brief chooses its concept, concept
    chooses its creator/theme); the other side is a read-only list. This mirrors ownership, keeps
    one write path per link, and avoids duelling syncs.
+
+## 2026-10-01 — Module parity with the live Gratsi base (Prompt 1 schema decisions)
+
+Source of truth is the live Gratsi base `appllDG4OmkK2Hdnn`, not the template. Decisions taken
+while adding the six missing tables (audit: `docs/audits/airtable-module-gap-2026-10-01.md`):
+
+1. **Due dates are computed, with the base's own formulas.** The metadata carries them, so nothing
+   was invented: Email Campaigns `Design Due Date = Send Date − 5 days`, `Copywriting Due Date =
+   Design Due Date − 5 days`; Email Flows the same two offsets from `Expected Setup Date`; SM
+   Campaign Feed `Reminder Trigger = NOW() > Due Date − 12 hours`; Creative Sheet `Name =
+   MONTH(Created) & "-" & Creative Name`; Creative Reporting `Difference CPA = CPA − Target CPA`.
+   None is stored; the query layer derives them.
+2. **Misnamed Airtable link fields are modelled by their real target.** Creative Modules'
+   "Concepts" links Angles → junction `creative_module_angles`; Campaigns & Offers' "Angles" links
+   Concepts → `campaign_concepts`. The doc comment on each junction says so.
+3. **YouTube copy is its own table (`youtube_copy`)**, not a channel column on `copywriting`:
+   the two bases have different funnel vocabularies and the Meta table carries the spell-check
+   fields YouTube's does not. `copy_types` returns as a real table (the Airtable V0 decision to
+   fold it into the four copy fields is superseded by parity).
+4. **`themes` was NOT modelled on Creative Modules** — verified column by column — so no data
+   migration is needed there.
+5. **Creative Reporting has no live link to Creative Design** (only a dangling lookup), so
+   `creative_reporting.brief_id` is a nullable FK the platform sets; the importer leaves it null.
+6. Select vocabularies for the new tables live as tuples in `packages/db/src/schema/enums.ts`,
+   pulled verbatim from the base's options; their state machines (allowed transitions) land with
+   the pages in Prompt 2 under `packages/domain/state`.

@@ -385,3 +385,180 @@ export const notificationTriggerEnum = pgEnum('notification_trigger', notificati
 /** The two channels §12 offers per trigger: the Slack DM it is about, and email as the extra. */
 export const notificationChannels = ['slack', 'email'] as const;
 export type NotificationChannel = (typeof notificationChannels)[number];
+
+// ── 2026-10-01 module-parity vocabularies (Prompt 1) ─────────────────────────────────────
+
+/**
+ * Creative Sheet "Internal Status" (`creative_sheet_items.internal_status`).
+ * Options pulled verbatim from the live Gratsi base `tblGC0TxnHI7lKaNQ` ("Creative Sheet" → "Internal Status") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const creativeSheetInternalStatuses = [
+  { key: 'sent_to_designer', label: 'Sent to Designer' },
+  { key: 'sent_to_video_editor', label: 'Sent to Video Editor' },
+  { key: 'static_design_in_progress', label: 'Static Design in Progress' },
+  { key: 'video_editing_in_progress', label: 'Video Editing in Progress' },
+  { key: 'video_editing_on_hold', label: 'Video Editing on Hold' },
+  { key: 'ad_submitted', label: 'Ad Submitted' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'images_revisions', label: 'Images Revisions' },
+  { key: 'videos_revisions', label: 'Videos Revisions' },
+  { key: 'revisions_submitted', label: 'Revisions Submitted' },
+  { key: 'design_submitted', label: 'Design Submitted' },
+] as const satisfies readonly { key: string; label: string }[];
+export type CreativeSheetInternalStatusesKey =
+  (typeof creativeSheetInternalStatuses)[number]['key'];
+
+/**
+ * Creative Sheet client-facing "Status" (`creative_sheet_items.status`).
+ * Options pulled verbatim from the live Gratsi base `tblGC0TxnHI7lKaNQ` ("Creative Sheet" → "Status") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const creativeSheetStatuses = [
+  { key: 'pending_for_approval', label: 'Pending For Approval' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'launched', label: 'Launched' },
+  { key: 'revisions_needed', label: 'Revisions Needed' },
+  { key: 'denied', label: 'Denied' },
+  { key: 'revisions_submitted', label: 'Revisions Submitted' },
+] as const satisfies readonly { key: string; label: string }[];
+export type CreativeSheetStatusesKey = (typeof creativeSheetStatuses)[number]['key'];
+
+/**
+ * Creative Sheet "Winning" (`creative_sheet_items.winning`).
+ * Options pulled verbatim from the live Gratsi base `tblGC0TxnHI7lKaNQ` ("Creative Sheet" → "Winning") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const creativeSheetWinning = [
+  { key: 'best_performing', label: 'Best Performing' },
+  { key: 'average', label: 'Average' },
+] as const satisfies readonly { key: string; label: string }[];
+export type CreativeSheetWinningKey = (typeof creativeSheetWinning)[number]['key'];
+
+/**
+ * SM Campaign Feed "Platform" (`sm_campaign_feed_tasks.platform`).
+ * Options pulled verbatim from the live Gratsi base `tblLRajTW55XEhVhk` ("SM Campaign Management Feed" → "Platform") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const smPlatforms = [
+  { key: 'meta', label: 'Meta' },
+  { key: 'tiktok', label: 'Tiktok' },
+  { key: 'snapchat', label: 'Snapchat' },
+  { key: 'x', label: 'X' },
+] as const satisfies readonly { key: string; label: string }[];
+export type SmPlatformsKey = (typeof smPlatforms)[number]['key'];
+
+/**
+ * SM Campaign Feed "Status" (`sm_campaign_feed_tasks.status`).
+ * Options pulled verbatim from the live Gratsi base `tblLRajTW55XEhVhk` ("SM Campaign Management Feed" → "Status") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const smTaskStatuses = [
+  { key: 'todo', label: 'Todo' },
+  { key: 'in_progress', label: 'In progress' },
+  { key: 'done', label: 'Done' },
+] as const satisfies readonly { key: string; label: string }[];
+export type SmTaskStatusesKey = (typeof smTaskStatuses)[number]['key'];
+
+/**
+ * Email Campaigns "Status" — the eleven-step email workflow (`email_campaigns.status`).
+ * Options pulled verbatim from the live Gratsi base `tblABjVpwRpYtY7de` ("Email Campaigns Management" → "Status") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const emailCampaignStatuses = [
+  { key: 'client_idea_pending_for_approval', label: 'Client: Idea Pending for Approval' },
+  { key: 'ideas_approved', label: 'Ideas Approved' },
+  { key: 'copywriting', label: 'Copywriting' },
+  { key: 'copywriting_finished', label: 'Copywriting Finished' },
+  { key: 'template_design', label: 'Template Design' },
+  { key: 'design_submitted', label: 'Design Submitted' },
+  { key: 'client_design_pending_for_approval', label: 'Client: Design Pending for Approval' },
+  { key: 'client_edits_required', label: 'Client: Edits Required' },
+  { key: 'revisions_submitted', label: 'Revisions Submitted' },
+  { key: 'client_approved', label: 'Client: Approved' },
+  { key: 'scheduled', label: 'Scheduled' },
+] as const satisfies readonly { key: string; label: string }[];
+export type EmailCampaignStatusesKey = (typeof emailCampaignStatuses)[number]['key'];
+
+/**
+ * Email Campaigns "Type" (`email_campaigns.type`).
+ * Options pulled verbatim from the live Gratsi base `tblABjVpwRpYtY7de` ("Email Campaigns Management" → "Type") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const emailCampaignTypes = [
+  { key: 'plain_text_email', label: 'Plain Text Email' },
+  { key: 'product_promotion_campaign', label: 'Product Promotion Campaign' },
+  { key: 'collection_promotion_campaign', label: 'Collection Promotion Campaign' },
+  { key: 'multi_product_promotion', label: 'Multi-Product Promotion' },
+  { key: 'sale_campaign', label: 'Sale Campaign' },
+  { key: 'seasonal_campaign', label: 'Seasonal Campaign' },
+  { key: 'brand_builder', label: 'Brand Builder' },
+  { key: 'blog_post_educational', label: 'Blog Post/Educational' },
+  { key: 'flash_sale', label: 'Flash Sale' },
+  { key: 'subscription_based', label: 'Subscription Based' },
+  { key: 'hype', label: 'Hype' },
+] as const satisfies readonly { key: string; label: string }[];
+export type EmailCampaignTypesKey = (typeof emailCampaignTypes)[number]['key'];
+
+/**
+ * Email Campaigns "Channel" / Email Flows "Type" (`email_campaigns.channel`, `email_flows.type`).
+ * Options pulled verbatim from the live Gratsi base `tblABjVpwRpYtY7de` ("Email Campaigns Management" → "Channel") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const emailChannels = [
+  { key: 'email', label: 'Email' },
+  { key: 'sms', label: 'SMS' },
+  { key: 'push_notification', label: 'Push Notification' },
+] as const satisfies readonly { key: string; label: string }[];
+export type EmailChannelsKey = (typeof emailChannels)[number]['key'];
+
+/**
+ * Email Flows "Status" — the campaign workflow with Live and Pending in place of Scheduled (`email_flows.status`).
+ * Options pulled verbatim from the live Gratsi base `tblubVflAQZgJSxcF` ("Email Flows Management" → "Status") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const emailFlowStatuses = [
+  { key: 'client_idea_pending_for_approval', label: 'Client: Idea Pending for Approval' },
+  { key: 'ideas_approved', label: 'Ideas Approved' },
+  { key: 'copywriting', label: 'Copywriting' },
+  { key: 'copywriting_finished', label: 'Copywriting Finished' },
+  { key: 'template_design', label: 'Template Design' },
+  { key: 'design_submitted', label: 'Design Submitted' },
+  { key: 'client_design_pending_for_approval', label: 'Client: Design Pending for Approval' },
+  { key: 'client_edits_required', label: 'Client: Edits Required' },
+  { key: 'revisions_submitted', label: 'Revisions Submitted' },
+  { key: 'client_approved', label: 'Client: Approved' },
+  { key: 'live', label: 'Live' },
+  { key: 'pending', label: 'Pending' },
+] as const satisfies readonly { key: string; label: string }[];
+export type EmailFlowStatusesKey = (typeof emailFlowStatuses)[number]['key'];
+
+/**
+ * YouTube Copywriting "Funnel" (`youtube_copy.funnel`); wider than `copyFunnels` because the live base carries MOF & BOF, POST PURCHASE and ALL FUNNELS.
+ * Options pulled verbatim from the live Gratsi base `tblVR1UmkbDoDzJ7z` ("Youtube Copywriting" → "Funnel") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const youtubeCopyFunnels = [
+  { key: 'tof', label: 'TOF' },
+  { key: 'mof', label: 'MOF' },
+  { key: 'bof', label: 'BOF' },
+  { key: 'mof_bof', label: 'MOF & BOF' },
+  { key: 'post_purchase', label: 'POST PURCHASE' },
+  { key: 'all_funnels', label: 'ALL FUNNELS' },
+] as const satisfies readonly { key: string; label: string }[];
+export type YoutubeCopyFunnelsKey = (typeof youtubeCopyFunnels)[number]['key'];
+
+/**
+ * YouTube Copywriting "CTA" (`youtube_copy.cta`).
+ * Options pulled verbatim from the live Gratsi base `tblVR1UmkbDoDzJ7z` ("Youtube Copywriting" → "CTA") on
+ * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ */
+export const youtubeCopyCtas = [
+  { key: 'shop_now', label: 'Shop Now' },
+  { key: 'learn_more', label: 'Learn More' },
+  { key: 'get_offer', label: 'Get Offer' },
+  { key: 'get_directions', label: 'Get Directions' },
+  { key: 'visit_us', label: 'Visit Us' },
+  { key: 'download', label: 'Download' },
+] as const satisfies readonly { key: string; label: string }[];
+export type YoutubeCopyCtasKey = (typeof youtubeCopyCtas)[number]['key'];
