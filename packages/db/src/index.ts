@@ -309,3 +309,5 @@ export * from './sm-campaign-feed-tasks';
 export * from './demo-sm-campaign-feed-tasks';
 export * from './creative-reporting';
 export * from './demo-creative-reporting';
+export * from './email-campaigns';
+export * from './demo-email-campaigns';
