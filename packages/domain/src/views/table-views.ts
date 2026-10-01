@@ -26,6 +26,96 @@ export interface TableViewCapability {
 }
 
 export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
+  // ── Module parity (2026-10-01): one entry per new module; each page ships against these ──
+  'creative-sheet': {
+    tableKey: 'creative-sheet',
+    label: 'Creative Sheet',
+    supportedViews: ['grid', 'kanban'],
+    kanbanFields: [
+      { field: 'internalStatus', label: 'Internal Status' },
+      { field: 'status', label: 'Status' },
+    ],
+    galleryFields: [],
+    timelineDates: null,
+  },
+  'creative-modules': {
+    tableKey: 'creative-modules',
+    label: 'Creative Modules',
+    supportedViews: ['grid'],
+    kanbanFields: [],
+    galleryFields: [],
+    timelineDates: null,
+  },
+  'sm-campaign-feed': {
+    tableKey: 'sm-campaign-feed',
+    label: 'SM Campaign Feed',
+    supportedViews: ['grid', 'kanban'],
+    kanbanFields: [
+      { field: 'status', label: 'Status' },
+      { field: 'platform', label: 'Platform' },
+    ],
+    galleryFields: [],
+    timelineDates: null,
+  },
+  'email-campaigns': {
+    tableKey: 'email-campaigns',
+    label: 'Email Campaigns',
+    supportedViews: ['grid', 'kanban', 'timeline'],
+    kanbanFields: [
+      { field: 'status', label: 'Status' },
+      { field: 'type', label: 'Type' },
+      { field: 'channel', label: 'Channel' },
+    ],
+    galleryFields: [],
+    // "Calendar by send date": the timeline keyed on the one date an email campaign has.
+    timelineDates: { startField: 'sendDate', endField: 'sendDate' },
+  },
+  'email-flows': {
+    tableKey: 'email-flows',
+    label: 'Email Flows',
+    supportedViews: ['grid', 'kanban'],
+    kanbanFields: [
+      { field: 'status', label: 'Status' },
+      { field: 'type', label: 'Type' },
+    ],
+    galleryFields: [],
+    timelineDates: null,
+  },
+  'youtube-copywriting': {
+    tableKey: 'youtube-copywriting',
+    label: 'YouTube Copywriting',
+    supportedViews: ['grid', 'kanban'],
+    kanbanFields: [
+      { field: 'status', label: 'Status' },
+      { field: 'funnel', label: 'Funnel' },
+    ],
+    galleryFields: [],
+    timelineDates: null,
+  },
+  'copy-types': {
+    tableKey: 'copy-types',
+    label: 'Copy Types',
+    supportedViews: ['grid'],
+    kanbanFields: [],
+    galleryFields: [],
+    timelineDates: null,
+  },
+  'creative-reporting': {
+    tableKey: 'creative-reporting',
+    label: 'Creative Reporting',
+    supportedViews: ['grid'],
+    kanbanFields: [],
+    galleryFields: [],
+    timelineDates: null,
+  },
+  'client-assets': {
+    tableKey: 'client-assets',
+    label: 'Client Assets',
+    supportedViews: ['grid'],
+    kanbanFields: [],
+    galleryFields: [],
+    timelineDates: null,
+  },
   briefs: {
     tableKey: 'briefs',
     label: 'Creative Briefs',

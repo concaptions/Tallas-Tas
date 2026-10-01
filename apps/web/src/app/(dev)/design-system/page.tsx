@@ -107,6 +107,40 @@ import {
   OverviewMetricsEditorStory,
   OverviewPipelineStory,
 } from './overview.stories';
+import { ClientAssetPanelStory, ClientAssetsGridStory } from './client-assets.stories';
+import { CopyTypePanelStory, CopyTypesGridStory } from './copy-types.stories';
+import { CreativeModulePanelStory, CreativeModulesGridStory } from './creative-modules.stories';
+import {
+  CreativeReportDifferenceCpaStory,
+  CreativeReportingGridStory,
+} from './creative-reporting.stories';
+import {
+  CreativeSheetChipsStory,
+  CreativeSheetGridStory,
+  CreativeSheetTicksStory,
+} from './creative-sheet.stories';
+import {
+  EmailCampaignChipsStory,
+  EmailCampaignsGridStory,
+  EmailCampaignsKanbanStory,
+  EmailCampaignsTimelineStory,
+} from './email-campaigns.stories';
+import {
+  EmailFlowChipsStory,
+  EmailFlowsBoardStory,
+  EmailFlowsGridStory,
+  EmailFlowsWorkspaceStory,
+} from './email-flows.stories';
+import {
+  SmCampaignFeedChipsStory,
+  SmCampaignFeedGridStory,
+  SmCampaignFeedKanbanStory,
+} from './sm-campaign-feed.stories';
+import {
+  YoutubeCopyGridStory,
+  YoutubeCopyNumberStory,
+  YoutubeCopyStatusChipsStory,
+} from './youtube-copywriting.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
@@ -1003,6 +1037,81 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex-1 basis-full">
             <OverviewPipelineStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <ClientAssetPanelStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <ClientAssetsGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CopyTypePanelStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CopyTypesGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CreativeModulePanelStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CreativeModulesGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CreativeReportDifferenceCpaStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CreativeReportingGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CreativeSheetChipsStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CreativeSheetGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <CreativeSheetTicksStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailCampaignChipsStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailCampaignsGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailCampaignsKanbanStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailCampaignsTimelineStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailFlowChipsStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailFlowsBoardStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailFlowsGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <EmailFlowsWorkspaceStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <SmCampaignFeedChipsStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <SmCampaignFeedGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <SmCampaignFeedKanbanStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <YoutubeCopyGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <YoutubeCopyNumberStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <YoutubeCopyStatusChipsStory />
           </div>
         </div>
       </Section>
