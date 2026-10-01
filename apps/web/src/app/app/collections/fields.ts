@@ -1,9 +1,30 @@
-import { copyStatusLabel, copyStatusTone, type ChipTone } from '@tas/domain/state';
-import type { CollectionListRow, EmailCampaignListRow, YoutubeCopyListRow } from '@tas/db';
+import { copyTitle } from '@tas/domain/copy';
+import {
+  copyStatusLabel,
+  copyStatusTone,
+  type ChipTone,
+  type CreativeTrack,
+  type InternalStatusKey,
+} from '@tas/domain/state';
+import type {
+  CollectionListRow,
+  CopyListRow,
+  EmailCampaignListRow,
+  YoutubeCopyListRow,
+} from '@tas/db';
 
-import { emailCampaignsPath, youtubeCopywritingPath } from '@/lib/routes';
+import {
+  briefPath,
+  conceptPath,
+  emailCampaignsPath,
+  metaCopywritingPath,
+  youtubeCopywritingPath,
+} from '@/lib/routes';
 
+import { internalStatusView as conceptInternalStatusView } from '../concepts/fields';
+import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
 import { statusView } from '../email-campaigns/fields';
+import { SELECTION_PARAM as META_COPY_PARAM } from '../meta-copywriting/fields';
 import {
   copyNumberLabel,
   SELECTION_PARAM as YOUTUBE_COPY_PARAM,
@@ -160,6 +181,19 @@ export const NO_EMAIL_CAMPAIGNS_HINT =
   'No email campaign promotes this collection yet. Link one from the campaign’s panel.';
 export const NO_YOUTUBE_COPY_HINT =
   'No YouTube copy is written for this collection yet. Link one from the copy’s panel.';
+/**
+ * A brief's collection is `creative_briefs.collection_id`, which no form sets yet (the brief detail
+ * reads it, the import writes it), so this sentence names no panel to go to.
+ */
+export const NO_CREATIVE_DESIGNS_HINT = 'No creative design is briefed on this collection yet.';
+/**
+ * A concept's collections are the `concept_collections` junction, which no form sets yet (the
+ * import writes it), so this sentence names no panel to go to either.
+ */
+export const NO_CONCEPTS_HINT = 'No concept is built on this collection yet.';
+/** The Meta copy IS the Copywriting ID field of this panel, so the link is made right here. */
+export const NO_META_COPY_HINT =
+  'No Meta copy is linked to this collection yet. Set the Copywriting ID above.';
 
 function push(
   index: Map<string, LinkedRecord[]>,
@@ -220,4 +254,107 @@ export function indexYoutubeCopyByCollection(
     }
   }
   return index;
+}
+
+/**
+ * The minimum a brief row has to carry to be listed on a collection: the FK that makes it a reverse
+ * link, the generated §7 name, and its internal status already narrowed to a key of its own track
+ * by `loadBriefs` (`BriefRow` in `@/lib/briefs-source`). Structural, so nothing is re-narrowed here
+ * and the fixtures a test builds need no more than these five fields.
+ */
+export interface CreativeDesignSource {
+  readonly id: string;
+  readonly name: string;
+  readonly collectionId: string | null;
+  readonly track: CreativeTrack;
+  readonly internalStatus: InternalStatusKey;
+}
+
+/**
+ * `creative_briefs.collection_id`, inverted: every brief briefed on a collection, keyed by the
+ * collection's id and in the rows' order (newest edit first). The label is the brief's
+ * auto-generated name (non-negotiable 6; the panel renders it in `font-mono`), the link is the
+ * brief's own detail route, and the chip is the Creative Design module's `internalStatusView` on
+ * the brief's track, so a static and a video read their status exactly as they do on their page.
+ * A brief with no collection is in no list.
+ */
+export function indexCreativeDesignsByCollection(
+  rows: readonly CreativeDesignSource[],
+): ReadonlyMap<string, readonly LinkedRecord[]> {
+  const index = new Map<string, LinkedRecord[]>();
+  for (const row of rows) {
+    if (row.collectionId === null) continue;
+    const status = briefInternalStatusView(row.track, row.internalStatus);
+    push(index, row.collectionId, {
+      id: row.id,
+      label: row.name,
+      href: briefPath(row.id),
+      chip: { label: status.label, tone: status.tone },
+    });
+  }
+  return index;
+}
+
+/**
+ * The minimum a concept row has to carry to be listed on a collection: the junction ids that make
+ * it a reverse link, the generated Batch-Angle-Theme name, and its internal status already narrowed
+ * to a key by `loadConcepts` (`ConceptRow` in `@/lib/concepts-source`). Structural, so nothing is
+ * re-narrowed here and the fixtures a test builds need no more than these four fields.
+ */
+export interface ConceptSource {
+  readonly id: string;
+  readonly name: string;
+  readonly collectionIds: readonly string[];
+  readonly internalStatus: InternalStatusKey;
+}
+
+/**
+ * The `concept_collections` junction, inverted: every concept linked to a collection, keyed by the
+ * collection's id and in the rows' order (newest edit first). The label is the concept's generated
+ * Batch-Angle-Theme name (non-negotiable 6; the panel renders it in `font-mono`), the link is the
+ * concept's own detail route, and the chip is the Concepts module's `internalStatusView` on the
+ * track concepts run on. The track is a parameter rather than an import because `CONCEPT_TRACK`
+ * lives in `@/lib/concepts-source` next to `@tas/db`, which this client-importable module must not
+ * reach; the page reads it once and hands it in, exactly as the Concepts page does.
+ */
+export function indexConceptsByCollection(
+  rows: readonly ConceptSource[],
+  track: CreativeTrack,
+): ReadonlyMap<string, readonly LinkedRecord[]> {
+  const index = new Map<string, LinkedRecord[]>();
+  for (const row of rows) {
+    const status = conceptInternalStatusView(track, row.internalStatus);
+    const record: LinkedRecord = {
+      id: row.id,
+      label: row.name,
+      href: conceptPath(row.id),
+      chip: { label: status.label, tone: status.tone },
+    };
+    for (const collectionId of row.collectionIds) {
+      push(index, collectionId, record);
+    }
+  }
+  return index;
+}
+
+/**
+ * The Meta Copywriting row `collections.copywriting_id` points at, as one read-only record, or
+ * `null` when the collection has none — or when the id resolves to no row of the brand, which the
+ * scoped `listCopy` makes the same outcome as no link at all. The label is the auto-generated
+ * `copyTitle` (non-negotiable 6, rendered in `font-mono`), the link opens the Meta Copywriting
+ * panel by its own parameter, and the chip is the shared `COPY_STATUS` label and tone.
+ */
+export function metaCopyLink(
+  copywritingId: string | null,
+  rows: readonly CopyListRow[],
+): LinkedRecord | null {
+  if (copywritingId === null) return null;
+  const row = rows.find((candidate) => candidate.id === copywritingId);
+  if (row === undefined) return null;
+  return {
+    id: row.id,
+    label: copyTitle(row.copyNumber),
+    href: `${metaCopywritingPath}?${META_COPY_PARAM}=${row.id}`,
+    chip: { label: copyStatusLabel(row.status), tone: copyStatusTone(row.status) },
+  };
 }

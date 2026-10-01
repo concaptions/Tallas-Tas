@@ -22,11 +22,18 @@ export const NEW_PRODUCT = 'new';
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 
-/** What the two record-link lists say when nothing links to the product yet. */
+/** What the four record-link lists say when nothing links to the product yet. */
 export const NO_EMAIL_CAMPAIGNS_NOTE =
   'No email campaign promotes this product yet. Link one from the campaign’s panel.';
 export const NO_YOUTUBE_COPY_NOTE =
   'No YouTube copy is written for this product yet. Link one from the copy’s panel.';
+/**
+ * A brief's product is `creative_briefs.product_id`, which no form sets yet (the brief detail
+ * reads it, the import writes it), so this sentence names no panel to go to.
+ */
+export const NO_CREATIVE_DESIGNS_NOTE = 'No creative design is briefed on this product yet.';
+export const NO_CREATORS_NOTE =
+  'No creator is booked for this product yet. Link one from the creator’s panel.';
 
 interface ProductPanelProps {
   readonly product: ProductListRow | null;
@@ -34,6 +41,10 @@ interface ProductPanelProps {
   readonly emailCampaigns: readonly LinkedRecord[];
   /** The YouTube copy written for the product, built the same way. */
   readonly youtubeCopy: readonly LinkedRecord[];
+  /** The briefs whose `product_id` is this product (`creative_briefs.product_id`), built the same way. */
+  readonly creativeDesigns: readonly LinkedRecord[];
+  /** The creators booked for the product through `creator_products`, built the same way. */
+  readonly creators: readonly LinkedRecord[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -107,14 +118,17 @@ function valueOf(product: ProductListRow | null, name: ProductFieldName): string
  *
  * All three PRD §5.1 fields are editable in place; the form posts to the Server Actions. Everything
  * under "Linked work" is read-only: the concepts count is derived from `concepts.angleId` →
- * `angles.productId`, and the email campaigns and YouTube copy are the other side of their
- * junctions, edited from those modules' own panels — so none of it is something a strategist types
- * here. In demo mode the fields are read-only and the footer says so instead of saving.
+ * `angles.productId`, the email campaigns, YouTube copy and creators are the other side of their
+ * junctions, and the creative designs are the briefs whose `product_id` is this product — all
+ * edited from those modules' own panels, so none of it is something a strategist types here. In
+ * demo mode the fields are read-only and the footer says so instead of saving.
  */
 export function ProductPanel({
   product,
   emailCampaigns,
   youtubeCopy,
+  creativeDesigns,
+  creators,
   demo,
   onClose,
   onSaved,
@@ -273,6 +287,27 @@ export function ProductPanel({
                     slot="product-youtube-copy"
                     rowSlot="product-youtube-copy-row"
                     mono
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">
+                    Creative Designs
+                  </span>
+                  <LinkedRecordList
+                    records={creativeDesigns}
+                    empty={NO_CREATIVE_DESIGNS_NOTE}
+                    slot="product-creative-designs"
+                    rowSlot="product-creative-design"
+                    mono
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">Creators</span>
+                  <LinkedRecordList
+                    records={creators}
+                    empty={NO_CREATORS_NOTE}
+                    slot="product-creators"
+                    rowSlot="product-creator"
                   />
                 </div>
               </section>

@@ -1,11 +1,21 @@
+import { loadBriefs } from '@/lib/briefs-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadCollections } from '@/lib/collections-source';
+import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
+import { loadCopy } from '@/lib/copy-source';
 import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
 import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
-import { hostLabel, indexEmailCampaignsByCollection, indexYoutubeCopyByCollection } from './fields';
+import {
+  hostLabel,
+  indexConceptsByCollection,
+  indexCreativeDesignsByCollection,
+  indexEmailCampaignsByCollection,
+  indexYoutubeCopyByCollection,
+  metaCopyLink,
+} from './fields';
 import { CollectionsWorkspace, type CollectionItem } from './collections-workspace';
 
 /**
@@ -23,27 +33,44 @@ import { CollectionsWorkspace, type CollectionItem } from './collections-workspa
  * itself would disagree with the server and break hydration. The URL host is computed here too, so
  * the table never has to shorten a URL while it renders.
  *
- * The two-way links are resolved here as well: the email campaigns and YouTube copy that point at
- * a collection come from their own sources (fixtures in demo mode, brand-scoped queries otherwise),
- * are inverted by their junction ids once, and reach the panel as plain `LinkedRecord` arrays. No
- * component ever sees a junction.
+ * The two-way links are resolved here as well: the email campaigns, YouTube copy, concepts and
+ * briefs that point at a collection come from their own sources (fixtures in demo mode,
+ * brand-scoped queries otherwise), are inverted by their junction or FK ids once, and reach the
+ * panel as plain `LinkedRecord` arrays; the one Meta copy a collection's own `copywritingId` points
+ * at is resolved from the Meta Copywriting rows the same way. No component ever sees a junction or
+ * an FK. The concepts' status chip needs the track concepts run on, which lives next to their data
+ * source as `CONCEPT_TRACK` and is read here, once, the way the Concepts page reads it.
  */
 interface CollectionsPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function CollectionsPage({ searchParams }: CollectionsPageProps) {
-  const [{ rows }, campaignRows, emailCampaignRows, youtubeCopyRows, params] = await Promise.all([
+  const [
+    { rows },
+    campaignRows,
+    emailCampaignRows,
+    youtubeCopyRows,
+    conceptRows,
+    briefRows,
+    copyRows,
+    params,
+  ] = await Promise.all([
     loadCollections(),
     loadCampaigns(),
     loadEmailCampaigns(),
     loadYoutubeCopyWorkspace(),
+    loadConcepts(),
+    loadBriefs(),
+    loadCopy(),
     searchParams,
   ]);
   // The campaign picker's options (TASK 5): names, so nobody hand-types a uuid again.
   const campaigns = campaignRows.rows.map(({ id, name }) => ({ id, name }));
   const emailCampaignsByCollection = indexEmailCampaignsByCollection(emailCampaignRows.rows);
   const youtubeCopyByCollection = indexYoutubeCopyByCollection(youtubeCopyRows.rows);
+  const conceptsByCollection = indexConceptsByCollection(conceptRows.rows, CONCEPT_TRACK);
+  const creativeDesignsByCollection = indexCreativeDesignsByCollection(briefRows.rows);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -54,6 +81,9 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     updatedTitle: absoluteTime(collection.updatedAt),
     emailCampaigns: emailCampaignsByCollection.get(collection.id) ?? [],
     youtubeCopy: youtubeCopyByCollection.get(collection.id) ?? [],
+    concepts: conceptsByCollection.get(collection.id) ?? [],
+    creativeDesigns: creativeDesignsByCollection.get(collection.id) ?? [],
+    metaCopy: metaCopyLink(collection.copywritingId, copyRows.rows),
   }));
 
   const requested = params.collection;

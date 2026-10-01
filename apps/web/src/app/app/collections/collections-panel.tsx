@@ -24,7 +24,10 @@ import {
 } from './actions';
 import {
   COLLECTION_FIELDS,
+  NO_CONCEPTS_HINT,
+  NO_CREATIVE_DESIGNS_HINT,
   NO_EMAIL_CAMPAIGNS_HINT,
+  NO_META_COPY_HINT,
   NO_YOUTUBE_COPY_HINT,
   NOT_SET,
   type CollectionField,
@@ -47,6 +50,12 @@ interface CollectionPanelProps {
   readonly emailCampaigns: readonly LinkedRecord[];
   /** The YouTube copy that links to this collection; resolved by the page, rendered read-only. */
   readonly youtubeCopy: readonly LinkedRecord[];
+  /** The concepts linked to this collection; resolved by the page, rendered read-only. */
+  readonly concepts: readonly LinkedRecord[];
+  /** The briefs whose `collection_id` is this collection; resolved by the page, rendered read-only. */
+  readonly creativeDesigns: readonly LinkedRecord[];
+  /** The Meta Copywriting row `copywritingId` points at, or null when there is none to show. */
+  readonly metaCopy: LinkedRecord | null;
   /** The campaign picker's options (TASK 5): names, not hand-typed uuids. */
   readonly campaigns: readonly { readonly id: string; readonly name: string }[];
   readonly demo: boolean;
@@ -134,14 +143,19 @@ function valueOf(collection: CollectionListRow | null, name: CollectionFieldName
  * there is no picker in this ticket's scope, only the create/edit form itself. In demo mode the
  * fields are read-only and the footer says so instead of saving.
  *
- * Below the form, an existing collection shows the records that link TO it — email campaigns and
- * YouTube copy — read-only, resolved by the page from the junctions. The link is edited on the
- * counterpart's own panel, which each label opens.
+ * Below the form, an existing collection shows the records that link TO it — email campaigns,
+ * YouTube copy, concepts and the briefs whose `collection_id` is this collection — plus the one
+ * Meta copy its own `copywritingId` points at, all read-only and resolved by the page. A reverse
+ * link is edited on the counterpart's own panel, which each label opens; the Meta copy is edited in
+ * the Copywriting ID field above it.
  */
 export function CollectionPanel({
   collection,
   emailCampaigns,
   youtubeCopy,
+  concepts,
+  creativeDesigns,
+  metaCopy,
   campaigns,
   demo,
   onClose,
@@ -315,9 +329,30 @@ export function CollectionPanel({
                   emptyHint={NO_YOUTUBE_COPY_HINT}
                   mono
                 />
+                <LinkedRecordList
+                  title="Concepts"
+                  slot="collection-concepts"
+                  records={concepts}
+                  emptyHint={NO_CONCEPTS_HINT}
+                  mono
+                />
+                <LinkedRecordList
+                  title="Creative Designs"
+                  slot="collection-creative-designs"
+                  records={creativeDesigns}
+                  emptyHint={NO_CREATIVE_DESIGNS_HINT}
+                  mono
+                />
+                <LinkedRecordList
+                  title="Meta copy"
+                  slot="collection-meta-copy"
+                  records={metaCopy === null ? [] : [metaCopy]}
+                  emptyHint={NO_META_COPY_HINT}
+                  mono
+                />
                 <p className="text-xs text-text4">
-                  Read from the campaigns and copy that point at this collection. Edit the link on
-                  their own panels.
+                  Read from the campaigns, copy, concepts and briefs that point at this collection,
+                  and from the Copywriting ID above. Edit a reverse link on its own panel.
                 </p>
               </section>
             )}

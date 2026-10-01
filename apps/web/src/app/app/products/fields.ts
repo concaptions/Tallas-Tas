@@ -1,8 +1,17 @@
-import type { EmailCampaignListRow, YoutubeCopyListRow } from '@tas/db';
-import { copyStatusLabel, copyStatusTone, type ChipTone } from '@tas/domain/state';
+import type { CreatorListRow, EmailCampaignListRow, YoutubeCopyListRow } from '@tas/db';
+import {
+  copyStatusLabel,
+  copyStatusTone,
+  creatorInternalStatusLabel,
+  creatorInternalStatusTone,
+  type ChipTone,
+  type CreativeTrack,
+  type InternalStatusKey,
+} from '@tas/domain/state';
 
-import { emailCampaignsPath, youtubeCopywritingPath } from '@/lib/routes';
+import { briefPath, emailCampaignsPath, ugcPath, youtubeCopywritingPath } from '@/lib/routes';
 
+import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
 import { statusView as emailCampaignStatusView } from '../email-campaigns/fields';
 import {
   copyNumberLabel,
@@ -19,11 +28,13 @@ import type { ProductFieldName } from './actions';
  * actions own the union their zod schema validates, and two declarations would eventually disagree.
  * A type-only re-export is erased, so this module stays importable from a client component.
  *
- * The two `*Links` functions at the bottom are the product's side of the Email Campaigns and YouTube
- * copy record links (the `email_campaign_products` and `youtube_copy_products` junctions). They
- * borrow the sibling modules' own presentation — the email status chip from `../email-campaigns/
- * fields` and the generated "Copy N" title from `../youtube-copywriting/fields` — rather than
- * restating either, so a record reads the same from both ends of its link.
+ * The four `*Links` functions at the bottom are the product's side of its record links: the Email
+ * Campaigns and YouTube copy junctions (`email_campaign_products`, `youtube_copy_products`), the
+ * briefs whose `creative_briefs.product_id` is the product, and the creators booked for it through
+ * `creator_products`. They borrow the sibling modules' own presentation — the email status chip from
+ * `../email-campaigns/fields`, the generated "Copy N" title from `../youtube-copywriting/fields`,
+ * the brief's internal status on its own track from `../creative-design/fields` — rather than
+ * restating any of it, so a record reads the same from both ends of its link.
  */
 export type { ProductFieldName };
 
@@ -153,5 +164,70 @@ export function youtubeCopyLinks(
       label: copyNumberLabel(row.copyNumber),
       href: `${youtubeCopywritingPath}?${YOUTUBE_COPY_PARAM}=${encodeURIComponent(row.id)}`,
       chip: { label: copyStatusLabel(row.status), tone: copyStatusTone(row.status) },
+    }));
+}
+
+/**
+ * The minimum a brief row has to carry to be listed on a product: the FK that makes it a reverse
+ * link, the generated §7 name, and its internal status already narrowed to a key of its own track
+ * by `loadBriefs` (`BriefRow` in `@/lib/briefs-source`). Structural, so nothing is re-narrowed here
+ * and the fixtures a test builds need no more than these five fields.
+ */
+export interface CreativeDesignSource {
+  readonly id: string;
+  readonly name: string;
+  readonly productId: string | null;
+  readonly track: CreativeTrack;
+  readonly internalStatus: InternalStatusKey;
+}
+
+/**
+ * The creative designs briefed on this product — the reverse of `creative_briefs.product_id`, in
+ * the rows' order (newest edit first, as `loadBriefs` returns them). The label is the brief's
+ * auto-generated name (non-negotiable 6; the panel renders it in `font-mono`), the link is the
+ * brief's own detail route, and the chip is the Creative Design module's `internalStatusView` on
+ * the brief's track, so a static and a video read their status exactly as they do on their page.
+ */
+export function creativeDesignLinks(
+  productId: string,
+  rows: readonly CreativeDesignSource[],
+): LinkedRecord[] {
+  return rows
+    .filter((row) => row.productId === productId)
+    .map((row) => {
+      const status = briefInternalStatusView(row.track, row.internalStatus);
+      return {
+        id: row.id,
+        label: row.name,
+        href: briefPath(row.id),
+        chip: { label: status.label, tone: status.tone },
+      };
+    });
+}
+
+/**
+ * The query parameter the UGC page opens a creator from (`params.creator` in `../ugc/page.tsx`);
+ * the module keeps it as a literal in its workspace, so it is named here.
+ */
+const CREATOR_PARAM = 'creator';
+
+/**
+ * The creators booked for this product — the other side of the `creator_products` junction, read
+ * off each creator's `productIds`, which `listCreators` fills from that junction. In the rows'
+ * order. The chip is the creator's INTERNAL track (the first of the three PRD §5.8 tracks, the one
+ * the UGC card leads with), labelled and toned by `@tas/domain/state`: this panel is team-only, so
+ * the team's own review is the status that matters here.
+ */
+export function creatorLinks(productId: string, rows: readonly CreatorListRow[]): LinkedRecord[] {
+  return rows
+    .filter((row) => row.productIds.includes(productId))
+    .map((row) => ({
+      id: row.id,
+      label: row.name,
+      href: `${ugcPath}?${CREATOR_PARAM}=${encodeURIComponent(row.id)}`,
+      chip: {
+        label: creatorInternalStatusLabel(row.internalCreatorStatus),
+        tone: creatorInternalStatusTone(row.internalCreatorStatus),
+      },
     }));
 }

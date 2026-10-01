@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { copywritingPath, propagationPath } from '../src/lib/routes';
+import { collectionsPath, copywritingPath, propagationPath } from '../src/lib/routes';
 
 /**
  * The Copywriting route with no environment variables at all — the Vercel deployment as it stands.
@@ -13,8 +13,15 @@ import { copywritingPath, propagationPath } from '../src/lib/routes';
  * `demoCopyTypes` tags Copy #1 with "Problem / Agitate / Solve" and nothing else, which is what the
  * picker must show pressed, and `copywriting_campaigns` has no fixture — nor a writer — so the
  * Campaigns & Offers list is the read-only empty state with its reason.
+ *
+ * The Collections list is the inverse of `collections.copywriting_id`: the BFCM collection fixture
+ * points at Copy #1 and the summer one points at nothing, so Copy #1 lists one collection and
+ * Copy #2 shows the em dash.
  */
 const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
+const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
+/** The collection fixture whose `copywriting_id` is Copy #1. */
+const BFCM_COLLECTION_ID = '11223344-1122-4334-8556-000000000001';
 
 test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -178,7 +185,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(panel.locator('input[type="text"][name="creativeBriefId"]')).toHaveCount(0);
   });
 
-  test('the panel carries the Copy Types picker with the fixture tag pressed, and the read-only campaigns list', async ({
+  test('the panel carries the Copy Types picker with the fixture tag pressed, and the read-only campaigns and collections lists', async ({
     page,
   }) => {
     await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
@@ -217,6 +224,34 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(campaigns).not.toContainText('No campaign is linked to this copy yet.');
     await expect(campaigns.locator('input, textarea, select, [role="combobox"]')).toHaveCount(0);
     await expect(panel).toContainText('ships with the campaign-links writer');
+
+    // "Collections" (the inverse of `collections.copywriting_id`): the BFCM collection points at
+    // this copy, so its hand-typed name links to the Collections page with that row open — and the
+    // list is read-only here because the collection owns the link.
+    const collections = panel.locator('[data-slot="copy-collections"]');
+    await expect(collections).toBeVisible();
+    const collectionLinks = collections.locator('[data-slot="copy-collection-link"]');
+    await expect(collectionLinks).toHaveText(['BFCM 2026 Collection']);
+    await expect(collectionLinks).toHaveAttribute(
+      'href',
+      `${collectionsPath}?collection=${BFCM_COLLECTION_ID}`,
+    );
+    await expect(collections.locator('input, textarea, select, [role="combobox"]')).toHaveCount(0);
+  });
+
+  test('the Collections list shows the em dash on a copy no collection points at', async ({
+    page,
+  }) => {
+    await page.goto(`${copywritingPath}?copy=${COPY_NOT_YOUR_AGE_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    await expect(panel.locator('[data-slot="copy-panel-title"]')).toHaveText('Copy #2');
+
+    // No fixture collection's `copywriting_id` is Copy #2, so the section renders the module's
+    // empty-state dash rather than a blank, and still no link.
+    const collections = panel.locator('[data-slot="copy-collections"]');
+    await expect(collections).toHaveText('—');
+    await expect(collections.locator('[data-slot="copy-collection-link"]')).toHaveCount(0);
   });
 
   test('the panel is read-only and the save is disabled with the reason on hover', async ({

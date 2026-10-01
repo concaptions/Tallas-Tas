@@ -53,6 +53,12 @@ export interface CollectionItem {
   readonly emailCampaigns: readonly LinkedRecord[];
   /** The YouTube copy that links to this collection (`youtube_copy_collections`), read-only. */
   readonly youtubeCopy: readonly LinkedRecord[];
+  /** The concepts linked to this collection (`concept_collections`), read-only. */
+  readonly concepts: readonly LinkedRecord[];
+  /** The briefs whose `collection_id` is this collection (`creative_briefs.collection_id`), read-only. */
+  readonly creativeDesigns: readonly LinkedRecord[];
+  /** The Meta copy `collections.copywriting_id` points at, or null when there is none. */
+  readonly metaCopy: LinkedRecord | null;
 }
 
 interface CollectionsWorkspaceProps {
@@ -298,6 +304,9 @@ export function CollectionsWorkspace({
           collection={open === null ? null : open.collection}
           emailCampaigns={open === null ? [] : open.emailCampaigns}
           youtubeCopy={open === null ? [] : open.youtubeCopy}
+          concepts={open === null ? [] : open.concepts}
+          creativeDesigns={open === null ? [] : open.creativeDesigns}
+          metaCopy={open === null ? null : open.metaCopy}
           campaigns={campaigns}
           demo={demo}
           onClose={close}

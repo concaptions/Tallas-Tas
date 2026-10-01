@@ -10,7 +10,7 @@ import {
   type CopyLimitField,
 } from '@tas/domain/copy';
 import { COPY_STATUS, type ChipTone } from '@tas/domain/state';
-import { campaignsOffersPath } from '@/lib/routes';
+import { campaignsOffersPath, collectionsPath } from '@/lib/routes';
 
 /**
  * How the Copywriting route presents what it stores (PRD §5.11). One module, so the table, the
@@ -101,6 +101,12 @@ export interface CopyItem {
    * Read-only in the panel: see `CAMPAIGNS_READ_ONLY_NOTE`.
    */
   readonly campaigns: readonly LinkedCampaign[];
+  /**
+   * The collections whose `collections.copywriting_id` is this row (Airtable "Collections", the
+   * inverse of the Collections panel's Copywriting ID). Read-only here: the collection owns the
+   * link, see `COLLECTIONS_READ_ONLY_NOTE`.
+   */
+  readonly collections: readonly LinkedCollection[];
   readonly updatedLabel: string;
   readonly updatedTitle: string;
 }
@@ -116,6 +122,56 @@ export interface LinkedCampaign {
   readonly id: string;
   readonly label: string;
   readonly href: string | null;
+}
+
+/** One collection that points at a copy row, as the panel lists it: its typed name and a link. */
+export interface LinkedCollection {
+  readonly id: string;
+  /** The collection's hand-typed name — not system output, so the panel does not set `font-mono`. */
+  readonly label: string;
+  /** The Collections page with its panel open on this collection. */
+  readonly href: string;
+}
+
+/**
+ * The URL parameter the Collections workspace keeps its open row in. It is the key that module's
+ * `syncUrl` writes (a literal there), restated here so the panel can deep-link into the page.
+ */
+export const COLLECTION_SELECTION_PARAM = 'collection';
+
+export function collectionHref(id: string): string {
+  return `${collectionsPath}?${COLLECTION_SELECTION_PARAM}=${encodeURIComponent(id)}`;
+}
+
+/** A collection row as the inversion reads it: its id, its name and the Meta copy it points at. */
+export interface CollectionLinkSource {
+  readonly id: string;
+  readonly name: string;
+  readonly copywritingId: string | null;
+}
+
+/**
+ * `copyId -> collections`, inverted from `collections.copywriting_id`: every collection that points
+ * at a copy row, in the order the collections arrive (newest edit first). A collection with no Meta
+ * copy contributes nothing, and a copy no collection points at has no entry, so the page falls back
+ * to an empty list and the panel renders the em dash. The collection owns the link (its Copywriting
+ * ID field), which is why nothing here is a writer.
+ */
+export function collectionsByCopy(
+  rows: readonly CollectionLinkSource[],
+): Map<string, LinkedCollection[]> {
+  const byCopy = new Map<string, LinkedCollection[]>();
+  for (const row of rows) {
+    if (row.copywritingId === null) continue;
+    const record: LinkedCollection = { id: row.id, label: row.name, href: collectionHref(row.id) };
+    const existing = byCopy.get(row.copywritingId);
+    if (existing === undefined) {
+      byCopy.set(row.copywritingId, [record]);
+    } else {
+      existing.push(record);
+    }
+  }
+  return byCopy;
 }
 
 /**
@@ -258,6 +314,7 @@ export const COPY_HEADINGS = {
   creative: 'Creative & Status',
   copyTypes: 'Copy Types',
   campaigns: 'Campaigns & Offers',
+  collections: 'Collections',
   details: 'Details',
   clientComment: "Client's Comment",
 } as const;
@@ -284,6 +341,13 @@ export const NO_CAMPAIGNS_NOTE = 'No campaign is linked to this copy yet.';
  */
 export const CAMPAIGNS_READ_ONLY_NOTE =
   'Linking a campaign from this panel ships with the campaign-links writer.';
+
+/**
+ * Why the Collections list is read-only here: the link IS `collections.copywriting_id`, the
+ * Copywriting ID field of the collection's own panel, so that panel is the one place it changes.
+ */
+export const COLLECTIONS_READ_ONLY_NOTE =
+  'A collection links its Meta copy through the Copywriting ID on its own panel.';
 
 /** How the header counts what is on screen. Singular at one, never "1 copies". */
 export function copyCountLabel(count: number): string {

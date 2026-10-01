@@ -22,12 +22,14 @@ import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './a
 import {
   CAMPAIGNS_READ_ONLY_NOTE,
   CLIENT_COMMENT_NOTE,
+  COLLECTIONS_READ_ONLY_NOTE,
   COPY_FIELDS,
   COPY_HEADINGS,
   COPY_TYPES_HINT,
   COUNTER_TONE_CLASS,
   CTA_OPTIONS,
   DEMO_FOOTER_NOTICE,
+  EM_DASH,
   FUNNEL_OPTIONS,
   NO_CAMPAIGNS_NOTE,
   NO_CONCEPT_LABEL,
@@ -79,6 +81,12 @@ import {
  * writer for `copywriting_campaigns` yet, so the panel shows what the page handed it and says why
  * there is no picker (`CAMPAIGNS_READ_ONLY_NOTE`) rather than offering a toggle with nothing to
  * submit to.
+ *
+ * COLLECTIONS IS A READ-ONLY LIST THE COLLECTION SIDE OWNS. Airtable's "Collections" on a copy row
+ * is the inverse of `collections.copywriting_id`: the page inverts the brand's collections once and
+ * the panel lists the ones that point at this row, each a link to the Collections page with that
+ * panel open, and the em dash when none does. The link is edited there, in the collection's
+ * Copywriting ID field (`COLLECTIONS_READ_ONLY_NOTE`), never here.
  */
 
 interface CopyPanelProps {
@@ -539,6 +547,32 @@ export function CopyPanel({
                 data-slot="copy-group-heading"
                 className="border-b border-line pb-1 text-sm font-medium text-text2"
               >
+                {COPY_HEADINGS.collections}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2" data-slot="copy-collections">
+                {item.collections.length === 0 ? (
+                  <span className="text-sm text-text3">{EM_DASH}</span>
+                ) : (
+                  item.collections.map((collection) => (
+                    <Link
+                      key={collection.id}
+                      href={collection.href}
+                      data-slot="copy-collection-link"
+                      className="inline-flex rounded-input border border-line bg-surface2 px-1.5 py-0.5 text-[11px] text-text2 hover:border-accent-line hover:text-accent"
+                    >
+                      {collection.label}
+                    </Link>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-text3">{COLLECTIONS_READ_ONLY_NOTE}</p>
+            </section>
+
+            <section className="flex flex-col gap-3">
+              <h3
+                data-slot="copy-group-heading"
+                className="border-b border-line pb-1 text-sm font-medium text-text2"
+              >
                 {COPY_HEADINGS.details}
               </h3>
 
@@ -670,23 +704,24 @@ export function CopyPanel({
               )}
             </section>
 
-            {item.clientComment === null ? null : (
-              <section className="flex flex-col gap-3">
-                <h3
-                  data-slot="copy-group-heading"
-                  className="border-b border-line pb-1 text-sm font-medium text-text2"
-                >
-                  {COPY_HEADINGS.clientComment}
-                </h3>
-                <p
-                  data-slot="copy-client-comment"
-                  className="rounded-card border border-line bg-surface2 px-3 py-2.5 text-sm leading-relaxed whitespace-pre-line text-text2"
-                >
-                  {item.clientComment}
-                </p>
-                <p className="text-xs text-text3">{CLIENT_COMMENT_NOTE}</p>
-              </section>
-            )}
+            {/* Always present: the heading is the field's label (Gratsi "Client's Comment"); an
+                unanswered copy shows the dash, not a missing section. */}
+            <section className="flex flex-col gap-3">
+              <h3
+                data-slot="copy-group-heading"
+                className="border-b border-line pb-1 text-sm font-medium text-text2"
+              >
+                {COPY_HEADINGS.clientComment}
+              </h3>
+              <p
+                data-slot="copy-client-comment"
+                data-empty={item.clientComment === null ? 'true' : undefined}
+                className="rounded-card border border-line bg-surface2 px-3 py-2.5 text-sm leading-relaxed whitespace-pre-line text-text2"
+              >
+                {item.clientComment ?? EM_DASH}
+              </p>
+              <p className="text-xs text-text3">{CLIENT_COMMENT_NOTE}</p>
+            </section>
           </div>
         </div>
 

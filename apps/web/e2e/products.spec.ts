@@ -99,7 +99,7 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     await expect(zero).toHaveAttribute('data-tone', 'mute');
   });
 
-  test('the panel lists the email campaigns and YouTube copy linked to the product, read-only, and links back to each', async ({
+  test('the panel lists the email campaigns, YouTube copy, creative designs and creators linked to the product, read-only, and links back to each', async ({
     page,
   }) => {
     await page.goto(`${productsPath}?product=22222222-2222-4222-8222-000000000001`);
@@ -144,10 +144,19 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
       `${youtubeCopywritingPath}?youtube-copy=a1b2c3d4-0012-4012-8012-000000000004`,
     );
 
-    // Read-only: neither list holds a control. These links are edited from the other end.
+    // No fixture brief carries a `product_id` and no fixture creator links a product through
+    // `creator_products`, so the two reverse lists render their empty sentence rather than a blank.
+    await expect(panel.locator('[data-slot="product-creative-designs"]')).toHaveText(
+      'No creative design is briefed on this product yet.',
+    );
+    await expect(panel.locator('[data-slot="product-creators"]')).toHaveText(
+      'No creator is booked for this product yet. Link one from the creator’s panel.',
+    );
+
+    // Read-only: none of the four lists holds a control. These links are edited from the other end.
     await expect(
       panel.locator(
-        '[data-slot="product-email-campaigns"] :is(input, select, textarea, button), [data-slot="product-youtube-copy"] :is(input, select, textarea, button)',
+        '[data-slot="product-email-campaigns"] :is(input, select, textarea, button), [data-slot="product-youtube-copy"] :is(input, select, textarea, button), [data-slot="product-creative-designs"] :is(input, select, textarea, button), [data-slot="product-creators"] :is(input, select, textarea, button)',
       ),
     ).toHaveCount(0);
 

@@ -42,6 +42,10 @@ export interface ProductItem {
   readonly emailCampaigns: readonly LinkedRecord[];
   /** The YouTube copy rows written for this product, indexed the same way. */
   readonly youtubeCopy: readonly LinkedRecord[];
+  /** The briefs whose `product_id` is this product, indexed the same way. */
+  readonly creativeDesigns: readonly LinkedRecord[];
+  /** The creators booked for this product through `creator_products`, indexed the same way. */
+  readonly creators: readonly LinkedRecord[];
 }
 
 interface ProductsWorkspaceProps {
@@ -319,6 +323,8 @@ export function ProductsWorkspace({
           product={creating ? null : open}
           emailCampaigns={openItem?.emailCampaigns ?? []}
           youtubeCopy={openItem?.youtubeCopy ?? []}
+          creativeDesigns={openItem?.creativeDesigns ?? []}
+          creators={openItem?.creators ?? []}
           demo={demo}
           onClose={close}
           onSaved={saved}

@@ -1,11 +1,16 @@
-import { demoEmailCampaigns, demoYoutubeCopy } from '@tas/db';
+import { demoBriefs, demoCreators, demoEmailCampaigns, demoYoutubeCopy } from '@tas/db';
+import { internalStatusFor } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
-import { emailCampaignsPath, youtubeCopywritingPath } from '@/lib/routes';
+import { toBriefRow } from '@/lib/briefs-source';
+import { briefPath, emailCampaignsPath, ugcPath, youtubeCopywritingPath } from '@/lib/routes';
 
+import { internalStatusView } from '../creative-design/fields';
 import {
   conceptCountLabel,
   conceptCountTone,
+  creativeDesignLinks,
+  creatorLinks,
   emailCampaignLinks,
   hostLabel,
   PRODUCT_FIELDS,
@@ -165,6 +170,114 @@ describe('youtubeCopyLinks', () => {
         const ids = youtubeCopyLinks(product.id, demoYoutubeCopy).map((link) => link.id);
         expect(ids).toContain(copy.id);
       }
+    }
+  });
+});
+
+describe('creativeDesignLinks', () => {
+  /**
+   * The fixtures carry no `productId` (every demo brief hangs off its concept), so the reverse link
+   * is built on top of them, as the page would see it after an import: every video brief is briefed
+   * on the blanket and the standalone static on the mask. `toBriefRow` is the page's own narrowing.
+   */
+  const briefs = demoBriefs.map(toBriefRow);
+  const standalone = briefs.find((row) => row.conceptId === null);
+  if (standalone === undefined) {
+    throw new Error('fixture drift: no standalone demo brief');
+  }
+  const rows = briefs.map((row) => {
+    if (row.id === standalone.id) return { ...row, productId: MASK_ID };
+    return row.track === 'video' ? { ...row, productId: BLANKET_ID } : row;
+  });
+
+  it('lists the briefs whose product_id is the product, in source order, as plain records', () => {
+    const briefed = rows.filter((row) => row.productId === BLANKET_ID);
+    expect(briefed.length).toBeGreaterThan(1);
+
+    const links = creativeDesignLinks(BLANKET_ID, rows);
+
+    expect(links).toEqual(
+      briefed.map((row) => {
+        const status = internalStatusView(row.track, row.internalStatus);
+        return {
+          id: row.id,
+          label: row.name,
+          href: briefPath(row.id),
+          chip: { label: status.label, tone: status.tone },
+        };
+      }),
+    );
+    // The link is the brief's own detail route, never a panel parameter.
+    expect(links[0]?.href).toBe(`/app/creative-design/${links[0]?.id ?? ''}`);
+  });
+
+  it('grades a static brief on the static track, as its own page does', () => {
+    const [link, ...more] = creativeDesignLinks(MASK_ID, rows);
+    const entry = internalStatusFor('static').find(
+      (step) => step.key === standalone.internalStatus,
+    );
+
+    expect(more).toEqual([]);
+    expect(link?.id).toBe(standalone.id);
+    expect(link?.chip).toEqual({
+      label: entry?.label,
+      tone: internalStatusView('static', standalone.internalStatus).tone,
+    });
+    expect(link?.chip?.label).toBe('Approved');
+  });
+
+  it('is empty for a product no brief is briefed on, so the panel can say so', () => {
+    expect(creativeDesignLinks(RESET_BUNDLE_ID, rows)).toEqual([]);
+    expect(creativeDesignLinks(UNKNOWN_ID, rows)).toEqual([]);
+  });
+
+  it('is empty for every fixture product today, because no demo brief carries a product_id', () => {
+    for (const id of [BLANKET_ID, MASK_ID, RESET_BUNDLE_ID]) {
+      expect(creativeDesignLinks(id, briefs)).toEqual([]);
+    }
+  });
+});
+
+describe('creatorLinks', () => {
+  /** The fixtures book no creator on a product, so the junction is built on top of them. */
+  const danielle = demoCreators.find((row) => row.name === 'Danielle Okonkwo');
+  const marcus = demoCreators.find((row) => row.name !== 'Danielle Okonkwo');
+  if (danielle === undefined || marcus === undefined) {
+    throw new Error('fixture drift: the demo creators are missing');
+  }
+  const rows = demoCreators.map((row) => {
+    if (row.id === danielle.id) return { ...row, productIds: [BLANKET_ID, MASK_ID] };
+    return row.id === marcus.id ? { ...row, productIds: [MASK_ID] } : row;
+  });
+
+  it('lists the creators whose junction names the product, linked to the UGC panel with the internal-track chip', () => {
+    expect(creatorLinks(BLANKET_ID, rows)).toEqual([
+      {
+        id: danielle.id,
+        label: 'Danielle Okonkwo',
+        href: `${ugcPath}?creator=${danielle.id}`,
+        chip: { label: 'Approved', tone: 'ok' },
+      },
+    ]);
+  });
+
+  it('is the other side of the junction: a creator booked for two products lists on both, in row order', () => {
+    const ids = creatorLinks(MASK_ID, rows).map((link) => link.id);
+    const expected = rows.filter((row) => row.productIds.includes(MASK_ID)).map((row) => row.id);
+
+    expect(ids).toEqual(expected);
+    expect(ids).toContain(danielle.id);
+    expect(ids).toContain(marcus.id);
+  });
+
+  it('is empty for a product no creator is booked for, so the panel can say so', () => {
+    expect(creatorLinks(RESET_BUNDLE_ID, rows)).toEqual([]);
+    expect(creatorLinks(UNKNOWN_ID, rows)).toEqual([]);
+  });
+
+  it('is empty for every fixture product today, because no demo creator carries a product link', () => {
+    for (const id of [BLANKET_ID, MASK_ID, RESET_BUNDLE_ID]) {
+      expect(creatorLinks(id, demoCreators)).toEqual([]);
     }
   });
 });

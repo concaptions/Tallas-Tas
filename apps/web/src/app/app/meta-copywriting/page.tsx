@@ -2,6 +2,7 @@ import { copyTitle } from '@tas/domain/copy';
 import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
 import { loadCampaigns } from '@/lib/campaigns-source';
+import { loadCollections } from '@/lib/collections-source';
 import { loadCopyWorkspace } from '@/lib/copy-source';
 import { loadCopyTypes } from '@/lib/copy-types-source';
 import { isDemoMode } from '@/lib/demo-mode';
@@ -9,7 +10,7 @@ import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { briefPath } from '@/lib/routes';
 
 import { CopywritingWorkspace } from './copywriting-workspace';
-import { campaignLinks, copyTypeIdsByCopy, type CopyItem } from './fields';
+import { campaignLinks, collectionsByCopy, copyTypeIdsByCopy, type CopyItem } from './fields';
 
 /**
  * Copywriting (PRD §5.11): "Ad copy, written separately but tied to the creative. Keep this table
@@ -38,21 +39,30 @@ import { campaignLinks, copyTypeIdsByCopy, type CopyItem } from './fields';
  * a writer in `@tas/db` yet — nothing loads the junction and nothing, importer included, writes it
  * — so every row's `campaigns` list is empty until `loadAllCopywritingCampaigns` ships, and the
  * panel renders the list read-only and says so. The shape is the one the page fills then.
+ *
+ * ONE LINK THE COLLECTION SIDE OWNS. Airtable's "Collections" on a copy row is the inverse of
+ * `collections.copywriting_id`, so the brand's collections come from `loadCollections()` (fixtures
+ * or the scoped query) and are inverted here, once, into `collections` per row; the panel lists
+ * them read-only, because the Copywriting ID field on the collection's panel is where that link
+ * is made.
  */
 interface CopywritingPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function CopywritingPage({ searchParams }: CopywritingPageProps) {
-  const [{ rows, creatives, concepts }, copyTypeResult, campaignRows, params] = await Promise.all([
-    loadCopyWorkspace(),
-    loadCopyTypes(),
-    loadCampaigns(),
-    searchParams,
-  ]);
+  const [{ rows, creatives, concepts }, copyTypeResult, campaignRows, collectionRows, params] =
+    await Promise.all([
+      loadCopyWorkspace(),
+      loadCopyTypes(),
+      loadCampaigns(),
+      loadCollections(),
+      searchParams,
+    ]);
   const demo = isDemoMode();
   const now = new Date();
   const typeIdsByCopy = copyTypeIdsByCopy(copyTypeResult.rows);
+  const linkedCollectionsByCopy = collectionsByCopy(collectionRows.rows);
 
   const campaignsById = new Map(campaignRows.rows.map((c) => [c.id, c.name]));
   const items: CopyItem[] = rows.map((row) => ({
@@ -78,6 +88,7 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
     clientComment: row.clientComment,
     copyTypeIds: typeIdsByCopy.get(row.id) ?? [],
     campaigns: campaignLinks(row.campaignIds, campaignsById),
+    collections: linkedCollectionsByCopy.get(row.id) ?? [],
     updatedLabel: relativeTime(row.updatedAt, now),
     updatedTitle: absoluteTime(row.updatedAt),
   }));
