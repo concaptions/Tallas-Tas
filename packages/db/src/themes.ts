@@ -1,7 +1,7 @@
 import { and, countDistinct, desc, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from './db';
-import { conceptThemes, concepts, themes, type NewTheme, type Theme } from './schema';
+import { conceptThemes, concepts, themes, users, type NewTheme, type Theme } from './schema';
 
 /**
  * The Themes page's data access (PRD §5.5: the creative vehicle, the *how*). Every function takes
@@ -31,10 +31,22 @@ export type ThemeInput = Omit<NewTheme, ManagedColumn>;
 /**
  * A theme as the library grid renders it: the row plus `usedByBrandCount`, the number of DISTINCT
  * brands whose live concepts reference it — the one number that shows a global library is being
- * shared rather than sitting unused. `demoThemes` satisfies `ThemeListRow[]`, so the page reads demo
- * fixtures and database rows through one type.
+ * shared rather than sitting unused — and, on a row that has an assignee, that assignee's name.
+ * `demoThemes` satisfies `ThemeListRow[]`, so the page reads demo fixtures and database rows through
+ * one type.
  */
-export type ThemeListRow = Theme & { usedByBrandCount: number };
+export type ThemeListRow = Theme & {
+  usedByBrandCount: number;
+  /**
+   * The assignee's full name, resolved from the global `users` table by `assignee_id` (a Clerk user
+   * id, the way `email_campaigns.assignee_id` stores one). Present only when the row HAS an
+   * `assignee_id`: a string when a live user matches, `null` when none does — an imported Gratsi
+   * row stores the Airtable collaborator's display name there, which matches no Clerk id, and the
+   * card then shows the stored value as it is. Absent on a row with no assignee, which is why the
+   * fixtures (every `assignee_id` null) carry no key and still read equal to a seeded database.
+   */
+  assigneeName?: string | null;
+};
 
 /**
  * `themeId -> number of distinct brands with a live concept on it`.
@@ -57,17 +69,48 @@ async function brandCounts(db: Db): Promise<Map<string, number>> {
 }
 
 /**
+ * `clerkUserId -> full name` for every live user. Unscoped like the library itself: the TAS team
+ * assigns themes and the `users` table carries no brand. The same lookup `email-campaigns.ts` makes
+ * for its Assignee column, so the two pages resolve a person the same way.
+ */
+async function assigneeNames(db: Db): Promise<Map<string, string>> {
+  const rows = await db
+    .select({ clerkUserId: users.clerkUserId, fullName: users.fullName })
+    .from(users)
+    .where(isNull(users.deletedAt));
+  return new Map(rows.map((row) => [row.clerkUserId, row.fullName]));
+}
+
+/**
+ * The row plus its brand count and, only when it has an assignee, that assignee's resolved name.
+ * The key is spread in rather than set to `undefined`, so a row with no assignee is the stored row
+ * plus the count and nothing else — the shape the fixtures declare.
+ */
+function decorate(
+  row: Theme,
+  counts: Map<string, number>,
+  names: Map<string, string>,
+): ThemeListRow {
+  return {
+    ...row,
+    usedByBrandCount: counts.get(row.id) ?? 0,
+    ...(row.assigneeId === null ? {} : { assigneeName: names.get(row.assigneeId) ?? null }),
+  };
+}
+
+/**
  * Every live theme in the library, newest edit first, each with its distinct-brand count.
  *
  * Takes no `brandId` and never goes through `withBrand`, because the library is global: the same six
  * rows answer for every brand in the platform. Do not add a brand argument here.
  */
 export async function listThemes(db: Db): Promise<ThemeListRow[]> {
-  const [rows, counts] = await Promise.all([
+  const [rows, counts, names] = await Promise.all([
     db.select().from(themes).where(isNull(themes.deletedAt)).orderBy(desc(themes.updatedAt)),
     brandCounts(db),
+    assigneeNames(db),
   ]);
-  return rows.map((row) => ({ ...row, usedByBrandCount: counts.get(row.id) ?? 0 }));
+  return rows.map((row) => decorate(row, counts, names));
 }
 
 /**
@@ -81,7 +124,8 @@ export async function getThemeById(db: Db, id: string): Promise<ThemeListRow | n
     .where(and(eq(themes.id, id), isNull(themes.deletedAt)))
     .limit(1);
   if (row === undefined) return null;
-  return { ...row, usedByBrandCount: (await brandCounts(db)).get(row.id) ?? 0 };
+  const [counts, names] = await Promise.all([brandCounts(db), assigneeNames(db)]);
+  return decorate(row, counts, names);
 }
 
 /**

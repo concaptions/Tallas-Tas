@@ -132,6 +132,16 @@ export interface ThemeCardRow {
   readonly referenceLinks: readonly string[] | null;
   readonly usedByBrandCount: number;
   readonly isActive: boolean;
+  /**
+   * The other Gratsi stored fields the labelled rows read: the stored `assignee_id`, the
+   * `assigneeName` `@tas/db` resolves for it, the attachment URLs the importer captured and the AI
+   * "Attachment Summary". Optional so the `/design-system` sample rows, which predate them, still
+   * type; a grid row always carries them, and a missing one renders the same dash a null does.
+   */
+  readonly assigneeId?: string | null;
+  readonly assigneeName?: string | null;
+  readonly attachments?: readonly string[] | null;
+  readonly aiAttachmentSummary?: string | null;
 }
 
 /** A theme is in the grid when its category matches the chip row and its text matches `?q=`. */
@@ -215,6 +225,126 @@ export function referenceChipRow(links: readonly string[] | null): ReferenceChip
 /** The `+N` chip's label, so no component builds that string inline. */
 export function overflowLabel(overflow: number): string {
   return `+${String(overflow)}`;
+}
+
+/**
+ * The card's labelled rows (PRD §5.5; Airtable parity). A theme is a CARD, never a table row, but
+ * every Gratsi stored field still reads under its own label, so a strategist is never guessing
+ * whether a line of prose is the note or the AI summary. These are the exact label texts, stated
+ * once here and never in a component; the parity spec looks for each of them inside the first card.
+ */
+export const THEME_FIELD_LABELS = {
+  notes: 'Notes',
+  assignee: 'Assignee',
+  status: 'Status',
+  attachments: 'Attachments',
+  attachmentSummary: 'Attachment Summary',
+} as const;
+
+/** What an empty row shows: the same dash every workspace table uses, never a blank under a label. */
+export const EMPTY_FIELD = '—';
+
+/** A text field as the card shows it: trimmed, or `null` when there is nothing to show. */
+export function textValue(value: string | null | undefined): string | null {
+  const text = value?.trim() ?? '';
+  return text === '' ? null : text;
+}
+
+export interface ThemeStatusChip {
+  readonly tone: ChipTone;
+  readonly label: string;
+}
+
+/**
+ * The Status row's chip, tone and label both from the theme vocabulary in `@tas/domain/themes`;
+ * `null` when there is no status, so the row shows the dash rather than a chip reading "—".
+ */
+export function statusChip(status: string | null | undefined): ThemeStatusChip | null {
+  const value = textValue(status);
+  return value === null ? null : { tone: themeStatusTone(value), label: themeStatusLabel(value) };
+}
+
+export interface AssigneeValue {
+  readonly text: string;
+  /**
+   * True when the card is showing the stored `assignee_id` itself because no live user matched it:
+   * a system value, so it renders in `font-mono` the way every id and generated name does.
+   */
+  readonly mono: boolean;
+}
+
+/** The tooltip on an unresolved assignee, so the mono value explains itself. */
+export const UNRESOLVED_ASSIGNEE_HINT =
+  'Stored assignee value; it matches no user on the platform.';
+
+/**
+ * The Assignee row: the resolved full name when `@tas/db` found the user, else the stored value
+ * itself — an imported Gratsi row stores the Airtable collaborator's name there, and hiding it would
+ * hide the one clue to who owns the theme — or `null` for the dash.
+ */
+export function assigneeValue(
+  theme: Pick<ThemeCardRow, 'assigneeId' | 'assigneeName'>,
+): AssigneeValue | null {
+  const name = textValue(theme.assigneeName);
+  if (name !== null) {
+    return { text: name, mono: false };
+  }
+  const stored = textValue(theme.assigneeId);
+  return stored === null ? null : { text: stored, mono: true };
+}
+
+export interface AttachmentChip {
+  readonly url: string;
+  /** The file name when the URL ends in one, else the host: an Airtable CDN URL is 200 characters. */
+  readonly label: string;
+}
+
+export interface AttachmentChipRow {
+  readonly shown: readonly AttachmentChip[];
+  /** How many saved attachments are not shown; `0` when they all fit. */
+  readonly overflow: number;
+}
+
+/** A path's last segment reads as a file name when it ends in a short extension (`cover.png`). */
+const FILE_NAME = /\.[A-Za-z0-9]{1,8}$/;
+
+/**
+ * What an attachment chip says. The importer keeps only the URL of each Airtable attachment, and a
+ * signed CDN URL carries the file name as its last path segment when it carries one at all; when it
+ * does not, the host is the most a chip can honestly say, exactly as the reference chips do.
+ */
+export function attachmentLabel(url: string): string {
+  try {
+    const parts = new URL(url).pathname.split('/').filter((part) => part !== '');
+    const last = parts[parts.length - 1];
+    if (last !== undefined) {
+      const name = decodeURIComponent(last);
+      if (FILE_NAME.test(name)) {
+        return name;
+      }
+    }
+  } catch {
+    // Not a parseable URL, or a malformed escape in it: the host-or-value label below still holds.
+  }
+  return hostLabel(url) ?? url;
+}
+
+/**
+ * The attachments of one card as chips, capped at `MAX_CARD_LINKS` like the reference links so a
+ * theme with twelve stills counts the rest rather than listing them. Blank entries are dropped.
+ */
+export function attachmentChipRow(urls: readonly string[] | null | undefined): AttachmentChipRow {
+  const chips: AttachmentChip[] = [];
+  for (const entry of urls ?? []) {
+    const url = entry.trim();
+    if (url !== '') {
+      chips.push({ url, label: attachmentLabel(url) });
+    }
+  }
+  return {
+    shown: chips.slice(0, MAX_CARD_LINKS),
+    overflow: Math.max(chips.length - MAX_CARD_LINKS, 0),
+  };
 }
 
 /** The dialog's placeholder for an untouched field, matching every other route. */

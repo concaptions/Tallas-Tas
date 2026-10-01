@@ -1,13 +1,14 @@
 import { eq, sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { DEMO_BRAND_ID, demoConcepts, demoThemes } from './demo-data';
+import { DEMO_BRAND_ID, demoConcepts, demoThemes, demoUsers } from './demo-data';
 import {
   conceptAngles,
   conceptThemes,
   concepts,
   themeCategories,
   themes,
+  users,
   type Theme,
 } from './schema';
 import { seed } from './seed';
@@ -277,6 +278,71 @@ describe('theme queries', () => {
   });
 });
 
+describe('the assignee name', () => {
+  /** A seeded team member — past `noUncheckedIndexedAccess`. */
+  function seededUser() {
+    const [row] = demoUsers;
+    if (row === undefined) throw new Error('demoUsers is empty');
+    return row;
+  }
+
+  it('resolves assignee_id to the live user’s full name, and an unknown id to null', async () => {
+    const { db } = await seeded();
+    const member = seededUser();
+
+    const assigned = await insertTheme(
+      db,
+      { name: 'Assigned theme', category: 'Framework', assigneeId: member.clerkUserId },
+      'user_test',
+    );
+    const orphaned = await insertTheme(
+      db,
+      { name: 'Orphaned theme', category: 'Framework', assigneeId: 'user_who_left' },
+      'user_test',
+    );
+
+    const rows = await listThemes(db);
+    const listed = rows.find((row) => row.id === assigned.id);
+    expect(listed).toMatchObject({ assigneeId: member.clerkUserId, assigneeName: member.fullName });
+    // An imported Gratsi row stores the collaborator's display name, which no Clerk id matches:
+    // the name is null, the stored value stays on the row for the card to show.
+    expect(rows.find((row) => row.id === orphaned.id)).toMatchObject({
+      assigneeId: 'user_who_left',
+      assigneeName: null,
+    });
+    expect(await getThemeById(db, assigned.id)).toEqual(listed);
+  });
+
+  it('carries no assigneeName key at all on a theme with no assignee', async () => {
+    const { db } = await seeded();
+
+    const rows = await listThemes(db);
+
+    // Every fixture has `assignee_id` null, and `listThemes` reads equal to `demoThemes` only
+    // because an absent assignee adds no key — `toEqual` ignores `undefined`, never `null`.
+    expect(rows.every((row) => row.assigneeId === null)).toBe(true);
+    expect(rows.some((row) => 'assigneeName' in row)).toBe(false);
+  });
+
+  it('stops resolving a user once they are soft-deleted', async () => {
+    const { db } = await seeded();
+    const member = seededUser();
+    const assigned = await insertTheme(
+      db,
+      { name: 'Assigned theme', category: 'Seasonal', assigneeId: member.clerkUserId },
+      'user_test',
+    );
+    expect((await getThemeById(db, assigned.id))?.assigneeName).toBe(member.fullName);
+
+    await db
+      .update(users)
+      .set({ deletedAt: new Date() })
+      .where(eq(users.clerkUserId, member.clerkUserId));
+
+    expect((await getThemeById(db, assigned.id))?.assigneeName).toBeNull();
+  });
+});
+
 describe('theme writes', () => {
   it('inserts a theme into the library with brand_id null and the actor on both audit columns', async () => {
     const { db } = await seeded();
@@ -357,6 +423,8 @@ describe('theme types', () => {
     expectTypeOf<ThemeInput>().not.toHaveProperty('createdBy');
     expectTypeOf<ThemeListRow>().toExtend<Theme>();
     expectTypeOf<ThemeListRow['usedByBrandCount']>().toEqualTypeOf<number>();
+    // Optional, so the fixtures (no assignee anywhere) type without the key; null when unresolved.
+    expectTypeOf<ThemeListRow['assigneeName']>().toEqualTypeOf<string | null | undefined>();
     expectTypeOf(demoThemes).toEqualTypeOf<ThemeListRow[]>();
   });
 });

@@ -3,9 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_CATEGORIES,
   CATEGORY_FILTERS,
+  EMPTY_FIELD,
   GLOBAL_BADGE_LABEL,
   GLOBAL_BADGE_NOTE,
   GLOBAL_BADGE_TONE,
+  THEME_FIELD_LABELS,
+  UNRESOLVED_ASSIGNEE_HINT,
+  assigneeValue,
+  attachmentChipRow,
+  attachmentLabel,
   categoryFromParam,
   filteredCountLabel,
   libraryCountLabel,
@@ -13,6 +19,8 @@ import {
   matchesQuery,
   overflowLabel,
   referenceChipRow,
+  statusChip,
+  textValue,
   type ThemeCardRow,
 } from './fields';
 
@@ -181,6 +189,129 @@ describe('referenceChipRow', () => {
     expect(referenceChipRow(['not a url']).shown).toEqual([
       { url: 'not a url', host: 'not a url' },
     ]);
+  });
+});
+
+describe('the labelled rows', () => {
+  it('names every Gratsi stored field with the exact label the parity spec looks for', () => {
+    expect(Object.values(THEME_FIELD_LABELS)).toEqual([
+      'Notes',
+      'Assignee',
+      'Status',
+      'Attachments',
+      'Attachment Summary',
+    ]);
+  });
+
+  it('shows a dash under an empty label, never a blank', () => {
+    expect(EMPTY_FIELD).toBe('—');
+  });
+});
+
+describe('textValue', () => {
+  it('trims a note and turns a blank or missing one into null', () => {
+    expect(textValue('  Keep the losing side a situation.  ')).toBe(
+      'Keep the losing side a situation.',
+    );
+    expect(textValue('')).toBeNull();
+    expect(textValue('   ')).toBeNull();
+    expect(textValue(null)).toBeNull();
+    expect(textValue(undefined)).toBeNull();
+  });
+});
+
+describe('statusChip', () => {
+  it('reads the tone and the label from the theme vocabulary, never a local choice', () => {
+    expect(statusChip('not_started')).toEqual({ tone: 'mute', label: 'Not Started' });
+    expect(statusChip('in_progress')).toEqual({ tone: 'accent', label: 'In Progress' });
+    expect(statusChip('done')).toEqual({ tone: 'ok', label: 'Done' });
+    expect(statusChip('archived')).toEqual({ tone: 'warn', label: 'Archived' });
+  });
+
+  it('is null for no status, so the row shows the dash rather than a chip reading one', () => {
+    expect(statusChip(null)).toBeNull();
+    expect(statusChip(undefined)).toBeNull();
+    expect(statusChip('')).toBeNull();
+  });
+
+  it('keeps a stored value this build does not know visible, in the quiet tone', () => {
+    expect(statusChip('blocked')).toEqual({ tone: 'mute', label: 'blocked' });
+  });
+});
+
+describe('assigneeValue', () => {
+  it('prefers the resolved name, in prose', () => {
+    expect(assigneeValue({ assigneeId: 'user_seed_csm', assigneeName: 'Callum Ashworth' })).toEqual(
+      { text: 'Callum Ashworth', mono: false },
+    );
+  });
+
+  it('falls back to the stored value, in mono, when no user matched it', () => {
+    expect(assigneeValue({ assigneeId: 'user_who_left', assigneeName: null })).toEqual({
+      text: 'user_who_left',
+      mono: true,
+    });
+    // An imported Gratsi row stores the Airtable collaborator's name and has no resolved name.
+    expect(assigneeValue({ assigneeId: 'Alex Rivera' })).toEqual({
+      text: 'Alex Rivera',
+      mono: true,
+    });
+  });
+
+  it('is null for the dash when nothing is stored', () => {
+    expect(assigneeValue({ assigneeId: null, assigneeName: null })).toBeNull();
+    expect(assigneeValue({})).toBeNull();
+    expect(assigneeValue({ assigneeId: '   ', assigneeName: '' })).toBeNull();
+  });
+
+  it('explains an unresolved value in its tooltip', () => {
+    expect(UNRESOLVED_ASSIGNEE_HINT).toContain('matches no user');
+  });
+});
+
+describe('attachmentLabel', () => {
+  it('reads the file name off a URL that ends in one, decoded', () => {
+    expect(
+      attachmentLabel(
+        'https://v5.airtableusercontent.com/v3/u/48/48/1759363200000/abc/cover%20still.png?x=1',
+      ),
+    ).toBe('cover still.png');
+  });
+
+  it('falls back to the host when the path is a signed token with no file name', () => {
+    expect(
+      attachmentLabel('https://v5.airtableusercontent.com/v3/u/48/48/1759363200000/abcDEF/ghiJKL'),
+    ).toBe('v5.airtableusercontent.com');
+    expect(attachmentLabel('https://dl.airtable.com/')).toBe('dl.airtable.com');
+  });
+
+  it('keeps a value that is not a URL rather than hiding it', () => {
+    expect(attachmentLabel('not a url')).toBe('not a url');
+  });
+});
+
+describe('attachmentChipRow', () => {
+  it('is empty for a theme with no attachments, so the row shows the dash', () => {
+    expect(attachmentChipRow(null)).toEqual({ shown: [], overflow: 0 });
+    expect(attachmentChipRow(undefined)).toEqual({ shown: [], overflow: 0 });
+    expect(attachmentChipRow(['', '  ']).shown).toEqual([]);
+  });
+
+  it('labels each chip, keeps the full URL for the link, and counts the rest past the third', () => {
+    const row = attachmentChipRow([
+      'https://cdn.example/a/hook-still.png',
+      'https://cdn.example/b/script.pdf',
+      'https://cdn.example/c/cut.mp4',
+      'https://cdn.example/d/extra.jpg',
+    ]);
+
+    expect(row.shown).toEqual([
+      { url: 'https://cdn.example/a/hook-still.png', label: 'hook-still.png' },
+      { url: 'https://cdn.example/b/script.pdf', label: 'script.pdf' },
+      { url: 'https://cdn.example/c/cut.mp4', label: 'cut.mp4' },
+    ]);
+    expect(row.overflow).toBe(1);
+    expect(overflowLabel(row.overflow)).toBe('+1');
   });
 });
 
