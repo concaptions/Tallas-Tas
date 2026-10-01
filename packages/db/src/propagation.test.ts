@@ -217,7 +217,7 @@ describe('resolveTemplateBrandId', () => {
 });
 
 describe('PROPAGATION_TABLES', () => {
-  it('registers exactly the 12 content tables', () => {
+  it('registers exactly the 20 content tables', () => {
     const keys = Object.keys(PROPAGATION_TABLES).sort();
     expect(keys).toEqual([
       'ai_characters',
@@ -226,12 +226,20 @@ describe('PROPAGATION_TABLES', () => {
       'collections',
       'competitive_research',
       'concepts',
+      'copy_types',
       'copywriting',
       'creative_briefs',
       'creative_dimensions',
+      'creative_modules',
+      'creative_reporting',
+      'creative_sheet_items',
       'creators',
+      'email_campaigns',
+      'email_flows',
       'personas',
       'products',
+      'sm_campaign_feed_tasks',
+      'youtube_copy',
     ]);
   });
 });

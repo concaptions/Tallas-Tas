@@ -9,18 +9,26 @@ import {
   collections,
   competitiveResearch,
   concepts,
+  copyTypes,
   copywriting,
   creativeBriefs,
   creativeDimensions,
+  creativeModules,
+  creativeReporting,
+  creativeSheetItems,
   creators,
   customFieldSchemas,
+  emailCampaigns,
+  emailFlows,
   interfaceFields,
   interfacePages,
   personas,
   products,
   promotionRequests,
+  smCampaignFeedTasks,
   type Brand,
   type NewPromotionRequest,
+  youtubeCopy,
 } from './schema';
 import type { BrandedTable } from './tenancy';
 import { withBrand } from './tenancy';
@@ -205,6 +213,14 @@ export const PROPAGATION_TABLES: Record<string, BrandedTable> = {
   creative_dimensions: creativeDimensions,
   ai_characters: aiCharacters,
   competitive_research: competitiveResearch,
+  copy_types: copyTypes,
+  youtube_copy: youtubeCopy,
+  sm_campaign_feed_tasks: smCampaignFeedTasks,
+  creative_reporting: creativeReporting,
+  creative_modules: creativeModules,
+  creative_sheet_items: creativeSheetItems,
+  email_campaigns: emailCampaigns,
+  email_flows: emailFlows,
 };
 
 /**
