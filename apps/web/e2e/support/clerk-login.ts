@@ -88,4 +88,16 @@ export const test = base.extend<Record<never, never>, { workerSession: WorkerSes
   },
 });
 
+/**
+ * `test` for live specs that must start with NO session (sign-up, the signed-out redirect): the
+ * page carries the Clerk testing token like `test` above, but no storage state is loaded and no
+ * user is signed in. Gate the describe on `liveE2eEnv()` the same way.
+ */
+export const anonymousTest = base.extend({
+  page: async ({ page }, use) => {
+    await setupClerkTestingToken({ page });
+    await use(page);
+  },
+});
+
 export { expect };
