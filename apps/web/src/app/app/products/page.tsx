@@ -1,10 +1,12 @@
 import { PRODUCT_CSV_COLUMNS } from '@tas/db';
 
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
 import { loadProducts } from '@/lib/products-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
+import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 
-import { hostLabel } from './fields';
+import { emailCampaignLinks, hostLabel, youtubeCopyLinks } from './fields';
 import { ProductsWorkspace, type ProductItem } from './products-workspace';
 
 /**
@@ -21,6 +23,13 @@ import { ProductsWorkspace, type ProductItem } from './products-workspace';
  * that formatted it itself would disagree with the server and break hydration) and the host of each
  * link, so the table never has to shorten a URL while it renders.
  *
+ * The two record links are resolved here too, from the OTHER side of their junctions: the email
+ * campaigns and the YouTube copy rows arrive through their own demo-aware sources, each carrying the
+ * product ids it links to, and `emailCampaignLinks` / `youtubeCopyLinks` index them per product
+ * into the plain `{id, label, href, chip}` lists the panel renders read-only. The YouTube source
+ * only exposes its whole workspace read, so its picker options are loaded and dropped; the rows
+ * are what this page needs.
+ *
  * `PRODUCT_CSV_COLUMNS` is handed down as plain data rather than imported by the client component:
  * it lives in `@tas/db`, and a runtime import of that package from the browser bundle would drag the
  * driver in with it. The workspace builds the template string from these columns in the browser.
@@ -30,7 +39,13 @@ interface ProductsPageProps {
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const [{ rows }, params] = await Promise.all([loadProducts(), searchParams]);
+  const [{ rows }, { rows: emailCampaignRows }, { rows: youtubeCopyRows }, params] =
+    await Promise.all([
+      loadProducts(),
+      loadEmailCampaigns(),
+      loadYoutubeCopyWorkspace(),
+      searchParams,
+    ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -40,6 +55,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     collectionHost: hostLabel(product.collectionLink),
     updatedLabel: relativeTime(product.updatedAt, now),
     updatedTitle: absoluteTime(product.updatedAt),
+    emailCampaigns: emailCampaignLinks(product.id, emailCampaignRows),
+    youtubeCopy: youtubeCopyLinks(product.id, youtubeCopyRows),
   }));
 
   const requested = params.product;

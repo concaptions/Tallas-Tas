@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect } from 'react';
+import Link from 'next/link';
 import type { ProductListRow } from '@tas/db';
 import { Button, disabledWriteClassName, DisabledWrite, Input, Label, StatusChip } from '@tas/ui';
 
@@ -10,6 +11,7 @@ import {
   conceptCountTone,
   NOT_SET,
   PRODUCT_FIELDS,
+  type LinkedRecord,
   type ProductField,
   type ProductFieldName,
 } from './fields';
@@ -20,11 +22,72 @@ export const NEW_PRODUCT = 'new';
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 
+/** What the two record-link lists say when nothing links to the product yet. */
+export const NO_EMAIL_CAMPAIGNS_NOTE =
+  'No email campaign promotes this product yet. Link one from the campaign’s panel.';
+export const NO_YOUTUBE_COPY_NOTE =
+  'No YouTube copy is written for this product yet. Link one from the copy’s panel.';
+
 interface ProductPanelProps {
   readonly product: ProductListRow | null;
+  /** The email campaigns promoting the product, built on the server; empty while creating. */
+  readonly emailCampaigns: readonly LinkedRecord[];
+  /** The YouTube copy written for the product, built the same way. */
+  readonly youtubeCopy: readonly LinkedRecord[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
+}
+
+interface LinkedRecordListProps {
+  readonly records: readonly LinkedRecord[];
+  readonly empty: string;
+  /** The `data-slot` of the list, and the one each row carries. */
+  readonly slot: string;
+  readonly rowSlot: string;
+  /** True when every label is generated system output, which always renders in `font-mono`. */
+  readonly mono?: boolean;
+}
+
+/**
+ * One read-only list of records another module links to this product: each row is the record's
+ * label (a link to it where it lives) beside its status chip. Nothing here is a control — these
+ * links are edited from the other end, and the empty sentence says where.
+ */
+function LinkedRecordList({ records, empty, slot, rowSlot, mono = false }: LinkedRecordListProps) {
+  if (records.length === 0) {
+    return (
+      <div data-slot={slot} className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-text3">{empty}</span>
+      </div>
+    );
+  }
+
+  const labelClassName = `${mono ? 'font-mono ' : ''}text-sm text-text underline-offset-2 hover:underline`;
+
+  return (
+    <ul data-slot={slot} className="flex flex-col gap-1.5">
+      {records.map((record) => (
+        <li
+          key={record.id}
+          data-slot={rowSlot}
+          data-record-id={record.id}
+          className="flex flex-wrap items-center gap-2"
+        >
+          {record.href === undefined ? (
+            <span className={labelClassName}>{record.label}</span>
+          ) : (
+            <Link href={record.href} className={labelClassName}>
+              {record.label}
+            </Link>
+          )}
+          {record.chip === undefined ? null : (
+            <StatusChip tone={record.chip.tone} label={record.chip.label} />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /** The stored value of one field, as the form's default. A null collection link is an empty input. */
@@ -42,12 +105,20 @@ function valueOf(product: ProductListRow | null, name: ProductFieldName): string
  * point of a panel. It is fixed to the right edge at 60% of the viewport, full width under 900px,
  * and it closes on Escape or on its close button.
  *
- * All three PRD §5.1 fields are editable in place; the form posts to the Server Actions. The linked
- * concepts count is read-only — it is derived from `concepts.angleId` → `angles.productId`, so it is
- * never something a strategist types. In demo mode the fields are read-only and the footer says so
- * instead of saving.
+ * All three PRD §5.1 fields are editable in place; the form posts to the Server Actions. Everything
+ * under "Linked work" is read-only: the concepts count is derived from `concepts.angleId` →
+ * `angles.productId`, and the email campaigns and YouTube copy are the other side of their
+ * junctions, edited from those modules' own panels — so none of it is something a strategist types
+ * here. In demo mode the fields are read-only and the footer says so instead of saving.
  */
-export function ProductPanel({ product, demo, onClose, onSaved }: ProductPanelProps) {
+export function ProductPanel({
+  product,
+  emailCampaigns,
+  youtubeCopy,
+  demo,
+  onClose,
+  onSaved,
+}: ProductPanelProps) {
   const creating = product === null;
   const action = creating ? createProductAction : updateProductAction;
   const [state, formAction, pending] = useActionState<ProductActionResult | null, FormData>(
@@ -180,6 +251,29 @@ export function ProductPanel({ product, demo, onClose, onSaved }: ProductPanelPr
                       ))
                     )}
                   </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">
+                    Email campaigns
+                  </span>
+                  <LinkedRecordList
+                    records={emailCampaigns}
+                    empty={NO_EMAIL_CAMPAIGNS_NOTE}
+                    slot="product-email-campaigns"
+                    rowSlot="product-email-campaign"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">
+                    YouTube copy
+                  </span>
+                  <LinkedRecordList
+                    records={youtubeCopy}
+                    empty={NO_YOUTUBE_COPY_NOTE}
+                    slot="product-youtube-copy"
+                    rowSlot="product-youtube-copy-row"
+                    mono
+                  />
                 </div>
               </section>
             )}

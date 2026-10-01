@@ -15,7 +15,7 @@ import {
 
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 
-import { EM_DASH } from './fields';
+import { EM_DASH, type LinkedRecord } from './fields';
 import { NEW_PRODUCT, ProductPanel } from './product-panel';
 
 /**
@@ -38,6 +38,10 @@ export interface ProductItem {
   readonly collectionHost: string | null;
   readonly updatedLabel: string;
   readonly updatedTitle: string;
+  /** The email campaigns promoting this product, indexed on the server from the junction. */
+  readonly emailCampaigns: readonly LinkedRecord[];
+  /** The YouTube copy rows written for this product, indexed the same way. */
+  readonly youtubeCopy: readonly LinkedRecord[];
 }
 
 interface ProductsWorkspaceProps {
@@ -180,7 +184,8 @@ export function ProductsWorkspace({
     [items, query],
   );
 
-  const open = items.find((item) => item.product.id === selection)?.product ?? null;
+  const openItem = items.find((item) => item.product.id === selection) ?? null;
+  const open = openItem?.product ?? null;
   const creating = selection === NEW_PRODUCT;
 
   return (
@@ -312,6 +317,8 @@ export function ProductsWorkspace({
         <ProductPanel
           key={selection}
           product={creating ? null : open}
+          emailCampaigns={openItem?.emailCampaigns ?? []}
+          youtubeCopy={openItem?.youtubeCopy ?? []}
           demo={demo}
           onClose={close}
           onSaved={saved}
