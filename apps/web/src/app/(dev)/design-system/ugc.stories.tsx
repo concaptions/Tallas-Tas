@@ -53,6 +53,9 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     internalBrief: null,
     costUsd: 350,
     partnershipPricePer30Days: 750,
+    paymentDate: new Date('2026-09-12T00:00:00.000Z'),
+    creatorInfoRequest: 'Please send your shipping address and the handle to whitelist.',
+    slackNotified: false,
   },
   {
     id: 'story-without-picture',
@@ -75,6 +78,9 @@ const SAMPLE_CREATORS: readonly CreatorCardRow[] = [
     internalBrief: null,
     costUsd: null,
     partnershipPricePer30Days: null,
+    paymentDate: null,
+    creatorInfoRequest: null,
+    slackNotified: false,
   },
 ];
 

@@ -10,6 +10,8 @@ import {
   type PartnershipExpiryState,
 } from '@tas/domain/creators';
 import {
+  CREATOR_INTERNAL_STATUS,
+  CREATOR_STATUS,
   creatorAssetsStatusLabel,
   creatorAssetsStatusTone,
   creatorInternalStatusLabel,
@@ -19,6 +21,7 @@ import {
   partnershipActivityLabel,
   partnershipActivityTone,
   type ChipTone,
+  type StatusEntry,
 } from '@tas/domain/state';
 
 /**
@@ -155,7 +158,7 @@ export function creatorInitials(name: string): string {
 }
 
 /** What one creator card and its detail panel render. Narrower than `CreatorListRow`, so a preview passes a plain object. */
-export interface CreatorCardRow {
+export interface CreatorCardRow extends Partial<CreatorPanelFields> {
   readonly id: string;
   readonly name: string;
   readonly gender: string | null;
@@ -176,6 +179,125 @@ export interface CreatorCardRow {
   readonly internalBrief: string | null;
   readonly costUsd: number | null;
   readonly partnershipPricePer30Days: number | null;
+  /** When TAS paid the creator (Gratsi "Payment Date"); internal, like every cost figure. */
+  readonly paymentDate: Date | null;
+  /** The note sent to the creator asking for details (Gratsi "Creator Info Request"); internal. */
+  readonly creatorInfoRequest: string | null;
+  /** The partnership reminder automation's receipt (Gratsi "Slack Notified"); read-only here. */
+  readonly slackNotified: boolean;
+}
+
+/**
+ * The columns only the PANEL renders: Gratsi "UGC Management" fields with a column on `creators`.
+ * Apart from `CreatorCardRow` and mixed in as `Partial` because the card never reads them and a
+ * `/design-system` story hands the card a plain object; `CreatorPanelRow` is the full shape
+ * `page.tsx` must build, so a column the page forgets is a type error there, not a blank control.
+ * `partnershipActivity` and `partnershipActivatedAt` are the scanner's (`schema/creators.ts`) and
+ * render read-only; `actions.ts` leaves them out of its zod shape as it does `slackNotified`.
+ */
+export interface CreatorPanelFields {
+  readonly dateOfManagement: Date | null;
+  readonly budgetPer60s: number | null;
+  /** Gratsi "Creator's cost (USD) - Internal": what the creator charges. `costUsd` is what TAS paid. */
+  readonly creatorCost: number | null;
+  readonly clientNote: string | null;
+  readonly continueWorkingWith: boolean | null;
+  readonly partnershipNotes: string | null;
+  readonly facebookProfileUrl: string | null;
+  readonly instagramUsername: string | null;
+  readonly partnershipActivity: string;
+  readonly partnershipActivatedAt: Date | null;
+  readonly partnershipPeriodDays: number | null;
+  readonly extensionDays: number;
+}
+
+export type CreatorPanelRow = CreatorCardRow & CreatorPanelFields;
+
+/** One entry a status Select offers, resolved so the chip beside the control never picks a tone. */
+export interface StatusChoice {
+  readonly key: string;
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+/**
+ * The entries a status Select offers from `current`: the whole vocabulary of the track, because
+ * `@tas/domain/state/creator-status` defines the three tracks as independent lists with no
+ * transition table (unlike a creative's `INTERNAL_VIDEO_TRANSITIONS`), so the only thing the
+ * domain forbids is a value outside the list — which is what the action refuses. A stored value
+ * this build does not know is offered first, in its own words, so the trigger is never blank and
+ * a save that touches another field never silently rewrites it.
+ */
+function statusChoices(
+  list: readonly StatusEntry[],
+  tone: (value: string) => ChipTone,
+  current: string,
+): readonly StatusChoice[] {
+  const known = list.map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    tone: tone(entry.key),
+  }));
+  if (current === '' || known.some((choice) => choice.key === current)) {
+    return known;
+  }
+  return [{ key: current, label: current, tone: tone(current) }, ...known];
+}
+
+export function internalStatusChoices(current: string): readonly StatusChoice[] {
+  return statusChoices(CREATOR_INTERNAL_STATUS, creatorInternalStatusTone, current);
+}
+
+export function clientStatusChoices(current: string): readonly StatusChoice[] {
+  return statusChoices(CREATOR_STATUS, creatorStatusTone, current);
+}
+
+/** The choice the chip beside a Select shows; a key outside the list reads itself, muted. */
+export function statusChoice(choices: readonly StatusChoice[], key: string): StatusChoice {
+  return choices.find((choice) => choice.key === key) ?? { key, label: key, tone: 'mute' };
+}
+
+/** The read-only Partnership Activity chip; an unset activity reads the em dash, never a blank. */
+export function partnershipActivityChip(value: string | undefined): StatusChoice {
+  if (value === undefined || value.trim() === '') {
+    return { key: '', label: EM_DASH, tone: 'mute' };
+  }
+  return {
+    key: value,
+    label: partnershipActivityLabel(value),
+    tone: partnershipActivityTone(value),
+  };
+}
+
+/**
+ * "Continue Working With?" as a Select: `continue_working_with` is a NULLABLE boolean because
+ * "nobody has decided yet" is a real third state (`schema/creators.ts`), and a Select cannot post
+ * an empty item value, so the three answers travel as these keys and come back as `boolean | null`.
+ */
+export const CONTINUE_WORKING_WITH = [
+  { key: 'undecided', label: 'Undecided' },
+  { key: 'yes', label: 'Yes' },
+  { key: 'no', label: 'No' },
+] as const;
+
+export type ContinueWorkingWithKey = (typeof CONTINUE_WORKING_WITH)[number]['key'];
+
+export const CONTINUE_WORKING_WITH_UNDECIDED: ContinueWorkingWithKey = CONTINUE_WORKING_WITH[0].key;
+
+export function isContinueWorkingWithKey(value: string): value is ContinueWorkingWithKey {
+  return CONTINUE_WORKING_WITH.some((option) => option.key === value);
+}
+
+export function continueWorkingWithKey(value: boolean | null): ContinueWorkingWithKey {
+  if (value === null) return CONTINUE_WORKING_WITH_UNDECIDED;
+  return value ? 'yes' : 'no';
+}
+
+/** The stored value for a posted key; anything that is not a decision is NULL. */
+export function continueWorkingWithValue(key: string): boolean | null {
+  if (key === 'yes') return true;
+  if (key === 'no') return false;
+  return null;
 }
 
 /**
@@ -255,6 +377,21 @@ export interface PartnershipRow {
 export function isoDateLabel(value: Date | null): string {
   if (value === null || Number.isNaN(value.getTime())) {
     return EM_DASH;
+  }
+  return value.toISOString().slice(0, 10);
+}
+
+/**
+ * A date as an `<input type="date">` wants it: `YYYY-MM-DD` in UTC, or the empty string.
+ *
+ * `isoDateLabel` is for reading and answers a missing value with the em dash; that dash is not a
+ * valid date-input value, and a browser handed one shows a blank control while keeping the stale
+ * attribute. The empty string is what the input understands as "unset", and it is also what the
+ * action's `optionalDate` turns back into NULL, so an untouched field round-trips as NULL.
+ */
+export function dateInputValue(value: Date | null): string {
+  if (value === null || Number.isNaN(value.getTime())) {
+    return '';
   }
   return value.toISOString().slice(0, 10);
 }

@@ -28,7 +28,13 @@ type ManagedColumn =
  * What the creator form submits for create (`name` required) and, partially, for update. The
  * partnership fields are in here like any other: turning `forPartnershipAds` on, setting an
  * activation date or granting an extension are ordinary edits of the creator record, not a separate
- * write path.
+ * write path. So are the three Gratsi "UGC Management" parity columns — `paymentDate` (when TAS
+ * paid the creator), `creatorInfoRequest` (the note sent to the creator asking for details) and
+ * `slackNotified` (the reminder automation's receipt): the type is derived from the schema, so a
+ * column added there travels through `insertCreator` and `updateCreator` with no second list to
+ * keep in step. All three are internal data the client interface never reads (CLAUDE.md
+ * non-negotiable 10); the UGC panel's own action deliberately leaves `slackNotified` out of its
+ * zod shape, because a person ticking a receipt would silence a reminder that was never sent.
  */
 export type CreatorInput = Omit<NewCreator, ManagedColumn>;
 

@@ -1,23 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { PARTNERSHIP_REFERENCE_DATE } from '@tas/db';
+import { CREATOR_INTERNAL_STATUS_KEYS, CREATOR_STATUS_KEYS } from '@tas/domain/state';
 
 import {
+  clientStatusChoices,
   collabDateLabel,
   collabStats,
+  CONTINUE_WORKING_WITH,
+  CONTINUE_WORKING_WITH_UNDECIDED,
+  continueWorkingWithKey,
+  continueWorkingWithValue,
   countdownCellLabel,
   creatorInitials,
   creatorTracks,
+  dateInputValue,
   DEFAULT_TAB,
   expiryRowClassName,
   expiryRowStyle,
   filteredCountLabel,
   identityLine,
+  internalStatusChoices,
+  isContinueWorkingWithKey,
   isoDateLabel,
   matchesQuery,
+  partnershipActivityChip,
   partnershipRow,
   periodLabel,
   creatorCountLabel,
   partnershipCountLabel,
+  statusChoice,
   tabFromParam,
   UGC_TABS,
   type CollabRow,
@@ -104,6 +115,82 @@ describe('creatorTracks', () => {
   });
 });
 
+describe('the status Selects', () => {
+  it('offer the whole domain vocabulary of each track, labels and tones from the domain', () => {
+    expect(internalStatusChoices('approved').map((choice) => choice.key)).toEqual(
+      CREATOR_INTERNAL_STATUS_KEYS,
+    );
+    expect(clientStatusChoices('approved').map((choice) => choice.key)).toEqual(
+      CREATOR_STATUS_KEYS,
+    );
+    expect(statusChoice(internalStatusChoices('approved'), 'approved')).toEqual({
+      key: 'approved',
+      label: 'Approved',
+      tone: 'ok',
+    });
+    expect(statusChoice(clientStatusChoices('due_shipment'), 'due_shipment')).toEqual({
+      key: 'due_shipment',
+      label: 'Due Shipment',
+      tone: 'warn',
+    });
+  });
+
+  it('offer a stored value this build does not know first, in its own words, muted', () => {
+    const choices = clientStatusChoices('shortlisted');
+    expect(choices[0]).toEqual({ key: 'shortlisted', label: 'shortlisted', tone: 'mute' });
+    expect(choices.slice(1).map((choice) => choice.key)).toEqual(CREATOR_STATUS_KEYS);
+    expect(internalStatusChoices('').map((choice) => choice.key)).toEqual(
+      CREATOR_INTERNAL_STATUS_KEYS,
+    );
+  });
+
+  it('chip a key outside the list as itself rather than blank', () => {
+    expect(statusChoice(internalStatusChoices('approved'), 'nonsense')).toEqual({
+      key: 'nonsense',
+      label: 'nonsense',
+      tone: 'mute',
+    });
+  });
+});
+
+describe('partnershipActivityChip', () => {
+  it('reads the stated activity through the domain', () => {
+    expect(partnershipActivityChip('active')).toEqual({
+      key: 'active',
+      label: 'Active',
+      tone: 'ok',
+    });
+    expect(partnershipActivityChip('ended').tone).toBe('bad');
+  });
+
+  it('reads an unset activity as the em dash, never a blank chip', () => {
+    expect(partnershipActivityChip(undefined)).toEqual({ key: '', label: '—', tone: 'mute' });
+    expect(partnershipActivityChip('  ').label).toBe('—');
+  });
+});
+
+describe('Continue Working With?', () => {
+  it('offers the three answers, undecided first', () => {
+    expect(CONTINUE_WORKING_WITH.map((option) => option.label)).toEqual(['Undecided', 'Yes', 'No']);
+    expect(CONTINUE_WORKING_WITH_UNDECIDED).toBe('undecided');
+  });
+
+  it('round-trips the nullable boolean through the Select keys', () => {
+    expect(continueWorkingWithKey(true)).toBe('yes');
+    expect(continueWorkingWithKey(false)).toBe('no');
+    expect(continueWorkingWithKey(null)).toBe('undecided');
+    expect(continueWorkingWithValue('yes')).toBe(true);
+    expect(continueWorkingWithValue('no')).toBe(false);
+    expect(continueWorkingWithValue('undecided')).toBeNull();
+  });
+
+  it('knows its own keys and nothing else', () => {
+    expect(isContinueWorkingWithKey('yes')).toBe(true);
+    expect(isContinueWorkingWithKey('maybe')).toBe(false);
+    expect(continueWorkingWithValue('maybe')).toBeNull();
+  });
+});
+
 describe('isoDateLabel and periodLabel', () => {
   it('writes a date as UTC ISO, so the server and the browser agree', () => {
     expect(isoDateLabel(new Date('2026-07-22T09:00:00.000Z'))).toBe('2026-07-22');
@@ -116,6 +203,18 @@ describe('isoDateLabel and periodLabel', () => {
     expect(periodLabel(60, 30)).toBe('60 + 30 days');
     expect(periodLabel(1, 0)).toBe('1 day');
     expect(periodLabel(null, 0)).toBe('—');
+  });
+});
+
+describe('dateInputValue', () => {
+  it('writes the YYYY-MM-DD a date input accepts, in UTC like the label', () => {
+    expect(dateInputValue(new Date('2026-09-12T00:00:00.000Z'))).toBe('2026-09-12');
+    expect(dateInputValue(new Date('2026-09-12T23:59:59.000Z'))).toBe('2026-09-12');
+  });
+
+  it('is the empty string, never the em dash, for a missing or invalid date', () => {
+    expect(dateInputValue(null)).toBe('');
+    expect(dateInputValue(new Date(Number.NaN))).toBe('');
   });
 });
 

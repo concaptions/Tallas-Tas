@@ -90,6 +90,9 @@ describe('migration 0008 on PGlite', () => {
       partnershipPricePer30Days: null,
       partnershipNotes: null,
       facebookProfileUrl: null,
+      paymentDate: null,
+      creatorInfoRequest: null,
+      slackNotified: false,
     });
   });
 
@@ -328,6 +331,82 @@ describe('the partnership fixtures', () => {
   });
 });
 
+describe('the UGC Management parity columns (Gratsi: Payment Date, Creator Info Request, Slack Notified)', () => {
+  const PAID_ON = new Date('2026-09-12T00:00:00.000Z');
+  const INFO_REQUEST = 'Please send your shipping address and the handle to whitelist.';
+
+  it('are seeded: Danielle carries a payment date and an info request, nobody is Slack-notified yet', async () => {
+    const { db, brandId } = await seeded();
+
+    const danielle = await getCreatorById(db, brandId, demoCreator('Danielle Okonkwo').id);
+
+    expect(danielle).toMatchObject({
+      paymentDate: PAID_ON,
+      creatorInfoRequest: INFO_REQUEST,
+      slackNotified: false,
+    });
+    expect(demoCreators.some((row) => row.slackNotified)).toBe(false);
+  });
+
+  it('travel through insertCreator and read back as a Date, a string and a boolean', async () => {
+    const { db, brandId } = await seeded();
+    const values: CreatorInput = {
+      name: 'Paid creator',
+      paymentDate: PAID_ON,
+      creatorInfoRequest: 'Send the W-9 and the handle to whitelist.',
+      slackNotified: true,
+    };
+
+    const row = await insertCreator(db, brandId, values, 'user_test');
+
+    expect(row).toMatchObject(values);
+    expect(await getCreatorById(db, brandId, row.id)).toMatchObject(values);
+  });
+
+  it('are patched by updateCreator, and clear back to NULL rather than to an empty string', async () => {
+    const { db, brandId } = await seeded();
+    const tomas = demoCreator('Tomás Ferreira');
+    expect(tomas.paymentDate).toBeNull();
+
+    const paid = await updateCreator(
+      db,
+      brandId,
+      tomas.id,
+      { paymentDate: PAID_ON, creatorInfoRequest: 'Confirm your shipping address.' },
+      'user_test',
+    );
+    expect(paid).toMatchObject({
+      paymentDate: PAID_ON,
+      creatorInfoRequest: 'Confirm your shipping address.',
+    });
+
+    const cleared = await updateCreator(
+      db,
+      brandId,
+      tomas.id,
+      { paymentDate: null, creatorInfoRequest: null },
+      'user_test',
+    );
+    expect(cleared).toMatchObject({ paymentDate: null, creatorInfoRequest: null });
+  });
+
+  it('stay inside the brand: another brand’s scope cannot set a payment date on this brand’s row', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = demoCreator('Hannah Whitcombe');
+
+    const escaped = await updateCreator(
+      db,
+      otherBrandId,
+      target.id,
+      { paymentDate: PAID_ON },
+      'thief',
+    );
+
+    expect(escaped).toBeNull();
+    expect((await getCreatorById(db, brandId, target.id))?.paymentDate).toBeNull();
+  });
+});
+
 describe('the creator row type', () => {
   it('is one type for demo fixtures and database rows', async () => {
     const { db, brandId } = await seeded();
@@ -341,5 +420,9 @@ describe('the creator row type', () => {
     expectTypeOf<CreatorInput>().not.toHaveProperty('createdBy');
     expectTypeOf<CreatorInput>().toHaveProperty('forPartnershipAds');
     expectTypeOf<CreatorInput>().toHaveProperty('partnershipPeriodDays');
+    // The Gratsi parity columns are ordinary input and ordinary row fields, no second list.
+    expectTypeOf<CreatorInput>().toHaveProperty('paymentDate');
+    expectTypeOf<CreatorInput>().toHaveProperty('creatorInfoRequest');
+    expectTypeOf<CreatorListRow>().toHaveProperty('slackNotified');
   });
 });

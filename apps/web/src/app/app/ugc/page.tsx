@@ -7,7 +7,7 @@ import {
   partnershipRow,
   tabFromParam,
   type CollabRow,
-  type CreatorCardRow,
+  type CreatorPanelRow,
   type PartnershipRow,
 } from './fields';
 import { UgcWorkspace } from './ugc-workspace';
@@ -22,7 +22,9 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
   );
   const demo = isDemoMode();
 
-  const cards: CreatorCardRow[] = creators.map((row) => ({
+  // `CreatorPanelRow`, not `CreatorCardRow`: the full shape, so a panel column this map forgets is
+  // a type error here rather than an empty control.
+  const cards: CreatorPanelRow[] = creators.map((row) => ({
     id: row.id,
     name: row.name,
     gender: row.gender,
@@ -33,6 +35,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     internalCreatorStatus: row.internalCreatorStatus,
     clientStatus: row.clientStatus,
     internalAssetsStatus: row.internalAssetsStatus,
+    clientNote: row.clientNote,
     rawAssetsUrl: row.rawAssetsUrl,
     conceptIds: row.conceptIds,
     productIds: row.productIds,
@@ -41,8 +44,22 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     shippingLocation: row.shippingLocation,
     trackingNumber: row.trackingNumber,
     internalBrief: row.internalBrief,
+    dateOfManagement: row.dateOfManagement,
+    budgetPer60s: row.budgetPer60s,
+    creatorCost: row.creatorCost,
     costUsd: row.costUsd,
     partnershipPricePer30Days: row.partnershipPricePer30Days,
+    paymentDate: row.paymentDate,
+    creatorInfoRequest: row.creatorInfoRequest,
+    slackNotified: row.slackNotified,
+    instagramUsername: row.instagramUsername,
+    facebookProfileUrl: row.facebookProfileUrl,
+    partnershipActivity: row.partnershipActivity,
+    partnershipActivatedAt: row.partnershipActivatedAt,
+    partnershipPeriodDays: row.partnershipPeriodDays,
+    extensionDays: row.extensionDays,
+    continueWorkingWith: row.continueWorkingWith,
+    partnershipNotes: row.partnershipNotes,
   }));
 
   const rows: PartnershipRow[] = partnerships.map((row) => partnershipRow(row, now));

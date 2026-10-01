@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useCallback, useEffect, useMemo, useState } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -13,11 +13,26 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  StatusChip,
   Textarea,
 } from '@tas/ui';
 
 import { updateCreatorAction, type CreatorActionResult } from './actions';
-import { collabDateLabel, collabStats, type CollabRow, type CreatorCardRow } from './fields';
+import {
+  clientStatusChoices,
+  collabDateLabel,
+  collabStats,
+  CONTINUE_WORKING_WITH,
+  continueWorkingWithKey,
+  dateInputValue,
+  internalStatusChoices,
+  isoDateLabel,
+  partnershipActivityChip,
+  statusChoice,
+  type CollabRow,
+  type CreatorCardRow,
+  type StatusChoice,
+} from './fields';
 
 export interface LinkOption {
   readonly id: string;
@@ -52,6 +67,9 @@ export function CreatorPanel({
   );
 
   const [name, setName] = useState(creator.name);
+  // Controlled, unlike the other Selects, because the chip beside each one follows the choice.
+  const [internalStatus, setInternalStatus] = useState(creator.internalCreatorStatus);
+  const [clientStatus, setClientStatus] = useState(creator.clientStatus);
   const [selectedConceptIds, setSelectedConceptIds] = useState<readonly string[]>(
     creator.conceptIds,
   );
@@ -86,6 +104,15 @@ export function CreatorPanel({
   }, []);
 
   const stats = useMemo(() => collabStats(collabs), [collabs]);
+  const internalChoices = useMemo(
+    () => internalStatusChoices(creator.internalCreatorStatus),
+    [creator.internalCreatorStatus],
+  );
+  const clientChoices = useMemo(
+    () => clientStatusChoices(creator.clientStatus),
+    [creator.clientStatus],
+  );
+  const activity = partnershipActivityChip(creator.partnershipActivity);
 
   const blocked = demo || name.trim() === '';
   const blockedHint = demo ? DEMO_WRITE_HINT : 'Name is required.';
@@ -113,6 +140,97 @@ export function CreatorPanel({
       </div>
     );
   };
+
+  /** Whole USD or whole days: the cost-input pattern, `min=0 step=1`, in `font-mono`. */
+  const numberField = (
+    fieldName: string,
+    label: string,
+    defaultValue: number | null | undefined,
+  ) => {
+    const id = `creator-field-${fieldName}`;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+          {label}
+        </Label>
+        <Input
+          id={id}
+          name={fieldName}
+          type="number"
+          min={0}
+          step={1}
+          readOnly={demo}
+          defaultValue={defaultValue ?? ''}
+          className="font-mono"
+        />
+      </div>
+    );
+  };
+
+  const textareaField = (
+    fieldName: string,
+    label: string,
+    defaultValue: string | null | undefined,
+  ) => {
+    const id = `creator-field-${fieldName}`;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+          {label}
+        </Label>
+        <Textarea
+          id={id}
+          name={fieldName}
+          readOnly={demo}
+          defaultValue={defaultValue ?? ''}
+          className="min-h-24 leading-relaxed"
+        />
+      </div>
+    );
+  };
+
+  /** A status track: the Select over the domain's choices, the `StatusChip` of the current one beside it. */
+  const statusField = (
+    fieldName: string,
+    label: string,
+    value: string,
+    onChange: (next: string) => void,
+    choices: readonly StatusChoice[],
+  ) => {
+    const id = `creator-field-${fieldName}`;
+    const chip = statusChoice(choices, value);
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+          {label}
+        </Label>
+        <div className="flex items-center gap-2">
+          <Select value={value} onValueChange={onChange} name={fieldName} disabled={demo}>
+            <SelectTrigger id={id} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {choices.map((choice) => (
+                <SelectItem key={choice.key} value={choice.key}>
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <StatusChip tone={chip.tone} label={chip.label} />
+        </div>
+      </div>
+    );
+  };
+
+  /** A value the scanner owns: labelled like a field, rendered as text, never posted. */
+  const readOnlyField = (slot: string, label: string, value: ReactNode, hint: string) => (
+    <div className="flex flex-col gap-1.5" data-slot={`creator-field-${slot}`}>
+      <span className="text-[11px] tracking-wide text-text3 uppercase">{label}</span>
+      <div className="flex items-center">{value}</div>
+      <p className="text-xs text-text3">{hint}</p>
+    </div>
+  );
 
   return (
     <aside
@@ -246,6 +364,31 @@ export function CreatorPanel({
                     </SelectContent>
                   </Select>
                 </div>
+                {textField('profilePicUrl', 'Profile Picture', creator.profilePicUrl, {
+                  type: 'url',
+                  mono: true,
+                })}
+                {textField('videoIntroUrl', 'Video Intro', creator.videoIntroUrl, {
+                  type: 'url',
+                  mono: true,
+                })}
+              </div>
+            </section>
+
+            {/* The one track the client interface renders (CLAUDE.md non-negotiable 10), and the note they wrote back. */}
+            <section className="flex flex-col gap-3" data-slot="creator-client-section">
+              <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                Client Review
+              </h3>
+              <div className="flex flex-col gap-4">
+                {statusField(
+                  'clientStatus',
+                  'Client Status',
+                  clientStatus,
+                  setClientStatus,
+                  clientChoices,
+                )}
+                {textareaField('clientNote', "Client's Note", creator.clientNote)}
               </div>
             </section>
 
@@ -266,20 +409,66 @@ export function CreatorPanel({
                   type: 'url',
                   mono: true,
                 })}
+                {textareaField('internalBrief', 'Internal Brief', creator.internalBrief)}
+              </div>
+            </section>
+
+            {/* PRD §5.8.1's whitelisting fields, on the same record. The activity and its activation date are the scanner's. */}
+            <section className="flex flex-col gap-3" data-slot="creator-partnership-section">
+              <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                Partnership Ads
+              </h3>
+              <div className="flex flex-col gap-4">
+                {textField('instagramUsername', 'Instagram Username', creator.instagramUsername, {
+                  mono: true,
+                })}
+                {textField('facebookProfileUrl', 'Facebook Profile', creator.facebookProfileUrl, {
+                  type: 'url',
+                  mono: true,
+                })}
+                {readOnlyField(
+                  'partnershipActivity',
+                  'Partnership Activity',
+                  <StatusChip tone={activity.tone} label={activity.label} />,
+                  'Set by the partnership scanner; read-only here.',
+                )}
+                {readOnlyField(
+                  'partnershipActivatedAt',
+                  'Date of Partnership Activation',
+                  <span className="font-mono text-sm text-text2">
+                    {isoDateLabel(creator.partnershipActivatedAt ?? null)}
+                  </span>,
+                  'Stamped when the whitelisting window opens; read-only here.',
+                )}
+                {numberField(
+                  'partnershipPeriodDays',
+                  'Partnership Time Period (days)',
+                  creator.partnershipPeriodDays,
+                )}
+                {numberField('extensionDays', 'Extension Time Period', creator.extensionDays)}
                 <div className="flex flex-col gap-1.5">
                   <Label
-                    htmlFor="creator-field-internalBrief"
+                    htmlFor="creator-field-continueWorkingWith"
                     className="text-[11px] tracking-wide text-text3 uppercase"
                   >
-                    Internal Brief
+                    Continue Working With?
                   </Label>
-                  <Textarea
-                    id="creator-field-internalBrief"
-                    name="internalBrief"
-                    readOnly={demo}
-                    defaultValue={creator.internalBrief ?? ''}
-                    className="min-h-24 leading-relaxed"
-                  />
+                  <Select
+                    defaultValue={continueWorkingWithKey(creator.continueWorkingWith ?? null)}
+                    name="continueWorkingWith"
+                    disabled={demo}
+                  >
+                    <SelectTrigger id="creator-field-continueWorkingWith" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTINUE_WORKING_WITH.map((option) => (
+                        <SelectItem key={option.key} value={option.key}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </section>
@@ -290,41 +479,71 @@ export function CreatorPanel({
               </h3>
               <p className="text-xs text-text3">Never shown to clients. Whole USD, no cents.</p>
               <div className="flex flex-col gap-4">
+                {/* `creator_cost` (what the creator charges) and `cost_usd` (what TAS paid) are two columns, two fields. */}
+                {numberField('creatorCost', 'Creator Cost (USD)', creator.creatorCost)}
+                {numberField('costUsd', 'Paid by TAS (USD)', creator.costUsd)}
+                {numberField('budgetPer60s', 'Budget per 60sec Video', creator.budgetPer60s)}
+                {numberField(
+                  'partnershipPricePer30Days',
+                  'Partnership Price / 30 Days (USD)',
+                  creator.partnershipPricePer30Days,
+                )}
+                {textField('paymentDate', 'Payment Date', dateInputValue(creator.paymentDate), {
+                  type: 'date',
+                  mono: true,
+                })}
+              </div>
+            </section>
+
+            <section className="flex flex-col gap-3" data-slot="creator-management-section">
+              <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                Management (internal only)
+              </h3>
+              <p className="text-xs text-text3">Never shown to clients.</p>
+              <div className="flex flex-col gap-4">
+                {statusField(
+                  'internalCreatorStatus',
+                  'Internal Status',
+                  internalStatus,
+                  setInternalStatus,
+                  internalChoices,
+                )}
+                {textField(
+                  'dateOfManagement',
+                  'Date of Management',
+                  dateInputValue(creator.dateOfManagement ?? null),
+                  { type: 'date', mono: true },
+                )}
+                {textareaField(
+                  'creatorInfoRequest',
+                  'Creator Info Request',
+                  creator.creatorInfoRequest,
+                )}
+                {textareaField(
+                  'partnershipNotes',
+                  'Notes for Partnership Ads',
+                  creator.partnershipNotes,
+                )}
                 <div className="flex flex-col gap-1.5">
-                  <Label
-                    htmlFor="creator-field-costUsd"
-                    className="text-[11px] tracking-wide text-text3 uppercase"
-                  >
-                    Creator Cost (USD)
-                  </Label>
-                  <Input
-                    id="creator-field-costUsd"
-                    name="costUsd"
-                    type="number"
-                    min={0}
-                    step={1}
-                    readOnly={demo}
-                    defaultValue={creator.costUsd ?? ''}
-                    className="font-mono"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label
-                    htmlFor="creator-field-partnershipPricePer30Days"
-                    className="text-[11px] tracking-wide text-text3 uppercase"
-                  >
-                    Partnership Price / 30 Days (USD)
-                  </Label>
-                  <Input
-                    id="creator-field-partnershipPricePer30Days"
-                    name="partnershipPricePer30Days"
-                    type="number"
-                    min={0}
-                    step={1}
-                    readOnly={demo}
-                    defaultValue={creator.partnershipPricePer30Days ?? ''}
-                    className="font-mono"
-                  />
+                  <div className="flex items-center gap-3" data-slot="creator-field-slackNotified">
+                    <input
+                      id="creator-field-slackNotified"
+                      type="checkbox"
+                      checked={creator.slackNotified}
+                      readOnly
+                      disabled
+                      className="size-4 shrink-0 rounded-input border border-line2 bg-surface2 accent-[var(--accent)] disabled:cursor-not-allowed"
+                    />
+                    <Label
+                      htmlFor="creator-field-slackNotified"
+                      className="text-[11px] tracking-wide text-text3 uppercase"
+                    >
+                      Slack Notified
+                    </Label>
+                  </div>
+                  <p className="text-xs text-text3">
+                    Set by the partnership reminder automation; read-only here.
+                  </p>
                 </div>
               </div>
             </section>
