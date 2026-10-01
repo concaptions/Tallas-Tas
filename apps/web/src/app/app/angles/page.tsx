@@ -1,4 +1,6 @@
 import { loadAngles } from '@/lib/angles-source';
+import { loadBriefs } from '@/lib/briefs-source';
+import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeModules } from '@/lib/creative-modules-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadPersonas } from '@/lib/personas-source';
@@ -7,7 +9,11 @@ import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
 import type { LinkOption } from './angle-panel';
 import { AnglesWorkspace, type AngleItem } from './angles-workspace';
-import { indexCreativeModulesByAngle } from './fields';
+import {
+  indexConceptsByAngle,
+  indexCreativeDesignsByAngle,
+  indexCreativeModulesByAngle,
+} from './fields';
 
 /**
  * Angles (PRD §5.6): the hypothesis a strategist writes from a persona, and the row every concept
@@ -20,16 +26,24 @@ import { indexCreativeModulesByAngle } from './fields';
  * view and either one is shareable. It renders into the shell's `<main>` and owns no frame, padding
  * or background of its own.
  *
- * Four loaders, one per table: the panel's Persona and Product dropdowns are populated here from
+ * Six loaders, one per table: the panel's Persona and Product dropdowns are populated here from
  * `loadPersonas()` and `loadProducts()` and handed down as plain `{ id, name }` data, so the client
  * component never imports `@tas/db` at runtime and the driver stays out of the browser bundle. The
- * four reads are independent, so they run together.
+ * six reads are independent, so they run together.
  *
- * The fourth is `loadCreativeModules()`, the other side of `creative_module_angles`: a module links
- * its angles, and this page shows each angle the modules that link it, read-only. The module rows
- * already carry their `angleIds`, so the inversion is a pure function over them
- * (`indexCreativeModulesByAngle`) and the result crosses to the panel as plain `{ id, label, href }`
- * records. In demo mode the module fixtures carry the same id arrays, so the links render there too.
+ * The other three feed the panel's read-only "Linked work" section, each the far side of a link
+ * another table owns, inverted here by a pure function over rows that already carry the ids:
+ *
+ * - `loadCreativeModules()` for `creative_module_angles` — a module links its angles, and
+ *   `indexCreativeModulesByAngle` lists each angle the modules that link it.
+ * - `loadConcepts()` for `concept_angles` — a concept is paired with its angles, and
+ *   `indexConceptsByAngle` lists each angle its concepts, with their status read on the track
+ *   concepts run on (`CONCEPT_TRACK`, read here because `fields.ts` must stay client-importable).
+ * - `loadBriefs()` for `creative_briefs.angle_id` — `indexCreativeDesignsByAngle` lists each angle
+ *   the briefs that point straight at it.
+ *
+ * Every result crosses to the panel as plain `{ id, label, href, status }` records keyed by angle
+ * id. In demo mode the fixtures carry the same ids, so the links render there too.
  *
  * The relative timestamps are formatted here, once, with a single `now`: a client that formatted
  * them itself would produce a different string from the server's and break hydration. The rows
@@ -40,13 +54,16 @@ interface AnglesPageProps {
 }
 
 export default async function AnglesPage({ searchParams }: AnglesPageProps) {
-  const [{ rows }, personaRows, productRows, creativeModuleRows, params] = await Promise.all([
-    loadAngles(),
-    loadPersonas(),
-    loadProducts(),
-    loadCreativeModules(),
-    searchParams,
-  ]);
+  const [{ rows }, personaRows, productRows, creativeModuleRows, conceptRows, briefRows, params] =
+    await Promise.all([
+      loadAngles(),
+      loadPersonas(),
+      loadProducts(),
+      loadCreativeModules(),
+      loadConcepts(),
+      loadBriefs(),
+      searchParams,
+    ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -59,6 +76,8 @@ export default async function AnglesPage({ searchParams }: AnglesPageProps) {
   const personas: LinkOption[] = personaRows.rows.map(({ id, name }) => ({ id, name }));
   const products: LinkOption[] = productRows.rows.map(({ id, name }) => ({ id, name }));
   const creativeModulesByAngle = indexCreativeModulesByAngle(creativeModuleRows.rows);
+  const conceptsByAngle = indexConceptsByAngle(conceptRows.rows, CONCEPT_TRACK);
+  const creativeDesignsByAngle = indexCreativeDesignsByAngle(briefRows.rows);
 
   const requested = params.angle;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -72,6 +91,8 @@ export default async function AnglesPage({ searchParams }: AnglesPageProps) {
       personas={personas}
       products={products}
       creativeModulesByAngle={creativeModulesByAngle}
+      conceptsByAngle={conceptsByAngle}
+      creativeDesignsByAngle={creativeDesignsByAngle}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

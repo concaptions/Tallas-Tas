@@ -9,6 +9,7 @@ import {
   updateAngle,
   type AngleInput,
 } from '@tas/db';
+import { angleStatuses } from '@tas/db/schema';
 import {
   isAngleFormat,
   validateAngleDraft,
@@ -36,14 +37,16 @@ import { anglesPath } from '@/lib/routes';
  * 4. write through the scoped `@tas/db` functions, which put `brand_id` on every statement;
  * 5. revalidate the page and return a typed result. Neither ever throws to the client.
  *
- * Type, Potential, Winning, Internal Notes and Client Notes exist on the row but are out of scope
- * for this page, so neither action reads or writes them: an update patches only the columns below
- * and leaves the rest of the row exactly as it was.
+ * Type exists on the row but is out of scope for this page (it is set with the Concepts phase), so
+ * neither action reads or writes it: an update patches only the columns below and leaves the rest
+ * of the row exactly as it was. Status (Gratsi's client-approval track) is written as a key of
+ * `angleStatuses`; Potential and Winning (the strategist's own assessment, a different axis) and
+ * the two note columns are written as the panel's Assessment and Notes sections submit them.
  */
 
 /**
- * The fields the panel can show a message under: the four the domain validator knows, plus the four
- * this page writes that carry no rule. Derived from `AngleDraftField` so the two cannot drift.
+ * The fields the panel can show a message under: the four the domain validator knows, plus the
+ * ones this page writes that carry no rule. Derived from `AngleDraftField` so the two cannot drift.
  */
 export type AngleFieldName =
   | AngleDraftField
@@ -52,6 +55,11 @@ export type AngleFieldName =
   | 'description'
   | 'painPoints'
   | 'usp'
+  | 'status'
+  | 'potential'
+  | 'winning'
+  | 'internalNotes'
+  | 'clientNotes'
   | 'briefUrl'
   | 'exactScriptUrl';
 
@@ -95,6 +103,30 @@ const format = z
   .transform((value): AngleFormatKey => value);
 
 /**
+ * The Status select, over the KEYS of `angleStatuses` from `@tas/db/schema` — the same tuple the
+ * panel renders, so the enum cannot drift from the dropdown. The "Not set" option submits an empty
+ * string, stored as NULL because the column is nullable; anything else outside the tuple is a
+ * tampered submission and is rejected, as a format outside its vocabulary is.
+ */
+const status = z
+  .union([z.literal(''), z.enum(angleStatuses.map((entry) => entry.key))], {
+    error: 'That is not one of the angle statuses.',
+  })
+  .transform((value) => (value === '' ? null : value));
+
+/**
+ * The Winning checkbox. The panel's hidden input carries `"true"` or `"false"`; a form with no key
+ * at all reads as not winning, which is the column's default, so a submission that predates the
+ * control still parses. Anything else is a tampered submission and is rejected, as a format outside
+ * its vocabulary is.
+ */
+const flag = z
+  .union([z.literal(''), z.literal('true'), z.literal('false')], {
+    error: 'Winning is either ticked or not.',
+  })
+  .transform((value) => value === 'true');
+
+/**
  * Shape only. Every rule a strategist can break lives in `validateAngleDraft`, so `name` has no
  * `min` here and the link arrays are not checked for `http(s)` — that is step 3.
  */
@@ -105,10 +137,15 @@ const angleSchema = z.object({
   description: text,
   painPoints: text,
   usp: text,
+  status,
+  potential: text,
+  winning: flag,
   formats: z.array(format),
   adInspoLinks: z.array(z.string().trim()),
   briefUrl: text,
   exactScriptUrl: text,
+  internalNotes: text,
+  clientNotes: text,
 });
 
 /** Lift a nullable single id into an array: the form still submits one value per junction. */
@@ -138,10 +175,15 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     description: single('description'),
     painPoints: single('painPoints'),
     usp: single('usp'),
+    status: single('status'),
+    potential: single('potential'),
+    winning: single('winning'),
     formats: many('formats'),
     adInspoLinks: many('adInspoLinks'),
     briefUrl: single('briefUrl'),
     exactScriptUrl: single('exactScriptUrl'),
+    internalNotes: single('internalNotes'),
+    clientNotes: single('clientNotes'),
   };
 }
 
@@ -184,10 +226,15 @@ function toInput(values: AngleFormValues): AngleInput {
     description: values.description,
     painPoints: values.painPoints,
     usp: values.usp,
+    status: values.status,
+    potential: values.potential,
+    winning: values.winning,
     formats: values.formats,
     adInspoLinks: values.adInspoLinks.filter((entry) => entry !== ''),
     briefUrl: values.briefUrl,
     exactScriptUrl: values.exactScriptUrl,
+    internalNotes: values.internalNotes,
+    clientNotes: values.clientNotes,
   };
 }
 

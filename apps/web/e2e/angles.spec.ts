@@ -1,15 +1,16 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { anglesPath, creativeModulesPath } from '../src/lib/routes';
+import { anglesPath, conceptPath, creativeModulesPath } from '../src/lib/routes';
 
 /**
  * The Angles route with no environment variables at all — the Vercel deployment as it stands.
  * The middleware lets the route through, the data source serves the in-repo fixtures, and the page
  * is fully usable read-only: five rows, four columns, a side panel that is not a modal, the open
  * angle in the URL, document links in the Resources group, the creative modules that link the angle
- * (the other side of `creative_module_angles`, from `demoCreativeModules`), and every write control
- * disabled with a reason.
+ * (the other side of `creative_module_angles`, from `demoCreativeModules`), the concepts paired
+ * with it (`concept_angles`, from `demoConcepts`), the briefs that point at it
+ * (`creative_briefs.angle_id`, from `demoBriefs`), and every write control disabled with a reason.
  */
 const BODY_CLOCK = '55555555-5555-4555-8555-000000000001';
 const NOT_YOUR_AGE = '55555555-5555-4555-8555-000000000003';
@@ -19,6 +20,18 @@ const DAYLIGHT = '55555555-5555-4555-8555-000000000004';
 const MODULE_PROBLEM_SOLUTION = '1234abcd-1234-4abc-8abc-000000000001';
 /** "Daylight Proof Demos" links only Daylight. */
 const MODULE_DAYLIGHT_PROOF = '1234abcd-1234-4abc-8abc-000000000002';
+
+/** `demoConcepts`: the one concept paired with the Body Clock angle (`angleIds: [BODY_CLOCK]`). */
+const CONCEPT_BODY_CLOCK = '66666666-6666-4666-8666-000000000001';
+
+/**
+ * What the panel says under "Creative Designs" when no brief's `angle_id` is the angle —
+ * `NO_CREATIVE_DESIGNS_NOTICE` in `angles/fields.ts`, verbatim. Every `demoBriefs` row stores
+ * `angleId: null` (a brief is ordinarily briefed through its concept), so in demo mode every angle
+ * shows it.
+ */
+const NO_CREATIVE_DESIGNS_NOTICE =
+  'No creative design points at this angle yet. Set it from the brief’s own page.';
 
 test.describe('angles in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -191,6 +204,28 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
 
     // Nothing in the section is a form control: read-only means no toggle, no picker, no input.
     await expect(modules.locator('button, input, [role="combobox"]')).toHaveCount(0);
+
+    // "Concepts" is `concept_angles` read from the angle's side: Body Clock is paired with exactly
+    // one fixture concept, listed by its generated Batch-Angle-Theme name as a link to the
+    // concept's own page, with its internal status as the shared chip beside it. The page builds
+    // this list (`indexConceptsByAngle` over `loadConcepts()`), so an empty sentence here would
+    // mean the inversion never reached the panel.
+    const conceptRows = panel.locator('[data-slot="angle-concepts"] [data-slot="angle-concept"]');
+    await expect(conceptRows).toHaveCount(1);
+    await expect(conceptRows.first()).toHaveAttribute('data-record-id', CONCEPT_BODY_CLOCK);
+    await expect(conceptRows.first().locator('a')).toHaveAttribute(
+      'href',
+      conceptPath(CONCEPT_BODY_CLOCK),
+    );
+    await expect(conceptRows.first().locator('a')).toHaveClass(/font-mono/);
+    await expect(conceptRows.first().locator('[data-slot="status-chip"]')).toHaveCount(1);
+
+    // "Creative Designs" is `creative_briefs.angle_id` inverted. No fixture brief points straight
+    // at an angle, so the list is the empty sentence — rendered, not omitted, under its label.
+    const designs = panel.locator('[data-slot="angle-creative-designs"]');
+    await expect(designs).toBeVisible();
+    await expect(designs).toHaveText(NO_CREATIVE_DESIGNS_NOTICE);
+    await expect(designs.locator('[data-slot="angle-creative-design"]')).toHaveCount(0);
 
     // The same module links Not Your Age; Daylight is linked by a different one. The list is the
     // junction read from the angle's side, not a count copied onto the row.

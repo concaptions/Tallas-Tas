@@ -14,11 +14,13 @@ import {
   angleFormats,
   anglePersonas,
   angleProducts,
+  angleStatuses,
   angleTypes,
   angles,
   personas,
   products,
   type Angle,
+  type AngleStatusesKey,
 } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
@@ -298,5 +300,85 @@ describe('angle queries', () => {
     // stay consistent with `demoProducts`.
     expect(rows.filter((row) => row.productIds[0] === demoProducts[0]?.id)).toHaveLength(2);
     expect(demoProducts.map((product) => product.conceptCount)).toEqual([2, 2, 0]);
+  });
+});
+
+describe('angle status (Gratsi "Angles › Status", the client-approval track)', () => {
+  const statusKeys = angleStatuses.map((entry) => entry.key);
+
+  it('is a nullable text column, so an angle Gratsi never put on the track stays blank', async () => {
+    const db = await testDb();
+
+    const { rows } = await db.execute<{ data_type: string; is_nullable: string }>(
+      sql`select data_type, is_nullable from information_schema.columns
+          where table_name = 'angles' and column_name = 'status'`,
+    );
+
+    expect(rows).toEqual([{ data_type: 'text', is_nullable: 'YES' }]);
+  });
+
+  it('seeds every fixture status from the angleStatuses vocabulary and reads it back on the row', async () => {
+    const { db, brandId } = await seeded();
+
+    const rows = await listAngles(db, brandId);
+
+    expect(rows.map((row) => row.status)).toEqual(demoAngles.map((row) => row.status));
+    for (const row of rows) {
+      expect(row.status === null || statusKeys.includes(row.status)).toBe(true);
+    }
+    // The fixtures sit on more than one step of the track, so a chip per key is exercised.
+    expect(new Set(rows.map((row) => row.status)).size).toBeGreaterThan(1);
+  });
+
+  it('round-trips status through insert, update and back to null', async () => {
+    const { db, brandId } = await seeded();
+
+    const created = await insertAngle(
+      db,
+      brandId,
+      { name: 'Sent back once', status: 'needs_revisions' },
+      'user_test',
+    );
+    expect(created.status).toBe('needs_revisions');
+    expect(await getAngleById(db, brandId, created.id)).toMatchObject({
+      status: 'needs_revisions',
+    });
+
+    const approved = await updateAngle(
+      db,
+      brandId,
+      created.id,
+      { status: 'approved' },
+      'user_test',
+    );
+    expect(approved).toMatchObject({ id: created.id, status: 'approved', updatedBy: 'user_test' });
+
+    const cleared = await updateAngle(db, brandId, created.id, { status: null }, 'user_test');
+    expect(cleared).toMatchObject({ id: created.id, status: null });
+    expect(await getAngleById(db, brandId, created.id)).toMatchObject({ status: null });
+  });
+
+  it('defaults to null when a row states no status', async () => {
+    const { db, brandId } = await seeded();
+
+    const row = await insertAngle(db, brandId, { name: 'Not on the track yet' }, 'user_test');
+
+    expect(row.status).toBeNull();
+  });
+
+  it('cannot set the status of another brand’s angle', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = demoAngle();
+
+    const escaped = await updateAngle(db, otherBrandId, target.id, { status: 'approved' }, 'thief');
+
+    expect(escaped).toBeNull();
+    expect(await getAngleById(db, brandId, target.id)).toMatchObject({ status: target.status });
+  });
+
+  it('types status as a key of the vocabulary, or null, on both the input and the row', () => {
+    expectTypeOf<AngleInput>().toHaveProperty('status');
+    expectTypeOf<AngleInput['status']>().toEqualTypeOf<AngleStatusesKey | null | undefined>();
+    expectTypeOf<AngleListRow['status']>().toEqualTypeOf<AngleStatusesKey | null>();
   });
 });

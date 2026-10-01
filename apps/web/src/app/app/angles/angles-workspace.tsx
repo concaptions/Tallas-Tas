@@ -45,9 +45,10 @@ import {
  *
  * Five columns and no sort: `loadAngles()` already returns the rows newest edit first.
  *
- * `creativeModulesByAngle` is the page's inversion of `creative_module_angles`, keyed by angle id;
- * the workspace only picks the open angle's list out of it for the panel. An angle with no entry
- * has no linked module, and the panel says so.
+ * `creativeModulesByAngle`, `conceptsByAngle` and `creativeDesignsByAngle` are the page's
+ * inversions of `creative_module_angles`, `concept_angles` and `creative_briefs.angle_id`, each
+ * keyed by angle id; the workspace only picks the open angle's list out of each for the panel. An
+ * angle with no entry has nothing linked there, and the panel says so.
  */
 export interface AngleItem {
   readonly angle: AngleListRow;
@@ -55,14 +56,24 @@ export interface AngleItem {
   readonly updatedTitle: string;
 }
 
+/** One of the page's inversions: `angleId -> [record, …]`, as it crosses the prop boundary. */
+type LinkedIndex = Readonly<Record<string, readonly LinkedRecord[]>>;
+
 /** No linked records: one frozen empty list, so an absent key never allocates per render. */
 const NO_RECORDS: readonly LinkedRecord[] = [];
+
+/** The open angle's rows in one inversion, or the frozen empty list when nothing links it. */
+function linkedTo(index: LinkedIndex, angle: AngleListRow | null): readonly LinkedRecord[] {
+  return angle === null ? NO_RECORDS : (index[angle.id] ?? NO_RECORDS);
+}
 
 interface AnglesWorkspaceProps {
   readonly items: readonly AngleItem[];
   readonly personas: readonly LinkOption[];
   readonly products: readonly LinkOption[];
-  readonly creativeModulesByAngle: Readonly<Record<string, readonly LinkedRecord[]>>;
+  readonly creativeModulesByAngle: LinkedIndex;
+  readonly conceptsByAngle: LinkedIndex;
+  readonly creativeDesignsByAngle: LinkedIndex;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -101,6 +112,8 @@ export function AnglesWorkspace({
   personas,
   products,
   creativeModulesByAngle,
+  conceptsByAngle,
+  creativeDesignsByAngle,
   demo,
   initialSelection,
   initialSearch,
@@ -149,8 +162,9 @@ export function AnglesWorkspace({
 
   const open = items.find((item) => item.angle.id === selection)?.angle ?? null;
   const creating = selection === NEW_ANGLE;
-  const openCreativeModules =
-    open === null ? NO_RECORDS : (creativeModulesByAngle[open.id] ?? NO_RECORDS);
+  const openCreativeModules = linkedTo(creativeModulesByAngle, open);
+  const openConcepts = linkedTo(conceptsByAngle, open);
+  const openCreativeDesigns = linkedTo(creativeDesignsByAngle, open);
 
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
     return visible.map(({ angle }) => ({
@@ -366,6 +380,8 @@ export function AnglesWorkspace({
           personas={personas}
           products={products}
           creativeModules={openCreativeModules}
+          concepts={openConcepts}
+          creativeDesigns={openCreativeDesigns}
           demo={demo}
           onClose={close}
           onSaved={saved}

@@ -17,7 +17,12 @@ import { withBrand, type BrandScope } from './tenancy';
 type ManagedColumn =
   'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'deletedAt';
 
-/** What the panel submits for create (`name` required) and, partially, for update. */
+/**
+ * What the panel submits for create (`name` required) and, partially, for update. Derived from the
+ * table, so every writable column rides through — including `status`, Gratsi's client-approval
+ * track (a key of `angleStatuses`, or null: the column is nullable), which `listAngles` and
+ * `getAngleById` read back on the row. `angles.test.ts` pins the round trip.
+ */
 export type AngleInput = Omit<NewAngle, ManagedColumn>;
 
 /**
