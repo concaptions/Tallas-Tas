@@ -96,7 +96,7 @@ export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 export const NEW_CONCEPT = 'new';
 
 /** The two ways the list renders the same rows. Table is first because it is the default. */
-export const CONCEPT_VIEWS = ['table', 'board'] as const;
+export const CONCEPT_VIEWS = ['table', 'board', 'gallery'] as const;
 
 export type ConceptView = (typeof CONCEPT_VIEWS)[number];
 
@@ -109,6 +109,7 @@ export interface ConceptViewOption {
 export const CONCEPT_VIEW_OPTIONS: readonly ConceptViewOption[] = [
   { value: 'table', label: 'Table' },
   { value: 'board', label: 'Board' },
+  { value: 'gallery', label: 'Gallery' },
 ];
 
 /** The URL parameter the view lives in, so nothing re-types the key. */
@@ -356,7 +357,10 @@ export interface ConceptFieldGroup {
 export const CONCEPT_GROUPS: readonly ConceptFieldGroup[] = [
   { heading: 'Pairing', note: 'One angle, one theme. Together they name the concept.' },
   { heading: 'Inherited', note: 'Read-only. These come from the angle and change when it does.' },
-  { heading: 'Brief', note: 'What the editor reads: how it is made, and what goes in it.' },
+  {
+    heading: 'Concept details',
+    note: 'What the editor reads: how it is made, and what goes in it.',
+  },
 ];
 
 /** Just the headings, for the page's section list and for the E2E assertion. */

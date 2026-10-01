@@ -52,8 +52,8 @@ describe('conceptViewFromParam', () => {
     },
   );
 
-  it('offers exactly the two views, table first', () => {
-    expect(CONCEPT_VIEWS).toEqual(['table', 'board']);
+  it('offers exactly the three views, table first', () => {
+    expect(CONCEPT_VIEWS).toEqual(['table', 'board', 'gallery']);
   });
 });
 
@@ -191,7 +191,7 @@ describe('the page contract', () => {
   });
 
   it('names the three blocks of the detail page in order', () => {
-    expect(CONCEPT_GROUP_HEADINGS).toEqual(['Pairing', 'Inherited', 'Brief']);
+    expect(CONCEPT_GROUP_HEADINGS).toEqual(['Pairing', 'Inherited', 'Concept details']);
   });
 });
 

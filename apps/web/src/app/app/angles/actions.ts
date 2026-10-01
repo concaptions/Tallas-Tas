@@ -85,13 +85,6 @@ const text = z
   .transform((value) => (value === '' ? null : value))
   .nullable();
 
-/** A nullable link column: the `<select>`'s "None" option submits an empty string. */
-const link = z
-  .string()
-  .trim()
-  .transform((value) => (value === '' ? null : value))
-  .nullable();
-
 /**
  * One checked format. The vocabulary is `isAngleFormat` from `@tas/domain/angles` (which is the
  * `angleFormats` pg enum tuple), never a literal written here: a value outside it is a tampered
@@ -130,10 +123,13 @@ const flag = z
  * Shape only. Every rule a strategist can break lives in `validateAngleDraft`, so `name` has no
  * `min` here and the link arrays are not checked for `http(s)` — that is step 3.
  */
+/** A link field posts one hidden input per linked id (the LinkField); blanks are dropped. */
+const links = z.array(z.string().trim()).transform((ids) => ids.filter((id) => id !== ''));
+
 const angleSchema = z.object({
   name: z.string().trim(),
-  personaId: link,
-  productId: link,
+  personaId: links,
+  productId: links,
   description: text,
   painPoints: text,
   usp: text,
@@ -147,11 +143,6 @@ const angleSchema = z.object({
   internalNotes: text,
   clientNotes: text,
 });
-
-/** Lift a nullable single id into an array: the form still submits one value per junction. */
-function idsOf(value: string | null): string[] {
-  return value === null ? [] : [value];
-}
 
 type AngleFormValues = z.infer<typeof angleSchema>;
 
@@ -170,8 +161,8 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
 
   return {
     name: single('name'),
-    personaId: single('personaId'),
-    productId: single('productId'),
+    personaId: many('personaId'),
+    productId: many('productId'),
     description: single('description'),
     painPoints: single('painPoints'),
     usp: single('usp'),
@@ -253,8 +244,8 @@ function parse(
     return failureFrom(parsed.error);
   }
 
-  const personaIds = idsOf(parsed.data.personaId);
-  const productIds = idsOf(parsed.data.productId);
+  const personaIds = parsed.data.personaId;
+  const productIds = parsed.data.productId;
 
   const draft = validateAngleDraft({
     name: parsed.data.name,

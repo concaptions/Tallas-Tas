@@ -666,3 +666,45 @@ schema, the importer and the actions, but the list grid, the form and the detail
 show it (client direction, Prompt C): the two-track Internal / Client statuses are the ones the
 team works from, and a third status column on the same row was being read as a contradiction.
 No migration; the column can return by rendering it again.
+
+## 2026-10-01 — Per-user views live in their own table; demo mode keeps them in the browser (VIEWS-01)
+
+`user_table_views` (migration 0040) stores one row per saved view: Clerk `user_id` + `table_key`,
+the view type, `visible_fields` / `field_order` / `frozen_fields` / `sort` as jsonb and the search
+`filter`, with `is_active` marking the one the user last chose. Not an extension of
+`user_view_preferences` (which is one row per user+brand+table holding only the view type): a
+person keeps SEVERAL named views of one table, and a view is a lens rather than a per-brand
+setting, so `brand_id` stays null. The user id is the tenancy edge: every statement in
+`packages/db/src/user-table-views.ts` carries it, the way a branded read carries `brand_id`.
+
+In demo mode (no Clerk) there is no user to key on, so `useTableView` keeps the same state in the
+visitor's `localStorage` under the table key. It is a convenience store for the demo deployment
+only; the Playwright spec treats a second browser context as a second user there.
+
+Jsonb for the config columns on purpose: a new view option (a grouping, a row height) is a code
+change in `@tas/domain/views/user-views.ts`, not a migration; `parseUserViewConfig` narrows a
+stored row on the way out so an old row never crashes a page.
+
+## 2026-10-01 — Showcase videos reuse `assets`, linked by `creator_id` (VIEWS-04)
+
+A creator's showcase videos are `assets` rows with `category = 'showcase_video'` and a nullable
+`creator_id` (migration 0041), uploaded through the shared `uploadToR2` and `insertAsset` the Assets
+page uses. No second media table: one bucket, one row shape, one re-hosting script. The upload is a
+Server Action taking the file in `FormData` (video MIME only, 250 MB cap); it is refused in demo
+mode, without a session, and when the R2 credentials are absent, each with its own message.
+
+## 2026-10-01 — One LinkField and one junction per link, written from either side (LINK-01)
+
+Every link between two of the six core tables is exactly one junction table, and both records edit
+it with the same `LinkField`: a concept's creators and a creator's concepts are the same
+`creator_concepts` rows, and so on for `concept_angles`, `angle_products` and `angle_personas`.
+The link kinds are a pure registry in `@tas/domain/links` (which side of which junction a field
+reads); `@tas/db`'s `syncLinks` takes that spec as plain strings so the data package still does
+not depend on the domain package; `setLinksAction` is the one Server Action, and it proves the
+source row is in the actor's brand through the scoped getter before writing, because junction
+tables carry no `brand_id`. Nothing is copied onto a record: the inherited Persona / Product rows on
+a concept are read through the angle's junctions at render time.
+
+The Angle and Concept forms post one hidden input per linked id (`personaId`, `productId`,
+`angleId`, `creatorId` read with `getAll`), so a Save re-syncs the same set the field already wrote
+and can never narrow a multi-link back to one.

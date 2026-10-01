@@ -142,15 +142,23 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
 
     const panel = page.locator('[data-slot="angle-panel"]');
 
-    // Both links are Select triggers (a combobox), not inputs a strategist can type into.
+    // Both links are the shared two-way LinkField (Sprint 9): the linked records as chips, never
+    // an input a strategist can type into, and the add control disabled in demo mode.
     const persona = panel.locator('[data-slot="angle-personaId"]');
-    await expect(persona).toHaveAttribute('role', 'combobox');
-    await expect(persona).toBeDisabled();
+    await expect(persona.locator('[data-slot="angle-personaId-chip"]')).toHaveCount(1);
     await expect(persona).toContainText('Marcus');
+    await expect(persona.locator('[data-slot="angle-personaId-add"]')).toBeDisabled();
+    await expect(persona.locator('input:not([type="hidden"])')).toHaveCount(0);
+    await expect(persona.locator('input[type="hidden"][name="personaId"]')).toHaveCount(1);
 
     const product = panel.locator('[data-slot="angle-productId"]');
-    await expect(product).toHaveAttribute('role', 'combobox');
-    await expect(product).toBeDisabled();
+    await expect(product.locator('[data-slot="angle-productId-add"]')).toBeDisabled();
+    await expect(product.locator('input:not([type="hidden"])')).toHaveCount(0);
+
+    // The other side of concept_angles, read-only here in demo mode: the Body Clock concept.
+    await expect(
+      panel.locator('[data-slot="angle-concept-links"] [data-slot="angle-concept-links-chip"]'),
+    ).toHaveCount(1);
 
     // Talal feedback B+C: the format toggles left the panel; the stored formats still ride along
     // as hidden form inputs so a save round-trips them unchanged.

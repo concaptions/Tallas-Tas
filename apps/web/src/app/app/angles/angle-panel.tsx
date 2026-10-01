@@ -21,6 +21,8 @@ import {
   Textarea,
 } from '@tas/ui';
 
+import { LinkField } from '@/components/links/link-field';
+
 import { createAngleAction, updateAngleAction, type AngleActionResult } from './actions';
 import {
   AD_INSPO_LABEL,
@@ -39,7 +41,6 @@ import {
   NO_AD_INSPO_NOTICE,
   NO_CONCEPTS_NOTICE,
   NO_CREATIVE_DESIGNS_NOTICE,
-  NONE_OPTION_LABEL,
   NONE_VALUE,
   NOT_SET,
   NOTES_HEADING,
@@ -69,6 +70,10 @@ interface AnglePanelProps {
   readonly angle: AngleListRow | null;
   readonly personas: readonly LinkOption[];
   readonly products: readonly LinkOption[];
+  /** The brand's concepts, for the two-way Concepts field (`concept_angles`, LINK-01). */
+  readonly conceptOptions?: readonly LinkOption[];
+  /** The concept ids linked to the angle today, from the same junction the concept page writes. */
+  readonly conceptIds?: readonly string[];
   /** The creative modules that link this angle (`creative_module_angles`), read-only. */
   readonly creativeModules: readonly LinkedRecord[];
   /**
@@ -226,6 +231,8 @@ export function AnglePanel({
   angle,
   personas,
   products,
+  conceptOptions = [],
+  conceptIds = [],
   creativeModules,
   concepts,
   creativeDesigns,
@@ -241,8 +248,8 @@ export function AnglePanel({
   );
 
   const [name, setName] = useState(valueOf(angle, 'name'));
-  const [personaId, setPersonaId] = useState(angle?.personaIds[0] ?? NONE_VALUE);
-  const [productId, setProductId] = useState(angle?.productIds[0] ?? NONE_VALUE);
+  const [personaIds, setPersonaIds] = useState<readonly string[]>(angle?.personaIds ?? []);
+  const [productIds, setProductIds] = useState<readonly string[]>(angle?.productIds ?? []);
   const [status, setStatus] = useState<string>(angle?.status ?? NONE_VALUE);
   const [formats, setFormats] = useState<readonly string[]>(angle?.formats ?? []);
   const [links, setLinks] = useState<readonly string[]>(() => linkRowsOf(angle));
@@ -272,11 +279,11 @@ export function AnglePanel({
     () =>
       validateAngleDraft({
         name,
-        personaIds: personaId === NONE_VALUE ? [] : [personaId],
+        personaIds,
         formats,
         adInspoLinks: links,
       }),
-    [name, personaId, formats, links],
+    [name, personaIds, formats, links],
   );
 
   /** A toggled set stays in the vocabulary's order, whatever order the clicks came in. */
@@ -351,55 +358,6 @@ export function AnglePanel({
             defaultValue={valueOf(angle, field.name)}
             className="min-h-24 leading-relaxed"
           />
-        )}
-        {error === undefined ? null : <p className="text-xs text-bad">{error}</p>}
-      </div>
-    );
-  };
-
-  const renderDropdown = (
-    field: 'personaId' | 'productId',
-    label: string,
-    options: readonly LinkOption[],
-    value: string,
-    set: (next: string) => void,
-  ) => {
-    const id = `angle-field-${field}`;
-    const error = fieldError(field);
-
-    return (
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
-          {label}
-        </Label>
-        <Select
-          value={value === NONE_VALUE ? undefined : value}
-          onValueChange={set}
-          disabled={demo}
-        >
-          <SelectTrigger id={id} className="w-full" aria-label={label} data-slot={`angle-${field}`}>
-            <SelectValue placeholder={NONE_OPTION_LABEL} />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
-                {option.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* The stored value, including the "None" case: an empty string, which the action writes as NULL. */}
-        <input type="hidden" name={field} value={value} />
-        {value === NONE_VALUE || demo ? null : (
-          <button
-            type="button"
-            onClick={() => {
-              set(NONE_VALUE);
-            }}
-            className="self-start rounded-input text-xs text-text3 underline-offset-2 hover:text-text2 hover:underline"
-          >
-            Clear {label.toLowerCase()}
-          </button>
         )}
         {error === undefined ? null : <p className="text-xs text-bad">{error}</p>}
       </div>
@@ -662,10 +620,49 @@ export function AnglePanel({
 
                   {group.heading === 'Targeting' ? (
                     <>
+                      {/* The same LinkField the persona and product panels mount for their angles
+                          (LINK-01): one junction row per pair, written on the spot for a saved angle,
+                          posted as hidden inputs so the Save re-syncs the same set. */}
                       <div className="grid gap-4 sm:grid-cols-2">
-                        {renderDropdown('personaId', 'Persona', personas, personaId, setPersonaId)}
-                        {renderDropdown('productId', 'Product', products, productId, setProductId)}
+                        <LinkField
+                          link="angle-personas"
+                          sourceId={angle?.id ?? null}
+                          options={personas}
+                          selectedIds={personaIds}
+                          onChange={setPersonaIds}
+                          inputName="personaId"
+                          label="Persona"
+                          demo={demo}
+                          error={fieldError('personaId')}
+                          slot="angle-personaId"
+                          empty="No persona yet. Pick who this angle is written for."
+                        />
+                        <LinkField
+                          link="angle-products"
+                          sourceId={angle?.id ?? null}
+                          options={products}
+                          selectedIds={productIds}
+                          onChange={setProductIds}
+                          inputName="productId"
+                          label="Product"
+                          demo={demo}
+                          error={fieldError('productId')}
+                          slot="angle-productId"
+                          empty="No product yet. Pick what this angle sells."
+                        />
                       </div>
+                      {angle === null ? null : (
+                        <LinkField
+                          link="angle-concepts"
+                          sourceId={angle.id}
+                          options={conceptOptions}
+                          selectedIds={conceptIds}
+                          label="Concepts"
+                          demo={demo}
+                          slot="angle-concept-links"
+                          empty="No concept is built on this angle yet. Link one here or from the concept's page."
+                        />
+                      )}
 
                       {renderFormats()}
 

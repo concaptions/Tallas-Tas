@@ -1,7 +1,9 @@
 import { PRODUCT_CSV_COLUMNS } from '@tas/db';
 
+import { loadAngles } from '@/lib/angles-source';
 import { loadBriefs } from '@/lib/briefs-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUserViews } from '@/lib/user-view-actions';
 import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
 import { loadProducts } from '@/lib/products-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
@@ -53,6 +55,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     { rows: youtubeCopyRows },
     { rows: briefRows },
     { rows: creatorRows },
+    { rows: angleRows },
     params,
   ] = await Promise.all([
     loadProducts(),
@@ -60,9 +63,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     loadYoutubeCopyWorkspace(),
     loadBriefs(),
     loadCreators(),
+    loadAngles(),
     searchParams,
   ]);
   const demo = isDemoMode();
+  const userViews = await loadUserViews('products');
   const now = new Date();
 
   const items: ProductItem[] = rows.map((product) => ({
@@ -75,7 +80,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     youtubeCopy: youtubeCopyLinks(product.id, youtubeCopyRows),
     creativeDesigns: creativeDesignLinks(product.id, briefRows),
     creators: creatorLinks(product.id, creatorRows),
+    // The angle side of `angle_products`, read from the angle rows' own ids (LINK-01).
+    angleIds: angleRows
+      .filter((angle) => angle.productIds.includes(product.id))
+      .map((angle) => angle.id),
   }));
+  const angleOptions = angleRows.map(({ id, name }) => ({ id, name }));
 
   const requested = params.product;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -90,6 +100,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       initialSelection={selection}
       initialSearch={initialSearch}
       templateColumns={[...PRODUCT_CSV_COLUMNS]}
+      userViews={userViews}
+      angleOptions={angleOptions}
     />
   );
 }

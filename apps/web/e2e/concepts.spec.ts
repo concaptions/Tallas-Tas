@@ -112,23 +112,20 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
         .locator('[data-slot="concept-column-empty"]'),
     ).toBeVisible();
 
-    // The toggle is two controls and neither is a pill.
-    const toggle = page.locator('[data-slot="concepts-view-toggle"]');
-    const options = toggle.locator('[data-slot="concepts-view-option"]');
-    await expect(options).toHaveCount(2);
-    for (let index = 0; index < 2; index += 1) {
+    // The view switch is the shared toolbar (Sprint 8): Grid / Kanban / Gallery, no pill controls.
+    const options = page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]');
+    await expect(options).toHaveText(['Grid', 'Kanban', 'Gallery']);
+    for (let index = 0; index < 3; index += 1) {
       expect(await options.nth(index).getAttribute('class')).not.toContain('rounded-full');
     }
 
-    // Back to the table: the parameter is removed rather than written as ?view=table.
-    await options.filter({ hasText: 'Table' }).click();
+    // Switching back writes a clean URL (the default is not written), then the board again.
+    await options.filter({ hasText: 'Grid' }).click();
     await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
 
-    // And to the board: the parameter is written, so a reload restores it.
-    await options.filter({ hasText: 'Board' }).click();
+    await options.filter({ hasText: 'Kanban' }).click();
     await expect(page).toHaveURL(/\?view=board$/);
-    await page.reload();
     await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
   });
 

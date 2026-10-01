@@ -11,8 +11,17 @@ import {
 } from '@tas/domain';
 import { Button, DEMO_WRITE_HINT, disabledWriteClassName, DisabledWrite, Input } from '@tas/ui';
 
-import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
+import {
+  KanbanBoard,
+  type KanbanItem,
+  useTableView,
+  ViewToolbar,
+  GalleryView,
+  galleryItemsFrom,
+} from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import type { UserViewConfig } from '@tas/domain';
+import type { UserViewsResult } from '@/lib/user-view-actions';
 import {
   BoolCell,
   ChipCell,
@@ -77,6 +86,8 @@ interface AnglesWorkspaceProps {
   readonly items: readonly AngleItem[];
   readonly personas: readonly LinkOption[];
   readonly products: readonly LinkOption[];
+  /** The brand's concepts, for the panel's two-way Concepts field (LINK-01). */
+  readonly conceptOptions?: readonly LinkOption[];
   readonly creativeModulesByAngle: LinkedIndex;
   readonly conceptsByAngle: LinkedIndex;
   readonly creativeDesignsByAngle: LinkedIndex;
@@ -84,6 +95,8 @@ interface AnglesWorkspaceProps {
   readonly initialSelection: string | null;
   readonly initialSearch: string;
   readonly initialView?: ViewType;
+  /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
+  readonly userViews: UserViewsResult;
 }
 
 // Safe: 'angles' is always in TABLE_VIEW_CAPABILITIES
@@ -261,10 +274,15 @@ const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
   },
 ];
 
+/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
+const FIELD_KEYS: readonly string[] = ANGLE_COLUMNS.map((column) => column.key);
+const FIELD_OPTIONS = ANGLE_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+
 export function AnglesWorkspace({
   items,
   personas,
   products,
+  conceptOptions = [],
   creativeModulesByAngle,
   conceptsByAngle,
   creativeDesignsByAngle,
@@ -272,11 +290,11 @@ export function AnglesWorkspace({
   initialSelection,
   initialSearch,
   initialView = 'grid',
+  userViews,
 }: AnglesWorkspaceProps) {
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
-  const [activeView, setActiveView] = useState<ViewType>(initialView);
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -287,6 +305,32 @@ export function AnglesWorkspace({
     setSearch(next);
     syncUrl('q', next);
   }, []);
+
+  const adoptView = useCallback(
+    (config: UserViewConfig) => {
+      filter(config.filter);
+    },
+    [filter],
+  );
+
+  const tableView = useTableView({
+    tableKey: 'angles',
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: 'grid',
+    initialViewType: initialView,
+    fieldKeys: FIELD_KEYS,
+    onActivate: adoptView,
+  });
+  const activeView = tableView.viewType;
+  const setActiveView = tableView.setViewType;
+  const onSearch = useCallback(
+    (next: string) => {
+      filter(next);
+      tableView.setFilter(next);
+    },
+    [filter, tableView],
+  );
 
   const close = useCallback(() => {
     select(null);
@@ -342,6 +386,16 @@ export function AnglesWorkspace({
     // Kanban drag for angles will be wired to updateAngleAction in a follow-up
   }, []);
 
+  const galleryItems = useMemo(
+    () =>
+      galleryItemsFrom(visible, ANGLE_COLUMNS, (item) => ({
+        id: item.angle.id,
+        name: item.angle.name,
+        subtitle: item.angle.personaName ?? undefined,
+      })),
+    [visible],
+  );
+
   const newAngle = (
     <Button
       size="sm"
@@ -382,19 +436,29 @@ export function AnglesWorkspace({
             <h2 id="angles-heading" className="text-sm font-medium text-text2">
               Library
             </h2>
-            <ViewSwitcher
+            <ViewToolbar
               tableKey="angles"
               supportedViews={[...ANGLES_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
               kanbanGroupByField="potential"
+              views={tableView.views}
+              activeViewId={tableView.activeView?.id ?? null}
+              onActivateView={tableView.activateView}
+              onCreateView={tableView.createView}
+              onRenameView={tableView.renameView}
+              onDeleteView={tableView.deleteView}
+              fields={FIELD_OPTIONS}
+              isFieldVisible={tableView.isFieldVisible}
+              onToggleField={tableView.toggleField}
+              error={tableView.error}
             />
           </div>
           <Input
             type="search"
             value={search}
             onChange={(event) => {
-              filter(event.target.value);
+              onSearch(event.target.value);
             }}
             placeholder="Search angle, persona or product"
             aria-label="Search angles by name, persona or product"
@@ -411,9 +475,21 @@ export function AnglesWorkspace({
             onMove={handleKanbanMove}
             demo={demo}
           />
+        ) : activeView === 'gallery' ? (
+          <GalleryView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            cardSlot="angle-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
         ) : (
           <AirtableGrid
             tableKey="angles"
+            view={tableView.config}
+            onSortChange={tableView.setSort}
             columns={ANGLE_COLUMNS}
             rows={visible}
             rowId={(item) => item.angle.id}
@@ -474,6 +550,8 @@ export function AnglesWorkspace({
           angle={creating ? null : open}
           personas={personas}
           products={products}
+          conceptOptions={conceptOptions}
+          conceptIds={openConcepts.map((record) => record.id)}
           creativeModules={openCreativeModules}
           concepts={openConcepts}
           creativeDesigns={openCreativeDesigns}

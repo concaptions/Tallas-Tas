@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CreativeTrack } from '@tas/domain/state';
+import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -13,7 +14,10 @@ import {
 } from '@tas/ui';
 
 import { conceptPath } from '@/lib/routes';
+import { GalleryView, galleryItemsFrom, useTableView, ViewToolbar } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import type { UserViewConfig } from '@tas/domain';
+import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
 
 import { ConceptBoard } from './concept-board';
@@ -31,7 +35,6 @@ import {
   type ConceptItem,
   type ConceptView,
 } from './fields';
-import { ViewToggle } from './view-toggle';
 
 /**
  * The Concepts list: one set of rows, two ways of reading it (PRD §5.7, ticket criteria 2–5).
@@ -67,6 +70,25 @@ interface ConceptsWorkspaceProps {
   readonly initialView: ConceptView;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
   readonly initialSearch: string;
+  /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
+  readonly userViews: UserViewsResult;
+}
+
+// Safe: 'concepts' is always in TABLE_VIEW_CAPABILITIES
+const CONCEPTS_CAP = getTableCapability('concepts') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
+
+/** `?view=` ↔ the view switcher: the URL keeps its `table` / `board` words (shared links still work). */
+const VIEW_TYPE_OF: Record<ConceptView, ViewType> = {
+  table: 'grid',
+  board: 'kanban',
+  gallery: 'gallery',
+};
+function conceptViewOf(viewType: ViewType): ConceptView {
+  if (viewType === 'kanban') return 'board';
+  if (viewType === 'gallery') return 'gallery';
+  return 'table';
 }
 
 /**
@@ -228,37 +250,71 @@ const CONCEPT_GRID_COLUMNS: readonly GridColumn<ConceptItem>[] = [
   },
 ];
 
+/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
+const FIELD_KEYS: readonly string[] = CONCEPT_GRID_COLUMNS.map((column) => column.key);
+const FIELD_OPTIONS = CONCEPT_GRID_COLUMNS.map((column) => ({
+  key: column.key,
+  label: column.header,
+}));
+
 export function ConceptsWorkspace({
   items,
   track,
   demo,
   initialView,
   initialSearch,
+  userViews,
 }: ConceptsWorkspaceProps) {
   const router = useRouter();
-  const [view, setView] = useState<ConceptView>(initialView);
   const [search, setSearch] = useState(initialSearch);
+  const viewRef = useRef<ConceptView>(initialView);
 
-  const pickView = useCallback(
-    (next: ConceptView) => {
-      setView(next);
-      syncUrl(next, search);
+  const filter = useCallback((next: string) => {
+    setSearch(next);
+    syncUrl(viewRef.current, next);
+  }, []);
+
+  const adoptView = useCallback(
+    (config: UserViewConfig) => {
+      viewRef.current = conceptViewOf(config.viewType);
+      filter(config.filter);
     },
-    [search],
+    [filter],
   );
 
-  const filter = useCallback(
-    (next: string) => {
-      setSearch(next);
-      syncUrl(view, next);
+  const tableView = useTableView({
+    tableKey: 'concepts',
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: 'grid',
+    initialViewType: VIEW_TYPE_OF[initialView],
+    fieldKeys: FIELD_KEYS,
+    onActivate: adoptView,
+  });
+  const activeView = tableView.viewType;
+  const view = conceptViewOf(activeView);
+  viewRef.current = view;
+
+  const setActiveView = useCallback(
+    (next: ViewType) => {
+      tableView.setViewType(next);
+      viewRef.current = conceptViewOf(next);
+      syncUrl(conceptViewOf(next), search);
     },
-    [view],
+    [search, tableView],
+  );
+
+  const onSearch = useCallback(
+    (next: string) => {
+      filter(next);
+      tableView.setFilter(next);
+    },
+    [filter, tableView],
   );
 
   const clearSearch = useCallback(() => {
-    setSearch('');
-    syncUrl(view, '');
-  }, [view]);
+    onSearch('');
+  }, [onSearch]);
 
   const open = useCallback(
     (item: ConceptItem) => {
@@ -280,6 +336,16 @@ export function ConceptsWorkspace({
   const narrowed = visible.length !== items.length;
 
   const columns = useMemo(() => conceptColumns(track, visible), [track, visible]);
+
+  const galleryItems = useMemo(
+    () =>
+      galleryItemsFrom(visible, CONCEPT_GRID_COLUMNS, (item) => ({
+        id: item.id,
+        name: item.name,
+        subtitle: item.themeName ?? undefined,
+      })),
+    [visible],
+  );
 
   const newConcept = (
     <Button
@@ -323,14 +389,30 @@ export function ConceptsWorkspace({
               type="search"
               value={search}
               onChange={(event) => {
-                filter(event.target.value);
+                onSearch(event.target.value);
               }}
               placeholder="Search concepts"
               aria-label="Search concepts by name, batch, angle, theme or status"
               data-slot="concept-search"
               className="h-8 w-full sm:w-64"
             />
-            <ViewToggle view={view} onChange={pickView} />
+            <ViewToolbar
+              tableKey="concepts"
+              supportedViews={[...CONCEPTS_CAP.supportedViews]}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              kanbanGroupByField="internalStatus"
+              views={tableView.views}
+              activeViewId={tableView.activeView?.id ?? null}
+              onActivateView={tableView.activateView}
+              onCreateView={tableView.createView}
+              onRenameView={tableView.renameView}
+              onDeleteView={tableView.deleteView}
+              fields={FIELD_OPTIONS}
+              isFieldVisible={tableView.isFieldVisible}
+              onToggleField={tableView.toggleField}
+              error={tableView.error}
+            />
           </div>
         </div>
 
@@ -366,9 +448,21 @@ export function ConceptsWorkspace({
           </div>
         ) : view === 'board' ? (
           <ConceptBoard columns={columns} onOpen={open} />
+        ) : view === 'gallery' ? (
+          <GalleryView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            cardSlot="concept-card"
+            onItemClick={(item) => {
+              const target = visible.find((candidate) => candidate.id === item.id);
+              if (target !== undefined) open(target);
+            }}
+          />
         ) : (
           <AirtableGrid
             tableKey="concepts"
+            view={tableView.config}
+            onSortChange={tableView.setSort}
             columns={CONCEPT_GRID_COLUMNS}
             rows={visible}
             rowId={(item) => item.id}

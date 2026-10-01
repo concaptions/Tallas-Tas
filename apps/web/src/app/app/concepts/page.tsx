@@ -1,5 +1,6 @@
 import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUserViews } from '@/lib/user-view-actions';
 import { conceptPath } from '@/lib/routes';
 
 import {
@@ -47,6 +48,7 @@ interface ConceptsPageProps {
 export default async function ConceptsPage({ searchParams }: ConceptsPageProps) {
   const [{ rows }, params] = await Promise.all([loadConcepts(), searchParams]);
   const demo = isDemoMode();
+  const userViews = await loadUserViews('concepts');
 
   const items: ConceptItem[] = rows.map((row) => ({
     id: row.id,
@@ -88,6 +90,7 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
       demo={demo}
       initialView={view}
       initialSearch={initialSearch}
+      userViews={userViews}
     />
   );
 }

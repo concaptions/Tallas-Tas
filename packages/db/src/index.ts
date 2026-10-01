@@ -333,3 +333,5 @@ export * from './demo-email-flows';
 export * from './youtube-copy';
 export * from './demo-youtube-copy';
 export * from './airtable-tables';
+export { listLinkedIds, syncLinks } from './links';
+export type { LinkJunction, LinkSpec, LinkTable } from './links';

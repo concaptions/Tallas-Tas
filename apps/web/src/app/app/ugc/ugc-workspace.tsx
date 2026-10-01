@@ -16,13 +16,16 @@ import {
 import { getTableCapability, type ViewType } from '@tas/domain';
 
 import {
-  ViewSwitcher,
   KanbanBoard,
   GalleryView,
   type KanbanItem,
-  type GalleryItem,
+  useTableView,
+  ViewToolbar,
+  galleryItemsFrom,
 } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import type { UserViewConfig } from '@tas/domain';
+import type { UserViewsResult } from '@/lib/user-view-actions';
 import {
   BoolCell,
   ChipCell,
@@ -35,7 +38,7 @@ import {
 } from '@/components/views/grid-cells';
 import { ageBracketLabel, creatorPlatformLabel } from '@tas/domain/creators';
 
-import { CreatorPanel, type LinkOption } from './creator-panel';
+import { CreatorPanel, type CreatorVideo, type LinkOption } from './creator-panel';
 import { PartnershipTable } from './partnership-table';
 import {
   creatorCountLabel,
@@ -75,6 +78,12 @@ export interface UgcWorkspaceProps {
   readonly initialSelection: string | null;
   readonly initialCollabs: readonly CollabRow[];
   readonly initialView?: ViewType;
+  /** The open creator's showcase videos (Sprint 7, UGC media). */
+  readonly initialVideos?: readonly CreatorVideo[];
+  /** Whether this deployment can take a video upload (R2 configured and not demo mode). */
+  readonly uploadsEnabled?: boolean;
+  /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
+  readonly userViews: UserViewsResult;
 }
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
@@ -354,6 +363,10 @@ const CREATOR_COLUMNS: readonly GridColumn<CreatorCardRow>[] = [
   },
 ];
 
+/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
+const FIELD_KEYS: readonly string[] = CREATOR_COLUMNS.map((column) => column.key);
+const FIELD_OPTIONS = CREATOR_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+
 export function UgcWorkspace({
   creators,
   partnerships,
@@ -365,12 +378,14 @@ export function UgcWorkspace({
   initialSelection,
   initialCollabs,
   initialView,
+  initialVideos = [],
+  uploadsEnabled = false,
+  userViews,
 }: UgcWorkspaceProps) {
   const router = useRouter();
   const [tab, setTab] = useState<UgcTabKey>(initialTab);
   const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
-  const [activeView, setActiveView] = useState<ViewType>(initialView ?? 'grid');
 
   const select = useCallback(
     (id: string | null) => {
@@ -409,9 +424,35 @@ export function UgcWorkspace({
     [tab, selection],
   );
 
+  const adoptView = useCallback(
+    (config: UserViewConfig) => {
+      filter(config.filter);
+    },
+    [filter],
+  );
+
+  const tableView = useTableView({
+    tableKey: 'creators',
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: 'grid',
+    initialViewType: initialView ?? null,
+    fieldKeys: FIELD_KEYS,
+    onActivate: adoptView,
+  });
+  const activeView = tableView.viewType;
+  const setActiveView = tableView.setViewType;
+  const onSearch = useCallback(
+    (next: string) => {
+      filter(next);
+      tableView.setFilter(next);
+    },
+    [filter, tableView],
+  );
+
   const clearSearch = useCallback(() => {
-    filter('');
-  }, [filter]);
+    onSearch('');
+  }, [onSearch]);
 
   const query = search.trim().toLowerCase();
   const visibleCreators = useMemo(
@@ -448,18 +489,17 @@ export function UgcWorkspace({
     return labels;
   }, [kanbanColumns]);
 
-  const galleryItems: readonly GalleryItem[] = useMemo(() => {
-    return visibleCreators
-      .filter((c) => c.profilePicUrl !== null || c.videoIntroUrl !== null)
-      .map((creator) => ({
+  // The card image is the creator's profile picture (Sprint 7 gallery); none shows their initials.
+  const galleryItems = useMemo(
+    () =>
+      galleryItemsFrom(visibleCreators, CREATOR_COLUMNS, (creator) => ({
         id: creator.id,
         name: creator.name,
-        imageUrl: creator.profilePicUrl ?? creator.videoIntroUrl,
-        mediaType:
-          creator.videoIntroUrl !== null && creator.profilePicUrl === null ? 'video' : 'image',
+        imageUrl: creator.profilePicUrl,
         subtitle: identityLine(creator) || undefined,
-      }));
-  }, [visibleCreators]);
+      })),
+    [visibleCreators],
+  );
 
   const handleKanbanMove = useCallback(() => {
     // will be wired to updateCreatorAction in a follow-up
@@ -539,7 +579,7 @@ export function UgcWorkspace({
             type="search"
             value={search}
             onChange={(event) => {
-              filter(event.target.value);
+              onSearch(event.target.value);
             }}
             placeholder="Search creators"
             aria-label="Search creators by name"
@@ -550,12 +590,22 @@ export function UgcWorkspace({
 
         <TabsContent value="creators" className="flex min-w-0 flex-col gap-4">
           <div className="flex items-center gap-3">
-            <ViewSwitcher
+            <ViewToolbar
               tableKey="creators"
               supportedViews={[...CREATORS_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
               kanbanGroupByField="internalCreatorStatus"
+              views={tableView.views}
+              activeViewId={tableView.activeView?.id ?? null}
+              onActivateView={tableView.activateView}
+              onCreateView={tableView.createView}
+              onRenameView={tableView.renameView}
+              onDeleteView={tableView.deleteView}
+              fields={FIELD_OPTIONS}
+              isFieldVisible={tableView.isFieldVisible}
+              onToggleField={tableView.toggleField}
+              error={tableView.error}
             />
           </div>
           {visibleCreators.length === 0 ? (
@@ -569,10 +619,20 @@ export function UgcWorkspace({
               demo={demo}
             />
           ) : activeView === 'gallery' ? (
-            <GalleryView items={galleryItems} />
+            <GalleryView
+              items={galleryItems}
+              visibleFields={tableView.config.visibleFields}
+              selectedId={selection}
+              cardSlot="creator-gallery-card"
+              onItemClick={(item) => {
+                select(item.id);
+              }}
+            />
           ) : (
             <AirtableGrid
               tableKey="creators"
+              view={tableView.config}
+              onSortChange={tableView.setSort}
               columns={CREATOR_COLUMNS}
               rows={visibleCreators}
               rowId={(creator) => creator.id}
@@ -604,6 +664,8 @@ export function UgcWorkspace({
           concepts={concepts}
           products={products}
           collabs={initialCollabs}
+          videos={initialVideos}
+          uploadsEnabled={uploadsEnabled}
           demo={demo}
           onClose={close}
           onSaved={saved}

@@ -7,8 +7,17 @@ import type { ViewType } from '@tas/domain';
 import { getTableCapability } from '@tas/domain';
 import { Button, Input } from '@tas/ui';
 
-import { KanbanBoard, type KanbanItem, ViewSwitcher } from '@/components/views';
+import {
+  KanbanBoard,
+  type KanbanItem,
+  useTableView,
+  ViewToolbar,
+  GalleryView,
+  galleryItemsFrom,
+} from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import type { UserViewConfig } from '@tas/domain';
+import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipCell, CountCell, TextCell } from '@/components/views/grid-cells';
 
 import {
@@ -67,6 +76,8 @@ export interface ThemesWorkspaceProps {
   readonly initialView?: ViewType;
   /** The `?theme=` the page was opened with: the row whose panel is open, or null. */
   readonly initialSelection?: string | null;
+  /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
+  readonly userViews: UserViewsResult;
 }
 
 /**
@@ -197,6 +208,10 @@ const THEME_COLUMNS: readonly GridColumn<ThemeListRow>[] = [
   },
 ];
 
+/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
+const FIELD_KEYS: readonly string[] = THEME_COLUMNS.map((column) => column.key);
+const FIELD_OPTIONS = THEME_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+
 export function ThemesWorkspace({
   themes,
   demo,
@@ -205,13 +220,13 @@ export function ThemesWorkspace({
   initialTab,
   initialView,
   initialSelection = null,
+  userViews,
 }: ThemesWorkspaceProps) {
   const router = useRouter();
   const [tab, setTab] = useState<ThemeTab>(initialTab);
   const [category, setCategory] = useState<CategoryFilter>(initialCategory);
   const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
-  const [activeView, setActiveView] = useState<ViewType>(initialView ?? 'grid');
 
   const pickTab = useCallback(
     (next: ThemeTab) => {
@@ -254,6 +269,32 @@ export function ThemesWorkspace({
   const close = useCallback(() => {
     select(null);
   }, [select]);
+
+  const adoptView = useCallback(
+    (config: UserViewConfig) => {
+      filter(config.filter);
+    },
+    [filter],
+  );
+
+  const tableView = useTableView({
+    tableKey: 'themes',
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: 'grid',
+    initialViewType: initialView ?? null,
+    fieldKeys: FIELD_KEYS,
+    onActivate: adoptView,
+  });
+  const activeView = tableView.viewType;
+  const setActiveView = tableView.setViewType;
+  const onSearch = useCallback(
+    (next: string) => {
+      filter(next);
+      tableView.setFilter(next);
+    },
+    [filter, tableView],
+  );
 
   const saved = useCallback(() => {
     router.refresh();
@@ -308,6 +349,18 @@ export function ThemesWorkspace({
   }, []);
 
   const open = themes.find((theme) => theme.id === selection) ?? null;
+
+  // The card image is the first attachment (Sprint 7 gallery); a theme with none shows its initial.
+  const galleryItems = useMemo(
+    () =>
+      galleryItemsFrom(visible, THEME_COLUMNS, (theme) => ({
+        id: theme.id,
+        name: theme.name,
+        imageUrl: theme.attachments?.[0] ?? null,
+        subtitle: themeCategoryLabel(theme.category),
+      })),
+    [visible],
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -374,18 +427,28 @@ export function ThemesWorkspace({
           <h2 id="themes-heading" className="text-sm font-medium text-text2">
             Library
           </h2>
-          <ViewSwitcher
+          <ViewToolbar
             tableKey="themes"
             supportedViews={[...THEMES_CAP.supportedViews]}
             activeView={activeView}
             onViewChange={setActiveView}
             kanbanGroupByField="category"
+            views={tableView.views}
+            activeViewId={tableView.activeView?.id ?? null}
+            onActivateView={tableView.activateView}
+            onCreateView={tableView.createView}
+            onRenameView={tableView.renameView}
+            onDeleteView={tableView.deleteView}
+            fields={FIELD_OPTIONS}
+            isFieldVisible={tableView.isFieldVisible}
+            onToggleField={tableView.toggleField}
+            error={tableView.error}
           />
           <Input
             type="search"
             value={search}
             onChange={(event) => {
-              filter(event.target.value);
+              onSearch(event.target.value);
             }}
             placeholder="Search themes and notes"
             aria-label="Search themes by name or note"
@@ -432,9 +495,21 @@ export function ThemesWorkspace({
             onMove={handleKanbanMove}
             demo={demo}
           />
+        ) : activeView === 'gallery' ? (
+          <GalleryView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            cardSlot="theme-gallery-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
         ) : (
           <AirtableGrid
             tableKey="themes"
+            view={tableView.config}
+            onSortChange={tableView.setSort}
             columns={THEME_COLUMNS}
             rows={visible}
             rowId={(theme) => theme.id}
