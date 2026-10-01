@@ -47,6 +47,8 @@ interface CampaignPanelProps {
   readonly linkedEmailFlows: readonly LinkedRecord[];
   /** YouTube copy carrying this campaign code (`youtube_copy_campaigns`); edited on its side. */
   readonly linkedYoutubeCopy: readonly LinkedRecord[];
+  readonly linkedMetaCopy: readonly LinkedRecord[];
+  readonly linkedConcepts: readonly LinkedRecord[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -134,6 +136,8 @@ export function CampaignPanel({
   linkedEmailCampaigns,
   linkedEmailFlows,
   linkedYoutubeCopy,
+  linkedMetaCopy,
+  linkedConcepts,
   demo,
   onClose,
   onSaved,
@@ -380,6 +384,20 @@ export function CampaignPanel({
                   slot="campaign-youtube-copy"
                   links={linkedYoutubeCopy}
                   empty="No YouTube copy carries this campaign code yet. A copy picks its campaign from its own panel."
+                  mono
+                />
+                <LinkedRecordsSection
+                  heading="Meta copy"
+                  slot="campaign-meta-copy"
+                  links={linkedMetaCopy}
+                  empty="No Meta copy carries this campaign code yet. A copy picks its campaign from its own panel."
+                  mono
+                />
+                <LinkedRecordsSection
+                  heading="Concepts"
+                  slot="campaign-concepts"
+                  links={linkedConcepts}
+                  empty="No concept is tied to this campaign yet; the importer fills this link from Airtable."
                   mono
                 />
               </>

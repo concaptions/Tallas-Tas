@@ -5,6 +5,7 @@ import {
   loadAllAnglePersonas,
   loadAllAngleProducts,
   loadAllConceptAngles,
+  loadAllConceptCampaigns,
   loadAllConceptCollections,
   loadAllConceptCreators,
   loadAllConceptThemes,
@@ -63,6 +64,8 @@ export type ConceptListRow = Concept & {
   themeIds: string[];
   creatorIds: string[];
   collectionIds: string[];
+  /** `campaign_concepts` — the Campaigns & Offers field named "Angles" (module parity 2026-10-01). */
+  campaignIds: string[];
   angleName: string | null;
   themeName: string | null;
   personaName: string | null;
@@ -79,6 +82,7 @@ interface Inherited {
   conceptThemeMap: Map<string, string[]>;
   conceptCreatorMap: Map<string, string[]>;
   conceptCollectionMap: Map<string, string[]>;
+  conceptCampaignMap: Map<string, string[]>;
   angleFields: Map<
     string,
     {
@@ -117,6 +121,7 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
     conceptThemeMap,
     conceptCreatorMap,
     conceptCollectionMap,
+    conceptCampaignMap,
     anglePersonaMap,
     angleProductMap,
   ] = await Promise.all([
@@ -129,6 +134,7 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
     loadAllConceptThemes(db),
     loadAllConceptCreators(db),
     loadAllConceptCollections(db),
+    loadAllConceptCampaigns(db),
     loadAllAnglePersonas(db),
     loadAllAngleProducts(db),
   ]);
@@ -137,6 +143,7 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
     conceptThemeMap,
     conceptCreatorMap,
     conceptCollectionMap,
+    conceptCampaignMap,
     angleFields: new Map(
       brandAngles.map((angle) => [
         angle.id,
@@ -166,6 +173,7 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
   const themeIds = tables.conceptThemeMap.get(row.id) ?? [];
   const creatorIds = tables.conceptCreatorMap.get(row.id) ?? [];
   const collectionIds = tables.conceptCollectionMap.get(row.id) ?? [];
+  const campaignIds = tables.conceptCampaignMap.get(row.id) ?? [];
 
   const firstAngleId = angleIds[0] ?? null;
   const angle = firstAngleId === null ? undefined : tables.angleFields.get(firstAngleId);
@@ -190,6 +198,7 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
     themeIds,
     creatorIds,
     collectionIds,
+    campaignIds,
     angleName: angle?.name ?? null,
     themeName: firstThemeId === null ? null : (tables.themeNames.get(firstThemeId) ?? null),
     personaName: firstPersonaId === null ? null : (tables.personaNames.get(firstPersonaId) ?? null),

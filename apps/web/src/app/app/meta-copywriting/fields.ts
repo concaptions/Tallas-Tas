@@ -10,6 +10,7 @@ import {
   type CopyLimitField,
 } from '@tas/domain/copy';
 import { COPY_STATUS, type ChipTone } from '@tas/domain/state';
+import { campaignsOffersPath } from '@/lib/routes';
 
 /**
  * How the Copywriting route presents what it stores (PRD §5.11). One module, so the table, the
@@ -359,3 +360,25 @@ export const COUNTER_TONE_CLASS: Record<CounterTone, string> = {
   warn: 'text-warn',
   bad: 'text-bad',
 };
+
+/**
+ * The campaigns a copy row is linked to (`copywriting_campaigns`), as the panel lists them: the
+ * campaign's generated name, linking to the Campaigns & Offers page with that panel open. Ids with
+ * no live campaign (another brand's, soft-deleted) drop out rather than render blank.
+ */
+export function campaignLinks(
+  campaignIds: readonly string[],
+  campaignsById: ReadonlyMap<string, string>,
+): LinkedCampaign[] {
+  const links: LinkedCampaign[] = [];
+  for (const id of campaignIds) {
+    const name = campaignsById.get(id);
+    if (name === undefined) continue;
+    links.push({
+      id,
+      label: name,
+      href: `${campaignsOffersPath}?campaign=${encodeURIComponent(id)}`,
+    });
+  }
+  return links;
+}

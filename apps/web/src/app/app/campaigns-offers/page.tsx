@@ -11,7 +11,19 @@ import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 
 import type { LinkOption } from './campaigns-panel';
 import { CampaignsWorkspace, type CampaignItem } from './campaigns-workspace';
-import { emailCampaignLink, emailFlowLink, indexByCampaign, youtubeCopyLink } from './fields';
+import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
+
+import { loadConcepts } from '@/lib/concepts-source';
+import { loadCopyWorkspace } from '@/lib/copy-source';
+import { conceptPath, metaCopywritingPath } from '@/lib/routes';
+
+import {
+  emailCampaignLink,
+  emailFlowLink,
+  indexByCampaign,
+  youtubeCopyLink,
+  youtubeCopyLinkLabel,
+} from './fields';
 
 const VALID_VIEWS = new Set<ViewType>(['grid', 'timeline']);
 
@@ -27,6 +39,8 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     emailCampaignRows,
     emailFlowRows,
     { rows: youtubeCopyRows },
+    copyWorkspace,
+    conceptRows,
     params,
   ] = await Promise.all([
     loadCampaigns(),
@@ -35,6 +49,8 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     loadEmailCampaigns(),
     loadEmailFlows(),
     loadYoutubeCopyWorkspace(),
+    loadCopyWorkspace(),
+    loadConcepts(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -75,6 +91,23 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     (row) => row.linkedCampaigns.map((campaign) => campaign.id),
     youtubeCopyLink,
   );
+  // Meta copy ("Campaign Code", copywriting_campaigns) and Concepts (the field named "Angles",
+  // campaign_concepts) — both read from the far side's own id arrays.
+  const metaCopyLinks = indexByCampaign(
+    copyWorkspace.rows,
+    (row) => row.campaignIds,
+    (row) => ({
+      id: row.id,
+      label: youtubeCopyLinkLabel(row.copyNumber, row.headline),
+      href: `${metaCopywritingPath}?copy=${encodeURIComponent(row.id)}`,
+      chip: { label: copyStatusLabel(row.status), tone: copyStatusTone(row.status) },
+    }),
+  );
+  const conceptLinks = indexByCampaign(
+    conceptRows.rows,
+    (row) => row.campaignIds,
+    (row) => ({ id: row.id, label: row.name, href: conceptPath(row.id) }),
+  );
 
   const requested = params.campaign;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -96,6 +129,8 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
       emailCampaignLinks={emailCampaignLinks}
       emailFlowLinks={emailFlowLinks}
       youtubeCopyLinks={youtubeCopyLinks}
+      metaCopyLinks={metaCopyLinks}
+      conceptLinks={conceptLinks}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

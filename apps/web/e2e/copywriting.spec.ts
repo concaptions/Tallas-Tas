@@ -208,12 +208,14 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       await expect(toggle).toBeDisabled();
     }
 
-    // "Campaign Code" (multipleRecordLinks → campaigns_offers): read-only, empty, and it says why
-    // there is no picker instead of leaving a gap.
+    // "Campaign Code" (multipleRecordLinks → campaigns_offers): read through `copywriting_campaigns`
+    // (PARITY-24) — this copy carries the BFCM campaign — and still read-only, saying why there is
+    // no picker instead of leaving a gap.
     const campaigns = panel.locator('[data-slot="copy-campaigns"]');
     await expect(campaigns).toBeVisible();
-    await expect(campaigns).toContainText('No campaign is linked to this copy yet.');
-    await expect(campaigns.locator('[data-slot="status-chip"]')).toHaveCount(0);
+    await expect(campaigns).toContainText('BFCM-20%OFF-BFCM26');
+    await expect(campaigns).not.toContainText('No campaign is linked to this copy yet.');
+    await expect(campaigns.locator('input, textarea, select, [role="combobox"]')).toHaveCount(0);
     await expect(panel).toContainText('ships with the campaign-links writer');
   });
 

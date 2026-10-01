@@ -1,6 +1,7 @@
 import { copyTitle } from '@tas/domain/copy';
 import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
+import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadCopyWorkspace } from '@/lib/copy-source';
 import { loadCopyTypes } from '@/lib/copy-types-source';
 import { isDemoMode } from '@/lib/demo-mode';
@@ -8,7 +9,7 @@ import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { briefPath } from '@/lib/routes';
 
 import { CopywritingWorkspace } from './copywriting-workspace';
-import { copyTypeIdsByCopy, type CopyItem } from './fields';
+import { campaignLinks, copyTypeIdsByCopy, type CopyItem } from './fields';
 
 /**
  * Copywriting (PRD §5.11): "Ad copy, written separately but tied to the creative. Keep this table
@@ -43,15 +44,17 @@ interface CopywritingPageProps {
 }
 
 export default async function CopywritingPage({ searchParams }: CopywritingPageProps) {
-  const [{ rows, creatives, concepts }, copyTypeResult, params] = await Promise.all([
+  const [{ rows, creatives, concepts }, copyTypeResult, campaignRows, params] = await Promise.all([
     loadCopyWorkspace(),
     loadCopyTypes(),
+    loadCampaigns(),
     searchParams,
   ]);
   const demo = isDemoMode();
   const now = new Date();
   const typeIdsByCopy = copyTypeIdsByCopy(copyTypeResult.rows);
 
+  const campaignsById = new Map(campaignRows.rows.map((c) => [c.id, c.name]));
   const items: CopyItem[] = rows.map((row) => ({
     id: row.id,
     title: copyTitle(row.copyNumber),
@@ -74,7 +77,7 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
     spellingFeedback: row.spellingFeedback,
     clientComment: row.clientComment,
     copyTypeIds: typeIdsByCopy.get(row.id) ?? [],
-    campaigns: [],
+    campaigns: campaignLinks(row.campaignIds, campaignsById),
     updatedLabel: relativeTime(row.updatedAt, now),
     updatedTitle: absoluteTime(row.updatedAt),
   }));

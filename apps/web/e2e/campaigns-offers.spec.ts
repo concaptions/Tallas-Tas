@@ -55,6 +55,14 @@ test.describe('campaigns & offers in demo mode (no Clerk publishable key)', () =
 
     // Two YouTube copies carry the BFCM code: "Copy N · headline" in mono, with the status chip
     // labelled from the domain vocabulary, never the stored key.
+    // Module parity: the far-side links read through copywriting_campaigns and campaign_concepts.
+    await expect(
+      panel.locator('[data-slot="campaign-meta-copy"] [data-slot="campaign-linked-record"]'),
+    ).toHaveCount(2);
+    await expect(
+      panel.locator('[data-slot="campaign-concepts"] [data-slot="campaign-linked-record"]'),
+    ).toHaveCount(2);
+
     const copy = panel.locator('[data-slot="campaign-youtube-copy"]');
     const records = copy.locator('[data-slot="campaign-linked-record"]');
     await expect(records).toHaveCount(2);

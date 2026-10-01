@@ -256,15 +256,14 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(sections).toHaveCount(2);
     await expect(sections.nth(1)).toHaveAttribute('data-slot', 'concept-campaigns');
 
-    // `campaign_concepts` is owned by the campaign side and has no reader in `@tas/db` yet, so in
-    // demo mode the fixtures link no campaign to any concept: the empty state renders, saying where
-    // the link is made, and the list is absent rather than empty.
-    const empty = campaigns.locator('[data-slot="concept-campaigns-empty"]');
-    await expect(empty).toHaveText(
-      'No campaign runs on this concept yet. Link one from the campaign’s panel.',
-    );
-    await expect(campaigns.locator('[data-slot="concept-campaigns-list"]')).toHaveCount(0);
-    await expect(campaigns.locator('[data-slot="concept-campaign"]')).toHaveCount(0);
+    // `campaign_concepts` is read through `@tas/db` (PARITY-24): the fixture links this concept to
+    // the BFCM campaign, so the list renders one generated campaign name, in font-mono, linking to
+    // the Campaigns & Offers page — and no empty state.
+    await expect(campaigns.locator('[data-slot="concept-campaigns-empty"]')).toHaveCount(0);
+    const links = campaigns.locator('[data-slot="concept-campaign"]');
+    await expect(links).toHaveCount(1);
+    await expect(links.first()).toHaveText('BFCM-20%OFF-BFCM26');
+    await expect(links.first()).toHaveAttribute('href', /\/app\/campaigns-offers\?campaign=/);
 
     // Read-only: nothing in the section can be typed into or submitted.
     await expect(

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { CONCEPT_CLIENT_STATUS_DEFAULT, CONCEPT_INTERNAL_STATUS_DEFAULT } from '@tas/db';
 
 import { loadAngles } from '@/lib/angles-source';
+import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadBriefsByConceptId } from '@/lib/briefs-source';
 import { CONCEPT_TRACK, loadConceptById } from '@/lib/concepts-source';
 import { loadCreators } from '@/lib/ugc-source';
@@ -11,7 +12,7 @@ import { loadThemes } from '@/lib/themes-source';
 import { briefPath } from '@/lib/routes';
 
 import { internalStatusView as briefStatusView } from '../../creative-design/fields';
-import { NEW_CONCEPT, type ConceptCampaignLink } from '../fields';
+import { NEW_CONCEPT, campaignHref, type ConceptCampaignLink } from '../fields';
 import {
   ConceptDetail,
   type AngleOption,
@@ -85,9 +86,13 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
     };
   });
 
-  // The campaigns linked through `campaign_concepts`: empty until `@tas/db` reads the junction
-  // (see the module comment); `campaignLinksFor(conceptId, rows)` is the call that replaces this.
-  const campaigns: ConceptCampaignLink[] = [];
+  // The campaigns linked through `campaign_concepts`, read from the concept row's own ids and
+  // named from the brand's campaigns (demo-aware); newest first as the campaigns page lists them.
+  const campaignNames = new Map((await loadCampaigns()).rows.map((c) => [c.id, c.name]));
+  const campaigns: ConceptCampaignLink[] = (concept?.campaignIds ?? []).flatMap((id) => {
+    const label = campaignNames.get(id);
+    return label === undefined ? [] : [{ id, label, href: campaignHref(id) }];
+  });
 
   const angles: AngleOption[] = angleRows.rows.map((row) => ({
     id: row.id,

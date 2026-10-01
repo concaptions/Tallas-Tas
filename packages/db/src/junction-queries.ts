@@ -4,12 +4,69 @@ import type { Db } from './db';
 import {
   anglePersonas,
   angleProducts,
+  campaignConcepts,
   conceptAngles,
   conceptCollections,
   conceptThemes,
+  copywritingCampaigns,
   creatorConcepts,
   creatorProducts,
 } from './schema';
+
+// ── Campaign links (module parity 2026-10-01) ───────────────────────────────
+// `copywriting_campaigns` is Meta Copywriting's "Campaign Code"; `campaign_concepts` is the
+// Campaigns & Offers field NAMED "Angles" that links Concepts. Both are owned by the record on the
+// left of the name; the far side reads them through the loadAll helpers.
+
+export async function syncCopywritingCampaigns(
+  db: Db,
+  copyId: string,
+  campaignOfferIds: readonly string[],
+): Promise<void> {
+  await db.delete(copywritingCampaigns).where(eq(copywritingCampaigns.copyId, copyId));
+  if (campaignOfferIds.length > 0) {
+    await db
+      .insert(copywritingCampaigns)
+      .values(campaignOfferIds.map((campaignOfferId) => ({ copyId, campaignOfferId })));
+  }
+}
+
+export async function syncCampaignConcepts(
+  db: Db,
+  campaignOfferId: string,
+  conceptIds: readonly string[],
+): Promise<void> {
+  await db.delete(campaignConcepts).where(eq(campaignConcepts.campaignOfferId, campaignOfferId));
+  if (conceptIds.length > 0) {
+    await db
+      .insert(campaignConcepts)
+      .values(conceptIds.map((conceptId) => ({ campaignOfferId, conceptId })));
+  }
+}
+
+/** `copyId -> campaignOfferIds`. */
+export async function loadAllCopywritingCampaigns(db: Db): Promise<Map<string, string[]>> {
+  const rows = await db.select().from(copywritingCampaigns);
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const existing = map.get(r.copyId);
+    if (existing) existing.push(r.campaignOfferId);
+    else map.set(r.copyId, [r.campaignOfferId]);
+  }
+  return map;
+}
+
+/** `conceptId -> campaignOfferIds` (the junction read concept-first). */
+export async function loadAllConceptCampaigns(db: Db): Promise<Map<string, string[]>> {
+  const rows = await db.select().from(campaignConcepts);
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const existing = map.get(r.conceptId);
+    if (existing) existing.push(r.campaignOfferId);
+    else map.set(r.conceptId, [r.campaignOfferId]);
+  }
+  return map;
+}
 
 // ── Creator ↔ Concepts ──────────────────────────────────────────────────────
 

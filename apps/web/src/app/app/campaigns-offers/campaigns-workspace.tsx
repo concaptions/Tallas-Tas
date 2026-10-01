@@ -52,6 +52,8 @@ interface CampaignsWorkspaceProps {
   readonly emailFlowLinks: Readonly<Record<string, readonly LinkedRecord[]>>;
   /** campaignId -> the YouTube copy carrying its code (`youtube_copy_campaigns`), read-only here. */
   readonly youtubeCopyLinks: Readonly<Record<string, readonly LinkedRecord[]>>;
+  readonly metaCopyLinks: Readonly<Record<string, readonly LinkedRecord[]>>;
+  readonly conceptLinks: Readonly<Record<string, readonly LinkedRecord[]>>;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -75,6 +77,8 @@ export function CampaignsWorkspace({
   emailCampaignLinks,
   emailFlowLinks,
   youtubeCopyLinks,
+  metaCopyLinks,
+  conceptLinks,
   demo,
   initialSelection,
   initialSearch,
@@ -351,6 +355,8 @@ export function CampaignsWorkspace({
           linkedEmailCampaigns={linksOf(emailCampaignLinks)}
           linkedEmailFlows={linksOf(emailFlowLinks)}
           linkedYoutubeCopy={linksOf(youtubeCopyLinks)}
+          linkedMetaCopy={linksOf(metaCopyLinks)}
+          linkedConcepts={linksOf(conceptLinks)}
           demo={demo}
           onClose={close}
           onSaved={saved}

@@ -40,9 +40,11 @@ import {
   assets,
   brandAssignments,
   brands,
+  campaignConcepts,
   conceptAngles,
   conceptCollections,
   conceptThemes,
+  copywritingCampaigns,
   creatorConcepts,
   creatorProducts,
   concepts,
@@ -444,6 +446,15 @@ export async function seed(db: Db): Promise<SeedResult> {
     c.collectionIds.map((collectionId) => ({ conceptId: c.id, collectionId })),
   );
   if (ccRows.length > 0) await db.insert(conceptCollections).values(ccRows);
+  // Campaign links (module parity 2026-10-01): copy "Campaign Code" and the campaigns' concepts.
+  const cpcRows = demoCopy.flatMap((c) =>
+    c.campaignIds.map((campaignOfferId) => ({ copyId: c.id, campaignOfferId })),
+  );
+  const ccpRows = demoConcepts.flatMap((c) =>
+    c.campaignIds.map((campaignOfferId) => ({ campaignOfferId, conceptId: c.id })),
+  );
+  if (cpcRows.length > 0) await db.insert(copywritingCampaigns).values(cpcRows);
+  if (ccpRows.length > 0) await db.insert(campaignConcepts).values(ccpRows);
 
   const seededCompetitorAds = await scope
     .insert(competitorAds, demoCompetitorAds.map(scoped))
