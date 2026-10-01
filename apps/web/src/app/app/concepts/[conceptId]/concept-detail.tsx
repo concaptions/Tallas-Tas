@@ -32,7 +32,7 @@ import {
   TwoTrackApproval,
 } from '@tas/ui';
 
-import { conceptPath, conceptsPath } from '@/lib/routes';
+import { collectionsPath, conceptPath, conceptsPath } from '@/lib/routes';
 
 import { createConceptAction, updateConceptAction, type ConceptActionResult } from '../actions';
 import {
@@ -90,6 +90,11 @@ export interface ConceptFormValues {
   readonly adInspoLinks: readonly string[];
   readonly hookExamples: string | null;
   readonly scriptIdea: string | null;
+  /** The concept's OWN four prose columns (Gratsi parity), distinct from the angle's read-only three. */
+  readonly description: string | null;
+  readonly painPoints: string | null;
+  readonly usp: string | null;
+  readonly clientComments: string | null;
   readonly approvalStatus: string | null;
   readonly productionStatus: string | null;
   readonly formatsToCreate: readonly string[];
@@ -105,6 +110,70 @@ export interface ConceptCreativeItem {
   readonly href: string;
 }
 
+/**
+ * One collection this concept belongs to (`concept_collections`, Gratsi "Collection"), named on the
+ * server from the brand's collections. The id alone, no href: the deep link is `collectionHref`,
+ * built here on the client, because a function exported by this `'use client'` module cannot be
+ * called from the server page that hands the items down.
+ */
+export interface ConceptCollectionItem {
+  readonly id: string;
+  readonly name: string;
+}
+
+/**
+ * The URL parameter the Collections workspace keeps its open row in — the key its `syncUrl` writes
+ * and its page reads back as `params.collection` — restated here so the rail can deep-link into the
+ * collection's own panel, exactly as `campaignHref` in `../fields` does for Campaigns & Offers.
+ */
+const COLLECTION_SELECTION_PARAM = 'collection';
+
+/** The Collections page with its panel open on this collection. */
+export function collectionHref(id: string): string {
+  return `${collectionsPath}?${COLLECTION_SELECTION_PARAM}=${encodeURIComponent(id)}`;
+}
+
+interface ConceptCollectionsSectionProps {
+  readonly collections: readonly ConceptCollectionItem[];
+}
+
+/**
+ * The concept's collections (`concept_collections`; Gratsi module parity 2026-10-01): the third
+ * read-only list in the rail, after Campaigns & Offers. Named and linked, never edited here — the
+ * junction is written by the importer, and a collection's own panel is where it is curated. The
+ * heading is the Gratsi field's name and is rendered whether or not the concept is in a collection,
+ * with the module's em dash as the empty value, so the label never disappears with the data. A
+ * collection's name is TYPED, not generated, so unlike the creative and campaign names above it is
+ * not monospace.
+ */
+export function ConceptCollectionsSection({ collections }: ConceptCollectionsSectionProps) {
+  return (
+    <section className="flex flex-col gap-2 pt-2" data-slot="concept-collections">
+      <h2 className="text-sm font-medium text-text2">Collections</h2>
+      {collections.length === 0 ? (
+        <p className="text-sm text-text4" data-slot="concept-collections-empty">
+          {EM_DASH}
+        </p>
+      ) : (
+        <ol className="flex flex-col gap-1.5" data-slot="concept-collections-list">
+          {collections.map((collection) => (
+            <li key={collection.id}>
+              <Link
+                href={collectionHref(collection.id)}
+                data-slot="concept-collection"
+                data-collection-id={collection.id}
+                className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2 transition-colors hover:border-accent-line hover:bg-surface3"
+              >
+                <span className="text-xs font-medium break-words text-text">{collection.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 interface ConceptDetailProps {
   /** `null` while creating: the same form, submitted to `createConceptAction`. */
   readonly concept: ConceptFormValues | null;
@@ -115,6 +184,11 @@ interface ConceptDetailProps {
    * creating. Read-only: the link is made from the campaign's panel, never from this page.
    */
   readonly campaigns: readonly ConceptCampaignLink[];
+  /**
+   * The collections whose `concept_collections` rows point here, named on the server, empty while
+   * creating. Read-only, like the campaigns: nothing on this page writes the junction.
+   */
+  readonly collections: readonly ConceptCollectionItem[];
   readonly angles: readonly AngleOption[];
   readonly themes: readonly ThemeOption[];
   readonly creators: readonly CreatorOption[];
@@ -124,6 +198,12 @@ interface ConceptDetailProps {
   readonly client: ClientStatusKey;
   readonly demo: boolean;
 }
+
+/** The free-text columns the Brief renders through one `Textarea` pattern, in `renderProse`. */
+type ProseField = Extract<
+  ConceptFieldName,
+  'hookExamples' | 'scriptIdea' | 'description' | 'painPoints' | 'usp' | 'clientComments'
+>;
 
 /** The link editor keeps one empty input at the bottom, so adding a link is typing, not clicking. */
 function linkRowsOf(concept: ConceptFormValues | null): string[] {
@@ -149,6 +229,13 @@ function linkRowsOf(concept: ConceptFormValues | null): string[] {
  * the caption "from Angle", never disabled inputs, and they re-fill the moment the Angle dropdown
  * changes because they are read off the selected option rather than off the saved row.
  *
+ * THE CONCEPT'S OWN PROSE IS EDITABLE. Description, Pain Points, USP and Client's Comments (Gratsi
+ * module parity, 2026-10-01) are four columns of the concept row itself — every live Gratsi concept
+ * carries a description and pain points of its own — so they sit in the Brief beside the hook
+ * examples and the script idea, rendered by the same `renderProse`. They share three labels with
+ * the inherited block above them on purpose: the block says what the ANGLE argues, these say what
+ * THIS CONCEPT does with it, and only these are submitted.
+ *
  * THE RAIL IS THE SHARED WIDGET. `TwoTrackApproval` from `@tas/ui` with `clientOnly={false}`, fed
  * this concept's two stored statuses. The gate is `isClientTrackOpen` inside that component; this
  * page does not compute it, does not dim anything itself and does not decide what "Approved" means.
@@ -160,6 +247,7 @@ export function ConceptDetail({
   concept,
   creatives,
   campaigns,
+  collections,
   angles,
   themes,
   creators,
@@ -345,7 +433,7 @@ export function ConceptDetail({
     );
   };
 
-  const renderProse = (field: 'hookExamples' | 'scriptIdea', label: string, hint: string) => {
+  const renderProse = (field: ProseField, label: string, hint: string) => {
     const id = `concept-field-${field}`;
     const error = fieldError(field);
 
@@ -643,6 +731,22 @@ export function ConceptDetail({
               'Script idea',
               'What happens on screen, in the order it happens.',
             )}
+            {renderProse(
+              'description',
+              'Description',
+              'What this concept argues, in a paragraph. Its own, not the angle’s.',
+            )}
+            {renderProse(
+              'painPoints',
+              'Pain Points',
+              'The pains this concept speaks to, in the viewer’s own words.',
+            )}
+            {renderProse('usp', 'USP', 'The claim that answers them.')}
+            {renderProse(
+              'clientComments',
+              "Client's Comments",
+              'What the client said about this concept, kept with it.',
+            )}
 
             <div className="flex flex-col gap-2" data-slot="concept-ad-inspo">
               <Label className="text-[11px] tracking-wide text-text3 uppercase">Ad Inspo</Label>
@@ -781,6 +885,8 @@ export function ConceptDetail({
               )}
             </section>
           )}
+
+          {concept === null ? null : <ConceptCollectionsSection collections={collections} />}
         </aside>
       </div>
     </div>

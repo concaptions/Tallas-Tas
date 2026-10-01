@@ -107,6 +107,12 @@ export function clientStatusView(status: string): ClientStatusView {
  * imported as `ConceptRow`, so this module — and therefore the client components that read it —
  * never reaches `@/lib/concepts-source` and never pulls `@tas/db` or `@tas/env` into the browser
  * bundle. `ConceptRow` satisfies it verbatim.
+ *
+ * The three prose fields are the ANGLE's (`angleDescription`, `anglePainPoints`, `angleUsp`), not
+ * the concept's own `description`, `painPoints` and `usp`: PRD §5.7 derives the card's
+ * "Description (hypothesis)", "Pain Points" and "USP" from the linked angle, and `clientConcepts`
+ * — the reader behind the real client portal — prints the angle's text, so the preview must read
+ * the same columns or a CSM would be shown a card the client never gets.
  */
 export interface PreviewConceptSource {
   readonly name: string;
@@ -117,9 +123,9 @@ export interface PreviewConceptSource {
   readonly themeName: string | null;
   readonly productName: string | null;
   readonly personaName: string | null;
-  readonly description: string | null;
-  readonly painPoints: string | null;
-  readonly usp: string | null;
+  readonly angleDescription: string | null;
+  readonly anglePainPoints: string | null;
+  readonly angleUsp: string | null;
   readonly hookExamples: string | null;
   readonly clientStatus: ClientStatusKey;
 }
@@ -158,6 +164,10 @@ export function isMonoField(fieldName: string): boolean {
  *
  * `script_idea` is NOT here: the full script is not one of §10's twelve concept-card fields, and
  * this preview shows what the configuration can switch on, not everything the row happens to store.
+ *
+ * `description`, `pain_points` and `usp` print the ANGLE's three fields — the ones the client
+ * portal prints — never the concept's own prose columns of the same name, which are the
+ * strategist's working text on the detail page (see `PreviewConceptSource`).
  */
 export function conceptPreviewValues(
   concept: PreviewConceptSource,
@@ -170,9 +180,9 @@ export function conceptPreviewValues(
     angle: concept.angleName,
     theme: concept.themeName,
     product: concept.productName,
-    description: concept.description,
-    pain_points: concept.painPoints,
-    usp: concept.usp,
+    description: concept.angleDescription,
+    pain_points: concept.anglePainPoints,
+    usp: concept.angleUsp,
     persona: concept.personaName,
     hook_examples: concept.hookExamples,
   };

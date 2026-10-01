@@ -209,20 +209,91 @@ describe('concept queries', () => {
     expect(updated).toEqual([...updated].sort((a, b) => b - a));
   });
 
-  it('inherits the angle’s name, persona, product, description, pain points and usp', async () => {
+  it('inherits the angle’s name, persona and product, and keeps its OWN description, pain points and usp', async () => {
     const { db, brandId } = await seeded();
+    const fixture = demoConcept();
 
-    const row = await getConceptById(db, brandId, demoConcept().id);
-    const angle = demoAngles.find((item) => item.id === demoConcept().angleIds[0]);
+    const row = await getConceptById(db, brandId, fixture.id);
+    const angle = demoAngles.find((item) => item.id === fixture.angleIds[0]);
 
     expect(row).toMatchObject({
       angleName: angle?.name,
       personaName: angle?.personaName,
       productName: angle?.productName,
-      description: angle?.description,
-      painPoints: angle?.painPoints,
-      usp: angle?.usp,
+      // The angle's three prose fields, under their own names (PRD §5.7's auto-filled trio).
+      angleDescription: angle?.description,
+      anglePainPoints: angle?.painPoints,
+      angleUsp: angle?.usp,
       themeName: 'Green Screen',
+      // Gratsi parity: the four prose columns are the concept's, stored on its row — never the
+      // angle's text read over them.
+      description: fixture.description,
+      painPoints: fixture.painPoints,
+      usp: fixture.usp,
+      clientComments: fixture.clientComments,
+    });
+    // The fixture's own text really is its own: it differs from the paired angle's on all three,
+    // so the two names per field can be told apart on the same row.
+    expect(fixture.description).not.toBeNull();
+    expect(fixture.painPoints).not.toBeNull();
+    expect(row?.angleDescription).not.toBeNull();
+    expect(row?.description).not.toBe(row?.angleDescription);
+    expect(row?.painPoints).not.toBe(row?.anglePainPoints);
+    expect(row?.usp).not.toBe(row?.angleUsp);
+  });
+
+  it('insertConcept stores the four own prose columns and updateConcept patches them', async () => {
+    const { db, brandId } = await seeded();
+    const prose = {
+      description: 'Sell the window she already has, not a longer night.',
+      painPoints: 'Only sleeps in daylight. Cannot block sound because of the monitor.',
+      usp: 'Blocks light, not sound.',
+      clientComments: 'Client: keep the monitor audible in the final cut.',
+    };
+
+    const created = await insertConcept(
+      db,
+      brandId,
+      { name: 'B4-Own Prose-Concept', ...prose },
+      'user_test',
+    );
+    const read = await getConceptById(db, brandId, created.id);
+    const patched = await updateConcept(
+      db,
+      brandId,
+      created.id,
+      { description: 'Rewritten after the client call.', clientComments: null },
+      'user_test',
+    );
+
+    expect(created).toMatchObject(prose);
+    // The read path hands the stored columns back untouched, even with no angle to inherit from.
+    expect(read).toMatchObject({ ...prose, angleIds: [], angleName: null });
+    expect(patched).toMatchObject({
+      description: 'Rewritten after the client call.',
+      painPoints: prose.painPoints,
+      usp: prose.usp,
+      clientComments: null,
+      updatedBy: 'user_test',
+    });
+  });
+
+  it('the four own prose columns cannot be rewritten from another brand’s scope', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = demoConcept();
+
+    const escaped = await updateConcept(
+      db,
+      otherBrandId,
+      target.id,
+      { description: 'Hijacked', clientComments: 'Hijacked' },
+      'thief',
+    );
+
+    expect(escaped).toBeNull();
+    expect(await getConceptById(db, brandId, target.id)).toMatchObject({
+      description: target.description,
+      clientComments: target.clientComments,
     });
   });
 
@@ -297,9 +368,14 @@ describe('concept queries', () => {
       angleName: null,
       personaName: null,
       productName: null,
-      description: null,
-      painPoints: null,
-      usp: null,
+      // The foreign angle's hypothesis, pain points and USP never cross the scope either.
+      angleDescription: null,
+      anglePainPoints: null,
+      angleUsp: null,
+      // The concept's own prose is the concept's: the foreign angle's text never reaches the row.
+      description: demoConcept().description,
+      painPoints: demoConcept().painPoints,
+      usp: demoConcept().usp,
     });
     // The concept itself is still this brand's and still carries its own stored columns.
     expect(row?.brandId).toBe(brandId);
@@ -330,9 +406,14 @@ describe('concept queries', () => {
       themeName: null,
       personaName: null,
       productName: null,
+      angleDescription: null,
+      anglePainPoints: null,
+      angleUsp: null,
+      // Nothing was stored, and nothing is inherited: the four own columns are simply null.
       description: null,
       painPoints: null,
       usp: null,
+      clientComments: null,
     });
     expect(await getConceptById(db, brandId, demoConcept().id)).toMatchObject({
       angleIds: demoConcept().angleIds,
@@ -341,7 +422,14 @@ describe('concept queries', () => {
       themeName: null,
       personaName: null,
       productName: null,
-      description: null,
+      // Losing the angle loses what came THROUGH it — its three prose fields included; the
+      // concept's own prose stays.
+      angleDescription: null,
+      anglePainPoints: null,
+      angleUsp: null,
+      description: demoConcept().description,
+      painPoints: demoConcept().painPoints,
+      usp: demoConcept().usp,
     });
   });
 
@@ -414,9 +502,13 @@ describe('concept queries', () => {
     expectTypeOf<ConceptListRow['personaName']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['productName']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['collectionName']>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConceptListRow['angleDescription']>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConceptListRow['anglePainPoints']>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConceptListRow['angleUsp']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['description']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['painPoints']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['usp']>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConceptListRow['clientComments']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['collectionIds']>().toEqualTypeOf<string[]>();
     // `brand_id` and the audit columns are the scope's, never the form's.
     expectTypeOf<ConceptInput>().not.toHaveProperty('brandId');
@@ -425,6 +517,11 @@ describe('concept queries', () => {
     expectTypeOf<ConceptInput>().toHaveProperty('adInspoLinks');
     expectTypeOf<ConceptInput>().toHaveProperty('internalStatus');
     expectTypeOf<ConceptInput>().toHaveProperty('clientStatus');
+    // The four own prose columns are the form's to write (Gratsi parity).
+    expectTypeOf<ConceptInput>().toHaveProperty('description');
+    expectTypeOf<ConceptInput>().toHaveProperty('painPoints');
+    expectTypeOf<ConceptInput>().toHaveProperty('usp');
+    expectTypeOf<ConceptInput>().toHaveProperty('clientComments');
   });
 
   it('round-trips multi-link concept↔collection through the junction table', async () => {

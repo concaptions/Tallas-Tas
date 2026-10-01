@@ -90,6 +90,10 @@ export type ConceptFieldName =
   | 'formats'
   | 'hookExamples'
   | 'scriptIdea'
+  | 'description'
+  | 'painPoints'
+  | 'usp'
+  | 'clientComments'
   | 'internalStatus'
   | 'clientStatus'
   | 'approvalStatus'
@@ -185,6 +189,11 @@ const clientStatus = z
  * Shape only. Every rule a strategist can break lives in `validateConceptDraft`, so `batch` and
  * `category` have no membership check here and the link array is not checked for `http(s)` — that
  * is step 3. `name` is absent on purpose: it is generated, never submitted.
+ *
+ * `description`, `painPoints`, `usp` and `clientComments` are the concept's OWN prose columns
+ * (Gratsi module parity, 2026-10-01), optional and stored as NULL when blank like the two brief
+ * fields above them. They are distinct from the angle's three fields of the same name, which the
+ * page shows read-only under "from Angle" and which no form may write.
  */
 const conceptSchema = z.object({
   batch: link,
@@ -196,6 +205,10 @@ const conceptSchema = z.object({
   adInspoLinks: z.array(z.string().trim()),
   hookExamples: text,
   scriptIdea: text,
+  description: text,
+  painPoints: text,
+  usp: text,
+  clientComments: text,
   internalStatus,
   clientStatus,
   approvalStatus: link,
@@ -234,6 +247,10 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     adInspoLinks: many('adInspoLinks'),
     hookExamples: single('hookExamples'),
     scriptIdea: single('scriptIdea'),
+    description: single('description'),
+    painPoints: single('painPoints'),
+    usp: single('usp'),
+    clientComments: single('clientComments'),
     internalStatus: single('internalStatus'),
     clientStatus: single('clientStatus'),
     approvalStatus: single('approvalStatus'),
@@ -348,6 +365,10 @@ function toInput(
     adInspoLinks: values.adInspoLinks.filter((entry) => entry !== ''),
     hookExamples: values.hookExamples,
     scriptIdea: values.scriptIdea,
+    description: values.description,
+    painPoints: values.painPoints,
+    usp: values.usp,
+    clientComments: values.clientComments,
     internalStatus: internal,
     clientStatus: client,
     approvalStatus: approval,

@@ -17,6 +17,7 @@ import {
   personas,
   products,
   themes,
+  type Angle,
   type Concept,
   type NewConcept,
 } from './schema';
@@ -43,17 +44,29 @@ type ManagedColumn =
  * What the detail page submits for create (`name` required) and, partially, for update. `name` is in
  * here because it IS stored — but it is never typed: the page computes it with the pure
  * `conceptName` formula in `packages/domain` from the Batch, the Angle and the Theme, and submits
- * the result (CLAUDE.md non-negotiable 4).
+ * the result (CLAUDE.md non-negotiable 4). The concept's four own prose columns — `description`,
+ * `painPoints`, `usp` and `clientComments` — are in here too, nullable, exactly as the schema has
+ * them: `insertConcept` and `updateConcept` store what they are handed and never derive them.
  */
 export type ConceptInput = Omit<NewConcept, ManagedColumn>;
 
 /**
  * A concept as the list, the board and the detail page render it: the row plus everything it
- * INHERITS from its angle. `angleName` and `themeName` name the pairing; `personaName`,
- * `productName`, `description`, `painPoints` and `usp` are the angle's own fields, which the detail
- * page shows read-only under the label "from Angle" (PRD §5.7: "everything derivable from the Angle
- * must auto-fill"). Every one of them is null when the link is absent or no longer live, which is
- * what the page renders as an em dash.
+ * INHERITS from its angle. `angleName` and `themeName` name the pairing; `personaName` and
+ * `productName` are resolved through the angle's own links, which the detail page shows read-only
+ * under the label "from Angle" (PRD §5.7: "everything derivable from the Angle must auto-fill").
+ * Every one of them is null when the link is absent or no longer live, which is what the page
+ * renders as an em dash.
+ *
+ * `description`, `painPoints`, `usp` and `clientComments` are the CONCEPT'S OWN columns (Gratsi
+ * module parity 2026-10-01: every live concept carries a description and pain points of its own),
+ * so they arrive untouched from the row — nothing here reads the angle's text over them. The
+ * angle's three prose fields travel beside them under their own names, `angleDescription`,
+ * `anglePainPoints` and `angleUsp`, resolved through the same scoped angle read as `angleName`:
+ * PRD §5.7 derives the concept card's "Description (hypothesis)", "Pain Points" and "USP" from the
+ * angle, and the client-portal reader (`clientConcepts` in `client-queries.ts`) prints the angle's
+ * text for those two fields, so the Interface Config preview reads these three and shows a CSM
+ * exactly what the client sees. Two names per field, never one column read over the other.
  *
  * `angleIds`, `themeIds` and `creatorIds` are the full junction sets — the UI needs them for
  * multi-select pickers. `angleName` and `themeName` are the FIRST linked name, used for the
@@ -67,14 +80,18 @@ export type ConceptListRow = Concept & {
   /** `campaign_concepts` — the Campaigns & Offers field named "Angles" (module parity 2026-10-01). */
   campaignIds: string[];
   angleName: string | null;
+  /** The FIRST angle's hypothesis, pain points and USP — what the client's concept card prints. */
+  angleDescription: string | null;
+  anglePainPoints: string | null;
+  angleUsp: string | null;
   themeName: string | null;
   personaName: string | null;
   productName: string | null;
   collectionName: string | null;
-  description: string | null;
-  painPoints: string | null;
-  usp: string | null;
 };
+
+/** What a concept reads through its angle: the name, and the three prose fields PRD §5.7 derives. */
+type InheritedAngle = Pick<Angle, 'name' | 'description' | 'painPoints' | 'usp'>;
 
 /** Everything a concept row inherits, resolved once per call and indexed by id. */
 interface Inherited {
@@ -83,15 +100,8 @@ interface Inherited {
   conceptCreatorMap: Map<string, string[]>;
   conceptCollectionMap: Map<string, string[]>;
   conceptCampaignMap: Map<string, string[]>;
-  angleFields: Map<
-    string,
-    {
-      name: string;
-      description: string | null;
-      painPoints: string | null;
-      usp: string | null;
-    }
-  >;
+  /** The brand's live angles by id: absent here means the scope cannot see that angle. */
+  anglesById: Map<string, InheritedAngle>;
   anglePersonaMap: Map<string, string[]>;
   angleProductMap: Map<string, string[]>;
   personaNames: Map<string, string>;
@@ -144,7 +154,7 @@ async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
     conceptCreatorMap,
     conceptCollectionMap,
     conceptCampaignMap,
-    angleFields: new Map(
+    anglesById: new Map(
       brandAngles.map((angle) => [
         angle.id,
         {
@@ -176,8 +186,11 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
   const campaignIds = tables.conceptCampaignMap.get(row.id) ?? [];
 
   const firstAngleId = angleIds[0] ?? null;
-  const angle = firstAngleId === null ? undefined : tables.angleFields.get(firstAngleId);
+  const angle = firstAngleId === null ? undefined : tables.anglesById.get(firstAngleId);
 
+  // Persona, product and the three prose fields are read THROUGH the angle, so an angle the scope
+  // cannot see (another brand's, or soft-deleted) yields none of them — never a persona resolved
+  // off a link that is not live, and never another brand's hypothesis on this brand's card.
   const personaIds =
     firstAngleId === null || angle === undefined
       ? []
@@ -200,14 +213,14 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
     collectionIds,
     campaignIds,
     angleName: angle?.name ?? null,
+    angleDescription: angle?.description ?? null,
+    anglePainPoints: angle?.painPoints ?? null,
+    angleUsp: angle?.usp ?? null,
     themeName: firstThemeId === null ? null : (tables.themeNames.get(firstThemeId) ?? null),
     personaName: firstPersonaId === null ? null : (tables.personaNames.get(firstPersonaId) ?? null),
     productName: firstProductId === null ? null : (tables.productNames.get(firstProductId) ?? null),
     collectionName:
       firstCollectionId === null ? null : (tables.collectionNames.get(firstCollectionId) ?? null),
-    description: angle?.description ?? null,
-    painPoints: angle?.painPoints ?? null,
-    usp: angle?.usp ?? null,
   };
 }
 

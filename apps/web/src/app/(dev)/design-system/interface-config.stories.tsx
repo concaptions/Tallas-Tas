@@ -90,7 +90,10 @@ function showEveryField(
     );
 }
 
-/** The concept the preview card prints. Plain strings, so no database row reaches the browser. */
+/**
+ * The concept the preview card prints. Plain strings, so no database row reaches the browser. The
+ * three prose fields are the ANGLE's, as the card prints them (`PreviewConceptSource`).
+ */
 const SAMPLE_CONCEPT = conceptPreview({
   name: 'B2-It Is Not Just Your Age-Green Screen',
   batch: 'B2',
@@ -100,10 +103,10 @@ const SAMPLE_CONCEPT = conceptPreview({
   themeName: 'Green Screen',
   productName: 'Niagara Deep Sleep Weighted Blanket',
   personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
-  description:
+  angleDescription:
     'Women told their 3am waking is simply their age stop looking for a fix. Naming the mechanism gives them permission to buy one.',
-  painPoints: 'Wakes at 3am soaked. Dreads the evening because she knows what is coming.',
-  usp: 'Pressure without heat: the quilted channels hold weight evenly and still breathe.',
+  anglePainPoints: 'Wakes at 3am soaked. Dreads the evening because she knows what is coming.',
+  angleUsp: 'Pressure without heat: the quilted channels hold weight evenly and still breathe.',
   hookExamples:
     '"My doctor wrote ‘peri-menopausal’ on the notes and sent me home." / "Three forty-seven. Every night."',
   clientStatus: 'pending_for_approval',

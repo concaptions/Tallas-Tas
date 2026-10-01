@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { demoConcepts } from '@tas/db';
+import { demoAngles, demoConcepts, type AngleListRow } from '@tas/db';
 import { INTERFACE_PAGE_KEYS, defaultInterfaceConfig, findPage } from '@tas/domain/interface';
 import { CLIENT_STATUS } from '@tas/domain/state';
 
@@ -25,6 +25,15 @@ function newestConcept(): ConceptRow {
   return toConceptRow(first);
 }
 
+/** The angle the newest seeded concept is paired with: where the card's three prose fields come from. */
+function pairedAngle(concept: ConceptRow): AngleListRow {
+  const angle = demoAngles.find((row) => row.id === concept.angleIds[0]);
+  if (angle === undefined) {
+    throw new Error('the newest demo concept is not paired with a seeded angle');
+  }
+  return angle;
+}
+
 /** The twelve concept fields as the domain defines them, in PRD §10 order. */
 function conceptFieldNames(): readonly string[] {
   const page = findPage(defaultInterfaceConfig(), CONCEPT_CARD_PAGE_KEY);
@@ -46,7 +55,7 @@ describe('conceptPreviewValues', () => {
     expect([...keys].sort()).toEqual([...conceptFieldNames()].sort());
   });
 
-  it('prints the seeded concept, the fields inherited from its angle included', () => {
+  it('prints the seeded concept, the names inherited from its angle included', () => {
     const concept = newestConcept();
     const values = conceptPreviewValues(concept);
 
@@ -56,9 +65,28 @@ describe('conceptPreviewValues', () => {
     expect(values.theme).toBe(concept.themeName);
     expect(values.persona).toBe(concept.personaName);
     expect(values.hook_examples).toBe(concept.hookExamples);
-    // Inherited from the angle rather than stored on the concept, and still present.
-    expect(values.usp).toBe(concept.usp);
-    expect(values.pain_points).toBe(concept.painPoints);
+  });
+
+  /**
+   * Which text the client sees under "Description (hypothesis)", "Pain Points" and "USP": the
+   * ANGLE's, as PRD §5.7 derives them and as `clientConcepts` — the reader behind the real client
+   * portal — prints them. The concept row carries its own prose under the same three names (Gratsi
+   * parity), and the fixture's concept and angle texts differ on all three, so these assertions
+   * can tell the two apart: a projection that read the concept's own columns fails here.
+   */
+  it('prints the ANGLE’s hypothesis, pain points and USP, never the concept’s own prose', () => {
+    const concept = newestConcept();
+    const angle = pairedAngle(concept);
+    const values = conceptPreviewValues(concept);
+
+    expect(values.description).toBe(angle.description);
+    expect(values.pain_points).toBe(angle.painPoints);
+    expect(values.usp).toBe(angle.usp);
+
+    expect(values.description).not.toBeNull();
+    expect(values.description).not.toBe(concept.description);
+    expect(values.pain_points).not.toBe(concept.painPoints);
+    expect(values.usp).not.toBe(concept.usp);
   });
 
   it('carries nothing internal: no internal status, no script idea (non-negotiable 10)', () => {
