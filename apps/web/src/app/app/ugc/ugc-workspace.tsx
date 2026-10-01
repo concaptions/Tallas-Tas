@@ -22,15 +22,30 @@ import {
   type KanbanItem,
   type GalleryItem,
 } from '@/components/views';
-import { CreatorCard } from './creator-card';
+import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import {
+  BoolCell,
+  ChipCell,
+  ChipListCell,
+  CountCell,
+  DateCell,
+  LinkCell,
+  MoneyCell,
+  TextCell,
+} from '@/components/views/grid-cells';
+import { ageBracketLabel, creatorPlatformLabel } from '@tas/domain/creators';
+
 import { CreatorPanel, type LinkOption } from './creator-panel';
 import { PartnershipTable } from './partnership-table';
 import {
   creatorCountLabel,
+  creatorInitials,
+  creatorTracks,
   DEFAULT_TAB,
   filteredCountLabel,
   identityLine,
   matchesQuery,
+  partnershipActivityChip,
   NEW_CREATOR_SOON_HINT,
   NO_CREATORS_NOTE,
   NO_MATCH_NOTE,
@@ -77,6 +92,267 @@ function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
   }
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
+
+/**
+ * The Airtable-style grid columns for UGC creators: the frozen name cell carries the avatar (the
+ * profile picture, or initials on `bg-surface3` when there is none — never a broken image), then
+ * the three labelled status tracks and every other stored column of `creators`, in the panel's
+ * order. Costs and payments are internal figures (CLAUDE.md non-negotiable 10); this grid is the
+ * team workspace, never the client interface.
+ */
+const CREATOR_COLUMNS: readonly GridColumn<CreatorCardRow>[] = [
+  {
+    key: 'name',
+    header: 'Name',
+    frozen: true,
+    minWidth: 240,
+    sortValue: (creator) => creator.name,
+    render: (creator) => (
+      <span className="flex items-center gap-2">
+        {creator.profilePicUrl === null ? (
+          <span
+            data-slot="creator-avatar"
+            data-fallback="initials"
+            aria-hidden="true"
+            className="flex size-7 shrink-0 items-center justify-center rounded-card border border-line bg-surface3 font-mono text-[10px] text-text3"
+          >
+            {creatorInitials(creator.name)}
+          </span>
+        ) : (
+          <img
+            data-slot="creator-avatar"
+            src={creator.profilePicUrl}
+            alt=""
+            width={28}
+            height={28}
+            className="size-7 shrink-0 rounded-card border border-line bg-surface3 object-cover"
+          />
+        )}
+        <span className="font-medium" data-slot="creator-name">
+          {creator.name}
+        </span>
+      </span>
+    ),
+  },
+  ...creatorTracks({
+    internalCreatorStatus: '',
+    clientStatus: '',
+    internalAssetsStatus: '',
+  }).map((track): GridColumn<CreatorCardRow> => ({
+    key: `status-${track.key}`,
+    header: `${track.label} Status`,
+    sortValue: (creator) =>
+      creatorTracks(creator).find((entry) => entry.key === track.key)?.statusLabel ?? null,
+    render: (creator) => {
+      const entry = creatorTracks(creator).find((candidate) => candidate.key === track.key);
+      return (
+        <span data-slot="creator-track" data-track={track.key}>
+          <ChipCell
+            chip={entry === undefined ? null : { label: entry.statusLabel, tone: entry.tone }}
+          />
+        </span>
+      );
+    },
+  })),
+  {
+    key: 'gender',
+    header: 'Gender',
+    sortValue: (creator) => creator.gender,
+    render: (creator) => <TextCell value={creator.gender} />,
+  },
+  {
+    key: 'ageBracket',
+    header: 'Age Bracket',
+    sortValue: (creator) => creator.ageBracket,
+    render: (creator) =>
+      creator.ageBracket === null || creator.ageBracket === '' ? (
+        <TextCell value={null} />
+      ) : (
+        <span data-slot="creator-identity">{ageBracketLabel(creator.ageBracket)}</span>
+      ),
+  },
+  {
+    key: 'ethnicity',
+    header: 'Ethnicity',
+    render: (creator) => <TextCell value={creator.ethnicity} />,
+  },
+  {
+    key: 'platform',
+    header: 'Platform',
+    render: (creator) => (
+      <ChipListCell
+        chips={creator.platform.map((entry) => ({
+          label: creatorPlatformLabel(entry),
+          tone: 'mute',
+        }))}
+      />
+    ),
+  },
+  {
+    key: 'creatorLink',
+    header: 'Creator Link',
+    render: (creator) => <LinkCell value={creator.creatorLink} />,
+  },
+  {
+    key: 'instagramUsername',
+    header: 'Instagram Username',
+    sortValue: (creator) => creator.instagramUsername ?? null,
+    render: (creator) => <TextCell value={creator.instagramUsername} mono />,
+  },
+  {
+    key: 'facebookProfileUrl',
+    header: 'Facebook Profile',
+    render: (creator) => <LinkCell value={creator.facebookProfileUrl} />,
+  },
+  {
+    key: 'concepts',
+    header: 'Linked Concepts',
+    sortValue: (creator) => creator.conceptIds.length,
+    render: (creator) => <CountCell count={creator.conceptIds.length} noun="concept" />,
+  },
+  {
+    key: 'products',
+    header: 'Linked Products',
+    sortValue: (creator) => creator.productIds.length,
+    render: (creator) => <CountCell count={creator.productIds.length} noun="product" />,
+  },
+  {
+    key: 'internalBrief',
+    header: 'Internal Brief',
+    render: (creator) => <TextCell value={creator.internalBrief} />,
+  },
+  {
+    key: 'clientNote',
+    header: "Client's Note",
+    render: (creator) => <TextCell value={creator.clientNote} />,
+  },
+  {
+    key: 'creatorInfoRequest',
+    header: 'Creator Info Request',
+    render: (creator) => <TextCell value={creator.creatorInfoRequest} />,
+  },
+  {
+    key: 'rawAssetsUrl',
+    header: 'Raw Assets URL',
+    render: (creator) => <LinkCell value={creator.rawAssetsUrl} />,
+  },
+  {
+    key: 'videoIntroUrl',
+    header: 'Video Intro',
+    render: (creator) => <LinkCell value={creator.videoIntroUrl} />,
+  },
+  {
+    key: 'shippingLocation',
+    header: 'Shipping Location',
+    render: (creator) => <TextCell value={creator.shippingLocation} />,
+  },
+  {
+    key: 'trackingNumber',
+    header: 'Tracking Number',
+    render: (creator) => <TextCell value={creator.trackingNumber} mono />,
+  },
+  {
+    key: 'dateOfManagement',
+    header: 'Date of Management',
+    sortValue: (creator) => creator.dateOfManagement?.toISOString() ?? null,
+    render: (creator) => <DateCell value={creator.dateOfManagement} />,
+  },
+  {
+    key: 'budgetPer60s',
+    header: 'Budget per 60sec Video',
+    align: 'right',
+    sortValue: (creator) => creator.budgetPer60s ?? null,
+    render: (creator) => <MoneyCell value={creator.budgetPer60s} />,
+  },
+  {
+    key: 'creatorCost',
+    header: 'Creator Cost (USD)',
+    align: 'right',
+    sortValue: (creator) => creator.creatorCost ?? null,
+    render: (creator) => <MoneyCell value={creator.creatorCost} />,
+  },
+  {
+    key: 'costUsd',
+    header: 'Paid by TAS (USD)',
+    align: 'right',
+    sortValue: (creator) => creator.costUsd,
+    render: (creator) => <MoneyCell value={creator.costUsd} />,
+  },
+  {
+    key: 'paymentDate',
+    header: 'Payment Date',
+    sortValue: (creator) => creator.paymentDate?.toISOString() ?? null,
+    render: (creator) => <DateCell value={creator.paymentDate} />,
+  },
+  {
+    key: 'partnershipActivity',
+    header: 'Partnership Activity',
+    sortValue: (creator) => creator.partnershipActivity ?? null,
+    render: (creator) => {
+      const chip = partnershipActivityChip(creator.partnershipActivity);
+      return <ChipCell chip={chip.key === '' ? null : { label: chip.label, tone: chip.tone }} />;
+    },
+  },
+  {
+    key: 'partnershipActivatedAt',
+    header: 'Date of Partnership Activation',
+    sortValue: (creator) => creator.partnershipActivatedAt?.toISOString() ?? null,
+    render: (creator) => <DateCell value={creator.partnershipActivatedAt} />,
+  },
+  {
+    key: 'partnershipPeriodDays',
+    header: 'Partnership Period (days)',
+    align: 'right',
+    sortValue: (creator) => creator.partnershipPeriodDays ?? null,
+    render: (creator) =>
+      creator.partnershipPeriodDays === null || creator.partnershipPeriodDays === undefined ? (
+        <TextCell value={null} />
+      ) : (
+        <span className="font-mono text-xs">{String(creator.partnershipPeriodDays)}</span>
+      ),
+  },
+  {
+    key: 'extensionDays',
+    header: 'Extension (days)',
+    align: 'right',
+    sortValue: (creator) => creator.extensionDays ?? 0,
+    render: (creator) =>
+      (creator.extensionDays ?? 0) === 0 ? (
+        <TextCell value={null} />
+      ) : (
+        <span className="font-mono text-xs">{String(creator.extensionDays)}</span>
+      ),
+  },
+  {
+    key: 'partnershipPricePer30Days',
+    header: 'Partnership Price per 30 Days',
+    align: 'right',
+    sortValue: (creator) => creator.partnershipPricePer30Days,
+    render: (creator) => <MoneyCell value={creator.partnershipPricePer30Days} />,
+  },
+  {
+    key: 'continueWorkingWith',
+    header: 'Continue Working With?',
+    align: 'center',
+    render: (creator) =>
+      creator.continueWorkingWith === null || creator.continueWorkingWith === undefined ? (
+        <TextCell value={null} />
+      ) : (
+        <BoolCell value={creator.continueWorkingWith} />
+      ),
+  },
+  {
+    key: 'partnershipNotes',
+    header: 'Partnership Notes',
+    render: (creator) => <TextCell value={creator.partnershipNotes} />,
+  },
+  {
+    key: 'slackNotified',
+    header: 'Slack Notified',
+    align: 'center',
+    render: (creator) => <BoolCell value={creator.slackNotified} />,
+  },
+];
 
 export function UgcWorkspace({
   creators,
@@ -295,21 +571,20 @@ export function UgcWorkspace({
           ) : activeView === 'gallery' ? (
             <GalleryView items={galleryItems} />
           ) : (
-            <div
-              data-slot="creator-grid"
-              className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-            >
-              {visibleCreators.map((creator) => (
-                <CreatorCard
-                  key={creator.id}
-                  creator={creator}
-                  selected={creator.id === selection}
-                  onClick={() => {
-                    select(creator.id);
-                  }}
-                />
-              ))}
-            </div>
+            <AirtableGrid
+              tableKey="creators"
+              columns={CREATOR_COLUMNS}
+              rows={visibleCreators}
+              rowId={(creator) => creator.id}
+              rowLabel={(creator) => creator.name}
+              rowAttributes={(creator) => ({ 'data-creator-id': creator.id })}
+              selectedId={selection}
+              onRowClick={(creator) => {
+                select(creator.id);
+              }}
+              tableSlot="creators-table"
+              rowSlot="creator-row"
+            />
           )}
         </TabsContent>
 

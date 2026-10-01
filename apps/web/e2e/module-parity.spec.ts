@@ -786,8 +786,8 @@ const MODULES: readonly ModuleEntry[] = [
     label: 'UGC Management',
     path: ugcPath,
     heading: 'UGC Management',
-    // The Creators tab and the card grid are the page's defaults, so no tab click is needed.
-    rowSlot: 'creator-card',
+    // The Creators tab and the grid are the page's defaults, so no tab click is needed.
+    rowSlot: 'creator-row',
     opens: { panelSlot: 'creator-panel' },
     fields: [
       { gratsi: 'Creator name (Filled by UGC Manager)', label: 'Name' },
