@@ -231,6 +231,26 @@ Conventions fixed by this ticket:
 - Numbering: the ticket text names D-011 for this entry; stage 1 took D-011 (see its last bullet), so
   stage 2 is D-012.
 
+## D-014 · 2026-10-01 · Playwright live mode signs in with Clerk Testing Tokens
+
+Discovery and trade-offs: `docs/decisions/playwright-clerk-live-mode-2026-10-01.md`. Chosen: Clerk's
+Testing Token (`@clerk/testing`, already a dev dependency since D-013) plus a pre-created user on the
+dev instance signed in with the password strategy, once per Playwright worker, storage state reused
+for that worker's pages (`apps/web/e2e/support/clerk-login.ts`). Rejected: sign-up per run (leaves a
+user behind every run, and the org membership a seeded brand needs cannot be created from the
+browser without a second write path) and bypass headers (not a Clerk feature; a header the app
+honours is a backdoor).
+
+Variables are named after the repository secrets (`CLERK_PUBLISHABLE_KEY_TEST`,
+`CLERK_SECRET_KEY_TEST`, `CLERK_E2E_USER_PASSWORD`, `DATABASE_URL_E2E`, optional non-secret
+`CLERK_E2E_USER_EMAIL`), validated in `@tas/env` like every other variable, and mapped to the app's
+own names only on the launched dev server (`playwright.config.ts`), so a developer's `.env.local`
+keys never reach an E2E run. All four or none: a partial set fails the run naming the missing ones,
+so a test cannot be green locally and silently skipped in CI. Live specs sit in
+`apps/web/e2e/live/` and run in a separate Playwright project against a second dev server (port
+3001), so one `pnpm test:e2e` runs the demo suite and the live suite side by side; `.github/
+workflows/e2e.yml` is the first CI workflow in the repo. No new dependency.
+
 ## D-013 · 2026-09-16 · Clerk auth wiring (TICKET-004)
 
 Dependencies added to `apps/web` (`@tas/web`), exact major pinned, minor and patch float with caret:

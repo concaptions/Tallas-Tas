@@ -39,6 +39,8 @@ export { assetCategories } from './schema/assets';
 export type { AssetCategory } from './schema/assets';
 export type { AirtableExport, AirtableRecord } from './airtable-import';
 export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
+export { restoreBrief, snapshotBrief } from './briefs-e2e';
+export type { BriefSnapshot } from './briefs-e2e';
 export type { AngleInput, AngleListRow } from './angles';
 export {
   getBriefById,

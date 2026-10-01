@@ -28,6 +28,15 @@ export const serverSchema = clientSchema.extend({
   AIRTABLE_PAT: secret.optional(),
   META_ACCESS_TOKEN: secret.optional(),
   META_AD_ACCOUNT_ID: secret.optional(),
+  // Playwright live mode (docs/runbook.md, "Playwright live mode"): one variable per GitHub secret,
+  // exported under the same names locally. The `_TEST` / `_E2E` suffixes keep a developer's own
+  // Clerk keys and DATABASE_URL out of the E2E run, and the run out of their database.
+  CLERK_PUBLISHABLE_KEY_TEST: z.string().startsWith('pk_').optional(),
+  CLERK_SECRET_KEY_TEST: z.string().startsWith('sk_').optional(),
+  CLERK_E2E_USER_PASSWORD: secret.optional(),
+  DATABASE_URL_E2E: z.url().optional(),
+  // Not a secret: the pre-created test user's address. apps/web/src/lib/live-e2e-env.ts has the default.
+  CLERK_E2E_USER_EMAIL: z.email().optional(),
 });
 
 export type ClientEnv = z.output<typeof clientSchema>;
