@@ -4,12 +4,17 @@ import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
 import { loadAssets } from '@/lib/assets-source';
 import { loadBriefById } from '@/lib/briefs-source';
+import { loadClientAssetFolders } from '@/lib/client-assets-source';
 import { loadCollections } from '@/lib/collections-source';
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadCopy } from '@/lib/copy-source';
+import { loadCreativeModules } from '@/lib/creative-modules-source';
+import { loadCreativeReports } from '@/lib/creative-reporting-source';
+import { loadCreativeSheetItems } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { conceptPath } from '@/lib/routes';
 
+import { briefLinkedRecords } from '../fields';
 import { BriefDetail, type BriefConceptCard, type BriefValues } from './brief-detail';
 
 /**
@@ -32,17 +37,42 @@ interface BriefPageProps {
 
 export default async function BriefPage({ params }: BriefPageProps) {
   const { briefId } = await params;
-  const [{ brief }, conceptRows, collectionRows, assetRows, copyRows] = await Promise.all([
+  const [
+    { brief },
+    conceptRows,
+    collectionRows,
+    assetRows,
+    copyRows,
+    sheetItems,
+    modules,
+    folders,
+    reports,
+  ] = await Promise.all([
     loadBriefById(briefId),
     loadConcepts(),
     loadCollections(),
     loadAssets(),
     loadCopy(),
+    // The four tables that point at a brief (module parity, phase 2), each through its own
+    // demo-aware `load…`, so the rail reads the fixtures' link arrays and a seeded database's
+    // junctions through one branch.
+    loadCreativeSheetItems(),
+    loadCreativeModules(),
+    loadClientAssetFolders(),
+    loadCreativeReports(),
   ]);
   if (brief === null) {
     notFound();
   }
   const demo = isDemoMode();
+
+  // Indexed by the junction here, on the server; the rail renders plain records with their hrefs.
+  const linked = briefLinkedRecords(brief.id, {
+    sheetItems: sheetItems.rows,
+    modules: modules.rows,
+    folders: folders.rows,
+    reports: reports.rows,
+  });
 
   // TABLE 7 parity (TASK 8): the linked collection's and asset's names, and the Meta Copywriting
   // rows whose creative_brief_id points here — all resolved on the server, views precomputed.
@@ -129,6 +159,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
       collectionName={collectionName}
       assetName={assetName}
       copyLinks={copyLinks}
+      linked={linked}
       track={brief.track}
       internal={brief.internalStatus}
       client={brief.clientStatus}

@@ -21,6 +21,26 @@ import {
   type CreativeTrack,
   type InternalStatusKey,
 } from '@tas/domain/state';
+import type {
+  ClientAssetFolderListRow,
+  CreativeModuleListRow,
+  CreativeReportListRow,
+  CreativeSheetItemListRow,
+} from '@tas/db';
+
+import { differenceCpaView, formatCurrency } from '@/app/app/creative-reporting/fields';
+import {
+  SELECTION_PARAM as SHEET_SELECTION_PARAM,
+  internalStatusView as sheetInternalStatusView,
+  statusView as sheetStatusView,
+  type SheetStatusView,
+} from '@/app/app/creative-sheet/fields';
+import {
+  clientAssetsPath,
+  creativeModulesPath,
+  creativeReportingPath,
+  creativeSheetPath,
+} from '@/lib/routes';
 
 import type { BriefFieldName, BriefQaCheck } from './actions';
 
@@ -34,9 +54,9 @@ import type { BriefFieldName, BriefQaCheck } from './actions';
  * inspiration providers from `@tas/domain/angles`. No component writes `'Motion Image'`,
  * `'Static High'`, `'9:16'` or `'approved'`.
  *
- * `@tas/db` is deliberately absent: the workspace and the detail form are client components, and a
- * runtime import of that package would drag the database driver into the browser bundle. Everything
- * a client needs is handed down from `page.tsx` as plain data.
+ * `@tas/db` is imported for its TYPES only: the workspace and the detail form are client components,
+ * and a runtime import of that package would drag the database driver into the browser bundle. A
+ * type-only import is erased. Everything a client needs is handed down from `page.tsx` as plain data.
  */
 export type { BriefFieldName, BriefQaCheck };
 export { STANDALONE_CONCEPT_SLUG };
@@ -189,6 +209,213 @@ export interface BriefItem {
   readonly galleryImageUrl: string | null;
   /** All raw fields the update action needs, so Kanban drag can build FormData without re-fetching. */
   readonly formSnapshot: BriefFormSnapshot;
+  /** How many rows of each counterpart table point at this brief — the panel's one-line read. */
+  readonly linkCounts: BriefLinkCounts;
+}
+
+// ── Two-way links (module parity, phase 2) ──────────────────────────────────────────────────────
+
+/**
+ * The four tables that point AT a brief, each read back the other way here so the brief shows what
+ * cites it. The links are one-directional in the schema — `creative_sheet_items.brief_id`,
+ * `creative_module_designs`, `brief_asset_folders`, `creative_reporting.brief_id` — and the brief
+ * never stores the inverse: these are computed from the counterpart rows on the server, by the
+ * functions below, and handed down as plain data.
+ */
+export type BriefLinkKind = 'sheetItems' | 'modules' | 'folders' | 'reports';
+
+/** One chip on a linked record: a sheet status, a CPA difference. */
+export interface BriefLinkChip {
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+/** One row of another table that points at this brief, as the rail's card renders it. */
+export interface BriefLinkedRecord {
+  readonly id: string;
+  readonly label: string;
+  /** True when the label is generated system output (a computed name), so it renders in `font-mono`. */
+  readonly mono: boolean;
+  /** The counterpart page, opened on this row's panel; `null` when the row has no page of its own. */
+  readonly href: string | null;
+  /** A quiet second line under the label, e.g. a report's CPA against its target. */
+  readonly detail: string | null;
+  readonly chips: readonly BriefLinkChip[];
+}
+
+export type BriefLinkedRecords = Readonly<Record<BriefLinkKind, readonly BriefLinkedRecord[]>>;
+export type BriefLinkCounts = Readonly<Record<BriefLinkKind, number>>;
+
+/** The counterpart rows, as each module's `load…` function returns them (fixtures or database). */
+export interface BriefLinkSources {
+  readonly sheetItems: readonly CreativeSheetItemListRow[];
+  readonly modules: readonly CreativeModuleListRow[];
+  readonly folders: readonly ClientAssetFolderListRow[];
+  readonly reports: readonly CreativeReportListRow[];
+}
+
+/** One rail section: its data-slot, heading, empty-state sentence and the noun the count line uses. */
+export interface BriefLinkSection {
+  readonly kind: BriefLinkKind;
+  readonly slot: string;
+  readonly heading: string;
+  readonly empty: string;
+  readonly noun: readonly [singular: string, plural: string];
+}
+
+/** The rail's four link sections, in the order they render and the count line reads. */
+export const BRIEF_LINK_SECTIONS: readonly BriefLinkSection[] = [
+  {
+    kind: 'sheetItems',
+    slot: 'brief-creative-sheet',
+    heading: 'Creative Sheet',
+    empty: 'No sheet row names this creative yet. One appears when the month’s sheet links it.',
+    noun: ['sheet row', 'sheet rows'],
+  },
+  {
+    kind: 'modules',
+    slot: 'brief-creative-modules',
+    heading: 'Creative Modules',
+    empty: 'No module groups this creative yet. Link it from the module’s panel.',
+    noun: ['module', 'modules'],
+  },
+  {
+    kind: 'folders',
+    slot: 'brief-client-assets',
+    heading: 'Client Asset folders',
+    empty: 'No client asset folder feeds this creative yet. Link it from the folder’s panel.',
+    noun: ['asset folder', 'asset folders'],
+  },
+  {
+    kind: 'reports',
+    slot: 'brief-creative-reports',
+    heading: 'Creative Reports',
+    empty: 'No report has been filed for this creative yet.',
+    noun: ['report', 'reports'],
+  },
+];
+
+export const NO_BRIEF_LINKS: BriefLinkCounts = {
+  sheetItems: 0,
+  modules: 0,
+  folders: 0,
+  reports: 0,
+};
+
+/**
+ * Each counterpart page opened on one row. The Creative Sheet exports its selection parameter; the
+ * other three read theirs inline (`params.module`, `params.folder`, `params.creativeReport` in
+ * their `page.tsx`), so those three names are stated here, once, beside the page they belong to.
+ */
+function sheetItemHref(id: string): string {
+  return `${creativeSheetPath}?${SHEET_SELECTION_PARAM}=${encodeURIComponent(id)}`;
+}
+function moduleHref(id: string): string {
+  return `${creativeModulesPath}?module=${encodeURIComponent(id)}`;
+}
+function folderHref(id: string): string {
+  return `${clientAssetsPath}?folder=${encodeURIComponent(id)}`;
+}
+function reportHref(id: string): string {
+  return `${creativeReportingPath}?creativeReport=${encodeURIComponent(id)}`;
+}
+
+/** A report's one-line read, both sides formatted by the reporting module's own currency rule. */
+export function cpaVsTargetLabel(cpa: string | null, targetCpa: string | null): string {
+  return `CPA ${formatCurrency(cpa)} vs target ${formatCurrency(targetCpa)}`;
+}
+
+/**
+ * Every row of the four counterpart tables that points at `briefId`, in the order each source
+ * returns them, each already carrying its href, its chips and its detail line. Statuses and the
+ * CPA difference are read through the counterpart module's own view functions, so a sheet chip on
+ * this page and on the Creative Sheet cannot disagree.
+ */
+export function briefLinkedRecords(briefId: string, sources: BriefLinkSources): BriefLinkedRecords {
+  return {
+    sheetItems: sources.sheetItems
+      .filter((row) => row.briefId === briefId)
+      .map((row) => ({
+        id: row.id,
+        label: row.name,
+        mono: true,
+        href: sheetItemHref(row.id),
+        detail: null,
+        chips: [sheetInternalStatusView(row.internalStatus), sheetStatusView(row.status)]
+          .filter((view): view is SheetStatusView => view !== null)
+          .map((view) => ({ label: view.label, tone: view.tone })),
+      })),
+    modules: sources.modules
+      .filter((row) => row.briefIds.includes(briefId))
+      .map((row) => ({
+        id: row.id,
+        label: row.moduleName,
+        mono: false,
+        href: moduleHref(row.id),
+        detail: null,
+        chips: [],
+      })),
+    folders: sources.folders
+      .filter((row) => row.briefIds.includes(briefId))
+      .map((row) => ({
+        id: row.id,
+        label: row.name,
+        mono: false,
+        href: folderHref(row.id),
+        detail: null,
+        chips: [],
+      })),
+    reports: sources.reports
+      .filter((row) => row.briefId === briefId)
+      .map((row) => {
+        const difference = differenceCpaView(row.differenceCpa);
+        return {
+          id: row.id,
+          label: row.nameAngleOffer,
+          mono: false,
+          href: reportHref(row.id),
+          detail: cpaVsTargetLabel(row.cpa, row.targetCpa),
+          chips: difference === null ? [] : [difference],
+        };
+      }),
+  };
+}
+
+/**
+ * `briefId -> counts`, every brief any counterpart row points at, in one pass per source — so the
+ * list page costs four reads for N briefs rather than four per brief. A brief nobody cites is absent;
+ * the caller reads `NO_BRIEF_LINKS` for it.
+ */
+export function indexBriefLinkCounts(
+  sources: BriefLinkSources,
+): ReadonlyMap<string, BriefLinkCounts> {
+  const index = new Map<string, Record<BriefLinkKind, number>>();
+  const bump = (briefId: string, kind: BriefLinkKind): void => {
+    const counts = index.get(briefId) ?? { ...NO_BRIEF_LINKS };
+    counts[kind] += 1;
+    index.set(briefId, counts);
+  };
+  for (const row of sources.sheetItems) {
+    if (row.briefId !== null) bump(row.briefId, 'sheetItems');
+  }
+  for (const row of sources.modules) {
+    for (const briefId of row.briefIds) bump(briefId, 'modules');
+  }
+  for (const row of sources.folders) {
+    for (const briefId of row.briefIds) bump(briefId, 'folders');
+  }
+  for (const row of sources.reports) {
+    if (row.briefId !== null) bump(row.briefId, 'reports');
+  }
+  return index;
+}
+
+/** The panel's count line: `1 sheet row · 2 modules · 0 asset folders · 1 report`. Never "1 rows". */
+export function linkCountLabel(counts: BriefLinkCounts): string {
+  return BRIEF_LINK_SECTIONS.map((section) => {
+    const count = counts[section.kind];
+    return `${String(count)} ${count === 1 ? section.noun[0] : section.noun[1]}`;
+  }).join(' · ');
 }
 
 /** How the header counts what is on screen. Singular at one, never "1 briefs". */

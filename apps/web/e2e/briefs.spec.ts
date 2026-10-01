@@ -25,12 +25,16 @@ const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
 /** `static_design_in_progress`: the one the client track is still shut on. */
 const NOT_YOUR_AGE_STATIC = '77777777-7777-4777-8777-000000000002';
 const BUNDLE_STANDALONE = '77777777-7777-4777-8777-000000000005';
+/** Cited by one creative module and by nothing else — the rail's empty states, three at once. */
+const NINETY_MINUTES_CAROUSEL = '77777777-7777-4777-8777-000000000006';
 
 // The generated creative name carries the Source prefix (Airtable "Source-(Funnel)(Type)(Number)-…"):
 // TAS for internal briefs, Client for client-sourced ones. These constants were stale — the spec
 // predated the source prefix in the naming formula and only ran once the demo webServer was fixed.
 const BODY_CLOCK_NAME = 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
 const BUNDLE_NAME = 'Client-RS1-B4-Standalone-V3-NIGHT RESET BUNDLE';
+/** The Creative Sheet's computed name: the month the sheet row was created, then the creative. */
+const BODY_CLOCK_SHEET_NAME = `October-${BODY_CLOCK_NAME}`;
 
 test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -130,6 +134,10 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     const panel = page.locator('[data-slot="brief-panel"]');
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="brief-panel-title"]')).toHaveText(BODY_CLOCK_NAME);
+    // The quick look counts what points at the brief; the full page lists each record.
+    await expect(panel.locator('[data-slot="brief-panel-links"]')).toHaveText(
+      '1 sheet row · 1 module · 1 asset folder · 1 report',
+    );
     // Not a modal: the board is still there beside it, and the URL has not moved.
     await expect(page.locator('[data-slot="kanban-board"]')).toBeVisible();
     await expect(page).not.toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));
@@ -244,6 +252,84 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="brief-concept"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="brief-concept-standalone"]')).toContainText(
       'No parent concept',
+    );
+  });
+
+  // Module parity, phase 2: the four tables that point at a brief are read back the other way on
+  // its rail. The fixtures' link arrays are what render here, through the same demo-aware loaders.
+  test('the rail lists every record that points at this creative, each linking to its own page', async ({
+    page,
+  }) => {
+    await page.goto(briefPath(BODY_CLOCK));
+
+    // Creative Sheet: the computed month-name in mono, with the sheet's own two status chips.
+    const sheet = page.locator('[data-slot="brief-creative-sheet"]');
+    const sheetLabel = sheet.locator('[data-slot="brief-link-label"]');
+    await expect(sheetLabel).toHaveText(BODY_CLOCK_SHEET_NAME);
+    await expect(sheetLabel).toHaveCSS('font-family', /mono/i);
+    const sheetChips = sheet.locator('[data-slot="status-chip"]');
+    await expect(sheetChips).toHaveText(['Approved', 'Pending For Approval']);
+    await expect(sheetChips.first()).toHaveAttribute('data-tone', 'ok');
+    await expect(sheet.locator('[data-slot="brief-link"]')).toHaveAttribute(
+      'href',
+      /\/app\/creative-sheet\?creative-sheet=/,
+    );
+
+    // Creative Modules and Client Asset folders: the record's own name, opening its panel.
+    const modules = page.locator('[data-slot="brief-creative-modules"]');
+    await expect(modules.locator('[data-slot="brief-link-label"]')).toHaveText([
+      'Problem → Solution Hooks',
+    ]);
+    await expect(modules.locator('[data-slot="brief-link"]')).toHaveAttribute(
+      'href',
+      /\/app\/creative-modules\?module=/,
+    );
+
+    const folders = page.locator('[data-slot="brief-client-assets"]');
+    await expect(folders.locator('[data-slot="brief-link-label"]')).toHaveText([
+      'Product Photography — Deep Sleep Blanket',
+    ]);
+    await expect(folders.locator('[data-slot="brief-link"]')).toHaveAttribute(
+      'href',
+      /\/app\/client-assets\?folder=/,
+    );
+
+    // Creative Reports: the name, CPA against target, and the difference as a chip — over, so bad.
+    const reports = page.locator('[data-slot="brief-creative-reports"]');
+    await expect(reports.locator('[data-slot="brief-link-label"]')).toHaveText([
+      'Body Clock V2 — Shift Worker — 90-Night Trial',
+    ]);
+    await expect(reports.locator('[data-slot="brief-link-detail"]')).toHaveText(
+      'CPA $24.50 vs target $22.00',
+    );
+    const difference = reports.locator('[data-slot="status-chip"]');
+    await expect(difference).toHaveText('+$2.50');
+    await expect(difference).toHaveAttribute('data-tone', 'bad');
+    await expect(reports.locator('[data-slot="brief-link"]')).toHaveAttribute(
+      'href',
+      /\/app\/creative-reporting\?creativeReport=/,
+    );
+
+    // The Meta Copywriting section this page already had is still here.
+    await expect(page.locator('[data-slot="brief-copywriting"]')).toBeVisible();
+  });
+
+  test('a rail section nothing points at says so in a sentence, never a blank card', async ({
+    page,
+  }) => {
+    await page.goto(briefPath(NINETY_MINUTES_CAROUSEL));
+
+    await expect(
+      page.locator('[data-slot="brief-creative-modules"] [data-slot="brief-link-label"]'),
+    ).toHaveText(['Parent Handover Window']);
+    await expect(page.locator('[data-slot="brief-creative-sheet-empty"]')).toContainText(
+      'No sheet row',
+    );
+    await expect(page.locator('[data-slot="brief-client-assets-empty"]')).toContainText(
+      'No client asset folder',
+    );
+    await expect(page.locator('[data-slot="brief-creative-reports-empty"]')).toContainText(
+      'No report',
     );
   });
 

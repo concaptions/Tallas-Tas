@@ -1,22 +1,35 @@
-import { demoBriefs } from '@tas/db';
+import {
+  demoBriefs,
+  demoClientAssetFolders,
+  demoCreativeModules,
+  demoCreativeReports,
+  demoCreativeSheetItems,
+} from '@tas/db';
 import { creativeNameForConcept, dimensionsFor } from '@tas/domain/creatives';
 import { describe, expect, it } from 'vitest';
 
 import {
   BRIEF_COLUMNS,
+  BRIEF_LINK_SECTIONS,
   BRIEF_QA_CHECKS,
   BRIEF_QA_LABELS,
+  NO_BRIEF_LINKS,
   advanceLabel,
   briefCountLabel,
   briefDimensions,
+  briefLinkedRecords,
   clientStatusView,
+  cpaVsTargetLabel,
   filteredBriefCountLabel,
+  indexBriefLinkCounts,
   internalStatusView,
+  linkCountLabel,
   matchesQuery,
   nextInternalStatus,
   priorityView,
   productSuffixOf,
   type BriefItem,
+  type BriefLinkSources,
 } from './fields';
 
 const EMPTY_SNAPSHOT = {
@@ -61,9 +74,24 @@ function item(overrides: Partial<BriefItem> = {}): BriefItem {
     kanbanFields: { clientStatus: 'pending_for_approval', internalStatus: 'approved' },
     galleryImageUrl: null,
     formSnapshot: EMPTY_SNAPSHOT,
+    linkCounts: NO_BRIEF_LINKS,
     ...overrides,
   };
 }
+
+/** The four counterpart fixtures, as the pages read them through the demo-aware `load…` functions. */
+const DEMO_LINK_SOURCES: BriefLinkSources = {
+  sheetItems: demoCreativeSheetItems,
+  modules: demoCreativeModules,
+  folders: demoClientAssetFolders,
+  reports: demoCreativeReports,
+};
+
+/** `demoBriefs` ids: the one every counterpart cites, the one only a module cites, the standalone. */
+const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
+const NINETY_MINUTES_CAROUSEL = '77777777-7777-4777-8777-000000000006';
+const BUNDLE_STANDALONE = '77777777-7777-4777-8777-000000000005';
+const BODY_CLOCK_LAUNCHED = '77777777-7777-4777-8777-000000000007';
 
 describe('BRIEF_COLUMNS', () => {
   it('is the ticket order, exactly', () => {
@@ -212,6 +240,143 @@ describe('productSuffixOf', () => {
 
   it('is null when the name does not carry the version it was given', () => {
     expect(productSuffixOf('RS1-B4-Standalone-V3-NIGHT RESET BUNDLE', 5)).toBeNull();
+  });
+});
+
+describe('BRIEF_LINK_SECTIONS', () => {
+  it('gives every section its own data-slot, in the rail order', () => {
+    const slots = BRIEF_LINK_SECTIONS.map((section) => section.slot);
+    expect(slots).toEqual([
+      'brief-creative-sheet',
+      'brief-creative-modules',
+      'brief-client-assets',
+      'brief-creative-reports',
+    ]);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+});
+
+describe('linkCountLabel', () => {
+  it('counts each table in rail order, singular at one', () => {
+    expect(linkCountLabel({ sheetItems: 1, modules: 2, folders: 0, reports: 1 })).toBe(
+      '1 sheet row · 2 modules · 0 asset folders · 1 report',
+    );
+  });
+
+  it('never says "1 rows" and never hides a zero', () => {
+    expect(linkCountLabel(NO_BRIEF_LINKS)).toBe(
+      '0 sheet rows · 0 modules · 0 asset folders · 0 reports',
+    );
+  });
+});
+
+describe('indexBriefLinkCounts', () => {
+  const index = indexBriefLinkCounts(DEMO_LINK_SOURCES);
+
+  it('counts every counterpart row that points at the brief, by the junction', () => {
+    expect(index.get(BODY_CLOCK)).toEqual({ sheetItems: 1, modules: 1, folders: 1, reports: 1 });
+    expect(index.get(NINETY_MINUTES_CAROUSEL)).toEqual({
+      sheetItems: 0,
+      modules: 1,
+      folders: 0,
+      reports: 0,
+    });
+  });
+
+  it('leaves a brief nobody cites out, so the page reads NO_BRIEF_LINKS for it', () => {
+    expect(index.get('77777777-7777-4777-8777-999999999999')).toBeUndefined();
+  });
+
+  it('skips a sheet row or report whose link is still empty rather than indexing a null', () => {
+    const sheetTotal = [...index.values()].reduce((sum, counts) => sum + counts.sheetItems, 0);
+    const reportTotal = [...index.values()].reduce((sum, counts) => sum + counts.reports, 0);
+    expect(sheetTotal).toBe(demoCreativeSheetItems.filter((row) => row.briefId !== null).length);
+    expect(reportTotal).toBe(demoCreativeReports.filter((row) => row.briefId !== null).length);
+  });
+});
+
+describe('briefLinkedRecords', () => {
+  const linked = briefLinkedRecords(BODY_CLOCK, DEMO_LINK_SOURCES);
+
+  it('renders the sheet row by its computed name, in mono, with the sheet own two status chips', () => {
+    expect(linked.sheetItems).toEqual([
+      {
+        id: 'c5c5c5c5-c5c5-4c5c-8c5c-000000000001',
+        label: 'October-TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+        mono: true,
+        href: '/app/creative-sheet?creative-sheet=c5c5c5c5-c5c5-4c5c-8c5c-000000000001',
+        detail: null,
+        chips: [
+          { label: 'Approved', tone: 'ok' },
+          { label: 'Pending For Approval', tone: 'info' },
+        ],
+      },
+    ]);
+  });
+
+  it('links the module and the asset folder to their own panels by name', () => {
+    expect(linked.modules).toEqual([
+      {
+        id: '1234abcd-1234-4abc-8abc-000000000001',
+        label: 'Problem → Solution Hooks',
+        mono: false,
+        href: '/app/creative-modules?module=1234abcd-1234-4abc-8abc-000000000001',
+        detail: null,
+        chips: [],
+      },
+    ]);
+    expect(linked.folders).toEqual([
+      {
+        id: 'f01de125-f01d-4f01-8f01-000000000002',
+        label: 'Product Photography — Deep Sleep Blanket',
+        mono: false,
+        href: '/app/client-assets?folder=f01de125-f01d-4f01-8f01-000000000002',
+        detail: null,
+        chips: [],
+      },
+    ]);
+  });
+
+  it('reads a report as its name, CPA against target, and the difference as a chip', () => {
+    expect(linked.reports).toEqual([
+      {
+        id: 'c0c0c0c0-c0c0-4c0c-8c0c-000000000002',
+        label: 'Body Clock V2 — Shift Worker — 90-Night Trial',
+        mono: false,
+        href: '/app/creative-reporting?creativeReport=c0c0c0c0-c0c0-4c0c-8c0c-000000000002',
+        detail: 'CPA $24.50 vs target $22.00',
+        chips: [{ label: '+$2.50', tone: 'bad' }],
+      },
+    ]);
+  });
+
+  it('reads a report under target as ok', () => {
+    const [report] = briefLinkedRecords(BODY_CLOCK_LAUNCHED, DEMO_LINK_SOURCES).reports;
+    expect(report?.detail).toBe('CPA $19.80 vs target $22.00');
+    expect(report?.chips).toEqual([{ label: '−$2.20', tone: 'ok' }]);
+  });
+
+  it('keeps two chips that share a word, one per track', () => {
+    const [sheet] = briefLinkedRecords(BUNDLE_STANDALONE, DEMO_LINK_SOURCES).sheetItems;
+    expect(sheet?.chips).toEqual([
+      { label: 'Approved', tone: 'ok' },
+      { label: 'Approved', tone: 'ok' },
+    ]);
+  });
+
+  it('is empty, not absent, for a table nothing points from', () => {
+    const sparse = briefLinkedRecords(NINETY_MINUTES_CAROUSEL, DEMO_LINK_SOURCES);
+    expect(sparse.sheetItems).toEqual([]);
+    expect(sparse.modules.map((record) => record.label)).toEqual(['Parent Handover Window']);
+    expect(sparse.folders).toEqual([]);
+    expect(sparse.reports).toEqual([]);
+  });
+});
+
+describe('cpaVsTargetLabel', () => {
+  it('formats both sides as currency and dashes an unset side', () => {
+    expect(cpaVsTargetLabel('24.5', '22')).toBe('CPA $24.50 vs target $22.00');
+    expect(cpaVsTargetLabel(null, '30.00')).toBe('CPA — vs target $30.00');
   });
 });
 

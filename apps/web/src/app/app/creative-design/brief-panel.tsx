@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Button, StatusChip } from '@tas/ui';
 
-import { EM_DASH, STANDALONE_CONCEPT_SLUG, type BriefItem } from './fields';
+import { EM_DASH, STANDALONE_CONCEPT_SLUG, linkCountLabel, type BriefItem } from './fields';
 
 /**
  * The board's quick-look panel (P2B-3). Clicking a Kanban card opens this instead of leaving the
@@ -100,6 +100,12 @@ export function BriefPanel({ item, onClose, onOpenFull }: BriefPanelProps) {
         <Row label="Type">{item.typeLabel}</Row>
         <Row label="Source">{item.sourceLabel}</Row>
         <Row label="Funnel">{item.funnelLabel}</Row>
+        {/* What points at this brief, counted; the full page lists each record (module parity). */}
+        <Row label="Linked records">
+          <span data-slot="brief-panel-links" className="text-xs text-text3">
+            {linkCountLabel(item.linkCounts)}
+          </span>
+        </Row>
       </div>
 
       <footer className="border-t border-line px-4 py-3">

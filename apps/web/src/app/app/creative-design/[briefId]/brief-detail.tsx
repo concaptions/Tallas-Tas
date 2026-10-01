@@ -32,6 +32,7 @@ import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '
 import { runSpellCheckAction, type SpellCheckActionResult } from '../spell-check-action';
 import {
   BRIEF_HEADINGS,
+  BRIEF_LINK_SECTIONS,
   BRIEF_PROSE_FIELDS,
   DEMO_FOOTER_NOTICE,
   EM_DASH,
@@ -45,6 +46,8 @@ import {
   nextInternalStatus,
   priorityView,
   productSuffixOf,
+  type BriefLinkedRecord,
+  type BriefLinkedRecords,
 } from '../fields';
 import { BriefName } from './brief-name';
 import { DimensionsGrid } from './dimensions-grid';
@@ -118,6 +121,12 @@ interface BriefDetailProps {
     readonly statusLabel: string;
     readonly statusTone: ChipTone;
   }[];
+  /**
+   * The rows of the four counterpart tables that point at this brief (module parity, phase 2),
+   * indexed by the junction on the server and read-only here: the rail lists what cites this
+   * creative and links out to it; editing a link belongs to the counterpart's own panel.
+   */
+  readonly linked: BriefLinkedRecords;
   /** Which internal ladder this brief is graded on, carried on the row by `briefs-source`. */
   readonly track: CreativeTrack;
   readonly internal: InternalStatusKey;
@@ -127,6 +136,60 @@ interface BriefDetailProps {
 
 /** The form every write on this page submits to, named so the rail's button can reach it. */
 const FORM_ID = 'brief-form';
+
+const LINK_CARD_CLASS =
+  'flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2 transition-colors hover:border-accent-line hover:bg-surface3';
+
+/**
+ * One linked record in the rail: its label (`font-mono` when it is a computed name), the quiet
+ * detail line, and its chips — each a `StatusChip`, never a local pill. A record with a page of its
+ * own is a link to that page opened on its panel; one without renders the same card inert.
+ */
+function LinkedRecordCard({ record }: { readonly record: BriefLinkedRecord }) {
+  const body = (
+    <>
+      <span
+        data-slot="brief-link-label"
+        className={
+          record.mono ? 'font-mono text-xs break-all text-text' : 'text-xs break-words text-text2'
+        }
+      >
+        {record.label}
+      </span>
+      {record.detail === null ? null : (
+        <span data-slot="brief-link-detail" className="font-mono text-[11px] text-text3">
+          {record.detail}
+        </span>
+      )}
+      {record.chips.length === 0 ? null : (
+        <span className="flex flex-wrap gap-1.5">
+          {/* Two chips can carry one word (an internal and a client "Approved"), so the key is positional. */}
+          {record.chips.map((chip, index) => (
+            <StatusChip
+              key={`${String(index)}-${chip.label}`}
+              tone={chip.tone}
+              label={chip.label}
+            />
+          ))}
+        </span>
+      )}
+    </>
+  );
+  return record.href === null ? (
+    <div data-slot="brief-link" data-link-id={record.id} className={LINK_CARD_CLASS}>
+      {body}
+    </div>
+  ) : (
+    <Link
+      href={record.href}
+      data-slot="brief-link"
+      data-link-id={record.id}
+      className={LINK_CARD_CLASS}
+    >
+      {body}
+    </Link>
+  );
+}
 
 /**
  * The Creative Brief detail page (PRD §5.10, ticket criteria 4, 6–12).
@@ -165,6 +228,7 @@ export function BriefDetail({
   collectionName,
   assetName,
   copyLinks,
+  linked,
   track,
   internal,
   client,
@@ -594,6 +658,43 @@ export function BriefDetail({
               </Button>
             </form>
           </section>
+
+          {/*
+            What points AT this brief (module parity, phase 2): the sheet row that names it, the
+            modules that group it, the asset folders that feed it, the reports filed on it. Four
+            sections from one table, each with its own data-slot and its own empty sentence, so
+            "nothing links here" is said rather than left as a blank card.
+          */}
+          {BRIEF_LINK_SECTIONS.map((section) => {
+            const records = linked[section.kind];
+            return (
+              <section
+                key={section.kind}
+                data-slot={section.slot}
+                className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4"
+              >
+                <h3 className="text-[11px] font-medium tracking-wide text-text3 uppercase">
+                  {section.heading}
+                </h3>
+                {records.length === 0 ? (
+                  <p
+                    data-slot={`${section.slot}-empty`}
+                    className="text-xs leading-relaxed text-text3"
+                  >
+                    {section.empty}
+                  </p>
+                ) : (
+                  <ol data-slot={`${section.slot}-list`} className="flex flex-col gap-1.5">
+                    {records.map((record) => (
+                      <li key={record.id}>
+                        <LinkedRecordCard record={record} />
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+            );
+          })}
         </aside>
       </div>
 

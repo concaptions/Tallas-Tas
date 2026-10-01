@@ -3,14 +3,20 @@ import { creativeFunnelLabel } from '@tas/domain/creatives';
 
 import type { BriefRow } from '@/lib/briefs-source';
 import { loadBriefs } from '@/lib/briefs-source';
+import { loadClientAssetFolders } from '@/lib/client-assets-source';
+import { loadCreativeModules } from '@/lib/creative-modules-source';
+import { loadCreativeReports } from '@/lib/creative-reporting-source';
+import { loadCreativeSheetItems } from '@/lib/creative-sheet-source';
 import { loadViewPreference } from '@/lib/view-preference-actions';
 import { isDemoMode } from '@/lib/demo-mode';
 import { briefPath } from '@/lib/routes';
 
 import { BriefsWorkspace } from './briefs-workspace';
 import {
+  NO_BRIEF_LINKS,
   clientStatusView,
   creativeTypeLabel,
+  indexBriefLinkCounts,
   internalStatusView,
   priorityView,
   type BriefFormSnapshot,
@@ -49,13 +55,27 @@ function formSnapshotOf(row: BriefRow): BriefFormSnapshot {
 }
 
 export default async function BriefsPage({ searchParams }: BriefsPageProps) {
-  const [{ rows }, params, viewPref] = await Promise.all([
+  const [{ rows }, params, viewPref, sheetItems, modules, folders, reports] = await Promise.all([
     loadBriefs(),
     searchParams,
     // Briefs open on Kanban by default (P2B) — the media-buyer/strategist board is the primary view.
     loadViewPreference('briefs', 'kanban'),
+    // The four tables that point at a brief, for the panel's count line. Each `load…` is demo-aware,
+    // so the fixtures' link arrays show here exactly as a seeded database's junctions would.
+    loadCreativeSheetItems(),
+    loadCreativeModules(),
+    loadClientAssetFolders(),
+    loadCreativeReports(),
   ]);
   const demo = isDemoMode();
+
+  // Indexed once, by brief id, rather than four scans per row.
+  const linkCounts = indexBriefLinkCounts({
+    sheetItems: sheetItems.rows,
+    modules: modules.rows,
+    folders: folders.rows,
+    reports: reports.rows,
+  });
 
   // `?view=` overrides the default/saved view when it names a view Briefs supports, so a table (or
   // gallery) is reachable and shareable by URL even though Kanban is the default.
@@ -101,6 +121,7 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       },
       galleryImageUrl: firstDesign ?? firstInspo,
       formSnapshot: formSnapshotOf(row),
+      linkCounts: linkCounts.get(row.id) ?? NO_BRIEF_LINKS,
     };
   });
 
