@@ -111,3 +111,12 @@ helper. Then the full `briefs.spec.ts`, the specs that share the route (`briefs-
 exists only on `claude/festive-euler-9578qg` and is not on `main`), `module-parity.spec.ts`,
 `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm exec playwright test`; push; PR titled
 "Fix two long-standing briefs.spec failures" linking this document.
+
+## Outcome (Phase 2, 2026-10-01)
+
+- Unknown id: option (a) taken. `apps/web/src/app/app/not-found.tsx` renders in the page slot and the
+  spec asserts that page plus Next's `noindex` meta, the shell staying and no brief column; the
+  `loading.tsx` boundary stays. The status-code assertion is gone because the streamed shell's 200
+  is the correct response for a route with a loading boundary.
+- Spell-check: step 1 only. The rerun button is disabled in demo mode inside `DisabledWrite`; the
+  action and `demoSpellCheck` are unchanged.

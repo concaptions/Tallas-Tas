@@ -167,9 +167,18 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
   });
 
   test('an unknown id is a 404, not a crash', async ({ page }) => {
-    const response = await page.goto(`${briefsPath}/77777777-7777-4777-8777-999999999999`);
+    await page.goto(`${briefsPath}/77777777-7777-4777-8777-999999999999`);
 
-    expect(response?.status()).toBe(404);
+    // The /app shell streams first through its Suspense boundary (app/loading.tsx), so the HTTP
+    // status is the shell's 200 and the not-found page is what Next sends into the page slot, with
+    // the `noindex` meta it adds to every `notFound()` (docs/decisions/briefs-spec-fix-2026-10-01.md).
+    const notFound = page.locator('[data-slot="not-found"]');
+    await expect(notFound).toBeVisible();
+    await expect(notFound).toContainText('Not found');
+    await expect(page.locator('meta[name="robots"][content="noindex"]')).not.toHaveCount(0);
+    // The shell stays and no brief column renders: a missing record, not a crash.
+    await expect(page.locator('[data-slot="shell-sidebar"]')).toBeVisible();
+    await expect(page.locator('[data-slot="brief-left"]')).toHaveCount(0);
   });
 
   test('the detail page is three columns, the name is copyable and the Version dropdown renames it with no navigation', async ({
