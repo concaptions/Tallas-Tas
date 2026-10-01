@@ -125,6 +125,66 @@ describe('with Clerk configured', () => {
     expect(result.fieldErrors?.priority).toBe('That is not one of the four priorities.');
   });
 
+  it('rejects a performance grade outside the three the schema names', async () => {
+    configured();
+
+    const result = await createBriefAction(null, form({ ...filled, performance: 'Breakeven' }));
+
+    if (result.ok) {
+      throw new Error('an unknown performance grade was accepted');
+    }
+    expect(result.fieldErrors?.performance).toBe(
+      'That is not one of the three performance grades.',
+    );
+  });
+
+  /**
+   * The two legal shapes of the Performance field — empty ("not graded yet", stored as NULL) and
+   * absent ("leave it where it is", the board's drag) — must both get PAST validation. The only way
+   * to produce this exact message is to reach the `try` block, where the poisoned Clerk mock throws:
+   * so this message is the proof that neither shape was refused, and no `fieldErrors` were raised.
+   */
+  it.each([
+    ['empty', { ...filled, performance: '' }],
+    ['absent', filled],
+  ])('accepts a %s performance grade, so it reaches the actor lookup', async (_shape, values) => {
+    configured();
+
+    const result = await createBriefAction(null, form(values));
+
+    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+  });
+
+  /**
+   * The detail page withholds the `performance` key while an unmapped stored grade (an Airtable
+   * choice the importer wrote verbatim) is still the choice, so the UPDATE path too must read
+   * "absent" as "leave it" rather than refuse the save — and must still refuse the unmapped value
+   * itself when a form does submit it, which is why the page withholds it in the first place.
+   */
+  it('accepts an update that carries no performance key, so a legacy grade is left alone', async () => {
+    configured();
+
+    const result = await updateBriefAction(null, form({ ...filled, id: 'a-brief' }));
+
+    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+  });
+
+  it('still refuses an update that submits an unmapped grade verbatim', async () => {
+    configured();
+
+    const result = await updateBriefAction(
+      null,
+      form({ ...filled, id: 'a-brief', performance: 'Winning (ROAS/CPA Goal)' }),
+    );
+
+    if (result.ok) {
+      throw new Error('an unmapped performance grade was accepted on update');
+    }
+    expect(result.fieldErrors?.performance).toBe(
+      'That is not one of the three performance grades.',
+    );
+  });
+
   it('rejects a delivery ratio outside the §8 vocabulary', async () => {
     configured();
     const data = form(filled);

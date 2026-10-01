@@ -36,7 +36,10 @@ import {
   BRIEF_PROSE_FIELDS,
   DEMO_FOOTER_NOTICE,
   EM_DASH,
+  NOT_GRADED_LABEL,
+  NO_SPELLING_2_NOTE,
   NO_SPELLING_NOTE,
+  PERFORMANCE_OPTIONS,
   STANDALONE_CONCEPT_SLUG,
   STANDALONE_NOTE,
   VERSION_OPTIONS,
@@ -44,8 +47,10 @@ import {
   briefDimensions,
   creativeTypeLabel,
   nextInternalStatus,
+  performanceView,
   priorityView,
   productSuffixOf,
+  unlistedPerformance,
   type BriefLinkedRecord,
   type BriefLinkedRecords,
 } from '../fields';
@@ -79,6 +84,8 @@ export interface BriefValues {
   readonly sequence: number;
   readonly version: number;
   readonly priority: string | null;
+  /** How the ad did once live (PRD §5.10), one of `creativePerformances`; null until it has run. */
+  readonly performance: string | null;
   readonly assignee: string | null;
   readonly briefToDesign: string | null;
   readonly scriptContent: string | null;
@@ -106,11 +113,25 @@ export interface BriefValues {
 /** A value no uuid can be, so the Select can offer "Standalone" without an empty item value. */
 const STANDALONE_VALUE = 'standalone';
 
+/**
+ * A value no Performance grade is, so the Select can offer "Not graded yet" without an empty item
+ * value — the same device as `STANDALONE_VALUE`. The hidden input submits `''` for it, which the
+ * action stores as NULL.
+ */
+const NOT_GRADED_VALUE = 'not-graded';
+
 interface BriefDetailProps {
   readonly brief: BriefValues;
   readonly concept: BriefConceptCard | null;
   /** Every concept of the brand, for moving this brief between concepts (TASK 5). */
   readonly conceptOptions: readonly { readonly id: string; readonly name: string }[];
+  /**
+   * The brief's OWN angle and product — `angle_id` and `product_id`, which the live import writes
+   * directly on the row — resolved to names on the server; null when the link is absent or no
+   * longer live. They win over the concept-inherited pair in the facts list.
+   */
+  readonly angleName: string | null;
+  readonly productName: string | null;
   /** The linked collection's and asset's names, resolved on the server; null when unlinked. */
   readonly collectionName: string | null;
   readonly assetName: string | null;
@@ -208,6 +229,22 @@ function LinkedRecordCard({ record }: { readonly record: BriefLinkedRecord }) {
  * no input holding the name, and `updateBriefAction` ignores anything a form claims it is called:
  * it re-derives the name from the concept row it reads itself.
  *
+ * THE CONCEPT CARD IS LABELLED. The card still shows the concept's own `Batch-Angle-Theme` name,
+ * and under it a definition list names Batch, Angle and Product (PRD §5.10: "Concept (link) →
+ * auto-fills Batch, Angle, Persona, Product"). Angle and Product read the brief's OWN `angle_id`
+ * and `product_id` first — the live import writes them straight on the row — and fall back to the
+ * pair inherited through the concept, then to the em dash. The list renders in BOTH branches,
+ * because a standalone brief still carries its own batch and may carry its own angle and product.
+ *
+ * PERFORMANCE IS THE SECOND SELECT. `creative_briefs.performance` is graded after launch (PRD
+ * §5.10) and is null until then, so the dropdown offers the schema's three grades plus "Not graded
+ * yet" through the same sentinel device the concept select uses, and shows the chosen grade as a
+ * chip beside it. It is saved through the one form like everything else — except a stored grade
+ * the three do not name (the column is plain `text`, and the importer writes the Gratsi choice
+ * unmapped): that one is offered as an extra item so the trigger is not blank, and while it is
+ * still the choice the hidden input is withheld, so the action leaves the grade alone instead of
+ * refusing every save of the brief over a field nobody touched.
+ *
  * ONE FORM, TWO SUBMITS. Everything the action needs is in `#brief-form`, including hidden inputs
  * for the columns this page shows but does not edit — a save must not silently blank a field it
  * never offered. The rail's "advance" button sits outside that form in the right column and reaches
@@ -225,6 +262,8 @@ export function BriefDetail({
   brief,
   concept,
   conceptOptions,
+  angleName,
+  productName,
   collectionName,
   assetName,
   copyLinks,
@@ -245,6 +284,7 @@ export function BriefDetail({
   >(runSpellCheckAction, null);
   const [conceptChoice, setConceptChoice] = useState(brief.conceptId ?? STANDALONE_VALUE);
   const [version, setVersion] = useState(String(brief.version));
+  const [performanceChoice, setPerformanceChoice] = useState(brief.performance ?? NOT_GRADED_VALUE);
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -273,6 +313,17 @@ export function BriefDetail({
   });
 
   const priority = priorityView(brief.priority);
+  const performance = performanceView(
+    performanceChoice === NOT_GRADED_VALUE ? null : performanceChoice,
+  );
+  /**
+   * The stored grade when the three do not name it — an unmapped Gratsi choice — and whether it is
+   * still what the select shows. While it is, the form carries no `performance` key at all, so the
+   * action keeps the grade; the key comes back the moment the user picks a listed one.
+   */
+  const legacyPerformance = unlistedPerformance(brief.performance);
+  const keepsLegacyPerformance =
+    legacyPerformance !== null && performanceChoice === legacyPerformance.key;
   const dimensions = briefDimensions(brief.dimensions, brief.type);
   const next = nextInternalStatus(track, internal);
 
@@ -289,6 +340,29 @@ export function BriefDetail({
       >
         {value ?? EM_DASH}
       </span>
+    </div>
+  );
+
+  /**
+   * One inherited fact under the concept card, as a `<dt>`/`<dd>` pair: the same label style as
+   * `fact`, the value in `font-mono` when it is system output (a batch id) and plain when it is a
+   * name a strategist typed (an angle, a product).
+   */
+  const conceptFact = (heading: string, value: string | null, slot: string, mono: boolean) => (
+    <div className="flex min-w-0 flex-col gap-1">
+      <dt className="text-[11px] tracking-wide text-text3 uppercase">{heading}</dt>
+      <dd
+        data-slot={slot}
+        className={
+          value === null
+            ? 'text-sm text-text4'
+            : mono
+              ? 'font-mono text-xs break-words text-text2'
+              : 'text-sm break-words text-text2'
+        }
+      >
+        {value ?? EM_DASH}
+      </dd>
     </div>
   );
 
@@ -318,6 +392,13 @@ export function BriefDetail({
           <input type="hidden" name="batch" value={brief.batch ?? ''} />
           <input type="hidden" name="product" value={product ?? ''} />
           <input type="hidden" name="priority" value={brief.priority ?? ''} />
+          {keepsLegacyPerformance ? null : (
+            <input
+              type="hidden"
+              name="performance"
+              value={performanceChoice === NOT_GRADED_VALUE ? '' : performanceChoice}
+            />
+          )}
           <input type="hidden" name="assignee" value={brief.assignee ?? ''} />
           {brief.inspoLinks.map((url, index) => (
             <input key={`link-${String(index)}`} type="hidden" name="inspoLinks" value={url} />
@@ -382,6 +463,35 @@ export function BriefDetail({
               </div>
             )}
 
+            {/*
+              Batch, Angle and Product, each under its own label. Batch comes from the concept or,
+              standalone, from the row. Angle and Product read the brief's OWN links first (the
+              import writes `angle_id` / `product_id` on the row), then the pair inherited through
+              the concept — which follows the concept's first angle and that angle's first product,
+              so it can name the wrong one of several — and show the em dash when neither is set,
+              rather than disappearing.
+            */}
+            <dl data-slot="brief-concept-facts" className="grid min-w-0 grid-cols-3 gap-3">
+              {conceptFact(
+                BRIEF_HEADINGS.batch,
+                concept?.batch ?? brief.batch,
+                'brief-batch',
+                true,
+              )}
+              {conceptFact(
+                BRIEF_HEADINGS.angle,
+                angleName ?? concept?.angleName ?? null,
+                'brief-angle',
+                false,
+              )}
+              {conceptFact(
+                BRIEF_HEADINGS.product,
+                productName ?? concept?.productName ?? null,
+                'brief-product',
+                false,
+              )}
+            </dl>
+
             {fact(BRIEF_HEADINGS.assignee, brief.assignee, 'brief-assignee')}
             {fact(BRIEF_HEADINGS.type, creativeTypeLabel(brief.type), 'brief-type')}
             {fact(BRIEF_HEADINGS.source, brief.source, 'brief-source')}
@@ -430,6 +540,56 @@ export function BriefDetail({
                     <span className="font-mono text-[11px] text-text3">{priority.sla}</span>
                   )}
                 </span>
+              )}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label
+                htmlFor="brief-field-performance"
+                className="text-[11px] tracking-wide text-text3 uppercase"
+              >
+                {BRIEF_HEADINGS.performance}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={performanceChoice}
+                  onValueChange={setPerformanceChoice}
+                  disabled={demo}
+                >
+                  <SelectTrigger
+                    id="brief-field-performance"
+                    className="w-full"
+                    aria-label={BRIEF_HEADINGS.performance}
+                    data-slot="brief-performance-select"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NOT_GRADED_VALUE}>{NOT_GRADED_LABEL}</SelectItem>
+                    {PERFORMANCE_OPTIONS.map((option) => (
+                      <SelectItem key={option.key} value={option.key}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                    {/* The stored grade outside the three, in its own words, so the trigger is never blank. */}
+                    {legacyPerformance === null ? null : (
+                      <SelectItem
+                        value={legacyPerformance.key}
+                        data-slot="brief-performance-legacy"
+                      >
+                        <span className="text-text3">{legacyPerformance.label}</span>
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {performance === null ? null : (
+                  <span className="flex items-center" data-slot="brief-performance">
+                    <StatusChip tone={performance.tone} label={performance.label} />
+                  </span>
+                )}
+              </div>
+              {fieldError('performance') === undefined ? null : (
+                <p className="text-xs text-bad">{fieldError('performance')}</p>
               )}
             </div>
 
@@ -634,14 +794,6 @@ export function BriefDetail({
                 {brief.spellingFeedback}
               </p>
             )}
-            {brief.spellingFeedback2 === null ? null : (
-              <p
-                data-slot="brief-spelling-text-2"
-                className="text-xs leading-relaxed break-words text-text2"
-              >
-                {brief.spellingFeedback2}
-              </p>
-            )}
             {spellState !== null && !spellState.ok ? (
               <p className="text-xs text-bad">{spellState.error}</p>
             ) : null}
@@ -657,6 +809,32 @@ export function BriefDetail({
                 {spellPending ? 'Checking…' : 'Run AI spell check'}
               </Button>
             </form>
+          </section>
+
+          {/*
+            The second spelling pass (`creative_briefs.spelling_feedback_2`), under its own heading
+            so it is never read as a continuation of the first. Read-only like its sibling, and the
+            heading stays when the column is empty, with the empty state saying so.
+          */}
+          <section
+            data-slot="brief-spelling-2"
+            className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4"
+          >
+            <h3 className="text-[11px] font-medium tracking-wide text-text3 uppercase">
+              {BRIEF_HEADINGS.spellingFeedback2}
+            </h3>
+            {brief.spellingFeedback2 === null ? (
+              <p data-slot="brief-spelling-2-empty" className="text-xs text-text4">
+                {NO_SPELLING_2_NOTE}
+              </p>
+            ) : (
+              <p
+                data-slot="brief-spelling-text-2"
+                className="text-xs leading-relaxed break-words text-text2"
+              >
+                {brief.spellingFeedback2}
+              </p>
+            )}
           </section>
 
           {/*

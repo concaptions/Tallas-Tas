@@ -4,6 +4,7 @@ import { StatusChip } from '@tas/ui';
 
 import {
   BRIEF_QA_LABELS,
+  PERFORMANCE_OPTIONS,
   briefDimensions,
   internalStatusView,
   priorityView,
@@ -40,7 +41,11 @@ export function BriefNameStory() {
   return <BriefName name={SAMPLE_NAME} />;
 }
 
-/** The two cells that are chips: a brief with no concept, and the priority with its SLA. */
+/**
+ * The cells that are chips: a brief with no concept, the priority with its SLA, a status, and the
+ * three Performance grades the detail page shows beside its select — each in the tone
+ * `PERFORMANCE_OPTIONS` carries, so the story and the page cannot disagree.
+ */
 export function BriefChipsStory() {
   const high = priorityView('Static High');
   const average = priorityView('Video Average');
@@ -58,6 +63,9 @@ export function BriefChipsStory() {
         ),
       )}
       <StatusChip tone={status.tone} label={status.label} />
+      {PERFORMANCE_OPTIONS.map((grade) => (
+        <StatusChip key={grade.key} tone={grade.tone} label={grade.label} />
+      ))}
     </div>
   );
 }

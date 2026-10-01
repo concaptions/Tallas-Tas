@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
+import { loadAngles } from '@/lib/angles-source';
 import { loadAssets } from '@/lib/assets-source';
 import { loadBriefById } from '@/lib/briefs-source';
 import { loadClientAssetFolders } from '@/lib/client-assets-source';
@@ -12,6 +13,7 @@ import { loadCreativeModules } from '@/lib/creative-modules-source';
 import { loadCreativeReports } from '@/lib/creative-reporting-source';
 import { loadCreativeSheetItems } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadProducts } from '@/lib/products-source';
 import { conceptPath } from '@/lib/routes';
 
 import { briefLinkedRecords } from '../fields';
@@ -40,6 +42,8 @@ export default async function BriefPage({ params }: BriefPageProps) {
   const [
     { brief },
     conceptRows,
+    angleRows,
+    productRows,
     collectionRows,
     assetRows,
     copyRows,
@@ -50,6 +54,10 @@ export default async function BriefPage({ params }: BriefPageProps) {
   ] = await Promise.all([
     loadBriefById(briefId),
     loadConcepts(),
+    // The brief's OWN angle and product (`angle_id`, `product_id`), resolved by name below; the
+    // concept card's inherited pair comes from `briefs-source` and is a different thing.
+    loadAngles(),
+    loadProducts(),
     loadCollections(),
     loadAssets(),
     loadCopy(),
@@ -73,6 +81,20 @@ export default async function BriefPage({ params }: BriefPageProps) {
     folders: folders.rows,
     reports: reports.rows,
   });
+
+  // The names behind the brief's own `angle_id` and `product_id`, null when the link is absent or
+  // the linked row is no longer live. The facts list reads these before the concept-inherited pair,
+  // because `withInherited` follows the concept's FIRST angle and that angle's FIRST product, which
+  // is not necessarily the one this brief was briefed on, and a standalone brief has no concept to
+  // follow at all.
+  const angleName =
+    brief.angleId === null
+      ? null
+      : (angleRows.rows.find((row) => row.id === brief.angleId)?.name ?? null);
+  const productName =
+    brief.productId === null
+      ? null
+      : (productRows.rows.find((row) => row.id === brief.productId)?.name ?? null);
 
   // TABLE 7 parity (TASK 8): the linked collection's and asset's names, and the Meta Copywriting
   // rows whose creative_brief_id points here — all resolved on the server, views precomputed.
@@ -127,6 +149,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
     sequence: brief.sequence,
     version: brief.version,
     priority: brief.priority,
+    performance: brief.performance,
     assignee: brief.assignee,
     briefToDesign: brief.briefToDesign,
     scriptContent: brief.scriptContent,
@@ -156,6 +179,8 @@ export default async function BriefPage({ params }: BriefPageProps) {
       brief={values}
       concept={concept}
       conceptOptions={conceptOptions}
+      angleName={angleName}
+      productName={productName}
       collectionName={collectionName}
       assetName={assetName}
       copyLinks={copyLinks}

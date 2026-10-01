@@ -11,6 +11,7 @@ import {
   updateBrief,
   type BriefInput,
 } from '@tas/db';
+import { creativePerformances, type CreativePerformance } from '@tas/db/schema';
 import {
   creativeNameForConcept,
   creativeTrack,
@@ -90,6 +91,7 @@ export type BriefFieldName =
   | 'batch'
   | 'product'
   | 'priority'
+  | 'performance'
   | 'assignee'
   | 'briefToDesign'
   | 'scriptContent'
@@ -171,6 +173,34 @@ const priority = z
   )
   .transform((value): CreativePriorityKey | null => (value === null ? null : value));
 
+function isCreativePerformance(value: string): value is CreativePerformance {
+  return creativePerformances.some((grade) => grade === value);
+}
+
+/**
+ * The Performance grade (PRD §5.10): one of the three `creativePerformances` names, or empty for
+ * "not graded yet", stored as NULL. OPTIONAL at the key level, and that is a different thing from
+ * empty: a submission that carries no `performance` key at all leaves the stored grade exactly where
+ * it is, the way an absent status does. Two submitters rely on that. The board's drag rebuilds its
+ * form from a snapshot that predates this field and must not blank a grade it never offered. The
+ * detail page submits the select on every save, so a save there writes what it shows — with ONE
+ * exception: the column is plain `text` with no CHECK and the Airtable importer writes the Gratsi
+ * choice unmapped, so a live row can hold a grade outside the three; while that stored value is
+ * still the choice the page withholds the key, so an untouched legacy grade is kept rather than
+ * refused, and submits it again the moment one of the three or "not graded yet" is picked.
+ */
+const performance = z
+  .string()
+  .trim()
+  .transform((value) => (value === '' ? null : value))
+  .nullable()
+  .refine(
+    (value) => value === null || isCreativePerformance(value),
+    'That is not one of the three performance grades.',
+  )
+  .transform((value): CreativePerformance | null => (value === null ? null : value))
+  .optional();
+
 /** One checked ratio of the §8 grid; an unknown ratio is not a ratio this build can deliver. */
 const dimension = z
   .string()
@@ -200,6 +230,7 @@ const briefSchema = z.object({
   batch: text,
   product: text,
   priority,
+  performance,
   assignee: text,
   briefToDesign: text,
   scriptContent: text,
@@ -222,7 +253,9 @@ type BriefFormValues = z.infer<typeof briefSchema>;
 /**
  * `FormData` to the schema's input. `inspoLinks` and `dimensions` are repeated entries (one input
  * per link row, a checkbox group), so they are read with `getAll`; everything else is a single
- * value, and a missing key becomes `''` so the schema's "empty means NULL" branch runs.
+ * value, and a missing key becomes `''` so the schema's "empty means NULL" branch runs — except
+ * `performance`, where a missing key stays missing so the schema's "absent means leave it" branch
+ * runs instead.
  */
 function fieldsOf(formData: FormData): Record<string, unknown> {
   const single = (key: string): string => {
@@ -231,6 +264,8 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
   };
   const many = (key: string): string[] =>
     formData.getAll(key).filter((value) => typeof value === 'string');
+  const optional = (key: string): string | undefined =>
+    formData.has(key) ? single(key) : undefined;
 
   return {
     conceptId: single('conceptId'),
@@ -240,6 +275,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     batch: single('batch'),
     product: single('product'),
     priority: single('priority'),
+    performance: optional('performance'),
     assignee: single('assignee'),
     briefToDesign: single('briefToDesign'),
     scriptContent: single('scriptContent'),
@@ -422,6 +458,8 @@ function toInput(
     version: values.version,
     sequence,
     priority: values.priority,
+    // Absent from the submission means absent from the statement: the stored grade is left alone.
+    ...(values.performance === undefined ? {} : { performance: values.performance }),
     assignee: values.assignee,
     briefToDesign: values.briefToDesign,
     scriptContent: values.scriptContent,

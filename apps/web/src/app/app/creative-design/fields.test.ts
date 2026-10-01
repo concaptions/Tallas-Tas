@@ -5,15 +5,18 @@ import {
   demoCreativeReports,
   demoCreativeSheetItems,
 } from '@tas/db';
+import { creativePerformances } from '@tas/db/schema';
 import { creativeNameForConcept, dimensionsFor } from '@tas/domain/creatives';
 import { describe, expect, it } from 'vitest';
 
 import {
   BRIEF_COLUMNS,
+  BRIEF_HEADINGS,
   BRIEF_LINK_SECTIONS,
   BRIEF_QA_CHECKS,
   BRIEF_QA_LABELS,
   NO_BRIEF_LINKS,
+  PERFORMANCE_OPTIONS,
   advanceLabel,
   briefCountLabel,
   briefDimensions,
@@ -26,8 +29,10 @@ import {
   linkCountLabel,
   matchesQuery,
   nextInternalStatus,
+  performanceView,
   priorityView,
   productSuffixOf,
+  unlistedPerformance,
   type BriefItem,
   type BriefLinkSources,
 } from './fields';
@@ -136,6 +141,78 @@ describe('priorityView', () => {
 
   it('is null for a brief nobody has prioritised', () => {
     expect(priorityView(null)).toBeNull();
+  });
+});
+
+describe('PERFORMANCE_OPTIONS', () => {
+  it('is the schema vocabulary, in schema order, each value its own label', () => {
+    expect(PERFORMANCE_OPTIONS.map((option) => option.key)).toEqual([...creativePerformances]);
+    expect(PERFORMANCE_OPTIONS.map((option) => option.label)).toEqual([...creativePerformances]);
+  });
+
+  it('tones a winner ok, a loser bad, and the one worth iterating info', () => {
+    expect(PERFORMANCE_OPTIONS.map((option) => option.tone)).toEqual(['ok', 'info', 'bad']);
+  });
+});
+
+describe('performanceView', () => {
+  it('reads the label and the tone of a stored grade', () => {
+    expect(performanceView('Winning')).toEqual({ key: 'Winning', label: 'Winning', tone: 'ok' });
+    expect(performanceView('Losing')).toEqual({ key: 'Losing', label: 'Losing', tone: 'bad' });
+  });
+
+  it('is null for a brief that has not run, so the page shows no chip rather than a blank one', () => {
+    expect(performanceView(null)).toBeNull();
+  });
+
+  it('renders a grade this build does not list muted, never as an empty cell', () => {
+    expect(performanceView('Breakeven')).toEqual({
+      key: 'Breakeven',
+      label: 'Breakeven',
+      tone: 'mute',
+    });
+  });
+
+  it('reads the two graded fixtures back as the grades they carry', () => {
+    const graded = demoBriefs
+      .filter((brief) => brief.performance !== null)
+      .map((brief) => performanceView(brief.performance)?.label);
+    expect(graded).toEqual(['High Potential to Iterate', 'Winning']);
+  });
+});
+
+describe('unlistedPerformance', () => {
+  it('is null for an ungraded brief and for each of the three listed grades', () => {
+    expect(unlistedPerformance(null)).toBeNull();
+    for (const grade of creativePerformances) {
+      expect(unlistedPerformance(grade)).toBeNull();
+    }
+  });
+
+  it('returns an unmapped Gratsi choice as its own muted view, so the select can offer it', () => {
+    expect(unlistedPerformance('Winning (ROAS/CPA Goal)')).toEqual({
+      key: 'Winning (ROAS/CPA Goal)',
+      label: 'Winning (ROAS/CPA Goal)',
+      tone: 'mute',
+    });
+  });
+
+  it('is null for every fixture, which all carry a listed grade or none', () => {
+    expect(demoBriefs.map((brief) => unlistedPerformance(brief.performance))).toEqual(
+      demoBriefs.map(() => null),
+    );
+  });
+});
+
+describe('BRIEF_HEADINGS', () => {
+  it('names the five Gratsi fields the parity spec looks for, verbatim', () => {
+    expect([
+      BRIEF_HEADINGS.batch,
+      BRIEF_HEADINGS.angle,
+      BRIEF_HEADINGS.product,
+      BRIEF_HEADINGS.performance,
+      BRIEF_HEADINGS.spellingFeedback2,
+    ]).toEqual(['Batch', 'Angle', 'Product', 'Performance', 'Spelling Feedback 2']);
   });
 });
 

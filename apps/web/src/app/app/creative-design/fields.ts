@@ -27,6 +27,7 @@ import type {
   CreativeReportListRow,
   CreativeSheetItemListRow,
 } from '@tas/db';
+import { creativePerformances, type CreativePerformance } from '@tas/db/schema';
 
 import { differenceCpaView, formatCurrency } from '@/app/app/creative-reporting/fields';
 import {
@@ -57,6 +58,9 @@ import type { BriefFieldName, BriefQaCheck } from './actions';
  * `@tas/db` is imported for its TYPES only: the workspace and the detail form are client components,
  * and a runtime import of that package would drag the database driver into the browser bundle. A
  * type-only import is erased. Everything a client needs is handed down from `page.tsx` as plain data.
+ * The one RUNTIME import from the database package is `creativePerformances` out of `@tas/db/schema`
+ * — the pure Drizzle barrel `creative-sheet/fields.ts` makes the same import of — so the Performance
+ * select renders the storage vocabulary itself rather than a copy of it.
  */
 export type { BriefFieldName, BriefQaCheck };
 export { STANDALONE_CONCEPT_SLUG };
@@ -151,11 +155,76 @@ export function priorityView(priority: string | null): BriefPriorityView | null 
   };
 }
 
+/** One Performance grade, ready to render: the stored value, its label and the chip tone it carries. */
+export interface BriefPerformanceView {
+  readonly key: string;
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+/**
+ * The tone of each Performance grade, keyed on the schema's own vocabulary so a fourth grade cannot
+ * be added to `creativePerformances` without this map being told its tone. A local total map
+ * rather than `chipTone(label)`, for the reason `creative-sheet/fields.ts` gives for its own
+ * `WINNING_TONE`: the domain's label map has no rule for these words and would read all three as
+ * `mute`. A winner is `ok`, a loser is `bad`, and the one worth iterating is `info` — the "look at
+ * this" tone, neither a verdict nor a warning.
+ */
+const PERFORMANCE_TONE: Record<CreativePerformance, ChipTone> = {
+  Winning: 'ok',
+  'High Potential to Iterate': 'info',
+  Losing: 'bad',
+};
+
+/** The Performance dropdown's options, in schema order, each already carrying its tone. */
+export const PERFORMANCE_OPTIONS: readonly BriefPerformanceView[] = creativePerformances.map(
+  (key) => ({ key, label: key, tone: PERFORMANCE_TONE[key] }),
+);
+
+/** The label of the dropdown's "no grade" option, which the action stores as NULL. */
+export const NOT_GRADED_LABEL = 'Not graded yet';
+
+/**
+ * The view of one stored Performance grade, or null for a brief that has not run (PRD §5.10: null
+ * until it has). Total the same way `internalStatusView` is: a value this build does not list
+ * renders its own text in the muted tone rather than an empty cell.
+ */
+export function performanceView(performance: string | null): BriefPerformanceView | null {
+  if (performance === null) {
+    return null;
+  }
+  return (
+    PERFORMANCE_OPTIONS.find((option) => option.key === performance) ?? {
+      key: performance,
+      label: performance,
+      tone: 'mute',
+    }
+  );
+}
+
+/**
+ * A stored grade the dropdown does not list, as its muted view — or null when the brief is ungraded
+ * or carries one of the three. `creative_briefs.performance` is plain `text` with no CHECK, and the
+ * Airtable importer writes the Gratsi choice unmapped (`Winning (ROAS/CPA Goal)` and its siblings),
+ * so a live row can hold a value `creativePerformances` does not name. The detail page offers it as
+ * one extra item so the trigger is never blank, and withholds the hidden input while it is still
+ * the choice, so the action's "absent means leave it" branch keeps the grade rather than refusing
+ * the whole save over a field nobody touched.
+ */
+export function unlistedPerformance(performance: string | null): BriefPerformanceView | null {
+  if (performance === null || PERFORMANCE_OPTIONS.some((option) => option.key === performance)) {
+    return null;
+  }
+  return performanceView(performance);
+}
+
 /**
  * The raw fields the update action needs to rebuild FormData on a Kanban drag. Every field that
- * `fieldsOf()` in `actions.ts` reads is here so the drag handler can construct valid FormData
- * without a server round-trip to re-fetch the brief. Kept as plain strings (the FormData shape)
- * so the client never parses or validates — the action does that.
+ * `fieldsOf()` in `actions.ts` reads is here, with ONE deliberate exception: `performance`. The
+ * board never offers a grade, so a drag must not blank one — the snapshot omits it and the rebuilt
+ * FormData carries no `performance` key at all, which is the `optional('performance')` branch of
+ * `fieldsOf()`: absent means the stored grade is left alone. Kept as plain strings (the FormData
+ * shape) so the client never parses or validates — the action does that.
  */
 export interface BriefFormSnapshot {
   readonly conceptId: string;
@@ -480,6 +549,10 @@ export const BRIEF_QA_LABELS: Record<BriefQaCheck, string> = {
 /** The detail page's headings, each stated once so the page and the E2E assertion agree. */
 export const BRIEF_HEADINGS = {
   concept: 'Concept',
+  batch: 'Batch',
+  angle: 'Angle',
+  product: 'Product',
+  performance: 'Performance',
   assignee: 'Assignee',
   type: 'Type',
   source: 'Source',
@@ -544,6 +617,9 @@ export const NO_INSPIRATION_NOTE = 'No inspiration saved on this brief yet.';
 
 /** The empty state of the Spelling Feedback panel. */
 export const NO_SPELLING_NOTE = 'The AI check has not run on this brief yet.';
+
+/** The empty state of the Spelling Feedback 2 panel — the second pass, read-only like the first. */
+export const NO_SPELLING_2_NOTE = 'No second spelling pass has been recorded on this brief yet.';
 
 /** The short source name on an inspiration card. `inspirationLink` owns which provider a URL is. */
 const INSPIRATION_SOURCE_LABELS: Record<InspoLinkKind, string> = {
