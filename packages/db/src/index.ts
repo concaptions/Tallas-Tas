@@ -301,3 +301,5 @@ export * from './copy-types';
 export * from './demo-copy-types';
 export * from './creative-modules';
 export * from './demo-creative-modules';
+export * from './client-asset-folders';
+export * from './demo-client-asset-folders';
