@@ -95,6 +95,8 @@ export const creativeBriefs = pgTable(
     sequence: integer('sequence').notNull().default(1),
     priority: text('priority').$type<CreativePriority>(),
     assignee: text('assignee'),
+    // When the editor's cut is due (Sprint 10, EDIT-02); nullable, the strategist sets it on the brief.
+    dueDate: timestamp('due_date', { withTimezone: true }),
     briefToDesign: text('brief_to_design'),
     scriptContent: text('script_content'),
     elementsTested: text('elements_tested'),

@@ -122,6 +122,8 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
     supportedViews: ['grid', 'kanban', 'gallery'],
     kanbanFields: [
       { field: 'clientStatus', label: 'Client Status' },
+      // The editor's three columns over the internal track (Sprint 10, EDIT-01).
+      { field: 'editorStage', label: 'Editing stage' },
       { field: 'internalStatus', label: 'Internal Status' },
       { field: 'priority', label: 'Priority' },
       { field: 'performance', label: 'Performance' },

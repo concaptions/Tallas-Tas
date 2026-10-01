@@ -708,3 +708,36 @@ a concept are read through the angle's junctions at render time.
 The Angle and Concept forms post one hidden input per linked id (`personaId`, `productId`,
 `angleId`, `creatorId` read with `getAll`), so a Save re-syncs the same set the field already wrote
 and can never narrow a multi-link back to one.
+
+## 2026-10-01 — The editor board is a view of `internal_status`; the activity log is its own table (EDIT-01…03)
+
+**Mapping (Incoming / Under Editing / Under Review).** The editor's three columns are a grouping
+over the brief's internal status, defined once in `@tas/domain/state/editor-board.ts`:
+
+| Stage         | Video track                                 | Static track                                 |
+| ------------- | ------------------------------------------- | -------------------------------------------- |
+| Incoming      | sent_to_video_editor                        | sent_to_designer                             |
+| Under Editing | video_editing_in_progress, videos_revisions | static_design_in_progress, images_revisions  |
+| Under Review  | ad_submitted, revisions_submitted           | ad_submitted, revisions_submitted            |
+| off the board | approved, launched, on_hold                 | approved, launched, on_hold                  |
+
+Revisions sit under Editing because the reviewer has handed the work back; the two "submitted"
+states sit under Review because a reviewer holds it. No `editor_stage` column exists: Start and a
+column drop write `internal_status` through the same transition table every other write obeys
+(`canTransitionInternal`), so the board can never disagree with the rail.
+
+**Start sets the assignee to the signed-in user's name.** `creative_briefs.assignee` is text (the
+Airtable collaborator's display name), so Start stores `currentActor().fullName`, the string the
+grid, the card and the log already show; a Clerk id would print as an opaque token.
+
+**Activity log.** `activity_log` (migration 0042) is one row per changed field per write
+(`entity_type` + `entity_id`, `field`, `old_value`, `new_value`, `created_by` + `actor_name`,
+`created_at`), per brand. It is written by the Server Actions beside the row update
+(`diffFields` from `@tas/domain/activity` decides what changed) and never from the client, so it
+records what the database was told. Demo mode has no history to show and says so.
+
+**Due date.** `creative_briefs.due_date` (migration 0043) is the one new column the editor's full
+page needed; nullable, set on the brief.
+
+**`/app/briefs/[id]`** stays the permanent alias of `/app/creative-design/[id]` (the module
+rename); "Open full page" lands there.

@@ -17,6 +17,18 @@ import {
   TableRow,
 } from '@tas/ui';
 import { getTableCapability, type ViewType } from '@tas/domain';
+import {
+  canStartBrief,
+  canTransitionInternal,
+  EDITOR_STAGES,
+  editorStageOf,
+  editorStageTone,
+  internalStatusFor,
+  startedStatusFor,
+  type EditorStageKey,
+  type InternalStatusKey,
+} from '@tas/domain/state';
+import { creativeTrack } from '@tas/domain/creatives';
 
 import {
   ViewSwitcher,
@@ -26,7 +38,7 @@ import {
   type GalleryItem,
 } from '@/components/views';
 
-import { updateBriefAction } from './actions';
+import { startBriefAction, updateBriefAction } from './actions';
 import { BriefPanel } from './brief-panel';
 import {
   BRIEF_COLUMNS,
@@ -143,6 +155,7 @@ export function BriefsWorkspace({
         fd.set('product', snap.product);
         fd.set('priority', snap.priority);
         fd.set('assignee', snap.assignee);
+        fd.set('dueDate', snap.dueDate);
         fd.set('briefToDesign', snap.briefToDesign);
         fd.set('scriptContent', snap.scriptContent);
         fd.set('elementsTested', snap.elementsTested);
@@ -162,7 +175,29 @@ export function BriefsWorkspace({
         fd.set('internalStatus', snap.internalStatus);
         fd.set('clientStatus', snap.clientStatus);
 
-        fd.set(kanbanField, newValue);
+        if (kanbanField === 'editorStage') {
+          // A drop between the editor's columns is a status move on the internal track: Incoming →
+          // Under Editing is Start; Under Editing → Under Review is a submission (the revision
+          // resubmission when the brief was under revisions). Anything else is not a move the
+          // machine allows, so it is ignored rather than written.
+          const track = creativeTrack(snap.type);
+          const from = snap.internalStatus;
+          const to: string | null =
+            newValue === 'under_editing' && editorStageOf(from) === 'incoming'
+              ? startedStatusFor(track)
+              : newValue === 'under_review' && editorStageOf(from) === 'under_editing'
+                ? from.endsWith('_revisions')
+                  ? 'revisions_submitted'
+                  : 'ad_submitted'
+                : null;
+          const onTrack = (value: string): value is InternalStatusKey =>
+            internalStatusFor(track).some((entry) => entry.key === value);
+          if (to === null || !onTrack(from) || !onTrack(to)) return;
+          if (!canTransitionInternal(track, from, to)) return;
+          fd.set('internalStatus', to);
+        } else {
+          fd.set(kanbanField, newValue);
+        }
 
         void updateBriefAction(null, fd);
       });
@@ -173,6 +208,24 @@ export function BriefsWorkspace({
   // The board card carries what a media buyer scans for (P2B-2): the generated name, the concept it
   // belongs to, priority and type as chips, the assignee, and a left stripe coloured by the stage the
   // card sits in. Every tone comes from the domain's `chipTone`, never a locally chosen colour.
+  const [startError, setStartError] = useState<string | null>(null);
+
+  // Start (EDIT-02): the one button on an Incoming card. Disabled in demo mode with the reason.
+  const startBrief = useCallback(
+    (id: string) => {
+      setStartError(null);
+      startTransition(async () => {
+        const result = await startBriefAction(id);
+        if (result.ok) {
+          router.refresh();
+        } else {
+          setStartError(result.error);
+        }
+      });
+    },
+    [router],
+  );
+
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
     return visible.map((item) => ({
       id: item.id,
@@ -190,29 +243,61 @@ export function BriefsWorkspace({
         { label: item.typeLabel, tone: 'mute' as const },
       ],
       href: item.href,
+      ...(kanbanField === 'editorStage'
+        ? {
+            accentTone: editorStageTone(editorStageOf(item.kanbanFields.internalStatus ?? '')),
+            ...(canStartBrief(item.kanbanFields.internalStatus ?? '')
+              ? {
+                  action: {
+                    label: 'Start',
+                    slot: 'brief-start',
+                    disabled: demo,
+                    hint: DEMO_WRITE_HINT,
+                    onAction: () => {
+                      startBrief(item.id);
+                    },
+                  },
+                }
+              : {}),
+          }
+        : {}),
     }));
-  }, [visible, kanbanField]);
+  }, [visible, kanbanField, demo, startBrief]);
+
+  const editorStageColumns: readonly EditorStageKey[] = EDITOR_STAGES.map((stage) => stage.key);
+  const offBoard = useMemo(
+    () =>
+      kanbanField === 'editorStage'
+        ? visible.filter((item) => editorStageOf(item.kanbanFields.internalStatus ?? '') === null)
+            .length
+        : 0,
+    [kanbanField, visible],
+  );
 
   const kanbanColumns = useMemo(() => {
+    if (kanbanField === 'editorStage') return [...editorStageColumns];
     const seen = new Set<string>();
     for (const item of kanbanItems) {
       if (item.groupValue !== '') seen.add(item.groupValue);
     }
     return [...seen];
-  }, [kanbanItems]);
+  }, [kanbanItems, kanbanField, editorStageColumns]);
 
   // Column headers are the domain's own status labels ("Sent to Video Editor",
   // "Pending for Approval"), never a re-capitalised key: both groupable fields are
   // status tracks and every item already carries their views, so the header can
   // never drift from `@tas/domain/state`.
   const kanbanLabels = useMemo(() => {
+    if (kanbanField === 'editorStage') {
+      return Object.fromEntries(EDITOR_STAGES.map((stage) => [stage.key, stage.label]));
+    }
     const labels: Record<string, string> = {};
     for (const item of visible) {
       labels[item.status.key] = item.status.label;
       labels[item.clientStatus.key] = item.clientStatus.label;
     }
     return labels;
-  }, [visible]);
+  }, [kanbanField, visible]);
 
   const galleryItems: readonly GalleryItem[] = useMemo(() => {
     return visible
@@ -321,14 +406,27 @@ export function BriefsWorkspace({
             )}
           </div>
         ) : activeView === 'kanban' ? (
-          <KanbanBoard
-            items={kanbanItems}
-            columns={kanbanColumns}
-            columnLabels={kanbanLabels}
-            onMove={handleKanbanMove}
-            demo={demo}
-            onCardClick={openPanel}
-          />
+          <>
+            {startError === null ? null : (
+              <p className="text-xs text-bad" data-slot="brief-start-error">
+                {startError}
+              </p>
+            )}
+            {offBoard === 0 ? null : (
+              <p className="text-xs text-text3" data-slot="brief-off-board">
+                {String(offBoard)} {offBoard === 1 ? 'brief is' : 'briefs are'} approved or launched
+                and off the editor board.
+              </p>
+            )}
+            <KanbanBoard
+              items={kanbanItems}
+              columns={kanbanColumns}
+              columnLabels={kanbanLabels}
+              onMove={handleKanbanMove}
+              demo={demo}
+              onCardClick={openPanel}
+            />
+          </>
         ) : activeView === 'gallery' ? (
           <GalleryView items={galleryItems} />
         ) : (

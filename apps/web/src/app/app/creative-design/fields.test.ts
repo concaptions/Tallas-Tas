@@ -46,6 +46,7 @@ const EMPTY_SNAPSHOT = {
   product: '',
   priority: '',
   assignee: '',
+  dueDate: '',
   briefToDesign: '',
   scriptContent: '',
   elementsTested: '',

@@ -36,6 +36,7 @@ export * from './upload-links';
 export * from './users';
 export * from './view-preferences';
 export * from './user-table-views';
+export * from './activity-log';
 export * from './client-asset-folders';
 export * from './copy-types';
 export * from './youtube-copy';

@@ -1,4 +1,5 @@
 export * from './creative-status';
+export * from './editor-board';
 export * from './copy-status';
 export * from './creator-status';
 export * from './queue-columns';

@@ -5,6 +5,7 @@ import {
   listBriefs,
   type BriefListRow,
   type Db,
+  listActivity,
 } from '@tas/db';
 import { creativeTrack } from '@tas/domain/creatives';
 import {
@@ -152,6 +153,43 @@ export function toBriefRow(row: BriefListRow): BriefRow {
 
 function neonConnection(databaseUrl: string): DbConnection {
   return requestConnection(databaseUrl);
+}
+
+export interface BriefActivityItem {
+  readonly id: string;
+  readonly field: string;
+  readonly oldValue: string | null;
+  readonly newValue: string | null;
+  readonly actorName: string | null;
+  readonly actorId: string | null;
+  /** ISO timestamp, formatted on the client with one clock. */
+  readonly at: string;
+}
+
+/**
+ * A brief's activity log (Sprint 10, EDIT-03), newest first: who changed which field, from what to
+ * what, when. Written by the Server Actions only; the fixtures carry no history, so demo mode reads
+ * an empty log and the page says so.
+ */
+export async function loadBriefActivity(
+  briefId: string,
+  deps: BriefSourceDeps = {},
+): Promise<readonly BriefActivityItem[]> {
+  if (inDemoMode(deps)) return [];
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    if (brandId === null) return [];
+    const rows = await listActivity(db, brandId, 'creative_brief', briefId);
+    return rows.map((row) => ({
+      id: row.id,
+      field: row.field,
+      oldValue: row.oldValue,
+      newValue: row.newValue,
+      actorName: row.actorName,
+      actorId: row.createdBy,
+      at: row.createdAt.toISOString(),
+    }));
+  });
 }
 
 /** Opens a connection, runs `query`, and always closes the pool. Live mode only. */

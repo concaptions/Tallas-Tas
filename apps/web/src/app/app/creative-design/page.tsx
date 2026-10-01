@@ -1,4 +1,5 @@
-import { supportsView, type ViewType } from '@tas/domain';
+import { getTableCapability, supportsView, type ViewType } from '@tas/domain';
+import { editorStageOf } from '@tas/domain/state';
 import { creativeFunnelLabel } from '@tas/domain/creatives';
 
 import type { BriefRow } from '@/lib/briefs-source';
@@ -21,6 +22,7 @@ import {
   priorityView,
   type BriefFormSnapshot,
   type BriefItem,
+  dueDateInputValue,
 } from './fields';
 
 interface BriefsPageProps {
@@ -37,6 +39,7 @@ function formSnapshotOf(row: BriefRow): BriefFormSnapshot {
     product: '',
     priority: row.priority ?? '',
     assignee: row.assignee ?? '',
+    dueDate: dueDateInputValue(row.dueDate),
     briefToDesign: row.briefToDesign ?? '',
     scriptContent: row.scriptContent ?? '',
     elementsTested: row.elementsTested ?? '',
@@ -52,6 +55,11 @@ function formSnapshotOf(row: BriefRow): BriefFormSnapshot {
     internalStatus: row.internalStatus,
     clientStatus: row.clientStatus,
   };
+}
+
+/** Whether a `?group=` value names one of the table's Kanban groupings. */
+function supportsKanbanField(tableKey: string, field: string): boolean {
+  return getTableCapability(tableKey)?.kanbanFields.some((entry) => entry.field === field) ?? false;
 }
 
 export default async function BriefsPage({ searchParams }: BriefsPageProps) {
@@ -84,6 +92,11 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       ? (params.view as ViewType)
       : null;
   const initialView = requestedView ?? viewPref.viewType;
+  // `?group=` names a Kanban grouping (`editorStage` for the editor board), over the saved one.
+  const requestedGroup =
+    typeof params.group === 'string' && supportsKanbanField('briefs', params.group)
+      ? params.group
+      : null;
 
   const items: BriefItem[] = rows.map((row) => {
     const firstDesign =
@@ -111,6 +124,8 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       kanbanFields: {
         clientStatus: row.clientStatus,
         internalStatus: row.internalStatus,
+        // The editor board's stage, a VIEW of the internal status (Sprint 10); '' once off the board.
+        editorStage: editorStageOf(row.internalStatus) ?? '',
         priority: row.priority ?? '',
         performance: row.performance ?? '',
         funnel: row.funnel,
@@ -146,7 +161,7 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       demo={demo}
       initialSearch={initialSearch}
       initialView={initialView}
-      initialKanbanField={viewPref.kanbanGroupByField}
+      initialKanbanField={requestedGroup ?? viewPref.kanbanGroupByField}
     />
   );
 }

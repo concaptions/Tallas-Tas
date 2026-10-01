@@ -1094,6 +1094,7 @@ export const demoBriefs: BriefListRow[] = [
     source: 'TAS',
     priority: 'Video High',
     assignee: 'Dorian Vance',
+    dueDate: null,
     briefToDesign:
       'Cut the V2 from the 14 September rushes, not from the V1 timeline — the new driveway take is two seconds tighter and the sun is still behind him. Open on the car pulling in, no logo, no music for the first three seconds; the only sound is the engine and the birds, because every competitor in this feed opens on a bed. Burn the on-screen line "your rota is the abnormal thing, not you" at 0:04 and hold it for a full beat. Keep the blanket reveal to one continuous shot of the quilted channels being laid over him — no cutaway to packaging, the packaging test lost twice. Captions in the brand sans, bottom third, never over his face. Hard out at 0:28 on the 90-night trial card; do not let this run past 30 seconds, the retention drop at 31 is a cliff.',
     scriptContent:
@@ -1148,6 +1149,7 @@ export const demoBriefs: BriefListRow[] = [
     source: 'TAS',
     priority: 'Static Average',
     assignee: 'Rhiannon Okafor',
+    dueDate: null,
     briefToDesign:
       'One static, two ratios, same layout. Top two thirds: the screenshot of the r/Menopause thread, real, unretouched, with the usernames blurred at 40% not blacked out — a black bar reads as a legal notice and kills the credibility we are borrowing. Highlight one comment in the brand accent, the one about the ceiling at 3:47. Bottom third: the blanket on a real unmade bed shot from above, warm but not orange, and the line "Your doctor called it your age. Four hundred women called it 3am." set left, two lines maximum. No price, no badge, no starburst. The 9:16 keeps the same crop of the thread — do not re-flow it into a column, the eye needs to read it as a screenshot, not as a designed block.',
     scriptContent:
@@ -1201,6 +1203,7 @@ export const demoBriefs: BriefListRow[] = [
     source: 'TAS',
     priority: 'Video Average',
     assignee: 'Dorian Vance',
+    dueDate: null,
     briefToDesign:
       'Split frame held for the entire runtime: left is the bedroom at 03:00, right is the same bedroom at 09:00, locked off on the same tripod mark so the two halves line up to the pixel. A real lux meter sits in shot in each half with its reading legible — this is filmed live on the day, never an after-effects overlay, and if the meter is not readable in the grade we reshoot rather than fake it. At 0:09 the mask animates on over the right half only and that side crushes down to the left half’s reading, meter and all, in one continuous ramp. Numbers count down on screen with the ramp. End card: the mask on a hotel nightstand with "travels to the on-call room" set small underneath. Motion only, no dialogue, captions carry everything.',
     scriptContent:
@@ -1253,6 +1256,7 @@ export const demoBriefs: BriefListRow[] = [
     source: 'TAS',
     priority: 'Video High',
     assignee: 'Imogen Bardsley',
+    dueDate: null,
     briefToDesign:
       'One creator, one take, straight down the barrel, no B-roll and no music bed. Shoot in a real east-facing flat during the actual morning handover, not the studio — the blown-out window behind her is the whole point and we cannot light it back in. The objection goes in the first ten seconds and she holds the mask up to camera while she says it: blocks light, not sound. Do not cut away while she says that line; a cutaway there reads as a dodge and the comments found it last time. Keep her hair and the unmade sofa exactly as they are. Captions burned in, sentence case, never all-caps. Out at 0:32 on her lying down with the room still bright and the monitor audibly on.',
     scriptContent:
@@ -1314,6 +1318,7 @@ export const demoBriefs: BriefListRow[] = [
     source: 'Client',
     priority: 'Static High',
     assignee: 'Rhiannon Okafor',
+    dueDate: null,
     briefToDesign:
       'Standalone retargeting static for the bundle — no concept behind it, it exists to catch the people who viewed the blanket and the mask separately and bought neither. V3 fixes what the client flagged on V2: the bundle saving has to be the largest element on the canvas, and the two products have to be photographed together on one bed, not composited from the two product shots. Blanket laid back on the left side of the bed, mask on the right pillow, one lamp, shot at dusk. Saving set in the accent, "save $64 when they ship together", with the strikethrough on the combined single price directly beneath at half the size. Nothing else on the canvas. 1:1 for feed, 9:16 for stories with the saving moved to the upper third so the sticker tray does not cover it.',
     scriptContent:
@@ -1374,6 +1379,7 @@ export const demoBriefs: BriefListRow[] = [
     source: 'TAS',
     priority: 'Video Average',
     assignee: 'Imogen Bardsley',
+    dueDate: null,
     briefToDesign:
       'Five cards, built from the same shoot as the one-take video so the creator is recognisable across both — the carousel is the second exposure, not a separate campaign. Card one is the hook in type over the blown-out window, no product. Cards two to four each take one objection and answer it in a single line with one photograph: the sound objection, the heat objection, the "it will slide off" objection. Card five is the bundle shot with the trial. Type set large enough to read at feed size on a phone held at arm’s length; if it needs a second look it is too small. Keep the creator in at least two of the five cards, face visible.',
     scriptContent:
@@ -1430,6 +1436,7 @@ export const demoBriefs: BriefListRow[] = [
     source: 'TAS',
     priority: 'Video High',
     assignee: 'Dorian Vance',
+    dueDate: null,
     briefToDesign:
       'The fifteen-second cutdown that is actually running in the account — do not re-edit this one. The row exists so anyone can find what is live and what the rest of B1 is being measured against. Same driveway location as TV1 but the 9 August shoot, not the September rushes, and the whole 3am/9am comparison is stripped out: it opens on the handover at 07:12 with his lanyard still on and never leaves the hallway. The first line lands at 0:02, not 0:04, because the Reels placement loses them before the fourth second. One cut only, on the blanket going on. No end card and no trial claim — the offer is carried by the copy, which is the only reason this fits the fifteen-second slot the 28-second cut never did. If anyone opens this to iterate, branch a new version and leave the live asset alone.',
     scriptContent:

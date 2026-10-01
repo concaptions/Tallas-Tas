@@ -51,6 +51,18 @@ task must be added there first.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Sprints 7–10 (2026-10-01) · apply migrations `0040_user-table-views`, `0041_creator-showcase-videos`,
+  `0042_activity-log` and `0043_brief-due-date` to production before deploying:
+  `pnpm --filter @tas/db migrate-prod -- --dry-run` then `pnpm --filter @tas/db migrate-prod -- --apply`.
+  All four are verified on PGlite by the full suite; none has been applied to Neon.
+- VIEWS-01 · as two different Clerk users on the same brand, create a view on `/app/angles`, hide a
+  field, reload: the field stays hidden for that user and visible for the other.
+- VIEWS-04 · with R2 credentials set, upload a showcase video from a creator's panel and play it inline.
+- LINK-01 · link a creator from a concept, open the creator's panel and see the concept; unlink from
+  the creator and see it leave the concept.
+- EDIT-02/03 · with Clerk keys, run `npx playwright test apps/web/e2e/briefs-editor.spec.ts`: Start an
+  Incoming brief, see it move to Under Editing, see the activity log name the status change and you.
+
 - PARITY-29 · apply migration `0039_gratsi-field-parity` to production before deploying the commit that
   reads the new columns: `pnpm --filter @tas/db migrate-prod -- --dry-run` (prints the pending
   statements, writes nothing) then `pnpm --filter @tas/db migrate-prod -- --apply`. Verified on PGlite by

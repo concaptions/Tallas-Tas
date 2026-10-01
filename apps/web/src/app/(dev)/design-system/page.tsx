@@ -144,6 +144,7 @@ import {
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
 import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
 import { LinkFieldDemoStory, LinkFieldStory } from './link-field.stories';
+import { EditorBoardStory, EditorStageChipsStory } from './editor-board.stories';
 import {
   FieldsMenuStory,
   GalleryInitialTileStory,
@@ -910,6 +911,26 @@ export default function DesignSystemPage() {
               theme panel — a grid row opens the labelled card
             </h3>
             <ThemePanelStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Editor board: Incoming, Under Editing, Under Review"
+        note="Three columns over the internal status track — a view of internal_status, never a second column. Start on an Incoming card claims the brief: it moves to the track's in-progress step and the signed-in user becomes the assignee; both changes land in the activity log."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              stage chips — mapping order, plus off-board
+            </h3>
+            <EditorStageChipsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              board — one card per stage, Start on Incoming
+            </h3>
+            <EditorBoardStory />
           </div>
         </div>
       </Section>

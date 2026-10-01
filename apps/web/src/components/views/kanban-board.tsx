@@ -11,7 +11,15 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { Card, CardContent, cn, StatusChip } from '@tas/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  cn,
+  DisabledWrite,
+  disabledWriteClassName,
+  StatusChip,
+} from '@tas/ui';
 import type { ChipTone } from '@tas/domain/state';
 
 export interface KanbanItem {
@@ -31,6 +39,17 @@ export interface KanbanItem {
   readonly assignee?: string | null;
   /** Colours the card's left stripe by stage, so a column reads at a glance. */
   readonly accentTone?: ChipTone;
+  /**
+   * One action on the card (the editor board's Start, Sprint 10): a button that runs without
+   * opening the card or starting a drag. `hint` explains a disabled button (demo mode).
+   */
+  readonly action?: {
+    readonly label: string;
+    readonly onAction: () => void;
+    readonly disabled?: boolean;
+    readonly hint?: string;
+    readonly slot?: string;
+  };
 }
 
 /** The left stripe colour per stage tone. Semantic token classes only — no literals. */
@@ -78,6 +97,32 @@ function KanbanCard({ item, isDragging }: { item: KanbanItem; isDragging?: boole
             ))}
           </span>
         ) : null}
+        {item.action === undefined ? null : (
+          <span
+            className="flex"
+            onPointerDown={(event) => {
+              // The button is not a drag handle and not a card click.
+              event.stopPropagation();
+            }}
+          >
+            <DisabledWrite active={item.action.disabled === true} hint={item.action.hint ?? ''}>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={item.action.disabled === true}
+                className={item.action.disabled === true ? disabledWriteClassName : undefined}
+                data-slot={item.action.slot ?? 'kanban-card-action'}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  item.action?.onAction();
+                }}
+              >
+                {item.action.label}
+              </Button>
+            </DisabledWrite>
+          </span>
+        )}
         {item.chipLabel === undefined && (item.assignee ?? null) === null ? null : (
           <span className="flex flex-wrap items-center justify-between gap-1">
             {item.chipLabel === undefined ? (
