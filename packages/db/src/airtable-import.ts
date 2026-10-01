@@ -439,6 +439,16 @@ const MAPS = {
     inspirations: 'Inspiration',
   },
   // Prompt 3 (2026-10-01): the seven new tables' selects, keyed by the enums.ts vocabularies.
+  // Creative Design.'Performance' → creativePerformances. The live options carry a parenthetical
+  // ("Winning (ROAS/CPA Goal)"); the column holds the bare grade the UI's Select offers.
+  performance: {
+    winning_roas_cpa_goal: 'Winning',
+    high_potential_to_iterate_good_ctrs_thumbstops_etc: 'High Potential to Iterate',
+    losing_bad_all_metrics: 'Losing',
+    winning: 'Winning',
+    high_potential_to_iterate: 'High Potential to Iterate',
+    losing: 'Losing',
+  },
   // Angles.'Status' → angleStatuses (the approval track; Potential/Winning are separate columns).
   angleStatus: vocabularyMap(angleStatuses),
   creativeSheetInternal: vocabularyMap(creativeSheetInternalStatuses),
@@ -477,6 +487,16 @@ function mapStatus(
   if (mapped !== undefined) return mapped;
   warnValue(w, where, String(v));
   return normalized;
+}
+
+/** A grade outside the three-word vocabulary is reported and stored as NULL, never as free text. */
+function mapPerformance(w: ImportWarnings, v: unknown): string | null {
+  const normalized = normalizeStatusKey(v);
+  if (normalized === undefined) return null;
+  const mapped = (MAPS.performance as StatusMap)[normalized];
+  if (typeof mapped === 'string') return mapped;
+  warnValue(w, 'creativeBriefs.performance (stored as NULL)', String(v));
+  return null;
 }
 
 /** Label-typed columns (type, priority, language, platform, source, funnel) keep LABELS, sanitised. */
@@ -972,7 +992,7 @@ export async function importAirtableExport(
           f['Client Status'],
           BRIEF_CLIENT_STATUS_DEFAULT,
         ),
-        performance: str(f.Performance),
+        performance: mapPerformance(w, f.Performance),
       };
     },
     actorId,
@@ -1562,13 +1582,20 @@ export async function importAirtableExport(
     const campaignId = firstRef(campaignMap, rec.fields['Campaigns & Offers']);
     const angleId = firstRef(angleMap, rec.fields.Angles ?? rec.fields.Angle);
     const productId = firstRef(prodMap, rec.fields.Product ?? rec.fields['(Internal) Product']);
-    if (campaignId || angleId || productId) {
+    // Gratsi's 'Ads Copywriting copy' links Meta Copywriting (its 'Copywriting' links YouTube, a
+    // junction written from that side); the template base named the Meta link 'Copywriting'.
+    const copywritingId = firstRef(
+      copyMap,
+      rec.fields['Ads Copywriting copy'] ?? rec.fields.Copywriting,
+    );
+    if (campaignId || angleId || productId || copywritingId) {
       await db
         .update(collections)
         .set({
           ...(campaignId ? { campaignId } : {}),
           ...(angleId ? { angleId } : {}),
           ...(productId ? { productId } : {}),
+          ...(copywritingId ? { copywritingId } : {}),
         })
         .where(eq(collections.id, collectionId));
     }

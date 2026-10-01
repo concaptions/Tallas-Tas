@@ -596,3 +596,57 @@ while adding the six missing tables (audit: `docs/audits/airtable-module-gap-202
 6. Select vocabularies for the new tables live as tuples in `packages/db/src/schema/enums.ts`,
    pulled verbatim from the base's options; their state machines (allowed transitions) land with
    the pages in Prompt 2 under `packages/domain/state`.
+7. **Migration `0039_gratsi-field-parity` (Prompt 4, schema-parity gate).** Four stored Gratsi
+   fields had been written off as "no column" although the live rows carry data: every concept has
+   a `Decription` (sic) and `Pain Points` and 90 of 102 a `USP` (now `concepts.description`,
+   `pain_points`, `usp`, plus `client_comments`); 31 of 43 angles carry an approval `Status`
+   (`angles.status`, tuple `angleStatuses` — a different axis from Potential/Winning); 23 of 70
+   creators carry a `Payment Date` (`creators.payment_date`, plus `creator_info_request`, and the
+   existing `slack_notified` is now imported from the base's trailing-space field name). Columns
+   are nullable text/timestamptz; no backfill; the importer and the panels carry them.
+
+## 2026-10-01 — Airtable field exclusion register (schema-parity gate)
+
+`node scripts/airtable-parity.mjs` compares the live Gratsi base against `TABLE_MAPPINGS`
+(`packages/db/src/scripts/import-mappings.ts`) and FAILS on any stored field that is neither mapped to
+a column or junction, nor a record link whose inverse field on the other table is mapped (Airtable's
+own `inverseLinkFieldId` says which; the junction is written from that side), nor named below. Every
+row here is a deliberate exclusion; the gate matches the `Table › Field` text, so a renamed or new
+Airtable field fails the gate until it is mapped or added here with a reason. Live-row counts are
+from the 2026-10-01 export. Computed fields (formula, lookup, rollup, count, timestamps, autonumber,
+button) are not stored by design and need no entry.
+
+| Table › Field | Kind | Live rows | Why it is not stored |
+| --- | --- | --- | --- |
+| Meta Copywriting › (Internal) Creative Design | link | 0/0 | Second link to Creative Design beside `Creative`; the platform keeps one `copywriting.creative_brief_id`. |
+| Meta Copywriting › Product | text | 0/0 | Residual single-line text; the product is the brief's `product_id`. |
+| Meta Copywriting › Angle | text | 0/0 | Residual single-line text; the angle is the brief's `angle_id`. |
+| Meta Copywriting › (Internal) Product | text | 0/0 | Residual single-line text (same datum as Product). |
+| Meta Copywriting › Creative Reporting | text | 0/0 | Residual single-line text left by a converted link. |
+| Meta Copywriting › Creative Sheet | text | 0/0 | Residual single-line text left by a converted link. |
+| Meta Copywriting › (Internal) Creative Design 2 | text | 0/0 | Residual single-line text left by a converted link. |
+| Meta Copywriting › ⚠️ Please Change the Status of the copy | text | 0/0 | A UI-instruction banner, not data. |
+| Youtube Copywriting › Creative Reporting | text | 0/0 | Residual single-line text left by a converted link. |
+| Youtube Copywriting › Creative Sheet | text | 0/0 | Residual single-line text left by a converted link. |
+| Youtube Copywriting › (Internal) Product | text | 0/0 | Residual single-line text; the product link is `Product` (youtube_copy_products). |
+| Youtube Copywriting › (Internal) Creative Design | text | 0/0 | Residual single-line text; `youtube_copy` has no brief link because the base's field is not one. |
+| Youtube Copywriting › ⚠️ Please Change the Status of the copy | text | 0/0 | A UI-instruction banner, not data. |
+| Creative Design (Internal & Interface) › (Internal) Collections 2 | text | 0/390 | Dead residual text; the real link is `(Internal) Collections 3` → `collection_id`. |
+| Creative Design (Internal & Interface) › Ads Copywriting copy | link | 0/390 | Inverse of `Meta Copywriting › (Internal) Creative Design` (excluded above); `Meta Copywriting` (the inverse of `Creative`) is the mapped one. |
+| Creative Design (Internal & Interface) › Angles | text | 0/390 | Dead residual text; the real link is `Angle` → `angle_id`. |
+| Concepts › UGC Management copy | text | 0/102 | Residual single-line text; the creator link is `UGC Management` ↔ `Concept to film`. |
+| Angles › Creators | link | 0/43 | Link to UGC Management with no mapped inverse; creators reach angles through their concepts. |
+| Angles › (Internal) Creative Design | text | 1/43 | Residual single-line text; the structured link is `(Internal) Creative Design 2` → `creative_briefs.angle_id`. |
+| Angles › Creative Sheet | text | 0/43 | Residual single-line text left by a converted link. |
+| Angles › UGC Management copy | text | 0/43 | Residual single-line text left by a converted link. |
+| Angles › Concepts copy | text | 9/43 | Residual single-line text (concept names); the structured link `Concepts` → `concept_angles` carries the same pairs. |
+| UGC Management › Concepts | link | 0/70 | Second link to Concepts beside `Concept to film` (33 concepts link creators through that one). |
+| Campaigns & Offers › Design attached | text | 0/0 | Loose single-line text with no target. |
+| (Internal) Product › (Internal) Creative Design 2 | text | 0/6 | Residual single-line text; the structured link is `(Internal) Creative Design` → `creative_briefs.product_id`. |
+| (Internal) Product › Email Campaigns Management copy | text | 0/6 (the name appears twice) | Residual single-line text; email campaigns reach products through `Table 17` → `email_campaign_products`. |
+| (Internal) Product › Creative Sheet | text | 0/6 | Residual single-line text left by a converted link. |
+| (Internal) Collections › Creative Sheet | text | 0/5 | Residual single-line text left by a converted link. |
+| (Internal) Collections › (Internal) Product | text | 0/5 | Single-line text where the platform has `product_id`; nothing to resolve. |
+| (Internal) Collections › Email Campaigns Management copy | text | 0/5 (the name appears twice) | Residual single-line text; email campaigns reach collections through `Table 17` → `email_campaign_collections`. |
+| Client Assets Organisation › (Internal) Creative Design | text | 0/0 | Single-line text, not a link, so no `brief_asset_folders` rows can be derived; the importer says so in its report. |
+

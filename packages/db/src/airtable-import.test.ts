@@ -1386,6 +1386,15 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
           },
         },
       ],
+      'Creative Briefs': [
+        {
+          id: 'at_brief_1',
+          fields: {
+            ...FIXTURE['Creative Briefs']?.[0]?.fields,
+            Performance: 'Winning (ROAS/CPA Goal)',
+          },
+        },
+      ],
     };
     await importAirtableExport(db, fixture, DEMO_BRAND_ID, 'migration-actor');
 
@@ -1413,5 +1422,10 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
       .from(campaignsOffers)
       .where(eq(campaignsOffers.legacyAirtableId, 'at_camp_1'));
     expect(campaign?.promotionalIdeas).toBe('Bundle the pillow');
+    const [brief] = await db
+      .select()
+      .from(creativeBriefs)
+      .where(eq(creativeBriefs.legacyAirtableId, 'at_brief_1'));
+    expect(brief?.performance).toBe('Winning');
   });
 });

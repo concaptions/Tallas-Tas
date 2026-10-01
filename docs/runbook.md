@@ -51,6 +51,17 @@ task must be added there first.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- PARITY-29 · apply migration `0039_gratsi-field-parity` to production before deploying the commit that
+  reads the new columns: `pnpm --filter @tas/db migrate-prod -- --dry-run` (prints the pending
+  statements, writes nothing) then `pnpm --filter @tas/db migrate-prod -- --apply`. Verified on PGlite by
+  the full suite; the live apply needs the human's go-ahead because it writes to prod.
+- PARITY-29 · sign in to tallas-tas-pi.vercel.app after the deploy and read the sidebar: Overview ·
+  Strategy (Angles, Concepts, Personas, Themes, Products, Collections) · Production (Creative Design,
+  Creative Sheet, Creative Modules, UGC Management, Client Assets, Creative Dimensions) · Copy (Meta
+  Copywriting, YouTube Copywriting, Copy Types) · Campaigns (Campaigns & Offers, Email Campaigns, Email
+  Flows, SM Campaign Feed) · Reporting (Creative Reporting, Competitive Research). The demo-mode
+  Playwright spec `apps/web/e2e/module-parity.spec.ts` asserts the same labels; the agent cannot sign in.
+
 - D-031 · co-locate the database with the functions (the largest remaining latency win). In Railway,
   open the Postgres service → Settings → Region. If it is not europe-west4, either move it there and keep
   `apps/web/vercel.json` at `"regions": ["fra1"]`, or set `regions` to the matching Vercel region (`iad1`
@@ -147,6 +158,14 @@ sign-in screen needs the two Clerk keys to work. Set, when available:
 
 Redeploy after changing variables. The first deployment was configured by hand on 2026-09-16
 (decision D-026); TICKET-007 completes the deploy skeleton.
+
+## Airtable schema-parity gate
+
+`node scripts/airtable-parity.mjs` (needs `AIRTABLE_PAT` in `.env.local`) reads the LIVE Gratsi base's
+metadata and fails on any table or stored field that is neither mapped in
+`packages/db/src/scripts/import-mappings.ts`, nor a record link whose inverse field is mapped, nor
+named in the exclusion register in `docs/decisions.md` (2026-10-01). Re-run it whenever the base gains a
+field or a table; `--verbose` prints every field's verdict, `--base <id>` points it at another base.
 
 ## Migrations
 

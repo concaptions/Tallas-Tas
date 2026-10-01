@@ -361,7 +361,11 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         handler: 'multiSelect',
         note: 'Airtable "Type" multiSelects → concepts.formats jsonb',
       },
-      Performance: { drizzleColumn: null, handler: 'skip', note: 'Lookup field' },
+      Performance: {
+        drizzleColumn: 'performance',
+        handler: 'select',
+        note: 'Live options carry a parenthetical ("Winning (ROAS/CPA Goal)"); stored as the bare grade of creativePerformances',
+      },
       Product: {
         drizzleColumn: null,
         handler: 'multiLink',
@@ -432,9 +436,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       URL: { drizzleColumn: 'url', handler: 'text' },
       Copywriting: {
-        drizzleColumn: 'copywritingId',
-        handler: 'singleLink',
-        note: 'Resolve copywriting ID in Pass 2',
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Links YOUTUBE Copywriting in Gratsi; written from Youtube Copywriting › Collections into youtube_copy_collections (the gate derives this from inverseLinkFieldId)',
       },
       'Campaigns & Offers': {
         drizzleColumn: 'campaignId',
@@ -447,9 +451,10 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
       },
       Angles: {
-        drizzleColumn: 'angleId',
-        handler: 'singleLink',
-        note: 'Resolve angle ID in Pass 2',
+        drizzleColumn: null,
+        handler: 'skip',
+        junctionTable: 'conceptCollections',
+        note: 'Misnamed: links CONCEPTS in Gratsi; written from Concepts › Collections into concept_collections',
       },
       '(Internal) Product': {
         drizzleColumn: null,
@@ -477,9 +482,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         note: 'Residual single-line text left by a converted link; excluded in docs/decisions.md',
       },
       'Ads Copywriting copy': {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'Link to Meta Copywriting; empty on all 5 live rows and the base holds 0 Meta rows; excluded in docs/decisions.md',
+        drizzleColumn: 'copywritingId',
+        handler: 'singleLink',
+        note: 'The Meta Copywriting link (the template base named it Copywriting); resolved in Pass 2',
       },
     },
   },
