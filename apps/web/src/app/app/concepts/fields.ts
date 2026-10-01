@@ -22,6 +22,8 @@ import {
   type InternalStatusKey,
 } from '@tas/domain/state';
 
+import { campaignsOffersPath } from '@/lib/routes';
+
 import type { ConceptFieldName } from './actions';
 
 /**
@@ -285,3 +287,59 @@ export const CONCEPT_GROUPS: readonly ConceptFieldGroup[] = [
 export const CONCEPT_GROUP_HEADINGS: readonly string[] = CONCEPT_GROUPS.map(
   (group) => group.heading,
 );
+
+// ── Campaigns & Offers, the other side of `campaign_concepts` (Airtable module parity, phase 2) ──
+//
+// The Campaigns & Offers "Angles" field links, DESPITE ITS NAME, to concepts (`campaign_concepts`
+// in `@tas/db`'s schema; the campaign side owns the link). The concept detail reads it back the
+// other way round, read-only, so a concept can name the campaigns running on it. The rows arrive
+// through `[conceptId]/page.tsx`, are inverted there once with `campaignLinksFor`, and reach the
+// rail as plain `ConceptCampaignLink`s: nothing below reads a database and no component ever sees
+// a junction. The rail never writes the link; the campaign's panel is where it is made.
+
+/** One campaign linked to a concept, as the rail renders it. */
+export interface ConceptCampaignLink {
+  readonly id: string;
+  /** The campaign's generated `Holiday-Offer-Code` name: system output, rendered in `font-mono`. */
+  readonly label: string;
+  /** The Campaigns & Offers page with its panel open on this campaign. */
+  readonly href: string;
+}
+
+/** The heading over the rail's list, the Airtable module's name. */
+export const CAMPAIGNS_HEADING = 'Campaigns & Offers';
+
+/** The empty state's one sentence; the second half names where the link is made. */
+export const NO_CAMPAIGNS_NOTE =
+  'No campaign runs on this concept yet. Link one from the campaign’s panel.';
+
+/**
+ * The URL parameter the Campaigns & Offers workspace keeps its open row in. It is the key that
+ * module's `syncUrl` writes (a literal there), restated here so the rail can deep-link into the page.
+ */
+export const CAMPAIGN_SELECTION_PARAM = 'campaign';
+
+export function campaignHref(id: string): string {
+  return `${campaignsOffersPath}?${CAMPAIGN_SELECTION_PARAM}=${encodeURIComponent(id)}`;
+}
+
+/** A campaign row as the inversion reads it: its id, its generated name and the concepts it links. */
+export interface CampaignLinkSource {
+  readonly id: string;
+  readonly name: string;
+  readonly conceptIds: readonly string[];
+}
+
+/**
+ * The campaigns that link to one concept, in the order the rows arrive (newest edit first), each as
+ * the rail renders it. A campaign that does not list the concept is skipped, and one that lists it
+ * twice yields one link, because the result is one entry per campaign row.
+ */
+export function campaignLinksFor(
+  conceptId: string,
+  rows: readonly CampaignLinkSource[],
+): ConceptCampaignLink[] {
+  return rows
+    .filter((row) => row.conceptIds.includes(conceptId))
+    .map((row) => ({ id: row.id, label: row.name, href: campaignHref(row.id) }));
+}

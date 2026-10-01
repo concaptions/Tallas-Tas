@@ -38,6 +38,7 @@ import { createConceptAction, updateConceptAction, type ConceptActionResult } fr
 import {
   ANGLE_FORMATS,
   BATCHES,
+  CAMPAIGNS_HEADING,
   CONCEPT_APPROVAL_STATUSES,
   CONCEPT_CATEGORIES,
   CONCEPT_GROUPS,
@@ -46,9 +47,11 @@ import {
   EM_DASH,
   FROM_ANGLE,
   NAME_PART_LABELS,
+  NO_CAMPAIGNS_NOTE,
   NONE_VALUE,
   NOT_SET,
   type AngleFormatKey,
+  type ConceptCampaignLink,
   type ConceptFieldName,
 } from '../fields';
 import { NamePreview } from './name-preview';
@@ -107,6 +110,11 @@ interface ConceptDetailProps {
   readonly concept: ConceptFormValues | null;
   /** The briefs whose `concept_id` points here, empty while creating. */
   readonly creatives: readonly ConceptCreativeItem[];
+  /**
+   * The campaigns whose `campaign_concepts` rows point here, inverted on the server, empty while
+   * creating. Read-only: the link is made from the campaign's panel, never from this page.
+   */
+  readonly campaigns: readonly ConceptCampaignLink[];
   readonly angles: readonly AngleOption[];
   readonly themes: readonly ThemeOption[];
   readonly creators: readonly CreatorOption[];
@@ -151,6 +159,7 @@ function linkRowsOf(concept: ConceptFormValues | null): string[] {
 export function ConceptDetail({
   concept,
   creatives,
+  campaigns,
   angles,
   themes,
   creators,
@@ -729,6 +738,42 @@ export function ConceptDetail({
                           label={creative.statusLabel}
                           className="self-start"
                         />
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          )}
+
+          {/*
+            The other side of `campaign_concepts` (module parity, phase 2): the campaigns running on
+            this concept, named and linked but never edited here. Each label is the campaign's
+            generated name, so it is monospace like the creative names above it.
+          */}
+          {concept === null ? null : (
+            <section className="flex flex-col gap-2 pt-2" data-slot="concept-campaigns">
+              <h2 className="text-sm font-medium text-text2">{CAMPAIGNS_HEADING}</h2>
+              {campaigns.length === 0 ? (
+                <p
+                  className="text-xs leading-relaxed text-text3"
+                  data-slot="concept-campaigns-empty"
+                >
+                  {NO_CAMPAIGNS_NOTE}
+                </p>
+              ) : (
+                <ol className="flex flex-col gap-1.5" data-slot="concept-campaigns-list">
+                  {campaigns.map((campaign) => (
+                    <li key={campaign.id}>
+                      <Link
+                        href={campaign.href}
+                        data-slot="concept-campaign"
+                        data-campaign-id={campaign.id}
+                        className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2 transition-colors hover:border-accent-line hover:bg-surface3"
+                      >
+                        <span className="font-mono text-[11px] break-words text-text">
+                          {campaign.label}
+                        </span>
                       </Link>
                     </li>
                   ))}

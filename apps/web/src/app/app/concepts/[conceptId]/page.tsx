@@ -11,7 +11,7 @@ import { loadThemes } from '@/lib/themes-source';
 import { briefPath } from '@/lib/routes';
 
 import { internalStatusView as briefStatusView } from '../../creative-design/fields';
-import { NEW_CONCEPT } from '../fields';
+import { NEW_CONCEPT, type ConceptCampaignLink } from '../fields';
 import {
   ConceptDetail,
   type AngleOption,
@@ -42,6 +42,15 @@ import {
  *
  * `CONCEPT_TRACK` and the two column defaults are read here, on the server, and passed down: they
  * live beside the data source and in `@tas/db`, so no component ever names a track or a status.
+ *
+ * CAMPAIGNS & OFFERS (module parity, phase 2) is the one link read from the far side: the campaign
+ * panel owns `campaign_concepts` (Airtable's "Angles" field, which links to concepts despite its
+ * name), and this page lists the campaigns running on the concept read-only, in the rail next to
+ * the creatives. The inversion is `campaignLinksFor` in `../fields`, fed campaign rows that carry
+ * their `conceptIds`. `@tas/db` has no reader for the junction yet — `listCampaigns` returns the
+ * bare row, the demo fixtures carry no concept ids, and neither the seed nor the importer writes
+ * it — so until that reader ships the rail is handed the empty list and renders its empty state,
+ * which says where the link is made. The shape is the one this page fills then.
  */
 interface ConceptPageProps {
   readonly params: Promise<{ conceptId: string }>;
@@ -75,6 +84,10 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
       href: briefPath(row.id),
     };
   });
+
+  // The campaigns linked through `campaign_concepts`: empty until `@tas/db` reads the junction
+  // (see the module comment); `campaignLinksFor(conceptId, rows)` is the call that replaces this.
+  const campaigns: ConceptCampaignLink[] = [];
 
   const angles: AngleOption[] = angleRows.rows.map((row) => ({
     id: row.id,
@@ -116,6 +129,7 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
     <ConceptDetail
       concept={values}
       creatives={creatives}
+      campaigns={campaigns}
       angles={angles}
       themes={themes}
       creators={creators}

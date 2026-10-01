@@ -239,6 +239,39 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     );
   });
 
+  test('the rail lists the campaigns running on the concept, read-only, after the creatives', async ({
+    page,
+  }) => {
+    await page.goto(conceptPath(NOT_YOUR_AGE));
+
+    const rail = page.locator('[data-slot="concept-rail"]');
+    const campaigns = rail.locator('[data-slot="concept-campaigns"]');
+    await expect(campaigns).toBeVisible();
+    await expect(campaigns.getByRole('heading', { level: 2 })).toHaveText('Campaigns & Offers');
+
+    // The section sits in the rail after the Creatives section, never above the approval widget.
+    const sections = rail.locator(
+      '[data-slot="concept-creatives"], [data-slot="concept-campaigns"]',
+    );
+    await expect(sections).toHaveCount(2);
+    await expect(sections.nth(1)).toHaveAttribute('data-slot', 'concept-campaigns');
+
+    // `campaign_concepts` is owned by the campaign side and has no reader in `@tas/db` yet, so in
+    // demo mode the fixtures link no campaign to any concept: the empty state renders, saying where
+    // the link is made, and the list is absent rather than empty.
+    const empty = campaigns.locator('[data-slot="concept-campaigns-empty"]');
+    await expect(empty).toHaveText(
+      'No campaign runs on this concept yet. Link one from the campaign’s panel.',
+    );
+    await expect(campaigns.locator('[data-slot="concept-campaigns-list"]')).toHaveCount(0);
+    await expect(campaigns.locator('[data-slot="concept-campaign"]')).toHaveCount(0);
+
+    // Read-only: nothing in the section can be typed into or submitted.
+    await expect(
+      campaigns.locator('input, textarea, select, button, [role="combobox"]'),
+    ).toHaveCount(0);
+  });
+
   test('every write is disabled, with the reason on hover', async ({ page }) => {
     await page.goto(conceptsPath);
 
