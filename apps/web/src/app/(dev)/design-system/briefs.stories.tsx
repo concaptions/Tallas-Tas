@@ -8,11 +8,11 @@ import {
   internalStatusView,
   priorityView,
   STANDALONE_CONCEPT_SLUG,
-} from '@/app/app/briefs/fields';
-import { BriefName } from '@/app/app/briefs/[briefId]/brief-name';
-import { DimensionsGrid } from '@/app/app/briefs/[briefId]/dimensions-grid';
-import { InspirationList } from '@/app/app/briefs/[briefId]/inspiration-list';
-import { QaChecklist } from '@/app/app/briefs/[briefId]/qa-checklist';
+} from '@/app/app/creative-design/fields';
+import { BriefName } from '@/app/app/creative-design/[briefId]/brief-name';
+import { DimensionsGrid } from '@/app/app/creative-design/[briefId]/dimensions-grid';
+import { InspirationList } from '@/app/app/creative-design/[briefId]/inspiration-list';
+import { QaChecklist } from '@/app/app/creative-design/[briefId]/qa-checklist';
 
 /**
  * The four shapes the Creative Briefs route introduces, mounted as the product mounts them

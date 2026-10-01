@@ -51,7 +51,7 @@ test.describe('demo mode (no Clerk publishable key)', () => {
     const card = page.locator('[data-slot="overview-metric"][data-metric="sent_to_video_editor"]');
     const count = Number(await card.locator('[data-slot="overview-metric-count"]').innerText());
     await card.click();
-    await expect(page).toHaveURL(/\/app\/briefs\?status=sent_to_video_editor&view=grid$/, {
+    await expect(page).toHaveURL(/\/app\/creative-design\?status=sent_to_video_editor&view=grid$/, {
       timeout: 45_000,
     });
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(count, { timeout: 45_000 });

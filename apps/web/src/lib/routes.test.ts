@@ -25,7 +25,7 @@ describe('internalQueuePath', () => {
 
   it('is not a prefix of the Creative Briefs route the cards link to, and is never public', () => {
     expect(briefPath('77777777-7777-4777-8777-000000000001')).toBe(
-      '/app/briefs/77777777-7777-4777-8777-000000000001',
+      '/app/creative-design/77777777-7777-4777-8777-000000000001',
     );
     expect(briefPath('77777777-7777-4777-8777-000000000001').startsWith(internalQueuePath)).toBe(
       false,

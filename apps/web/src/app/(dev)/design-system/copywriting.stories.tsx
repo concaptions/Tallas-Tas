@@ -10,7 +10,7 @@ import {
   EM_DASH,
   counterLabel,
   counterTone,
-} from '@/app/app/copywriting/fields';
+} from '@/app/app/meta-copywriting/fields';
 
 /**
  * The three shapes the Copywriting route introduces (CLAUDE.md UI governance rule 4): the five copy
@@ -42,7 +42,7 @@ export function CopyLinkedCreativeStory() {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <Link
-        href="/app/briefs/77777777-7777-4777-8777-000000000001"
+        href="/app/creative-design/77777777-7777-4777-8777-000000000001"
         className="inline-flex rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2 hover:border-accent-line hover:text-accent"
       >
         TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2

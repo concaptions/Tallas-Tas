@@ -11,7 +11,7 @@ import { collectionsPath } from '@/lib/routes';
 
 /**
  * Server Actions for the Collections table, following the pattern set by
- * `apps/web/src/app/app/campaigns/actions.ts`: a zod schema, a demo-mode guard, actor resolution
+ * `apps/web/src/app/app/campaigns-offers/actions.ts`: a zod schema, a demo-mode guard, actor resolution
  * from Clerk and a brand-scoped write through `withBrandScope`. `name` is the only required field;
  * every relation is an optional uuid and every free-text field is optional text, so a strategist can
  * start a collection from just a name and fill the rest in later.

@@ -10,7 +10,7 @@ import { loadThemes } from '@/lib/themes-source';
 
 import { briefPath } from '@/lib/routes';
 
-import { internalStatusView as briefStatusView } from '../../briefs/fields';
+import { internalStatusView as briefStatusView } from '../../creative-design/fields';
 import { NEW_CONCEPT } from '../fields';
 import {
   ConceptDetail,

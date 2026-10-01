@@ -11,8 +11,17 @@ export const productsPath = '/app/products';
 export const anglesPath = '/app/angles';
 export const themesPath = '/app/themes';
 export const conceptsPath = '/app/concepts';
-export const briefsPath = '/app/briefs';
-export const copywritingPath = '/app/copywriting';
+/**
+ * Module parity (2026-10-01): three routes were renamed to the Airtable module names. The old
+ * constant names stay as ALIASES of the new canonical paths so every helper, page and spec follows,
+ * and the old URLs keep working as redirects (see the page.tsx files left at the old segments).
+ */
+export const creativeDesignPath = '/app/creative-design';
+/** Alias of `creativeDesignPath` — Creative Briefs ARE Creative Design; kept so every consumer follows the rename. */
+export const briefsPath = creativeDesignPath;
+export const metaCopywritingPath = '/app/meta-copywriting';
+/** Alias of `metaCopywritingPath` — the copywriting table IS Meta Copywriting. */
+export const copywritingPath = metaCopywritingPath;
 export const ugcPath = '/app/ugc';
 /**
  * The Internal Queue board (PRD §9, §13). It lives under a `queue` segment rather than at
@@ -64,7 +73,19 @@ export const performancePath = '/app/performance';
 export const adSpyPath = '/app/ad-spy';
 export const creatorRankingPath = '/app/creator-ranking';
 export const uploadLinksPath = '/app/upload-links';
-export const campaignsPath = '/app/campaigns';
+export const campaignsOffersPath = '/app/campaigns-offers';
+/** Alias of `campaignsOffersPath`. */
+export const campaignsPath = campaignsOffersPath;
+// ── Module-parity routes (2026-10-01); each page ships with its module ──
+export const creativeSheetPath = '/app/creative-sheet';
+export const creativeModulesPath = '/app/creative-modules';
+export const smCampaignFeedPath = '/app/sm-campaign-feed';
+export const clientAssetsPath = '/app/client-assets';
+export const emailCampaignsPath = '/app/email-campaigns';
+export const emailFlowsPath = '/app/email-flows';
+export const youtubeCopywritingPath = '/app/youtube-copywriting';
+export const creativeReportingPath = '/app/creative-reporting';
+export const copyTypesPath = '/app/copy-types';
 export const collectionsPath = '/app/collections';
 export const creativeDimensionsPath = '/app/creative-dimensions';
 export const aiCharactersPath = '/app/ai-characters';
@@ -89,6 +110,10 @@ export function competitorAdPath(id: string): string {
 export function creatorRankingDetailPath(id: string): string {
   return `${creatorRankingPath}/${encodeURIComponent(id)}`;
 }
+/** The pre-parity URLs, kept alive as redirects to the canonical paths above. */
+export const legacyBriefsPath = '/app/briefs';
+export const legacyCopywritingPath = '/app/copywriting';
+export const legacyCampaignsPath = '/app/campaigns';
 export const clientPortalPath = '/client';
 
 export function clientBrandPath(slug: string): string {

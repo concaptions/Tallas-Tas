@@ -209,10 +209,10 @@ describe('overview metric cards (TASK 6)', () => {
   it('brief cards click through to the table already filtered by KEY, never a label', () => {
     const cards = buildOverviewMetrics('admin', data);
     expect(cards.find((c) => c.key === 'sent_to_video_editor')?.href).toBe(
-      '/app/briefs?status=sent_to_video_editor&view=grid',
+      '/app/creative-design?status=sent_to_video_editor&view=grid',
     );
     expect(cards.find((c) => c.key === 'awaiting_client')?.href).toBe(
-      '/app/briefs?client=pending_for_approval&view=grid',
+      '/app/creative-design?client=pending_for_approval&view=grid',
     );
   });
 

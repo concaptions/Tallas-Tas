@@ -1,6 +1,6 @@
 import type { BriefThumbnail } from '@tas/domain/creatives';
 
-import type { BriefPriorityView } from '@/app/app/briefs/fields';
+import type { BriefPriorityView } from '@/app/app/creative-design/fields';
 
 /**
  * What a queue card shows, and the one word it says when a field is empty — shared by both approval

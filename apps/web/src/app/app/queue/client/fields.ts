@@ -11,7 +11,7 @@ import {
   type StatusEntry,
 } from '@tas/domain/state';
 
-import { priorityView, type BriefPriorityView } from '@/app/app/briefs/fields';
+import { priorityView, type BriefPriorityView } from '@/app/app/creative-design/fields';
 import { assignedToViewer } from '@/app/app/queue/internal/fields';
 import type { QueueFace } from '@/components/queue/queue-face';
 
