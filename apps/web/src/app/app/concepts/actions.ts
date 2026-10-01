@@ -195,9 +195,12 @@ const clientStatus = z
  * fields above them. They are distinct from the angle's three fields of the same name, which the
  * page shows read-only under "from Angle" and which no form may write.
  */
+/** A link field posts one hidden input per linked id (the LinkField); blanks are dropped. */
+const links = z.array(z.string().trim()).transform((ids) => ids.filter((id) => id !== ''));
+
 const conceptSchema = z.object({
   batch: link,
-  angleId: link,
+  angleId: links,
   themeId: link,
   category: link,
   conceptStyle: link,
@@ -214,7 +217,7 @@ const conceptSchema = z.object({
   approvalStatus: link,
   productionStatus: link,
   formatsToCreate: z.array(z.string().trim()),
-  creatorId: link,
+  creatorId: links,
 });
 
 /** Lift a nullable single id into an array: the form still submits one value per junction. */
@@ -239,7 +242,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
 
   return {
     batch: single('batch'),
-    angleId: single('angleId'),
+    angleId: many('angleId'),
     themeId: single('themeId'),
     category: single('category'),
     conceptStyle: single('conceptStyle'),
@@ -256,7 +259,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     approvalStatus: single('approvalStatus'),
     productionStatus: single('productionStatus'),
     formatsToCreate: many('formatsToCreate'),
-    creatorId: single('creatorId'),
+    creatorId: many('creatorId'),
   };
 }
 
@@ -307,9 +310,9 @@ function parse(formData: FormData): ParsedConcept | ConceptActionFailure {
     return failureFrom(parsed.error);
   }
 
-  const angleIds = idsOf(parsed.data.angleId);
+  const angleIds = parsed.data.angleId;
   const themeIds = idsOf(parsed.data.themeId);
-  const creatorIds = idsOf(parsed.data.creatorId);
+  const creatorIds = parsed.data.creatorId;
 
   const draft = validateConceptDraft({
     batch: parsed.data.batch,

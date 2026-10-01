@@ -23,9 +23,17 @@ export interface InheritedAngle {
   readonly personaName: string | null;
   /** Nullable on the angle itself: an angle need not name a product (PRD §5.6). */
   readonly productName: string | null;
+  /**
+   * EVERY persona and product linked to the angle (Sprint 9, LINK-02): the read-only lookups the
+   * concept shows, never copied onto it. Optional so a caller that resolved only the first name
+   * still types; when given, the lists are what the two link rows read.
+   */
+  readonly personaNames?: readonly string[];
+  readonly productNames?: readonly string[];
 }
 
-export type InheritedFieldKey = keyof InheritedAngle;
+export type InheritedFieldKey =
+  'description' | 'painPoints' | 'usp' | 'personaName' | 'productName';
 
 export interface InheritedField {
   readonly key: InheritedFieldKey;
@@ -70,8 +78,36 @@ export function isInheritedFromAngle(field: string): field is InheritedFieldKey 
  */
 export function inheritedFromAngle(angle: InheritedAngle | null): readonly InheritedField[] {
   return INHERITED_ANGLE_FIELDS.map((field) => {
+    if (field.key === 'personaName') {
+      return {
+        key: field.key,
+        label: field.label,
+        value: joined(angle?.personaNames, angle?.personaName),
+      };
+    }
+    if (field.key === 'productName') {
+      return {
+        key: field.key,
+        label: field.label,
+        value: joined(angle?.productNames, angle?.productName),
+      };
+    }
     const raw = angle?.[field.key] ?? null;
     const value = raw === null || raw.trim() === '' ? null : raw;
     return { key: field.key, label: field.label, value };
   });
+}
+
+/**
+ * One read-only link row: every linked name, comma-joined, in the angle's own order; the single
+ * resolved name when no list was given; `null` for the em dash when there is nothing linked.
+ */
+function joined(
+  names: readonly string[] | undefined,
+  first: string | null | undefined,
+): string | null {
+  const list = (names ?? []).map((name) => name.trim()).filter((name) => name !== '');
+  if (list.length > 0) return list.join(', ');
+  const fallback = first?.trim() ?? '';
+  return fallback === '' ? null : fallback;
 }

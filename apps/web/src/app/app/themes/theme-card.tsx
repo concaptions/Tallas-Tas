@@ -67,8 +67,8 @@ const linkChipClassName =
  * Status, Attachments, Attachment Summary, in the base's own order — so every field reads under its
  * own name and an empty one reads as a dash rather than vanishing. The labels are
  * `THEME_FIELD_LABELS`; the status chip's tone and label come from the theme vocabulary through
- * `statusChip`; an assignee no user matches renders its stored value in `font-mono`, a system value
- * (`assigneeValue`). The note is clamped to two lines so every card in a row is the same height,
+ * `statusChip`; an assignee no user matches renders its stored value as plain text — the imported
+ * Airtable collaborator name (`assigneeValue`). The note is clamped to two lines so every card in a row is the same height,
  * and the attachments and the reference links are both chips (`attachmentChipRow`,
  * `referenceChipRow`), because a swipe-file URL is 80 characters wide.
  *
@@ -125,7 +125,6 @@ export function ThemeCard({ theme, demo, onToggled }: ThemeCardProps) {
               data-slot="theme-assignee"
               data-resolved={assignee.mono ? 'false' : 'true'}
               title={assignee.mono ? UNRESOLVED_ASSIGNEE_HINT : undefined}
-              className={assignee.mono ? 'font-mono text-xs' : undefined}
             >
               {assignee.text}
             </span>

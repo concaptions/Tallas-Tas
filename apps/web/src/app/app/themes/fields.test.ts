@@ -246,7 +246,7 @@ describe('assigneeValue', () => {
     );
   });
 
-  it('falls back to the stored value, in mono, when no user matched it', () => {
+  it('falls back to the stored value, flagged unresolved, when no user matched it', () => {
     expect(assigneeValue({ assigneeId: 'user_who_left', assigneeName: null })).toEqual({
       text: 'user_who_left',
       mono: true,
@@ -258,7 +258,8 @@ describe('assigneeValue', () => {
     });
   });
 
-  it('is null for the dash when nothing is stored', () => {
+  it('is null for the dash when nothing is stored, or when a literal "null" was imported', () => {
+    expect(assigneeValue({ assigneeId: 'null', assigneeName: null })).toBeNull();
     expect(assigneeValue({ assigneeId: null, assigneeName: null })).toBeNull();
     expect(assigneeValue({})).toBeNull();
     expect(assigneeValue({ assigneeId: '   ', assigneeName: '' })).toBeNull();

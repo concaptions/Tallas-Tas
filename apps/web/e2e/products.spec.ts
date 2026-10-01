@@ -16,7 +16,9 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/products needs a session and real data',
   );
 
-  test('lists the three fixture products in four columns', async ({ page }) => {
+  test('lists the three fixture products with every linked record as a column', async ({
+    page,
+  }) => {
     await page.goto(productsPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Products');
@@ -27,8 +29,19 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
       'Product name',
       'Landing page URL',
       'Collection link',
+      'Angles',
+      'Concepts',
+      'Creative Designs',
+      'Creators',
+      'Email Campaigns',
+      'YouTube Copy',
       'Updated',
     ]);
+    // The name column is frozen so it stays put while the rest scroll horizontally.
+    await expect(page.locator('[data-slot="products-table"] thead th').first()).toHaveCSS(
+      'position',
+      'sticky',
+    );
 
     // The landing page shows its host, with the full URL in the cell's title.
     const first = page.locator('[data-slot="product-row"]').first();
@@ -68,8 +81,13 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     // Not a modal: the table is still there beside the panel.
     await expect(page.locator('[data-slot="product-row"]')).toHaveCount(3);
 
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-slot="product-panel"]')).toHaveCount(0);
+    // After a reload the panel is visible before React has hydrated and attached its window
+    // listener, so a single Escape can land on nothing. Retry until the handler is live — the same
+    // pattern the Angles spec uses; the assertion itself is unchanged.
+    await expect(async () => {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('[data-slot="product-panel"]')).toHaveCount(0, { timeout: 1_000 });
+    }).toPass();
     await expect(page).not.toHaveURL(/\?product=/);
   });
 

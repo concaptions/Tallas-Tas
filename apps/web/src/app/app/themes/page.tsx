@@ -1,4 +1,5 @@
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUserViews } from '@/lib/user-view-actions';
 import { loadThemes } from '@/lib/themes-source';
 
 import { categoryFromParam } from './fields';
@@ -34,6 +35,7 @@ interface ThemesPageProps {
 export default async function ThemesPage({ searchParams }: ThemesPageProps) {
   const [{ rows }, params] = await Promise.all([loadThemes(), searchParams]);
   const demo = isDemoMode();
+  const userViews = await loadUserViews('themes');
 
   const requestedCategory = params.category;
   const initialCategory = categoryFromParam(
@@ -42,6 +44,10 @@ export default async function ThemesPage({ searchParams }: ThemesPageProps) {
 
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
+
+  const requestedTheme = params.theme;
+  const initialSelection =
+    typeof requestedTheme === 'string' && requestedTheme !== '' ? requestedTheme : null;
 
   const requestedTab = params.tab;
   const initialTab: ThemeTab =
@@ -54,6 +60,8 @@ export default async function ThemesPage({ searchParams }: ThemesPageProps) {
       initialCategory={initialCategory}
       initialSearch={initialSearch}
       initialTab={initialTab}
+      initialSelection={initialSelection}
+      userViews={userViews}
     />
   );
 }

@@ -8,6 +8,8 @@ import { loadCollections } from '@/lib/collections-source';
 import { CONCEPT_TRACK, loadConceptById } from '@/lib/concepts-source';
 import { loadCreators } from '@/lib/ugc-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadPersonas } from '@/lib/personas-source';
+import { loadProducts } from '@/lib/products-source';
 import { loadThemes } from '@/lib/themes-source';
 
 import { briefPath } from '@/lib/routes';
@@ -69,12 +71,17 @@ interface ConceptPageProps {
 }
 
 export default async function ConceptPage({ params }: ConceptPageProps) {
-  const [{ conceptId }, angleRows, themeRows, creatorRows] = await Promise.all([
-    params,
-    loadAngles(),
-    loadThemes(),
-    loadCreators(),
-  ]);
+  const [{ conceptId }, angleRows, themeRows, creatorRows, personaRows, productRows] =
+    await Promise.all([
+      params,
+      loadAngles(),
+      loadThemes(),
+      loadCreators(),
+      loadPersonas(),
+      loadProducts(),
+    ]);
+  const personaNames = new Map(personaRows.rows.map((row) => [row.id, row.name]));
+  const productNames = new Map(productRows.rows.map((row) => [row.id, row.name]));
   const demo = isDemoMode();
   const creating = conceptId === NEW_CONCEPT;
 
@@ -123,6 +130,9 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
     usp: row.usp,
     personaName: row.personaName,
     productName: row.productName,
+    // Every linked persona and product (LINK-02): read-only lookups on the concept, never stored.
+    personaNames: row.personaIds.flatMap((id) => personaNames.get(id) ?? []),
+    productNames: row.productIds.flatMap((id) => productNames.get(id) ?? []),
   }));
 
   const themes: ThemeOption[] = themeRows.rows
@@ -137,7 +147,8 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
       : {
           id: concept.id,
           batch: concept.batch,
-          angleId: concept.angleIds[0] ?? null,
+          angleIds: concept.angleIds,
+          creatorIds: concept.creatorIds,
           themeId: concept.themeIds[0] ?? null,
           category: concept.category,
           conceptStyle: concept.conceptStyle,
@@ -152,7 +163,6 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
           approvalStatus: concept.approvalStatus,
           productionStatus: concept.productionStatus,
           formatsToCreate: concept.formatsToCreate,
-          creatorId: concept.creatorIds[0] ?? null,
         };
 
   return (

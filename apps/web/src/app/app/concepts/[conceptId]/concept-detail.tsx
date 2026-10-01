@@ -54,6 +54,7 @@ import {
   type ConceptCampaignLink,
   type ConceptFieldName,
 } from '../fields';
+import { LinkField } from '@/components/links/link-field';
 import { NamePreview } from './name-preview';
 
 /**
@@ -82,7 +83,9 @@ export interface CreatorOption {
 export interface ConceptFormValues {
   readonly id: string;
   readonly batch: string | null;
-  readonly angleId: string | null;
+  /** Every linked angle, first one naming the concept; every linked creator. */
+  readonly angleIds: readonly string[];
+  readonly creatorIds: readonly string[];
   readonly themeId: string | null;
   readonly category: string | null;
   readonly conceptStyle: string | null;
@@ -98,7 +101,6 @@ export interface ConceptFormValues {
   readonly approvalStatus: string | null;
   readonly productionStatus: string | null;
   readonly formatsToCreate: readonly string[];
-  readonly creatorId: string | null;
 }
 
 /** One creative built on this concept, precomputed on the server (no state machine in here). */
@@ -265,7 +267,9 @@ export function ConceptDetail({
   );
 
   const [batch, setBatch] = useState(concept?.batch ?? NONE_VALUE);
-  const [angleId, setAngleId] = useState(concept?.angleId ?? NONE_VALUE);
+  const [angleIds, setAngleIds] = useState<readonly string[]>(concept?.angleIds ?? []);
+  // The FIRST linked angle names the concept and feeds the inherited block (PRD §7).
+  const angleId = angleIds[0] ?? NONE_VALUE;
   const [themeId, setThemeId] = useState(concept?.themeId ?? NONE_VALUE);
   /** Required fields the viewer tried to submit without; empty until they press Save (P2B-5). */
   const [missingRequired, setMissingRequired] = useState<readonly string[]>([]);
@@ -280,7 +284,7 @@ export function ConceptDetail({
   const [formatsToCreate, setFormatsToCreate] = useState<readonly string[]>(
     concept?.formatsToCreate ?? [],
   );
-  const [creatorId, setCreatorId] = useState(concept?.creatorId ?? NONE_VALUE);
+  const [creatorIds, setCreatorIds] = useState<readonly string[]>(concept?.creatorIds ?? []);
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -308,12 +312,12 @@ export function ConceptDetail({
     () =>
       validateConceptDraft({
         batch: batch === NONE_VALUE ? null : batch,
-        angleIds: angleId === NONE_VALUE ? [] : [angleId],
+        angleIds,
         themeIds: themeId === NONE_VALUE ? [] : [themeId],
         category: category === NONE_VALUE ? null : category,
         adInspoLinks: links,
       }),
-    [batch, angleId, themeId, category, links],
+    [batch, angleIds, themeId, category, links],
   );
 
   const inherited = inheritedFromAngle(angle);
@@ -332,10 +336,10 @@ export function ConceptDetail({
   const unsetRequired = useMemo<readonly string[]>(() => {
     const out: string[] = [];
     if (batch === NONE_VALUE) out.push('batch');
-    if (angleId === NONE_VALUE) out.push('angleIds');
+    if (angleIds.length === 0) out.push('angleIds');
     if (themeId === NONE_VALUE) out.push('themeIds');
     return out;
-  }, [batch, angleId, themeId]);
+  }, [batch, angleIds, themeId]);
 
   /**
    * The message a field shows: the browser's "required" takes precedence over the server's, so a
@@ -498,7 +502,6 @@ export function ConceptDetail({
           ))}
           <input type="hidden" name="approvalStatus" value={approvalStatus} />
           <input type="hidden" name="productionStatus" value={productionStatus} />
-          <input type="hidden" name="creatorId" value={creatorId} />
 
           <section className="flex flex-col gap-3" data-slot="concept-pairing">
             <h2 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
@@ -522,14 +525,22 @@ export function ConceptDetail({
                 setBatch,
                 false,
               )}
-              {renderSelect(
-                'angleIds',
-                NAME_PART_LABELS.angleName,
-                angles.map((option) => ({ key: option.id, label: option.name })),
-                angleId,
-                setAngleId,
-                false,
-              )}
+              {/* The same LinkField the angle panel mounts for its concepts (LINK-01): the
+                  first linked angle names the concept; a saved concept writes `concept_angles`
+                  on the spot, a new one posts the ids for the create action to sync. */}
+              <LinkField
+                link="concept-angles"
+                sourceId={concept?.id ?? null}
+                options={angles.map((option) => ({ id: option.id, name: option.name }))}
+                selectedIds={angleIds}
+                onChange={setAngleIds}
+                inputName="angleId"
+                label={NAME_PART_LABELS.angleName}
+                demo={demo}
+                error={fieldError('angleIds')}
+                slot="concept-angleIds"
+                empty="Angle is required"
+              />
               {renderSelect(
                 'themeIds',
                 NAME_PART_LABELS.themeName,
@@ -627,16 +638,18 @@ export function ConceptDetail({
               */}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              {renderSelect(
-                'creatorId',
-                'Creator',
-                creators.map((option) => ({ key: option.id, label: option.name })),
-                creatorId,
-                setCreatorId,
-                demo,
-              )}
-            </div>
+            <LinkField
+              link="concept-creators"
+              sourceId={concept?.id ?? null}
+              options={creators}
+              selectedIds={creatorIds}
+              onChange={setCreatorIds}
+              inputName="creatorId"
+              label="Creator"
+              demo={demo}
+              slot="concept-creatorIds"
+              empty="No creator assigned yet. Assign one here or from the creator's panel."
+            />
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-[11px] tracking-wide text-text3 uppercase">

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { creativeNameForConcept } from '@tas/domain/creatives';
+import { editorStageLabel, editorStageOf, editorStageTone } from '@tas/domain/state';
 import type {
   ChipTone,
   ClientStatusKey,
@@ -24,8 +25,16 @@ import {
   StatusChip,
   Textarea,
   TwoTrackApproval,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@tas/ui';
 
+import type { BriefActivityItem } from '@/lib/briefs-source';
 import { briefsPath, copywritingPath } from '@/lib/routes';
 
 import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '../actions';
@@ -87,6 +96,8 @@ export interface BriefValues {
   /** How the ad did once live (PRD §5.10), one of `creativePerformances`; null until it has run. */
   readonly performance: string | null;
   readonly assignee: string | null;
+  /** `YYYY-MM-DD` or empty, as the date input wants it (EDIT-02). */
+  readonly dueDate: string;
   readonly briefToDesign: string | null;
   readonly scriptContent: string | null;
   readonly elementsTested: string | null;
@@ -109,6 +120,22 @@ export interface BriefValues {
   readonly qaDesigner: boolean;
   readonly qaStrategist: boolean;
 }
+
+/** One row of the Scripts table: the brief's own script, or a Meta Copywriting row written for it. */
+interface BriefScriptRow {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: string;
+  readonly statusLabel: string | null;
+  readonly statusTone: ChipTone;
+  readonly href: string | null;
+}
+
+/** What the Scripts table says when nothing has been written yet. */
+const NO_SCRIPTS_NOTE = 'No script yet. The brief’s script and its Meta copy rows appear here.';
+
+/** What the Activity section says before any write has been logged. */
+const NO_ACTIVITY_NOTE = 'No activity yet. Every saved change is listed here with who made it.';
 
 /** A value no uuid can be, so the Select can offer "Standalone" without an empty item value. */
 const STANDALONE_VALUE = 'standalone';
@@ -152,6 +179,8 @@ interface BriefDetailProps {
   readonly track: CreativeTrack;
   readonly internal: InternalStatusKey;
   readonly client: ClientStatusKey;
+  /** The brief's activity log, newest first (EDIT-03). */
+  readonly activity?: readonly BriefActivityItem[];
   readonly demo: boolean;
 }
 
@@ -272,6 +301,7 @@ export function BriefDetail({
   internal,
   client,
   demo,
+  activity = [],
 }: BriefDetailProps) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<BriefActionResult | null, FormData>(
@@ -326,6 +356,32 @@ export function BriefDetail({
     legacyPerformance !== null && performanceChoice === legacyPerformance.key;
   const dimensions = briefDimensions(brief.dimensions, brief.type);
   const next = nextInternalStatus(track, internal);
+  const stage = editorStageOf(internal);
+
+  // The Scripts table (EDIT-04): the brief's own script, then every Meta Copywriting row written
+  // for it — the rows under the details an editor reads before cutting.
+  const scripts: readonly BriefScriptRow[] = [
+    ...(brief.scriptContent === null || brief.scriptContent.trim() === ''
+      ? []
+      : [
+          {
+            id: 'script-content',
+            label: brief.scriptContent,
+            kind: 'Script',
+            statusLabel: null,
+            statusTone: 'mute' as const,
+            href: null,
+          },
+        ]),
+    ...copyLinks.map((copy) => ({
+      id: copy.id,
+      label: copy.label,
+      kind: 'Meta copy',
+      statusLabel: copy.statusLabel,
+      statusTone: copy.statusTone,
+      href: `${copywritingPath}?copy=${encodeURIComponent(copy.id)}`,
+    })),
+  ];
 
   const fieldError = (field: BriefFieldName): string | undefined =>
     state !== null && !state.ok ? state.fieldErrors?.[field] : undefined;
@@ -377,6 +433,17 @@ export function BriefDetail({
           ← All creative briefs
         </Link>
         <BriefName name={name} />
+        {/* The editor board's stage this brief sits in, colour-coded by stage (Sprint 10); off the
+            board once approved or launched. */}
+        <span className="flex items-center gap-2" data-slot="brief-stage" data-stage={stage ?? ''}>
+          <span className="text-[11px] tracking-wide text-text3 uppercase">
+            {BRIEF_HEADINGS.stage}
+          </span>
+          <StatusChip
+            tone={editorStageTone(stage)}
+            label={stage === null ? 'Off the editor board' : editorStageLabel(stage)}
+          />
+        </span>
       </div>
 
       <div className="grid min-w-0 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:grid-cols-[minmax(0,30fr)_minmax(0,45fr)_minmax(0,25fr)]">
@@ -494,6 +561,26 @@ export function BriefDetail({
 
             {fact(BRIEF_HEADINGS.assignee, brief.assignee, 'brief-assignee')}
             {fact(BRIEF_HEADINGS.type, creativeTypeLabel(brief.type), 'brief-type')}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label
+                htmlFor="brief-field-dueDate"
+                className="text-[11px] tracking-wide text-text3 uppercase"
+              >
+                {BRIEF_HEADINGS.dueDate}
+              </Label>
+              <Input
+                id="brief-field-dueDate"
+                name="dueDate"
+                type="date"
+                readOnly={demo}
+                defaultValue={brief.dueDate}
+                data-slot="brief-dueDate"
+                className="font-mono"
+              />
+              {fieldError('dueDate') === undefined ? null : (
+                <p className="text-xs text-bad">{fieldError('dueDate')}</p>
+              )}
+            </div>
             {fact(BRIEF_HEADINGS.source, brief.source, 'brief-source')}
             {fact(BRIEF_HEADINGS.funnel, brief.funnel, 'brief-funnel')}
 
@@ -724,6 +811,54 @@ export function BriefDetail({
               </DisabledWrite>
             </footer>
           </section>
+          <section
+            data-slot="brief-scripts"
+            className="flex min-w-0 flex-col gap-2 md:col-span-2 xl:col-span-2"
+          >
+            <h2 className="text-sm font-medium text-text2">{BRIEF_HEADINGS.scripts}</h2>
+            <div className="overflow-x-auto rounded-card border border-line bg-surface">
+              <Table data-slot="brief-scripts-table">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="px-3">Script</TableHead>
+                    <TableHead className="px-3">Kind</TableHead>
+                    <TableHead className="px-3">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scripts.length === 0 ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={3} className="px-3 py-6 text-center text-sm text-text3">
+                        <span data-slot="brief-scripts-empty">{NO_SCRIPTS_NOTE}</span>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    scripts.map((script) => (
+                      <TableRow key={script.id} data-slot="brief-script-row">
+                        <TableCell className="max-w-[480px] truncate px-3 py-1.5 text-text2">
+                          {script.href === null ? (
+                            script.label
+                          ) : (
+                            <Link href={script.href} className="underline-offset-2 hover:underline">
+                              {script.label}
+                            </Link>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-3 py-1.5 text-text3">{script.kind}</TableCell>
+                        <TableCell className="px-3 py-1.5">
+                          {script.statusLabel === null ? (
+                            <span className="text-text4">{EM_DASH}</span>
+                          ) : (
+                            <StatusChip tone={script.statusTone} label={script.statusLabel} />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </section>
         </form>
 
         <aside
@@ -922,23 +1057,40 @@ export function BriefDetail({
         <h2 id="brief-activity-heading" className="text-sm font-medium text-text2">
           Activity
         </h2>
-        <ol
-          data-slot="brief-activity-list"
-          className="flex max-h-64 flex-col gap-2 overflow-y-auto"
-        >
-          <li
-            data-slot="brief-activity-empty"
-            className="flex flex-col items-center gap-1 py-8 text-center"
+        {activity.length === 0 ? (
+          <p data-slot="brief-activity-empty" className="py-4 text-center text-xs text-text4">
+            {NO_ACTIVITY_NOTE}
+          </p>
+        ) : (
+          <ol
+            data-slot="brief-activity-list"
+            className="flex max-h-64 flex-col gap-2 overflow-y-auto"
           >
-            <span aria-hidden className="text-2xl">
-              🕓
-            </span>
-            <p className="text-sm text-text2">Activity tracking coming soon</p>
-            <p className="text-xs text-text3">
-              Edits, status changes and comments will appear here once the audit trail ships.
-            </p>
-          </li>
-        </ol>
+            {activity.map((entry) => (
+              <li
+                key={entry.id}
+                data-slot="brief-activity-entry"
+                data-field={entry.field}
+                className="flex flex-col gap-0.5 border-b border-line pb-2 text-xs last:border-b-0 last:pb-0"
+              >
+                <span className="text-text2">
+                  <span className="font-medium" data-slot="brief-activity-actor">
+                    {entry.actorName ?? entry.actorId ?? 'Someone'}
+                  </span>{' '}
+                  changed <span className="font-mono">{entry.field}</span>
+                </span>
+                <span className="font-mono text-[11px] text-text3">
+                  <span data-slot="brief-activity-old">{entry.oldValue ?? EM_DASH}</span>
+                  {' → '}
+                  <span data-slot="brief-activity-new">{entry.newValue ?? EM_DASH}</span>
+                </span>
+                <span className="font-mono text-[10.5px] text-text4" data-slot="brief-activity-at">
+                  {entry.at.replace('T', ' ').slice(0, 16)} UTC
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
     </div>
   );

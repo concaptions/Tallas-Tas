@@ -35,6 +35,29 @@ describe('serverEnv', () => {
     );
   });
 
+  it('parses the Playwright live-mode variables under their secret names', () => {
+    const env = serverEnv({
+      ...valid,
+      CLERK_PUBLISHABLE_KEY_TEST: 'pk_test_1',
+      CLERK_SECRET_KEY_TEST: 'sk_test_1',
+      CLERK_E2E_USER_PASSWORD: 'pw',
+      DATABASE_URL_E2E: 'postgresql://e2e@db.example.neon.tech/e2e',
+    });
+    expect(env.CLERK_PUBLISHABLE_KEY_TEST).toBe('pk_test_1');
+    expect(env.CLERK_SECRET_KEY_TEST).toBe('sk_test_1');
+    expect(env.CLERK_E2E_USER_PASSWORD).toBe('pw');
+    expect(env.DATABASE_URL_E2E).toBe('postgresql://e2e@db.example.neon.tech/e2e');
+  });
+
+  it('rejects a malformed live-mode variable, naming it', () => {
+    expect(() => serverEnv({ ...valid, CLERK_PUBLISHABLE_KEY_TEST: 'sk_test_1' })).toThrow(
+      /CLERK_PUBLISHABLE_KEY_TEST/,
+    );
+    expect(() => serverEnv({ ...valid, DATABASE_URL_E2E: 'not a url' })).toThrow(
+      /DATABASE_URL_E2E/,
+    );
+  });
+
   it('rejects an unknown NODE_ENV', () => {
     expect(() => serverEnv({ ...valid, NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
   });

@@ -35,7 +35,16 @@
     },
     "//#test:e2e:root": {
       "cache": false,
-      "passThroughEnv": ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY", "DATABASE_URL"]
+      "passThroughEnv": [
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+        "CLERK_SECRET_KEY",
+        "DATABASE_URL",
+        "CLERK_PUBLISHABLE_KEY_TEST",
+        "CLERK_SECRET_KEY_TEST",
+        "CLERK_E2E_USER_PASSWORD",
+        "CLERK_E2E_USER_EMAIL",
+        "DATABASE_URL_E2E"
+      ]
     }
   }
 }

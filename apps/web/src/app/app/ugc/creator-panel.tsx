@@ -17,7 +17,14 @@ import {
   Textarea,
 } from '@tas/ui';
 
-import { updateCreatorAction, type CreatorActionResult } from './actions';
+import { LinkField } from '@/components/links/link-field';
+
+import {
+  updateCreatorAction,
+  uploadCreatorVideoAction,
+  type CreatorActionResult,
+  type VideoUploadResult,
+} from './actions';
 import {
   clientStatusChoices,
   collabDateLabel,
@@ -32,6 +39,7 @@ import {
   type CollabRow,
   type CreatorCardRow,
   type StatusChoice,
+  R2_UNAVAILABLE_HINT,
 } from './fields';
 
 export interface LinkOption {
@@ -44,6 +52,10 @@ interface CreatorPanelProps {
   readonly concepts: readonly LinkOption[];
   readonly products: readonly LinkOption[];
   readonly collabs: readonly CollabRow[];
+  /** The creator's showcase videos (Sprint 7, UGC media), newest first; played inline. */
+  readonly videos?: readonly CreatorVideo[];
+  /** Whether the deployment can take an upload (R2 configured); the control explains itself when not. */
+  readonly uploadsEnabled?: boolean;
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -52,11 +64,24 @@ interface CreatorPanelProps {
 const AGE_BRACKETS = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
 const PLATFORMS = ['instagram', 'tiktok', 'youtube', 'facebook', 'twitter'] as const;
 
+/** One showcase video as the panel plays it; narrower than `AssetListRow` so a story passes a plain object. */
+export interface CreatorVideo {
+  readonly id: string;
+  readonly url: string;
+  readonly filename: string;
+  readonly caption: string | null;
+}
+
+/** The id the upload form carries, so its inputs can sit inside the panel without nesting forms. */
+const VIDEO_FORM_ID = 'creator-video-upload';
+
 export function CreatorPanel({
   creator,
   concepts,
   products,
   collabs,
+  videos = [],
+  uploadsEnabled = false,
   demo,
   onClose,
   onSaved,
@@ -65,6 +90,16 @@ export function CreatorPanel({
     updateCreatorAction,
     null,
   );
+  const [upload, uploadAction, uploading] = useActionState<VideoUploadResult | null, FormData>(
+    uploadCreatorVideoAction,
+    null,
+  );
+
+  useEffect(() => {
+    if (upload !== null && upload.ok) {
+      onSaved(creator.id);
+    }
+  }, [upload, onSaved, creator.id]);
 
   const [name, setName] = useState(creator.name);
   // Controlled, unlike the other Selects, because the chip beside each one follows the choice.
@@ -90,12 +125,6 @@ export function CreatorPanel({
   useEffect(() => {
     if (state !== null && state.ok) onSaved(state.id);
   }, [state, onSaved]);
-
-  const toggleConcept = useCallback((id: string) => {
-    setSelectedConceptIds((prev) =>
-      prev.includes(id) ? prev.filter((cid) => cid !== id) : [...prev, id],
-    );
-  }, []);
 
   const toggleProduct = useCallback((id: string) => {
     setSelectedProductIds((prev) =>
@@ -552,34 +581,20 @@ export function CreatorPanel({
               <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
                 Linked Concepts
               </h3>
-              {concepts.length === 0 ? (
-                <p className="text-sm text-text3">No concepts in this brand yet.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2" data-slot="concept-picker">
-                  {concepts.map((concept) => {
-                    const on = selectedConceptIds.includes(concept.id);
-                    return (
-                      <button
-                        key={concept.id}
-                        type="button"
-                        disabled={demo}
-                        aria-pressed={on}
-                        data-slot="concept-toggle"
-                        onClick={() => {
-                          toggleConcept(concept.id);
-                        }}
-                        className={
-                          on
-                            ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase disabled:cursor-not-allowed'
-                            : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase hover:border-line2 hover:text-text2 disabled:cursor-not-allowed'
-                        }
-                      >
-                        {concept.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              {/* The same LinkField a concept uses to pick its creators: one `creator_concepts` row per
+                  pair, written on the spot, so the concept's page shows this creator on its next render.
+                  The hidden `conceptIds` inputs above still mirror the selection for the Save. */}
+              <LinkField
+                link="creator-concepts"
+                sourceId={creator.id}
+                options={concepts}
+                selectedIds={selectedConceptIds}
+                onChange={setSelectedConceptIds}
+                label="Linked Concepts"
+                demo={demo}
+                slot="creator-concepts"
+                empty="No concept to film yet. Link one here or from the concept's page."
+              />
             </section>
 
             <section className="flex flex-col gap-3">
@@ -614,6 +629,79 @@ export function CreatorPanel({
                   })}
                 </div>
               )}
+            </section>
+
+            <section className="flex flex-col gap-3" data-slot="showcase-videos-section">
+              <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                Showcase videos
+                {videos.length > 0 ? (
+                  <span className="text-xs font-normal text-text3">({videos.length})</span>
+                ) : null}
+              </h3>
+              {videos.length === 0 ? (
+                <p className="text-sm text-text3" data-slot="showcase-videos-empty">
+                  No showcase videos yet. Upload the creator’s best work to play it here.
+                </p>
+              ) : (
+                <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-slot="showcase-videos">
+                  {videos.map((video) => (
+                    <li
+                      key={video.id}
+                      data-slot="showcase-video"
+                      data-asset-id={video.id}
+                      className="flex flex-col gap-1.5 rounded-card border border-line bg-surface2 p-2"
+                    >
+                      {/* A plain `<video>`: the asset URL is the R2 object, playable inline. */}
+                      <video
+                        src={video.url}
+                        controls
+                        preload="metadata"
+                        playsInline
+                        className="aspect-video w-full rounded-input bg-surface3"
+                      />
+                      <p
+                        className="truncate font-mono text-[11px] text-text3"
+                        title={video.filename}
+                      >
+                        {video.caption ?? video.filename}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="file"
+                  name="video"
+                  accept="video/*"
+                  form={VIDEO_FORM_ID}
+                  disabled={demo || !uploadsEnabled || uploading}
+                  aria-label="Showcase video file"
+                  data-slot="showcase-video-file"
+                  className="h-8 w-full sm:w-72"
+                />
+                <DisabledWrite
+                  active={demo || !uploadsEnabled}
+                  hint={demo ? DEMO_WRITE_HINT : R2_UNAVAILABLE_HINT}
+                >
+                  <Button
+                    type="submit"
+                    form={VIDEO_FORM_ID}
+                    variant="outline"
+                    size="sm"
+                    disabled={demo || !uploadsEnabled || uploading}
+                    className={disabledWriteClassName}
+                    data-slot="showcase-video-upload"
+                  >
+                    {uploading ? 'Uploading…' : 'Upload video'}
+                  </Button>
+                </DisabledWrite>
+                {upload !== null && !upload.ok ? (
+                  <p className="text-xs text-bad" data-slot="showcase-video-error">
+                    {upload.error}
+                  </p>
+                ) : null}
+              </div>
             </section>
 
             <section className="flex flex-col gap-3" data-slot="collaborations-section">
@@ -687,6 +775,12 @@ export function CreatorPanel({
             </Button>
           </DisabledWrite>
         </footer>
+      </form>
+
+      {/* The upload posts on its own, outside the record form: a form cannot nest in a form, so the
+          file input and the button above point at this one by id. */}
+      <form id={VIDEO_FORM_ID} action={uploadAction} className="hidden" aria-hidden="true">
+        <input type="hidden" name="creatorId" value={creator.id} />
       </form>
     </aside>
   );

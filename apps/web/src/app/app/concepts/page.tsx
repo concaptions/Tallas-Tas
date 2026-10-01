@@ -1,8 +1,20 @@
 import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUserViews } from '@/lib/user-view-actions';
 import { conceptPath } from '@/lib/routes';
 
-import { conceptViewFromParam, internalStatusView, type ConceptItem } from './fields';
+import {
+  conceptApprovalStatusLabel,
+  conceptCategoryLabel,
+  conceptStyleLabel,
+} from '@tas/domain/concepts';
+
+import {
+  clientStatusView,
+  conceptViewFromParam,
+  internalStatusView,
+  type ConceptItem,
+} from './fields';
 import { ConceptsWorkspace } from './concepts-workspace';
 
 /**
@@ -36,6 +48,7 @@ interface ConceptsPageProps {
 export default async function ConceptsPage({ searchParams }: ConceptsPageProps) {
   const [{ rows }, params] = await Promise.all([loadConcepts(), searchParams]);
   const demo = isDemoMode();
+  const userViews = await loadUserViews('concepts');
 
   const items: ConceptItem[] = rows.map((row) => ({
     id: row.id,
@@ -47,6 +60,21 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     themeName: row.themeName,
     status: internalStatusView(CONCEPT_TRACK, row.internalStatus),
     href: conceptPath(row.id),
+    clientStatus: clientStatusView(row.clientStatus),
+    approvalStatusLabel:
+      row.approvalStatus === null ? null : conceptApprovalStatusLabel(row.approvalStatus),
+    categoryLabel: row.category === null ? null : conceptCategoryLabel(row.category),
+    styleLabel: row.conceptStyle === null ? null : conceptStyleLabel(row.conceptStyle),
+    formatsToCreate: row.formatsToCreate,
+    hookExamples: row.hookExamples,
+    scriptIdea: row.scriptIdea,
+    description: row.description,
+    painPoints: row.painPoints,
+    usp: row.usp,
+    clientComments: row.clientComments,
+    collectionName: row.collectionName,
+    creatorCount: row.creatorIds.length,
+    adInspoCount: row.adInspoLinks.length,
   }));
 
   const requested = params.view;
@@ -62,6 +90,7 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
       demo={demo}
       initialView={view}
       initialSearch={initialSearch}
+      userViews={userViews}
     />
   );
 }

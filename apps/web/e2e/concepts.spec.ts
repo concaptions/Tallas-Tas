@@ -49,7 +49,26 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Product',
       'Theme',
       'Internal Status',
+      'Client Status',
+      'Approval Status',
+      'Category',
+      'Concept Style',
+      'Formats to create',
+      'Hook Examples',
+      'Script Idea',
+      'Description',
+      'Pain Points',
+      'USP',
+      'Client Comments',
+      'Collection',
+      'Creators',
+      'Ad Inspo',
     ]);
+    // Production Status is hidden from the grid on purpose (docs/decisions.md); the name is frozen.
+    await expect(page.locator('[data-slot="concepts-table"] thead th').first()).toHaveCSS(
+      'position',
+      'sticky',
+    );
 
     const rows = page.locator('[data-slot="concept-row"]');
     await expect(rows).toHaveCount(4);
@@ -60,9 +79,12 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(name).toHaveCSS('font-family', /mono/i);
 
     // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill.
+    // One Internal Status chip and one Client Status chip per row (two-track approval, PRD §9).
     const chips = page.locator('[data-slot="concept-row"] [data-slot="status-chip"]');
-    await expect(chips).toHaveCount(4);
-    const revisions = page.locator(`[data-concept-id="${BODY_CLOCK}"] [data-slot="status-chip"]`);
+    await expect(chips).toHaveCount(8);
+    const revisions = page
+      .locator(`[data-concept-id="${BODY_CLOCK}"] [data-slot="status-chip"]`)
+      .first();
     await expect(revisions).toHaveText('Videos Revisions');
     await expect(revisions).toHaveAttribute('data-tone', 'warn');
   });
@@ -90,23 +112,20 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
         .locator('[data-slot="concept-column-empty"]'),
     ).toBeVisible();
 
-    // The toggle is two controls and neither is a pill.
-    const toggle = page.locator('[data-slot="concepts-view-toggle"]');
-    const options = toggle.locator('[data-slot="concepts-view-option"]');
-    await expect(options).toHaveCount(2);
-    for (let index = 0; index < 2; index += 1) {
+    // The view switch is the shared toolbar (Sprint 8): Grid / Kanban / Gallery, no pill controls.
+    const options = page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]');
+    await expect(options).toHaveText(['Grid', 'Kanban', 'Gallery']);
+    for (let index = 0; index < 3; index += 1) {
       expect(await options.nth(index).getAttribute('class')).not.toContain('rounded-full');
     }
 
-    // Back to the table: the parameter is removed rather than written as ?view=table.
-    await options.filter({ hasText: 'Table' }).click();
+    // Switching back writes a clean URL (the default is not written), then the board again.
+    await options.filter({ hasText: 'Grid' }).click();
     await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
 
-    // And to the board: the parameter is written, so a reload restores it.
-    await options.filter({ hasText: 'Board' }).click();
+    await options.filter({ hasText: 'Kanban' }).click();
     await expect(page).toHaveURL(/\?view=board$/);
-    await page.reload();
     await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
   });
 

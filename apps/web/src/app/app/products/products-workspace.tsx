@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ProductListRow } from '@tas/db';
+import { getTableCapability } from '@tas/domain';
 import { toCsv } from '@tas/domain/csv';
 import {
   Button,
@@ -13,7 +14,11 @@ import {
   PropagationBadge,
 } from '@tas/ui';
 
+import { GalleryView, galleryItemsFrom, useTableView, ViewToolbar } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import type { UserViewConfig } from '@tas/domain';
+import type { UserViewsResult } from '@/lib/user-view-actions';
+import { CountCell, TextCell } from '@/components/views/grid-cells';
 
 import { EM_DASH, type LinkedRecord } from './fields';
 import { NEW_PRODUCT, ProductPanel } from './product-panel';
@@ -46,6 +51,8 @@ export interface ProductItem {
   readonly creativeDesigns: readonly LinkedRecord[];
   /** The creators booked for this product through `creator_products`, indexed the same way. */
   readonly creators: readonly LinkedRecord[];
+  /** The angles linked through `angle_products`, by id, for the panel's two-way field. */
+  readonly angleIds: readonly string[];
 }
 
 interface ProductsWorkspaceProps {
@@ -56,7 +63,16 @@ interface ProductsWorkspaceProps {
   readonly initialSearch: string;
   /** `PRODUCT_CSV_COLUMNS`, passed as data so `@tas/db` stays out of the browser bundle. */
   readonly templateColumns: readonly string[];
+  /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
+  readonly userViews: UserViewsResult;
+  /** The brand's angles, for the panel's two-way Linked angles field (LINK-01). */
+  readonly angleOptions?: readonly { readonly id: string; readonly name: string }[];
 }
+
+// Safe: 'products' is always in TABLE_VIEW_CAPABILITIES
+const PRODUCTS_CAP = getTableCapability('products') as NonNullable<
+  ReturnType<typeof getTableCapability>
+>;
 
 /** The file a strategist gets from "Download template". */
 const TEMPLATE_FILENAME = 'products-template.csv';
@@ -105,9 +121,9 @@ function matches(item: ProductItem, query: string): boolean {
 
 /**
  * The Airtable-style grid columns for Products (P2A): the frozen name column carries the propagation
- * badge; the two link columns show the host and keep the full URL in the cell title; every column but
- * the collection link is sortable. Column order and headers are the same the plain table used, so the
- * page's existing automation contract is unchanged.
+ * badge; the two link columns show the host and keep the full URL in the cell title; then every
+ * linked record set the panel lists, as counts, so nothing needs a row opened to be seen. The first
+ * three headers are the ones the plain table used, so the page's automation contract still holds.
  */
 const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
   {
@@ -140,6 +156,42 @@ const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
     render: (item) => item.collectionHost ?? <span className="text-text4">{EM_DASH}</span>,
   },
   {
+    key: 'angles',
+    header: 'Angles',
+    sortValue: (item) => item.product.angleNames.length,
+    render: (item) => <TextCell value={item.product.angleNames.join(', ')} maxWidth={320} />,
+  },
+  {
+    key: 'concepts',
+    header: 'Concepts',
+    sortValue: (item) => item.product.conceptCount,
+    render: (item) => <CountCell count={item.product.conceptCount} noun="concept" />,
+  },
+  {
+    key: 'creativeDesigns',
+    header: 'Creative Designs',
+    sortValue: (item) => item.creativeDesigns.length,
+    render: (item) => <CountCell count={item.creativeDesigns.length} noun="design" />,
+  },
+  {
+    key: 'creators',
+    header: 'Creators',
+    sortValue: (item) => item.creators.length,
+    render: (item) => <CountCell count={item.creators.length} noun="creator" />,
+  },
+  {
+    key: 'emailCampaigns',
+    header: 'Email Campaigns',
+    sortValue: (item) => item.emailCampaigns.length,
+    render: (item) => <CountCell count={item.emailCampaigns.length} noun="campaign" />,
+  },
+  {
+    key: 'youtubeCopy',
+    header: 'YouTube Copy',
+    sortValue: (item) => item.youtubeCopy.length,
+    render: (item) => <CountCell count={item.youtubeCopy.length} noun="copy" />,
+  },
+  {
     key: 'updated',
     header: 'Updated',
     sortValue: (item) => item.updatedTitle,
@@ -148,12 +200,18 @@ const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
   },
 ];
 
+/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
+const FIELD_KEYS: readonly string[] = PRODUCT_COLUMNS.map((column) => column.key);
+const FIELD_OPTIONS = PRODUCT_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+
 export function ProductsWorkspace({
   items,
   demo,
   initialSelection,
   initialSearch,
   templateColumns,
+  userViews,
+  angleOptions = [],
 }: ProductsWorkspaceProps) {
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
@@ -168,6 +226,32 @@ export function ProductsWorkspace({
     setSearch(next);
     syncUrl('q', next);
   }, []);
+
+  const adoptView = useCallback(
+    (config: UserViewConfig) => {
+      filter(config.filter);
+    },
+    [filter],
+  );
+
+  const tableView = useTableView({
+    tableKey: 'products',
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: 'grid',
+    initialViewType: null,
+    fieldKeys: FIELD_KEYS,
+    onActivate: adoptView,
+  });
+  const activeView = tableView.viewType;
+  const setActiveView = tableView.setViewType;
+  const onSearch = useCallback(
+    (next: string) => {
+      filter(next);
+      tableView.setFilter(next);
+    },
+    [filter, tableView],
+  );
 
   const close = useCallback(() => {
     select(null);
@@ -186,6 +270,16 @@ export function ProductsWorkspace({
   const visible = useMemo(
     () => (query === '' ? items : items.filter((item) => matches(item, query))),
     [items, query],
+  );
+
+  const galleryItems = useMemo(
+    () =>
+      galleryItemsFrom(visible, PRODUCT_COLUMNS, (item) => ({
+        id: item.product.id,
+        name: item.product.name,
+        subtitle: item.linkHost,
+      })),
+    [visible],
   );
 
   const openItem = items.find((item) => item.product.id === selection) ?? null;
@@ -250,14 +344,33 @@ export function ProductsWorkspace({
 
       <section aria-labelledby="products-heading" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="products-heading" className="text-sm font-medium text-text2">
-            Library
-          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 id="products-heading" className="text-sm font-medium text-text2">
+              Library
+            </h2>
+            <ViewToolbar
+              tableKey="products"
+              supportedViews={[...PRODUCTS_CAP.supportedViews]}
+              activeView={activeView}
+              onViewChange={setActiveView}
+              kanbanGroupByField={null}
+              views={tableView.views}
+              activeViewId={tableView.activeView?.id ?? null}
+              onActivateView={tableView.activateView}
+              onCreateView={tableView.createView}
+              onRenameView={tableView.renameView}
+              onDeleteView={tableView.deleteView}
+              fields={FIELD_OPTIONS}
+              isFieldVisible={tableView.isFieldVisible}
+              onToggleField={tableView.toggleField}
+              error={tableView.error}
+            />
+          </div>
           <Input
             type="search"
             value={search}
             onChange={(event) => {
-              filter(event.target.value);
+              onSearch(event.target.value);
             }}
             placeholder="Search name or URL"
             aria-label="Search products by name or URL"
@@ -266,55 +379,69 @@ export function ProductsWorkspace({
           />
         </div>
 
-        <AirtableGrid
-          tableKey="products"
-          columns={PRODUCT_COLUMNS}
-          rows={visible}
-          rowId={(item) => item.product.id}
-          rowLabel={(item) => item.product.name}
-          rowAttributes={(item) => ({ 'data-product-id': item.product.id })}
-          selectedId={selection}
-          onRowClick={(item) => {
-            select(item.product.id);
-          }}
-          tableSlot="products-table"
-          rowSlot="product-row"
-          empty={
-            <div
-              data-slot="products-empty"
-              className="flex flex-col items-center gap-3 text-center"
-            >
-              <p className="text-sm text-text2">
-                {items.length === 0
-                  ? 'No products yet. Start with the landing page you are sending traffic to.'
-                  : `Nothing matches “${term}”. Try a product name or a domain.`}
-              </p>
-              {items.length === 0 ? (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    select(NEW_PRODUCT);
-                  }}
-                  data-slot="empty-new-product"
-                >
-                  New product
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    filter('');
-                  }}
-                  data-slot="clear-search"
-                >
-                  Clear search
-                </Button>
-              )}
-            </div>
-          }
-        />
+        {activeView === 'gallery' ? (
+          <GalleryView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            cardSlot="product-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
+        ) : (
+          <AirtableGrid
+            tableKey="products"
+            view={tableView.config}
+            onSortChange={tableView.setSort}
+            columns={PRODUCT_COLUMNS}
+            rows={visible}
+            rowId={(item) => item.product.id}
+            rowLabel={(item) => item.product.name}
+            rowAttributes={(item) => ({ 'data-product-id': item.product.id })}
+            selectedId={selection}
+            onRowClick={(item) => {
+              select(item.product.id);
+            }}
+            tableSlot="products-table"
+            rowSlot="product-row"
+            empty={
+              <div
+                data-slot="products-empty"
+                className="flex flex-col items-center gap-3 text-center"
+              >
+                <p className="text-sm text-text2">
+                  {items.length === 0
+                    ? 'No products yet. Start with the landing page you are sending traffic to.'
+                    : `Nothing matches “${term}”. Try a product name or a domain.`}
+                </p>
+                {items.length === 0 ? (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      select(NEW_PRODUCT);
+                    }}
+                    data-slot="empty-new-product"
+                  >
+                    New product
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      filter('');
+                    }}
+                    data-slot="clear-search"
+                  >
+                    Clear search
+                  </Button>
+                )}
+              </div>
+            }
+          />
+        )}
       </section>
 
       {creating || open !== null ? (
@@ -325,6 +452,8 @@ export function ProductsWorkspace({
           youtubeCopy={openItem?.youtubeCopy ?? []}
           creativeDesigns={openItem?.creativeDesigns ?? []}
           creators={openItem?.creators ?? []}
+          angleOptions={angleOptions}
+          angleIds={openItem?.angleIds ?? []}
           demo={demo}
           onClose={close}
           onSaved={saved}

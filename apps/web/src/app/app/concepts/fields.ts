@@ -15,6 +15,7 @@ import {
 } from '@tas/domain/concepts';
 import { ANGLE_FORMATS, type AngleFormatEntry, type AngleFormatKey } from '@tas/domain/angles';
 import {
+  CLIENT_STATUS,
   chipTone,
   internalStatusFor,
   type ChipTone,
@@ -95,7 +96,7 @@ export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 export const NEW_CONCEPT = 'new';
 
 /** The two ways the list renders the same rows. Table is first because it is the default. */
-export const CONCEPT_VIEWS = ['table', 'board'] as const;
+export const CONCEPT_VIEWS = ['table', 'board', 'gallery'] as const;
 
 export type ConceptView = (typeof CONCEPT_VIEWS)[number];
 
@@ -108,6 +109,7 @@ export interface ConceptViewOption {
 export const CONCEPT_VIEW_OPTIONS: readonly ConceptViewOption[] = [
   { value: 'table', label: 'Table' },
   { value: 'board', label: 'Board' },
+  { value: 'gallery', label: 'Gallery' },
 ];
 
 /** The URL parameter the view lives in, so nothing re-types the key. */
@@ -181,6 +183,81 @@ export interface ConceptItem {
   readonly themeName: string | null;
   readonly status: ConceptStatusView;
   readonly href: string;
+  /**
+   * The rest of the stored record, so the Airtable-style grid shows every column without a row
+   * being opened. Resolved on the server like `status`; the client never looks a label up. Production
+   * Status is deliberately absent (hidden from the list, the form and the panel; the column stays).
+   */
+  readonly clientStatus: ConceptClientStatusView;
+  readonly approvalStatusLabel: string | null;
+  readonly categoryLabel: string | null;
+  readonly styleLabel: string | null;
+  readonly formatsToCreate: readonly string[];
+  readonly hookExamples: string | null;
+  readonly scriptIdea: string | null;
+  readonly description: string | null;
+  readonly painPoints: string | null;
+  readonly usp: string | null;
+  readonly clientComments: string | null;
+  readonly collectionName: string | null;
+  readonly creatorCount: number;
+  readonly adInspoCount: number;
+}
+
+/**
+ * The stored-record columns of a `ConceptItem` at their empty values: what a fixture (a story, a
+ * unit test) spreads so it only states the fields it cares about, exactly as the list would read a
+ * row with nothing but its pairing filled in.
+ */
+/** One client-track status, ready to render; its keys are `CLIENT_STATUS`'s, not the internal track's. */
+export interface ConceptClientStatusView {
+  readonly key: string;
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+export const EMPTY_CONCEPT_RECORD: Pick<
+  ConceptItem,
+  | 'clientStatus'
+  | 'approvalStatusLabel'
+  | 'categoryLabel'
+  | 'styleLabel'
+  | 'formatsToCreate'
+  | 'hookExamples'
+  | 'scriptIdea'
+  | 'description'
+  | 'painPoints'
+  | 'usp'
+  | 'clientComments'
+  | 'collectionName'
+  | 'creatorCount'
+  | 'adInspoCount'
+> = {
+  clientStatus: { key: 'pending_for_approval', label: 'Pending for Approval', tone: 'info' },
+  approvalStatusLabel: null,
+  categoryLabel: null,
+  styleLabel: null,
+  formatsToCreate: [],
+  hookExamples: null,
+  scriptIdea: null,
+  description: null,
+  painPoints: null,
+  usp: null,
+  clientComments: null,
+  collectionName: null,
+  creatorCount: 0,
+  adInspoCount: 0,
+};
+
+/**
+ * The view of one stored client status (`CLIENT_STATUS`, the client-facing track of CLAUDE.md
+ * non-negotiable 4). Total like `internalStatusView`: an unknown key reads itself, muted.
+ */
+export function clientStatusView(key: string): ConceptClientStatusView {
+  const entry = CLIENT_STATUS.find((candidate) => candidate.key === key);
+  return entry === undefined
+    ? { key, label: key, tone: 'mute' }
+    : { key, label: entry.label, tone: chipTone(entry.label) };
 }
 
 /** The table's seven columns: Persona and Product ride along from the angle (TASK 5). */
@@ -280,7 +357,10 @@ export interface ConceptFieldGroup {
 export const CONCEPT_GROUPS: readonly ConceptFieldGroup[] = [
   { heading: 'Pairing', note: 'One angle, one theme. Together they name the concept.' },
   { heading: 'Inherited', note: 'Read-only. These come from the angle and change when it does.' },
-  { heading: 'Brief', note: 'What the editor reads: how it is made, and what goes in it.' },
+  {
+    heading: 'Concept details',
+    note: 'What the editor reads: how it is made, and what goes in it.',
+  },
 ];
 
 /** Just the headings, for the page's section list and for the E2E assertion. */

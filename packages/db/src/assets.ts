@@ -25,6 +25,17 @@ export async function listConceptAssets(
     .orderBy(desc(assets.createdAt));
 }
 
+/** A creator's showcase videos (Sprint 7, UGC media), newest first: the same rows, linked by creator. */
+export async function listCreatorAssets(
+  db: Db,
+  brandId: string,
+  creatorId: string,
+): Promise<AssetListRow[]> {
+  return withBrand(db, brandId)
+    .select(assets, eq(assets.creatorId, creatorId))
+    .orderBy(desc(assets.createdAt));
+}
+
 export async function getAssetById(
   db: Db,
   brandId: string,

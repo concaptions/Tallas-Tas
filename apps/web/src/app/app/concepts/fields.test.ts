@@ -17,6 +17,7 @@ import {
   conceptViewFromParam,
   filteredConceptCountLabel,
   internalStatusView,
+  EMPTY_CONCEPT_RECORD,
   internalStatusViews,
   matchesQuery,
   type ConceptItem,
@@ -25,6 +26,7 @@ import {
 /** One list item in the shape the page builds, with only the fields a test cares about set. */
 function item(id: string, status: (typeof INTERNAL_VIDEO_STATUS)[number]['key']): ConceptItem {
   return {
+    ...EMPTY_CONCEPT_RECORD,
     id,
     name: `B1-Angle-Theme-${id}`,
     batch: 'B1',
@@ -50,8 +52,8 @@ describe('conceptViewFromParam', () => {
     },
   );
 
-  it('offers exactly the two views, table first', () => {
-    expect(CONCEPT_VIEWS).toEqual(['table', 'board']);
+  it('offers exactly the three views, table first', () => {
+    expect(CONCEPT_VIEWS).toEqual(['table', 'board', 'gallery']);
   });
 });
 
@@ -189,7 +191,7 @@ describe('the page contract', () => {
   });
 
   it('names the three blocks of the detail page in order', () => {
-    expect(CONCEPT_GROUP_HEADINGS).toEqual(['Pairing', 'Inherited', 'Brief']);
+    expect(CONCEPT_GROUP_HEADINGS).toEqual(['Pairing', 'Inherited', 'Concept details']);
   });
 });
 

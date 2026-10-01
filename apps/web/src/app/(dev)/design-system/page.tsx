@@ -142,6 +142,15 @@ import {
   YoutubeCopyStatusChipsStory,
 } from './youtube-copywriting.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
+import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
+import { LinkFieldDemoStory, LinkFieldStory } from './link-field.stories';
+import { EditorBoardStory, EditorStageChipsStory } from './editor-board.stories';
+import {
+  FieldsMenuStory,
+  GalleryInitialTileStory,
+  ViewsMenuStory,
+  ViewToolbarStory,
+} from './user-views.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -890,6 +899,92 @@ export default function DesignSystemPage() {
               empty — friendly state
             </h3>
             <AirtableGridEmptyStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              cell primitives — what every grid column composes
+            </h3>
+            <GridCellsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              theme panel — a grid row opens the labelled card
+            </h3>
+            <ThemePanelStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Editor board: Incoming, Under Editing, Under Review"
+        note="Three columns over the internal status track — a view of internal_status, never a second column. Start on an Incoming card claims the brief: it moves to the track's in-progress step and the signed-in user becomes the assignee; both changes land in the activity log."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              stage chips — mapping order, plus off-board
+            </h3>
+            <EditorStageChipsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              board — one card per stage, Start on Incoming
+            </h3>
+            <EditorBoardStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Two-way links: one LinkField on both sides of every junction"
+        note="A concept's creators and a creator's concepts write the same creator_concepts rows; the other side reads the link on its next render. Nothing is copied onto a record."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              live — chips, remove, searchable checklist
+            </h3>
+            <LinkFieldStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              demo mode — read-only with the reason
+            </h3>
+            <LinkFieldDemoStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Per-user views: toolbar, Views menu, Fields popover, gallery tiles"
+        note="A view is one person's lens on a table — view type, visible fields, order, freeze, sort and search — stored per Clerk user and never shared. The Fields popover is the same control on Grid and Gallery."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              toolbar — view switch, my views, fields
+            </h3>
+            <ViewToolbarStory />
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <div className="flex flex-col gap-2">
+              <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+                views menu
+              </h3>
+              <ViewsMenuStory />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+                fields popover
+              </h3>
+              <FieldsMenuStory />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              gallery — initial tile when a record has no picture; hidden field lines stay hidden
+            </h3>
+            <GalleryInitialTileStory />
           </div>
         </div>
       </Section>

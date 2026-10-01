@@ -19,6 +19,7 @@ const L: Record<AssetCategory, string> = {
   broll: 'B-Roll',
   raw_asset: 'Raw Assets',
   mood_board: 'Mood Board',
+  showcase_video: 'Showcase video',
 };
 
 export function AssetLibrary({

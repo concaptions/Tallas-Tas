@@ -3,6 +3,7 @@ import { loadBriefs } from '@/lib/briefs-source';
 import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeModules } from '@/lib/creative-modules-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUserViews } from '@/lib/user-view-actions';
 import { loadPersonas } from '@/lib/personas-source';
 import { loadProducts } from '@/lib/products-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
@@ -65,6 +66,7 @@ export default async function AnglesPage({ searchParams }: AnglesPageProps) {
       searchParams,
     ]);
   const demo = isDemoMode();
+  const userViews = await loadUserViews('angles');
   const now = new Date();
 
   const items: AngleItem[] = rows.map((angle) => ({
@@ -75,6 +77,7 @@ export default async function AnglesPage({ searchParams }: AnglesPageProps) {
 
   const personas: LinkOption[] = personaRows.rows.map(({ id, name }) => ({ id, name }));
   const products: LinkOption[] = productRows.rows.map(({ id, name }) => ({ id, name }));
+  const conceptOptions: LinkOption[] = conceptRows.rows.map(({ id, name }) => ({ id, name }));
   const creativeModulesByAngle = indexCreativeModulesByAngle(creativeModuleRows.rows);
   const conceptsByAngle = indexConceptsByAngle(conceptRows.rows, CONCEPT_TRACK);
   const creativeDesignsByAngle = indexCreativeDesignsByAngle(briefRows.rows);
@@ -90,12 +93,14 @@ export default async function AnglesPage({ searchParams }: AnglesPageProps) {
       items={items}
       personas={personas}
       products={products}
+      conceptOptions={conceptOptions}
       creativeModulesByAngle={creativeModulesByAngle}
       conceptsByAngle={conceptsByAngle}
       creativeDesignsByAngle={creativeDesignsByAngle}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}
+      userViews={userViews}
     />
   );
 }

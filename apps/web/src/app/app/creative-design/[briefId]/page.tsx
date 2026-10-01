@@ -4,7 +4,7 @@ import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
 import { loadAngles } from '@/lib/angles-source';
 import { loadAssets } from '@/lib/assets-source';
-import { loadBriefById } from '@/lib/briefs-source';
+import { loadBriefActivity, loadBriefById } from '@/lib/briefs-source';
 import { loadClientAssetFolders } from '@/lib/client-assets-source';
 import { loadCollections } from '@/lib/collections-source';
 import { loadConcepts } from '@/lib/concepts-source';
@@ -16,7 +16,7 @@ import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
 import { conceptPath } from '@/lib/routes';
 
-import { briefLinkedRecords } from '../fields';
+import { briefLinkedRecords, dueDateInputValue } from '../fields';
 import { BriefDetail, type BriefConceptCard, type BriefValues } from './brief-detail';
 
 /**
@@ -73,6 +73,8 @@ export default async function BriefPage({ params }: BriefPageProps) {
     notFound();
   }
   const demo = isDemoMode();
+  // The activity log (EDIT-03): newest first, written by the Server Actions only.
+  const activity = await loadBriefActivity(brief.id);
 
   // Indexed by the junction here, on the server; the rail renders plain records with their hrefs.
   const linked = briefLinkedRecords(brief.id, {
@@ -151,6 +153,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
     priority: brief.priority,
     performance: brief.performance,
     assignee: brief.assignee,
+    dueDate: dueDateInputValue(brief.dueDate),
     briefToDesign: brief.briefToDesign,
     scriptContent: brief.scriptContent,
     elementsTested: brief.elementsTested,
@@ -188,6 +191,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
       track={brief.track}
       internal={brief.internalStatus}
       client={brief.clientStatus}
+      activity={activity}
       demo={demo}
     />
   );

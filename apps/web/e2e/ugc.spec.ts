@@ -6,7 +6,7 @@ import { ugcPath } from '../src/lib/routes';
 /**
  * UGC Management with no environment variables at all — the Vercel deployment as it stands. The
  * middleware lets the route through, the data source serves the in-repo fixtures, and the page is
- * fully usable read-only: two tabs, five creator cards with their three labelled tracks, three
+ * fully usable read-only: two tabs, five creator rows with their three labelled tracks, three
  * partnership rows whose countdowns are read against the pinned reference date, a URL-backed search
  * that reaches a worded empty state on either tab, and every write disabled with a reason.
  *
@@ -24,14 +24,16 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/ugc needs a session and real data',
   );
 
-  test('opens on Creators with the five fixtures as cards, never a table', async ({ page }) => {
+  test('opens on Creators as a grid: five rows, every stored column, the avatar in the frozen name cell', async ({
+    page,
+  }) => {
     await page.goto(ugcPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('UGC Management');
     await expect(page.locator('[data-slot="ugc-tabs"]')).toBeVisible();
-    // Sprint 5 multi-view architecture: the Creators panel now mounts a ViewSwitcher whose
-    // Grid/Kanban/Gallery triggers share `data-slot="tabs-trigger"`, so the workspace tabs are the
-    // ones carrying `data-tab` and the view triggers are the ones without it.
+    // The Creators panel mounts a ViewSwitcher whose Grid/Kanban/Gallery triggers share
+    // `data-slot="tabs-trigger"`, so the workspace tabs are the ones carrying `data-tab` and the view
+    // triggers are the ones without it. Grid is the default.
     await expect(page.locator('[data-slot="tabs-trigger"][data-tab]')).toHaveText([
       'Creators',
       'Partnership Ads',
@@ -42,34 +44,41 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
       'Gallery',
     ]);
 
-    const cards = page.locator('[data-slot="creator-card"]');
-    await expect(cards).toHaveCount(5);
+    const rows = page.locator('[data-slot="creator-row"]');
+    await expect(rows).toHaveCount(5);
     await expect(page.locator('[data-slot="ugc-count"]')).toHaveText('5 creators');
 
-    // The Creators tab is a grid of cards; the partnership table is on the other tab.
+    // The Creators tab is the grid; the partnership table is on the other tab.
     await expect(page.locator('[data-slot="partnership-table"]')).toHaveCount(0);
 
-    // Every card carries a picture, a name, the identity line and all three tracks — never a blank.
+    // The frozen name cell carries the avatar and the name together; the first headers are fixed.
+    const headers = page.locator('[data-slot="creators-table"] thead th');
+    await expect(headers.first()).toHaveText('Name');
+    await expect(headers.first()).toHaveCSS('position', 'sticky');
+    await expect(headers.nth(1)).toHaveText('Internal Status');
+    await expect(headers.nth(2)).toHaveText('Client Status');
+    await expect(headers.nth(3)).toHaveText('Assets Status');
+    expect(await headers.count()).toBeGreaterThan(30);
+
+    // Every row carries a picture, a name and all three tracks — never a blank.
     for (let index = 0; index < 5; index += 1) {
-      const card = cards.nth(index);
-      await expect(card.locator('[data-slot="creator-avatar"]')).toHaveCount(1);
-      await expect(card.locator('[data-slot="creator-name"]')).not.toHaveText('');
-      await expect(card.locator('[data-slot="creator-identity"]')).not.toHaveText('');
-      await expect(card.locator('[data-slot="creator-track"]')).toHaveCount(3);
+      const row = rows.nth(index);
+      await expect(row.locator('td').first().locator('[data-slot="creator-avatar"]')).toHaveCount(
+        1,
+      );
+      await expect(row.locator('td').first().locator('[data-slot="creator-name"]')).not.toHaveText(
+        '',
+      );
+      await expect(row.locator('[data-slot="creator-track"]')).toHaveCount(3);
     }
 
     // The two-track separation of PRD §9 is legible: each chip sits under the review it belongs to.
-    const danielle = cards.filter({ hasText: DANIELLE });
-    await expect(danielle.locator('[data-slot="creator-track"]')).toHaveText([
-      /Internal/,
-      /Client/,
-      /Assets/,
-    ]);
-    await expect(danielle.locator('[data-slot="creator-identity"]')).toHaveText('Female · 25–34');
+    const danielle = rows.filter({ hasText: DANIELLE });
+    await expect(danielle.locator('[data-slot="creator-identity"]')).toHaveText('25–34');
 
     // Marcus is internally Approved, client-side Filming In Progress and his assets are still
     // pending: one row, three different answers, three different tones.
-    const marcus = cards.filter({ hasText: 'Marcus Delacroix' });
+    const marcus = rows.filter({ hasText: 'Marcus Delacroix' });
     await expect(
       marcus.locator('[data-slot="creator-track"][data-track="client"] [data-slot="status-chip"]'),
     ).toHaveAttribute('data-tone', 'accent');
@@ -80,12 +89,25 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     ).toHaveAttribute('data-tone', 'ok');
   });
 
+  test('a row opens the creator panel and the URL carries it', async ({ page }) => {
+    await page.goto(ugcPath);
+
+    await page.locator('[data-slot="creator-row"]').filter({ hasText: DANIELLE }).click();
+    const panel = page.locator('[data-slot="creator-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('[data-slot="creator-panel-title"]')).toHaveText(DANIELLE);
+    await expect(page).toHaveURL(/creator=/);
+
+    // NOT a modal: the grid stays beside it.
+    await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
+  });
+
   test('falls back to initials for the creator with no headshot, never a broken image', async ({
     page,
   }) => {
     await page.goto(ugcPath);
 
-    const tomas = page.locator('[data-slot="creator-card"]').filter({ hasText: TOMAS });
+    const tomas = page.locator('[data-slot="creator-row"]').filter({ hasText: TOMAS });
     const avatar = tomas.locator('[data-slot="creator-avatar"]');
 
     await expect(avatar).toHaveAttribute('data-fallback', 'initials');
@@ -155,11 +177,11 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await page.goto(`${ugcPath}?tab=partnerships`);
 
     await expect(page.locator('[data-slot="partnership-table"]')).toBeVisible();
-    await expect(page.locator('[data-slot="creator-card"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(0);
 
     // An unknown tab falls back to the roster rather than an empty page.
     await page.goto(`${ugcPath}?tab=nonsense`);
-    await expect(page.locator('[data-slot="creator-card"]')).toHaveCount(5);
+    await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
   });
 
   test('search narrows both tabs, lives in ?q= and reaches a worded empty state', async ({
@@ -168,7 +190,7 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await page.goto(ugcPath);
 
     await page.locator('[data-slot="ugc-search"]').fill('danielle');
-    await expect(page.locator('[data-slot="creator-card"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(1);
     await expect(page.locator('[data-slot="ugc-count"]')).toHaveText('1 of 5 creators');
     await expect(page).toHaveURL(/[?&]q=danielle/);
 
@@ -211,14 +233,14 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
 
     // Disabled means disabled: clicking it navigates nowhere and opens nothing.
     await newCreator.first().click({ force: true });
-    await expect(page.locator('[data-slot="creator-card"]')).toHaveCount(5);
+    await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
   });
 
   test('fits a 390px phone with no horizontal page scroll, on either tab', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(ugcPath);
 
-    await expect(page.locator('[data-slot="creator-card"]')).toHaveCount(5);
+    await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
     const gridOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );

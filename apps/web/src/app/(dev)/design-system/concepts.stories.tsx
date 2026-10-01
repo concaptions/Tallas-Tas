@@ -8,6 +8,7 @@ import {
   internalStatusView,
   type ConceptItem,
   type ConceptView,
+  EMPTY_CONCEPT_RECORD,
 } from '@/app/app/concepts/fields';
 import { ViewToggle } from '@/app/app/concepts/view-toggle';
 import { NamePreview } from '@/app/app/concepts/[conceptId]/name-preview';
@@ -28,6 +29,7 @@ const TRACK = 'video' as const;
 /** Four rows across four steps of the track, so every tone on the board is on this page. */
 const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
   {
+    ...EMPTY_CONCEPT_RECORD,
     id: 'ds-concept-1',
     name: 'B2-It Is Not Just Your Age-Green Screen',
     batch: 'B2',
@@ -39,6 +41,7 @@ const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
     href: '#',
   },
   {
+    ...EMPTY_CONCEPT_RECORD,
     id: 'ds-concept-2',
     name: 'B1-Your Body Clock Is Not Broken-Problem/Solution',
     batch: 'B1',
@@ -50,6 +53,7 @@ const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
     href: '#',
   },
   {
+    ...EMPTY_CONCEPT_RECORD,
     id: 'ds-concept-3',
     name: 'B2-Make 9am Look Like 3am-POV: X vs Y',
     batch: 'B2',
@@ -61,6 +65,7 @@ const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
     href: '#',
   },
   {
+    ...EMPTY_CONCEPT_RECORD,
     id: 'ds-concept-4',
     name: 'B3-Sleep In The Ninety Minutes You Actually Get-Yapper Style',
     batch: 'B3',

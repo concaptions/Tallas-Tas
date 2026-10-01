@@ -6,12 +6,22 @@ import type { PersonaListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input, StatusChip } from '@tas/ui';
 
-import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
+import {
+  KanbanBoard,
+  type KanbanItem,
+  useTableView,
+  ViewToolbar,
+  GalleryView,
+  galleryItemsFrom,
+} from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import type { UserViewConfig } from '@tas/domain';
+import type { UserViewsResult } from '@/lib/user-view-actions';
+import { TextCell } from '@/components/views/grid-cells';
 
 import type { AwarenessStage } from '@tas/db/schema';
 
-import { awarenessLabel, awarenessTone, EM_DASH } from './fields';
+import { awarenessLabel, awarenessTone, EM_DASH, PERSONA_FIELDS } from './fields';
 import { PersonaPanel, NEW_PERSONA } from './persona-panel';
 
 /**
@@ -25,6 +35,8 @@ export interface PersonaItem {
   readonly persona: PersonaListRow;
   readonly updatedLabel: string;
   readonly updatedTitle: string;
+  /** The angles linked through `angle_personas`, by id, for the panel's two-way field (LINK-01). */
+  readonly angleIds?: readonly string[];
 }
 
 interface PersonasWorkspaceProps {
@@ -34,6 +46,10 @@ interface PersonasWorkspaceProps {
   /** The `?q=` filter the page was opened with; `''` when there is none. */
   readonly initialSearch: string;
   readonly initialView?: ViewType;
+  /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
+  readonly userViews: UserViewsResult;
+  /** The brand's angles, for the panel's two-way Linked angles field. */
+  readonly angleOptions?: readonly { readonly id: string; readonly name: string }[];
 }
 
 const PERSONAS_CAP = getTableCapability('personas') as NonNullable<
@@ -76,7 +92,9 @@ function matches(item: PersonaItem, query: string): boolean {
 /**
  * The Airtable-style grid columns for the Personas grid view (P2A-3). The Stage-of-Awareness column
  * keeps rendering a `<StatusChip>` (never bare text) so the automation that counts the chips inside
- * the table stays green; the frozen name column and the headers are unchanged from the plain table.
+ * the table stays green; the frozen name column leads, then the product, the linked angles and
+ * every prose field of the panel under the panel's own label (`PERSONA_FIELDS`), so a persona is
+ * readable end to end without opening a row.
  */
 const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
   {
@@ -102,6 +120,26 @@ const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
       ),
   },
   {
+    key: 'product',
+    header: 'Product',
+    sortValue: (item) => item.persona.productName,
+    render: (item) => <TextCell value={item.persona.productName} />,
+  },
+  {
+    key: 'angles',
+    header: 'Linked angles',
+    sortValue: (item) => item.persona.angleNames.length,
+    render: (item) => <TextCell value={item.persona.angleNames.join(', ')} maxWidth={320} />,
+  },
+  // Every prose field of the panel, under the panel's own label, so nothing needs a row opened.
+  ...PERSONA_FIELDS.filter(
+    (field) => field.name !== 'name' && field.name !== 'stageOfAwareness',
+  ).map((field): GridColumn<PersonaItem> => ({
+    key: field.name,
+    header: field.label,
+    render: (item) => <TextCell value={item.persona[field.name]} />,
+  })),
+  {
     key: 'updated',
     header: 'Updated',
     sortValue: (item) => item.updatedTitle,
@@ -110,17 +148,22 @@ const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
   },
 ];
 
+/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
+const FIELD_KEYS: readonly string[] = PERSONA_COLUMNS.map((column) => column.key);
+const FIELD_OPTIONS = PERSONA_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+
 export function PersonasWorkspace({
   items,
   demo,
   initialSelection,
   initialSearch,
   initialView = 'grid',
+  userViews,
+  angleOptions = [],
 }: PersonasWorkspaceProps) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
-  const [activeView, setActiveView] = useState<ViewType>(initialView);
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -144,13 +187,40 @@ export function PersonasWorkspace({
     syncSearch(next);
   }, []);
 
+  const adoptView = useCallback(
+    (config: UserViewConfig) => {
+      filter(config.filter);
+    },
+    [filter],
+  );
+
+  const tableView = useTableView({
+    tableKey: 'personas',
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: 'grid',
+    initialViewType: initialView,
+    fieldKeys: FIELD_KEYS,
+    onActivate: adoptView,
+  });
+  const activeView = tableView.viewType;
+  const setActiveView = tableView.setViewType;
+  const onSearch = useCallback(
+    (next: string) => {
+      filter(next);
+      tableView.setFilter(next);
+    },
+    [filter, tableView],
+  );
+
   const query = search.trim().toLowerCase();
   const visible = useMemo(
     () => (query === '' ? items : items.filter((item) => matches(item, query))),
     [items, query],
   );
 
-  const open = items.find((item) => item.persona.id === selection)?.persona ?? null;
+  const openItem = items.find((item) => item.persona.id === selection) ?? null;
+  const open = openItem?.persona ?? null;
   const creating = selection === NEW_PERSONA;
 
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
@@ -182,6 +252,16 @@ export function PersonasWorkspace({
   const handleKanbanMove = useCallback(() => {
     // Kanban drag for personas will be wired to updatePersonaAction in a follow-up
   }, []);
+
+  const galleryItems = useMemo(
+    () =>
+      galleryItemsFrom(visible, PERSONA_COLUMNS, (item) => ({
+        id: item.persona.id,
+        name: item.persona.name,
+        subtitle: item.persona.productName ?? undefined,
+      })),
+    [visible],
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -219,19 +299,29 @@ export function PersonasWorkspace({
               type="search"
               value={search}
               onChange={(event) => {
-                filter(event.target.value);
+                onSearch(event.target.value);
               }}
               placeholder="Search name, product, angle or stage"
               aria-label="Search personas"
               data-slot="persona-search"
               className="h-8 w-full sm:w-64"
             />
-            <ViewSwitcher
+            <ViewToolbar
               tableKey="personas"
               supportedViews={[...PERSONAS_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
               kanbanGroupByField="stageOfAwareness"
+              views={tableView.views}
+              activeViewId={tableView.activeView?.id ?? null}
+              onActivateView={tableView.activateView}
+              onCreateView={tableView.createView}
+              onRenameView={tableView.renameView}
+              onDeleteView={tableView.deleteView}
+              fields={FIELD_OPTIONS}
+              isFieldVisible={tableView.isFieldVisible}
+              onToggleField={tableView.toggleField}
+              error={tableView.error}
             />
           </div>
         </div>
@@ -243,9 +333,21 @@ export function PersonasWorkspace({
             onMove={handleKanbanMove}
             demo={demo}
           />
+        ) : activeView === 'gallery' ? (
+          <GalleryView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            cardSlot="persona-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
         ) : (
           <AirtableGrid
             tableKey="personas"
+            view={tableView.config}
+            onSortChange={tableView.setSort}
             columns={PERSONA_COLUMNS}
             rows={visible}
             rowId={(item) => item.persona.id}
@@ -266,6 +368,8 @@ export function PersonasWorkspace({
         <PersonaPanel
           key={selection}
           persona={creating ? null : open}
+          angles={angleOptions}
+          angleIds={openItem?.angleIds ?? []}
           demo={demo}
           onClose={close}
           onSaved={saved}

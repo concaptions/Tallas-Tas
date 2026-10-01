@@ -231,6 +231,26 @@ Conventions fixed by this ticket:
 - Numbering: the ticket text names D-011 for this entry; stage 1 took D-011 (see its last bullet), so
   stage 2 is D-012.
 
+## D-014 · 2026-10-01 · Playwright live mode signs in with Clerk Testing Tokens
+
+Discovery and trade-offs: `docs/decisions/playwright-clerk-live-mode-2026-10-01.md`. Chosen: Clerk's
+Testing Token (`@clerk/testing`, already a dev dependency since D-013) plus a pre-created user on the
+dev instance signed in with the password strategy, once per Playwright worker, storage state reused
+for that worker's pages (`apps/web/e2e/support/clerk-login.ts`). Rejected: sign-up per run (leaves a
+user behind every run, and the org membership a seeded brand needs cannot be created from the
+browser without a second write path) and bypass headers (not a Clerk feature; a header the app
+honours is a backdoor).
+
+Variables are named after the repository secrets (`CLERK_PUBLISHABLE_KEY_TEST`,
+`CLERK_SECRET_KEY_TEST`, `CLERK_E2E_USER_PASSWORD`, `DATABASE_URL_E2E`, optional non-secret
+`CLERK_E2E_USER_EMAIL`), validated in `@tas/env` like every other variable, and mapped to the app's
+own names only on the launched dev server (`playwright.config.ts`), so a developer's `.env.local`
+keys never reach an E2E run. All four or none: a partial set fails the run naming the missing ones,
+so a test cannot be green locally and silently skipped in CI. Live specs sit in
+`apps/web/e2e/live/` and run in a separate Playwright project against a second dev server (port
+3001), so one `pnpm test:e2e` runs the demo suite and the live suite side by side; `.github/
+workflows/e2e.yml` is the first CI workflow in the repo. No new dependency.
+
 ## D-013 · 2026-09-16 · Clerk auth wiring (TICKET-004)
 
 Dependencies added to `apps/web` (`@tas/web`), exact major pinned, minor and patch float with caret:
@@ -650,3 +670,94 @@ button) are not stored by design and need no entry.
 | (Internal) Collections › Email Campaigns Management copy | text | 0/5 (the name appears twice) | Residual single-line text; email campaigns reach collections through `Table 17` → `email_campaign_collections`. |
 | Client Assets Organisation › (Internal) Creative Design | text | 0/0 | Single-line text, not a link, so no `brief_asset_folders` rows can be derived; the importer says so in its report. |
 
+
+## 2026-10-01 — Airtable-style grid is the default view of the six core tables (GRID-01…06)
+
+Products, Personas, Angles, Themes, Concepts and UGC Management all open on the shared
+`AirtableGrid` (`apps/web/src/components/views/airtable-grid.tsx`): every stored column visible,
+horizontal scroll inside the grid, the name column frozen, full page width. Themes and UGC lose
+their card grids as the primary view (the UGC card survives on `/design-system`; the Theme card is
+now the body of the new `ThemePanel`, opened by a row click, so its labelled fields and the
+Archive / Restore form are unchanged). Shared cell primitives live in `grid-cells.tsx`; a stored
+literal `"null"` is treated as empty everywhere they render.
+
+**Concepts: Production Status is hidden, not dropped.** `concepts.production_status` stays in the
+schema, the importer and the actions, but the list grid, the form and the detail panel no longer
+show it (client direction, Prompt C): the two-track Internal / Client statuses are the ones the
+team works from, and a third status column on the same row was being read as a contradiction.
+No migration; the column can return by rendering it again.
+
+## 2026-10-01 — Per-user views live in their own table; demo mode keeps them in the browser (VIEWS-01)
+
+`user_table_views` (migration 0040) stores one row per saved view: Clerk `user_id` + `table_key`,
+the view type, `visible_fields` / `field_order` / `frozen_fields` / `sort` as jsonb and the search
+`filter`, with `is_active` marking the one the user last chose. Not an extension of
+`user_view_preferences` (which is one row per user+brand+table holding only the view type): a
+person keeps SEVERAL named views of one table, and a view is a lens rather than a per-brand
+setting, so `brand_id` stays null. The user id is the tenancy edge: every statement in
+`packages/db/src/user-table-views.ts` carries it, the way a branded read carries `brand_id`.
+
+In demo mode (no Clerk) there is no user to key on, so `useTableView` keeps the same state in the
+visitor's `localStorage` under the table key. It is a convenience store for the demo deployment
+only; the Playwright spec treats a second browser context as a second user there.
+
+Jsonb for the config columns on purpose: a new view option (a grouping, a row height) is a code
+change in `@tas/domain/views/user-views.ts`, not a migration; `parseUserViewConfig` narrows a
+stored row on the way out so an old row never crashes a page.
+
+## 2026-10-01 — Showcase videos reuse `assets`, linked by `creator_id` (VIEWS-04)
+
+A creator's showcase videos are `assets` rows with `category = 'showcase_video'` and a nullable
+`creator_id` (migration 0041), uploaded through the shared `uploadToR2` and `insertAsset` the Assets
+page uses. No second media table: one bucket, one row shape, one re-hosting script. The upload is a
+Server Action taking the file in `FormData` (video MIME only, 250 MB cap); it is refused in demo
+mode, without a session, and when the R2 credentials are absent, each with its own message.
+
+## 2026-10-01 — One LinkField and one junction per link, written from either side (LINK-01)
+
+Every link between two of the six core tables is exactly one junction table, and both records edit
+it with the same `LinkField`: a concept's creators and a creator's concepts are the same
+`creator_concepts` rows, and so on for `concept_angles`, `angle_products` and `angle_personas`.
+The link kinds are a pure registry in `@tas/domain/links` (which side of which junction a field
+reads); `@tas/db`'s `syncLinks` takes that spec as plain strings so the data package still does
+not depend on the domain package; `setLinksAction` is the one Server Action, and it proves the
+source row is in the actor's brand through the scoped getter before writing, because junction
+tables carry no `brand_id`. Nothing is copied onto a record: the inherited Persona / Product rows on
+a concept are read through the angle's junctions at render time.
+
+The Angle and Concept forms post one hidden input per linked id (`personaId`, `productId`,
+`angleId`, `creatorId` read with `getAll`), so a Save re-syncs the same set the field already wrote
+and can never narrow a multi-link back to one.
+
+## 2026-10-01 — The editor board is a view of `internal_status`; the activity log is its own table (EDIT-01…03)
+
+**Mapping (Incoming / Under Editing / Under Review).** The editor's three columns are a grouping
+over the brief's internal status, defined once in `@tas/domain/state/editor-board.ts`:
+
+| Stage         | Video track                                 | Static track                                 |
+| ------------- | ------------------------------------------- | -------------------------------------------- |
+| Incoming      | sent_to_video_editor                        | sent_to_designer                             |
+| Under Editing | video_editing_in_progress, videos_revisions | static_design_in_progress, images_revisions  |
+| Under Review  | ad_submitted, revisions_submitted           | ad_submitted, revisions_submitted            |
+| off the board | approved, launched, on_hold                 | approved, launched, on_hold                  |
+
+Revisions sit under Editing because the reviewer has handed the work back; the two "submitted"
+states sit under Review because a reviewer holds it. No `editor_stage` column exists: Start and a
+column drop write `internal_status` through the same transition table every other write obeys
+(`canTransitionInternal`), so the board can never disagree with the rail.
+
+**Start sets the assignee to the signed-in user's name.** `creative_briefs.assignee` is text (the
+Airtable collaborator's display name), so Start stores `currentActor().fullName`, the string the
+grid, the card and the log already show; a Clerk id would print as an opaque token.
+
+**Activity log.** `activity_log` (migration 0042) is one row per changed field per write
+(`entity_type` + `entity_id`, `field`, `old_value`, `new_value`, `created_by` + `actor_name`,
+`created_at`), per brand. It is written by the Server Actions beside the row update
+(`diffFields` from `@tas/domain/activity` decides what changed) and never from the client, so it
+records what the database was told. Demo mode has no history to show and says so.
+
+**Due date.** `creative_briefs.due_date` (migration 0043) is the one new column the editor's full
+page needed; nullable, set on the brief.
+
+**`/app/briefs/[id]`** stays the permanent alias of `/app/creative-design/[id]` (the module
+rename); "Open full page" lands there.

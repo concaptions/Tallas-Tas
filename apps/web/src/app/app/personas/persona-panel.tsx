@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-  StatusChip,
 } from '@tas/ui';
 
 import { createPersonaAction, updatePersonaAction, type PersonaActionResult } from './actions';
@@ -25,6 +24,7 @@ import {
   type PersonaField,
   type PersonaFieldName,
 } from './fields';
+import { LinkField } from '@/components/links/link-field';
 
 /** The `?persona=` value that means "the panel is open on a persona that does not exist yet". */
 export const NEW_PERSONA = 'new';
@@ -32,8 +32,18 @@ export const NEW_PERSONA = 'new';
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 
+/** One angle of the brand the Linked angles field can pick from. */
+export interface AngleLinkOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 interface PersonaPanelProps {
   readonly persona: PersonaListRow | null;
+  /** The brand's angles, for the two-way Linked angles field (`angle_personas`). */
+  readonly angles?: readonly AngleLinkOption[];
+  /** The angle ids currently linked to the persona, from the same junction the angle panel writes. */
+  readonly angleIds?: readonly string[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -57,7 +67,14 @@ function valueOf(persona: PersonaListRow | null, name: PersonaFieldName): string
  * Every one of the fourteen PRD §5.4 fields is editable in place; the form posts to the Server
  * Actions. In demo mode the fields are read-only and the footer says so instead of saving.
  */
-export function PersonaPanel({ persona, demo, onClose, onSaved }: PersonaPanelProps) {
+export function PersonaPanel({
+  persona,
+  angles = [],
+  angleIds = [],
+  demo,
+  onClose,
+  onSaved,
+}: PersonaPanelProps) {
   const creating = persona === null;
   const action = creating ? createPersonaAction : updatePersonaAction;
   const [state, formAction, pending] = useActionState<PersonaActionResult | null, FormData>(
@@ -188,18 +205,18 @@ export function PersonaPanel({ persona, demo, onClose, onSaved }: PersonaPanelPr
                 >
                   Linked angles
                 </h3>
-                <div className="flex flex-wrap items-center gap-2" data-slot="persona-angles">
-                  {persona.angleNames.length === 0 ? (
-                    <span className="text-xs text-text3">
-                      No angle is written from this persona yet. Link one from the angle&apos;s
-                      panel.
-                    </span>
-                  ) : (
-                    persona.angleNames.map((angleName) => (
-                      <StatusChip key={angleName} tone="info" label={angleName} />
-                    ))
-                  )}
-                </div>
+                {/* The same LinkField the angle panel uses for its personas: one `angle_personas`
+                    row per pair, written on the spot, so the angle shows this persona next render. */}
+                <LinkField
+                  link="persona-angles"
+                  sourceId={persona.id}
+                  options={angles}
+                  selectedIds={angleIds}
+                  label="Linked angles"
+                  demo={demo}
+                  slot="persona-angles"
+                  empty="No angle is written from this persona yet. Link one here or from the angle's panel."
+                />
               </section>
             )}
           </div>

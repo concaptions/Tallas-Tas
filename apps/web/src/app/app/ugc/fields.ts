@@ -596,3 +596,10 @@ export function collabDateLabel(row: CollabRow): string {
   const end = row.endDate === null ? 'ongoing' : isoDateLabel(row.endDate);
   return `${start} → ${end}`;
 }
+
+/** The largest showcase video the panel accepts, in bytes (a 60-second phone clip is well under it). */
+export const MAX_SHOWCASE_VIDEO_BYTES = 250 * 1024 * 1024;
+
+/** Why the upload is inert when the bucket is not configured: the credentials, not the code, are missing. */
+export const R2_UNAVAILABLE_HINT =
+  'Video upload needs the R2 bucket credentials; they are not configured on this deployment.';

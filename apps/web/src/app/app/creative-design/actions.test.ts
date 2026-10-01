@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createBriefAction, toggleQaAction, updateBriefAction } from './actions';
+import { createBriefAction, startBriefAction, toggleQaAction, updateBriefAction } from './actions';
 
 /** The actions call `revalidatePath`, which only exists inside a Next request. */
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -54,6 +54,12 @@ describe('in demo mode (no Clerk publishable key)', () => {
 
   it('refuses to update, before it even looks at the id', async () => {
     const result = await updateBriefAction(null, form({ ...filled, id: 'whatever' }));
+
+    expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
+  });
+
+  it('refuses to Start a brief, before it even looks at the id', async () => {
+    const result = await startBriefAction('whatever');
 
     expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
   });

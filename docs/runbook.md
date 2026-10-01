@@ -47,9 +47,59 @@ Turborepo, whose strict environment mode hands a task only the variables `turbo.
 `dev` and `test:e2e` (D-013), so a shell export reaches them; any other variable exported for a Turbo
 task must be added there first.
 
+## Playwright live mode
+
+The demo-mode suite needs no credentials. The Clerk-gated specs (`apps/web/e2e/live/`: the Start
+test and the sign-up test) run only when all four live-mode variables are set, named
+exactly as the repository secrets. Add them in GitHub → Settings → Secrets and variables → Actions →
+Repository secrets; locally export the same four names for one run and never write them to a file
+in the repo:
+
+| Secret | What it holds |
+| --- | --- |
+| `CLERK_PUBLISHABLE_KEY_TEST` | Publishable key of the Clerk **development** instance used for E2E (never production). |
+| `CLERK_SECRET_KEY_TEST` | Secret key of the same instance; `@clerk/testing` mints the testing token with it. |
+| `CLERK_E2E_USER_PASSWORD` | Password of the pre-created E2E user, `tas-e2e+clerk_test@example.com` (override the address with the non-secret `CLERK_E2E_USER_EMAIL`). |
+| `DATABASE_URL_E2E` | Connection string of a Neon branch seeded with `pnpm --filter @tas/db db:seed`; the live tests write to it and reset what they changed. |
+
+Set all four or none. With none the suite runs in demo mode and the live tests report themselves
+skipped (D-008); with some of them `liveE2eEnv()` (`apps/web/src/lib/live-e2e-env.ts`) fails the run
+naming the missing ones, so a secret that was never added cannot turn into a silent skip.
+
+One-time setup on the Clerk dev instance: create the user above with that password, and make them a
+member of the organisation that maps to the seeded brand (`agencies.clerk_org_id`), so `/app` opens
+on data the Start test can act on. `apps/web/e2e/support/clerk-login.ts` signs that user in once per
+Playwright worker (testing token + password strategy) and reuses the saved storage state under
+`test-results/.auth/` (gitignored) for every page of that worker. The live specs live in
+`apps/web/e2e/live/` and run in the `live` Playwright project against a second dev server on port
+3001; every other spec stays in the `chromium` project against the pinned demo server on 3000, so
+one `pnpm test:e2e` runs both. The Start test snapshots the brief it picks and the `briefGuard`
+fixture restores status, assignee and activity rows in teardown whether it passed or not.
+
+Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PASSWORD=… DATABASE_URL_E2E=… pnpm test:e2e`
+(Turbo passes exactly these names through to the Playwright task, `turbo.json`).
+
 ## Pending human verification
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
+
+- Sprints 7–10 (2026-10-01) · apply migrations `0040_user-table-views`, `0041_creator-showcase-videos`,
+  `0042_activity-log` and `0043_brief-due-date` to production before deploying:
+  `pnpm --filter @tas/db migrate-prod -- --dry-run` then `pnpm --filter @tas/db migrate-prod -- --apply`.
+  All four are verified on PGlite by the full suite; none has been applied to Neon.
+- E2E-LIVE-02 · with the four live-mode variables exported (runbook, "Playwright live mode"), run
+  `pnpm test:e2e` and confirm the `live` project reports `briefs-start.spec.ts` and
+  `auth-signup.spec.ts` as passed, not skipped; that the picked brief is back in Incoming
+  afterwards; and that the Clerk dev instance holds no `tas-e2e-<stamp>` user or `TAS Digital E2E
+  <stamp>` organisation once the run ends. Not run here: this session had no Clerk dev instance or
+  seeded E2E database.
+- VIEWS-01 · as two different Clerk users on the same brand, create a view on `/app/angles`, hide a
+  field, reload: the field stays hidden for that user and visible for the other.
+- VIEWS-04 · with R2 credentials set, upload a showcase video from a creator's panel and play it inline.
+- LINK-01 · link a creator from a concept, open the creator's panel and see the concept; unlink from
+  the creator and see it leave the concept.
+- EDIT-02/03 · with Clerk keys, run `npx playwright test apps/web/e2e/briefs-editor.spec.ts`: Start an
+  Incoming brief, see it move to Under Editing, see the activity log name the status change and you.
 
 - PARITY-29 · apply migration `0039_gratsi-field-parity` to production before deploying the commit that
   reads the new columns: `pnpm --filter @tas/db migrate-prod -- --dry-run` (prints the pending
@@ -84,28 +134,13 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   `strategistAssignment`, `healthCheck`). On the branch: enums `agency_role`, `brand_role`,
   `brand_status`; tables `agencies`, `brands`, `users`, `memberships`, `brand_assignments`. The seed is
   plain inserts: a second `db:seed` on the same branch fails on `agencies_slug_unique` and writes nothing.
-- TICKET-004 · Clerk sign-up and organisation creation E2E (`apps/web/e2e/auth.spec.ts`, second test; the
-  first, `/app` signed out lands on `/sign-in`, runs on every `pnpm test:e2e` and passes without keys).
-  Needs a Clerk **development** instance (`pk_test_…`, `sk_test_…`) with organisations enabled, and a
-  valid `DATABASE_URL` (the middleware validates the whole server environment). With `DATABASE_URL`
-  in the repo-root `.env.local` (or exported) and the Clerk pair exported in the shell (`turbo.json`
-  passes all three through Turborepo's strict environment mode to `test:e2e`, D-013; Playwright's own
-  process gates the test on the pair and passes it to the dev server it starts; `apps/web/.env.local`
-  is not read for the gate):
-  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=<pk_test…> CLERK_SECRET_KEY=<sk_test…> pnpm test:e2e`
-  Stop any dev server on port 3000 first: Playwright reuses a running one, which started without the
-  keys. Expected: `3 passed`, with the line "signs up, creates an organisation and lands on /app showing
-  its name" marked ✓ rather than `-` (skipped).
-  Plumbing check that needs no real keys (proves the variables reach Playwright and the dev server):
-  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk CLERK_SECRET_KEY=sk_test_x DATABASE_URL=postgres://x pnpm test:e2e`
-  must fail in `clerkSetup` (`Failed to fetch testing token from Clerk API`, Clerk rejects the secret)
-  instead of reporting the second test as `-` skipped. That publishable key is `pk_test_` plus the
-  base64 of `example.clerk.accounts.dev$`, the shape Clerk's SDK checks at start-up; a malformed one
-  such as `pk_test_x` makes every request fail and Playwright times out waiting for the dev server.
-  The run leaves a `tas-e2e-<stamp>+clerk_test@example.com` user and a `TAS Digital E2E <stamp>`
-  organisation on the instance; delete them in the Clerk dashboard.
-  The sign-up step assumes the instance defaults: email address + password sign-up, verified by an
-  email code (the `+clerk_test` address accepts `424242`).
+- TICKET-004 · Clerk sign-up and organisation creation E2E, now `apps/web/e2e/live/auth-signup.spec.ts`
+  in the `live` Playwright project (see "Playwright live mode" above; the demo half, `/app` signed
+  out shows the demo shell, is `apps/web/e2e/auth.spec.ts` and runs on every `pnpm test:e2e`). Needs
+  the four live-mode variables; the dev instance must have organisations enabled and email address +
+  password sign-up verified by an email code (the `+clerk_test` address accepts `424242`). The run
+  removes the `tas-e2e-<stamp>+clerk_test@example.com` user and the `TAS Digital E2E <stamp>`
+  organisation it created through the Backend API in `afterAll`; nothing is left on the instance.
   Manual check after that: `pnpm dev`, sign up at `/sign-up`, create the agency organisation from the
   switcher on `/app`, and confirm the page shows your name and the organisation name.
 - Brand resolution from a real session (`resolveLiveBrand` in `apps/web/src/lib/data-source.ts`). The

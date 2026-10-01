@@ -235,6 +235,8 @@ export interface BriefFormSnapshot {
   readonly product: string;
   readonly priority: string;
   readonly assignee: string;
+  /** `YYYY-MM-DD` or empty, as the date input posts it. */
+  readonly dueDate: string;
   readonly briefToDesign: string;
   readonly scriptContent: string;
   readonly elementsTested: string;
@@ -554,6 +556,10 @@ export const BRIEF_HEADINGS = {
   product: 'Product',
   performance: 'Performance',
   assignee: 'Assignee',
+  dueDate: 'Due date',
+  stage: 'Stage',
+  scripts: 'Scripts',
+  activity: 'Activity',
   type: 'Type',
   source: 'Source',
   funnel: 'Funnel',
@@ -700,3 +706,10 @@ export function productSuffixOf(name: string, version: number): string | null {
 
 /** The type's human label, re-exported so a component never reaches past this module. */
 export { creativeTypeLabel };
+
+/** A due date as `<input type="date">` wants it: `YYYY-MM-DD` in UTC, or empty when unset. */
+export function dueDateInputValue(value: Date | string | null | undefined): string {
+  if (value === null || value === undefined) return '';
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+}

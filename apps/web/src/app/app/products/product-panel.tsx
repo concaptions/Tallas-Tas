@@ -5,6 +5,8 @@ import Link from 'next/link';
 import type { ProductListRow } from '@tas/db';
 import { Button, disabledWriteClassName, DisabledWrite, Input, Label, StatusChip } from '@tas/ui';
 
+import { LinkField } from '@/components/links/link-field';
+
 import { createProductAction, updateProductAction, type ProductActionResult } from './actions';
 import {
   conceptCountLabel,
@@ -45,6 +47,9 @@ interface ProductPanelProps {
   readonly creativeDesigns: readonly LinkedRecord[];
   /** The creators booked for the product through `creator_products`, built the same way. */
   readonly creators: readonly LinkedRecord[];
+  /** The brand's angles and the ids linked to this product, for the two-way Linked angles field. */
+  readonly angleOptions?: readonly { readonly id: string; readonly name: string }[];
+  readonly angleIds?: readonly string[];
   readonly demo: boolean;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
@@ -132,6 +137,8 @@ export function ProductPanel({
   demo,
   onClose,
   onSaved,
+  angleOptions = [],
+  angleIds = [],
 }: ProductPanelProps) {
   const creating = product === null;
   const action = creating ? createProductAction : updateProductAction;
@@ -250,22 +257,17 @@ export function ProductPanel({
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[11px] tracking-wide text-text3 uppercase">
-                    Linked angles
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2" data-slot="product-angles">
-                    {product.angleNames.length === 0 ? (
-                      <span className="text-xs text-text3">
-                        No angle points at this product yet. Link one from the angle&apos;s panel.
-                      </span>
-                    ) : (
-                      product.angleNames.map((angleName) => (
-                        <StatusChip key={angleName} tone="info" label={angleName} />
-                      ))
-                    )}
-                  </div>
-                </div>
+                {/* The same LinkField the angle panel mounts for its products (LINK-01). */}
+                <LinkField
+                  link="product-angles"
+                  sourceId={product.id}
+                  options={angleOptions}
+                  selectedIds={angleIds}
+                  label="Linked angles"
+                  demo={demo}
+                  slot="product-angles"
+                  empty="No angle points at this product yet. Link one here or from the angle's panel."
+                />
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[11px] tracking-wide text-text3 uppercase">
                     Email campaigns

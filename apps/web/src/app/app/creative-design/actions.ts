@@ -6,6 +6,7 @@ import {
   BRIEF_CLIENT_STATUS_DEFAULT,
   getBriefById,
   getConceptById,
+  insertActivity,
   insertBrief,
   listBriefs,
   updateBrief,
@@ -39,6 +40,10 @@ import {
 } from '@tas/domain/state';
 import { z } from 'zod';
 
+import { diffFields } from '@tas/domain';
+import { canStartBrief, startedStatusFor } from '@tas/domain/state';
+
+import { currentActor } from '@/lib/actor';
 import { withBrandScope } from '@/lib/briefs-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefPath, briefsPath } from '@/lib/routes';
@@ -93,6 +98,7 @@ export type BriefFieldName =
   | 'priority'
   | 'performance'
   | 'assignee'
+  | 'dueDate'
   | 'briefToDesign'
   | 'scriptContent'
   | 'elementsTested'
@@ -161,6 +167,17 @@ const type = z
 const version = z.coerce
   .number()
   .refine(isCreativeVersion, 'That is not a version the dropdown offers.');
+
+/** The due date as `<input type="date">` posts it: `YYYY-MM-DD`, or empty for "not set" → NULL. */
+const optionalDate = z
+  .string()
+  .trim()
+  .transform((value) => {
+    if (value === '') return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  })
+  .nullable();
 
 const priority = z
   .string()
@@ -232,6 +249,7 @@ const briefSchema = z.object({
   priority,
   performance,
   assignee: text,
+  dueDate: optionalDate,
   briefToDesign: text,
   scriptContent: text,
   elementsTested: text,
@@ -277,6 +295,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     priority: single('priority'),
     performance: optional('performance'),
     assignee: single('assignee'),
+    dueDate: single('dueDate'),
     briefToDesign: single('briefToDesign'),
     scriptContent: single('scriptContent'),
     elementsTested: single('elementsTested'),
@@ -461,6 +480,7 @@ function toInput(
     // Absent from the submission means absent from the statement: the stored grade is left alone.
     ...(values.performance === undefined ? {} : { performance: values.performance }),
     assignee: values.assignee,
+    dueDate: values.dueDate,
     briefToDesign: values.briefToDesign,
     scriptContent: values.scriptContent,
     elementsTested: values.elementsTested,
@@ -610,6 +630,7 @@ export async function updateBriefAction(
     if (actor === null) {
       return { ok: false, error: 'Your session has expired. Sign in again to save.' };
     }
+    const actorName = (await currentActor()).fullName;
 
     const outcome = await withBrandScope(async (db, brandId) => {
       const [current, concept] = await Promise.all([
@@ -659,6 +680,16 @@ export async function updateBriefAction(
       if (saved === null) {
         return { ok: false as const, error: 'That brief is no longer available.' };
       }
+      // The activity log (EDIT-03): every field this write changed, old → new, by whom, written
+      // here beside the row update and never from the client.
+      await insertActivity(
+        db,
+        brandId,
+        BRIEF_ENTITY,
+        saved.id,
+        diffFields(current, input, BRIEF_ACTIVITY_FIELDS),
+        { id: actor, name: actorName },
+      );
       return { ok: true as const, id: saved.id, name: saved.name, savedAt: Date.now() };
     });
 
@@ -741,5 +772,102 @@ export async function toggleQaAction(
     return outcome;
   } catch {
     return { ok: false, error: 'The QA checklist could not be saved. Try again.' };
+  }
+}
+
+/** The activity log's name for a brief row, and the columns it watches on a save. */
+const BRIEF_ENTITY = 'creative_brief';
+const BRIEF_ACTIVITY_FIELDS = [
+  'internalStatus',
+  'clientStatus',
+  'assignee',
+  'priority',
+  'dueDate',
+  'type',
+  'funnel',
+  'version',
+  'conceptId',
+  'batch',
+  'performance',
+  'briefToDesign',
+  'scriptContent',
+  'elementsTested',
+  'adContent',
+  'inspiration',
+  'offer',
+  'language',
+] as const;
+
+export interface StartBriefSuccess {
+  readonly ok: true;
+  readonly id: string;
+  readonly internalStatus: string;
+  readonly assignee: string;
+}
+
+export type StartBriefResult = StartBriefSuccess | BriefActionFailure;
+
+/**
+ * Start (Sprint 10, EDIT-02): an editor claims an Incoming brief. One click moves it to the track's
+ * in-progress status — the move `INTERNAL_*_TRANSITIONS` already allows, checked again here, never
+ * invented — and sets the signed-in user as assignee. Both changes are logged. Refused in demo
+ * mode, without a session, for a brief that is not Incoming, and for a brief outside the brand.
+ */
+export async function startBriefAction(briefId: string): Promise<StartBriefResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+  if (briefId.trim() === '') {
+    return { ok: false, error: 'This brief could not be identified.' };
+  }
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
+    }
+    const actorName = (await currentActor()).fullName;
+
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const current = await getBriefById(db, brandId, briefId);
+      if (current === null) {
+        return { ok: false as const, error: 'That brief is no longer available.' };
+      }
+      if (!canStartBrief(current.internalStatus)) {
+        return { ok: false as const, error: 'Only an Incoming brief can be started.' };
+      }
+      const track = creativeTrack(current.type);
+      const next = startedStatusFor(track);
+      const from: InternalStatusKey = isInternalStatusOf(track, current.internalStatus)
+        ? current.internalStatus
+        : trackStart(track);
+      if (!canTransitionInternal(track, from, next)) {
+        return { ok: false as const, error: 'That is not the next step on the internal track.' };
+      }
+      const patch = { internalStatus: next, assignee: actorName };
+      const saved = await updateBrief(db, brandId, briefId, patch, actor);
+      if (saved === null) {
+        return { ok: false as const, error: 'That brief is no longer available.' };
+      }
+      await insertActivity(
+        db,
+        brandId,
+        BRIEF_ENTITY,
+        saved.id,
+        diffFields(current, patch, ['internalStatus', 'assignee']),
+        { id: actor, name: actorName },
+      );
+      return { ok: true as const, id: saved.id, internalStatus: next, assignee: actorName };
+    });
+
+    if (outcome === null) {
+      return { ok: false, error: 'This workspace has no brand yet.' };
+    }
+    if (!outcome.ok) {
+      return outcome;
+    }
+    revalidateBrief(outcome.id);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The brief could not be started. Try again.' };
   }
 }

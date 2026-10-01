@@ -1,5 +1,7 @@
+import { loadAngles } from '@/lib/angles-source';
 import { loadPersonas } from '@/lib/personas-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUserViews } from '@/lib/user-view-actions';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
 import { PersonasWorkspace, type PersonaItem } from './personas-workspace';
@@ -21,17 +23,26 @@ interface PersonasPageProps {
 }
 
 export default async function PersonasPage({ searchParams }: PersonasPageProps) {
-  const [{ rows }, params] = await Promise.all([loadPersonas(), searchParams]);
+  const [{ rows }, { rows: angleRows }, params] = await Promise.all([
+    loadPersonas(),
+    loadAngles(),
+    searchParams,
+  ]);
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
   const demo = isDemoMode();
+  const userViews = await loadUserViews('personas');
   const now = new Date();
 
   const items: PersonaItem[] = rows.map((persona) => ({
     persona,
     updatedLabel: relativeTime(persona.updatedAt, now),
     updatedTitle: absoluteTime(persona.updatedAt),
+    angleIds: angleRows
+      .filter((angle) => angle.personaIds.includes(persona.id))
+      .map((angle) => angle.id),
   }));
+  const angleOptions = angleRows.map(({ id, name }) => ({ id, name }));
 
   const requested = params.persona;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -42,6 +53,8 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}
+      userViews={userViews}
+      angleOptions={angleOptions}
     />
   );
 }
