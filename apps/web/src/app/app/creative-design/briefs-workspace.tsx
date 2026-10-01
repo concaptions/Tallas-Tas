@@ -240,9 +240,9 @@ export function BriefsWorkspace({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Creative Briefs</p>
+        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Creative Design</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Briefs</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Design</h1>
           {newBrief('new-brief')}
         </div>
         <p className="text-sm text-text2">

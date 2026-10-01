@@ -47,7 +47,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
   }) => {
     await page.goto(`${briefsPath}?view=grid`);
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Briefs');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Design');
     await expect(page.locator('[data-slot="brief-count"]')).toHaveText(briefsLabel(BRIEF_COUNT));
 
     await expect(page.locator('[data-slot="briefs-table"] thead th')).toHaveText([

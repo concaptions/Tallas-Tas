@@ -25,7 +25,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
   test('lists the four fixture rows in the six columns', async ({ page }) => {
     await page.goto(copywritingPath);
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Copywriting');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Meta Copywriting');
     await expect(page.locator('[data-slot="copy-row"]')).toHaveCount(4);
     await expect(page.locator('[data-slot="copy-count"]')).toContainText('4 copy rows');
 

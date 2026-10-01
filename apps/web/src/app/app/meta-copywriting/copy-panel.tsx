@@ -282,7 +282,9 @@ export function CopyPanel({
     >
       <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Copywriting</p>
+          <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+            Meta Copywriting
+          </p>
           <h2
             className="truncate font-mono text-lg font-semibold text-text"
             data-slot="copy-panel-title"

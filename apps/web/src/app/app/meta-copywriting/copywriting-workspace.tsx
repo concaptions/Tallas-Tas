@@ -198,9 +198,9 @@ export function CopywritingWorkspace({
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Copywriting</p>
+        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Meta Copywriting</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">Copywriting</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-text">Meta Copywriting</h1>
           {newCopy('new-copy')}
         </div>
         <p className="text-sm text-text2">
