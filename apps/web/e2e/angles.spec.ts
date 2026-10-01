@@ -39,25 +39,46 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/angles needs a session and real data',
   );
 
-  test('lists the five fixture angles in four columns', async ({ page }) => {
+  test('lists the five fixture angles with every stored column, the name frozen', async ({
+    page,
+  }) => {
     await page.goto(anglesPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Angles');
     await expect(page.locator('[data-slot="angle-row"]')).toHaveCount(5);
     await expect(page.locator('[data-slot="angle-count"]')).toContainText('5 angles');
 
-    // Talal feedback B+C: the Formats column left the table, so a row is four cells wide and
-    // formats live only in the panel now.
+    // The Airtable-style grid: every stored column of an angle is a column here, readable without
+    // opening a row; the first three headers are the ones the plain table had.
     await expect(page.locator('[data-slot="angles-table"] thead th')).toHaveText([
       'Name',
       'Persona',
       'Product',
+      'Status',
+      'Potential',
+      'Winning',
+      'Formats to create',
+      'Type',
+      'Description',
+      'Pain Points',
+      'USP',
+      'Ad Inspo',
+      'Brief URL',
+      'Exact Script URL',
+      'Internal Notes',
+      'Client Notes',
       'Updated',
     ]);
 
+    // The name column is frozen (sticky) so it stays put while the rest scroll horizontally.
+    await expect(page.locator('[data-slot="angles-table"] thead th').first()).toHaveCSS(
+      'position',
+      'sticky',
+    );
+
     // Persona is an info chip carrying the name before the em dash, the whole name in the title.
     const row = page.locator(`[data-angle-id="${DAYLIGHT}"]`);
-    await expect(row.locator('td')).toHaveCount(4);
+    await expect(row.locator('td')).toHaveCount(17);
     const persona = row.locator('td').nth(1).locator('[data-slot="status-chip"]');
     await expect(persona).toHaveText('Marcus');
     await expect(persona).toHaveAttribute('data-tone', 'info');

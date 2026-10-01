@@ -1,31 +1,35 @@
 'use client';
 
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AngleListRow } from '@tas/db';
-import { getTableCapability, type ViewType } from '@tas/domain';
 import {
-  Button,
-  DEMO_WRITE_HINT,
-  disabledWriteClassName,
-  DisabledWrite,
-  Input,
-  StatusChip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@tas/ui';
+  anglePotentialLabel,
+  anglePotentialTone,
+  getTableCapability,
+  type ViewType,
+} from '@tas/domain';
+import { Button, DEMO_WRITE_HINT, disabledWriteClassName, DisabledWrite, Input } from '@tas/ui';
 
 import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
+import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import {
+  BoolCell,
+  ChipCell,
+  ChipListCell,
+  CountCell,
+  LinkCell,
+  TextCell,
+} from '@/components/views/grid-cells';
 
 import { AnglePanel, NEW_ANGLE, type LinkOption } from './angle-panel';
 import {
-  EM_DASH,
+  FORMAT_CHIP_TONE,
   PERSONA_CHIP_TONE,
   PRODUCT_CHIP_TONE,
+  angleFormatEntries,
+  angleStatusView,
+  angleTypeEntries,
   chipLabel,
   type LinkedRecord,
 } from './fields';
@@ -43,7 +47,9 @@ import {
  * filtering to nothing says so in words and offers to clear the filter, so the table area is never
  * a blank rectangle.
  *
- * Five columns and no sort: `loadAngles()` already returns the rows newest edit first.
+ * The grid is the Airtable-style `AirtableGrid` (P2A): every stored column of an angle is visible
+ * without opening a row, the name column is frozen while the rest scroll, and the headers sort.
+ * `loadAngles()` returns the rows newest edit first, which is the order before any sort.
  *
  * `creativeModulesByAngle`, `conceptsByAngle` and `creativeDesignsByAngle` are the page's
  * inversions of `creative_module_angles`, `concept_angles` and `creative_briefs.angle_id`, each
@@ -107,6 +113,154 @@ function matches(item: AngleItem, query: string): boolean {
   );
 }
 
+/**
+ * The Airtable-style grid columns for Angles: every stored field of `angles` plus the two linked
+ * names, in the order the panel groups them. Name is frozen; Persona and Product keep their chips
+ * (the whole linked name in the cell title); every vocabulary value goes through `@tas/domain`.
+ */
+const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
+  {
+    key: 'name',
+    header: 'Name',
+    frozen: true,
+    minWidth: 220,
+    sortValue: (item) => item.angle.name,
+    render: (item) => <span className="font-medium">{item.angle.name}</span>,
+  },
+  {
+    key: 'persona',
+    header: 'Persona',
+    sortValue: (item) => item.angle.personaName,
+    cellTitle: (item) => item.angle.personaName ?? undefined,
+    render: (item) => (
+      <ChipCell
+        chip={
+          item.angle.personaName === null
+            ? null
+            : { label: chipLabel(item.angle.personaName), tone: PERSONA_CHIP_TONE }
+        }
+      />
+    ),
+  },
+  {
+    key: 'product',
+    header: 'Product',
+    sortValue: (item) => item.angle.productName,
+    cellTitle: (item) => item.angle.productName ?? undefined,
+    render: (item) => (
+      <ChipCell
+        chip={
+          item.angle.productName === null
+            ? null
+            : { label: chipLabel(item.angle.productName), tone: PRODUCT_CHIP_TONE }
+        }
+      />
+    ),
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    sortValue: (item) => angleStatusView(item.angle.status)?.label ?? null,
+    render: (item) => {
+      const view = angleStatusView(item.angle.status);
+      return <ChipCell chip={view === null ? null : { label: view.label, tone: view.tone }} />;
+    },
+  },
+  {
+    key: 'potential',
+    header: 'Potential',
+    sortValue: (item) => item.angle.potential,
+    render: (item) => (
+      <ChipCell
+        chip={
+          item.angle.potential === null || item.angle.potential === ''
+            ? null
+            : {
+                label: anglePotentialLabel(item.angle.potential),
+                tone: anglePotentialTone(item.angle.potential),
+              }
+        }
+      />
+    ),
+  },
+  {
+    key: 'winning',
+    header: 'Winning',
+    align: 'center',
+    sortValue: (item) => (item.angle.winning ? 1 : 0),
+    render: (item) => <BoolCell value={item.angle.winning} />,
+  },
+  {
+    key: 'formats',
+    header: 'Formats to create',
+    render: (item) => (
+      <ChipListCell
+        chips={angleFormatEntries(item.angle.formats).map((entry) => ({
+          label: entry.label,
+          tone: FORMAT_CHIP_TONE,
+        }))}
+      />
+    ),
+  },
+  {
+    key: 'type',
+    header: 'Type',
+    render: (item) => (
+      <ChipListCell
+        chips={angleTypeEntries(item.angle.type).map((entry) => ({
+          label: entry.label,
+          tone: 'mute',
+        }))}
+      />
+    ),
+  },
+  {
+    key: 'description',
+    header: 'Description',
+    sortValue: (item) => item.angle.description,
+    render: (item) => <TextCell value={item.angle.description} />,
+  },
+  {
+    key: 'painPoints',
+    header: 'Pain Points',
+    render: (item) => <TextCell value={item.angle.painPoints} />,
+  },
+  { key: 'usp', header: 'USP', render: (item) => <TextCell value={item.angle.usp} /> },
+  {
+    key: 'adInspo',
+    header: 'Ad Inspo',
+    sortValue: (item) => item.angle.adInspoLinks.length,
+    render: (item) => <CountCell count={item.angle.adInspoLinks.length} noun="link" />,
+  },
+  {
+    key: 'briefUrl',
+    header: 'Brief URL',
+    render: (item) => <LinkCell value={item.angle.briefUrl} />,
+  },
+  {
+    key: 'exactScriptUrl',
+    header: 'Exact Script URL',
+    render: (item) => <LinkCell value={item.angle.exactScriptUrl} />,
+  },
+  {
+    key: 'internalNotes',
+    header: 'Internal Notes',
+    render: (item) => <TextCell value={item.angle.internalNotes} />,
+  },
+  {
+    key: 'clientNotes',
+    header: 'Client Notes',
+    render: (item) => <TextCell value={item.angle.clientNotes} />,
+  },
+  {
+    key: 'updated',
+    header: 'Updated',
+    sortValue: (item) => item.updatedTitle,
+    cellTitle: (item) => item.updatedTitle,
+    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
+  },
+];
+
 export function AnglesWorkspace({
   items,
   personas,
@@ -145,13 +299,6 @@ export function AnglesWorkspace({
     },
     [router, select],
   );
-
-  const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, id: string) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      select(id);
-    }
-  };
 
   const term = search.trim();
   const query = term.toLowerCase();
@@ -265,111 +412,59 @@ export function AnglesWorkspace({
             demo={demo}
           />
         ) : (
-          <div className="overflow-x-auto rounded-card border border-line bg-surface">
-            <Table data-slot="angles-table">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-3">Name</TableHead>
-                  <TableHead className="px-3">Persona</TableHead>
-                  <TableHead className="px-3">Product</TableHead>
-                  <TableHead className="px-3">Updated</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.length === 0 ? (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={4} className="px-3 py-10">
-                      <div
-                        data-slot="angles-empty"
-                        className="flex flex-col items-center gap-3 text-center"
-                      >
-                        <p className="text-sm text-text2">
-                          {items.length === 0
-                            ? 'No angles yet. Start with the hypothesis you most want to test on a persona.'
-                            : `Nothing matches “${term}”. Try an angle name, a persona or a product.`}
-                        </p>
-                        {items.length === 0 ? (
-                          <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
-                            <Button
-                              size="sm"
-                              disabled={demo}
-                              className={demo ? disabledWriteClassName : undefined}
-                              onClick={() => {
-                                select(NEW_ANGLE);
-                              }}
-                              data-slot="empty-new-angle"
-                            >
-                              New angle
-                            </Button>
-                          </DisabledWrite>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              filter('');
-                            }}
-                            data-slot="clear-search"
-                          >
-                            Clear search
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+          <AirtableGrid
+            tableKey="angles"
+            columns={ANGLE_COLUMNS}
+            rows={visible}
+            rowId={(item) => item.angle.id}
+            rowLabel={(item) => item.angle.name}
+            rowAttributes={(item) => ({ 'data-angle-id': item.angle.id })}
+            selectedId={selection}
+            onRowClick={(item) => {
+              select(item.angle.id);
+            }}
+            tableSlot="angles-table"
+            rowSlot="angle-row"
+            empty={
+              <div
+                data-slot="angles-empty"
+                className="flex flex-col items-center gap-3 text-center"
+              >
+                <p className="text-sm text-text2">
+                  {items.length === 0
+                    ? 'No angles yet. Start with the hypothesis you most want to test on a persona.'
+                    : `Nothing matches “${term}”. Try an angle name, a persona or a product.`}
+                </p>
+                {items.length === 0 ? (
+                  <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+                    <Button
+                      size="sm"
+                      disabled={demo}
+                      className={demo ? disabledWriteClassName : undefined}
+                      onClick={() => {
+                        select(NEW_ANGLE);
+                      }}
+                      data-slot="empty-new-angle"
+                    >
+                      New angle
+                    </Button>
+                  </DisabledWrite>
                 ) : (
-                  visible.map(({ angle, updatedLabel, updatedTitle }) => {
-                    return (
-                      <TableRow
-                        key={angle.id}
-                        data-slot="angle-row"
-                        data-angle-id={angle.id}
-                        data-state={angle.id === selection ? 'selected' : undefined}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={angle.name}
-                        onClick={() => {
-                          select(angle.id);
-                        }}
-                        onKeyDown={(event) => {
-                          onRowKey(event, angle.id);
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
-                          {angle.name}
-                        </TableCell>
-                        <TableCell className="px-3 py-1.5" title={angle.personaName ?? undefined}>
-                          {angle.personaName === null ? (
-                            <span className="text-text4">{EM_DASH}</span>
-                          ) : (
-                            <StatusChip
-                              tone={PERSONA_CHIP_TONE}
-                              label={chipLabel(angle.personaName)}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-1.5" title={angle.productName ?? undefined}>
-                          {angle.productName === null ? (
-                            <span className="text-text4">{EM_DASH}</span>
-                          ) : (
-                            <StatusChip
-                              tone={PRODUCT_CHIP_TONE}
-                              label={chipLabel(angle.productName)}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
-                          {updatedLabel}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      filter('');
+                    }}
+                    data-slot="clear-search"
+                  >
+                    Clear search
+                  </Button>
                 )}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            }
+          />
         )}
       </section>
 
