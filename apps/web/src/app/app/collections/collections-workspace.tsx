@@ -25,6 +25,7 @@ import {
   NO_COLLECTIONS_HINT,
   NO_MATCHES_HINT_PREFIX,
   UPLOAD_SOON_HINT,
+  type LinkedRecord,
 } from './fields';
 import { CollectionPanel, NEW_COLLECTION } from './collections-panel';
 
@@ -48,6 +49,10 @@ export interface CollectionItem {
   readonly urlHost: string | null;
   readonly updatedLabel: string;
   readonly updatedTitle: string;
+  /** The email campaigns that link to this collection (`email_campaign_collections`), read-only. */
+  readonly emailCampaigns: readonly LinkedRecord[];
+  /** The YouTube copy that links to this collection (`youtube_copy_collections`), read-only. */
+  readonly youtubeCopy: readonly LinkedRecord[];
 }
 
 interface CollectionsWorkspaceProps {
@@ -121,7 +126,7 @@ export function CollectionsWorkspace({
     [items, query],
   );
 
-  const open = items.find((item) => item.collection.id === selection)?.collection ?? null;
+  const open = items.find((item) => item.collection.id === selection) ?? null;
   const creating = selection === NEW_COLLECTION;
 
   return (
@@ -290,7 +295,9 @@ export function CollectionsWorkspace({
       {creating || open !== null ? (
         <CollectionPanel
           key={selection}
-          collection={creating ? null : open}
+          collection={open === null ? null : open.collection}
+          emailCampaigns={open === null ? [] : open.emailCampaigns}
+          youtubeCopy={open === null ? [] : open.youtubeCopy}
           campaigns={campaigns}
           demo={demo}
           onClose={close}
