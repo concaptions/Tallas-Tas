@@ -60,8 +60,13 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     // Not a modal: the table is still there beside the panel.
     await expect(page.locator('[data-slot="persona-row"]')).toHaveCount(3);
 
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-slot="persona-panel"]')).toHaveCount(0);
+    // After a reload the panel is visible before React has hydrated and attached its window
+    // listener, so a single Escape can land on nothing. Retry until the handler is live — the same
+    // pattern the Angles spec uses; the assertion itself is unchanged.
+    await expect(async () => {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('[data-slot="persona-panel"]')).toHaveCount(0, { timeout: 1_000 });
+    }).toPass();
     await expect(page).not.toHaveURL(/\?persona=/);
   });
 

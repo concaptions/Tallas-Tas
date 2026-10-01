@@ -8,10 +8,11 @@ import { Button, Input, StatusChip } from '@tas/ui';
 
 import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { TextCell } from '@/components/views/grid-cells';
 
 import type { AwarenessStage } from '@tas/db/schema';
 
-import { awarenessLabel, awarenessTone, EM_DASH } from './fields';
+import { awarenessLabel, awarenessTone, EM_DASH, PERSONA_FIELDS } from './fields';
 import { PersonaPanel, NEW_PERSONA } from './persona-panel';
 
 /**
@@ -76,7 +77,9 @@ function matches(item: PersonaItem, query: string): boolean {
 /**
  * The Airtable-style grid columns for the Personas grid view (P2A-3). The Stage-of-Awareness column
  * keeps rendering a `<StatusChip>` (never bare text) so the automation that counts the chips inside
- * the table stays green; the frozen name column and the headers are unchanged from the plain table.
+ * the table stays green; the frozen name column leads, then the product, the linked angles and
+ * every prose field of the panel under the panel's own label (`PERSONA_FIELDS`), so a persona is
+ * readable end to end without opening a row.
  */
 const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
   {
@@ -101,6 +104,26 @@ const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
         />
       ),
   },
+  {
+    key: 'product',
+    header: 'Product',
+    sortValue: (item) => item.persona.productName,
+    render: (item) => <TextCell value={item.persona.productName} />,
+  },
+  {
+    key: 'angles',
+    header: 'Linked angles',
+    sortValue: (item) => item.persona.angleNames.length,
+    render: (item) => <TextCell value={item.persona.angleNames.join(', ')} maxWidth={320} />,
+  },
+  // Every prose field of the panel, under the panel's own label, so nothing needs a row opened.
+  ...PERSONA_FIELDS.filter(
+    (field) => field.name !== 'name' && field.name !== 'stageOfAwareness',
+  ).map((field): GridColumn<PersonaItem> => ({
+    key: field.name,
+    header: field.label,
+    render: (item) => <TextCell value={item.persona[field.name]} />,
+  })),
   {
     key: 'updated',
     header: 'Updated',
