@@ -313,3 +313,5 @@ export * from './email-campaigns';
 export * from './demo-email-campaigns';
 export * from './email-flows';
 export * from './demo-email-flows';
+export * from './youtube-copy';
+export * from './demo-youtube-copy';
