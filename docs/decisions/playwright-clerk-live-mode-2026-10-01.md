@@ -106,3 +106,8 @@ the variables are absent, and green only when it really signed in and wrote the 
   the `briefGuard` fixture in `apps/web/e2e/support/brief-reset.ts`.
 - Phase 3 (a local run with one-time keys) could not happen in this session: no keys were present.
   Recorded under "Pending human verification" as E2E-LIVE-02.
+- Follow-up (branch `claude/auth-spec-live-mode`): the sign-up block of `auth.spec.ts`, which still
+  gated on the app's own key names and so skipped in live mode, moved to
+  `apps/web/e2e/live/auth-signup.spec.ts` on the same split, starting from no session
+  (`anonymousTest` in `clerk-login.ts`) and removing the user and organisation it creates through
+  the Clerk Backend API in `afterAll` (`support/clerk-admin.ts`, idempotent).
