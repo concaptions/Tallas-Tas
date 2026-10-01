@@ -1,7 +1,15 @@
-import { eq, inArray } from 'drizzle-orm';
+import { eq, getTableColumns, inArray } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
+import {
+  BRIEF_CLIENT_STATUS_DEFAULT,
+  BRIEF_INTERNAL_STATUS_DEFAULT,
+  COPY_STATUS_DEFAULT,
+  CREATOR_CLIENT_STATUS_DEFAULT,
+  CREATOR_INTERNAL_STATUS_DEFAULT,
+  PARTNERSHIP_ACTIVITY_DEFAULT,
+} from './schema';
 import {
   adMetrics,
   anglePersonas,
@@ -299,23 +307,27 @@ const MAPS = {
   },
 } satisfies Record<string, StatusMap>;
 
-/** Applies one map: exact hit → key, miss → normalized fallback + warning, null hit → NULL + warning. */
+/**
+ * Applies one map: exact hit → key, miss → normalized key + warning, null hit → `fallback` +
+ * warning, absent → `fallback`. The fallback is an EXPLICIT value (the column's default for a
+ * NOT NULL column, NULL otherwise), never `undefined`: on the upsert's UPDATE path drizzle drops
+ * undefined keys from SET, which is exactly how the first re-import left stale keys behind.
+ */
 function mapStatus(
   w: ImportWarnings,
   where: string,
   map: StatusMap,
   v: unknown,
-): string | undefined {
+  fallback: string | null = null,
+): string | null {
   const normalized = normalizeStatusKey(v);
-  if (normalized === undefined) return undefined;
-  if (normalized in map) {
-    const mapped = map[normalized];
-    if (mapped === null) {
-      warnValue(w, `${where} (deliberately unmapped)`, String(v));
-      return undefined;
-    }
-    return mapped;
+  if (normalized === undefined) return fallback;
+  const mapped = map[normalized];
+  if (mapped === null) {
+    warnValue(w, `${where} (deliberately unmapped)`, String(v));
+    return fallback;
   }
+  if (mapped !== undefined) return mapped;
   warnValue(w, where, String(v));
   return normalized;
 }
@@ -333,17 +345,21 @@ function mapCreativeType(w: ImportWarnings, v: unknown): string | undefined {
   };
   if (s in known) return known[s];
   warnValue(w, 'creativeBriefs.type', s);
-  return undefined; // column default: Video
+  return 'Video'; // the column default, written explicitly so an UPDATE clears junk
 }
 
-function mapPriority(w: ImportWarnings, v: unknown, type: string | undefined): string | undefined {
+function mapPriority(
+  w: ImportWarnings,
+  v: unknown,
+  type: string | undefined,
+): string | null | undefined {
   const s = str(v);
   if (s === undefined) return undefined;
   const isStatic = type === 'Static' || type === 'Carousel';
   if (/high/i.test(s)) return isStatic ? 'Static High' : 'Video High';
   if (/average/i.test(s)) return isStatic ? 'Static Average' : 'Video Average';
   warnValue(w, 'creativeBriefs.priority', s);
-  return undefined;
+  return null;
 }
 
 function mapPlatforms(w: ImportWarnings, v: unknown): string[] {
@@ -365,12 +381,12 @@ function mapPlatforms(w: ImportWarnings, v: unknown): string[] {
   return out;
 }
 
-function mapLanguage(w: ImportWarnings, v: unknown): string | undefined {
+function mapLanguage(w: ImportWarnings, v: unknown): string | null | undefined {
   const s = str(v);
   if (s === undefined) return undefined;
   if (/^english/i.test(s)) return 'English';
   warnValue(w, 'creativeBriefs.language', s);
-  return undefined;
+  return null;
 }
 
 function mapSource(w: ImportWarnings, v: unknown): string | undefined {
@@ -378,7 +394,7 @@ function mapSource(w: ImportWarnings, v: unknown): string | undefined {
   if (s === undefined) return undefined;
   if (s === 'TAS' || s === 'Client') return s;
   warnValue(w, 'creativeBriefs.source', s);
-  return undefined; // column default: TAS
+  return 'TAS'; // the column default, written explicitly so an UPDATE clears junk
 }
 
 function mapBriefFunnel(w: ImportWarnings, v: unknown): string | undefined {
@@ -386,16 +402,16 @@ function mapBriefFunnel(w: ImportWarnings, v: unknown): string | undefined {
   if (s === undefined) return undefined;
   if (s === 'TOF' || s === 'RETARGETTING' || s === 'ALL FUNNELS') return s;
   warnValue(w, 'creativeBriefs.funnel', s);
-  return undefined; // column default: TOF
+  return 'TOF'; // the column default, written explicitly so an UPDATE clears junk
 }
 
-function mapCopyFunnel(w: ImportWarnings, v: unknown): string | undefined {
+function mapCopyFunnel(w: ImportWarnings, v: unknown): string | null | undefined {
   const s = str(v);
   if (s === undefined) return undefined;
   if (s === 'TOF' || s === 'MOF' || s === 'BOF') return s;
   if (/^retarget/i.test(s)) return 'Retargeting';
   warnValue(w, 'copywriting.funnel', s);
-  return undefined;
+  return null;
 }
 
 function selectToBool(v: unknown): boolean | null {
@@ -463,9 +479,22 @@ async function importRows(
         // the import's surrounding transaction (Postgres poisons an aborted tx otherwise).
         await db.transaction(async (sp) => {
           const mapped = mapFn(rec.fields);
+          // A field absent in Airtable is a cleared value: write NULL to nullable columns so the
+          // row follows the base. NOT NULL columns keep their value (the mappers hand those their
+          // column default explicitly instead of undefined).
+          const columns = getTableColumns(table);
+          const patch: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(mapped)) {
+            const column = columns[key];
+            if (value === undefined) {
+              if (column !== undefined && !column.notNull) patch[key] = null;
+            } else {
+              patch[key] = value;
+            }
+          }
           await sp
             .update(table)
-            .set({ ...mapped, updatedBy: actorId, updatedAt: new Date() })
+            .set({ ...patch, updatedBy: actorId, updatedAt: new Date() })
             .where(eq(table.id, existingId));
         });
         result.updated++;
@@ -759,12 +788,14 @@ export async function importAirtableExport(
           'creativeBriefs.internalStatus',
           MAPS.briefInternal,
           f['Internal Status'],
+          BRIEF_INTERNAL_STATUS_DEFAULT,
         ),
         clientStatus: mapStatus(
           w,
           'creativeBriefs.clientStatus',
           MAPS.briefClient,
           f['Client Status'],
+          BRIEF_CLIENT_STATUS_DEFAULT,
         ),
         performance: str(f.Performance),
       };
@@ -800,7 +831,7 @@ export async function importAirtableExport(
       metaRating: num(f['Meta Rating']),
       clickForAiSpellChecker: bool(f['Click for AI Spell Checker Again']),
       spellingFeedback: str(f['Spelling Feedback']),
-      status: mapStatus(w, 'copywriting.status', MAPS.copyStatus, f.Status),
+      status: mapStatus(w, 'copywriting.status', MAPS.copyStatus, f.Status, COPY_STATUS_DEFAULT),
       clientComment: str(f["Client's Comment"] ?? f['Client Comment']),
     }),
     actorId,
@@ -838,12 +869,14 @@ export async function importAirtableExport(
         'creators.clientStatus',
         MAPS.creatorClient,
         f.Status ?? f['Client Status'],
+        CREATOR_CLIENT_STATUS_DEFAULT,
       ),
       internalCreatorStatus: mapStatus(
         w,
         'creators.internalCreatorStatus',
         MAPS.creatorInternal,
         f['Creator Status'] ?? f['Internal Creator Status'],
+        CREATOR_INTERNAL_STATUS_DEFAULT,
       ),
       internalAssetsStatus: normalizeStatusKey(f['Internal Assets Status']),
       clientNote: str(f["(Client's) Note or Comments"] ?? f['Client Note']),
@@ -854,6 +887,7 @@ export async function importAirtableExport(
         'creators.partnershipActivity',
         MAPS.partnershipActivity,
         f['Partnership Activity'] ?? f['Partnership Status'],
+        PARTNERSHIP_ACTIVITY_DEFAULT,
       ),
       partnershipActivatedAt: dateToTimestamp(
         f['Date of Partnership Activation'] ?? f['Partnership Activated At'],

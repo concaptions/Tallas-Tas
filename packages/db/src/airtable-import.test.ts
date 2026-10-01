@@ -723,3 +723,79 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
     expect(links[0]?.conceptId).toBe(gratsiConcept?.id);
   });
 });
+
+describe('a re-import follows the base, it never keeps stale values (2026-10-01)', () => {
+  it('a value cleared in Airtable becomes NULL on a nullable column', async () => {
+    const db = await seeded();
+    const withStatus: AirtableExport = {
+      ...FIXTURE,
+      Concepts: [
+        {
+          id: 'at_concept_1',
+          fields: { ...FIXTURE.Concepts?.[0]?.fields, 'Production Status': 'Done' },
+        },
+      ],
+    };
+    await importAirtableExport(db, withStatus, DEMO_BRAND_ID, 'migration-actor');
+    let [row] = await db
+      .select()
+      .from(concepts)
+      .where(eq(concepts.legacyAirtableId, 'at_concept_1'));
+    expect(row?.productionStatus).toBe('done');
+
+    await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
+    [row] = await db.select().from(concepts).where(eq(concepts.legacyAirtableId, 'at_concept_1'));
+    expect(row?.productionStatus).toBeNull();
+  });
+
+  it('a junk label on a NOT NULL column is overwritten with the column default on update', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
+    const [brief] = await db
+      .select()
+      .from(creativeBriefs)
+      .where(eq(creativeBriefs.legacyAirtableId, 'at_brief_1'));
+    if (!brief) throw new Error('brief missing');
+    await db
+      .update(creativeBriefs)
+      .set({ source: 'Facebook Reels' as never, funnel: 'TAS' as never })
+      .where(eq(creativeBriefs.id, brief.id));
+
+    const junk: AirtableExport = {
+      ...FIXTURE,
+      'Creative Briefs': [
+        {
+          id: 'at_brief_1',
+          fields: {
+            ...FIXTURE['Creative Briefs']?.[0]?.fields,
+            Source: 'Facebook Reels',
+            Funnel: 'TAS',
+          },
+        },
+      ],
+    };
+    await importAirtableExport(db, junk, DEMO_BRAND_ID, 'migration-actor');
+    const [healed] = await db.select().from(creativeBriefs).where(eq(creativeBriefs.id, brief.id));
+    expect(healed?.source).toBe('TAS');
+    expect(healed?.funnel).toBe('TOF');
+  });
+
+  it('a blank creator track resets to its default instead of keeping a swapped key', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
+    const [creator] = await db
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 'at_creator_1'));
+    if (!creator) throw new Error('creator missing');
+    // The first import's damage: the client-track key sitting in the internal column.
+    await db
+      .update(creators)
+      .set({ internalCreatorStatus: 'video_delivered' })
+      .where(eq(creators.id, creator.id));
+
+    await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
+    const [healed] = await db.select().from(creators).where(eq(creators.id, creator.id));
+    expect(healed?.internalCreatorStatus).toBe('request');
+  });
+});
