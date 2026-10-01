@@ -307,3 +307,5 @@ export * from './creative-sheet-items';
 export * from './demo-creative-sheet-items';
 export * from './sm-campaign-feed-tasks';
 export * from './demo-sm-campaign-feed-tasks';
+export * from './creative-reporting';
+export * from './demo-creative-reporting';
