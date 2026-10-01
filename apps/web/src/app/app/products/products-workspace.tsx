@@ -14,6 +14,7 @@ import {
 } from '@tas/ui';
 
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { CountCell, TextCell } from '@/components/views/grid-cells';
 
 import { EM_DASH, type LinkedRecord } from './fields';
 import { NEW_PRODUCT, ProductPanel } from './product-panel';
@@ -105,9 +106,9 @@ function matches(item: ProductItem, query: string): boolean {
 
 /**
  * The Airtable-style grid columns for Products (P2A): the frozen name column carries the propagation
- * badge; the two link columns show the host and keep the full URL in the cell title; every column but
- * the collection link is sortable. Column order and headers are the same the plain table used, so the
- * page's existing automation contract is unchanged.
+ * badge; the two link columns show the host and keep the full URL in the cell title; then every
+ * linked record set the panel lists, as counts, so nothing needs a row opened to be seen. The first
+ * three headers are the ones the plain table used, so the page's automation contract still holds.
  */
 const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
   {
@@ -138,6 +139,42 @@ const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
     header: 'Collection link',
     cellTitle: (item) => item.product.collectionLink ?? undefined,
     render: (item) => item.collectionHost ?? <span className="text-text4">{EM_DASH}</span>,
+  },
+  {
+    key: 'angles',
+    header: 'Angles',
+    sortValue: (item) => item.product.angleNames.length,
+    render: (item) => <TextCell value={item.product.angleNames.join(', ')} maxWidth={320} />,
+  },
+  {
+    key: 'concepts',
+    header: 'Concepts',
+    sortValue: (item) => item.product.conceptCount,
+    render: (item) => <CountCell count={item.product.conceptCount} noun="concept" />,
+  },
+  {
+    key: 'creativeDesigns',
+    header: 'Creative Designs',
+    sortValue: (item) => item.creativeDesigns.length,
+    render: (item) => <CountCell count={item.creativeDesigns.length} noun="design" />,
+  },
+  {
+    key: 'creators',
+    header: 'Creators',
+    sortValue: (item) => item.creators.length,
+    render: (item) => <CountCell count={item.creators.length} noun="creator" />,
+  },
+  {
+    key: 'emailCampaigns',
+    header: 'Email Campaigns',
+    sortValue: (item) => item.emailCampaigns.length,
+    render: (item) => <CountCell count={item.emailCampaigns.length} noun="campaign" />,
+  },
+  {
+    key: 'youtubeCopy',
+    header: 'YouTube Copy',
+    sortValue: (item) => item.youtubeCopy.length,
+    render: (item) => <CountCell count={item.youtubeCopy.length} noun="copy" />,
   },
   {
     key: 'updated',

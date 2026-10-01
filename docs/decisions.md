@@ -650,3 +650,19 @@ button) are not stored by design and need no entry.
 | (Internal) Collections › Email Campaigns Management copy | text | 0/5 (the name appears twice) | Residual single-line text; email campaigns reach collections through `Table 17` → `email_campaign_collections`. |
 | Client Assets Organisation › (Internal) Creative Design | text | 0/0 | Single-line text, not a link, so no `brief_asset_folders` rows can be derived; the importer says so in its report. |
 
+
+## 2026-10-01 — Airtable-style grid is the default view of the six core tables (GRID-01…06)
+
+Products, Personas, Angles, Themes, Concepts and UGC Management all open on the shared
+`AirtableGrid` (`apps/web/src/components/views/airtable-grid.tsx`): every stored column visible,
+horizontal scroll inside the grid, the name column frozen, full page width. Themes and UGC lose
+their card grids as the primary view (the UGC card survives on `/design-system`; the Theme card is
+now the body of the new `ThemePanel`, opened by a row click, so its labelled fields and the
+Archive / Restore form are unchanged). Shared cell primitives live in `grid-cells.tsx`; a stored
+literal `"null"` is treated as empty everywhere they render.
+
+**Concepts: Production Status is hidden, not dropped.** `concepts.production_status` stays in the
+schema, the importer and the actions, but the list grid, the form and the detail panel no longer
+show it (client direction, Prompt C): the two-track Internal / Client statuses are the ones the
+team works from, and a third status column on the same row was being read as a contradiction.
+No migration; the column can return by rendering it again.
