@@ -26,7 +26,8 @@ export const personas = pgTable(
      * Personas page (docs/decisions/gratsi-display-spec-2026-10-02.md): the Gratsi base defines no
      * field for them. They are NOT deprecated — Niagara Sleep Solutions populates them on all three
      * of its personas — so they keep their data and stay readable to any brand whose own base has
-     * the field. Per-brand visibility belongs in `brand_field_overrides`, not in a drop.
+     * the field. Per-brand visibility belongs in the `column_definitions` table
+     * (docs/audits/inheritance-plan-2026-10-02.md), never in a drop.
      */
     dayInTheLife: text('day_in_the_life'),
     demographic: text('demographic'),

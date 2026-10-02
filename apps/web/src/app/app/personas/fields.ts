@@ -48,7 +48,9 @@ export interface PersonaFieldGroup {
  * `PERSONA_HIDDEN_FIELDS` below lists the columns this page deliberately does NOT show, because the
  * Gratsi base has no field for them. They are not deprecated and nothing was dropped: Niagara Sleep
  * Solutions populates every one of them on all three of its personas, so the data stays and stays
- * readable through its own brand's surfaces. Per-brand visibility belongs in `brand_field_overrides`.
+ * readable through its own brand's surfaces. Per-brand visibility belongs in the `column_definitions`
+ * table (docs/audits/inheritance-plan-2026-10-02.md), not in this hard-coded list — which is why this
+ * constant is temporary scaffolding, not the destination.
  */
 export const PERSONA_FIELD_GROUPS: readonly PersonaFieldGroup[] = [
   {

@@ -30,7 +30,7 @@ are now legitimately blank, because the Gratsi base holds no such data — `A Da
 `Problem/Challenge`, `Success/Transformation`, `Trigger Words`, and `Product`. No mapping can fill
 them. The em-dashes are the honest reading of a client base with 7 fields against a template with
 15; the fix for them is data entry in Airtable, or hiding template columns per brand (which is what
-`brand_field_overrides` exists for).
+the per-brand column config exists for).
 
 ## Not yet decided — the same question on every other table
 
@@ -53,6 +53,8 @@ Counts are of stored (non-computed) fields with no template counterpart:
 
 The question for Talal is one question asked ten times: **when a client base carries a field the
 template does not, does the app show it for that client, or not at all?** Non-negotiables 1 and 2
-and the `overridden_fields` / `brand_field_overrides` design were built for the first answer. Until
+and the per-brand column config were built for the first answer — see
+`docs/audits/inheritance-plan-2026-10-02.md`; the `brand_field_overrides` table CLAUDE.md:66 names
+does not exist, and `column_definitions` is what replaces it. Until
 it is answered, these fields keep their columns and their imported data, and the app shows the
 template's column set.
