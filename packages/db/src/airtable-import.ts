@@ -729,6 +729,53 @@ function firstRef(idMap: IdMap, airtableIds: unknown): string | undefined {
   return resolveRef(idMap, airtableIds);
 }
 
+/**
+ * PER-BASE FIELD NAMES, one entry per Drizzle column: the TEMPLATE base's field name first, then
+ * each client base's alias for the same datum. `appnaSGAgOUbJ0f9m` is the source of truth (Talal,
+ * 2026-10-02), so a template import needs no alias; a client base that renamed a field is read
+ * through its alias into the same column, which is what makes one importer serve every brand.
+ *
+ * Verified field by field against both bases' live metadata on 2026-10-02 — the template's names
+ * carry their framework in parentheses ("Core Desires (Cashvertising)") and Gratsi's do not, so a
+ * short-name read like `f['Core Desires']` silently missed ELEVEN of the fifteen template fields.
+ * The audit is docs/audits/base-field-mapping-2026-10-02.md.
+ *
+ * Gratsi's "Passion" is deliberately absent: it has no template equivalent, and the rule is a
+ * decision doc rather than a forced mapping (docs/decisions/gratsi-unmapped-fields-2026-10-02.md).
+ */
+const PERSONA_FIELDS = {
+  name: ['Persona Name', 'Name'],
+  dayInTheLife: ['A Day in the Life'],
+  demographic: ['Demographic', 'Description  [Age Status Salary]'],
+  psychographic: ['Psychographic', 'Personality'],
+  coreDesires: ['Core Desires (Cashvertising)', 'Core Desires', 'Drivers for this persona'],
+  emotionalTriggers: ['Emotional Triggers (Cashvertising)', 'Emotional Triggers'],
+  painPoints: ['Pain Points (Cashvertising)', 'Pain Points'],
+  successFactors: ['Success Factors (Buyer Personas)', 'Success Factors'],
+  perceivedBarriers: ['Perceived Barriers (Buyer Personas)', 'Perceived Barriers'],
+  buyingTriggers: ['Buying Triggers (Breakthrough Advertising)', 'Buying Triggers'],
+  problemChallenge: ['Problem/Challenge (StoryBrand)', 'Problem Challenge'],
+  successTransformation: ['Success/Transformation (StoryBrand)', 'Success Transformation'],
+  triggerWords: ['Trigger Words (Mindstates)', 'Trigger Words'],
+  stageOfAwareness: [
+    'Stage of Market Awareness (Breakthrough Advertising)',
+    'Problem-Solution Awareness Level',
+    'Stage of Awareness',
+  ],
+} as const satisfies Record<string, readonly string[]>;
+
+/** The first of `names` the record actually carries, so one builder reads either base. */
+export function firstField(
+  fields: Readonly<Record<string, unknown>>,
+  names: readonly string[],
+): unknown {
+  for (const name of names) {
+    const value = fields[name];
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return undefined;
+}
+
 /** Junction rows for one owner, deduped by the junction's primary key; a broken target is skipped. */
 async function linkMany<T extends PgTable>(
   db: Db,
@@ -818,25 +865,26 @@ export async function importAirtableExport(
     data.Personas ?? [],
     (f) => ({
       brandId,
-      name: str(f.Name) ?? 'Untitled',
+      name: str(firstField(f, PERSONA_FIELDS.name)) ?? 'Untitled',
       productId: firstRef(prodMap, f.Product),
-      demographic: str(f.Demographic ?? f['Description  [Age Status Salary]']),
-      psychographic: str(f.Psychographic ?? f.Personality),
-      coreDesires: str(f['Core Desires'] ?? f.Passion),
-      emotionalTriggers: str(f['Emotional Triggers'] ?? f['Drivers for this persona']),
-      painPoints: str(f['Pain Points']),
-      successFactors: str(f['Success Factors']),
-      perceivedBarriers: str(f['Perceived Barriers']),
+      dayInTheLife: str(firstField(f, PERSONA_FIELDS.dayInTheLife)),
+      demographic: str(firstField(f, PERSONA_FIELDS.demographic)),
+      psychographic: str(firstField(f, PERSONA_FIELDS.psychographic)),
+      coreDesires: str(firstField(f, PERSONA_FIELDS.coreDesires)),
+      emotionalTriggers: str(firstField(f, PERSONA_FIELDS.emotionalTriggers)),
+      painPoints: str(firstField(f, PERSONA_FIELDS.painPoints)),
+      successFactors: str(firstField(f, PERSONA_FIELDS.successFactors)),
+      perceivedBarriers: str(firstField(f, PERSONA_FIELDS.perceivedBarriers)),
       stageOfAwareness: mapStatus(
         w,
         'personas.stageOfAwareness',
         MAPS.awareness,
-        f['Problem-Solution Awareness Level'] ?? f['Stage of Awareness'],
+        firstField(f, PERSONA_FIELDS.stageOfAwareness),
       ),
-      buyingTriggers: str(f['Buying Triggers']),
-      problemChallenge: str(f['Problem Challenge']),
-      successTransformation: str(f['Success Transformation']),
-      triggerWords: str(f['Trigger Words']),
+      buyingTriggers: str(firstField(f, PERSONA_FIELDS.buyingTriggers)),
+      problemChallenge: str(firstField(f, PERSONA_FIELDS.problemChallenge)),
+      successTransformation: str(firstField(f, PERSONA_FIELDS.successTransformation)),
+      triggerWords: str(firstField(f, PERSONA_FIELDS.triggerWords)),
     }),
     actorId,
   );

@@ -1428,4 +1428,83 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
       .where(eq(creativeBriefs.legacyAirtableId, 'at_brief_1'));
     expect(brief?.performance).toBe('Winning');
   });
+  it("reads persona fields from either base: the template names, and Gratsi's renamed aliases, land in the same columns", async () => {
+    const db = await seeded();
+    const fixture: AirtableExport = {
+      ...FIXTURE,
+      Personas: [
+        {
+          // The TEMPLATE base (appnaSGAgOUbJ0f9m) spells every field with its framework in
+          // parentheses. A short-name read missed eleven of these.
+          id: 'at_pers_template',
+          fields: {
+            'Persona Name': 'Template Pat',
+            'A Day in the Life': 'Up at six, school run, back by nine',
+            Demographic: '35-44, salaried, two kids',
+            Psychographic: 'Risk averse, researches everything',
+            'Core Desires (Cashvertising)': 'To stop waking at 3am',
+            'Emotional Triggers (Cashvertising)': 'Being told it is just her age',
+            'Pain Points (Cashvertising)': 'Wakes every ninety minutes',
+            'Success Factors (Buyer Personas)': 'Sleeps through by week two',
+            'Perceived Barriers (Buyer Personas)': 'Has returned two blankets already',
+            'Stage of Market Awareness (Breakthrough Advertising)': 'Problem-aware',
+            'Buying Triggers (Breakthrough Advertising)': 'A ninety-night trial',
+            'Problem/Challenge (StoryBrand)': 'Cannot stay asleep',
+            'Success/Transformation (StoryBrand)': 'Wakes once, not four times',
+            'Trigger Words (Mindstates)': 'Drenched. Weighted. Ninety nights.',
+          },
+        },
+        {
+          // The GRATSI client base (appllDG4OmkK2Hdnn) renamed five of them and carries only seven.
+          id: 'at_pers_gratsi',
+          fields: {
+            Name: 'Gratsi Gina',
+            'Description  [Age Status Salary]': '25-34, hospitality, hourly',
+            Personality: 'Sociable, spontaneous',
+            'Drivers for this persona': 'Wants the table to feel like a holiday',
+            Passion: 'Natural wine and long lunches',
+            'Problem-Solution Awareness Level': 'Problem-aware',
+          },
+        },
+      ],
+    };
+    await importAirtableExport(db, fixture, DEMO_BRAND_ID, 'migration-actor');
+
+    const [template] = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.legacyAirtableId, 'at_pers_template'));
+    expect(template).toMatchObject({
+      name: 'Template Pat',
+      dayInTheLife: 'Up at six, school run, back by nine',
+      coreDesires: 'To stop waking at 3am',
+      emotionalTriggers: 'Being told it is just her age',
+      painPoints: 'Wakes every ninety minutes',
+      successFactors: 'Sleeps through by week two',
+      perceivedBarriers: 'Has returned two blankets already',
+      buyingTriggers: 'A ninety-night trial',
+      problemChallenge: 'Cannot stay asleep',
+      successTransformation: 'Wakes once, not four times',
+      triggerWords: 'Drenched. Weighted. Ninety nights.',
+    });
+
+    const [gratsi] = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.legacyAirtableId, 'at_pers_gratsi'));
+    // The five renamed Gratsi fields land in the template's columns...
+    expect(gratsi).toMatchObject({
+      name: 'Gratsi Gina',
+      demographic: '25-34, hospitality, hourly',
+      psychographic: 'Sociable, spontaneous',
+      coreDesires: 'Wants the table to feel like a holiday',
+    });
+    // ...and "Passion" is NOT forced into one. It has no template equivalent, so it stays
+    // unimported with a decision-doc entry rather than displacing Core Desires, which is the bug
+    // this replaced: Gratsi's Passion used to land in coreDesires and Drivers in emotionalTriggers.
+    expect(gratsi?.coreDesires).not.toContain('Natural wine');
+    expect(gratsi?.emotionalTriggers).toBeNull();
+    // Nine template fields have no Gratsi source at all, so they are legitimately empty.
+    expect(gratsi).toMatchObject({ dayInTheLife: null, painPoints: null, triggerWords: null });
+  });
 });

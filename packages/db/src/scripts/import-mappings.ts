@@ -233,14 +233,14 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         note: 'Rich text → plain text',
       },
       'Drivers for this persona': {
-        drizzleColumn: 'emotionalTriggers',
-        handler: 'richText',
-        note: 'Closest match to emotionalTriggers',
-      },
-      Passion: {
         drizzleColumn: 'coreDesires',
         handler: 'richText',
-        note: 'Closest match to coreDesires',
+        note: 'Gratsi\'s name for the template\'s "Core Desires (Cashvertising)" — read through PERSONA_FIELDS.coreDesires',
+      },
+      Passion: {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'No template equivalent; deliberately unimported — docs/decisions/gratsi-unmapped-fields-2026-10-02.md',
       },
       Angles: {
         drizzleColumn: null,
