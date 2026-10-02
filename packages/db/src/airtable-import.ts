@@ -1,17 +1,20 @@
-import { eq, getTableColumns, inArray } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 
+import type { AirtableBaseKind } from './airtable-tables';
 import type { Db } from './db';
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
   BRIEF_INTERNAL_STATUS_DEFAULT,
   COPY_STATUS_DEFAULT,
+  CREATOR_ASSETS_STATUS_DEFAULT,
   CREATOR_CLIENT_STATUS_DEFAULT,
   CREATOR_INTERNAL_STATUS_DEFAULT,
   PARTNERSHIP_ACTIVITY_DEFAULT,
 } from './schema';
 import {
   adMetrics,
+  aiCharacters,
   anglePersonas,
   angleProducts,
   angles,
@@ -77,8 +80,19 @@ export interface AirtableRecord {
 }
 
 export interface AirtableExport {
+  /**
+   * Which name map the fetcher resolved (2026-10-02). A handful of LABELS mean different things in
+   * the two bases — Gratsi's `Creator's cost (USD)` is a FORMULA over `… - Internal` plus a
+   * platform fee, while the template's is the stored currency itself — so those fields are read per
+   * base instead of chained through `??`, which would let one base's computed value land in the
+   * other's column. Absent means Gratsi: the template path did not exist before this stamp, so an
+   * unstamped template export cannot exist.
+   */
+  readonly sourceBase?: AirtableBaseKind;
   readonly Products?: AirtableRecord[];
   readonly Personas?: AirtableRecord[];
+  /** Template base only (`tblgfe8A7nmce6lzn`); matched `schema/ai-characters.ts` but had no mapping. */
+  readonly 'AI Characters / Personas'?: AirtableRecord[];
   readonly Themes?: AirtableRecord[];
   readonly Angles?: AirtableRecord[];
   readonly Concepts?: AirtableRecord[];
@@ -395,15 +409,32 @@ const MAPS = {
     internal_revisions: 'internal_revisions',
     revisions_needed: 'revisions_needed',
   },
-  // UGC.'Creator Status' (operational waiting states) → INTERNAL_CREATOR_STATUS, best effort:
-  // request → waiting on the creator, approved → creator locked in, revisions_needed → waiting on
-  // a re-delivery. "Declined the brief" has no internal home and stays NULL (logged).
+  // UGC.'Creator Status' (Gratsi, operational waiting states) → INTERNAL_CREATOR_STATUS, best
+  // effort: request → waiting on the creator, approved → creator locked in, revisions_needed →
+  // waiting on a re-delivery. "Declined the brief" has no internal home and stays NULL (logged).
+  // Plus the TEMPLATE's "Internal Creator's Status", whose four `(Internal) …` options ARE the four
+  // CREATOR_INTERNAL_STATUS keys 1:1. One map, both bases' vocabularies.
   creatorInternal: {
     waiting_for_creator_s_response_on_the_brief: 'request',
     declined_the_brief: null,
     waiting_for_assets: 'approved',
     waiting_for_revision: 'revisions_needed',
     assets_delivered: 'approved',
+    internal_request: 'request',
+    internal_pending_for_cs_approval: 'pending_for_cs_approval',
+    internal_revisions_needed: 'revisions_needed',
+    internal_approved: 'approved',
+  },
+  // UGC.'Internal Assets Status' → CREATOR_ASSETS_STATUS. The template prefixes every option with
+  // "(Internal Video)", which a blind normalize turned into keys the state machine does not know
+  // ("internal_video_approved"). The bare keys are kept so a re-import of our own values hits.
+  creatorAssets: {
+    internal_video_pending_for_cs_approval: 'pending_for_cs_approval',
+    internal_video_revisions_needed: 'revisions_needed',
+    internal_video_approved: 'approved',
+    pending_for_cs_approval: 'pending_for_cs_approval',
+    revisions_needed: 'revisions_needed',
+    approved: 'approved',
   },
   // 'Partnership Activity': the stray "Yes" means an active partnership (decided Sprint 1).
   partnershipActivity: {
@@ -415,7 +446,10 @@ const MAPS = {
   // Themes.'Status' → the theme_status ENUM. The blind "todo" made the whole insert fail, which
   // is why only 3 of Gratsi's themes survived the first import.
   themeStatus: { todo: 'not_started', in_progress: 'in_progress', done: 'done' },
-  // Personas.'Problem-Solution Awareness Level' → awareness_stage ENUM.
+  // Personas' awareness single-select → awareness_stage ENUM: Gratsi's 'Problem-Solution Awareness
+  // Level' and the TEMPLATE's 'Stage of Market Awareness (Breakthrough Advertising)' both land here.
+  // The template's two TRANSITION options are why `awarenessStages` carries the two `*_to_*` values
+  // (enums.ts:36-46); keys are normalized labels, so the arrow collapses to an underscore.
   awareness: {
     completely_unaware: 'unaware',
     unaware: 'unaware',
@@ -423,6 +457,18 @@ const MAPS = {
     solution_aware: 'solution_aware',
     product_aware: 'product_aware',
     most_aware: 'most_aware',
+    unaware_problem_aware: 'unaware_to_problem_aware',
+    problem_aware_solution_aware: 'problem_aware_to_solution_aware',
+  },
+  // AI Characters / Personas.'Status' (`fldJC4y8T2RHjaXxs`, template base): exactly three options,
+  // which normalize onto their own keys 1:1. `ai_characters.status` is plain `text` because no
+  // vocabulary for it exists in `packages/domain/src/state` yet, but it goes through the explicit
+  // map anyway: a blind normalize would mint a key for a fourth option and the dry run could never
+  // report it, which is the regression the 2026-09-29 sprint existed to close.
+  aiCharacterStatus: {
+    draft: 'draft',
+    pending_for_approval: 'pending_for_approval',
+    approved: 'approved',
   },
   // Meta Copywriting.'Status' → COPY_STATUS keys (1:1 through normalize).
   copyStatus: {
@@ -636,11 +682,36 @@ async function importRows(
   };
   const idMap: IdMap = new Map();
 
+  // Per table, not per row: the patch builder below needs them too.
+  const columns = getTableColumns(table);
+  const brandColumn = columns.brandId;
+
   for (const rec of records) {
+    let mapped: Record<string, unknown>;
+    try {
+      mapped = mapFn(rec.fields);
+    } catch (e) {
+      result.failed++;
+      result.errors.push(`${rec.id}: ${e instanceof Error ? e.message : String(e)}`);
+      continue;
+    }
+    // Tenancy at the query layer (CLAUDE.md): `legacy_airtable_id` is unique only WITHIN a base,
+    // there is no unique index on it, and the two bases demonstrably reuse id space (13 of the
+    // template base's 15 table ids are also bound in Gratsi, 6 of them to a differently named
+    // table — see TEMPLATE_IDS_WITH_DIFFERENT_GRATSI_NAME). Unscoped, a template record whose id
+    // matched a Gratsi record would UPDATE the other brand's live row instead of inserting,
+    // rewriting every mapped column and NULLing every nullable one the other base cannot name. The
+    // lookup is therefore scoped to the brand this row would be written to; the global `themes`
+    // (no `brand_id`, `themes_global` check) sets no brandId and keeps the unscoped form.
+    const rowBrandId = mapped.brandId;
     const existing = await db
       .select({ id: table.id })
       .from(table)
-      .where(eq(table.legacyAirtableId, rec.id))
+      .where(
+        brandColumn !== undefined && typeof rowBrandId === 'string'
+          ? and(eq(table.legacyAirtableId, rec.id), eq(brandColumn, rowBrandId))
+          : eq(table.legacyAirtableId, rec.id),
+      )
       .limit(1);
     if (existing.length > 0) {
       // Sprint 2026-09-29: a row from an earlier import is UPDATED with the current mapping, not
@@ -652,11 +723,9 @@ async function importRows(
         // A nested transaction is a SAVEPOINT: a bad row rolls back alone instead of aborting
         // the import's surrounding transaction (Postgres poisons an aborted tx otherwise).
         await db.transaction(async (sp) => {
-          const mapped = mapFn(rec.fields);
           // A field absent in Airtable is a cleared value: write NULL to nullable columns so the
           // row follows the base. NOT NULL columns keep their value (the mappers hand those their
           // column default explicitly instead of undefined).
-          const columns = getTableColumns(table);
           const patch: Record<string, unknown> = {};
           for (const [key, value] of Object.entries(mapped)) {
             const column = columns[key];
@@ -680,7 +749,6 @@ async function importRows(
     }
     try {
       await db.transaction(async (sp) => {
-        const mapped = mapFn(rec.fields);
         const [row] = await sp
           .insert(table)
           .values({
@@ -754,6 +822,8 @@ export async function importAirtableExport(
   const results: Record<string, TableResult> = {};
   const w = warnings;
   const { data, trackers } = trackExport(rawData);
+  // `trackExport` returns only the record arrays, so the stamp is read off the raw export.
+  const base: AirtableBaseKind = rawData.sourceBase ?? 'gratsi';
 
   // ━━ Pass 1: Insert records with data columns (no cross-table FKs) ━━
 
@@ -803,7 +873,11 @@ export async function importAirtableExport(
       country: str(f.Country),
       description: str(f.Description),
       promotionalIdeas: str(f['Promotional Ideas']),
+      // Gratsi calls the checkbox 'Interested'; the template base calls it 'Confirmed by Client'.
       confirmedByClient: bool(f.Interested ?? f['Confirmed by Client']),
+      // In the TEMPLATE base '(Internal) Product' is a real record link, so `product_id` can be
+      // filled; in Gratsi 'Product' is a lookup and there is nothing to resolve.
+      productId: firstRef(prodMap, f['(Internal) Product']),
       launched: bool(f.Launched),
       adsLaunchDate: str(f['Ads Launch Date']),
       adsEndDate: str(f['Ads End Date']),
@@ -816,31 +890,75 @@ export async function importAirtableExport(
     db,
     personas,
     data.Personas ?? [],
+    // TEMPLATE-FIRST (2026-10-02). The template's Personas (`tblRXknfgKsROI961`) carries all
+    // fifteen fields this table was designed from; the mapping was pinned to Gratsi's seven-field
+    // `tblyt7X4VjHxtMDVS`, where five columns were approximations and `day_in_the_life` was never
+    // read, and against the template base it resolved ONE field of fifteen. Template label first,
+    // Gratsi label as the fallback, so the 2026-10-01 Gratsi import re-runs unchanged.
     (f) => ({
       brandId,
-      name: str(f.Name) ?? 'Untitled',
+      name: str(f['Persona Name'] ?? f.Name) ?? 'Untitled',
+      // The template base's Personas links only to Angles; `product_id` is ours, not Airtable's.
       productId: firstRef(prodMap, f.Product),
+      dayInTheLife: str(f['A Day in the Life']),
       demographic: str(f.Demographic ?? f['Description  [Age Status Salary]']),
       psychographic: str(f.Psychographic ?? f.Personality),
-      coreDesires: str(f['Core Desires'] ?? f.Passion),
-      emotionalTriggers: str(f['Emotional Triggers'] ?? f['Drivers for this persona']),
-      painPoints: str(f['Pain Points']),
-      successFactors: str(f['Success Factors']),
-      perceivedBarriers: str(f['Perceived Barriers']),
+      coreDesires: str(f['Core Desires (Cashvertising)'] ?? f['Core Desires'] ?? f.Passion),
+      emotionalTriggers: str(
+        f['Emotional Triggers (Cashvertising)'] ??
+          f['Emotional Triggers'] ??
+          f['Drivers for this persona'],
+      ),
+      painPoints: str(f['Pain Points (Cashvertising)'] ?? f['Pain Points']),
+      successFactors: str(f['Success Factors (Buyer Personas)'] ?? f['Success Factors']),
+      perceivedBarriers: str(f['Perceived Barriers (Buyer Personas)'] ?? f['Perceived Barriers']),
       stageOfAwareness: mapStatus(
         w,
         'personas.stageOfAwareness',
         MAPS.awareness,
-        f['Problem-Solution Awareness Level'] ?? f['Stage of Awareness'],
+        f['Stage of Market Awareness (Breakthrough Advertising)'] ??
+          f['Problem-Solution Awareness Level'] ??
+          f['Stage of Awareness'],
       ),
-      buyingTriggers: str(f['Buying Triggers']),
-      problemChallenge: str(f['Problem Challenge']),
-      successTransformation: str(f['Success Transformation']),
-      triggerWords: str(f['Trigger Words']),
+      buyingTriggers: str(f['Buying Triggers (Breakthrough Advertising)'] ?? f['Buying Triggers']),
+      problemChallenge: str(f['Problem/Challenge (StoryBrand)'] ?? f['Problem Challenge']),
+      successTransformation: str(
+        f['Success/Transformation (StoryBrand)'] ?? f['Success Transformation'],
+      ),
+      triggerWords: str(f['Trigger Words (Mindstates)'] ?? f['Trigger Words']),
     }),
     actorId,
   );
   results.personas = personaResult;
+
+  // AI Characters / Personas (`tblgfe8A7nmce6lzn`), template base only — 12 stored fields, all on
+  // `schema/ai-characters.ts`, unreachable until now because no mapping named the table (AI-27).
+  // `Status` has no vocabulary in `packages/domain/src/state`, so the column stays plain text —
+  // but it still goes through an EXPLICIT map (MAPS.aiCharacterStatus), never a blind normalize, so
+  // a new Airtable option surfaces in the dry run. `Attachments` is multi against a single `text`
+  // column: first URL only, same expiry caveat as above.
+  const { result: aiCharacterResult } = await importRows(
+    db,
+    aiCharacters,
+    data['AI Characters / Personas'] ?? [],
+    (f) => ({
+      brandId,
+      name: str(f.Name) ?? 'Untitled',
+      attachments: attFirst(w, f.Attachments),
+      status: mapStatus(w, 'aiCharacters.status', MAPS.aiCharacterStatus, f.Status),
+      basicInfo: str(f['Basic Info']),
+      toneOfVoice: str(f['Tone of Voice']),
+      voiceLink: str(f['Voice Link (Eleven Labs)']),
+      personalityTraits: str(f['Personality Traits']),
+      appearance: str(f.Appearance),
+      traitsAndHabits: str(f['Traits & Habits']),
+      hobbiesAndLifestyle: str(f['Hobbies & Lifestyle']),
+      workAndBackground: str(f['Work & Background']),
+      whyPromotesBrand: str(f['Why He Promotes this brand?']),
+    }),
+    actorId,
+  );
+  results.aiCharacters = aiCharacterResult;
 
   const { result: angleResult, idMap: angleMap } = await importRows(
     db,
@@ -1078,17 +1196,35 @@ export async function importAirtableExport(
       ageBracket: str(f.Age ?? f['Age Bracket']),
       gender: str(f.Gender),
       ethnicity: str(f.Ethnicity),
+      // AI-26. Both fields are `multipleAttachments` against single `text` columns, so only the
+      // first URL fits and the filename has nowhere to go. The template capitalises the V where
+      // Gratsi writes "Creator's video Intro", which is why template video intros imported as NULL.
+      // These URLs EXPIRE; re-hosting is `scripts/migrate-airtable-urls.ts`, pending R2 credentials.
       profilePicUrl: attFirst(w, f["Creator's Profile Pic"]) ?? str(f['Profile Pic URL']),
-      videoIntroUrl: attFirst(w, f["Creator's video Intro"]) ?? str(f['Video Intro URL']),
+      videoIntroUrl:
+        attFirst(w, f["Creator's Video Intro"] ?? f["Creator's video Intro"]) ??
+        str(f['Video Intro URL']),
       creatorLink: str(f['Creator Link']),
       platform: multiSelectArr(f.Platform),
       internalBrief: str(f['Additional Note - TAS Team'] ?? f['Internal Brief']),
       shippingLocation: str(f['Shipping Location']),
       trackingNumber: str(f['Tracking Number '] ?? f['Tracking Number']),
       dateOfManagement: dateToTimestamp(f['Date of Management']),
-      deadline: dateToTimestamp(f.Deadline),
+      // The template base's own label; `Deadline` alone matched neither base.
+      deadline: dateToTimestamp(f['(Internal) Deadline for the request'] ?? f.Deadline),
       budgetPer60s: currencyInt(f['Budget per 60sec video'] ?? f['Budget per 60s']),
-      creatorCost: currencyInt(f["Creator's cost (USD) - Internal"] ?? f['Creator Cost']),
+      // Per base, NEVER chained. In Gratsi `Creator's cost (USD)` is a FORMULA
+      // (`fldyjj94Z6hdSKudo`, "cost plus a 5% fee") computed from `… - Internal`, and a numeric
+      // formula comes back as 0 rather than absent — so reading it as a `??` fallback would write
+      // 0 over NULL on a partnership-only creator, turning "unknown cost" into "free", and could
+      // write the fee-inflated figure into the column `schema/creators.ts` documents as the
+      // INTERNAL cost. The template base has no `- Internal` field: there `Creator's cost (USD)`
+      // (`fld5bSunM8WtFJB7L`) IS the stored currency.
+      creatorCost: currencyInt(
+        base === 'template'
+          ? (f["Creator's cost (USD)"] ?? f['Creator Cost'])
+          : (f["Creator's cost (USD) - Internal"] ?? f['Creator Cost']),
+      ),
       costUsd: currencyInt(f['Paid by TAS'] ?? f['Cost USD']),
       rawAssetsUrl: str(f['Raw assets'] ?? f['Raw Assets URL']),
       // Sprint 2026-09-29: the tracks were SWAPPED in the first import. UGC's 'Status' options are
@@ -1100,17 +1236,32 @@ export async function importAirtableExport(
         f.Status ?? f['Client Status'],
         CREATOR_CLIENT_STATUS_DEFAULT,
       ),
+      // The TEMPLATE names the internal track "Internal Creator's Status" (Gratsi: 'Creator
+      // Status'); neither name read here matched it, so it fell to the default on every row.
       internalCreatorStatus: mapStatus(
         w,
         'creators.internalCreatorStatus',
         MAPS.creatorInternal,
-        f['Creator Status'] ?? f['Internal Creator Status'],
+        f["Internal Creator's Status"] ?? f['Creator Status'] ?? f['Internal Creator Status'],
         CREATOR_INTERNAL_STATUS_DEFAULT,
       ),
-      internalAssetsStatus: normalizeStatusKey(f['Internal Assets Status']),
+      // Was a blind normalize, minting "internal_video_approved" — a key CREATOR_ASSETS_STATUS
+      // does not carry. Explicit map now, with the column default as the fallback (NOT NULL, so
+      // `undefined` would be dropped from the UPDATE path and leave the old value stale).
+      internalAssetsStatus: mapStatus(
+        w,
+        'creators.internalAssetsStatus',
+        MAPS.creatorAssets,
+        f['Internal Assets Status'],
+        CREATOR_ASSETS_STATUS_DEFAULT,
+      ),
       clientNote: str(f["(Client's) Note or Comments"] ?? f['Client Note']),
       instagramUsername: str(f['Instagram Username']),
-      forPartnershipAds: bool(f['For Partnership Ads']),
+      // Template label carries the question mark, and the field is a Yes/No singleSelect there, not
+      // a checkbox — `bool()` read "Yes" as false. Gratsi has no equivalent field at all.
+      forPartnershipAds:
+        selectToBool(f['For Partnership Ads?']) ??
+        bool(f['For Partnership Ads?'] ?? f['For Partnership Ads']),
       partnershipActivity: mapStatus(
         w,
         'creators.partnershipActivity',
@@ -1477,12 +1628,15 @@ export async function importAirtableExport(
   for (const rec of data.Angles ?? []) {
     const angleId = angleMap.get(rec.id);
     if (!angleId) continue;
-    const personaIds = resolveRefs(personaMap, rec.fields.Persona);
+    // The TEMPLATE base's Angles carries the link as `Personas`; `Persona` (singular) matched
+    // NEITHER base, so angle_personas was only ever written from the Concepts inference below.
+    const personaLink = rec.fields.Personas ?? rec.fields.Persona;
+    const personaIds = resolveRefs(personaMap, personaLink);
     for (const personaId of personaIds) {
       await db.insert(anglePersonas).values({ angleId, personaId }).onConflictDoNothing();
     }
     if (personaIds.length === 0) {
-      const personaId = resolveRef(personaMap, rec.fields.Persona);
+      const personaId = resolveRef(personaMap, personaLink);
       if (personaId) {
         await db.insert(anglePersonas).values({ angleId, personaId }).onConflictDoNothing();
       }
@@ -1795,9 +1949,10 @@ export async function importAirtableExport(
     if (!creatorId) continue;
     const conceptIds = resolveRefs(
       conceptMap,
-      rec.fields['Concept to film'] ?? rec.fields.Concepts,
+      // Template label is plural; Gratsi's is singular.
+      rec.fields['Concepts to film'] ?? rec.fields['Concept to film'] ?? rec.fields.Concepts,
       w,
-      "creators.'Concept to film'",
+      "creators.'Concepts to film'",
     );
     for (const conceptId of conceptIds) {
       await db.insert(creatorConcepts).values({ creatorId, conceptId }).onConflictDoNothing();

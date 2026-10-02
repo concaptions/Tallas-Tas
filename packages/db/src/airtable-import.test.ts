@@ -5,9 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { emptyWarnings, importAirtableExport, type AirtableExport } from './airtable-import';
 import { DEMO_BRAND_ID } from './demo-data';
 import {
+  aiCharacters,
   anglePersonas,
   angleProducts,
   angles,
+  brands,
   campaignConcepts,
   campaignsOffers,
   clientAssetFolders,
@@ -1427,5 +1429,406 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
       .from(creativeBriefs)
       .where(eq(creativeBriefs.legacyAirtableId, 'at_brief_1'));
     expect(brief?.performance).toBe('Winning');
+  });
+});
+
+describe('TEMPLATE base shapes (appnaSGAgOUbJ0f9m, 2026-10-02)', () => {
+  /**
+   * A slice of the real TEMPLATE base — the labels below are verbatim from
+   * `GET /v0/meta/bases/appnaSGAgOUbJ0f9m/tables`, which is the point: every one of them differs
+   * from the Gratsi label the importer used to read, and the mapping that was pinned to Gratsi's
+   * Personas table resolved ONE of these fifteen persona fields.
+   */
+  const TEMPLATE: AirtableExport = {
+    // The stamp `scripts/airtable-fetch.ts --template` writes. Without it the engine reads Gratsi
+    // labels, which is the whole point of the marker.
+    sourceBase: 'template',
+    Products: [{ id: 't_prod_1', fields: { Name: 'Blackout Coffee', Link: 'https://t.example' } }],
+    Personas: [
+      {
+        id: 't_pers_1',
+        fields: {
+          'Persona Name': 'Tactical dad',
+          'A Day in the Life': 'Garage gym at five, shop by seven.',
+          Demographic: '35-44, suburban, two kids',
+          Psychographic: 'Self-reliant, buys American',
+          'Core Desires (Cashvertising)': 'To be the one his family relies on',
+          'Emotional Triggers (Cashvertising)': 'Being underestimated',
+          'Pain Points (Cashvertising)': 'Coffee that tastes burnt',
+          'Success Factors (Buyer Personas)': 'Strong, honest roast',
+          'Perceived Barriers (Buyer Personas)': 'Subscription lock-in',
+          'Stage of Market Awareness (Breakthrough Advertising)': 'Problem-aware → solution-aware',
+          'Buying Triggers (Breakthrough Advertising)': 'A veteran-owned label',
+          'Problem/Challenge (StoryBrand)': 'Every roast tastes the same',
+          'Success/Transformation (StoryBrand)': 'A morning he looks forward to',
+          'Trigger Words (Mindstates)': 'Bold. Unapologetic.',
+          Angles: ['t_angle_1'],
+        },
+      },
+      {
+        id: 't_pers_2',
+        fields: {
+          'Persona Name': 'Unaware shopper',
+          'Stage of Market Awareness (Breakthrough Advertising)': 'Unaware → Problem-aware',
+        },
+      },
+    ],
+    'AI Characters / Personas': [
+      {
+        id: 't_ai_1',
+        fields: {
+          Name: 'Jack Riker',
+          Status: 'Pending for Approval',
+          'Basic Info': 'Former Marine mechanic',
+          'Tone of Voice': 'Blunt, dry',
+          'Voice Link (Eleven Labs)': 'https://elevenlabs.example/jack',
+          'Personality Traits': 'Gritty, sarcastic',
+          Appearance: 'Age: 42, salt-and-pepper',
+          'Traits & Habits': 'Drinks it black',
+          'Hobbies & Lifestyle': 'Fixing old trucks',
+          'Work & Background': 'Runs a machine shop',
+          'Why He Promotes this brand?': 'He lives the values',
+          Attachments: [
+            { url: 'https://v5.airtableusercontent.com/jack.png', filename: 'jack.png' },
+          ],
+        },
+      },
+    ],
+    Angles: [
+      {
+        id: 't_angle_1',
+        fields: {
+          Name: 'No burnt roast',
+          Type: ['Functional'],
+          Personas: ['t_pers_1'],
+          Product: ['t_prod_1'],
+          'Pain Points': 'burnt',
+          USP: 'small-batch',
+        },
+      },
+    ],
+    'Campaigns & Offers': [
+      {
+        id: 't_camp_1',
+        fields: {
+          Name: 'Veterans Day-20% off-VET20',
+          Holiday: 'Veterans Day',
+          'Confirmed by Client': true,
+          '(Internal) Product': ['t_prod_1'],
+        },
+      },
+    ],
+    Creators: [
+      {
+        id: 't_creator_1',
+        fields: {
+          'Creator name (Filled by UGC Manager)': 'Dana R.',
+          'Internal Brief': 'Film in the garage',
+          '(Internal) Deadline for the request': '2026-11-01',
+          'For Partnership Ads?': 'Yes',
+          "Internal Creator's Status": '(Internal) Pending for CS Approval',
+          Status: 'Filming In Progress...',
+          'Internal Assets Status': '(Internal Video) Revisions Needed',
+          "Creator's Video Intro": [
+            { url: 'https://v5.airtableusercontent.com/intro.mp4', filename: 'intro.mp4' },
+          ],
+          "Creator's Profile Pic": [
+            { url: 'https://v5.airtableusercontent.com/dana.jpg', filename: 'dana.jpg' },
+          ],
+          "Creator's cost (USD)": 420,
+          'Facebook Profile for Partnership': 'https://facebook.example/dana',
+          'Concepts to film': ['t_concept_1'],
+        },
+      },
+    ],
+    Concepts: [{ id: 't_concept_1', fields: { Name: 'B1-No burnt roast-Garage', Batch: 'B1' } }],
+  };
+
+  async function imported() {
+    const db = await seeded();
+    const results = await importAirtableExport(
+      db,
+      TEMPLATE,
+      DEMO_BRAND_ID,
+      'migration-actor',
+      emptyWarnings(),
+    );
+    return { db, results };
+  }
+
+  it('stores all fourteen non-link Personas fields the template base carries', async () => {
+    const { db, results } = await imported();
+    expect(results.personas?.failed).toBe(0);
+    const [persona] = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.legacyAirtableId, 't_pers_1'));
+    expect(persona?.name).toBe('Tactical dad');
+    // `day_in_the_life` had no mapping at all before: the Gratsi table has no such field.
+    expect(persona?.dayInTheLife).toBe('Garage gym at five, shop by seven.');
+    expect(persona?.demographic).toBe('35-44, suburban, two kids');
+    expect(persona?.psychographic).toBe('Self-reliant, buys American');
+    expect(persona?.coreDesires).toBe('To be the one his family relies on');
+    expect(persona?.emotionalTriggers).toBe('Being underestimated');
+    expect(persona?.painPoints).toBe('Coffee that tastes burnt');
+    expect(persona?.successFactors).toBe('Strong, honest roast');
+    expect(persona?.perceivedBarriers).toBe('Subscription lock-in');
+    expect(persona?.buyingTriggers).toBe('A veteran-owned label');
+    expect(persona?.problemChallenge).toBe('Every roast tastes the same');
+    expect(persona?.successTransformation).toBe('A morning he looks forward to');
+    expect(persona?.triggerWords).toBe('Bold. Unapologetic.');
+  });
+
+  it('maps the template awareness select, both transition options included', async () => {
+    const { db } = await imported();
+    const rows = await db.select().from(personas);
+    const byLegacy = new Map(rows.map((r) => [r.legacyAirtableId, r.stageOfAwareness]));
+    expect(byLegacy.get('t_pers_1')).toBe('problem_aware_to_solution_aware');
+    expect(byLegacy.get('t_pers_2')).toBe('unaware_to_problem_aware');
+  });
+
+  it('writes angle_personas from the template Angles › Personas link', async () => {
+    const { db } = await imported();
+    const [angle] = await db.select().from(angles).where(eq(angles.legacyAirtableId, 't_angle_1'));
+    const [persona] = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.legacyAirtableId, 't_pers_1'));
+    const rows = angle
+      ? await db.select().from(anglePersonas).where(eq(anglePersonas.angleId, angle.id))
+      : [];
+    expect(rows.map((r) => r.personaId)).toEqual([persona?.id]);
+  });
+
+  it('reads the template creator fields that previously resolved to nothing', async () => {
+    const { db, results } = await imported();
+    expect(results.creators?.failed).toBe(0);
+    const [creator] = await db
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 't_creator_1'));
+    expect(creator?.internalBrief).toBe('Film in the garage');
+    expect(creator?.deadline?.toISOString().slice(0, 10)).toBe('2026-11-01');
+    // A Yes/No singleSelect in the template, not a checkbox: `bool()` read "Yes" as false.
+    expect(creator?.forPartnershipAds).toBe(true);
+    expect(creator?.creatorCost).toBe(420);
+    expect(creator?.facebookProfileUrl).toBe('https://facebook.example/dana');
+    // AI-26: the first attachment URL of each media field, including the capital-V template label.
+    expect(creator?.profilePicUrl).toBe('https://v5.airtableusercontent.com/dana.jpg');
+    expect(creator?.videoIntroUrl).toBe('https://v5.airtableusercontent.com/intro.mp4');
+  });
+
+  it('routes the creator status tracks the way the template base names them', async () => {
+    const { db } = await imported();
+    const [creator] = await db
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 't_creator_1'));
+    // `Status` is the CLIENT track in the template base; `Internal Creator's Status` the internal
+    // one, and its "(Internal) …" labels are CREATOR_INTERNAL_STATUS keys.
+    expect(creator?.clientStatus).toBe('filming_in_progress');
+    expect(creator?.internalCreatorStatus).toBe('pending_for_cs_approval');
+    // Was a blind normalize, which stored "internal_video_revisions_needed".
+    expect(creator?.internalAssetsStatus).toBe('revisions_needed');
+  });
+
+  it('writes creator_concepts from the template plural label "Concepts to film"', async () => {
+    const { db } = await imported();
+    const [creator] = await db
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 't_creator_1'));
+    const [concept] = await db
+      .select()
+      .from(concepts)
+      .where(eq(concepts.legacyAirtableId, 't_concept_1'));
+    const rows = creator
+      ? await db.select().from(creatorConcepts).where(eq(creatorConcepts.creatorId, creator.id))
+      : [];
+    expect(rows.map((r) => r.conceptId)).toEqual([concept?.id]);
+  });
+
+  it('imports AI Characters / Personas, which had no mapping at all', async () => {
+    const { db, results } = await imported();
+    expect(results.aiCharacters?.imported).toBe(1);
+    expect(results.aiCharacters?.failed).toBe(0);
+    const [character] = await db
+      .select()
+      .from(aiCharacters)
+      .where(eq(aiCharacters.legacyAirtableId, 't_ai_1'));
+    expect(character?.name).toBe('Jack Riker');
+    expect(character?.status).toBe('pending_for_approval');
+    expect(character?.basicInfo).toBe('Former Marine mechanic');
+    expect(character?.toneOfVoice).toBe('Blunt, dry');
+    expect(character?.voiceLink).toBe('https://elevenlabs.example/jack');
+    expect(character?.personalityTraits).toBe('Gritty, sarcastic');
+    expect(character?.appearance).toBe('Age: 42, salt-and-pepper');
+    expect(character?.traitsAndHabits).toBe('Drinks it black');
+    expect(character?.hobbiesAndLifestyle).toBe('Fixing old trucks');
+    expect(character?.workAndBackground).toBe('Runs a machine shop');
+    expect(character?.whyPromotesBrand).toBe('He lives the values');
+    expect(character?.attachments).toBe('https://v5.airtableusercontent.com/jack.png');
+  });
+
+  it('fills campaigns_offers.product_id from the template record link', async () => {
+    const { db } = await imported();
+    const [campaign] = await db
+      .select()
+      .from(campaignsOffers)
+      .where(eq(campaignsOffers.legacyAirtableId, 't_camp_1'));
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(eq(products.legacyAirtableId, 't_prod_1'));
+    expect(campaign?.confirmedByClient).toBe(true);
+    expect(campaign?.productId).toBe(product?.id);
+  });
+
+  it('reads the template stored currency as the creator cost, the Gratsi formula label never', async () => {
+    // On the GRATSI path `Creator's cost (USD)` is the FORMULA (cost + 5% fee over "- Internal"),
+    // and Airtable returns a numeric formula as 0 rather than omitting it. Reading it as a `??`
+    // fallback wrote 0 over NULL for a partnership-only creator — "unknown cost" became "free" —
+    // and could write the fee-inflated figure into the internal-cost column. The engine reads the
+    // label per base now, so the same export under the two stamps gives different, correct answers.
+    const db = await seeded();
+    const gratsiRow = {
+      Creators: [
+        {
+          id: 'g_cost_blank',
+          fields: { 'Creator Name': 'Partnership only', "Creator's cost (USD)": 0 },
+        },
+        {
+          id: 'g_cost_set',
+          fields: {
+            'Creator Name': 'Fiverr UGC',
+            "Creator's cost (USD) - Internal": 100,
+            "Creator's cost (USD)": 105,
+          },
+        },
+      ],
+    } satisfies AirtableExport;
+    await importAirtableExport(db, gratsiRow, DEMO_BRAND_ID, 'migration-actor', emptyWarnings());
+    const gratsi = await db
+      .select({ legacyAirtableId: creators.legacyAirtableId, creatorCost: creators.creatorCost })
+      .from(creators)
+      .where(eq(creators.brandId, DEMO_BRAND_ID));
+    const byId = new Map(gratsi.map((r) => [r.legacyAirtableId, r.creatorCost]));
+    // NULL, not 0: the base holds no stored cost for this creator.
+    expect(byId.get('g_cost_blank')).toBeNull();
+    // The stored currency, never the marked-up formula.
+    expect(byId.get('g_cost_set')).toBe(100);
+    // Same label, template stamp: now it IS the stored currency (and there is no "- Internal").
+    const { db: templateDb } = await imported();
+    const [templateCreator] = await templateDb
+      .select()
+      .from(creators)
+      .where(eq(creators.legacyAirtableId, 't_creator_1'));
+    expect(templateCreator?.creatorCost).toBe(420);
+  });
+
+  it('reports an AI-character Status outside the three template options instead of minting it', async () => {
+    const db = await seeded();
+    const warnings = emptyWarnings();
+    await importAirtableExport(
+      db,
+      {
+        sourceBase: 'template',
+        'AI Characters / Personas': [
+          { id: 't_ai_new', fields: { Name: 'Nina', Status: 'Archived (new option)' } },
+        ],
+      },
+      DEMO_BRAND_ID,
+      'migration-actor',
+      warnings,
+    );
+    expect([...warnings.unmappedValues.keys()]).toContain(
+      'aiCharacters.status: "Archived (new option)"',
+    );
+  });
+
+  it('a second brand importing the SAME legacy id inserts, it never updates the other brand', async () => {
+    // `legacy_airtable_id` is unique only within a base and has no unique index; the two bases
+    // demonstrably share id space. Unscoped, this import would have rewritten the Gratsi brand's
+    // live row with template values and NULLed every column the template cannot name.
+    const db = await seeded();
+    const [demo] = await db.select().from(brands).where(eq(brands.id, DEMO_BRAND_ID));
+    const [other] = await db
+      .insert(brands)
+      .values({
+        agencyId: demo?.agencyId ?? '',
+        name: 'Parent template',
+        slug: 'parent-template',
+        isTemplate: true,
+      })
+      .returning({ id: brands.id });
+    const otherBrandId = other?.id ?? '';
+    await importAirtableExport(
+      db,
+      {
+        Personas: [
+          { id: 'recCOLLIDE', fields: { Name: 'Gratsi persona', Personality: 'Thrifty' } },
+        ],
+      },
+      DEMO_BRAND_ID,
+      'migration-actor',
+      emptyWarnings(),
+    );
+    const second = await importAirtableExport(
+      db,
+      {
+        sourceBase: 'template',
+        Personas: [{ id: 'recCOLLIDE', fields: { 'Persona Name': 'Template persona' } }],
+      },
+      otherBrandId,
+      'migration-actor',
+      emptyWarnings(),
+    );
+    expect(second.personas?.imported).toBe(1);
+    expect(second.personas?.updated).toBe(0);
+    const rows = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.legacyAirtableId, 'recCOLLIDE'));
+    expect(rows).toHaveLength(2);
+    // The Gratsi row is untouched: its name AND the psychographic the template cannot name.
+    const gratsiRow = rows.find((r) => r.brandId === DEMO_BRAND_ID);
+    expect(gratsiRow?.name).toBe('Gratsi persona');
+    expect(gratsiRow?.psychographic).toBe('Thrifty');
+    expect(rows.find((r) => r.brandId === otherBrandId)?.name).toBe('Template persona');
+  });
+
+  it('still reads the Gratsi persona labels, so the 2026-10-01 import re-runs unchanged', async () => {
+    const db = await seeded();
+    await importAirtableExport(
+      db,
+      {
+        Personas: [
+          {
+            id: 'g_pers_legacy',
+            fields: {
+              Name: 'Boxed-wine sceptic',
+              'Description  [Age Status Salary]': '45-54, 70k',
+              Personality: 'Thrifty',
+              Passion: 'Good value',
+              'Drivers for this persona': 'Being ripped off',
+              'Problem-Solution Awareness Level': 'Completely Unaware',
+            },
+          },
+        ],
+      },
+      DEMO_BRAND_ID,
+      'migration-actor',
+      emptyWarnings(),
+    );
+    const [persona] = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.legacyAirtableId, 'g_pers_legacy'));
+    expect(persona?.name).toBe('Boxed-wine sceptic');
+    expect(persona?.demographic).toBe('45-54, 70k');
+    expect(persona?.psychographic).toBe('Thrifty');
+    expect(persona?.coreDesires).toBe('Good value');
+    expect(persona?.emotionalTriggers).toBe('Being ripped off');
+    expect(persona?.stageOfAwareness).toBe('unaware');
   });
 });
