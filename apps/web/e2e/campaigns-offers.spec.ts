@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { campaignsOffersPath, emailCampaignsPath } from '../src/lib/routes';
+import { appPath, campaignsOffersPath, emailCampaignsPath } from '../src/lib/routes';
 
 /**
  * The Campaigns & Offers route in demo mode (no Clerk key): the three fixture campaigns render, a
@@ -92,19 +92,31 @@ test.describe('campaigns & offers in demo mode (no Clerk publishable key)', () =
     );
   });
 
-  test('a linked email campaign opens on its own page', async ({ page }) => {
+  /**
+   * This test used to follow the link and assert the Email Campaigns panel opened on that row.
+   * Email Campaigns is HIDDEN as of 2026-10-02 (template-base alignment): the Airtable TEMPLATE
+   * base has no table for it, so `/app/email-campaigns` `redirect`s to the Overview
+   * (`email-campaigns.spec.ts`, `docs/decisions/data-loss-blockers-2026-10-02.md`). The link itself
+   * is unchanged and is still asserted by name AND by href — the reverse read through
+   * `email_campaign_campaigns` is what this test is really about, and that still holds; only where
+   * the click lands has changed.
+   */
+  test('a linked email campaign is named and addressed, and its hidden route redirects', async ({
+    page,
+  }) => {
     await page.goto(`${campaignsOffersPath}?campaign=${BFCM}`);
 
-    await page
+    const link = page
       .locator('[data-slot="campaign-email-campaigns"]')
-      .getByRole('link', { name: 'BFCM Early Access — VIP list' })
-      .click();
-
-    await expect(page).toHaveURL(new RegExp(`emailCampaign=${EMAIL_BFCM_EARLY_ACCESS}`));
-    const target = page.locator('[data-slot="email-campaign-panel"]');
-    await expect(target).toBeVisible();
-    await expect(target.locator('[data-slot="email-campaign-panel-title"]')).toHaveText(
-      'BFCM Early Access — VIP list',
+      .getByRole('link', { name: 'BFCM Early Access — VIP list' });
+    await expect(link).toHaveAttribute(
+      'href',
+      `${emailCampaignsPath}?emailCampaign=${EMAIL_BFCM_EARLY_ACCESS}`,
     );
+
+    await link.click();
+
+    await expect(page).toHaveURL((url) => url.pathname === appPath);
+    await expect(page.locator('[data-slot="email-campaign-panel"]')).toHaveCount(0);
   });
 });

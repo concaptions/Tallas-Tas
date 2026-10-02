@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { emailCampaignsPath, productsPath, youtubeCopywritingPath } from '../src/lib/routes';
+import {
+  appPath,
+  emailCampaignsPath,
+  productsPath,
+  youtubeCopywritingPath,
+} from '../src/lib/routes';
 
 /**
  * The Products route with no environment variables at all — the Vercel deployment as it stands.
@@ -186,12 +191,20 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
       page.locator('[data-slot="product-youtube-copy-row"]').getByRole('link'),
     ).toHaveText('Copy 3');
 
-    // Two-way: following a link lands on the counterpart's page with its panel open on that row.
-    await page.locator('[data-slot="product-youtube-copy-row"]').getByRole('link').click();
-    await expect(page).toHaveURL(
-      /\/app\/youtube-copywriting\?youtube-copy=a1b2c3d4-0012-4012-8012-000000000003/,
+    // Two-way: the link still names the counterpart row by its junction id, so the reverse list is
+    // unchanged. Following it no longer opens the YouTube Copywriting panel, because that module is
+    // HIDDEN as of 2026-10-02 (template-base alignment) and `/app/youtube-copywriting`
+    // `redirect`s to the Overview — see `youtube-copywriting.spec.ts` and
+    // `docs/decisions/data-loss-blockers-2026-10-02.md`. The href assertion is kept at full
+    // strength; only the destination's behaviour has changed.
+    const counterpart = page.locator('[data-slot="product-youtube-copy-row"]').getByRole('link');
+    await expect(counterpart).toHaveAttribute(
+      'href',
+      `${youtubeCopywritingPath}?youtube-copy=a1b2c3d4-0012-4012-8012-000000000003`,
     );
-    await expect(page.locator('[data-slot="youtube-copy-panel"]')).toBeVisible();
+    await counterpart.click();
+    await expect(page).toHaveURL((url) => url.pathname === appPath);
+    await expect(page.locator('[data-slot="youtube-copy-panel"]')).toHaveCount(0);
   });
 
   test('search filters the table and the empty state offers to clear it', async ({ page }) => {

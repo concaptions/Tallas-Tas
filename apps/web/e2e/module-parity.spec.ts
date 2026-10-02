@@ -29,17 +29,27 @@ import {
 /**
  * Airtable module parity (Prompt 4, item 1 of the module-parity work, 2026-10-01).
  *
- * One table, twenty-one rows: every sidebar section that stands in for a Gratsi base table — the
- * fifteen modules the Prompt 4 list names, then the six tables the sidebar already stood in for
- * (Angles, Concepts, Personas, Themes, UGC Management, Competitive Research). For each one the
- * test clicks the sidebar link by its exact accessible name, checks the URL and the `h1`, checks
- * the grid has at least one fixture row, opens the first row, and then asserts that the panel (or,
- * for Creative Design and Concepts, the detail page; for Themes, the card itself) shows a label
- * for EVERY stored field of the Gratsi table — "stored" meaning every field type except formula,
- * lookup, rollup, count, the created/modified timestamps, created-by, autonumber and button. The
- * ground truth is `gratsi-meta.json` (the live base `appllDG4OmkK2Hdnn`), read field by field; the
- * field-to-label mapping is spelled out per entry so a reviewer can check it against `fields.ts`
- * of each module (and, for the six later tables, against `TABLE_MAPPINGS` in
+ * UPDATED 2026-10-02 (template-base alignment). The table had twenty-one rows, one per sidebar
+ * section that stands in for a Gratsi base table. Six of those modules are now HIDDEN, because the
+ * Airtable TEMPLATE base `appnaSGAgOUbJ0f9m` became the source of truth and has no table for them:
+ * Copy Types, YouTube Copywriting, Email Campaigns, Email Flows, Creative Reporting and SM
+ * Campaign Feed (`docs/audits/template-base-diff-2026-10-02.md`). Their rows left `MODULES` — the
+ * sidebar no longer links them and their routes redirect, so there is no link to click and no panel
+ * to read labels in — and `HIDDEN_MODULES` below asserts that new truth instead. Nothing was
+ * relaxed for the fifteen that remain, and nothing was deleted in the database: the tables, the
+ * queries and the page components are all still there
+ * (`docs/decisions/data-loss-blockers-2026-10-02.md`).
+ *
+ * One table, fifteen rows: every sidebar section that stands in for a Gratsi base table and is
+ * still listed. For each one the test clicks the sidebar link by its exact accessible name, checks
+ * the URL and the `h1`, checks the grid has at least one fixture row, opens the first row, and
+ * then asserts that the panel (or, for Creative Design and Concepts, the detail page; for Themes,
+ * the card itself) shows a label for EVERY stored field of the Gratsi table — "stored" meaning
+ * every field type except formula, lookup, rollup, count, the created/modified timestamps,
+ * created-by, autonumber and button. The ground truth is `gratsi-meta.json` (the live base
+ * `appllDG4OmkK2Hdnn`), read field by field; the field-to-label mapping is spelled out per entry
+ * so a reviewer can check it against `fields.ts` of each module (and, for the six tables the
+ * sidebar already stood in for, against `TABLE_MAPPINGS` in
  * `packages/db/src/scripts/import-mappings.ts`, which names the column each Gratsi field lands in).
  *
  * WHAT COUNTS AS PRESENT. A label counts when the panel renders the field's platform name as the
@@ -129,10 +139,10 @@ interface ModuleEntry {
 }
 
 /**
- * The twenty-one modules: the fifteen in the order the task lists them, then the six Gratsi tables
- * the sidebar already stood in for, in sidebar order. Field order follows `gratsi-meta.json`.
- * Where the Gratsi name and the platform label differ, the pair says so; where a label is absent
- * from the panel today, the line is marked `gap:` and the assertion is expected to fail.
+ * The fifteen VISIBLE modules, in sidebar order. Field order follows `gratsi-meta.json`. Where the
+ * Gratsi name and the platform label differ, the pair says so; where a label is absent from the
+ * panel today, the line is marked `gap:` and the assertion is expected to fail. The six hidden
+ * modules are in `HIDDEN_MODULES`, not here.
  */
 const MODULES: readonly ModuleEntry[] = [
   {
@@ -308,21 +318,6 @@ const MODULES: readonly ModuleEntry[] = [
     excluded: [],
   },
   {
-    label: 'SM Campaign Feed',
-    path: smCampaignFeedPath,
-    heading: 'SM Campaign Feed',
-    rowSlot: 'sm-task-row',
-    opens: { panelSlot: 'sm-task-panel' },
-    fields: [
-      { gratsi: 'Task Name', label: 'Task Name' },
-      { gratsi: 'Platform', label: 'Platform' },
-      { gratsi: 'Due Date', label: 'Due Date (UTC)' },
-      { gratsi: 'Status', label: 'Status' },
-      { gratsi: 'Notes', label: 'Notes' },
-    ],
-    excluded: [],
-  },
-  {
     label: 'Campaigns & Offers',
     path: campaignsOffersPath,
     heading: 'Campaigns & Offers',
@@ -453,138 +448,6 @@ const MODULES: readonly ModuleEntry[] = [
       { gratsi: 'Description', label: 'Description' },
       { gratsi: 'Location', label: 'Location' },
       { gratsi: '(Internal) Creative Design', label: 'Creative Designs' },
-    ],
-    excluded: [],
-  },
-  {
-    label: 'Email Campaigns',
-    path: emailCampaignsPath,
-    heading: 'Email Campaigns',
-    rowSlot: 'email-campaign-row',
-    opens: { panelSlot: 'email-campaign-panel' },
-    fields: [
-      { gratsi: 'Name', label: 'Name' },
-      { gratsi: 'Campaign Purpose', label: 'Campaign Purpose' },
-      { gratsi: 'Status', label: 'Status' },
-      { gratsi: 'Send Date', label: 'Send Date' },
-      { gratsi: 'Copywriting', label: 'Copywriting' },
-      { gratsi: 'Assignee', label: 'Assignee' },
-      { gratsi: 'Copy Link', label: 'Copy Link' },
-      { gratsi: 'Design', label: 'Design' },
-      { gratsi: 'Klaviyo Link', label: 'Klaviyo Link' },
-      { gratsi: 'Assets', label: 'Assets' },
-      { gratsi: 'Type', label: 'Type' },
-      { gratsi: 'Channel', label: 'Channel' },
-      { gratsi: 'Campaigns & Offers', label: 'Campaigns & Offers' },
-      { gratsi: '(Internal) Product', label: 'Products' },
-      { gratsi: '(Internal) Collections', label: 'Collections' },
-    ],
-    excluded: [],
-  },
-  {
-    label: 'Email Flows',
-    path: emailFlowsPath,
-    heading: 'Email Flows',
-    rowSlot: 'email-flow-row',
-    opens: { panelSlot: 'email-flow-panel' },
-    fields: [
-      { gratsi: 'Flow Name', label: 'Flow Name' },
-      { gratsi: 'Expected Setup Date', label: 'Expected Setup Date' },
-      { gratsi: 'Flow Purpose', label: 'Flow Purpose' },
-      { gratsi: 'Status', label: 'Status' },
-      { gratsi: 'Copywriting', label: 'Copywriting' },
-      { gratsi: 'Design', label: 'Design' },
-      { gratsi: 'Klaviyo Link', label: 'Klaviyo Link' },
-      { gratsi: 'Type', label: 'Type' },
-      { gratsi: 'Campaigns & Offers', label: 'Campaigns & Offers' },
-      { gratsi: 'Inspo', label: 'Inspo' },
-      { gratsi: 'Assignee', label: 'Assignee' },
-    ],
-    excluded: [],
-  },
-  {
-    label: 'YouTube Copywriting',
-    path: youtubeCopywritingPath,
-    heading: 'YouTube Copywriting',
-    rowSlot: 'youtube-copy-row',
-    opens: { panelSlot: 'youtube-copy-panel' },
-    fields: [
-      { gratsi: 'Copy #', label: 'Copy #' },
-      { gratsi: 'Status', label: 'Status' },
-      { gratsi: 'Collections', label: 'Collections' },
-      { gratsi: 'Product', label: 'Product' },
-      { gratsi: 'Angle', label: 'Angle' },
-      { gratsi: 'Descriptions (90 caractères max)', label: 'Descriptions' },
-      { gratsi: 'Headline', label: 'Headline' },
-      { gratsi: 'News Feed', label: 'News Feed' },
-      { gratsi: 'CTA', label: 'CTA' },
-      { gratsi: 'Campaign Code', label: 'Campaign Code' },
-      { gratsi: 'Funnel', label: 'Funnel' },
-      { gratsi: 'Copy Type', label: 'Copy Type' },
-      { gratsi: "Client's Comment", label: "Client's Comment" },
-      { gratsi: 'USED', label: 'Used' },
-      { gratsi: 'Winning', label: 'Winning' },
-      { gratsi: 'Meta Rating', label: 'Meta Rating' },
-      // The text remnant is the same datum as the Product link (audit §2.12).
-      { gratsi: '(Internal) Product', label: 'Product' },
-    ],
-    excluded: [
-      {
-        field: '(Internal) Creative Design',
-        reason:
-          'residual single-line text; youtube_copy has no brief link because the base\'s field is not one (docs/decisions.md "Airtable field exclusion register" (2026-10-01))',
-      },
-      {
-        field: 'Creative Sheet',
-        reason:
-          'residual single-line text left by a converted link (docs/decisions.md "Airtable field exclusion register" (2026-10-01))',
-      },
-      {
-        field: 'Creative Reporting',
-        reason:
-          'residual single-line text left by a converted link (docs/decisions.md "Airtable field exclusion register" (2026-10-01))',
-      },
-      {
-        field: '⚠️ Please Change the Status of the copy',
-        reason:
-          'the same UI-instruction banner Meta Copywriting carries, not data (audit §2.1 reasoning; §2.12 lists the table as structurally identical)',
-      },
-    ],
-  },
-  {
-    label: 'Creative Reporting',
-    path: creativeReportingPath,
-    heading: 'Creative Reporting',
-    rowSlot: 'creative-report-row',
-    opens: { panelSlot: 'creative-report-panel' },
-    fields: [
-      { gratsi: 'Name + Angle + Offer', label: 'Name + Angle + Offer' },
-      { gratsi: 'Notes', label: 'Notes' },
-      { gratsi: 'Ad Design', label: 'Ad Design' },
-      { gratsi: 'Ad Link', label: 'Ad Link' },
-      { gratsi: 'CTR', label: 'CTR' },
-      { gratsi: 'Thumb-Stop Rate', label: 'Thumb-Stop Rate' },
-      { gratsi: 'Results', label: 'Results' },
-      { gratsi: 'CPA', label: 'CPA' },
-      { gratsi: 'Target CPA', label: 'Target CPA' },
-      { gratsi: 'ROAS', label: 'ROAS' },
-      { gratsi: 'Target ROAS', label: 'Target ROAS' },
-    ],
-    excluded: [],
-  },
-  {
-    label: 'Copy Types',
-    path: copyTypesPath,
-    heading: 'Copy Types',
-    rowSlot: 'copy-type-row',
-    opens: { panelSlot: 'copy-type-panel' },
-    fields: [
-      { gratsi: 'Name', label: 'Name' },
-      { gratsi: 'Description', label: 'Description' },
-      // "Copywriting" is the YouTube side of the link (audit §2.13).
-      { gratsi: 'Copywriting', label: 'YouTube copies' },
-      // "Ads Copywriting copy" is the Meta side of the link (audit §2.13).
-      { gratsi: 'Ads Copywriting copy', label: 'Meta copies' },
     ],
     excluded: [],
   },
@@ -942,10 +805,29 @@ async function openFirstRow(page: Page, entry: ModuleEntry): Promise<Locator> {
   return page.getByRole('main');
 }
 
-test('the table names the twenty-one Airtable modules once each, with no field asserted twice', () => {
-  expect(MODULES).toHaveLength(21);
-  expect(new Set(MODULES.map((entry) => entry.label)).size).toBe(21);
-  expect(new Set(MODULES.map((entry) => entry.path)).size).toBe(21);
+/**
+ * The six modules hidden on 2026-10-02: the sidebar does not list them and the route redirects to
+ * `/app`. The label is the accessible name the sidebar link USED to carry, so the absence assertion
+ * below is written against the same name the fifteen visible rows are clicked by.
+ */
+const HIDDEN_MODULES: readonly { readonly label: string; readonly path: string }[] = [
+  { label: 'Copy Types', path: copyTypesPath },
+  { label: 'YouTube Copywriting', path: youtubeCopywritingPath },
+  { label: 'Email Campaigns', path: emailCampaignsPath },
+  { label: 'Email Flows', path: emailFlowsPath },
+  { label: 'Creative Reporting', path: creativeReportingPath },
+  { label: 'SM Campaign Feed', path: smCampaignFeedPath },
+];
+
+test('the table names the fifteen visible Airtable modules once each, with no field asserted twice', () => {
+  expect(MODULES).toHaveLength(15);
+  expect(new Set(MODULES.map((entry) => entry.label)).size).toBe(15);
+  expect(new Set(MODULES.map((entry) => entry.path)).size).toBe(15);
+  // The twenty-one of 2026-10-01 minus the six now hidden; no module is in both lists.
+  expect(MODULES.length + HIDDEN_MODULES.length).toBe(21);
+  for (const hidden of HIDDEN_MODULES) {
+    expect(MODULES.map((entry) => entry.path)).not.toContain(hidden.path);
+  }
   for (const entry of MODULES) {
     const names = [
       ...entry.fields.map((field) => field.gratsi),
@@ -995,6 +877,61 @@ test.describe('Airtable module parity in demo mode (no Clerk publishable key)', 
           )
           .toBeVisible({ timeout: LABEL_TIMEOUT });
       }
+    });
+  }
+});
+
+/**
+ * The other side of the same claim: the six modules the template base has no table for are gone
+ * from the sidebar and their routes redirect to `/app`. Asserted here rather than in the fifteen
+ * rows above because there is nothing left to click — which is the point.
+ *
+ * The redirect is a `redirect` (307, not a permanent 308 — the hide is reversible and a 308 would
+ * stay cached after the module came back) in each module's `page.tsx`, so the assertion is on
+ * where the navigation ENDS, not on a 404: a bookmark or an in-app cross-link into a hidden module
+ * (Products still links a YouTube copy, Creative Design still links a Creative Report) lands on
+ * the Overview. Hiding is reversible by design — `docs/decisions/data-loss-blockers-2026-10-02.md`.
+ */
+test.describe('the six modules hidden by the template-base alignment (2026-10-02)', () => {
+  test.skip(
+    clerkKeys() !== undefined,
+    'Clerk keys present: this is the demo-mode run; the sidebar and the redirect need no session',
+  );
+
+  test.describe.configure({ timeout: 180_000 });
+
+  test('the sidebar lists none of them', async ({ page }) => {
+    await page.goto(appPath);
+    const sidebar = page.getByRole('navigation', { name: 'Sections' });
+    // The sidebar has rendered before a single absence is claimed, or every one of them is vacuous.
+    await expect(sidebar.getByRole('link', { name: 'Meta Copywriting', exact: true })).toBeVisible({
+      timeout: COLD_ROUTE_TIMEOUT,
+    });
+
+    for (const hidden of HIDDEN_MODULES) {
+      await expect
+        .soft(
+          sidebar.getByRole('link', { name: hidden.label, exact: true }),
+          `the sidebar still links the hidden module "${hidden.label}"`,
+        )
+        .toHaveCount(0);
+      await expect
+        .soft(sidebar.locator(`a[href="${hidden.path}"]`), `the sidebar still links ${hidden.path}`)
+        .toHaveCount(0);
+    }
+  });
+
+  for (const hidden of HIDDEN_MODULES) {
+    test(`${hidden.label}: ${hidden.path} redirects to the Overview`, async ({ page }) => {
+      await page.goto(hidden.path);
+
+      await expect(page).toHaveURL((url) => url.pathname === appPath, {
+        timeout: COLD_ROUTE_TIMEOUT,
+      });
+      // The Overview really rendered; a redirect loop or an error page would not have this heading.
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible({
+        timeout: COLD_ROUTE_TIMEOUT,
+      });
     });
   }
 });
