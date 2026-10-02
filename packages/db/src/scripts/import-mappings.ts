@@ -56,6 +56,16 @@ export interface FieldMapping {
 export interface TableMapping {
   readonly airtableTable: string;
   readonly airtableTableId: string;
+  /**
+   * The same destination's table NAME and id in the TEMPLATE base `appnaSGAgOUbJ0f9m`, where it
+   * differs from the Gratsi pair above or where Gratsi has no such table (2026-10-02). Both are
+   * documentation — `TEMPLATE_TABLES` in `../airtable-tables.ts` is what the fetcher resolves — but
+   * `airtable-tables.test.ts` FAILS if a `templateTableId` here is not the id the template base's
+   * own metadata binds to `templateTable`, which is how the Gratsi Personas id got onto the
+   * template path in the first place.
+   */
+  readonly templateTable?: string;
+  readonly templateTableId?: string;
   readonly drizzleImport: string;
   readonly importOrder: number;
   readonly isGlobal?: boolean;
@@ -146,6 +156,8 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
   campaignsOffers: {
     airtableTable: 'Campaigns & Offers',
     airtableTableId: 'tblRNaWCVa1cCIwLL',
+    templateTable: 'Campaigns & Offers',
+    templateTableId: 'tblRNaWCVa1cCIwLL',
     drizzleImport: 'campaignsOffers',
     importOrder: 3,
     fields: {
@@ -164,7 +176,12 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       Interested: {
         drizzleColumn: 'confirmedByClient',
         handler: 'checkbox',
-        note: 'Airtable "Interested" maps to confirmedByClient',
+        note: 'Gratsi label for confirmedByClient',
+      },
+      'Confirmed by Client': {
+        drizzleColumn: 'confirmedByClient',
+        handler: 'checkbox',
+        note: 'TEMPLATE label for the same checkbox (2026-10-02). Keyed only on Gratsi\'s "Interested" before, so this column would not have resolved against the template base',
       },
       Launched: { drizzleColumn: 'launched', handler: 'checkbox' },
       'Ads Launch Date': { drizzleColumn: 'adsLaunchDate', handler: 'date' },
@@ -179,7 +196,12 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       Product: {
         drizzleColumn: null,
         handler: 'skip',
-        note: 'multipleLookupValues, not a direct link',
+        note: 'Gratsi: multipleLookupValues, not a direct link',
+      },
+      '(Internal) Product': {
+        drizzleColumn: 'productId',
+        handler: 'singleLink',
+        note: "TEMPLATE base only, where the same relationship is a real record link rather than Gratsi's lookup — so product_id can be filled (first link wins; the Airtable field is many)",
       },
       COPY: {
         drizzleColumn: null,
@@ -216,42 +238,134 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
   },
 
   personas: {
+    // TEMPLATE-FIRST (2026-10-02). This entry used to be pinned to Gratsi's `tblyt7X4VjHxtMDVS`,
+    // a DIFFERENT seven-field table whose mappings were explicit approximations ("Closest match to
+    // coreDesires"); run against the template base it resolved one field of fifteen. The template's
+    // Personas (`tblRXknfgKsROI961`) carries all fifteen fields this table was designed from, one
+    // for one, so the template labels are the mapping and the Gratsi labels are kept below as the
+    // legacy fallbacks the engine still reads for the 2026-10-01 Gratsi import.
     airtableTable: 'Personas',
     airtableTableId: 'tblyt7X4VjHxtMDVS',
+    templateTable: 'Personas',
+    templateTableId: 'tblRXknfgKsROI961',
     drizzleImport: 'personas',
     importOrder: 4,
     fields: {
-      Name: { drizzleColumn: 'name', handler: 'text', required: true, default: 'Untitled' },
+      // ── Template base (appnaSGAgOUbJ0f9m), all 15 fields, zero computed ──
+      'Persona Name': {
+        drizzleColumn: 'name',
+        handler: 'text',
+        required: true,
+        default: 'Untitled',
+      },
+      'A Day in the Life': { drizzleColumn: 'dayInTheLife', handler: 'text' },
+      Demographic: { drizzleColumn: 'demographic', handler: 'text' },
+      Psychographic: { drizzleColumn: 'psychographic', handler: 'text' },
+      'Core Desires (Cashvertising)': { drizzleColumn: 'coreDesires', handler: 'text' },
+      'Emotional Triggers (Cashvertising)': {
+        drizzleColumn: 'emotionalTriggers',
+        handler: 'text',
+      },
+      'Pain Points (Cashvertising)': { drizzleColumn: 'painPoints', handler: 'text' },
+      'Success Factors (Buyer Personas)': { drizzleColumn: 'successFactors', handler: 'text' },
+      'Perceived Barriers (Buyer Personas)': {
+        drizzleColumn: 'perceivedBarriers',
+        handler: 'text',
+      },
+      'Stage of Market Awareness (Breakthrough Advertising)': {
+        drizzleColumn: 'stageOfAwareness',
+        handler: 'select',
+        note: 'MAPS.awareness; the three template options (Problem-aware; Problem-aware → solution-aware; Unaware → Problem-aware) each have an exact awareness_stage key, so nothing is lost',
+      },
+      'Buying Triggers (Breakthrough Advertising)': {
+        drizzleColumn: 'buyingTriggers',
+        handler: 'text',
+      },
+      'Problem/Challenge (StoryBrand)': { drizzleColumn: 'problemChallenge', handler: 'text' },
+      'Success/Transformation (StoryBrand)': {
+        drizzleColumn: 'successTransformation',
+        handler: 'text',
+      },
+      'Trigger Words (Mindstates)': { drizzleColumn: 'triggerWords', handler: 'text' },
+      Angles: {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'anglePersonas',
+        note: "Written in Pass 2 from Angles › Personas (the inverse field); the template base links Personas only to Angles — no Product link, so personas.product_id is ours, not Airtable's",
+      },
+      // ── Gratsi base (appllDG4OmkK2Hdnn), the seven-field legacy table; kept so the
+      // 2026-10-01 production import re-runs unchanged. Every label below is Gratsi-only. ──
+      Name: {
+        drizzleColumn: 'name',
+        handler: 'text',
+        required: true,
+        default: 'Untitled',
+        note: 'Gratsi label for Persona Name',
+      },
       'Description  [Age Status Salary]': {
         drizzleColumn: 'demographic',
         handler: 'text',
-        note: 'Airtable "Description" maps to demographic',
+        note: 'Gratsi approximation: Airtable "Description" maps to demographic',
       },
       Personality: {
         drizzleColumn: 'psychographic',
         handler: 'richText',
-        note: 'Rich text → plain text',
+        note: 'Gratsi approximation; the template base has a real Psychographic field',
       },
       'Drivers for this persona': {
         drizzleColumn: 'emotionalTriggers',
         handler: 'richText',
-        note: 'Closest match to emotionalTriggers',
+        note: 'Gratsi approximation; the template base has a real Emotional Triggers field',
       },
       Passion: {
         drizzleColumn: 'coreDesires',
         handler: 'richText',
-        note: 'Closest match to coreDesires',
-      },
-      Angles: {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'Reverse link; the junction/FK is written from Angles › Personas into angle_personas (the gate derives this from inverseLinkFieldId)',
+        note: 'Gratsi approximation; the template base has a real Core Desires field',
       },
       'Problem-Solution Awareness Level': {
         drizzleColumn: 'stageOfAwareness',
         handler: 'select',
-        note: 'Map Airtable select values to awareness_stage enum keys',
+        note: 'Gratsi label for the awareness select; same MAPS.awareness map',
       },
+    },
+  },
+
+  /**
+   * AI Characters / Personas — TEMPLATE BASE ONLY (`tblgfe8A7nmce6lzn`), added 2026-10-02 (AI-27).
+   * The Gratsi base has no such table and `GRATSI_TABLES` has no entry, which is why this table had
+   * no mapping at all even though `schema/ai-characters.ts` matched it field for field. All 12
+   * fields are stored, none computed. `Status` (Draft / Pending for Approval / Approved) has no
+   * vocabulary in `packages/domain/src/state`, so the column is plain text and the importer stores
+   * the normalized label rather than borrowing one of the creative tracks.
+   */
+  aiCharacters: {
+    airtableTable: 'AI Characters / Personas',
+    airtableTableId: 'tblgfe8A7nmce6lzn',
+    templateTable: 'AI Characters / Personas',
+    templateTableId: 'tblgfe8A7nmce6lzn',
+    drizzleImport: 'aiCharacters',
+    importOrder: 4,
+    fields: {
+      Name: { drizzleColumn: 'name', handler: 'text', required: true, default: 'Untitled' },
+      Attachments: {
+        drizzleColumn: 'attachments',
+        handler: 'attachment',
+        note: 'multipleAttachments against a single `text` column, so only the first URL can be held — and it is an expiring airtableusercontent.com link (docs/decisions.md 2026-10-02)',
+      },
+      Status: {
+        drizzleColumn: 'status',
+        handler: 'select',
+        note: 'Plain text; no domain vocabulary',
+      },
+      'Basic Info': { drizzleColumn: 'basicInfo', handler: 'text' },
+      'Tone of Voice': { drizzleColumn: 'toneOfVoice', handler: 'text' },
+      'Voice Link (Eleven Labs)': { drizzleColumn: 'voiceLink', handler: 'text' },
+      'Personality Traits': { drizzleColumn: 'personalityTraits', handler: 'text' },
+      Appearance: { drizzleColumn: 'appearance', handler: 'text' },
+      'Traits & Habits': { drizzleColumn: 'traitsAndHabits', handler: 'text' },
+      'Hobbies & Lifestyle': { drizzleColumn: 'hobbiesAndLifestyle', handler: 'text' },
+      'Work & Background': { drizzleColumn: 'workAndBackground', handler: 'text' },
+      'Why He Promotes this brand?': { drizzleColumn: 'whyPromotesBrand', handler: 'text' },
     },
   },
 
@@ -728,8 +842,14 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
   },
 
   creators: {
+    // Same name and the same id in BOTH bases, but not the same field set: the template base adds
+    // "Internal Creator's Status", "Internal Assets Status", "For Partnership Ads?",
+    // "(Internal) Deadline for the request" and "Internal Brief", renames two, and drops Gratsi's
+    // 'Paid by TAS' / 'Creator Status' (AI-27, 2026-10-02). Both vocabularies are mapped below.
     airtableTable: 'UGC Management',
     airtableTableId: 'tblRsVqiqUaZRcQYd',
+    templateTable: 'UGC Management',
+    templateTableId: 'tblRsVqiqUaZRcQYd',
     drizzleImport: 'creators',
     importOrder: 10,
     fields: {
@@ -739,10 +859,45 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         required: true,
         default: 'Untitled',
       },
+      // The two tracks were documented the wrong way round here. In BOTH bases 'Status' holds the
+      // nine CLIENT-facing options (CREATOR_STATUS) — in the template base the internal track is a
+      // separate field, "Internal Creator's Status". The engine was corrected on 2026-09-29
+      // (MAPS.creatorClient / MAPS.creatorInternal); this file was not, and still said the opposite.
       Status: {
+        drizzleColumn: 'clientStatus',
+        handler: 'select',
+        note: 'MAPS.creatorClient → CREATOR_STATUS keys; the client-facing track in both bases',
+      },
+      "Internal Creator's Status": {
         drizzleColumn: 'internalCreatorStatus',
         handler: 'select',
-        note: 'Map Airtable select values to CREATOR_INTERNAL_STATUS keys',
+        note: 'Template base only; MAPS.creatorInternal — the four "(Internal) …" options are CREATOR_INTERNAL_STATUS 1:1',
+      },
+      'Internal Assets Status': {
+        drizzleColumn: 'internalAssetsStatus',
+        handler: 'select',
+        note: 'Template base only; MAPS.creatorAssets strips the "(Internal Video)" prefix to the CREATOR_ASSETS_STATUS keys',
+      },
+      'Internal Brief': {
+        drizzleColumn: 'internalBrief',
+        handler: 'text',
+        note: 'Template label for Gratsi\'s "Additional Note - TAS Team"',
+      },
+      '(Internal) Deadline for the request': {
+        drizzleColumn: 'deadline',
+        handler: 'date',
+        note: 'Template base only; Airtable date (no time) into a timestamptz column',
+      },
+      'For Partnership Ads?': {
+        drizzleColumn: 'forPartnershipAds',
+        handler: 'select',
+        note: 'Template base only, and a Yes/No singleSelect rather than a checkbox: read through selectToBool',
+      },
+      'Concepts to film': {
+        drizzleColumn: null,
+        handler: 'multiLink',
+        junctionTable: 'creatorConcepts',
+        note: 'Template label (plural) for Gratsi\'s "Concept to film"; resolved in Pass 2',
       },
       'Date of Management': { drizzleColumn: 'dateOfManagement', handler: 'date' },
       Age: {
@@ -773,12 +928,17 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       "Creator's video Intro": {
         drizzleColumn: 'videoIntroUrl',
         handler: 'attachment',
-        note: 'Extract first attachment URL',
+        note: 'Gratsi spelling (lowercase v); first attachment URL only — the column is a single text',
+      },
+      "Creator's Video Intro": {
+        drizzleColumn: 'videoIntroUrl',
+        handler: 'attachment',
+        note: 'Template spelling (capital V). AI-26: first attachment URL only, and the URL is an expiring airtableusercontent.com link — re-hosting is scripts/migrate-airtable-urls.ts, which needs R2 credentials (docs/decisions.md 2026-10-02)',
       },
       "Creator's Profile Pic": {
         drizzleColumn: 'profilePicUrl',
         handler: 'attachment',
-        note: 'Extract first attachment URL',
+        note: 'Same field and name in both bases. AI-26: first attachment URL only (no column for the filename), and the URL expires — see the video-intro note',
       },
       'Facebook Profile for Partnership': {
         drizzleColumn: 'facebookProfileUrl',
@@ -792,7 +952,11 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       "(Client's) Note or Comments": { drizzleColumn: 'clientNote', handler: 'text' },
       'Additional Note - TAS Team': { drizzleColumn: 'internalBrief', handler: 'richText' },
-      "Creator's cost (USD) - Internal": { drizzleColumn: 'creatorCost', handler: 'currency' },
+      "Creator's cost (USD) - Internal": {
+        drizzleColumn: 'creatorCost',
+        handler: 'currency',
+        note: 'Gratsi label, read ONLY on the Gratsi path. The template base has no "- Internal" field; there the stored currency is "Creator\'s cost (USD)" (precision 2 against an integer column: cents are lost), which in Gratsi is a formula over this one',
+      },
       'Raw assets': { drizzleColumn: 'rawAssetsUrl', handler: 'text' },
       'Shipping Location': { drizzleColumn: 'shippingLocation', handler: 'text' },
       'Tracking Number ': {
@@ -802,9 +966,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       'Creator Link': { drizzleColumn: 'creatorLink', handler: 'text' },
       'Creator Status': {
-        drizzleColumn: 'clientStatus',
+        drizzleColumn: 'internalCreatorStatus',
         handler: 'select',
-        note: 'Map to CREATOR_CLIENT_STATUS keys',
+        note: 'Gratsi base only: the operational waiting states, mapped best-effort to CREATOR_INTERNAL_STATUS by MAPS.creatorInternal ("Declined the brief" has no internal home and is logged as NULL)',
       },
       'Paid by TAS': {
         drizzleColumn: 'costUsd',
@@ -819,9 +983,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       'Creator Info Request': { drizzleColumn: 'creatorInfoRequest', handler: 'richText' },
       "Creator's cost (USD)": {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'Formula (cost + 5% fee); computed server-side',
+        drizzleColumn: 'creatorCost',
+        handler: 'currency',
+        note: 'The TEMPLATE base\'s stored currency column (fld5bSunM8WtFJB7L), read ONLY on the template path. In Gratsi this same label is a FORMULA (fldyjj94Z6hdSKudo, "cost plus a 5% fee" over "- Internal") which returns 0 rather than absent, so the engine does not read it there at all — see the sourceBase stamp in airtable-import.ts',
       },
       'Date of Partnership Activation': {
         drizzleColumn: 'partnershipActivatedAt',
@@ -1156,6 +1320,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
   competitiveResearch: {
     airtableTable: 'Competitive research',
     airtableTableId: 'tbl9W6v78tKWznN9S',
+    // Identical name, id and field list in both bases (verified 2026-10-02).
+    templateTable: 'Competitive research',
+    templateTableId: 'tbl9W6v78tKWznN9S',
     drizzleImport: 'competitiveResearch',
     importOrder: 19,
     fields: {
@@ -1172,6 +1339,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
   clientAssetFolders: {
     airtableTable: 'Client Assets Organisation',
     airtableTableId: 'tbldFmPU6AWg62Fll',
+    // Identical name, id and field list in both bases (verified 2026-10-02).
+    templateTable: 'Client Assets Organisation',
+    templateTableId: 'tbldFmPU6AWg62Fll',
     drizzleImport: 'clientAssetFolders',
     importOrder: 20,
     fields: {
@@ -1194,6 +1364,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
   creativeDimensions: {
     airtableTable: '(Internal) Creative Dimensions',
     airtableTableId: 'tblli0Y76yJvG56zK',
+    // Identical name, id and field list in both bases (verified 2026-10-02).
+    templateTable: '(Internal) Creative Dimensions',
+    templateTableId: 'tblli0Y76yJvG56zK',
     drizzleImport: 'creativeDimensions',
     importOrder: 21,
     fields: {
