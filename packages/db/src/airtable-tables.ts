@@ -11,6 +11,12 @@
  * against both bases' real name/id pairs.
  */
 
+/**
+ * Which of the two name maps a fetch resolved. Stamped on the export as `sourceBase` so the engine
+ * can read a per-base label: a few LABELS mean different things in the two bases (airtable-import.ts).
+ */
+export type AirtableBaseKind = 'gratsi' | 'template';
+
 export interface AirtableTableMeta {
   readonly id: string;
   readonly name: string;
@@ -40,6 +46,38 @@ export const GRATSI_TABLES: Readonly<Record<string, string>> = {
   '(Internal) Copy Type': '(Internal) Copy Type',
   'Creative Reporting': 'Creative Reporting',
 };
+
+/**
+ * exportKey → the table's NAME in the TEMPLATE base `appnaSGAgOUbJ0f9m` (2026-10-02). Names, not
+ * ids, for the reason the header gives. Two of the base's fifteen tables are deliberately absent
+ * and registered as exclusions in docs/decisions.md (2026-10-02): `Themes`, which has no field to
+ * source the NOT NULL `themes.category` and is shaped like our `creative_modules` (a product
+ * decision, escalated rather than guessed), and `DONT USE Creative Sheet`, deprecated by the base's
+ * own name and holding `Creative Name` as text where we have a uuid FK.
+ */
+export const TEMPLATE_TABLES: Readonly<Record<string, string>> = {
+  Products: '(Internal) Product',
+  'Campaigns & Offers': 'Campaigns & Offers',
+  Personas: 'Personas',
+  'AI Characters / Personas': 'AI Characters / Personas',
+  Angles: 'Angles',
+  Concepts: 'Concepts',
+  Collections: '(Internal) Collections',
+  'Creative Briefs': 'Creative Sheet (Internal & Interface)',
+  Copywriting: 'Copywriting',
+  Creators: 'UGC Management',
+  'Competitive research': 'Competitive research',
+  'Client Assets Organisation': 'Client Assets Organisation',
+  '(Internal) Creative Dimensions': '(Internal) Creative Dimensions',
+};
+
+/**
+ * Ids the GRATSI base binds to a table the TEMPLATE base does not carry at all: Gratsi's 7-field
+ * `Personas` (the template's is `tblRXknfgKsROI961`, 15 fields) and Gratsi's generic `Themes`.
+ * Either one on the template path means a remembered Gratsi id was pasted in — the exact bug the
+ * 2026-10-02 audit found in `TABLE_MAPPINGS.personas` — so `airtable-tables.test.ts` fails on it.
+ */
+export const GRATSI_ONLY_TABLE_IDS: readonly string[] = ['tblyt7X4VjHxtMDVS', 'tbl1aFLMJXxhdVKiz'];
 
 /**
  * The template base's table ids whose NAME differs in the Gratsi base. A resolver that hands one of
