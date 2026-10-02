@@ -6,6 +6,7 @@ import {
   insertConcept,
   listConcepts,
   updateConcept,
+  type ConceptAngleLink,
   type ConceptInput,
   type ConceptListRow,
 } from './concepts';
@@ -382,6 +383,61 @@ describe('concept queries', () => {
     expect(row?.themeName).toBe('Green Screen');
   });
 
+  it('exposes EVERY linked angle on angleLinks, while angleName stays the first (action item 35)', async () => {
+    const { db, brandId } = await seeded();
+    const fixture = demoConcept();
+    const first = fixture.angleIds[0];
+    if (first === undefined) throw new Error('the fixture concept links no angle');
+    // A second and a third angle of the SAME brand linked to the one concept — what the Gratsi
+    // import writes, and what a reader that only had `angleName` silently dropped.
+    const extra = demoAngles.filter((angle) => angle.id !== first).slice(0, 2);
+    expect(extra).toHaveLength(2);
+    await db
+      .insert(conceptAngles)
+      .values(extra.map((angle) => ({ conceptId: fixture.id, angleId: angle.id })));
+
+    const row = await getConceptById(db, brandId, fixture.id);
+    if (row === null) throw new Error('the concept vanished');
+
+    expect(row.angleIds).toHaveLength(3);
+    expect(row.angleLinks).toHaveLength(3);
+    expect(row.angleLinks.map((link) => link.id)).toEqual(row.angleIds);
+    expect(row.angleLinks.map((link) => link.name)).toEqual([
+      row.angleName,
+      ...extra.map((angle) => angle.name),
+    ]);
+    // The name formula still has exactly one angle to work with: the first LINKED one.
+    expect(row.angleName).toBe(demoAngles.find((angle) => angle.id === first)?.name);
+    // The list reads the same as the single row, so the grid and the detail cannot disagree.
+    const listed = (await listConcepts(db, brandId)).find((item) => item.id === fixture.id);
+    expect(listed?.angleLinks).toEqual(row.angleLinks);
+  });
+
+  it('drops an angle angleLinks cannot see, so a link is never a bare id (action item 35)', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const fixture = demoConcept();
+    const [foreign] = await db
+      .insert(angles)
+      .values({ brandId: otherBrandId, name: 'Template angle' })
+      .returning();
+    if (foreign === undefined) throw new Error('no foreign angle');
+    const second = demoAngles.find((angle) => angle.id !== fixture.angleIds[0]);
+    if (second === undefined) throw new Error('no second demo angle');
+    await db.insert(conceptAngles).values([
+      { conceptId: fixture.id, angleId: foreign.id },
+      { conceptId: fixture.id, angleId: second.id },
+    ]);
+    // A live angle of this brand, soft-deleted after it was linked.
+    await db.update(angles).set({ deletedAt: new Date() }).where(eq(angles.id, second.id));
+
+    const row = await getConceptById(db, brandId, fixture.id);
+
+    // The junction still holds all three ids; only the one the scope can see is a link.
+    expect(row?.angleIds).toHaveLength(3);
+    expect(row?.angleLinks.map((link) => link.id)).toEqual([fixture.angleIds[0]]);
+    expect(row?.angleLinks.every((link) => link.name !== link.id)).toBe(true);
+  });
+
   it('joins null cleanly for an unlinked concept and for a soft-deleted link', async () => {
     const { db, brandId } = await seeded();
 
@@ -510,6 +566,7 @@ describe('concept queries', () => {
     expectTypeOf<ConceptListRow['usp']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['clientComments']>().toEqualTypeOf<string | null>();
     expectTypeOf<ConceptListRow['collectionIds']>().toEqualTypeOf<string[]>();
+    expectTypeOf<ConceptListRow['angleLinks']>().toEqualTypeOf<ConceptAngleLink[]>();
     // `brand_id` and the audit columns are the scope's, never the form's.
     expectTypeOf<ConceptInput>().not.toHaveProperty('brandId');
     expectTypeOf<ConceptInput>().not.toHaveProperty('createdBy');

@@ -51,6 +51,16 @@ type ManagedColumn =
 export type ConceptInput = Omit<NewConcept, ManagedColumn>;
 
 /**
+ * One linked angle as every reader of a concept wants it: the id to link to and the name to show.
+ * Paired rather than carried as two arrays, so a name can never be read against the wrong id when
+ * the scope drops one of the links.
+ */
+export interface ConceptAngleLink {
+  readonly id: string;
+  readonly name: string;
+}
+
+/**
  * A concept as the list, the board and the detail page render it: the row plus everything it
  * INHERITS from its angle. `angleName` and `themeName` name the pairing; `personaName` and
  * `productName` are resolved through the angle's own links, which the detail page shows read-only
@@ -71,6 +81,13 @@ export type ConceptInput = Omit<NewConcept, ManagedColumn>;
  * `angleIds`, `themeIds` and `creatorIds` are the full junction sets — the UI needs them for
  * multi-select pickers. `angleName` and `themeName` are the FIRST linked name, used for the
  * naming formula and display.
+ *
+ * `angleLinks` is EVERY linked angle, id and name together (action item 35, Talal 2026-09-28: some
+ * concepts showed no angle). `concept_angles` is many-to-many and the Gratsi import writes several
+ * rows for a single concept, so a reader that only ever saw `angleName` showed one angle and
+ * silently dropped the rest. Anything that must pick ONE angle still reads `angleName` — the §7
+ * name formula `Batch-Angle-Theme` has room for exactly one — and anything that LISTS the angles
+ * reads `angleLinks`.
  */
 export type ConceptListRow = Concept & {
   angleIds: string[];
@@ -79,6 +96,13 @@ export type ConceptListRow = Concept & {
   collectionIds: string[];
   /** `campaign_concepts` — the Campaigns & Offers field named "Angles" (module parity 2026-10-01). */
   campaignIds: string[];
+  /**
+   * Every angle this concept is linked to, in junction order, each with the name to render it
+   * under. Only angles the brand's scope can see: another brand's and soft-deleted ones are dropped
+   * here exactly as they are dropped from `angleName`, so `angleLinks` can be shorter than
+   * `angleIds` and is never a bare id with no name.
+   */
+  angleLinks: ConceptAngleLink[];
   angleName: string | null;
   /** The FIRST angle's hypothesis, pain points and USP — what the client's concept card prints. */
   angleDescription: string | null;
@@ -188,6 +212,15 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
   const firstAngleId = angleIds[0] ?? null;
   const angle = firstAngleId === null ? undefined : tables.anglesById.get(firstAngleId);
 
+  // Every linked angle the scope can see, in junction order (action item 35). `angleName` below
+  // stays the FIRST LINKED id's name — not `angleLinks[0]` — so a concept whose first link is
+  // another brand's or soft-deleted still reads `angleName: null`, the way the detail page's
+  // "from Angle" block and the §7 name formula have always read it.
+  const angleLinks: ConceptAngleLink[] = angleIds.flatMap((id) => {
+    const linked = tables.anglesById.get(id);
+    return linked === undefined ? [] : [{ id, name: linked.name }];
+  });
+
   // Persona, product and the three prose fields are read THROUGH the angle, so an angle the scope
   // cannot see (another brand's, or soft-deleted) yields none of them — never a persona resolved
   // off a link that is not live, and never another brand's hypothesis on this brand's card.
@@ -212,6 +245,7 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
     creatorIds,
     collectionIds,
     campaignIds,
+    angleLinks,
     angleName: angle?.name ?? null,
     angleDescription: angle?.description ?? null,
     anglePainPoints: angle?.painPoints ?? null,

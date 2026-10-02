@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { EM_DASH } from '../fields';
 import {
   ConceptCollectionsSection,
+  FieldRequirement,
   collectionHref,
   type ConceptCollectionItem,
 } from './concept-detail';
@@ -77,5 +78,40 @@ describe('ConceptCollectionsSection', () => {
     const markup = html([BFCM]);
 
     expect(markup).not.toMatch(/<(input|textarea|select|button|form)\b/);
+  });
+});
+
+describe('FieldRequirement', () => {
+  const marker = (required: boolean): string =>
+    renderToStaticMarkup(<FieldRequirement required={required} />);
+
+  it('says the word rather than drawing an asterisk, so it needs no legend of its own', () => {
+    expect(marker(true)).toContain('>Required<');
+    expect(marker(false)).toContain('>Optional<');
+    expect(marker(true)).not.toContain('*');
+    expect(marker(false)).not.toContain('*');
+  });
+
+  it('carries the state as a data attribute, which is how the e2e spec counts the two kinds', () => {
+    expect(marker(true)).toContain('data-slot="field-requirement"');
+    expect(marker(true)).toContain('data-required="true"');
+    expect(marker(false)).toContain('data-required="false"');
+  });
+
+  it('takes both tones from the token layer — accent for required, text4 for optional', () => {
+    expect(marker(true)).toContain('text-accent');
+    expect(marker(false)).toContain('text-text4');
+    // A semantic class either way: no hex, and the two states are told apart by tone, not by size.
+    expect(marker(true)).not.toMatch(/#[0-9a-f]{3,8}/i);
+    expect(marker(false)).not.toMatch(/#[0-9a-f]{3,8}/i);
+  });
+
+  it('appends a caller class instead of replacing the tone, so the Angle wrapper can position it', () => {
+    const positioned = renderToStaticMarkup(
+      <FieldRequirement required className="absolute top-0 right-0" />,
+    );
+
+    expect(positioned).toContain('absolute top-0 right-0');
+    expect(positioned).toContain('text-accent');
   });
 });

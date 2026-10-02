@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateConceptDraft, type ConceptDraft } from './validate-concept-draft';
+import {
+  CONCEPT_REQUIRED_FIELDS,
+  isConceptFieldRequired,
+  missingRequiredConceptFields,
+  validateConceptDraft,
+  type ConceptDraft,
+} from './validate-concept-draft';
 
 const valid: ConceptDraft = {
   batch: 'B2',
@@ -110,6 +116,52 @@ describe('validateConceptDraft · ad inspiration links', () => {
 
   it('carries no rule when the field was never opened', () => {
     expect(validateConceptDraft(valid).fieldErrors.adInspoLinks).toBeUndefined();
+  });
+});
+
+describe('the required-field list · the only one in the repository (action item 37)', () => {
+  it('names exactly the four fields the validator refuses to save without', () => {
+    expect([...CONCEPT_REQUIRED_FIELDS]).toEqual(['batch', 'angleIds', 'themeIds', 'category']);
+
+    const emptyDraft: ConceptDraft = { batch: null, angleIds: [], themeIds: [], category: null };
+    // Every field the list marks really does block the save, and nothing else does: the marker the
+    // form draws from this list can never promise a rule the validator does not enforce.
+    expect(Object.keys(validateConceptDraft(emptyDraft).fieldErrors).sort()).toEqual(
+      [...CONCEPT_REQUIRED_FIELDS].sort(),
+    );
+  });
+
+  it('answers whether one field is required, and says no to the optional ones', () => {
+    for (const field of CONCEPT_REQUIRED_FIELDS) {
+      expect(isConceptFieldRequired(field)).toBe(true);
+    }
+    expect(isConceptFieldRequired('conceptStyle')).toBe(false);
+    expect(isConceptFieldRequired('adInspoLinks')).toBe(false);
+    expect(isConceptFieldRequired('hookExamples')).toBe(false);
+  });
+
+  it('lists the empty required fields in the list’s own order, whitespace counting as empty', () => {
+    expect(
+      missingRequiredConceptFields({ batch: null, angleIds: [], themeIds: [], category: null }),
+    ).toEqual(['batch', 'angleIds', 'themeIds', 'category']);
+    expect(missingRequiredConceptFields({ ...valid, batch: '  ', category: ' ' })).toEqual([
+      'batch',
+      'category',
+    ]);
+    expect(missingRequiredConceptFields(valid)).toEqual([]);
+  });
+
+  it('separates a missing value from a wrong one: a bad batch is filled in, not empty', () => {
+    // `B21` is outside B1…B20, so the save is still blocked — but the field is not EMPTY, so the
+    // form marks it required without also claiming the viewer left it blank.
+    expect(missingRequiredConceptFields({ ...valid, batch: 'B21' })).toEqual([]);
+    expect(validateConceptDraft({ ...valid, batch: 'B21' }).fieldErrors.batch).toBe(
+      'A batch is one of B1 to B20.',
+    );
+    expect(missingRequiredConceptFields({ ...valid, category: 'Remix' })).toEqual([]);
+    expect(validateConceptDraft({ ...valid, category: 'Remix' }).fieldErrors.category).toBe(
+      'A concept is one of New, Iteration.',
+    );
   });
 });
 

@@ -172,11 +172,30 @@ export function internalStatusView(
  * compute a status label of their own. `href` is `conceptPath(id)` — a real route segment, because
  * the detail is a page and not a panel (ticket criterion 5).
  */
+/**
+ * One angle a concept is linked to, as a list renders it: the id to link to and the name to show.
+ *
+ * Structural rather than `@tas/db`'s `ConceptAngleLink`, for the reason `AngleOption` on the detail
+ * page gives — a client component must not import the database package — and satisfied by it, so
+ * `page.tsx` hands the row's own `angleLinks` straight down.
+ */
+export interface ConceptAngleItem {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface ConceptItem {
   readonly id: string;
   readonly name: string;
   readonly batch: string | null;
+  /**
+   * The FIRST linked angle's name — the one the §7 name formula used, so the Name column and this
+   * one always agree. `angleLinks` is every angle; a cell that shows only this one is showing a
+   * multi-angle concept short (action item 35).
+   */
   readonly angleName: string | null;
+  /** Every linked angle, in junction order, each named. Empty when nothing is linked. */
+  readonly angleLinks: readonly ConceptAngleItem[];
   /** Inherited THROUGH the angle (first linked persona/product), never stored on the concept. */
   readonly personaName: string | null;
   readonly productName: string | null;
@@ -218,6 +237,7 @@ export interface ConceptClientStatusView {
 
 export const EMPTY_CONCEPT_RECORD: Pick<
   ConceptItem,
+  | 'angleLinks'
   | 'clientStatus'
   | 'approvalStatusLabel'
   | 'categoryLabel'
@@ -233,6 +253,7 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   | 'creatorCount'
   | 'adInspoCount'
 > = {
+  angleLinks: [],
   clientStatus: { key: 'pending_for_approval', label: 'Pending for Approval', tone: 'info' },
   approvalStatusLabel: null,
   categoryLabel: null,
@@ -290,6 +311,11 @@ export function filteredConceptCountLabel(visible: number, total: number): strin
  * the Themes grid needs: a concept carries no prose here. Every field is a name, a batch code or a
  * status label, so there is no long note in which an accidental mid-word hit would leave a reader
  * unable to see why a row is on screen. `query` arrives already lowercased and trimmed.
+ *
+ * EVERY linked angle is searched, not just the one that names the concept (action item 35): a
+ * concept linked to three angles was findable by the first and invisible under the other two.
+ * `angleName` stays in the list beside them so a row built without `angleLinks` — a story, a
+ * fixture — still answers to the angle it displays.
  */
 export function matchesQuery(item: ConceptItem, query: string): boolean {
   if (query === '') {
@@ -299,6 +325,7 @@ export function matchesQuery(item: ConceptItem, query: string): boolean {
     item.name,
     item.batch ?? '',
     item.angleName ?? '',
+    ...item.angleLinks.map((link) => link.name),
     item.personaName ?? '',
     item.productName ?? '',
     item.themeName ?? '',

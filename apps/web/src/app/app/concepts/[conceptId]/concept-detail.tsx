@@ -5,8 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isHttpUrl } from '@tas/domain/angles';
 import {
+  CONCEPT_REQUIRED_FIELDS,
   inheritedFromAngle,
+  isConceptFieldRequired,
+  missingRequiredConceptFields,
   validateConceptDraft,
+  type ConceptRequiredField,
   type InheritedAngle,
 } from '@tas/domain/concepts';
 import type {
@@ -201,6 +205,78 @@ interface ConceptDetailProps {
   readonly demo: boolean;
 }
 
+/**
+ * The marker a field carries, IN WORDS (action item 37, Talal 2026-09-28: "mark required and
+ * optional fields/dropdowns clearly").
+ *
+ * A word rather than a bare asterisk, for two reasons. An asterisk means nothing without a legend,
+ * and the one control here that most needs marking — the Angle picker — is a `DropdownMenu` button,
+ * not a form widget, so `aria-required` is not valid on it (ARIA allows it on `combobox`,
+ * `listbox`, `textbox` and the like, which is what the dropdowns below are). The word sits in the
+ * DOM before its control, so it is read out in order by a screen reader and seen above it by
+ * everyone else — one marker that works for both kinds of control.
+ */
+const REQUIRED_MARK = 'Required';
+const OPTIONAL_MARK = 'Optional';
+
+export interface FieldRequirementProps {
+  readonly required: boolean;
+  readonly className?: string;
+}
+
+/**
+ * The small word above a field saying whether it can be left empty.
+ *
+ * Exported rather than private, for two reasons. It is unit tested below as markup
+ * (`concept-detail.test.tsx`), and it is the marker every other form will need, so the
+ * `/design-system` story that UI governance rule 4 asks for can mount this one instead of a copy.
+ * `apps/web/src/app/(dev)/design-system/concepts.stories.tsx` is outside this ticket's file set, so
+ * that story is handed off — see `docs/tickets/in-progress/sprint-09-two-way-links.md`.
+ */
+export function FieldRequirement({ required, className }: FieldRequirementProps) {
+  return (
+    <span
+      data-slot="field-requirement"
+      data-required={required ? 'true' : 'false'}
+      className={`font-mono text-[9.5px] tracking-wide uppercase ${
+        required ? 'text-accent' : 'text-text4'
+      }${className === undefined ? '' : ` ${className}`}`}
+    >
+      {required ? REQUIRED_MARK : OPTIONAL_MARK}
+    </span>
+  );
+}
+
+/**
+ * What each required field is CALLED on this page. The list of required fields is the domain's
+ * (`CONCEPT_REQUIRED_FIELDS`); only the wording is the form's. Typed as a total record, so a rule
+ * added in `@tas/domain/concepts` stops this file compiling until the new field is given a label —
+ * which is how the marker and the rule are kept from drifting apart.
+ */
+const REQUIRED_FIELD_LABELS: Readonly<Record<ConceptRequiredField, string>> = {
+  batch: NAME_PART_LABELS.batch,
+  angleIds: NAME_PART_LABELS.angleName,
+  themeIds: NAME_PART_LABELS.themeName,
+  category: 'Category',
+};
+
+/** "Batch, Angle, Theme and Category" — read off the domain list, never typed out here. */
+const REQUIRED_FIELD_NAMES = CONCEPT_REQUIRED_FIELDS.map((field) => REQUIRED_FIELD_LABELS[field]);
+
+/**
+ * The one sentence that says what the marker means, so no field has to repeat it. Rendered above
+ * the first section, once per page.
+ */
+const REQUIRED_NOTE = `${REQUIRED_FIELD_NAMES.slice(0, -1).join(', ')} and ${
+  REQUIRED_FIELD_NAMES[REQUIRED_FIELD_NAMES.length - 1] ?? ''
+} are marked ${REQUIRED_MARK} and cannot be left empty — a concept is not saveable without them. Everything else is marked ${OPTIONAL_MARK}.`;
+
+/**
+ * What the Angle picker says while nothing is linked. It names the rule rather than the absence,
+ * because an empty required field is the one state a reader has to be told about.
+ */
+const NO_ANGLE_LINKED = 'No angle linked yet — at least one is required.';
+
 /** The free-text columns the Brief renders through one `Textarea` pattern, in `renderProse`. */
 type ProseField = Extract<
   ConceptFieldName,
@@ -272,7 +348,7 @@ export function ConceptDetail({
   const angleId = angleIds[0] ?? NONE_VALUE;
   const [themeId, setThemeId] = useState(concept?.themeId ?? NONE_VALUE);
   /** Required fields the viewer tried to submit without; empty until they press Save (P2B-5). */
-  const [missingRequired, setMissingRequired] = useState<readonly string[]>([]);
+  const [missingRequired, setMissingRequired] = useState<readonly ConceptRequiredField[]>([]);
   const [category, setCategory] = useState(concept?.category ?? NONE_VALUE);
   const [conceptStyle, setConceptStyle] = useState(concept?.conceptStyle ?? NONE_VALUE);
   const [formats, setFormats] = useState<readonly string[]>(concept?.formats ?? []);
@@ -308,45 +384,55 @@ export function ConceptDetail({
     [batch, angle, theme],
   );
 
-  const validation = useMemo(
-    () =>
-      validateConceptDraft({
-        batch: batch === NONE_VALUE ? null : batch,
-        angleIds,
-        themeIds: themeId === NONE_VALUE ? [] : [themeId],
-        category: category === NONE_VALUE ? null : category,
-        adInspoLinks: links,
-      }),
+  /**
+   * The draft the rules are read from. One object, two readers: `validateConceptDraft` for the
+   * messages and the disabled Save, and `missingRequiredConceptFields` for what the submit refuses
+   * to send — so the page cannot disagree with itself about what it is holding.
+   */
+  const conceptDraft = useMemo(
+    () => ({
+      batch: batch === NONE_VALUE ? null : batch,
+      angleIds,
+      themeIds: themeId === NONE_VALUE ? [] : [themeId],
+      category: category === NONE_VALUE ? null : category,
+      adInspoLinks: links,
+    }),
     [batch, angleIds, themeId, category, links],
   );
+
+  const validation = useMemo(() => validateConceptDraft(conceptDraft), [conceptDraft]);
 
   const inherited = inheritedFromAngle(angle);
 
   /**
-   * Batch, Angle and Theme are REQUIRED (P2B-5, Talal 2026-09-28). They are the three parts the
-   * concept's generated name is assembled from, so a concept without them has no name — which is why
-   * the form refuses to submit rather than letting the server reject it after a round trip.
+   * Which of several linked angles the name was built from (action item 35). `concept_angles` is
+   * many-to-many and a Gratsi concept often carries more than one, so when it does the page says
+   * out loud which one §7 used — otherwise the extra chips look like they should have changed the
+   * name above and did not. Silent on a single-angle concept: there is nothing to disambiguate.
    */
-  const REQUIRED_MESSAGES: Record<string, string> = {
-    batch: 'Batch is required',
-    angleIds: 'Angle is required',
-    themeIds: 'Theme is required',
-  };
+  const namingAngleNote =
+    angleIds.length < 2 || angle === null
+      ? null
+      : `${angle.name} names this concept; the other linked angles are kept with it.`;
 
-  const unsetRequired = useMemo<readonly string[]>(() => {
-    const out: string[] = [];
-    if (batch === NONE_VALUE) out.push('batch');
-    if (angleIds.length === 0) out.push('angleIds');
-    if (themeId === NONE_VALUE) out.push('themeIds');
-    return out;
-  }, [batch, angleIds, themeId]);
+  /**
+   * The required fields still empty, straight from `@tas/domain/concepts` (action items 36 and 37,
+   * Talal 2026-09-28). THE LIST IS NOT RESTATED HERE: `missingRequiredConceptFields` is the same
+   * function `validateConceptDraft` applies before it writes, so a field this page marks required
+   * is a field the save really refuses, and a rule added in the domain starts being marked here
+   * with no edit to this file.
+   */
+  const unsetRequired = useMemo(() => missingRequiredConceptFields(conceptDraft), [conceptDraft]);
 
   /**
    * The message a field shows: the browser's "required" takes precedence over the server's, so a
-   * field the viewer just left empty says so immediately instead of after a failed submit.
+   * field the viewer just left empty says so immediately instead of after a failed submit. The text
+   * is the domain's own message, never a second wording of the same rule.
    */
   const fieldError = (field: ConceptFieldName): string | undefined => {
-    if (missingRequired.includes(field)) return REQUIRED_MESSAGES[field];
+    if (isConceptFieldRequired(field) && missingRequired.includes(field)) {
+      return validation.fieldErrors[field];
+    }
     return state !== null && !state.ok ? state.fieldErrors?.[field] : undefined;
   };
 
@@ -391,6 +477,10 @@ export function ConceptDetail({
    * nothing is stored — so a read-only visitor can see the formula work, which is the one thing the
    * demo deployment exists to show. The Brief's dropdowns below are locked like every other write:
    * drafting a brief that cannot be saved would be a lie, while previewing a name is not.
+   *
+   * Whether the field is required is asked of `@tas/domain/concepts`, never decided here: the word
+   * above the control and `aria-required` on it both come from `isConceptFieldRequired`, so a label
+   * cannot promise a rule the save does not enforce (action item 37).
    */
   const renderSelect = (
     field: ConceptFieldName,
@@ -402,12 +492,16 @@ export function ConceptDetail({
   ) => {
     const id = `concept-field-${field}`;
     const error = fieldError(field);
+    const required = isConceptFieldRequired(field);
 
     return (
       <div className="flex min-w-0 flex-col gap-1.5">
-        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
-          {label}
-        </Label>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+            {label}
+          </Label>
+          <FieldRequirement required={required} />
+        </div>
         <Select
           value={value === NONE_VALUE ? undefined : value}
           onValueChange={set}
@@ -417,6 +511,7 @@ export function ConceptDetail({
             id={id}
             className="w-full"
             aria-label={label}
+            aria-required={required}
             aria-invalid={error !== undefined}
             data-slot={`concept-${field}`}
           >
@@ -437,20 +532,31 @@ export function ConceptDetail({
     );
   };
 
+  /**
+   * One prose field. None of them is required — a concept is saveable before anybody has written
+   * the hook examples — so each one is marked `Optional` rather than left for a reader to guess
+   * (action item 37). The marker is still read off the domain list, so a prose field that ever
+   * acquires a rule starts reading `Required` with no edit here.
+   */
   const renderProse = (field: ProseField, label: string, hint: string) => {
     const id = `concept-field-${field}`;
     const error = fieldError(field);
+    const required = isConceptFieldRequired(field);
 
     return (
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
-          {label}
-        </Label>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+            {label}
+          </Label>
+          <FieldRequirement required={required} />
+        </div>
         <p className="text-xs text-text3">{hint}</p>
         <Textarea
           id={id}
           name={field}
           readOnly={demo}
+          aria-required={required}
           aria-invalid={error !== undefined}
           placeholder={NOT_SET}
           defaultValue={concept?.[field] ?? ''}
@@ -492,6 +598,7 @@ export function ConceptDetail({
             setMissingRequired([]);
           }}
           className="flex min-w-0 flex-col gap-7"
+          data-slot="concept-form"
         >
           {creating ? null : <input type="hidden" name="id" value={concept.id} />}
           {formats.map((key) => (
@@ -502,6 +609,11 @@ export function ConceptDetail({
           ))}
           <input type="hidden" name="approvalStatus" value={approvalStatus} />
           <input type="hidden" name="productionStatus" value={productionStatus} />
+
+          {/* What the markers below mean, said once for the whole form (action item 37). */}
+          <p className="text-xs text-text3" data-slot="concept-required-note">
+            {REQUIRED_NOTE}
+          </p>
 
           <section className="flex flex-col gap-3" data-slot="concept-pairing">
             <h2 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
@@ -525,22 +637,40 @@ export function ConceptDetail({
                 setBatch,
                 false,
               )}
-              {/* The same LinkField the angle panel mounts for its concepts (LINK-01): the
-                  first linked angle names the concept; a saved concept writes `concept_angles`
-                  on the spot, a new one posts the ids for the create action to sync. */}
-              <LinkField
-                link="concept-angles"
-                sourceId={concept?.id ?? null}
-                options={angles.map((option) => ({ id: option.id, name: option.name }))}
-                selectedIds={angleIds}
-                onChange={setAngleIds}
-                inputName="angleId"
-                label={NAME_PART_LABELS.angleName}
-                demo={demo}
-                error={fieldError('angleIds')}
-                slot="concept-angleIds"
-                empty="Angle is required"
-              />
+              {/* The same LinkField the angle panel mounts for its concepts (LINK-01): EVERY
+                  linked angle is a chip here (action item 35 — a concept imported from Gratsi can
+                  carry several), and the FIRST of them is the one the §7 name formula uses, which
+                  the line under the field says in words. A saved concept writes `concept_angles` on
+                  the spot, a new one posts the ids for the create action to sync.
+
+                  The marker sits in its own row before the control: the picker renders its own
+                  `<Label>`, and the shared component is not this ticket's to change, so the word is
+                  placed on the label's line with `absolute` rather than pushed inside it. It is
+                  real text ahead of the control in the DOM, so it is announced as well as seen. */}
+              <div className="relative flex min-w-0 flex-col" data-slot="concept-angle-field">
+                <FieldRequirement
+                  required={isConceptFieldRequired('angleIds')}
+                  className="absolute top-0 right-0"
+                />
+                <LinkField
+                  link="concept-angles"
+                  sourceId={concept?.id ?? null}
+                  options={angles.map((option) => ({ id: option.id, name: option.name }))}
+                  selectedIds={angleIds}
+                  onChange={setAngleIds}
+                  inputName="angleId"
+                  label={NAME_PART_LABELS.angleName}
+                  demo={demo}
+                  error={fieldError('angleIds')}
+                  slot="concept-angleIds"
+                  empty={NO_ANGLE_LINKED}
+                />
+                {namingAngleNote === null ? null : (
+                  <p className="pt-1 text-xs text-text3" data-slot="concept-naming-angle">
+                    {namingAngleNote}
+                  </p>
+                )}
+              </div>
               {renderSelect(
                 'themeIds',
                 NAME_PART_LABELS.themeName,
@@ -638,23 +768,35 @@ export function ConceptDetail({
               */}
             </div>
 
-            <LinkField
-              link="concept-creators"
-              sourceId={concept?.id ?? null}
-              options={creators}
-              selectedIds={creatorIds}
-              onChange={setCreatorIds}
-              inputName="creatorId"
-              label="Creator"
-              demo={demo}
-              slot="concept-creatorIds"
-              empty="No creator assigned yet. Assign one here or from the creator's panel."
-            />
+            {/* Marked like the Angle picker above, for the same reason: the shared LinkField
+                renders its own `<Label>`, so the word is placed on that label's line with
+                `absolute` instead of being pushed inside a component this ticket does not own. */}
+            <div className="relative flex min-w-0 flex-col" data-slot="concept-creator-field">
+              <FieldRequirement
+                required={isConceptFieldRequired('creatorIds')}
+                className="absolute top-0 right-0"
+              />
+              <LinkField
+                link="concept-creators"
+                sourceId={concept?.id ?? null}
+                options={creators}
+                selectedIds={creatorIds}
+                onChange={setCreatorIds}
+                inputName="creatorId"
+                label="Creator"
+                demo={demo}
+                slot="concept-creatorIds"
+                empty="No creator assigned yet. Assign one here or from the creator's panel."
+              />
+            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] tracking-wide text-text3 uppercase">
-                Formats to create (production)
-              </Label>
+            <div className="flex flex-col gap-1.5" data-slot="concept-formats-to-create-field">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <Label className="text-[11px] tracking-wide text-text3 uppercase">
+                  Formats to create (production)
+                </Label>
+                <FieldRequirement required={isConceptFieldRequired('formatsToCreate')} />
+              </div>
               <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
                 <div
                   className="flex flex-wrap gap-2"
@@ -689,10 +831,13 @@ export function ConceptDetail({
               </DisabledWrite>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] tracking-wide text-text3 uppercase">
-                Formats to create
-              </Label>
+            <div className="flex flex-col gap-1.5" data-slot="concept-formats-field">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <Label className="text-[11px] tracking-wide text-text3 uppercase">
+                  Formats to create
+                </Label>
+                <FieldRequirement required={isConceptFieldRequired('formats')} />
+              </div>
               {/*
                 Disabled in demo mode like every other write, so it is wrapped the same way: a
                 disabled button receives no pointer events and could not carry its own tooltip.
@@ -762,7 +907,13 @@ export function ConceptDetail({
             )}
 
             <div className="flex flex-col gap-2" data-slot="concept-ad-inspo">
-              <Label className="text-[11px] tracking-wide text-text3 uppercase">Ad Inspo</Label>
+              {/* Optional, but the one optional field that still carries a rule: every non-blank
+                  entry must be an http(s) URL (`validateConceptDraft`). The marker says it can be
+                  left empty; the message below says what a filled row has to look like. */}
+              <div className="flex flex-wrap items-baseline gap-2">
+                <Label className="text-[11px] tracking-wide text-text3 uppercase">Ad Inspo</Label>
+                <FieldRequirement required={isConceptFieldRequired('adInspoLinks')} />
+              </div>
               {links.map((url, index) => (
                 <div key={`row-${String(index)}`} className="flex items-center gap-2">
                   <Input

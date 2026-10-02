@@ -23,8 +23,18 @@ export type PersonaInput = Omit<NewPersona, ManagedColumn>;
  * A persona as the list renders it: the row plus the linked product's name, null when the persona
  * has no product or the product has been soft-deleted. `demoPersonas` satisfies `PersonaListRow[]`,
  * so the page reads demo fixtures and database rows through one type.
+ *
+ * `productName` IS NOT A LINK A PERSONA OWNS. Action item 45 (Talal 2026-09-28) fixes the hierarchy
+ * as Product → Persona → Angle (which links product and persona) → Concept, and ends "Persona needs
+ * no links": a persona is written about somebody, and which product is sold to them is the ANGLE's
+ * decision, through `angle_products`. Nothing on the Personas page edits a product, and none of its
+ * surfaces offers the control. `personas.product_id` survives only because the Airtable importer
+ * writes it (`airtable-import.ts`, Personas › Product) and the Gratsi rows carry it, so dropping
+ * the column would throw away imported data; `productName` resolves it so a reader can still see
+ * what was imported. Do not add a product control to this table — add it to the angle.
  */
 export type PersonaListRow = Persona & {
+  /** The imported `product_id` resolved to a name; read-only (see the note above). */
   productName: string | null;
   /** The live angles written FROM this persona (TASK 5: the persona side of Angles ↔ Personas),
    * read from the `angle_personas` junction and sorted alphabetically — the scoped read carries

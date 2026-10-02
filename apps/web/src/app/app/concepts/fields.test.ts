@@ -152,6 +152,22 @@ describe('matchesQuery', () => {
     expect(matchesQuery(concept, 'zzzznomatch')).toBe(false);
   });
 
+  it('reads EVERY linked angle, not only the one that names the concept (action item 35)', () => {
+    const concept = row({
+      name: 'B2-It Is Not Just Your Age-Green Screen',
+      angleName: 'It Is Not Just Your Age',
+      angleLinks: [
+        { id: 'angle-1', name: 'It Is Not Just Your Age' },
+        { id: 'angle-2', name: 'Your Body Clock Is Not Broken' },
+      ],
+    });
+
+    expect(matchesQuery(concept, 'not just your age')).toBe(true);
+    // The second angle names no part of the concept's name, so before this it found nothing.
+    expect(matchesQuery(concept, 'body clock')).toBe(true);
+    expect(matchesQuery(concept, 'zzzznomatch')).toBe(false);
+  });
+
   it('reads the status LABEL, so the chip a reader can see is searchable', () => {
     expect(matchesQuery(row(), 'revisions')).toBe(true);
     expect(matchesQuery(row(), 'videos_revisions')).toBe(false);
