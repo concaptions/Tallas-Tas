@@ -21,6 +21,7 @@ import {
   canStartBrief,
   canTransitionInternal,
   EDITOR_STAGES,
+  editorStageColumnLabel,
   editorStageOf,
   editorStageTone,
   internalStatusFor,
@@ -30,6 +31,8 @@ import {
 } from '@tas/domain/state';
 import { creativeTrack } from '@tas/domain/creatives';
 
+import { MetricCards } from '@/components/overview/metric-cards';
+import { PipelineChart } from '@/components/overview/pipeline-chart';
 import {
   ViewSwitcher,
   KanbanBoard,
@@ -37,6 +40,9 @@ import {
   type KanbanItem,
   type GalleryItem,
 } from '@/components/views';
+// Type-only, so the `@tas/db` runtime import behind `dashboard-source` never reaches this client
+// bundle; the counts and hrefs themselves arrive from `page.tsx` as plain data.
+import type { MetricCard, PipelineStep } from '@/lib/dashboard-source';
 
 import { startBriefAction, updateBriefAction } from './actions';
 import { BriefPanel } from './brief-panel';
@@ -60,6 +66,14 @@ interface BriefsWorkspaceProps {
   readonly initialSearch: string;
   readonly initialView: ViewType;
   readonly initialKanbanField: string | null;
+  /**
+   * The Overview's pipeline strip, shown at the top of this page too (action item 48). Counted by
+   * `buildOverviewPanels` — the Overview's own builder — over EVERY brief of the brand, and
+   * deliberately not over `items`: `items` is already narrowed by `?status=` when a card was
+   * clicked, and a card that counted only what the filter left would read 0 for every stage but one.
+   */
+  readonly metrics: readonly MetricCard[];
+  readonly pipeline: readonly PipelineStep[];
 }
 
 function syncUrl(search: string): void {
@@ -82,6 +96,8 @@ export function BriefsWorkspace({
   initialSearch,
   initialView,
   initialKanbanField,
+  metrics,
+  pipeline,
 }: BriefsWorkspaceProps) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
@@ -289,7 +305,22 @@ export function BriefsWorkspace({
   // never drift from `@tas/domain/state`.
   const kanbanLabels = useMemo(() => {
     if (kanbanField === 'editorStage') {
-      return Object.fromEntries(EDITOR_STAGES.map((stage) => [stage.key, stage.label]));
+      // The first column is named for whoever is waiting on the brief (action item 59), and that
+      // depends on the track — "Sent to Editor" for video, "Sent to Designer" for static/design.
+      // The heading therefore reads the tracks of the cards actually in the column and asks the
+      // domain for the word; a column holding both answers the neutral label. No label is composed
+      // here: `editorStageColumnLabel` is the one place that decides.
+      return Object.fromEntries(
+        EDITOR_STAGES.map((stage) => [
+          stage.key,
+          editorStageColumnLabel(
+            stage.key,
+            visible
+              .filter((item) => editorStageOf(item.kanbanFields.internalStatus ?? '') === stage.key)
+              .map((item) => creativeTrack(item.type)),
+          ),
+        ]),
+      );
     }
     const labels: Record<string, string> = {};
     for (const item of visible) {
@@ -340,11 +371,18 @@ export function BriefsWorkspace({
         </p>
       </header>
 
+      {/* What is pending, at the top of the Briefs section (action item 48): the Overview's own
+          eight cards and its stage chart, the same components over the same loader, so a card
+          clicked here filters this very list. */}
+      <MetricCards cards={metrics} />
+
+      <PipelineChart steps={pipeline} />
+
       <section aria-labelledby="briefs-heading" className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h2 id="briefs-heading" className="text-sm font-medium text-text2">
-              Pipeline
+              All briefs
             </h2>
             <ViewSwitcher
               tableKey="briefs"
@@ -456,7 +494,12 @@ export function BriefsWorkspace({
                     onKeyDown={(event) => {
                       onRowKey(event, item);
                     }}
-                    className="cursor-pointer"
+                    // Colour-coded by editor stage (action item 49): a left stripe in the stage's
+                    // own tone, the same device the board's cards carry, so a scan down the list
+                    // reads "waiting on an editor / being cut / with a reviewer / done" without a
+                    // legend. The class comes from the token layer through `briefStageStripe`.
+                    data-stage={item.stage ?? ''}
+                    className={`cursor-pointer border-l-4 ${item.stageStripe}`}
                   >
                     <TableCell
                       data-slot="brief-row-name"
@@ -491,6 +534,18 @@ export function BriefsWorkspace({
                     </TableCell>
                     <TableCell className="px-3 py-1.5">
                       <StatusChip tone={item.status.tone} label={item.status.label} />
+                    </TableCell>
+                    <TableCell
+                      data-slot="brief-row-due"
+                      className="px-3 py-1.5 font-mono text-xs whitespace-nowrap text-text2"
+                    >
+                      {item.dueDateLabel}
+                    </TableCell>
+                    <TableCell
+                      data-slot="brief-row-created"
+                      className="px-3 py-1.5 font-mono text-xs whitespace-nowrap text-text3"
+                    >
+                      {item.createdLabel}
                     </TableCell>
                   </TableRow>
                 ))}

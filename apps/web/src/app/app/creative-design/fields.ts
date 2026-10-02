@@ -15,10 +15,13 @@ import type { InspoLinkKind } from '@tas/domain/angles';
 import {
   CLIENT_STATUS,
   chipTone,
+  editorStageOf,
+  editorStageTone,
   internalStatusFor,
   internalTransitionsFor,
   type ChipTone,
   type CreativeTrack,
+  type EditorStageKey,
   type InternalStatusKey,
 } from '@tas/domain/state';
 import type {
@@ -28,6 +31,7 @@ import type {
   CreativeSheetItemListRow,
 } from '@tas/db';
 import { creativePerformances, type CreativePerformance } from '@tas/db/schema';
+import { TONE_STRIPE } from '@tas/ui';
 
 import { differenceCpaView, formatCurrency } from '@/app/app/creative-reporting/fields';
 import {
@@ -90,7 +94,14 @@ export const STANDALONE_NOTE =
 /** The URL parameter the search lives in, the same `?q=` every other list page uses. */
 export const SEARCH_PARAM = 'q';
 
-/** The list's six columns, in the one order the ticket fixes. */
+/**
+ * The list's columns, in the one order the ticket fixes. Due date and Created were added on top of
+ * the original six (Sep 28 action item 49): the due date is the column an editor sorts their week
+ * by and was already stored (`creative_briefs.due_date`, migration 0043) and already editable on
+ * the detail page, while Created is the age of the brief — the two questions a list of briefs is
+ * asked that the six could not answer. Appended rather than interleaved so the six keep the places
+ * every reader has learnt.
+ */
 export const BRIEF_COLUMNS = [
   'Name',
   'Concept',
@@ -98,7 +109,35 @@ export const BRIEF_COLUMNS = [
   'Priority',
   'Assignee',
   'Internal Status',
+  'Due date',
+  'Created',
 ] as const;
+
+/**
+ * A stored timestamp as the list prints it: `YYYY-MM-DD` in UTC, or the em dash when unset.
+ *
+ * ISO rather than a locale format, for the reason `ugc/fields.ts` spells out: `toLocaleDateString`
+ * resolves against the machine's locale and time zone, so a server component and the browser that
+ * hydrates it would render two different strings for one row and React would report a mismatch.
+ * The slice is off the ISO string, which is UTC by definition and identical in every process.
+ */
+export function briefDateLabel(value: Date | string | null | undefined): string {
+  const iso = dueDateInputValue(value);
+  return iso === '' ? EM_DASH : iso;
+}
+
+/**
+ * The stripe for one stored internal status, read through the editor board's own mapping: a brief
+ * waiting on its editor, one being worked on, one with a reviewer, and one that has left the board
+ * each get their stage's tone. An unknown status is off the board and reads muted, never unpainted.
+ *
+ * The class comes from `TONE_STRIPE` in `@tas/ui` — THE tone→stripe map, the one the editor board's
+ * cards paint with too, so a brief is the same colour whichever view it is read in and there is no
+ * second copy to drift. Nothing here composes a colour; the token layer owns that.
+ */
+export function briefStageStripe(internalStatus: string): string {
+  return TONE_STRIPE[editorStageTone(editorStageOf(internalStatus))];
+}
 
 /** One status, ready to render: the stored key, its label and the chip tone it carries. */
 export interface BriefStatusView {
@@ -267,6 +306,13 @@ export interface BriefItem {
   readonly priority: BriefPriorityView | null;
   readonly assignee: string | null;
   readonly status: BriefStatusView;
+  /** `YYYY-MM-DD` or the em dash — formatted on the server, so the row never formats a date. */
+  readonly dueDateLabel: string;
+  readonly createdLabel: string;
+  /** The editor board's stage this brief sits in, or `null` once it is off the board. */
+  readonly stage: EditorStageKey | null;
+  /** The row's left-edge stripe class for that stage (`briefStageStripe`). */
+  readonly stageStripe: string;
   /** The client-facing track, for the board sidebar's quick read (P2B-3). */
   readonly clientStatus: BriefClientStatusView;
   /** Funnel and Source as the sidebar shows them; Source is stored display-ready ("TAS"/"Client"). */
@@ -554,6 +600,8 @@ export const BRIEF_HEADINGS = {
   batch: 'Batch',
   angle: 'Angle',
   product: 'Product',
+  /** Inherited through the angle (action item 54), never stored on the brief. */
+  persona: 'Persona',
   performance: 'Performance',
   assignee: 'Assignee',
   dueDate: 'Due date',

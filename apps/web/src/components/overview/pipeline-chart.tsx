@@ -27,7 +27,12 @@ export function PipelineChart({ steps }: { readonly steps: readonly PipelineStep
                 style={{ width: `${String(Math.round((step.count / max) * 100))}%` }}
               />
             </span>
-            <span className="text-right font-mono text-xs text-text2">{step.count}</span>
+            <span
+              data-slot="overview-pipeline-count"
+              className="text-right font-mono text-xs text-text2"
+            >
+              {step.count}
+            </span>
           </li>
         ))}
       </ol>

@@ -184,6 +184,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
       conceptOptions={conceptOptions}
       angleName={angleName}
       productName={productName}
+      personaNames={brief.personaNames}
       collectionName={collectionName}
       assetName={assetName}
       copyLinks={copyLinks}

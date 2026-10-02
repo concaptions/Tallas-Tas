@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { NAV_GROUPS, NAV_SECTIONS, activeSectionKey, pendingSections } from './nav';
+import {
+  NAV_GROUPS,
+  NAV_SECTIONS,
+  activeSectionKey,
+  navGroupsForRole,
+  navSectionsForRole,
+  pendingSections,
+  type NavRole,
+} from './nav';
 
 describe('NAV_SECTIONS', () => {
   it('lists every module in sidebar order (regrouped 2026-10-01 for Airtable parity)', () => {
@@ -119,6 +127,75 @@ describe('NAV_SECTIONS', () => {
       ['Add Brand', '/app/onboard'],
       ['Design System', '/design-system'],
     ]);
+  });
+});
+
+/**
+ * Action item 57: "Build an Editor view showing only briefs, not concepts, products or angles."
+ * The rail is the filter; the route guards are not, and are not in scope here.
+ */
+describe('navSectionsForRole', () => {
+  const EVERY_ROLE: readonly NavRole[] = [
+    'admin',
+    'csm',
+    'strategist',
+    'media_buyer',
+    'client',
+    'video_editor',
+    'designer',
+  ];
+
+  it('shows an editor Creative Design and nothing else', () => {
+    for (const role of ['video_editor', 'designer'] as const) {
+      expect(
+        navSectionsForRole(role).map((section) => section.label),
+        role,
+      ).toEqual(['Creative Design']);
+    }
+  });
+
+  it('keeps Concepts, Products and Angles away from an editor — the named regression', () => {
+    const keys = navSectionsForRole('video_editor').map((section) => section.key);
+
+    for (const hidden of ['concepts', 'products', 'angles', 'personas', 'themes', 'team']) {
+      expect(keys, hidden).not.toContain(hidden);
+    }
+  });
+
+  it('leaves admin and the strategist the whole rail, unchanged and un-copied', () => {
+    for (const role of ['admin', 'strategist', 'csm', 'media_buyer', 'client'] as const) {
+      expect(navSectionsForRole(role), role).toEqual(NAV_SECTIONS);
+      expect(navGroupsForRole(role), role).toBe(NAV_GROUPS);
+    }
+  });
+
+  it('drops a group that filters down to nothing, so no empty heading renders', () => {
+    const groups = navGroupsForRole('designer');
+
+    expect(groups.map((group) => group.label)).toEqual(['Production']);
+    for (const group of groups) {
+      expect(group.sections.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('never invents a section: every role’s rail is a subset of the one list', () => {
+    const everyKey = new Set(NAV_SECTIONS.map((section) => section.key));
+
+    for (const role of EVERY_ROLE) {
+      const sections = navSectionsForRole(role);
+      expect(sections.length, role).toBeGreaterThan(0);
+      for (const section of sections) {
+        expect(everyKey, `${role}/${section.key}`).toContain(section.key);
+      }
+      // Sidebar order is the one order; a filter must not resort the rail.
+      const order = NAV_SECTIONS.map((entry) => entry.key).filter((key) =>
+        sections.some((section) => section.key === key),
+      );
+      expect(
+        sections.map((section) => section.key),
+        role,
+      ).toEqual(order);
+    }
   });
 });
 

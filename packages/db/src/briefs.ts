@@ -1,11 +1,16 @@
 import { desc, eq } from 'drizzle-orm';
 
 import type { Db } from './db';
-import { loadAllAngleProducts, loadAllConceptAngles } from './junction-queries';
+import {
+  loadAllAnglePersonas,
+  loadAllAngleProducts,
+  loadAllConceptAngles,
+} from './junction-queries';
 import {
   angles,
   concepts,
   creativeBriefs,
+  personas,
   products,
   type CreativeBrief,
   type NewCreativeBrief,
@@ -53,6 +58,23 @@ export type BriefListRow = CreativeBrief & {
   conceptName: string | null;
   angleName: string | null;
   productName: string | null;
+  /**
+   * The persona(s) this brief speaks to, inherited down the chain concept → angle → persona (PRD
+   * §5.10: "Concept (link) → auto-fills Batch, Angle, Persona, Product"). NEVER STORED on the
+   * brief: `creative_briefs` has no persona column and must not get one, because the persona is a
+   * property of the angle and a copy here would go stale the moment the angle is re-targeted.
+   *
+   * A LIST, not a single name, because `angle_personas` is a many-to-many: one angle can argue to
+   * several personas, and a brief reaches every angle it is linked to — its own `angle_id` and,
+   * through its concept, that concept's angles. The names are deduped and ordered by the angle
+   * order, and the list is EMPTY rather than null when there is nothing to reach: a standalone
+   * brief (PRD §8), an angle with no persona linked, or a link that points out of the brand's
+   * scope. Empty is the ordinary case, not an error.
+   *
+   * Deliberately wider than `angleName` above, which still names the concept's FIRST angle only:
+   * widening that one would change a value the brief page already shows, and this field is new.
+   */
+  personaNames: readonly string[];
 };
 
 /** Everything a brief row inherits through its concept, resolved once per call and indexed by id. */
@@ -61,7 +83,9 @@ interface Inherited {
   conceptAngleMap: Map<string, string[]>;
   angleFields: Map<string, { name: string }>;
   angleProductMap: Map<string, string[]>;
+  anglePersonaMap: Map<string, string[]>;
   productNames: Map<string, string>;
+  personaNames: Map<string, string>;
 }
 
 /**
@@ -74,27 +98,56 @@ interface Inherited {
  * inherited: a brief pointing at any of them inherits null, exactly as a standalone brief does.
  */
 async function inherited(db: Db, scope: BrandScope): Promise<Inherited> {
-  const [brandConcepts, brandAngles, brandProducts, conceptAngleMap, angleProductMap] =
-    await Promise.all([
-      scope.select(concepts),
-      scope.select(angles),
-      scope.select(products),
-      loadAllConceptAngles(db),
-      loadAllAngleProducts(db),
-    ]);
+  const [
+    brandConcepts,
+    brandAngles,
+    brandProducts,
+    brandPersonas,
+    conceptAngleMap,
+    angleProductMap,
+    anglePersonaMap,
+  ] = await Promise.all([
+    scope.select(concepts),
+    scope.select(angles),
+    scope.select(products),
+    scope.select(personas),
+    loadAllConceptAngles(db),
+    loadAllAngleProducts(db),
+    loadAllAnglePersonas(db),
+  ]);
   return {
     conceptFields: new Map(brandConcepts.map((concept) => [concept.id, { name: concept.name }])),
     conceptAngleMap,
     angleFields: new Map(brandAngles.map((angle) => [angle.id, { name: angle.name }])),
     angleProductMap,
+    anglePersonaMap,
     productNames: new Map(brandProducts.map((product) => [product.id, product.name])),
+    personaNames: new Map(brandPersonas.map((persona) => [persona.id, persona.name])),
   };
 }
 
 /**
- * One row plus the three names it inherits, null wherever a link is absent or no longer live. The
- * angle and the product hang off the CONCEPT, not off the brief, so a standalone brief — and a brief
- * whose concept is gone — inherits null for all three: there is nothing left to follow.
+ * Every angle this brief can reach, in reading order and without a repeat: its OWN `angle_id`
+ * first — the link the Airtable import writes on the row, and the one the brief page shows before
+ * the inherited pair — then the angles hanging off its concept. An id that is not in
+ * `angleFields` has been dropped by the scope (another brand's angle, or a soft-deleted one) and
+ * is skipped here, so nothing is inherited through a row the caller may not read.
+ */
+function reachableAngleIds(row: CreativeBrief, tables: Inherited): string[] {
+  const throughConcept =
+    row.conceptId === null || !tables.conceptFields.has(row.conceptId)
+      ? []
+      : (tables.conceptAngleMap.get(row.conceptId) ?? []);
+  const ids = [...(row.angleId === null ? [] : [row.angleId]), ...throughConcept];
+  return [...new Set(ids)].filter((id) => tables.angleFields.has(id));
+}
+
+/**
+ * One row plus the names it inherits, null wherever a link is absent or no longer live. The angle
+ * and the product hang off the CONCEPT, not off the brief, so a standalone brief — and a brief
+ * whose concept is gone — inherits null for all three: there is nothing left to follow. The
+ * personas hang off the ANGLE and are a list, resolved over every angle the brief reaches; see
+ * `BriefListRow.personaNames` for why that is wider than `angleName`.
  */
 function withInherited(row: CreativeBrief, tables: Inherited): BriefListRow {
   const concept = row.conceptId === null ? undefined : tables.conceptFields.get(row.conceptId);
@@ -107,11 +160,18 @@ function withInherited(row: CreativeBrief, tables: Inherited): BriefListRow {
     firstAngleId === null || angle === undefined
       ? null
       : ((tables.angleProductMap.get(firstAngleId) ?? [])[0] ?? null);
+  const personaIds = reachableAngleIds(row, tables).flatMap(
+    (angleId) => tables.anglePersonaMap.get(angleId) ?? [],
+  );
   return {
     ...row,
     conceptName: concept?.name ?? null,
     angleName: angle?.name ?? null,
     productName: firstProductId === null ? null : (tables.productNames.get(firstProductId) ?? null),
+    personaNames: [...new Set(personaIds)].flatMap((personaId) => {
+      const name = tables.personaNames.get(personaId);
+      return name === undefined ? [] : [name];
+    }),
   };
 }
 

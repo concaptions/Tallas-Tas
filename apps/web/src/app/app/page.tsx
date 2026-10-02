@@ -17,7 +17,7 @@ import { Icon, type IconName } from '@/components/shell/icons';
 import { loadOverviewPanels } from '@/lib/dashboard-source';
 import { loadActiveRole, loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
-import { anglesPath, conceptsPath, personasPath, themesPath } from '@/lib/routes';
+import { conceptsPath, personasPath, themesPath } from '@/lib/routes';
 
 /**
  * The workspace Overview. Counts come from the data source, which is the demo fixtures when Clerk
@@ -44,6 +44,14 @@ export default async function OverviewPage() {
     loadOverviewPanels(role),
   ]);
 
+  /**
+   * The Library block. Angles were a card here until 28 September (action item 8): Talal asked for
+   * the angle count to come off the Overview — the layout is right, the metric was not — so the
+   * card shape and the three remaining counts are untouched and only Angles is gone. The grid's
+   * track count came down to three with it, because a four-track row holding three cards leaves an
+   * orphan cell: same block, same cards, no hole. `/app/angles` is still in the sidebar; it is the
+   * COUNT that was noise, not the section.
+   */
   const cards: readonly SectionCard[] = [
     {
       label: 'Personas',
@@ -51,13 +59,6 @@ export default async function OverviewPage() {
       count: counts.personas,
       blurb: 'Who the creative speaks to.',
       href: personasPath,
-    },
-    {
-      label: 'Angles',
-      icon: 'angles',
-      count: counts.angles,
-      blurb: 'The argument each ad makes.',
-      href: anglesPath,
     },
     {
       label: 'Themes',
@@ -101,7 +102,7 @@ export default async function OverviewPage() {
         <h2 id="library-heading" className="text-sm font-medium text-text2">
           Library
         </h2>
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {cards.map((card) => {
             const body = (
               <Card

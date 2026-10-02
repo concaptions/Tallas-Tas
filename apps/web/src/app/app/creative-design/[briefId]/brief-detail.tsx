@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { creativeNameForConcept } from '@tas/domain/creatives';
-import { editorStageLabel, editorStageOf, editorStageTone } from '@tas/domain/state';
+import { editorStageLabelFor, editorStageOf, editorStageTone } from '@tas/domain/state';
 import type {
   ChipTone,
   ClientStatusKey,
@@ -159,6 +159,13 @@ interface BriefDetailProps {
    */
   readonly angleName: string | null;
   readonly productName: string | null;
+  /**
+   * The persona(s) this brief speaks to, INHERITED down concept → angle → persona and never stored
+   * on the brief (action item 54). Read-only here for that reason: the way to change it is to
+   * re-target the angle, and an editable field would invite a copy that goes stale. Empty is the
+   * ordinary case — a standalone brief, or an angle with no persona linked.
+   */
+  readonly personaNames: readonly string[];
   /** The linked collection's and asset's names, resolved on the server; null when unlinked. */
   readonly collectionName: string | null;
   readonly assetName: string | null;
@@ -293,6 +300,7 @@ export function BriefDetail({
   conceptOptions,
   angleName,
   productName,
+  personaNames,
   collectionName,
   assetName,
   copyLinks,
@@ -441,7 +449,10 @@ export function BriefDetail({
           </span>
           <StatusChip
             tone={editorStageTone(stage)}
-            label={stage === null ? 'Off the editor board' : editorStageLabel(stage)}
+            // Named for whoever is waiting on THIS brief (action item 59): the first stage reads
+            // "Sent to Editor" on the video track and "Sent to Designer" on the static one. The
+            // page already carries the track, so the chip asks for that track's word.
+            label={stage === null ? 'Off the editor board' : editorStageLabelFor(stage, track)}
           />
         </span>
       </div>
@@ -531,14 +542,21 @@ export function BriefDetail({
             )}
 
             {/*
-              Batch, Angle and Product, each under its own label. Batch comes from the concept or,
-              standalone, from the row. Angle and Product read the brief's OWN links first (the
-              import writes `angle_id` / `product_id` on the row), then the pair inherited through
-              the concept — which follows the concept's first angle and that angle's first product,
-              so it can name the wrong one of several — and show the em dash when neither is set,
-              rather than disappearing.
+              Batch, Angle, Product and Persona, each under its own label. Batch comes from the
+              concept or, standalone, from the row. Angle and Product read the brief's OWN links
+              first (the import writes `angle_id` / `product_id` on the row), then the pair
+              inherited through the concept — which follows the concept's first angle and that
+              angle's first product, so it can name the wrong one of several — and show the em dash
+              when neither is set, rather than disappearing.
+
+              FOUR columns, not three: the Persona below is read THROUGH the Angle, so it has to sit
+              beside it to show the chain. At three it wrapped onto a second row under Batch and the
+              chain read as an unrelated fact. Two per row on a phone keeps the pairs together.
             */}
-            <dl data-slot="brief-concept-facts" className="grid min-w-0 grid-cols-3 gap-3">
+            <dl
+              data-slot="brief-concept-facts"
+              className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4"
+            >
               {conceptFact(
                 BRIEF_HEADINGS.batch,
                 concept?.batch ?? brief.batch,
@@ -555,6 +573,15 @@ export function BriefDetail({
                 BRIEF_HEADINGS.product,
                 productName ?? concept?.productName ?? null,
                 'brief-product',
+                false,
+              )}
+              {/* The persona, read through the Angle to its left and shown beside it so the chain
+                  is visible: concept → angle → persona. Read-only, and a LIST because an angle can
+                  argue to several. */}
+              {conceptFact(
+                BRIEF_HEADINGS.persona,
+                personaNames.length === 0 ? null : personaNames.join(', '),
+                'brief-persona',
                 false,
               )}
             </dl>

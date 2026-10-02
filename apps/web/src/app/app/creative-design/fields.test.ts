@@ -19,10 +19,13 @@ import {
   PERFORMANCE_OPTIONS,
   advanceLabel,
   briefCountLabel,
+  briefDateLabel,
   briefDimensions,
+  briefStageStripe,
   briefLinkedRecords,
   clientStatusView,
   cpaVsTargetLabel,
+  EM_DASH,
   filteredBriefCountLabel,
   indexBriefLinkCounts,
   internalStatusView,
@@ -79,6 +82,12 @@ function item(overrides: Partial<BriefItem> = {}): BriefItem {
     href: '/app/briefs/brief-1',
     kanbanFields: { clientStatus: 'pending_for_approval', internalStatus: 'approved' },
     galleryImageUrl: null,
+    // Action item 49's three row additions: both dates printed on the server, and the stage the
+    // row's left stripe is coloured by.
+    dueDateLabel: EM_DASH,
+    createdLabel: '2026-08-30',
+    stage: null,
+    stageStripe: briefStageStripe('approved'),
     formSnapshot: EMPTY_SNAPSHOT,
     linkCounts: NO_BRIEF_LINKS,
     ...overrides,
@@ -100,7 +109,7 @@ const BUNDLE_STANDALONE = '77777777-7777-4777-8777-000000000005';
 const BODY_CLOCK_LAUNCHED = '77777777-7777-4777-8777-000000000007';
 
 describe('BRIEF_COLUMNS', () => {
-  it('is the ticket order, exactly', () => {
+  it('is the ticket order, with action item 49’s two columns appended', () => {
     expect([...BRIEF_COLUMNS]).toEqual([
       'Name',
       'Concept',
@@ -108,7 +117,44 @@ describe('BRIEF_COLUMNS', () => {
       'Priority',
       'Assignee',
       'Internal Status',
+      'Due date',
+      'Created',
     ]);
+  });
+});
+
+describe('briefDateLabel', () => {
+  it('prints a stored timestamp as YYYY-MM-DD in UTC, whichever form it arrives in', () => {
+    expect(briefDateLabel(new Date('2026-10-20T23:30:00.000Z'))).toBe('2026-10-20');
+    expect(briefDateLabel('2026-01-01T00:00:00.000Z')).toBe('2026-01-01');
+  });
+
+  it('answers the em dash for an unset or unreadable date, never an empty cell', () => {
+    expect(briefDateLabel(null)).toBe(EM_DASH);
+    expect(briefDateLabel(undefined)).toBe(EM_DASH);
+    expect(briefDateLabel('next week')).toBe(EM_DASH);
+  });
+});
+
+describe('briefStageStripe', () => {
+  it('gives each editor stage its own token class, and nothing a hex', () => {
+    const stripes = [
+      briefStageStripe('sent_to_video_editor'),
+      briefStageStripe('sent_to_designer'),
+      briefStageStripe('video_editing_in_progress'),
+      briefStageStripe('ad_submitted'),
+    ];
+
+    expect(stripes).toEqual(['border-l-info', 'border-l-info', 'border-l-warn', 'border-l-accent']);
+    for (const stripe of stripes) {
+      expect(stripe).not.toMatch(/#|rgb/);
+    }
+  });
+
+  it('paints a brief that has left the board muted rather than leaving it unpainted', () => {
+    expect(briefStageStripe('approved')).toBe('border-l-line2');
+    expect(briefStageStripe('launched')).toBe('border-l-line2');
+    expect(briefStageStripe('nonsense')).toBe('border-l-line2');
   });
 });
 

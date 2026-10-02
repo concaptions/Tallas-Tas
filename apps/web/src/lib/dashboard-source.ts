@@ -7,14 +7,7 @@ import { INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS } from '@tas/domain/state
 import { loadBriefs, type BriefSourceDeps } from './briefs-source';
 import { loadConcepts } from './concepts-source';
 import { loadCopy } from './copy-source';
-import {
-  anglesPath,
-  briefsPath,
-  conceptsPath,
-  copywritingPath,
-  internalQueuePath,
-  ugcPath,
-} from './routes';
+import { briefsPath, conceptsPath, copywritingPath, internalQueuePath, ugcPath } from './routes';
 import { loadUgc } from './ugc-source';
 
 export interface DashboardItem {
@@ -111,8 +104,14 @@ function designerItems(data: DashboardData): DashboardItem[] {
   ];
 }
 
+/**
+ * The CSM's tiles. There were three: a third counted "Angles in library", which Talal asked to be
+ * taken off the Overview on 28 September (action item 8) — it was a library size, not a thing
+ * anyone is waiting on, and it counted CONCEPTS rather than angles besides. `adminItems` spreads
+ * this set and `client` aliases it, so removing it here removes it from all three overviews.
+ */
 function csmItems(data: DashboardData): DashboardItem[] {
-  const { briefs, concepts } = data;
+  const { briefs } = data;
   const pending = briefs.filter(
     (b) => b.internalStatus !== 'approved' && b.internalStatus !== 'launched',
   );
@@ -122,7 +121,6 @@ function csmItems(data: DashboardData): DashboardItem[] {
   return [
     { label: 'Briefs in progress', count: pending.length, href: internalQueuePath },
     { label: 'Ready for client', count: clientReady.length, href: internalQueuePath },
-    { label: 'Angles in library', count: concepts.length, href: anglesPath },
   ];
 }
 
@@ -371,28 +369,46 @@ export async function loadRoleDashboard(
 }
 
 /**
- * Everything the Overview's role-aware sections render — the role tiles, the eight metric cards
- * and the pipeline chart — over ONE load of the four tables, so the page never reads briefs twice.
+ * The three tables the panels count over BESIDES the briefs. Split out so a page that has already
+ * read the briefs — the Creative Briefs page, which renders its own list from them — can load this
+ * much and hand its rows to `buildOverviewPanels`, instead of reading `creative_briefs` and the
+ * whole inherited fan-out behind it a second time. `loadBriefs` is not request-memoised, so the
+ * second read would be a real one.
  */
-export async function loadOverviewPanels(
-  role: BrandRole | 'admin',
-  deps: BriefSourceDeps = {},
-): Promise<OverviewPanels> {
-  const [briefs, concepts, copy, creators] = await Promise.all([
-    loadBriefs(deps),
+export type OverviewContext = Omit<DashboardData, 'briefs'>;
+
+export async function loadOverviewContext(deps: BriefSourceDeps = {}): Promise<OverviewContext> {
+  const [concepts, copy, creators] = await Promise.all([
     loadConcepts(deps),
     loadCopy(deps),
     loadUgc(deps),
   ]);
-  const data: DashboardData = {
-    briefs: briefs.rows,
-    concepts: concepts.rows,
-    copy: copy.rows,
-    creators: creators.creators,
-  };
+  return { concepts: concepts.rows, copy: copy.rows, creators: creators.creators };
+}
+
+/**
+ * Everything the Overview's role-aware sections render — the role tiles, the eight metric cards and
+ * the pipeline chart — as pure functions over rows the caller already holds. The ONE place the
+ * three panels are composed, so `/app` and the Creative Briefs page cannot drift apart.
+ */
+export function buildOverviewPanels(
+  role: BrandRole | 'admin',
+  briefs: readonly BriefListRow[],
+  context: OverviewContext,
+): OverviewPanels {
+  const data: DashboardData = { ...context, briefs };
   return {
     dashboard: buildRoleDashboard(role, data),
     metrics: buildOverviewMetrics(role, data),
-    pipeline: buildPipeline(data.briefs),
+    pipeline: buildPipeline(briefs),
   };
+}
+
+/** The panels for a page that has not read anything yet: one load of the four tables. */
+export async function loadOverviewPanels(
+  role: BrandRole | 'admin',
+  deps: BriefSourceDeps = {},
+): Promise<OverviewPanels> {
+  const [briefs, context] = await Promise.all([loadBriefs(deps), loadOverviewContext(deps)]);
+  return buildOverviewPanels(role, briefs.rows, context);
 }

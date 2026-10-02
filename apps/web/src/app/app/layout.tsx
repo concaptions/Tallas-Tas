@@ -5,7 +5,7 @@ import { DemoBanner } from '@/components/shell/demo-banner';
 import { Sidebar } from '@/components/shell/sidebar';
 import { TopBar } from '@/components/shell/top-bar';
 import { currentActor } from '@/lib/actor';
-import { loadBrandScope } from '@/lib/data-source';
+import { loadActiveRole, loadBrandScope } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { ensureOrganization } from '@/lib/ensure-organization';
 import { ensureUser } from '@/lib/ensure-user';
@@ -31,11 +31,18 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
   // scope resolves from the org's agency, never from the membership `ensureUser` may write. Run in
   // series these were four round-trip chains back to back on every full load; now the layout costs
   // the slowest one. `ensureUser` provisions the roster row the Team and Propagation guards read (2D).
-  const [, , brands, actor] = await Promise.all([
+  // `loadActiveRole` joins the same tick: the rail is filtered by role (action item 57), and the
+  // role resolves from the active brand and the Clerk user exactly as it does for the Overview, so
+  // the rail and the dashboard cannot disagree about who is looking. The brand scope behind it is
+  // memoised per request in `data-source.ts`, so the shell's call costs one membership read on top
+  // of the Overview's, not a second scope resolution; in demo mode it answers `admin` without a
+  // connection.
+  const [, , brands, actor, role] = await Promise.all([
     demo ? undefined : ensureOrganization(),
     demo ? undefined : ensureUser(),
     loadBrandScope(),
     currentActor(),
+    loadActiveRole(),
   ]);
 
   return (
@@ -43,7 +50,7 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
       <TopBar brands={brands} actor={actor} demo={demo} />
       {demo ? <DemoBanner /> : null}
       <div className="flex flex-1 items-stretch">
-        <Sidebar />
+        <Sidebar role={role} />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {/* Full-width content (P2D, client feedback Sep 28): tables stretch to fill wide screens
               instead of sitting inside a narrow centred column. */}

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn, SoonChip } from '@tas/ui';
 
 import { Icon } from './icons';
-import { NAV_GROUPS, activeSectionKey } from './nav';
+import { activeSectionKey, navGroupsForRole, type NavRole } from './nav';
 
 /**
  * The product's left rail. Below `md` it collapses to a 56px icon rail (labels hidden, the whole
@@ -13,10 +13,16 @@ import { NAV_GROUPS, activeSectionKey } from './nav';
  *
  * A section with no `href` is not built yet: muted, `aria-disabled`, marked with a `SoonChip` from
  * `@tas/ui`, rendered as a `div` so it cannot be clicked or focused.
+ *
+ * WHAT IS LISTED DEPENDS ON THE ROLE (action item 57): `navGroupsForRole` decides, from the role the
+ * shell layout resolved with `loadActiveRole` — the same role the Overview draws its dashboard for.
+ * An editor is shown Creative Design and nothing else; admin and the strategist keep the whole
+ * rail. The rail is a rail, not a route guard: hiding a link does not refuse the URL.
  */
-export function Sidebar() {
+export function Sidebar({ role }: { readonly role: NavRole }) {
   const pathname = usePathname();
   const active = activeSectionKey(pathname);
+  const groups = navGroupsForRole(role);
 
   return (
     <nav
@@ -25,7 +31,7 @@ export function Sidebar() {
       className="w-14 shrink-0 border-r border-line bg-surface md:w-56"
     >
       <div className="sticky top-14 flex flex-col gap-3 p-2">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <ul key={group.key} aria-label={group.label} className="flex flex-col gap-0.5">
             {group.label === undefined ? null : (
               <li

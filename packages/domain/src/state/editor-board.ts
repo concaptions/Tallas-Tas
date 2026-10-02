@@ -17,7 +17,7 @@ import {
  *
  * | Stage         | Video track                                       | Static track                                       |
  * | ------------- | ------------------------------------------------- | -------------------------------------------------- |
- * | Incoming      | sent_to_video_editor                              | sent_to_designer                                   |
+ * | (first)       | sent_to_video_editor                              | sent_to_designer                                   |
  * | Under Editing | video_editing_in_progress, videos_revisions       | static_design_in_progress, images_revisions        |
  * | Under Review  | ad_submitted, revisions_submitted                 | ad_submitted, revisions_submitted                  |
  * | (off board)   | approved, launched, on_hold                       | approved, launched, on_hold                        |
@@ -25,14 +25,33 @@ import {
  * Revisions sit under Editing because the reviewer has handed the work back and the editor holds
  * it again; the two "submitted" states sit under Review because the editor is done and a reviewer
  * holds it. Approved and Launched have left the editor's desk and are not on this board.
+ *
+ * THE FIRST STAGE IS NAMED BY TRACK (Sep 28 action item 59). The column used to read "Incoming",
+ * which says nothing about who is waiting for it; a video brief has been *Sent to Editor* and a
+ * static or design brief *Sent to Designer*. One constant cannot hold two words, so `label` here is
+ * the reading for a column that holds BOTH tracks and `editorStageLabelFor` is the reading for one
+ * brief. The stored status keys are untouched: `sent_to_video_editor` and `sent_to_designer` are
+ * still what the rows carry and what the transition table grades. This is a label, not a state.
  */
 export const EDITOR_STAGES = [
-  { key: 'incoming', label: 'Incoming', tone: 'info' },
+  { key: 'incoming', label: 'Sent to Editor / Designer', tone: 'info' },
   { key: 'under_editing', label: 'Under Editing', tone: 'warn' },
   { key: 'under_review', label: 'Under Review', tone: 'accent' },
 ] as const satisfies readonly { key: string; label: string; tone: ChipTone }[];
 
 export type EditorStageKey = (typeof EDITOR_STAGES)[number]['key'];
+
+/**
+ * The stages whose label depends on the brief's track, and the word each track uses. A stage absent
+ * from this map reads the same on both tracks — Under Editing and Under Review describe the state
+ * of the work, not who holds it — so `editorStageLabelFor` falls through to its single label and a
+ * caller never has to ask which kind of stage it is holding.
+ */
+const PER_TRACK_STAGE_LABELS: Readonly<
+  Partial<Record<EditorStageKey, Readonly<Record<CreativeTrack, string>>>>
+> = {
+  incoming: { video: 'Sent to Editor', static: 'Sent to Designer' },
+};
 
 export const EDITOR_STAGE_KEYS: readonly EditorStageKey[] = EDITOR_STAGES.map((stage) => stage.key);
 
@@ -54,8 +73,35 @@ export function editorStageOf(internalStatus: string): EditorStageKey | null {
   return (STAGE_OF as Readonly<Record<string, EditorStageKey | null>>)[internalStatus] ?? null;
 }
 
+/**
+ * The stage's track-neutral label: the word a column carries when it holds briefs of both tracks,
+ * or when the track is not known. `editorStageLabelFor` is the per-brief reading.
+ */
 export function editorStageLabel(stage: EditorStageKey): string {
   return EDITOR_STAGES.find((entry) => entry.key === stage)?.label ?? stage;
+}
+
+/**
+ * The stage's label for ONE brief, read off that brief's track: the first stage says "Sent to
+ * Editor" for a video brief and "Sent to Designer" for a static or design one (action item 59).
+ * Every other stage answers its single label, so this is safe to call for any stage.
+ */
+export function editorStageLabelFor(stage: EditorStageKey, track: CreativeTrack): string {
+  return PER_TRACK_STAGE_LABELS[stage]?.[track] ?? editorStageLabel(stage);
+}
+
+/**
+ * The label a board column carries, given the tracks of the briefs sitting in it. A column holding
+ * one track reads that track's word; a mixed column — and an empty one, which has no track to read
+ * — falls back to the neutral label rather than picking one of the two and lying about the other.
+ */
+export function editorStageColumnLabel(
+  stage: EditorStageKey,
+  tracks: readonly CreativeTrack[],
+): string {
+  const distinct = [...new Set(tracks)];
+  const only = distinct.length === 1 ? distinct[0] : undefined;
+  return only === undefined ? editorStageLabel(stage) : editorStageLabelFor(stage, only);
 }
 
 export function editorStageTone(stage: EditorStageKey | null): ChipTone {

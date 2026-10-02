@@ -77,6 +77,7 @@ export { Textarea } from './components/textarea';
 export { SoonChip, type SoonChipProps } from './status/soon-chip';
 export { StatusChip, type StatusChipProps } from './status/status-chip';
 export { StepRow, type StepRowProps } from './status/step-row';
+export { TONE_STRIPE, toneStripe } from './status/tone-stripe';
 export {
   CLIENT_TRACK_LIVE_NOTE,
   CLIENT_TRACK_LOCKED_NOTE,

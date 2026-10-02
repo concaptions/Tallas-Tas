@@ -24,7 +24,14 @@ describe('hasSpellingIssues', () => {
 });
 
 describe('roleDashboard', () => {
-  it('returns well-formed items for every role — three per brand role, four for admin', () => {
+  /**
+   * Three tiles per brand role, except the two sets "Angles in library" was removed from on 28
+   * September (action item 8): the CSM keeps two, and Admin — which spreads the CSM set and adds
+   * the spell-check tile — keeps three.
+   */
+  const TILE_COUNT: Readonly<Record<string, number>> = { csm: 2, admin: 3 };
+
+  it('returns well-formed items for every role', () => {
     const roles = [
       'strategist',
       'video_editor',
@@ -35,7 +42,7 @@ describe('roleDashboard', () => {
     ] as const;
     for (const role of roles) {
       const d = roleDashboard(role);
-      expect(d.items).toHaveLength(role === 'admin' ? 4 : 3);
+      expect(d.items, role).toHaveLength(TILE_COUNT[role] ?? 3);
       expect(d.roleLabel.length).toBeGreaterThan(0);
       for (const item of d.items) {
         expect(item.href).toMatch(/^\/app\//);
@@ -119,6 +126,9 @@ function brief(overrides: Partial<BriefListRow>): BriefListRow {
     qaDesigner: false,
     designFileUrl: null,
     performance: null,
+    // The Admin set reads this column (`hasSpellingIssues`), so the stand-in has to carry it: a
+    // partial fixture that leaves it undefined throws inside the builder rather than counting 0.
+    spellingFeedback: null,
     ...overrides,
   } as BriefListRow;
 }
@@ -144,7 +154,16 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
     expect(buyer.items.find((i) => i.label === 'Currently live')?.count).toBe(1);
 
     const csm = buildRoleDashboard('csm', data);
-    expect(csm.items.find((i) => i.label === 'Angles in library')?.count).toBe(3);
+    expect(csm.items.find((i) => i.label === 'Ready for client')?.count).toBe(2);
+    // Action item 8: "Angles in library" was taken off every overview it reached. Asserted as an
+    // absence on the CSM set AND on the Admin set, because `adminItems` spreads this one.
+    expect(csm.items.map((i) => i.label)).not.toContain('Angles in library');
+    expect(buildRoleDashboard('admin', data).items.map((i) => i.label)).not.toContain(
+      'Angles in library',
+    );
+    expect(buildRoleDashboard('client', data).items.map((i) => i.label)).not.toContain(
+      'Angles in library',
+    );
 
     const editor = buildRoleDashboard('video_editor', data);
     expect(editor.items.find((i) => i.label === 'Copy pending review')?.count).toBe(1);

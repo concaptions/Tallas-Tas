@@ -23,6 +23,7 @@ import {
   creativePriorities,
   creativeSources,
   creativeTypes,
+  personas,
   products,
   type CreativeBrief,
 } from './schema';
@@ -458,6 +459,82 @@ describe('brief queries', () => {
     });
   });
 
+  /**
+   * Action item 54: "In briefs, connect a Concept … this brings in the angle and through it the
+   * product and persona." The persona is the only link of that chain the row did not carry, and it
+   * is inherited, never stored — `creative_briefs` has no persona column, so these assertions walk
+   * the real junctions on PGlite rather than reading a copy.
+   */
+  it('inherits the persona through its angle (concept → angle → persona)', async () => {
+    const { db, brandId } = await seeded();
+
+    const row = await getBriefById(db, brandId, demoBrief().id);
+
+    expect(row).toMatchObject({
+      angleName: 'Your Body Clock Is Not Broken',
+      personaNames: ['Marcus — the rotating-shift nurse who cannot switch off'],
+    });
+  });
+
+  it('inherits nothing to copy: the brief row itself holds no persona column', async () => {
+    const db = await testDb();
+
+    const { rows } = await db.execute<{ column_name: string }>(
+      sql`select column_name
+          from information_schema.columns
+          where table_name = 'creative_briefs' and column_name like '%persona%'`,
+    );
+
+    expect(rows).toEqual([]);
+  });
+
+  it('reads the persona through the brief’s OWN angle as well as its concept’s', async () => {
+    const { db, brandId } = await seeded();
+    // The standalone brief has no concept, so its own `angle_id` is the only chain there is.
+    const angleId = demoConcepts[1]?.angleIds[0] ?? '';
+    expect(angleId).not.toBe('');
+    await withBrand(db, brandId).update(
+      creativeBriefs,
+      { angleId },
+      eq(creativeBriefs.id, standaloneBrief().id),
+    );
+
+    const row = await getBriefById(db, brandId, standaloneBrief().id);
+
+    expect(row?.conceptName).toBeNull();
+    expect(row?.personaNames.length).toBeGreaterThan(0);
+  });
+
+  it('answers the empty list — never null — when there is no persona to reach', async () => {
+    const { db, brandId } = await seeded();
+
+    expect(await getBriefById(db, brandId, standaloneBrief().id)).toMatchObject({
+      conceptId: null,
+      personaNames: [],
+    });
+
+    // Soft-delete every persona of the brand: the angles stay, the names they resolved do not.
+    await db.update(personas).set({ deletedAt: new Date() });
+
+    for (const row of await listBriefs(db, brandId)) {
+      expect(row.personaNames).toEqual([]);
+    }
+  });
+
+  it('never inherits another brand’s persona, even through a shared angle id', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const [mine] = await withBrand(db, brandId).select(personas);
+    if (mine === undefined) throw new Error('the seeded brand has no persona');
+
+    // Reparent the persona to the template brand. The angle link is untouched, so the ONLY thing
+    // standing between the brief and a cross-brand name is the scoped read in `inherited`.
+    await db.update(personas).set({ brandId: otherBrandId }).where(eq(personas.id, mine.id));
+
+    for (const row of await listBriefs(db, brandId)) {
+      expect(row.personaNames).not.toContain(mine.name);
+    }
+  });
+
   it('joins null cleanly for a standalone brief and for a soft-deleted concept', async () => {
     const { db, brandId } = await seeded();
 
@@ -645,6 +722,7 @@ describe('brief queries', () => {
     expectTypeOf<BriefListRow['conceptName']>().toEqualTypeOf<string | null>();
     expectTypeOf<BriefListRow['angleName']>().toEqualTypeOf<string | null>();
     expectTypeOf<BriefListRow['productName']>().toEqualTypeOf<string | null>();
+    expectTypeOf<BriefListRow['personaNames']>().toEqualTypeOf<readonly string[]>();
     // `brand_id` and the audit columns are the scope's, never the form's.
     expectTypeOf<BriefInput>().not.toHaveProperty('brandId');
     expectTypeOf<BriefInput>().not.toHaveProperty('createdBy');

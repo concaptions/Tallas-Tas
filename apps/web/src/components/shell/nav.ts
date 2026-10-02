@@ -38,6 +38,10 @@ import {
   youtubeCopywritingPath,
 } from '@/lib/routes';
 
+// Type-only, so it is erased: the sidebar is a client component and `@tas/db` must never reach the
+// browser bundle. `DashboardRole` is the vocabulary `loadActiveRole` answers in.
+import type { DashboardRole } from '@tas/db';
+
 import type { IconName } from './icons';
 
 /**
@@ -305,6 +309,65 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 
 /** Every section, flattened, in sidebar order. */
 export const NAV_SECTIONS: readonly NavSection[] = NAV_GROUPS.flatMap((group) => group.sections);
+
+/**
+ * The viewer's role as the shell knows it: a brand membership, or `admin` for an agency admin and
+ * for anyone the role could not be resolved for. The same type `loadActiveRole` already answers, so
+ * the rail reads the role the Overview reads and there is no second source of truth.
+ */
+export type NavRole = DashboardRole;
+
+/**
+ * WHICH SECTIONS A ROLE IS SHOWN (Sep 28 action item 57: "Build an Editor view showing only
+ * briefs, not concepts, products or angles").
+ *
+ * `'all'` is the whole rail — the strategist builds the concepts, the CSM and the media buyer read
+ * across the whole pipeline, and admin owns the settings — so only the two production roles are
+ * narrowed. An editor is handed one job and the rail should say so: Creative Design, where the
+ * editor board lives, and nothing else. The DESIGNER is narrowed the same way, because the static
+ * track is the same job on the other side of the board and a one-item rail for the video editor
+ * beside a thirty-seven-item rail for the designer would be an accident, not a decision.
+ *
+ * The keys are `NavSection.key` values, so a section renamed in the list above keeps its entry and
+ * a section DELETED from it fails the "every key is a real section" test below rather than silently
+ * filtering to nothing.
+ *
+ * THIS IS THE RAIL, NOT ACCESS CONTROL. Hiding a link does not refuse the route: `/app/concepts` is
+ * still served to an editor who types it, because there is no per-role route guard in the app yet
+ * (the only `requireAdmin` in the tree is local to the propagation actions). Route-level protection
+ * is deliberately out of scope here and is the follow-up this filter does NOT substitute for; the
+ * one thing clients are genuinely walled off from is the separate `/client/[brandSlug]` interface.
+ */
+const SECTION_KEYS_BY_ROLE: Readonly<Record<NavRole, readonly string[] | 'all'>> = {
+  admin: 'all',
+  csm: 'all',
+  strategist: 'all',
+  media_buyer: 'all',
+  client: 'all',
+  video_editor: ['briefs'],
+  designer: ['briefs'],
+};
+
+/**
+ * The groups this role is shown, in sidebar order, with every group that filters down to nothing
+ * dropped so no empty heading is rendered. `NAV_GROUPS` itself is returned unchanged for a role
+ * that sees everything — same object, so the common path allocates nothing.
+ */
+export function navGroupsForRole(role: NavRole): readonly NavGroup[] {
+  const keys = SECTION_KEYS_BY_ROLE[role];
+  if (keys === 'all') {
+    return NAV_GROUPS;
+  }
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    sections: group.sections.filter((section) => keys.includes(section.key)),
+  })).filter((group) => group.sections.length > 0);
+}
+
+/** The same thing flattened — the role's own `NAV_SECTIONS`. */
+export function navSectionsForRole(role: NavRole): readonly NavSection[] {
+  return navGroupsForRole(role).flatMap((group) => group.sections);
+}
 
 /**
  * The active section is the one whose `href` is the longest prefix of `pathname`, so `/app/personas`
