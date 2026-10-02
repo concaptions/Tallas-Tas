@@ -37,11 +37,19 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
       'YouTube Copy',
       'Updated',
     ]);
-    // The name column is frozen so it stays put while the rest scroll horizontally.
+    // The name column is frozen so it stays put while the rest scroll horizontally, and the header
+    // row is pinned so it stays put while the rows scroll down (AI-22).
     await expect(page.locator('[data-slot="products-table"] thead th').first()).toHaveCSS(
       'position',
       'sticky',
     );
+    await expect(page.locator('[data-slot="products-table"] thead')).toHaveCSS(
+      'position',
+      'sticky',
+    );
+    // The rows scroll inside the grid rather than down the page, which is what gives the pinned
+    // header something to stick to.
+    await expect(page.locator('[data-slot="grid-scroll"]').first()).toHaveCSS('overflow-y', 'auto');
 
     // The landing page shows its host, with the full URL in the cell's title.
     const first = page.locator('[data-slot="product-row"]').first();
@@ -51,6 +59,39 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     // The sleep mask has no collection link, so its cell is the em dash, never an empty cell.
     const mask = page.locator('[data-product-id="22222222-2222-4222-8222-000000000002"]');
     await expect(mask.locator('td').nth(2)).toHaveText('—');
+  });
+
+  test('the Freeze control pins the columns up to the one chosen, and the choice is remembered', async ({
+    page,
+  }) => {
+    // AI-22: until now `frozenFields` could only ever hold the page's own default, because nothing
+    // let a viewer set it. The control writes the viewer's active view — in demo mode there is no
+    // signed-in user, so that view lives in this browser and survives a reload.
+    await page.goto(productsPath);
+
+    const headers = page.locator('[data-slot="products-table"] thead th');
+    await expect(headers.nth(1)).not.toHaveCSS('position', 'sticky');
+
+    await page.locator('[data-slot="grid-freeze"]').click();
+    await page.locator('[data-slot="grid-freeze-option"][data-field="collection"]').click();
+    await page.keyboard.press('Escape');
+
+    // Freezing up to the third column pins the first three, and only the first three.
+    await expect(headers.nth(0)).toHaveCSS('position', 'sticky');
+    await expect(headers.nth(1)).toHaveCSS('position', 'sticky');
+    await expect(headers.nth(2)).toHaveCSS('position', 'sticky');
+    await expect(headers.nth(3)).not.toHaveCSS('position', 'sticky');
+
+    // Each pinned column sits past the ones before it, never stacked on top of them.
+    await expect(headers.nth(0)).toHaveCSS('left', '0px');
+    const second = await headers.nth(1).evaluate((node) => getComputedStyle(node).left);
+    expect(Number.parseFloat(second)).toBeGreaterThan(0);
+
+    await page.reload();
+    await expect(page.locator('[data-slot="products-table"] thead th').nth(2)).toHaveCSS(
+      'position',
+      'sticky',
+    );
   });
 
   test('a row opens the panel, the URL carries it, a reload reopens it and Escape closes it', async ({

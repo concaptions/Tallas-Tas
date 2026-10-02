@@ -70,11 +70,19 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
       'Updated',
     ]);
 
-    // The name column is frozen (sticky) so it stays put while the rest scroll horizontally.
+    // The name column is frozen (sticky) so it stays put while the rest scroll horizontally, and
+    // the header row is pinned so it stays put while the rows scroll down (AI-22).
     await expect(page.locator('[data-slot="angles-table"] thead th').first()).toHaveCSS(
       'position',
       'sticky',
     );
+    await expect(page.locator('[data-slot="angles-table"] thead')).toHaveCSS('position', 'sticky');
+
+    // AI-18: Kanban is gone from the data tables. Potential is a rating to sort by, not a lane.
+    await expect(page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]')).toHaveText([
+      'Grid',
+      'Gallery',
+    ]);
 
     // Persona is an info chip carrying the name before the em dash, the whole name in the title.
     const row = page.locator(`[data-angle-id="${DAYLIGHT}"]`);

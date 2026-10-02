@@ -916,19 +916,19 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section
-        title="Editor board: Incoming, Under Editing, Under Review"
-        note="Three columns over the internal status track — a view of internal_status, never a second column. Start on an Incoming card claims the brief: it moves to the track's in-progress step and the signed-in user becomes the assignee; both changes land in the activity log."
+        title="Editor board: Sent to Editor / Designer, Under Editing, Under Review"
+        note="Three columns over the internal status track — a view of internal_status, never a second column. The first column is named for whoever is waiting on the brief (action item 59): editorStageLabelFor reads it off the track, so a video brief says Sent to Editor and a static or design brief Sent to Designer; a column holding both tracks says Sent to Editor / Designer. The stored keys are unchanged — sent_to_video_editor and sent_to_designer. Start on a first-column card claims the brief: it moves to the track's in-progress step and the signed-in user becomes the assignee; both changes land in the activity log."
       >
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-              stage chips — mapping order, plus off-board
+              stage chips — mapping order, both readings of the first stage, plus off-board
             </h3>
             <EditorStageChipsStory />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-              board — one card per stage, Start on Incoming
+              board — one card per stage, Start on the first-column card
             </h3>
             <EditorBoardStory />
           </div>

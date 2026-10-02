@@ -6,7 +6,7 @@ import { briefPath, briefsPath } from '../src/lib/routes';
 /**
  * The Creative Briefs route with no environment variables at all — the Vercel deployment as it
  * stands. The middleware lets the route through, the data source serves the in-repo fixtures, and
- * both pages are fully usable read-only: every brief in a six-column table, a real detail route with
+ * both pages are fully usable read-only: every brief in an eight-column table, a real detail route with
  * a generated name that is not a field, three columns, the inspiration previews, the two-track rail
  * and every write disabled with a reason.
  *
@@ -42,7 +42,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/briefs needs a session and real data',
   );
 
-  test('lists the seven fixtures in six columns, with the standalone chip in the concept cell', async ({
+  test('lists the seven fixtures in eight columns, with the standalone chip in the concept cell', async ({
     page,
   }) => {
     await page.goto(`${briefsPath}?view=grid`);
@@ -57,9 +57,32 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       'Priority',
       'Assignee',
       'Internal Status',
+      // Action item 49: the due date migration 0043 added, and the brief's age.
+      'Due date',
+      'Created',
     ]);
 
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
+
+    // Both dates are system output: UTC `YYYY-MM-DD` in font-mono, or the em dash when unset. The
+    // fixtures carry no due date, so that column is the dash and Created is a real day.
+    const created = page.locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="brief-row-created"]`);
+    await expect(created).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
+    await expect(created).toHaveCSS('font-family', /mono/i);
+    await expect(
+      page.locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="brief-row-due"]`),
+    ).toHaveText('—');
+
+    // Rows are colour-coded by editor stage: the stage is on the row and the stripe is a token
+    // class, so a brief off the board is painted muted rather than left unpainted.
+    await expect(page.locator(`[data-brief-id="${BODY_CLOCK}"]`)).toHaveAttribute('data-stage', '');
+    await expect(page.locator(`[data-brief-id="${NINETY_MINUTES_CAROUSEL}"]`)).toHaveAttribute(
+      'data-stage',
+      'incoming',
+    );
+    for (const row of await page.locator('[data-slot="brief-row"]').all()) {
+      await expect(row).toHaveCSS('border-left-width', '4px');
+    }
 
     // The generated name is monospace, because it is system output and not a typed field.
     const name = page.locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="brief-row-name"]`);
@@ -87,6 +110,35 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       'title',
       /.+/,
     );
+  });
+
+  /**
+   * Action item 48: "show the pipeline overview (what's pending) at the top of the Briefs section".
+   * The same `MetricCards` / `PipelineChart` the Overview renders, over the same loader, so the
+   * counts cannot drift — and a card clicked here filters THIS list rather than leaving the page.
+   */
+  test('the pipeline strip sits above the list and its cards filter the list in place', async ({
+    page,
+  }) => {
+    await page.goto(`${briefsPath}?view=grid`);
+
+    await expect(page.locator('[data-slot="overview-metrics"]')).toBeVisible();
+    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(8);
+    await expect(page.locator('[data-slot="overview-pipeline"]')).toBeVisible();
+
+    // One bar per step of the internal ladder, every brief resting at exactly one of them, so the
+    // counts across the chart sum to the fixture count.
+    const counts = await page.locator('[data-slot="overview-pipeline-count"]').allInnerTexts();
+    expect(counts.length).toBeGreaterThan(0);
+    expect(counts.reduce((total, text) => total + Number(text), 0)).toBe(BRIEF_COUNT);
+
+    const card = page.locator('[data-slot="overview-metric"][data-metric="ad_submitted"]');
+    const count = Number(await card.locator('[data-slot="overview-metric-count"]').innerText());
+    await card.click();
+    await expect(page).toHaveURL(/[?&]status=ad_submitted/);
+    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(count, { timeout: 45_000 });
+    // The cards are still there, still counting every brief rather than the filtered few.
+    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(8);
   });
 
   test('the search narrows the list into ?q= and the empty state offers a way out', async ({
@@ -218,6 +270,16 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     );
     await expect(page.locator('[data-slot="brief-dimension"]')).toHaveCount(3);
 
+    // Action item 54: the persona is INHERITED down concept → angle → persona and shown beside the
+    // angle it came through. Read-only — there is no input for it, because a copy would go stale.
+    const persona = page.locator('[data-slot="brief-persona"]');
+    await expect(persona).toBeVisible();
+    await expect(persona).toHaveText(/rotating-shift nurse/);
+    await expect(page.locator('[data-slot="brief-angle"]')).toHaveText(
+      'Your Body Clock Is Not Broken',
+    );
+    await expect(persona.locator('input, select, textarea')).toHaveCount(0);
+
     // Criterion 8: the three prose sections, in order.
     await expect(page.locator('[data-slot="brief-briefToDesign"]')).toBeVisible();
     await expect(page.locator('[data-slot="brief-scriptContent"]')).toBeVisible();
@@ -259,6 +321,8 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       page.locator('[data-slot="brief-rail"] [data-slot="client-track"]'),
     ).toHaveAttribute('data-open', 'true');
     await expect(page.locator('[data-slot="brief-concept"]')).toHaveCount(0);
+    // No concept, so no angle, so no persona: the em dash, never a blank or a stale name.
+    await expect(page.locator('[data-slot="brief-persona"]')).toHaveText('—');
     await expect(page.locator('[data-slot="brief-concept-standalone"]')).toContainText(
       'No parent concept',
     );

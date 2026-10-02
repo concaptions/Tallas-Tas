@@ -6,10 +6,13 @@ import { conceptPath, conceptsPath } from '../src/lib/routes';
 /**
  * The Concepts route with no environment variables at all — the Vercel deployment as it stands.
  * The middleware lets the route through, the data source serves the in-repo fixtures, and both
- * pages are fully usable read-only: four concepts in a seven-column table, the same four grouped on
- * a board, a real detail route with a generated name that is not a field, five inherited fields
- * that are not editable, the two-track rail with the client bar shut, and every write disabled with
- * a reason.
+ * pages are fully usable read-only: four concepts in a seven-column table, the same four as gallery
+ * cards, a real detail route with a generated name that is not a field, five inherited fields that
+ * are not editable, the two-track rail with the client bar shut, and every write disabled with a
+ * reason.
+ *
+ * NO BOARD. Kanban was dropped from the data tables on 2026-09-28 (AI-18): Concepts offers Grid and
+ * Gallery, and a `?view=board` link written before that lands on the grid rather than nowhere.
  *
  * The fixtures are `demoConcepts` in `packages/db/src/demo-data.ts`: four rows, newest edit first,
  * each in a different internal status and all four strictly before Approved — so `isClientTrackOpen`
@@ -64,11 +67,22 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Creators',
       'Ad Inspo',
     ]);
-    // Production Status is hidden from the grid on purpose (docs/decisions.md); the name is frozen.
+    // Production Status is hidden from the grid on purpose (docs/decisions.md); the name is frozen
+    // and the header row is pinned too, so both stay put while the grid is scrolled (AI-22).
     await expect(page.locator('[data-slot="concepts-table"] thead th').first()).toHaveCSS(
       'position',
       'sticky',
     );
+    await expect(page.locator('[data-slot="concepts-table"] thead')).toHaveCSS(
+      'position',
+      'sticky',
+    );
+
+    // Two lenses, not three: Kanban is gone from the data tables (AI-18).
+    await expect(page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]')).toHaveText([
+      'Grid',
+      'Gallery',
+    ]);
 
     const rows = page.locator('[data-slot="concept-row"]');
     await expect(rows).toHaveCount(4);
@@ -89,44 +103,33 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(revisions).toHaveAttribute('data-tone', 'warn');
   });
 
-  test('?view=board renders the board, and the toggle writes the view into the URL', async ({
+  test('Kanban is gone: a stale ?view=board link opens the grid, and Gallery is the other lens', async ({
     page,
   }) => {
+    // AI-18: the board was dropped from the data tables. An old link still resolves — on the grid.
     await page.goto(`${conceptsPath}?view=board`);
 
-    // Seven columns: one per step of the video track, empties kept.
-    await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
-    await expect(page.locator('[data-slot="concepts-table"]')).toHaveCount(0);
-    await expect(page.locator('[data-slot="concept-column"]')).toHaveCount(7);
-    await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
+    await expect(page.locator('[data-slot="concept-board"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concept-column"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
+    await expect(page.locator('[data-slot="concept-row"]')).toHaveCount(4);
 
-    // The same four rows, one per column, each column headed with its label and its count.
-    const submitted = page.locator('[data-slot="concept-column"][data-status="ad_submitted"]');
-    await expect(submitted.locator('[data-slot="concept-column-label"]')).toHaveText(
-      'Ad Submitted',
-    );
-    await expect(submitted.locator('[data-slot="concept-column-count"]')).toHaveText('1');
-    await expect(
-      page
-        .locator('[data-slot="concept-column"][data-status="approved"]')
-        .locator('[data-slot="concept-column-empty"]'),
-    ).toBeVisible();
-
-    // The view switch is the shared toolbar (Sprint 8): Grid / Kanban / Gallery, no pill controls.
+    // The view switch is the shared toolbar (Sprint 8): Grid / Gallery only, no pill controls.
     const options = page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]');
-    await expect(options).toHaveText(['Grid', 'Kanban', 'Gallery']);
-    for (let index = 0; index < 3; index += 1) {
+    await expect(options).toHaveText(['Grid', 'Gallery']);
+    for (let index = 0; index < 2; index += 1) {
       expect(await options.nth(index).getAttribute('class')).not.toContain('rounded-full');
     }
 
-    // Switching back writes a clean URL (the default is not written), then the board again.
+    // Gallery writes itself into the URL; switching back writes a clean one (a default is not written).
+    await options.filter({ hasText: 'Gallery' }).click();
+    await expect(page).toHaveURL(/\?view=gallery$/);
+    await expect(page.locator('[data-slot="gallery-view"]')).toBeVisible();
+    await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
+
     await options.filter({ hasText: 'Grid' }).click();
     await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
-
-    await options.filter({ hasText: 'Kanban' }).click();
-    await expect(page).toHaveURL(/\?view=board$/);
-    await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
   });
 
   test('search narrows both views, lives in ?q=, and the empty state offers a way out', async ({
@@ -153,39 +156,38 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concept-row"]')).toHaveCount(4);
     await expect(page).not.toHaveURL(/[?&]q=/);
 
-    // The same filter runs on the board, so a column's count is the count of what is in it.
-    await page.goto(`${conceptsPath}?view=board&q=green`);
+    // The same filter runs on the gallery, so both lenses always show the same rows.
+    await page.goto(`${conceptsPath}?view=gallery&q=green`);
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(1);
-    await expect(
-      page
-        .locator('[data-slot="concept-column"][data-status="video_editing_in_progress"]')
-        .locator('[data-slot="concept-column-count"]'),
-    ).toHaveText('1');
+    await expect(page.locator('[data-slot="concept-card"] [data-slot="gallery-name"]')).toHaveText(
+      NOT_YOUR_AGE_NAME,
+    );
+    await expect(page.locator('[data-slot="concept-count"]')).toHaveText('1 of 4 concepts');
   });
 
   test('a row click lands on the concept own route, and Back restores the view', async ({
     page,
   }) => {
-    // The table's row is the same click target the board's card is.
+    // The table's row is the same click target the gallery's card is.
     await page.goto(conceptsPath);
     await page.locator(`[data-slot="concept-row"][data-concept-id="${BODY_CLOCK}"]`).click();
     await expect(page).toHaveURL(new RegExp(`${conceptPath(BODY_CLOCK)}$`));
     await page.goBack();
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
 
-    await page.goto(`${conceptsPath}?view=board`);
+    await page.goto(`${conceptsPath}?view=gallery`);
 
-    await page.locator(`[data-slot="concept-card"][data-concept-id="${NOT_YOUR_AGE}"]`).click();
+    await page.locator(`[data-slot="concept-card"][data-gallery-id="${NOT_YOUR_AGE}"]`).click();
 
     // A real route segment, not a panel: the URL is the detail path and the list is gone.
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
     await expect(page.locator('[data-slot="concepts-table"]')).toHaveCount(0);
-    await expect(page.locator('[data-slot="concept-board"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="gallery-view"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="concept-rail"]')).toBeVisible();
 
     await page.goBack();
-    await expect(page).toHaveURL(/\?view=board$/);
-    await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
+    await expect(page).toHaveURL(/\?view=gallery$/);
+    await expect(page.locator('[data-slot="gallery-view"]')).toBeVisible();
   });
 
   test('the detail page names itself, in monospace, and changes when the Batch changes', async ({
@@ -206,6 +208,81 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await page.getByRole('option', { name: 'B7', exact: true }).click();
     await expect(preview).toHaveText('B7-It Is Not Just Your Age-Green Screen');
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
+  });
+
+  test('every field says whether it is required, and the marker is explained once (AI-37)', async ({
+    page,
+  }) => {
+    await page.goto(conceptPath(NOT_YOUR_AGE));
+
+    // The meaning of the marker is stated once for the whole form, naming the required fields in
+    // the order `CONCEPT_REQUIRED_FIELDS` lists them — never a bare asterisk with no legend.
+    const note = page.locator('[data-slot="concept-required-note"]');
+    await expect(note).toHaveCount(1);
+    await expect(note).toHaveText(
+      'Batch, Angle, Theme and Category are marked Required and cannot be left empty — a concept is not saveable without them. Everything else is marked Optional.',
+    );
+
+    // Four fields carry the rule, and they are the four the domain validator enforces: Batch,
+    // Angle, Theme and Category. Every other field is marked Optional rather than left silent.
+    const markers = page.locator('[data-slot="field-requirement"]');
+    await expect(markers.filter({ hasText: 'Required' })).toHaveCount(4);
+    await expect(page.locator('[data-slot="field-requirement"][data-required="true"]')).toHaveCount(
+      4,
+    );
+    // Twelve optional markers: the two unrestricted dropdowns (Concept Style, Approval), the six
+    // prose fields, the Creator picker, both format toggle groups and Ad Inspo. That is every
+    // editable control in the form, which is what makes the note's last sentence true — "Everything
+    // else is marked Optional" is only honest if no control is left silent.
+    await expect(markers.filter({ hasText: 'Optional' })).toHaveCount(12);
+    const form = page.locator('[data-slot="concept-form"]');
+    await expect(form.locator('[data-slot="field-requirement"]')).toHaveCount(16);
+
+    // The four controls that are neither a dropdown nor a textarea each carry their own marker, so
+    // none of them relies on the note alone.
+    for (const slot of [
+      'concept-creator-field',
+      'concept-formats-to-create-field',
+      'concept-formats-field',
+      'concept-ad-inspo',
+    ]) {
+      await expect(
+        page.locator(
+          `[data-slot="${slot}"] [data-slot="field-requirement"][data-required="false"]`,
+        ),
+      ).toHaveCount(1);
+    }
+
+    // Accessible as well as visible: the dropdowns are `combobox`es, where `aria-required` is
+    // valid, so a required one announces itself and an optional one says it is not.
+    await expect(page.locator('[data-slot="concept-batch"]')).toHaveAttribute(
+      'aria-required',
+      'true',
+    );
+    await expect(page.locator('[data-slot="concept-themeIds"]')).toHaveAttribute(
+      'aria-required',
+      'true',
+    );
+    await expect(page.locator('[data-slot="concept-category"]')).toHaveAttribute(
+      'aria-required',
+      'true',
+    );
+    await expect(page.locator('[data-slot="concept-conceptStyle"]')).toHaveAttribute(
+      'aria-required',
+      'false',
+    );
+
+    // The Angle picker's trigger is a button, not a widget `aria-required` is valid on, so its
+    // marker is real text ahead of the control — and its empty state names the rule too.
+    const angleField = page.locator('[data-slot="concept-angle-field"]');
+    await expect(
+      angleField.locator('[data-slot="field-requirement"][data-required="true"]'),
+    ).toHaveCount(1);
+    // Every linked angle is a chip in that picker (AI-35); the fixture links exactly one, so the
+    // "nothing linked" line is absent and the extra-angle note has nothing to disambiguate.
+    await expect(angleField.locator('[data-slot="concept-angleIds-chip"]')).toHaveCount(1);
+    await expect(angleField.locator('[data-slot="concept-angleIds-empty"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concept-naming-angle"]')).toHaveCount(0);
   });
 
   test('the five inherited fields are read-only text, each labelled from Angle', async ({
@@ -327,7 +404,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
 
     for (const path of [
       conceptsPath,
-      `${conceptsPath}?view=board`,
+      `${conceptsPath}?view=gallery`,
       conceptPath(NOT_YOUR_AGE),
       conceptPath(BODY_CLOCK),
     ]) {

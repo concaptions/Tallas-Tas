@@ -4,9 +4,14 @@ import { clerkKeys } from '../src/lib/clerk-keys';
 import { briefPath, briefsPath } from '../src/lib/routes';
 
 /**
- * The editor's board (Sprint 10): the Creative Design Kanban grouped by Editing stage — Incoming,
- * Under Editing, Under Review — the Start button on an Incoming card, the quick-look panel, and the
- * full page's facts, stage chip, Scripts table and Activity log.
+ * The editor's board (Sprint 10): the Creative Design Kanban grouped by Editing stage — the
+ * track-named first stage, Under Editing, Under Review — the Start button on a first-stage card,
+ * the quick-look panel, and the full page's facts, stage chip, Scripts table and Activity log.
+ *
+ * The first column is NAMED BY TRACK since Sep 28 action item 59: a video brief has been "Sent to
+ * Editor", a static or design brief "Sent to Designer", and a column holding both says "Sent to
+ * Editor / Designer". The stage KEY is still `incoming` and the stored statuses are still
+ * `sent_to_video_editor` / `sent_to_designer`; only the word above the column changed.
  *
  * Demo mode has no session and refuses every write, so this file proves the board, the mapping,
  * the disabled Start with its reason, and the full page. The live half — Start a brief, see it
@@ -14,7 +19,12 @@ import { briefPath, briefsPath } from '../src/lib/routes';
  * which runs in the `live` Playwright project against a Clerk dev instance and the E2E database
  * and skips itself without them (D-008).
  */
-/** `demoBriefs`: the one Incoming fixture (sent_to_video_editor), a carousel on the video track. */
+/**
+ * `demoBriefs`: the one fixture in the first stage. It is a CAROUSEL, which `creativeTrack` grades
+ * on the STATIC track, so `briefs-source` narrows its stored `sent_to_video_editor` to that track's
+ * first step, `sent_to_designer` — which is why the column it sits alone in reads "Sent to
+ * Designer" and its stage chip does too.
+ */
 const NINETY_MINUTES_CAROUSEL = '77777777-7777-4777-8777-000000000006';
 /** Under Editing: the static brief in design. */
 const NOT_YOUR_AGE_STATIC = '77777777-7777-4777-8777-000000000002';
@@ -31,7 +41,7 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: the board needs a session and real data',
   );
 
-  test('groups the board into Incoming, Under Editing and Under Review, in that order', async ({
+  test('groups the board into the track-named first stage, Under Editing and Under Review, in that order', async ({
     page,
   }) => {
     await page.goto(EDITOR_BOARD);
@@ -43,11 +53,14 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     // Three columns, the mapping's order; the headers are the stage labels, never status keys.
     const columns = board.locator(':scope > div');
     await expect(columns).toHaveCount(3);
-    await expect(columns.nth(0)).toContainText('Incoming');
+    // The first column holds one card, a static-track carousel, so it is named for whoever is
+    // waiting on it (action item 59) rather than the old track-blind "Incoming".
+    await expect(columns.nth(0)).toContainText('Sent to Designer');
+    await expect(columns.nth(0)).not.toContainText('Incoming');
     await expect(columns.nth(1)).toContainText('Under Editing');
     await expect(columns.nth(2)).toContainText('Under Review');
 
-    // One fixture per stage, by the mapping: sent_to_video_editor → Incoming,
+    // One fixture per stage, by the mapping: sent_to_designer → the first stage,
     // static_design_in_progress → Under Editing, ad_submitted → Under Review.
     await expect(
       columns
@@ -68,7 +81,7 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     );
   });
 
-  test('an Incoming card carries Start, disabled with the reason; other stages do not', async ({
+  test('a first-stage card carries Start, disabled with the reason; other stages do not', async ({
     page,
   }) => {
     await page.goto(EDITOR_BOARD);
@@ -116,7 +129,9 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     // Colour-coded by stage: the chip carries the stage and its tone.
     const stage = page.locator('[data-slot="brief-stage"]');
     await expect(stage).toHaveAttribute('data-stage', 'incoming');
-    await expect(stage.locator('[data-slot="status-chip"]')).toHaveText('Incoming');
+    // The detail page knows this brief's track, so its stage chip names one side of the board,
+    // never the neutral both-tracks label (action item 59).
+    await expect(stage.locator('[data-slot="status-chip"]')).toHaveText('Sent to Designer');
     await expect(stage.locator('[data-slot="status-chip"]')).toHaveAttribute('data-tone', 'info');
 
     // The Scripts table under the details, and the Activity log with its worded empty state.

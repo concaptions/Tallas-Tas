@@ -80,6 +80,15 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
       'position',
       'sticky',
     );
+    // The header row is pinned too, so it stays legible while the rows scroll (AI-22).
+    await expect(page.locator('[data-slot="themes-table"] thead')).toHaveCSS('position', 'sticky');
+
+    // AI-18: Kanban is gone from the data tables — the category chip row below already groups by
+    // category, in one click. Themes offers Grid and Gallery.
+    await expect(page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]')).toHaveText([
+      'Grid',
+      'Gallery',
+    ]);
 
     // Every row carries a category chip and a usage line; neither is ever blank.
     for (let index = 0; index < 5; index += 1) {

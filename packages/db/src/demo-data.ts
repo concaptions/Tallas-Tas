@@ -693,6 +693,10 @@ function pairing(
     collectionIds,
     campaignIds: [],
     name: conceptName(batch, angle, theme),
+    // Every linked angle, id and name together (action item 35). A fixture pairs exactly one angle,
+    // so this is the single link `angleName` below also reads — derived from the same row, never
+    // retyped, so the two can never disagree.
+    angleLinks: [{ id: angle.id, name: angle.name }],
     angleName: angle.name,
     angleDescription: angle.description,
     anglePainPoints: angle.painPoints,
@@ -979,6 +983,10 @@ function fromConcept(
     conceptName: concept.name,
     angleName: concept.angleName,
     productName: concept.productName,
+    // The persona the brief reads through its concept's angle (`BriefListRow.personaNames`), as a
+    // list because `angle_personas` is many-to-many; the demo concepts each carry one angle, so
+    // the fixture's single inherited persona is the whole list.
+    personaNames: concept.personaName === null ? [] : [concept.personaName],
   };
 }
 
@@ -1019,6 +1027,8 @@ function standalone(spec: {
     conceptName: null,
     angleName: null,
     productName: null,
+    // No concept, so no angle, so no persona to reach — the empty list, not null.
+    personaNames: [],
   };
 }
 

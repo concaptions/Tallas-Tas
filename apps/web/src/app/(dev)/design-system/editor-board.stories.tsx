@@ -1,14 +1,18 @@
 'use client';
 
-import { EDITOR_STAGES, editorStageTone } from '@tas/domain/state';
+import { EDITOR_STAGES, editorStageLabelFor, editorStageTone } from '@tas/domain/state';
 import { StatusChip } from '@tas/ui';
 
 import { KanbanBoard } from '@/components/views';
 
 /**
  * The editor's board (Sprint 10; UI governance rule 4): the three stage chips in mapping order, and
- * a board with one card per stage, the Incoming one carrying the Start action. The chips' tones are
- * `editorStageTone`, never a local colour; the board is the shared `KanbanBoard`.
+ * a board with one card per stage, the first-column one carrying the Start action. The chips' tones
+ * are `editorStageTone`, never a local colour; the board is the shared `KanbanBoard`.
+ *
+ * The first stage is named by track (action item 59), so it is shown THREE times: the neutral
+ * reading a mixed column carries, and the two per-brief readings `editorStageLabelFor` produces —
+ * because a reading that renders nowhere on this page is a reading nobody can review.
  */
 export function EditorStageChipsStory() {
   return (
@@ -16,6 +20,14 @@ export function EditorStageChipsStory() {
       {EDITOR_STAGES.map((stage) => (
         <StatusChip key={stage.key} tone={editorStageTone(stage.key)} label={stage.label} />
       ))}
+      <StatusChip
+        tone={editorStageTone('incoming')}
+        label={editorStageLabelFor('incoming', 'video')}
+      />
+      <StatusChip
+        tone={editorStageTone('incoming')}
+        label={editorStageLabelFor('incoming', 'static')}
+      />
       <StatusChip tone={editorStageTone(null)} label="Off the editor board" />
     </div>
   );

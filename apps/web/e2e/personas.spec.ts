@@ -25,6 +25,21 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     await expect(
       page.locator('[data-slot="personas-table"] [data-slot="status-chip"]'),
     ).toHaveCount(3);
+
+    // AI-45, "Persona needs no links": there is no Product column. A persona reaches a product
+    // through the angle that links both, so a column here was a second answer to the same question.
+    // `personas.product_id` stays in the database — it holds imported Airtable data.
+    const headers = page.locator('[data-slot="personas-table"] thead th');
+    await expect(headers.nth(0)).toHaveText('Name');
+    await expect(headers.nth(1)).toHaveText('Stage of Awareness');
+    await expect(headers.nth(2)).toHaveText('Linked angles');
+    await expect(headers.filter({ hasText: /^Product$/ })).toHaveCount(0);
+
+    // AI-18: Kanban is gone from the data tables. Personas offers Grid and Gallery.
+    await expect(page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]')).toHaveText([
+      'Grid',
+      'Gallery',
+    ]);
   });
 
   test('a row opens the panel, Escape closes it, and the URL carries the persona', async ({
