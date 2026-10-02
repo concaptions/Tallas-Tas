@@ -761,3 +761,126 @@ page needed; nullable, set on the brief.
 
 **`/app/briefs/[id]`** stays the permanent alias of `/app/creative-design/[id]` (the module
 rename); "Open full page" lands there.
+
+## 2026-10-02 — The importer reads the TEMPLATE base, resolved by name (AI-26, AI-27, Personas)
+
+**Why.** Every mapping in `packages/db/src/scripts/import-mappings.ts` was written against the
+GRATSI base `appllDG4OmkK2Hdnn`. The source of truth for a new brand is the TEMPLATE base
+`appnaSGAgOUbJ0f9m`, and the two bases are not interchangeable: six table **ids are bound to
+differently named tables** in the two bases (`tbl4UFSFcynlS2Pkn` is Angles in the template and
+Concepts in Gratsi; `tblRlcp1ibmS7U7HG` is the reverse; likewise `tblZpBYPTcZcmQ1Kf`,
+`tblhU5yVNhVDwykUt`, `tblzS73a9JrJGiV2J` and `tblGC0TxnHI7lKaNQ`). So the template path resolves
+**every** table by its NAME in the base's own metadata (`TEMPLATE_TABLES` +
+`resolveTableIds`, `packages/db/src/airtable-tables.ts`), never by a remembered id, and
+`airtable-tables.test.ts` fails if a `templateTableId` in `TABLE_MAPPINGS` is not the id the
+template base binds to that mapping's `templateTable`.
+
+**Personas was the live bug.** `TABLE_MAPPINGS.personas` pinned `tblyt7X4VjHxtMDVS` — Gratsi's
+seven-field Personas, whose column mappings were explicit approximations ("Closest match to
+coreDesires"). The template's Personas is `tblRXknfgKsROI961`, fifteen stored fields that map
+one-to-one onto our columns; run against the template base the old mapping resolved **one field of
+fifteen**, and `personas.day_in_the_life` had no mapping at all. The row builder now reads the
+template labels first (`Persona Name`, `Core Desires (Cashvertising)`,
+`Problem/Challenge (StoryBrand)`, …) and keeps the Gratsi labels as fallbacks, so the 2026-10-01
+Gratsi production import re-runs unchanged. The template's awareness select
+("Stage of Market Awareness (Breakthrough Advertising)") offers three options — `Problem-aware`,
+`Problem-aware → solution-aware`, `Unaware → Problem-aware` — and all three have an exact
+`awareness_stage` key, which is why that enum carries the two transition states.
+
+**Two mapping bugs the audit found, both fixed.** In the TEMPLATE base `Status` is the creator
+CLIENT track and `Internal Creator's Status` is the internal one; this file documented the opposite
+on both entries (the engine was corrected on 2026-09-29, the mapping was not). And
+`campaignsOffers` keyed the confirmation checkbox on Gratsi's `Interested`, which the template calls
+`Confirmed by Client`.
+
+**AI-26 (creator media).** `Creator's Profile Pic` and `Creator's Video Intro` are
+`multipleAttachments` in both bases against single `text` columns, so the importer stores the FIRST
+attachment's URL; the template base capitalises the V where Gratsi writes `Creator's video Intro`,
+which is why template video intros imported as NULL. **The filename is not stored** — there is no
+column for it, and adding one is a schema change outside this ticket. **The expiry problem is NOT
+solved**: these are `*.airtableusercontent.com` URLs that expire within hours
+(`packages/db/src/url-migration.ts`). Re-hosting them into R2 is
+`packages/db/src/scripts/migrate-airtable-urls.ts`, which **still waits on R2 credentials that do
+not exist on this machine** — it belongs under "Pending human verification" in
+`docs/runbook.md`. The same caveat applies to the new `ai_characters.attachments`.
+
+**AI-27 (every field).** Creators audited field by field against the template base's 32 stored
+fields. Closed: `(Internal) Deadline for the request` (was read as `Deadline`, which matched
+neither base), `For Partnership Ads?` (the template label carries the `?` AND is a Yes/No
+singleSelect, so `bool()` read "Yes" as false — now `selectToBool`), `Internal Creator's Status`,
+`Internal Assets Status` (was a blind normalize minting `internal_video_approved`, a key
+`CREATOR_ASSETS_STATUS` does not carry; now an explicit map), `Creator's cost (USD)` (see the
+`sourceBase` stamp below — it is read on the template path only),
+`Concepts to film` (plural in the template) and `Angles › Personas` (the importer read `Persona`,
+singular, which matched neither base, so `angle_personas` was only ever written by inference from
+Concepts). `Facebook Profile for Partnership` was already mapped and is verified by test.
+Precision losses that remain and are deliberate: `Creator's cost (USD)` and
+`Partnership Price per 30 days` are currency precision 2 against integer columns of whole dollars
+(`schema/creators.ts` explains why), and the three Airtable `date` fields land in `timestamptz`.
+
+**AI Characters / Personas** (`tblgfe8A7nmce6lzn`, template base only) had no mapping entry at all,
+so the importer could not read it even though `schema/ai-characters.ts` matches it field for field.
+Now mapped and imported. Its `Status` (Draft / Pending for Approval / Approved) has no vocabulary in
+`packages/domain/src/state`, so the column stays plain `text` rather than borrowing one of the
+creative tracks — but the field still goes through an EXPLICIT three-option map
+(`MAPS.aiCharacterStatus`), never a blind normalize, so a fourth Airtable option is reported by the
+dry run instead of minting a key no state machine knows. **Open:** the real vocabulary belongs in
+`packages/domain/src/state` with the column narrowed to it; that is a `packages/domain` change and
+is not in this ticket's file list.
+
+**The export is STAMPED with the base it came from.** `scripts/airtable-fetch.ts` writes
+`sourceBase: 'gratsi' | 'template'` at the top of the export JSON and the engine reads the handful of
+ambiguous labels per base instead of chaining both bases' labels through `??`. The label that forced
+this is `Creator's cost (USD)`: in the TEMPLATE base it is the stored currency
+(`fld5bSunM8WtFJB7L`), in GRATSI it is a FORMULA (`fldyjj94Z6hdSKudo`, "cost plus a 5% fee") computed
+from `Creator's cost (USD) - Internal`. A numeric Airtable formula comes back as `0` rather than
+absent, so a `??` chain would have written `creator_cost = 0` over NULL for every partnership-only
+creator on the next Gratsi re-import — turning "unknown cost" into "free" on live production rows —
+and could have written the fee-inflated figure into the column `schema/creators.ts` documents as the
+internal cost. An export with no stamp is Gratsi by definition: the template path did not exist
+before the stamp. The stamp is also what a later pass should use to disambiguate the Angles/Concepts
+field lists.
+
+**The upsert lookup is scoped by `brand_id`.** `importRows` decided UPDATE-vs-INSERT on
+`legacy_airtable_id` alone. That id is unique only WITHIN a base, there is no unique index on the
+column anywhere in `packages/db/drizzle/`, and these two bases demonstrably share id space (13 of
+the template base's 15 table ids are also bound in Gratsi, 6 of them to a differently named table;
+113 field ids are shared). Importing the template base into the template brand could therefore have
+UPDATED a Gratsi row that happened to carry the same record id — rewriting every mapped column and
+writing NULL into every nullable column the template base cannot name. The lookup now filters on the
+brand the row would be written to (CLAUDE.md: "Tenancy is enforced at the query layer"), proven by a
+test that a second brand importing the same legacy id inserts instead of updating. The global
+`themes` table has no `brand_id` (the `themes_global` check keeps it NULL) and keeps the unscoped
+lookup.
+
+**New flags, all read-only or local.** `airtable-fetch -- --template` selects `TEMPLATE_TABLES`;
+`airtable-parity -- --template` gates the template base and matches a mapping on its
+`templateTable`; `airtable-import --file <path> --pglite` runs the dry run against a real Postgres
+in WASM (PGlite) with a throwaway agency+brand and the transaction rolled back, so the import can be
+rehearsed on a machine with no Postgres and no `DATABASE_URL` — which is every machine here
+(CLAUDE.md). `--pglite` implies `--dry-run` and never accepts `--brand-id`, so it cannot touch
+production.
+
+**Template parity is NOT green yet, and the gate says so.** Eight mapping entries now declare a
+`templateTable` (personas, creators, campaignsOffers, aiCharacters, and the three tables whose field
+lists are byte-identical in both bases). Six still describe only their Gratsi field names —
+`Copywriting`, `Creative Sheet (Internal & Interface)`, `Concepts`, `Angles`,
+`(Internal) Collections`, `(Internal) Product` — so `airtable-parity -- --template` reports
+`TABLE WITHOUT MAPPING` for each and exits 1, and `(Internal) Creative Dimensions ›
+(Internal) Creative Design` fails only because the Creative Sheet mapping it is the inverse of has
+no template pair yet. Angles and Concepts are the hard pair: their names are SWAPPED between the
+bases, so those two entries' field lists describe the other base's table and cannot simply be
+re-pointed. That is the honest state of the template gate, not a regression — the Gratsi gate
+(`airtable-parity` with no flag) is unchanged and still green: 231 stored fields mapped, 26 record
+links written from their inverse, 33 excluded, 50 computed.
+
+### 2026-10-02 additions to the Airtable field exclusion register
+
+The register below extends the 2026-10-01 one; `--template` reads the same file and matches the same
+`Table › Field` and `Table (table)` text.
+
+| Table › Field | Kind | Why it is not stored |
+| --- | --- | --- |
+| Themes (table) | table | TEMPLATE base. Its three stored fields are `Module Name`, `Reference Link`, `Concepts` — the shape of our `creative_modules`, not our `themes`, and there is NO field to source `themes.category`, which is `NOT NULL` (`themeCategoryEnum`). Which Drizzle table it feeds is a product decision and a category default would be invented data, so it is not in `TEMPLATE_TABLES`. Escalated to the human. |
+| DONT USE Creative Sheet (table) | table | TEMPLATE base. The base's own name says it is deprecated (it is Gratsi's live `Creative Sheet`), and its `Creative Name` is plain text there against our `creative_sheet_items.brief_id` uuid FK, so there is no record id to resolve. |
+| Campaigns & Offers › Collections | link | TEMPLATE base. Inverse of `(Internal) Collections › Campaigns & Offers` → `collections.campaign_id`, exactly as in Gratsi; the gate only stops deriving it because the `collections` mapping has no `templateTable` yet. |

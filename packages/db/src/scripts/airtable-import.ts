@@ -9,7 +9,8 @@ import {
   type ImportWarnings,
   type TableResult,
 } from '../airtable-import';
-import { createAutoDb } from '../db';
+import { createAutoDb, type Db } from '../db';
+import { agencies, brands } from '../schema';
 import { applyPendingMigrations } from './migrate-prod';
 
 /** Thrown after a --dry-run import so the surrounding transaction rolls everything back. */
@@ -67,28 +68,62 @@ function flag(name: string): string | undefined {
   return process.argv[idx + 1];
 }
 
+/**
+ * `--pglite`: a dry run with NO database to connect to (2026-10-02). CLAUDE.md is explicit that
+ * local machines have no Postgres and no Docker, and the template-base import had to be rehearsed
+ * before anyone has a production URL, so this mode stands up a real Postgres in WASM
+ * (`@electric-sql/pglite`), applies every migration in `drizzle/`, inserts one throwaway
+ * agency+brand to satisfy `brand_id`, and runs the import against that. It is a DRY RUN by
+ * definition — the database ceases to exist when the process does — so it never takes `--brand-id`
+ * and can never touch production. Everything else, including the report, is the same code path.
+ */
+/** The production/staging connection the script has always used, with its own close. */
+function remoteDb(): { db: Db; close: () => Promise<void> } {
+  const databaseUrl = serverEnv().DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is required (or pass --pglite)');
+  const db = createAutoDb(databaseUrl);
+  return { db, close: () => db.$client.end() };
+}
+
+async function pgliteDryRunDb(): Promise<{ db: Db; brandId: string; close: () => Promise<void> }> {
+  const { testDb } = await import('../testing');
+  const db = await testDb();
+  const [agency] = await db
+    .insert(agencies)
+    .values({ name: 'Dry run', slug: `dry-run-${String(Date.now())}` })
+    .returning({ id: agencies.id });
+  if (!agency) throw new Error('pglite dry run: could not create the throwaway agency');
+  const [brand] = await db
+    .insert(brands)
+    .values({ agencyId: agency.id, name: 'Dry run', slug: 'dry-run', isTemplate: true })
+    .returning({ id: brands.id });
+  if (!brand) throw new Error('pglite dry run: could not create the throwaway brand');
+  return { db, brandId: brand.id, close: () => db.$client.close() };
+}
+
 async function main(): Promise<void> {
   const filePath = flag('--file');
   const brandName = flag('--brand-name');
   const brandId = flag('--brand-id');
-  const dryRun = process.argv.includes('--dry-run');
+  const pglite = process.argv.includes('--pglite');
+  // `--pglite` is a rehearsal against a database that evaporates, so it is always a dry run.
+  const dryRun = process.argv.includes('--dry-run') || pglite;
 
-  if (!filePath || (!brandName && !brandId)) {
+  if (!filePath || (!brandName && !brandId && !pglite)) {
     console.error(
-      'Usage: pnpm --filter @tas/db airtable-import --file <path> --brand-name <name> [--brand-id <uuid>] [--dry-run]',
+      'Usage: pnpm --filter @tas/db airtable-import --file <path> --brand-name <name> [--brand-id <uuid>] [--dry-run]\n' +
+        '       pnpm --filter @tas/db airtable-import --file <path> --pglite   (no DATABASE_URL: dry run on PGlite)',
     );
     process.exit(1);
   }
 
-  const databaseUrl = serverEnv().DATABASE_URL;
-  if (!databaseUrl) throw new Error('DATABASE_URL is required');
-
-  const db = createAutoDb(databaseUrl);
+  const local = pglite ? await pgliteDryRunDb() : null;
+  const connection = local ?? remoteDb();
+  const db: Db = connection.db;
   const data = JSON.parse(readFileSync(filePath, 'utf-8')) as AirtableExport;
 
-  let resolvedBrandId = brandId;
+  let resolvedBrandId = local ? local.brandId : brandId;
   if (!resolvedBrandId) {
-    const { brands } = await import('../schema');
     const { eq } = await import('drizzle-orm');
     const name = brandName ?? '';
     const [brand] = await db.select().from(brands).where(eq(brands.name, name)).limit(1);
@@ -96,6 +131,11 @@ async function main(): Promise<void> {
     resolvedBrandId = brand.id;
   }
 
+  // Which base's labels the engine will read. An export fetched before the 2026-10-02 stamp has
+  // no marker and is Gratsi by definition — the template path did not exist before it.
+  console.log(
+    `\nExport stamped base: ${data.sourceBase ?? 'gratsi (unstamped: fetched before 2026-10-02)'}`,
+  );
   console.log(`\nSource records in the export file:`);
   for (const [table, records] of Object.entries(data)) {
     if (Array.isArray(records)) console.log(`  ${table}: ${String(records.length)} records`);
@@ -132,10 +172,16 @@ async function main(): Promise<void> {
   }
 
   if (run.results === null) throw new Error('import produced no results');
-  console.log(dryRun ? '\n[DRY RUN — TRANSACTION ROLLED BACK, NOTHING WRITTEN]' : '\n[COMMITTED]');
+  console.log(
+    local
+      ? '\n[DRY RUN on PGlite — TRANSACTION ROLLED BACK; no production database was opened]'
+      : dryRun
+        ? '\n[DRY RUN — TRANSACTION ROLLED BACK, NOTHING WRITTEN]'
+        : '\n[COMMITTED]',
+  );
   printReport(run.results, warnings, dryRun);
 
-  await db.$client.end();
+  await connection.close();
 }
 
 await main();
