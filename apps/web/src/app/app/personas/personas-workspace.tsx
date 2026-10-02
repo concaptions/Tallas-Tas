@@ -92,9 +92,11 @@ function matches(item: PersonaItem, query: string): boolean {
 /**
  * The Airtable-style grid columns for the Personas grid view (P2A-3). The Stage-of-Awareness column
  * keeps rendering a `<StatusChip>` (never bare text) so the automation that counts the chips inside
- * the table stays green; the frozen name column leads, then the product, the linked angles and
- * every prose field of the panel under the panel's own label (`PERSONA_FIELDS`), so a persona is
- * readable end to end without opening a row.
+ * the table stays green. EXACTLY the seven fields the Gratsi base defines, in its order and under
+ * its names (docs/decisions/gratsi-display-spec-2026-10-02.md): the frozen Name, the four prose
+ * fields from `PERSONA_FIELD_GROUPS`, the awareness select, and the two-way Angles link. Product,
+ * Updated and the nine template prose columns are deliberately absent — the base has no field for
+ * them, and `PERSONA_HIDDEN_FIELDS` records that so an omission cannot be mistaken for an oversight.
  */
 const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
   {
@@ -105,9 +107,18 @@ const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
     sortValue: (item) => item.persona.name,
     render: (item) => <span className="font-medium">{item.persona.name}</span>,
   },
+  // The remaining prose columns come from PERSONA_FIELD_GROUPS, so the grid header and the panel
+  // label are the same string from the same place and cannot drift apart.
+  ...PERSONA_FIELDS.filter(
+    (field) => field.name !== 'name' && field.name !== 'stageOfAwareness',
+  ).map((field): GridColumn<PersonaItem> => ({
+    key: field.name,
+    header: field.label,
+    render: (item) => <TextCell value={item.persona[field.name]} />,
+  })),
   {
     key: 'stageOfAwareness',
-    header: 'Stage of Awareness',
+    header: 'Problem-Solution Awareness Level',
     sortValue: (item) => item.persona.stageOfAwareness,
     render: (item) =>
       item.persona.stageOfAwareness === null ? (
@@ -120,31 +131,10 @@ const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
       ),
   },
   {
-    key: 'product',
-    header: 'Product',
-    sortValue: (item) => item.persona.productName,
-    render: (item) => <TextCell value={item.persona.productName} />,
-  },
-  {
     key: 'angles',
-    header: 'Linked angles',
+    header: 'Angles',
     sortValue: (item) => item.persona.angleNames.length,
     render: (item) => <TextCell value={item.persona.angleNames.join(', ')} maxWidth={320} />,
-  },
-  // Every prose field of the panel, under the panel's own label, so nothing needs a row opened.
-  ...PERSONA_FIELDS.filter(
-    (field) => field.name !== 'name' && field.name !== 'stageOfAwareness',
-  ).map((field): GridColumn<PersonaItem> => ({
-    key: field.name,
-    header: field.label,
-    render: (item) => <TextCell value={item.persona[field.name]} />,
-  })),
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
   },
 ];
 

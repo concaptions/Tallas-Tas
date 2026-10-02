@@ -32,7 +32,7 @@ export const NEW_PERSONA = 'new';
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 
-/** One angle of the brand the Linked angles field can pick from. */
+/** One angle of the brand the Angles field can pick from. */
 export interface AngleLinkOption {
   readonly id: string;
   readonly name: string;
@@ -40,7 +40,7 @@ export interface AngleLinkOption {
 
 interface PersonaPanelProps {
   readonly persona: PersonaListRow | null;
-  /** The brand's angles, for the two-way Linked angles field (`angle_personas`). */
+  /** The brand's angles, for the two-way Angles field (`angle_personas`). */
   readonly angles?: readonly AngleLinkOption[];
   /** The angle ids currently linked to the persona, from the same junction the angle panel writes. */
   readonly angleIds?: readonly string[];
@@ -203,7 +203,7 @@ export function PersonaPanel({
                   data-slot="persona-group-heading"
                   className="border-b border-line pb-1 text-sm font-medium text-text2"
                 >
-                  Linked angles
+                  Angles
                 </h3>
                 {/* The same LinkField the angle panel uses for its personas: one `angle_personas`
                     row per pair, written on the spot, so the angle shows this persona next render. */}

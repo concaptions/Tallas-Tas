@@ -25,6 +25,18 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     await expect(
       page.locator('[data-slot="personas-table"] [data-slot="status-chip"]'),
     ).toHaveCount(3);
+
+    // EXACTLY the seven fields the Gratsi base defines, in its order and under its names. Product,
+    // Updated and the nine template prose columns are deliberately absent.
+    await expect(page.locator('[data-slot="personas-table"] thead th')).toHaveText([
+      'Name',
+      'Description [Age Status Salary]',
+      'Personality',
+      'Drivers for this persona',
+      'Passion',
+      'Problem-Solution Awareness Level',
+      'Angles',
+    ]);
   });
 
   test('a row opens the panel, Escape closes it, and the URL carries the persona', async ({
@@ -42,15 +54,46 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="persona-panel-title"]')).toHaveText(name);
 
-    // The five field groups in design order, plus the TASK 5 read-only Linked angles section.
+    // The Gratsi base defines what this page shows (docs/decisions/gratsi-display-spec-2026-10-02.md),
+    // so the panel is one group of its six fields plus the two-way Angles link.
     await expect(panel.locator('[data-slot="persona-group-heading"]')).toHaveText([
-      'Identity',
-      'Desires',
-      'Barriers',
-      'Buying Behaviour',
-      'Language',
-      'Linked angles',
+      'Persona',
+      'Angles',
     ]);
+
+    // Every label is GRATSI'S field name, not the template's. These are the strings the owner
+    // pinned, so a silent drift back to "Demographic" or "Core Desires" fails here.
+    for (const label of [
+      'Name',
+      'Description [Age Status Salary]',
+      'Personality',
+      'Drivers for this persona',
+      'Passion',
+      'Problem-Solution Awareness Level',
+    ]) {
+      await expect(
+        panel.locator(`:not(option):text-is(${JSON.stringify(label)})`).first(),
+      ).toBeVisible();
+    }
+
+    // And the template-only fields are gone from the page. They are NOT dropped — Niagara Sleep
+    // Solutions populates all of them — they are simply not what the Gratsi base defines, so a
+    // regression that re-renders them is a regression.
+    for (const hidden of [
+      'A Day in the Life',
+      'Demographic',
+      'Psychographic',
+      'Core Desires',
+      'Emotional Triggers',
+      'Pain Points',
+      'Success Factors',
+      'Perceived Barriers',
+      'Problem/Challenge',
+      'Buying Triggers',
+      'Trigger Words',
+    ]) {
+      await expect(panel.locator(`:not(option):text-is(${JSON.stringify(hidden)})`)).toHaveCount(0);
+    }
 
     // Open state is in the URL, so a refresh reopens it and the link is shareable.
     await expect(page).toHaveURL(/\?persona=/);

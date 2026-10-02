@@ -23,7 +23,8 @@ export type PersonaFieldName =
   | 'stageOfAwareness'
   | 'buyingTriggers'
   | 'emotionalTriggers'
-  | 'triggerWords';
+  | 'triggerWords'
+  | 'passion';
 
 export interface PersonaField {
   readonly name: PersonaFieldName;
@@ -37,45 +38,48 @@ export interface PersonaFieldGroup {
   readonly fields: readonly PersonaField[];
 }
 
-/** The five headings, in this order. The panel renders exactly these and nothing else. */
+/**
+ * THE Personas fields, as the Gratsi base defines them (`docs/decisions/gratsi-display-spec-2026-10-02.md`).
+ *
+ * The Airtable Gratsi base `appllDG4OmkK2Hdnn` is the source of truth for what this page shows, so
+ * the label is GRATSI'S field name and the `name` is our column — a relabelling in the UI only; no
+ * column was renamed in the database. Seven fields, in the base's own order.
+ *
+ * `PERSONA_HIDDEN_FIELDS` below lists the columns this page deliberately does NOT show, because the
+ * Gratsi base has no field for them. They are not deprecated and nothing was dropped: Niagara Sleep
+ * Solutions populates every one of them on all three of its personas, so the data stays and stays
+ * readable through its own brand's surfaces. Per-brand visibility belongs in `brand_field_overrides`.
+ */
 export const PERSONA_FIELD_GROUPS: readonly PersonaFieldGroup[] = [
   {
-    heading: 'Identity',
+    heading: 'Persona',
     fields: [
-      { name: 'name', label: 'Persona Name', kind: 'input' },
-      { name: 'dayInTheLife', label: 'A Day in the Life', kind: 'textarea' },
-      { name: 'demographic', label: 'Demographic', kind: 'textarea' },
-      { name: 'psychographic', label: 'Psychographic', kind: 'textarea' },
+      { name: 'name', label: 'Name', kind: 'input' },
+      { name: 'demographic', label: 'Description [Age Status Salary]', kind: 'textarea' },
+      { name: 'psychographic', label: 'Personality', kind: 'textarea' },
+      { name: 'coreDesires', label: 'Drivers for this persona', kind: 'textarea' },
+      { name: 'passion', label: 'Passion', kind: 'textarea' },
+      { name: 'stageOfAwareness', label: 'Problem-Solution Awareness Level', kind: 'stage' },
     ],
   },
-  {
-    heading: 'Desires',
-    fields: [
-      { name: 'coreDesires', label: 'Core Desires', kind: 'textarea' },
-      { name: 'successFactors', label: 'Success Factors', kind: 'textarea' },
-      { name: 'successTransformation', label: 'Success/Transformation', kind: 'textarea' },
-    ],
-  },
-  {
-    heading: 'Barriers',
-    fields: [
-      { name: 'painPoints', label: 'Pain Points', kind: 'textarea' },
-      { name: 'perceivedBarriers', label: 'Perceived Barriers', kind: 'textarea' },
-      { name: 'problemChallenge', label: 'Problem/Challenge', kind: 'textarea' },
-    ],
-  },
-  {
-    heading: 'Buying Behaviour',
-    fields: [
-      { name: 'stageOfAwareness', label: 'Stage of Market Awareness', kind: 'stage' },
-      { name: 'buyingTriggers', label: 'Buying Triggers', kind: 'textarea' },
-      { name: 'emotionalTriggers', label: 'Emotional Triggers', kind: 'textarea' },
-    ],
-  },
-  {
-    heading: 'Language',
-    fields: [{ name: 'triggerWords', label: 'Trigger Words', kind: 'input' }],
-  },
+];
+
+/**
+ * Columns the Personas page hides because the Gratsi base defines no field for them. Kept in the
+ * database with their data (see the schema comment on `personas`), and listed here rather than
+ * silently omitted so the next reader can tell a deliberate omission from an oversight.
+ */
+export const PERSONA_HIDDEN_FIELDS: readonly string[] = [
+  'dayInTheLife',
+  'emotionalTriggers',
+  'painPoints',
+  'successFactors',
+  'perceivedBarriers',
+  'buyingTriggers',
+  'problemChallenge',
+  'successTransformation',
+  'triggerWords',
+  'productId',
 ];
 
 /** Every field, flattened; the Server Actions' zod schema is built from this list. */

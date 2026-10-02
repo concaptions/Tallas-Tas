@@ -749,6 +749,8 @@ const PERSONA_FIELDS = {
   demographic: ['Demographic', 'Description  [Age Status Salary]'],
   psychographic: ['Psychographic', 'Personality'],
   coreDesires: ['Core Desires (Cashvertising)', 'Core Desires', 'Drivers for this persona'],
+  // Gratsi's own field, and its own column since migration 0044 — never folded into a neighbour.
+  passion: ['Passion'],
   emotionalTriggers: ['Emotional Triggers (Cashvertising)', 'Emotional Triggers'],
   painPoints: ['Pain Points (Cashvertising)', 'Pain Points'],
   successFactors: ['Success Factors (Buyer Personas)', 'Success Factors'],
@@ -871,6 +873,7 @@ export async function importAirtableExport(
       demographic: str(firstField(f, PERSONA_FIELDS.demographic)),
       psychographic: str(firstField(f, PERSONA_FIELDS.psychographic)),
       coreDesires: str(firstField(f, PERSONA_FIELDS.coreDesires)),
+      passion: str(firstField(f, PERSONA_FIELDS.passion)),
       emotionalTriggers: str(firstField(f, PERSONA_FIELDS.emotionalTriggers)),
       painPoints: str(firstField(f, PERSONA_FIELDS.painPoints)),
       successFactors: str(firstField(f, PERSONA_FIELDS.successFactors)),

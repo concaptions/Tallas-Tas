@@ -238,9 +238,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         note: 'Gratsi\'s name for the template\'s "Core Desires (Cashvertising)" — read through PERSONA_FIELDS.coreDesires',
       },
       Passion: {
-        drizzleColumn: null,
-        handler: 'skip',
-        note: 'No template equivalent; deliberately unimported — docs/decisions/gratsi-unmapped-fields-2026-10-02.md',
+        drizzleColumn: 'passion',
+        handler: 'richText',
+        note: "Gratsi's own field; its own column since 0044, never folded into a neighbour",
       },
       Angles: {
         drizzleColumn: null,

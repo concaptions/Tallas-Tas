@@ -36,20 +36,33 @@ export interface PersonaActionFailure {
 
 export type PersonaActionResult = PersonaActionSuccess | PersonaActionFailure;
 
-/** A text column: trimmed, and empty means NULL. */
+/**
+ * A text column: trimmed, empty means NULL, and ABSENT means "leave it alone".
+ *
+ * `.nullish()` rather than `.nullable()` is load-bearing. The Personas form shows only the fields
+ * the Gratsi base defines, so it no longer submits `dayInTheLife` and the eight others; with a
+ * merely nullable validator every save would fail "Required". Absent now parses to `undefined`,
+ * which `updatePersona`'s partial patch skips, so another brand's data in those columns survives an
+ * edit made through this form. `personas.test.ts` pins that.
+ */
 const text = z
   .string()
   .trim()
   .transform((value) => (value === '' ? null : value))
-  .nullable();
+  .nullish();
 
-/** The fourteen fields. `name` is the only required one; a persona is filled over several sittings. */
+/**
+ * Every column the form may write. Wider than what the page DISPLAYS on purpose: the Gratsi set is
+ * six fields plus the Angles link, but a brand whose own base carries the others must still be able
+ * to save them, so they stay accepted and simply are not rendered here.
+ */
 const personaSchema = z.object({
   name: z.string().trim().min(1, 'A persona needs a name.'),
   dayInTheLife: text,
   demographic: text,
   psychographic: text,
   coreDesires: text,
+  passion: text,
   successFactors: text,
   successTransformation: text,
   painPoints: text,

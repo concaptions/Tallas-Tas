@@ -188,4 +188,37 @@ describe('persona queries', () => {
     expectTypeOf<PersonaInput>().toHaveProperty('dayInTheLife');
     expectTypeOf<PersonaInput>().toHaveProperty('triggerWords');
   });
+  it('leaves the columns the Personas form no longer submits untouched, so another brand keeps its data', async () => {
+    const db = await testDb();
+    const { personas: seeded } = await seed(db);
+    const target = seeded[0];
+    if (target === undefined) throw new Error('seed returned no personas');
+    expect(target.dayInTheLife).not.toBeNull();
+
+    // The Gratsi-pinned form submits six fields; the nine template prose columns are absent from the
+    // patch entirely (zod parses them to undefined). A partial update must skip them, not null them —
+    // Niagara Sleep Solutions populates all nine on every one of its personas.
+    const updated = await updatePersona(
+      db,
+      DEMO_BRAND_ID,
+      target.id,
+      {
+        name: target.name,
+        demographic: 'edited through the Gratsi form',
+        psychographic: target.psychographic,
+        coreDesires: target.coreDesires,
+        passion: 'Natural wine and long lunches',
+        stageOfAwareness: target.stageOfAwareness,
+      },
+      'test-actor',
+    );
+
+    expect(updated?.demographic).toBe('edited through the Gratsi form');
+    expect(updated?.passion).toBe('Natural wine and long lunches');
+    expect(updated?.dayInTheLife).toBe(target.dayInTheLife);
+    expect(updated?.painPoints).toBe(target.painPoints);
+    expect(updated?.triggerWords).toBe(target.triggerWords);
+    expect(updated?.emotionalTriggers).toBe(target.emotionalTriggers);
+    expect(updated?.productId).toBe(target.productId);
+  });
 });

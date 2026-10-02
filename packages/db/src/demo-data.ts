@@ -386,6 +386,7 @@ export const demoPersonas: PersonaListRow[] = [
       'Clinically literate and deeply sceptical of wellness marketing — he can read a study abstract and will. Identifies as the reliable one at work and at home, so he treats his own exhaustion as a personal failing rather than an occupational hazard. Buys practical gear, researches on Reddit and r/nursing before purchase, and hates anything that looks like it belongs in a spa.',
     coreDesires:
       'To be free from the fear of falling asleep on the drive home. To keep the energy to be present with his daughter on his days off rather than sleeping through them. To feel in control of his own body again instead of negotiating with it.',
+    passion: 'Night shifts, trail running on his days off, and a podcast habit on the drive home.',
     emotionalTriggers:
       'The guilt of missing his daughter’s Saturday football because he was still asleep at noon. The flash of fear when he loses a few seconds on the motorway. Being told by colleagues that "you get used to nights" when after six years he clearly has not.',
     painPoints:
@@ -419,6 +420,8 @@ export const demoPersonas: PersonaListRow[] = [
       'Was organised and high-performing and is grieving that version of herself. Lives in parenting subreddits and Instagram carousels at 03:00, which has left her both over-informed and unable to decide. Will spend on anything that helps the baby without hesitation and feels selfish spending forty dollars on herself.',
     coreDesires:
       'To actually sleep during the window she does get instead of lying awake in it. To stop snapping at her partner. To feel like herself again before she has to walk back into a meeting room.',
+    passion:
+      'Her garden, her two grandchildren, and the book club she has not missed in nine years.',
     emotionalTriggers:
       'Crying in the kitchen over something small and not knowing why. The comment "sleep when the baby sleeps" from someone who has clearly never tried. The photo of herself from last summer looking rested. The fear that she will go back to work like this and be found out.',
     painPoints:
@@ -452,6 +455,7 @@ export const demoPersonas: PersonaListRow[] = [
       'Pragmatic and used to fixing other people’s problems, which makes being unable to fix her own infuriating. Was dismissed by a GP with "it is just your age" and has not fully forgiven it, so she now researches thoroughly and trusts other women in her position far more than brands. Will pay well for something that works and resents paying anything for something pink and vague.',
     coreDesires:
       'To sleep through until the alarm. To stop dreading the middle of the night. To stop losing words in meetings and to feel like her competence is her own again rather than something age is taking back.',
+    passion: 'Early yoga, cooking for friends at the weekend, and anything that buys back an hour.',
     emotionalTriggers:
       'Waking soaked and having to change the sheets at 03:30 while her husband sleeps. The word "hormonal" used about her at work. The fear that this is simply who she is now. Her daughter asking why she is so snappy.',
     painPoints:

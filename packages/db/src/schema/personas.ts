@@ -21,10 +21,23 @@ export const personas = pgTable(
       .references(() => brands.id),
     productId: uuid('product_id').references(() => products.id),
     name: text('name').notNull(),
+    /**
+     * The columns from `day_in_the_life` to `trigger_words` are NOT shown on the Gratsi-pinned
+     * Personas page (docs/decisions/gratsi-display-spec-2026-10-02.md): the Gratsi base defines no
+     * field for them. They are NOT deprecated — Niagara Sleep Solutions populates them on all three
+     * of its personas — so they keep their data and stay readable to any brand whose own base has
+     * the field. Per-brand visibility belongs in `brand_field_overrides`, not in a drop.
+     */
     dayInTheLife: text('day_in_the_life'),
     demographic: text('demographic'),
     psychographic: text('psychographic'),
     coreDesires: text('core_desires'),
+    /**
+     * Gratsi's `Passion` field. Added to the production database by hand before this schema caught
+     * up, so migration 0044 is written to be idempotent — `migrate-prod` skips a column that already
+     * exists and records the journal row, which is exactly the drift it was built for.
+     */
+    passion: text('passion'),
     emotionalTriggers: text('emotional_triggers'),
     painPoints: text('pain_points'),
     successFactors: text('success_factors'),
