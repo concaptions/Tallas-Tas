@@ -1,69 +1,25 @@
-import { getTableCapability, type ViewType } from '@tas/domain';
+import { redirect } from 'next/navigation';
 
-import { loadBriefs } from '@/lib/briefs-source';
-import { loadCreativeReports } from '@/lib/creative-reporting-source';
-import { isDemoMode } from '@/lib/demo-mode';
-
-import type { CreativeReportBriefOption } from './creative-reporting-panel';
-import { CreativeReportingWorkspace } from './creative-reporting-workspace';
-import { toCreativeReportItem } from './fields';
+import { appPath } from '@/lib/routes';
 
 /**
- * Creative Reporting (Airtable "Creative Reporting", `tblgW4bwDSSeqihlr`; audit §2 row 14 and §14):
- * the hand-kept performance sheet the team fills per launched ad, internal only.
+ * Creative Reporting is HIDDEN as of 2026-10-02: the Airtable TEMPLATE base `appnaSGAgOUbJ0f9m` became the
+ * source of truth and has no table for it (`docs/audits/template-base-diff-2026-10-02.md`, "Drizzle
+ * tables with no table in the template base").
  *
- * A server component shaped exactly like the Products page. The rows come from
- * `loadCreativeReports()` — fixtures in demo mode, the brand-scoped query otherwise — already
- * carrying the brief name and the Difference CPA formula, so nothing is derived in a component; the
- * metric labels are formatted here, once, through `toCreativeReportItem`. The Creative picker's
- * options come from the briefs' own source (`loadBriefs`). Every piece of table state is a query
- * parameter: `?creativeReport=` for the open panel, `?q=` for the filter and `?view=` for the view
- * the capability allows.
+ * Hidden, not dropped. The `creative_reporting` table, every query function over it, its demo fixtures and
+ * this folder's workspace, panel, `fields.ts` and Server Actions are all untouched — only the
+ * sidebar entry (`apps/web/src/components/shell/nav.ts`) is gone and this route redirects, so
+ * nothing that was imported is lost and un-hiding the module is this file plus that section.
+ * `docs/decisions/data-loss-blockers-2026-10-02.md` records what the table holds.
  *
- * The relative timestamps are computed here with a single `now`, so server and client agree.
+ * `redirect` (307), NOT `permanentRedirect` (308). The hide is reversible by design, and a 308 is
+ * cached indefinitely by browsers and intermediaries: anyone who opened this route once would keep
+ * being bounced to the Overview after the module came back, until they cleared site data. The
+ * legacy routes under `apps/web/src/app/app/briefs/` use 308 correctly, because that move is
+ * permanent — the page really did move to `/app/creative-design`. This one is a hide, so the
+ * redirect is temporary and a stale deep link still lands on the Overview rather than on a 404.
  */
-interface CreativeReportingPageProps {
-  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-const CAP = getTableCapability('creative-reporting');
-
-export default async function CreativeReportingPage({ searchParams }: CreativeReportingPageProps) {
-  const [{ rows }, briefRows, params] = await Promise.all([
-    loadCreativeReports(),
-    loadBriefs(),
-    searchParams,
-  ]);
-  const demo = isDemoMode();
-  const now = new Date();
-
-  const items = rows.map((row) => toCreativeReportItem(row, now));
-  const briefOptions: CreativeReportBriefOption[] = briefRows.rows.map(({ id, name }) => ({
-    id,
-    name,
-  }));
-
-  const requested = params.creativeReport;
-  const selection = typeof requested === 'string' && requested !== '' ? requested : null;
-
-  const requestedSearch = params.q;
-  const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
-
-  const requestedView = params.view;
-  const supported = CAP?.supportedViews ?? ['grid'];
-  const initialView: ViewType =
-    typeof requestedView === 'string' && (supported as readonly string[]).includes(requestedView)
-      ? (requestedView as ViewType)
-      : 'grid';
-
-  return (
-    <CreativeReportingWorkspace
-      items={items}
-      briefOptions={briefOptions}
-      demo={demo}
-      initialSelection={selection}
-      initialSearch={initialSearch}
-      initialView={initialView}
-    />
-  );
+export default function LegacyCreativeReportingRedirect() {
+  redirect(appPath);
 }

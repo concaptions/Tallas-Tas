@@ -1,57 +1,25 @@
-import { loadCopyTypes } from '@/lib/copy-types-source';
-import { isDemoMode } from '@/lib/demo-mode';
-import { absoluteTime, relativeTime } from '@/lib/relative-time';
+import { redirect } from 'next/navigation';
 
-import { CopyTypesWorkspace, type CopyTypeItem } from './copy-types-workspace';
-import { descriptionPreview, linkedCopyLabel } from './fields';
+import { appPath } from '@/lib/routes';
 
 /**
- * Copy Types (Airtable "(Internal) Copy Type", gap audit 2026-10-01 §2.13): the lookup list a Meta
- * or YouTube copy row is tagged with.
+ * Copy Types is HIDDEN as of 2026-10-02: the Airtable TEMPLATE base `appnaSGAgOUbJ0f9m` became the
+ * source of truth and has no table for it (`docs/audits/template-base-diff-2026-10-02.md`, "Drizzle
+ * tables with no table in the template base").
  *
- * A server component, shaped exactly like the Products page. The rows come from `loadCopyTypes()`,
- * which is the in-repo fixtures in demo mode and the brand-scoped query otherwise; the page does not
- * know which and does not branch on it. Both pieces of table state are query parameters —
- * `?copyType=` for the open panel and `?q=` for the filter — so a refresh restores the view and
- * either one is shareable as a link.
+ * Hidden, not dropped. The `copy_types` table, every query function over it, its demo fixtures and
+ * this folder's workspace, panel, `fields.ts` and Server Actions are all untouched — only the
+ * sidebar entry (`apps/web/src/components/shell/nav.ts`) is gone and this route redirects, so
+ * nothing that was imported is lost and un-hiding the module is this file plus that section.
+ * `docs/decisions/data-loss-blockers-2026-10-02.md` records what the table holds.
  *
- * Every derived value is computed here, once: the label of each linked copy (its headline, or the
- * auto-generated `Copy #N` title from `@tas/domain/copy` when it has none — the "Ads Copywriting
- * copy" and "Copywriting" record links Airtable shows, never a stored column and never computed
- * inside a component), the first line of the description for the grid cell, and the relative
- * timestamp with a single `now` (a client that formatted it itself would disagree with the server
- * and break hydration).
+ * `redirect` (307), NOT `permanentRedirect` (308). The hide is reversible by design, and a 308 is
+ * cached indefinitely by browsers and intermediaries: anyone who opened this route once would keep
+ * being bounced to the Overview after the module came back, until they cleared site data. The
+ * legacy routes under `apps/web/src/app/app/briefs/` use 308 correctly, because that move is
+ * permanent — the page really did move to `/app/creative-design`. This one is a hide, so the
+ * redirect is temporary and a stale deep link still lands on the Overview rather than on a 404.
  */
-interface CopyTypesPageProps {
-  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-export default async function CopyTypesPage({ searchParams }: CopyTypesPageProps) {
-  const [{ rows }, params] = await Promise.all([loadCopyTypes(), searchParams]);
-  const demo = isDemoMode();
-  const now = new Date();
-
-  const items: CopyTypeItem[] = rows.map((copyType) => ({
-    copyType,
-    descriptionPreview: descriptionPreview(copyType.description),
-    metaCopies: copyType.metaCopies.map(linkedCopyLabel),
-    youtubeCopies: copyType.youtubeCopies.map(linkedCopyLabel),
-    updatedLabel: relativeTime(copyType.updatedAt, now),
-    updatedTitle: absoluteTime(copyType.updatedAt),
-  }));
-
-  const requested = params.copyType;
-  const selection = typeof requested === 'string' && requested !== '' ? requested : null;
-
-  const requestedSearch = params.q;
-  const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
-
-  return (
-    <CopyTypesWorkspace
-      items={items}
-      demo={demo}
-      initialSelection={selection}
-      initialSearch={initialSearch}
-    />
-  );
+export default function LegacyCopyTypesRedirect() {
+  redirect(appPath);
 }

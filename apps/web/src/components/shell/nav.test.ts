@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { NAV_GROUPS, NAV_SECTIONS, activeSectionKey, pendingSections } from './nav';
 
 describe('NAV_SECTIONS', () => {
-  it('lists every module in sidebar order (regrouped 2026-10-01 for Airtable parity)', () => {
+  it('lists every visible module in sidebar order (six hidden 2026-10-02, template-base alignment)', () => {
     expect(NAV_SECTIONS.map((section) => section.label)).toEqual([
       'Overview',
       'Products',
@@ -22,16 +22,10 @@ describe('NAV_SECTIONS', () => {
       'Asset Library',
       'Upload Links',
       'Meta Copywriting',
-      'YouTube Copywriting',
       'Campaigns & Offers',
-      'Email Campaigns',
-      'Email Flows',
-      'SM Campaign Feed',
       'Performance',
-      'Creative Reporting',
       'Ad Spy',
       'Creator Ranking',
-      'Copy Types',
       'Creative Dimensions',
       'Internal Queue',
       'Client Queue',
@@ -58,6 +52,43 @@ describe('NAV_SECTIONS', () => {
       'Settings',
       'Reference',
     ]);
+  });
+
+  /**
+   * The six modules the template base has no table for (template-base alignment, 2026-10-02).
+   * They are HIDDEN, not dropped: the Postgres tables, the queries and the page folders are all
+   * still there and each route `redirect`s to `/app`. Asserted by key AND by href, so
+   * re-adding a section under a new label still fails here until the decision is revisited —
+   * `docs/decisions/data-loss-blockers-2026-10-02.md`.
+   */
+  it('does not list the six hidden modules, by key or by href', () => {
+    const hiddenKeys = [
+      'copy-types',
+      'youtube-copywriting',
+      'email-campaigns',
+      'email-flows',
+      'creative-reporting',
+      'sm-campaign-feed',
+    ];
+    const hiddenHrefs = hiddenKeys.map((key) => `/app/${key}`);
+
+    for (const key of hiddenKeys) {
+      expect(NAV_SECTIONS.map((section) => section.key)).not.toContain(key);
+    }
+    for (const href of hiddenHrefs) {
+      expect(NAV_SECTIONS.map((section) => section.href)).not.toContain(href);
+    }
+  });
+
+  /**
+   * `creative-modules` is the seventh Drizzle content table with no table in the template base and
+   * it stays VISIBLE on purpose: whether the template's "Themes" table feeds `themes` or
+   * `creative_modules` is an unresolved product question (audit §5), so nothing is hidden on a guess.
+   */
+  it('keeps Creative Modules visible while the Themes question is open', () => {
+    expect(NAV_SECTIONS.find((section) => section.key === 'creative-modules')?.href).toBe(
+      '/app/creative-modules',
+    );
   });
 
   it('keys are unique, so the sidebar never renders a duplicate', () => {
@@ -98,16 +129,10 @@ describe('NAV_SECTIONS', () => {
       ['Asset Library', '/app/assets'],
       ['Upload Links', '/app/upload-links'],
       ['Meta Copywriting', '/app/meta-copywriting'],
-      ['YouTube Copywriting', '/app/youtube-copywriting'],
       ['Campaigns & Offers', '/app/campaigns-offers'],
-      ['Email Campaigns', '/app/email-campaigns'],
-      ['Email Flows', '/app/email-flows'],
-      ['SM Campaign Feed', '/app/sm-campaign-feed'],
       ['Performance', '/app/performance'],
-      ['Creative Reporting', '/app/creative-reporting'],
       ['Ad Spy', '/app/ad-spy'],
       ['Creator Ranking', '/app/creator-ranking'],
-      ['Copy Types', '/app/copy-types'],
       ['Creative Dimensions', '/app/creative-dimensions'],
       ['Internal Queue', '/app/queue/internal'],
       ['Client Queue', '/app/queue/client'],
@@ -139,8 +164,6 @@ describe('activeSectionKey', () => {
     ['/app/creative-design', 'briefs'],
     ['/app/creative-design/77777777-7777-4777-8777-000000000001', 'briefs'],
     ['/app/meta-copywriting', 'copywriting'],
-    ['/app/youtube-copywriting', 'youtube-copywriting'],
-    ['/app/email-campaigns', 'email-campaigns'],
     ['/app/ugc', 'ugc'],
     ['/app/ugc/88888888-8888-4888-8888-000000000001', 'ugc'],
     ['/app/assets', 'assets'],
@@ -168,5 +191,22 @@ describe('activeSectionKey', () => {
 
   it('marks nothing on an unknown path', () => {
     expect(activeSectionKey('/sign-in')).toBeNull();
+  });
+
+  /**
+   * A hidden module's route still exists — it `redirect`s to `/app` — but no section owns
+   * it any more, so the longest matching href is Overview's `/app`. The sidebar therefore
+   * highlights Overview on the way through, which is exactly where the redirect lands, instead of
+   * lighting a stale entry for a module that is no longer listed.
+   */
+  it.each([
+    '/app/copy-types',
+    '/app/youtube-copywriting',
+    '/app/email-campaigns',
+    '/app/email-flows',
+    '/app/creative-reporting',
+    '/app/sm-campaign-feed',
+  ])('falls back to Overview on the hidden route %s', (pathname) => {
+    expect(activeSectionKey(pathname)).toBe('overview');
   });
 });

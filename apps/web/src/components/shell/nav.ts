@@ -8,15 +8,11 @@ import {
   clientAssetsPath,
   collectionsPath,
   competitiveResearchPath,
-  copyTypesPath,
   creativeDesignPath,
   creativeDimensionsPath,
   creativeModulesPath,
-  creativeReportingPath,
   creativeSheetPath,
   creatorRankingPath,
-  emailCampaignsPath,
-  emailFlowsPath,
   metaCopywritingPath,
   performancePath,
   clientQueuePath,
@@ -30,12 +26,10 @@ import {
   personasPath,
   productsPath,
   propagationPath,
-  smCampaignFeedPath,
   teamPath,
   themesPath,
   ugcPath,
   uploadLinksPath,
-  youtubeCopywritingPath,
 } from '@/lib/routes';
 
 import type { IconName } from './icons';
@@ -65,6 +59,21 @@ export interface NavGroup {
   readonly sections: readonly NavSection[];
 }
 
+/**
+ * HIDDEN MODULES (template-base alignment, 2026-10-02). Six sections were removed from this list
+ * when the Airtable TEMPLATE base `appnaSGAgOUbJ0f9m` became the source of truth and turned out to
+ * have no table for them: Copy Types, YouTube Copywriting, Email Campaigns, Email Flows, Creative
+ * Reporting and SM Campaign Feed.
+ *
+ * Hidden, NOT dropped. The Postgres tables, their query functions, their demo fixtures and their
+ * page components are all still in the repo; only the sidebar entry is gone and each route
+ * `redirect`s (307) to `/app` — temporary, because the hide is reversible. Un-hiding one is a
+ * section here plus its `page.tsx`. `docs/decisions/data-loss-blockers-2026-10-02.md` says why
+ * nothing was deleted and what each table holds.
+ *
+ * `creative-modules` is deliberately still listed: whether the template base's "Themes" table
+ * feeds `themes` or `creative_modules` is an open product question (same document, last section).
+ */
 export const NAV_GROUPS: readonly NavGroup[] = [
   {
     key: 'home',
@@ -158,13 +167,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         emoji: '✍️',
         href: metaCopywritingPath,
       },
-      {
-        key: 'youtube-copywriting',
-        label: 'YouTube Copywriting',
-        icon: 'copywriting',
-        emoji: '▶️',
-        href: youtubeCopywritingPath,
-      },
     ],
   },
   {
@@ -178,27 +180,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         emoji: '🏷️',
         href: campaignsOffersPath,
       },
-      {
-        key: 'email-campaigns',
-        label: 'Email Campaigns',
-        icon: 'campaigns',
-        emoji: '📧',
-        href: emailCampaignsPath,
-      },
-      {
-        key: 'email-flows',
-        label: 'Email Flows',
-        icon: 'campaigns',
-        emoji: '🔁',
-        href: emailFlowsPath,
-      },
-      {
-        key: 'sm-campaign-feed',
-        label: 'SM Campaign Feed',
-        icon: 'campaigns',
-        emoji: '📣',
-        href: smCampaignFeedPath,
-      },
     ],
   },
   {
@@ -211,13 +192,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         icon: 'performance',
         emoji: '📈',
         href: performancePath,
-      },
-      {
-        key: 'creative-reporting',
-        label: 'Creative Reporting',
-        icon: 'performance',
-        emoji: '📊',
-        href: creativeReportingPath,
       },
       { key: 'ad-spy', label: 'Ad Spy', icon: 'ad-spy', emoji: '🕵️', href: adSpyPath },
       {
@@ -233,13 +207,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     key: 'lookups',
     label: 'Settings / Lookups',
     sections: [
-      {
-        key: 'copy-types',
-        label: 'Copy Types',
-        icon: 'copywriting',
-        emoji: '🏷️',
-        href: copyTypesPath,
-      },
       {
         key: 'creative-dimensions',
         label: 'Creative Dimensions',

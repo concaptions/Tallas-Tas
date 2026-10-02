@@ -1,82 +1,25 @@
-import type { ViewType } from '@tas/domain';
+import { redirect } from 'next/navigation';
 
-import { loadCampaigns } from '@/lib/campaigns-source';
-import { isDemoMode } from '@/lib/demo-mode';
-import { loadEmailFlows } from '@/lib/email-flows-source';
-import { loadTeam } from '@/lib/team-source';
-
-import type { LinkOption } from './email-flows-panel';
-import { EmailFlowsWorkspace } from './email-flows-workspace';
-import { emailFlowItem, isKanbanGroupField, type KanbanGroupField } from './fields';
+import { appPath } from '@/lib/routes';
 
 /**
- * Email Flows (Airtable "Email Flows Management", `tblubVflAQZgJSxcF`): one row per automated
- * Klaviyo flow — welcome series, abandoned cart, back in stock — as opposed to the one-off sends on
- * the Email Campaigns page.
+ * Email Flows is HIDDEN as of 2026-10-02: the Airtable TEMPLATE base `appnaSGAgOUbJ0f9m` became the
+ * source of truth and has no table for it (`docs/audits/template-base-diff-2026-10-02.md`, "Drizzle
+ * tables with no table in the template base").
  *
- * A server component, shaped exactly like the Products page. The rows come from `loadEmailFlows()`,
- * which is the in-repo fixtures in demo mode and the brand-scoped query otherwise; the page does
- * not know which and does not branch on it. The campaign options for the panel's chip picker come
- * from `loadCampaigns()` and the assignee options from `loadTeam()`, the same way. Every piece of
- * table state is a query parameter — `?email-flow=` for the open panel, `?q=` for the filter,
- * `?view=` for grid or kanban and `?group=` for the board's field — so a refresh restores the view
- * and any of them is shareable as a link.
+ * Hidden, not dropped. The `email_flows` table, every query function over it, its demo fixtures and
+ * this folder's workspace, panel, `fields.ts` and Server Actions are all untouched — only the
+ * sidebar entry (`apps/web/src/components/shell/nav.ts`) is gone and this route redirects, so
+ * nothing that was imported is lost and un-hiding the module is this file plus that section.
+ * `docs/decisions/data-loss-blockers-2026-10-02.md` records what the table holds.
  *
- * Every derived string is computed here, once, by `emailFlowItem`: the relative timestamp with a
- * single `now` (a client that formatted it itself would disagree with the server and break
- * hydration), the three formatted dates and the Klaviyo host.
+ * `redirect` (307), NOT `permanentRedirect` (308). The hide is reversible by design, and a 308 is
+ * cached indefinitely by browsers and intermediaries: anyone who opened this route once would keep
+ * being bounced to the Overview after the module came back, until they cleared site data. The
+ * legacy routes under `apps/web/src/app/app/briefs/` use 308 correctly, because that move is
+ * permanent — the page really did move to `/app/creative-design`. This one is a hide, so the
+ * redirect is temporary and a stale deep link still lands on the Overview rather than on a 404.
  */
-interface EmailFlowsPageProps {
-  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban']);
-
-export default async function EmailFlowsPage({ searchParams }: EmailFlowsPageProps) {
-  const [{ rows }, campaignResult, teamResult, params] = await Promise.all([
-    loadEmailFlows(),
-    loadCampaigns(),
-    loadTeam(),
-    searchParams,
-  ]);
-  const demo = isDemoMode();
-  const now = new Date();
-
-  const items = rows.map((flow) => emailFlowItem(flow, now));
-  const campaigns: LinkOption[] = campaignResult.rows.map(({ id, name }) => ({ id, name }));
-  const assignees: LinkOption[] = teamResult.rows.map(({ clerkUserId, fullName }) => ({
-    id: clerkUserId,
-    name: fullName,
-  }));
-
-  const requested = params['email-flow'];
-  const selection = typeof requested === 'string' && requested !== '' ? requested : null;
-
-  const requestedSearch = params.q;
-  const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
-
-  const requestedView = params.view;
-  const initialView: ViewType =
-    typeof requestedView === 'string' && VALID_VIEWS.has(requestedView as ViewType)
-      ? (requestedView as ViewType)
-      : 'grid';
-
-  const requestedGroup = params.group;
-  const initialGroupField: KanbanGroupField =
-    typeof requestedGroup === 'string' && isKanbanGroupField(requestedGroup)
-      ? requestedGroup
-      : 'status';
-
-  return (
-    <EmailFlowsWorkspace
-      items={items}
-      campaigns={campaigns}
-      assignees={assignees}
-      demo={demo}
-      initialSelection={selection}
-      initialSearch={initialSearch}
-      initialView={initialView}
-      initialGroupField={initialGroupField}
-    />
-  );
+export default function LegacyEmailFlowsRedirect() {
+  redirect(appPath);
 }

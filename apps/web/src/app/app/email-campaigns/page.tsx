@@ -1,92 +1,25 @@
-import { getTableCapability, type ViewType } from '@tas/domain';
+import { redirect } from 'next/navigation';
 
-import { loadCampaigns } from '@/lib/campaigns-source';
-import { loadCollections } from '@/lib/collections-source';
-import { isDemoMode } from '@/lib/demo-mode';
-import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
-import { loadProducts } from '@/lib/products-source';
-import { loadTeam } from '@/lib/team-source';
-
-import type { EmailCampaignLinkOption } from './email-campaign-panel';
-import { EmailCampaignsWorkspace } from './email-campaigns-workspace';
-import { isGroupField, toEmailCampaignItem, type EmailCampaignGroupField } from './fields';
+import { appPath } from '@/lib/routes';
 
 /**
- * Email Campaigns (Airtable "Email Campaigns Management", `tblABjVpwRpYtY7de`; audit §2.10): one
- * row per planned email, SMS or push send, internal only.
+ * Email Campaigns is HIDDEN as of 2026-10-02: the Airtable TEMPLATE base `appnaSGAgOUbJ0f9m` became the
+ * source of truth and has no table for it (`docs/audits/template-base-diff-2026-10-02.md`, "Drizzle
+ * tables with no table in the template base").
  *
- * A server component shaped exactly like the Products page. The rows come from
- * `loadEmailCampaigns()` — fixtures in demo mode, the brand-scoped query otherwise — already
- * carrying the two formula due dates, the assignee name and the linked names, so nothing is derived
- * in a component. The linked tables' options for the panel's pickers come from their own sources
- * (`loadCampaigns`, `loadProducts`, `loadCollections`) and the Assignee options from `loadTeam`.
- * Every piece of table state is a query parameter: `?emailCampaign=` for the open panel, `?q=` for
- * the filter, `?view=` for grid/kanban/timeline and `?group=` for the board's grouping.
+ * Hidden, not dropped. The `email_campaigns` table, every query function over it, its demo fixtures and
+ * this folder's workspace, panel, `fields.ts` and Server Actions are all untouched — only the
+ * sidebar entry (`apps/web/src/components/shell/nav.ts`) is gone and this route redirects, so
+ * nothing that was imported is lost and un-hiding the module is this file plus that section.
+ * `docs/decisions/data-loss-blockers-2026-10-02.md` records what the table holds.
  *
- * The relative timestamps are computed here, once, with a single `now`, so server and client agree.
+ * `redirect` (307), NOT `permanentRedirect` (308). The hide is reversible by design, and a 308 is
+ * cached indefinitely by browsers and intermediaries: anyone who opened this route once would keep
+ * being bounced to the Overview after the module came back, until they cleared site data. The
+ * legacy routes under `apps/web/src/app/app/briefs/` use 308 correctly, because that move is
+ * permanent — the page really did move to `/app/creative-design`. This one is a hide, so the
+ * redirect is temporary and a stale deep link still lands on the Overview rather than on a 404.
  */
-interface EmailCampaignsPageProps {
-  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-const CAP = getTableCapability('email-campaigns');
-
-export default async function EmailCampaignsPage({ searchParams }: EmailCampaignsPageProps) {
-  const [{ rows }, campaignRows, productRows, collectionRows, teamRows, params] = await Promise.all(
-    [
-      loadEmailCampaigns(),
-      loadCampaigns(),
-      loadProducts(),
-      loadCollections(),
-      loadTeam(),
-      searchParams,
-    ],
-  );
-  const demo = isDemoMode();
-  const now = new Date();
-
-  const items = rows.map((row) => toEmailCampaignItem(row, now));
-  const option = ({ id, name }: { id: string; name: string }): EmailCampaignLinkOption => ({
-    id,
-    name,
-  });
-  const campaignOptions = campaignRows.rows.map(option);
-  const productOptions = productRows.rows.map(option);
-  const collectionOptions = collectionRows.rows.map(option);
-  const assigneeOptions = teamRows.rows.map((member) => ({
-    id: member.clerkUserId,
-    name: member.fullName,
-  }));
-
-  const requested = params.emailCampaign;
-  const selection = typeof requested === 'string' && requested !== '' ? requested : null;
-
-  const requestedSearch = params.q;
-  const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
-
-  const requestedView = params.view;
-  const supported = CAP?.supportedViews ?? ['grid'];
-  const initialView: ViewType =
-    typeof requestedView === 'string' && (supported as readonly string[]).includes(requestedView)
-      ? (requestedView as ViewType)
-      : 'grid';
-
-  const requestedGroup = params.group;
-  const initialGroupField: EmailCampaignGroupField =
-    typeof requestedGroup === 'string' && isGroupField(requestedGroup) ? requestedGroup : 'status';
-
-  return (
-    <EmailCampaignsWorkspace
-      items={items}
-      campaignOptions={campaignOptions}
-      productOptions={productOptions}
-      collectionOptions={collectionOptions}
-      assigneeOptions={assigneeOptions}
-      demo={demo}
-      initialSelection={selection}
-      initialSearch={initialSearch}
-      initialView={initialView}
-      initialGroupField={initialGroupField}
-    />
-  );
+export default function LegacyEmailCampaignsRedirect() {
+  redirect(appPath);
 }
