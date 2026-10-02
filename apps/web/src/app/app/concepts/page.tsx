@@ -55,6 +55,9 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     name: row.name,
     batch: row.batch,
     angleName: row.angleName,
+    // Every angle the concept is linked to, already named and scope-filtered by `listConcepts`
+    // (action item 35). `angleName` beside it is the first one, the one the §7 name formula used.
+    angleLinks: row.angleLinks,
     personaName: row.personaName,
     productName: row.productName,
     themeName: row.themeName,

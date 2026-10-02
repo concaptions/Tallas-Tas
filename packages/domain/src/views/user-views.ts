@@ -157,3 +157,36 @@ export function isViewFieldVisible(
 ): boolean {
   return view.visibleFields === null || view.visibleFields.includes(key);
 }
+
+/**
+ * The freeze a "freeze up to and including this column" choice means (AI-22).
+ *
+ * A freeze is a PREFIX of the columns as the viewer sees them, never a scattered set: a sticky
+ * column only reads as frozen when everything to its left is frozen too, so picking the third
+ * column freezes the first three. `keys` is therefore the view's own order — what `applyUserView`
+ * returned — not the table's declaration order.
+ *
+ * `null`, or a key the view does not show, returns an empty list, which `applyUserView` reads as
+ * "the table's own default freeze" (its name column). That is deliberate: a table always has one
+ * column worth pinning, and an empty list is the only value the stored config has ever used for it.
+ */
+export function freezeUpTo(keys: readonly string[], key: string | null): readonly string[] {
+  if (key === null) return [];
+  const index = keys.indexOf(key);
+  return index === -1 ? [] : keys.slice(0, index + 1);
+}
+
+/**
+ * The column a freeze control shows as chosen: the last one in the view's order that is frozen, or
+ * `null` when the view carries no freeze of its own (the table's default is in force).
+ */
+export function frozenUpTo(
+  keys: readonly string[],
+  view: Pick<UserViewConfig, 'frozenFields'>,
+): string | null {
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const key = keys[index];
+    if (key !== undefined && view.frozenFields.includes(key)) return key;
+  }
+  return null;
+}

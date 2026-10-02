@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   applyUserView,
   defaultUserViewConfig,
+  freezeUpTo,
+  frozenUpTo,
   isViewFieldVisible,
   parseUserViewConfig,
   toggleViewField,
@@ -115,5 +117,37 @@ describe('parseUserViewConfig', () => {
     expect(parseUserViewConfig({ viewType: 'bogus', sort: { key: 'x' } }).viewType).toBe('grid');
     expect(parseUserViewConfig({ viewType: 'bogus' }).sort).toBeNull();
     expect(parseUserViewConfig({}).visibleFields).toBeNull();
+  });
+});
+
+describe('freezeUpTo / frozenUpTo', () => {
+  const keys = FIELDS.map((f) => f.key);
+
+  it('freezes every column up to and including the chosen one', () => {
+    expect(freezeUpTo(keys, 'name')).toEqual(['name']);
+    expect(freezeUpTo(keys, 'notes')).toEqual(['name', 'status', 'notes']);
+  });
+
+  it('reads the view order it is given, not the table order', () => {
+    expect(freezeUpTo(['updated', 'name', 'status'], 'name')).toEqual(['updated', 'name']);
+  });
+
+  it('returns the table default (an empty list) for null and for a column the view hides', () => {
+    expect(freezeUpTo(keys, null)).toEqual([]);
+    expect(freezeUpTo(keys, 'ghost')).toEqual([]);
+  });
+
+  it('round-trips: the chosen column is the one the control shows back', () => {
+    const chosen = 'status';
+    const view = { frozenFields: freezeUpTo(keys, chosen) };
+    expect(frozenUpTo(keys, view)).toBe(chosen);
+  });
+
+  it('reports no choice while the table default is in force', () => {
+    expect(frozenUpTo(keys, defaultUserViewConfig())).toBeNull();
+  });
+
+  it('reports the last frozen column when a stored freeze is not a clean prefix', () => {
+    expect(frozenUpTo(keys, { frozenFields: ['name', 'notes'] })).toBe('notes');
   });
 });

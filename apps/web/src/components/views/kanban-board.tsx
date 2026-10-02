@@ -19,6 +19,7 @@ import {
   DisabledWrite,
   disabledWriteClassName,
   StatusChip,
+  TONE_STRIPE,
 } from '@tas/ui';
 import type { ChipTone } from '@tas/domain/state';
 
@@ -52,16 +53,6 @@ export interface KanbanItem {
   };
 }
 
-/** The left stripe colour per stage tone. Semantic token classes only — no literals. */
-const ACCENT_STRIPE: Record<ChipTone, string> = {
-  ok: 'border-l-ok',
-  warn: 'border-l-warn',
-  bad: 'border-l-bad',
-  info: 'border-l-info',
-  accent: 'border-l-accent',
-  mute: 'border-l-line2',
-};
-
 interface KanbanBoardProps {
   readonly items: readonly KanbanItem[];
   readonly columns: readonly string[];
@@ -83,7 +74,7 @@ function KanbanCard({ item, isDragging }: { item: KanbanItem; isDragging?: boole
       data-card-id={item.id}
       className={cn(
         'cursor-grab border-line bg-surface transition-shadow',
-        item.accentTone === undefined ? undefined : `border-l-4 ${ACCENT_STRIPE[item.accentTone]}`,
+        item.accentTone === undefined ? undefined : `border-l-4 ${TONE_STRIPE[item.accentTone]}`,
         isDragging ? 'rotate-2 opacity-80 shadow-lg' : 'hover:shadow-md',
       )}
     >

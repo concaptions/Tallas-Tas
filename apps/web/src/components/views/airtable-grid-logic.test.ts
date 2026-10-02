@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { cycleSort, sortRows, toggleHidden } from './airtable-grid-logic';
+import {
+  cycleSort,
+  sameOffsets,
+  sortRows,
+  stickyOffsets,
+  toggleHidden,
+} from './airtable-grid-logic';
 
 describe('cycleSort', () => {
   it('starts a fresh column at ascending', () => {
@@ -51,5 +57,32 @@ describe('toggleHidden', () => {
     expect([...withName]).toEqual(['name']);
     expect(empty.size).toBe(0);
     expect(toggleHidden(withName, 'name').size).toBe(0);
+  });
+});
+
+describe('stickyOffsets', () => {
+  it('puts the first frozen column at 0 and each later one past the ones before it', () => {
+    expect(stickyOffsets([220, 140, 90])).toEqual([0, 220, 360]);
+  });
+
+  it('handles one column and none at all', () => {
+    expect(stickyOffsets([220])).toEqual([0]);
+    expect(stickyOffsets([])).toEqual([]);
+  });
+});
+
+describe('sameOffsets', () => {
+  it('is true for the same keys at the same offsets, whatever the key order', () => {
+    expect(sameOffsets({ name: 0, batch: 220 }, { batch: 220, name: 0 })).toBe(true);
+    expect(sameOffsets({}, {})).toBe(true);
+  });
+
+  it('is false when a width moved, so a re-measure after new rows re-renders', () => {
+    expect(sameOffsets({ name: 0, batch: 220 }, { name: 0, batch: 260 })).toBe(false);
+  });
+
+  it('is false when the frozen columns themselves changed', () => {
+    expect(sameOffsets({ name: 0 }, { name: 0, batch: 220 })).toBe(false);
+    expect(sameOffsets({ name: 0, batch: 220 }, { name: 0, angle: 220 })).toBe(false);
   });
 });

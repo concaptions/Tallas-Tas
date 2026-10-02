@@ -6,20 +6,11 @@ import type { PersonaListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input, StatusChip } from '@tas/ui';
 
-import {
-  KanbanBoard,
-  type KanbanItem,
-  useTableView,
-  ViewToolbar,
-  GalleryView,
-  galleryItemsFrom,
-} from '@/components/views';
+import { useTableView, ViewToolbar, GalleryView, galleryItemsFrom } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { TextCell } from '@/components/views/grid-cells';
-
-import type { AwarenessStage } from '@tas/db/schema';
 
 import { awarenessLabel, awarenessTone, EM_DASH, PERSONA_FIELDS } from './fields';
 import { PersonaPanel, NEW_PERSONA } from './persona-panel';
@@ -78,12 +69,11 @@ function syncSearch(query: string): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
-/** The search reads what the grid shows: name, product, linked angles and the awareness stage. */
+/** The search reads the name, the linked angles and the awareness stage — the grid's own columns. */
 function matches(item: PersonaItem, query: string): boolean {
   const { persona } = item;
   return [
     persona.name,
-    persona.productName ?? '',
     persona.angleNames.join(' '),
     persona.stageOfAwareness === null ? '' : awarenessLabel(persona.stageOfAwareness),
   ].some((value) => value.toLowerCase().includes(query));
@@ -92,9 +82,15 @@ function matches(item: PersonaItem, query: string): boolean {
 /**
  * The Airtable-style grid columns for the Personas grid view (P2A-3). The Stage-of-Awareness column
  * keeps rendering a `<StatusChip>` (never bare text) so the automation that counts the chips inside
- * the table stays green; the frozen name column leads, then the product, the linked angles and
- * every prose field of the panel under the panel's own label (`PERSONA_FIELDS`), so a persona is
- * readable end to end without opening a row.
+ * the table stays green; the frozen name column leads, then the linked angles and every prose field
+ * of the panel under the panel's own label (`PERSONA_FIELDS`), so a persona is readable end to end
+ * without opening a row.
+ *
+ * NO PRODUCT COLUMN (Talal, 2026-09-28, AI-45: "Persona needs no links"). A persona reaches a
+ * product through the angle that links both — `Product → Persona → Angle → Concept` — so a Product
+ * column here invited a second, contradictory answer to the same question. `personas.product_id`
+ * stays in the database: it holds imported Airtable data and this repo soft-deletes rather than
+ * drops. It is simply no longer a column anyone reads.
  */
 const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
   {
@@ -118,12 +114,6 @@ const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
           label={awarenessLabel(item.persona.stageOfAwareness)}
         />
       ),
-  },
-  {
-    key: 'product',
-    header: 'Product',
-    sortValue: (item) => item.persona.productName,
-    render: (item) => <TextCell value={item.persona.productName} />,
   },
   {
     key: 'angles',
@@ -223,36 +213,6 @@ export function PersonasWorkspace({
   const open = openItem?.persona ?? null;
   const creating = selection === NEW_PERSONA;
 
-  const kanbanItems: readonly KanbanItem[] = useMemo(() => {
-    return visible.map(({ persona }) => ({
-      id: persona.id,
-      name: persona.name,
-      groupValue: persona.stageOfAwareness ?? '',
-      chipLabel: persona.stageOfAwareness ? awarenessLabel(persona.stageOfAwareness) : undefined,
-      chipTone: persona.stageOfAwareness ? awarenessTone(persona.stageOfAwareness) : undefined,
-    }));
-  }, [visible]);
-
-  const kanbanColumns = useMemo(() => {
-    const seen = new Set<string>();
-    for (const item of kanbanItems) {
-      if (item.groupValue !== '') seen.add(item.groupValue);
-    }
-    return [...seen];
-  }, [kanbanItems]);
-
-  const kanbanLabels = useMemo(() => {
-    const labels: Record<string, string> = {};
-    for (const col of kanbanColumns) {
-      labels[col] = awarenessLabel(col as AwarenessStage);
-    }
-    return labels;
-  }, [kanbanColumns]);
-
-  const handleKanbanMove = useCallback(() => {
-    // Kanban drag for personas will be wired to updatePersonaAction in a follow-up
-  }, []);
-
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(visible, PERSONA_COLUMNS, (item) => ({
@@ -311,7 +271,7 @@ export function PersonasWorkspace({
               supportedViews={[...PERSONAS_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
-              kanbanGroupByField="stageOfAwareness"
+              kanbanGroupByField={null}
               views={tableView.views}
               activeViewId={tableView.activeView?.id ?? null}
               onActivateView={tableView.activateView}
@@ -321,19 +281,13 @@ export function PersonasWorkspace({
               fields={FIELD_OPTIONS}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
+              viewConfig={tableView.config}
+              onFreezeChange={tableView.setFrozenFields}
               error={tableView.error}
             />
           </div>
         </div>
-        {activeView === 'kanban' ? (
-          <KanbanBoard
-            items={kanbanItems}
-            columns={kanbanColumns}
-            columnLabels={kanbanLabels}
-            onMove={handleKanbanMove}
-            demo={demo}
-          />
-        ) : activeView === 'gallery' ? (
+        {activeView === 'gallery' ? (
           <GalleryView
             items={galleryItems}
             visibleFields={tableView.config.visibleFields}

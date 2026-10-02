@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getTableCapability, supportsView, TABLE_VIEW_CAPABILITIES } from './table-views';
+import {
+  getTableCapability,
+  resolveViewType,
+  supportsView,
+  TABLE_VIEW_CAPABILITIES,
+} from './table-views';
 
 describe('TABLE_VIEW_CAPABILITIES', () => {
   it('every entry includes grid', () => {
@@ -55,6 +60,54 @@ describe('TABLE_VIEW_CAPABILITIES', () => {
     const cap = TABLE_VIEW_CAPABILITIES['products'];
     expect(cap).toBeDefined();
     expect(cap?.supportedViews).toEqual(['grid', 'gallery']);
+  });
+
+  // Talal, 2026-09-28 (AI-18): Kanban belongs to Creative Briefs. The five data tables are a grid
+  // you work down; the board over the same rows was never read and is gone, group-by fields and all.
+  it('none of the five data tables offers kanban, and none declares a group-by field', () => {
+    for (const key of ['products', 'personas', 'angles', 'themes', 'concepts']) {
+      const cap = TABLE_VIEW_CAPABILITIES[key];
+      expect(cap?.supportedViews, key).toEqual(['grid', 'gallery']);
+      expect(cap?.kanbanFields, key).toEqual([]);
+    }
+  });
+
+  // AI-34: Production Status is hidden from the Concepts grid and form, and with the board gone it
+  // is no longer offered as a lens either. The database column stays (it holds imported data).
+  it('Production Status is no longer a group-by option anywhere', () => {
+    for (const [key, cap] of Object.entries(TABLE_VIEW_CAPABILITIES)) {
+      expect(
+        cap.kanbanFields.map((entry) => entry.field),
+        key,
+      ).not.toContain('productionStatus');
+    }
+  });
+
+  it('Creative Briefs keeps its editor Kanban and every group-by it had', () => {
+    const cap = TABLE_VIEW_CAPABILITIES['briefs'];
+    expect(cap?.supportedViews).toContain('kanban');
+    expect(cap?.kanbanFields.map((entry) => entry.field)).toContain('editorStage');
+  });
+});
+
+describe('resolveViewType', () => {
+  it('keeps a view the table supports', () => {
+    expect(resolveViewType('concepts', 'gallery')).toBe('gallery');
+    expect(resolveViewType('briefs', 'kanban')).toBe('kanban');
+  });
+
+  it('falls back when a saved or shared view is no longer offered', () => {
+    expect(resolveViewType('concepts', 'kanban')).toBe('grid');
+    expect(resolveViewType('personas', 'timeline')).toBe('grid');
+  });
+
+  it('honours an explicit fallback, and the table first view when that is unsupported too', () => {
+    expect(resolveViewType('concepts', 'kanban', 'gallery')).toBe('gallery');
+    expect(resolveViewType('campaigns', 'kanban', 'gallery')).toBe('grid');
+  });
+
+  it('passes an unknown table key through rather than second-guessing it', () => {
+    expect(resolveViewType('nonexistent', 'kanban')).toBe('kanban');
   });
 });
 

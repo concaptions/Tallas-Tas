@@ -605,6 +605,8 @@ export function UgcWorkspace({
               fields={FIELD_OPTIONS}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
+              viewConfig={tableView.config}
+              onFreezeChange={tableView.setFrozenFields}
               error={tableView.error}
             />
           </div>

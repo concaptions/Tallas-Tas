@@ -5,6 +5,7 @@ import {
   defaultUserViewConfig,
   isViewFieldVisible,
   parseUserViewConfig,
+  resolveViewType,
   toggleViewField,
   type UserView,
   type UserViewConfig,
@@ -56,6 +57,8 @@ export interface TableViewState {
   readonly setViewType: (next: ViewType) => void;
   readonly setSort: (next: UserViewSort | null) => void;
   readonly setFilter: (next: string) => void;
+  /** The frozen (sticky) columns, as a prefix of the viewer's column order (AI-22). */
+  readonly setFrozenFields: (next: readonly string[]) => void;
   readonly toggleField: (key: string) => void;
   readonly isFieldVisible: (key: string) => boolean;
   readonly createView: (name: string) => void;
@@ -131,11 +134,28 @@ export function useTableView({
   fieldKeys,
   onActivate,
 }: UseTableViewArgs): TableViewState {
+  // A saved view, a `?view=` in a shared link or a value left in this browser's store can name a
+  // view the table no longer offers — a Concepts board after AI-18 dropped Kanban from the data
+  // tables. `resolveViewType` falls back to the grid rather than leaving the switcher on a tab that
+  // is not there, and the stale value is replaced the next time anything is persisted.
+  const resolve = useCallback(
+    (config: UserViewConfig): UserViewConfig => {
+      const viewType = resolveViewType(tableKey, config.viewType, defaultViewType);
+      return viewType === config.viewType ? config : { ...config, viewType };
+    },
+    [defaultViewType, tableKey],
+  );
+
   const [views, setViews] = useState<readonly UserView[]>(initialViews);
   const [draft, setDraft] = useState<UserViewConfig>(() => {
     const active = initialViews.find((view) => view.isActive);
     const base = active ?? defaultUserViewConfig(defaultViewType);
-    return initialViewType === null ? { ...base } : { ...base, viewType: initialViewType };
+    const requested =
+      initialViewType === null ? { ...base } : { ...base, viewType: initialViewType };
+    return {
+      ...requested,
+      viewType: resolveViewType(tableKey, requested.viewType, defaultViewType),
+    };
   });
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -152,11 +172,12 @@ export function useTableView({
     setViews(stored.views);
     const active = stored.views.find((view) => view.isActive);
     const next = active ?? stored.draft;
-    const config = initialViewType === null ? next : { ...next, viewType: initialViewType };
+    const requested = initialViewType === null ? next : { ...next, viewType: initialViewType };
+    const config = resolve({ ...requested });
     setDraft({ ...config });
     onActivate?.(config);
     // The stored state is applied once, on mount; every value named here is stable after it.
-  }, [local, tableKey, defaultViewType, initialViewType, onActivate]);
+  }, [local, tableKey, defaultViewType, initialViewType, onActivate, resolve]);
 
   const persistLocal = useCallback(
     (nextViews: readonly UserView[], nextDraft: UserViewConfig) => {
@@ -242,6 +263,13 @@ export function useTableView({
     [patch],
   );
 
+  const setFrozenFields = useCallback(
+    (next: readonly string[]) => {
+      patch({ frozenFields: [...next] });
+    },
+    [patch],
+  );
+
   const setFilter = useCallback(
     (next: string) => {
       // Typing is persisted a beat after it stops, never per keystroke.
@@ -270,10 +298,11 @@ export function useTableView({
 
   const adopt = useCallback(
     (config: UserViewConfig) => {
-      setDraft({ ...config });
-      onActivate?.(config);
+      const resolved = resolve(config);
+      setDraft({ ...resolved });
+      onActivate?.(resolved);
     },
-    [onActivate],
+    [onActivate, resolve],
   );
 
   const activateView = useCallback(
@@ -370,6 +399,7 @@ export function useTableView({
     setViewType,
     setSort,
     setFilter,
+    setFrozenFields,
     toggleField,
     isFieldVisible,
     createView,
