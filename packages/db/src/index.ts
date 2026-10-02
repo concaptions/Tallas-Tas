@@ -339,3 +339,6 @@ export { listLinkedIds, syncLinks } from './links';
 export type { LinkJunction, LinkSpec, LinkTable } from './links';
 export { insertActivity, listActivity } from './activity-log';
 export type { ActivityActor, ActivityChangeInput } from './activity-log';
+
+// THE Airtable formula fields, computed at read time (docs/decisions/formula-policy-2026-10-02.md).
+export * from './formulas';

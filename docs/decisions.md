@@ -761,3 +761,27 @@ page needed; nullable, set on the brief.
 
 **`/app/briefs/[id]`** stays the permanent alias of `/app/creative-design/[id]` (the module
 rename); "Open full page" lands there.
+
+## 2026-10-02 — Airtable formula fields live in `packages/db/src/formulas/`, computed at read time
+
+Owner's instruction, 2026-10-02. One exported, typed function per Airtable formula field, in one
+module, imported by the query layer; never re-implemented in UI code, so two readings of one record
+cannot disagree. No formula gets a stored column.
+
+- **Wall-clock formulas are read-time ONLY and are never stored**: `smReminderTrigger` (Due Date
+  − 12 hours) and `creatorNotifyFlag` (≥ 25 days since Date of Partnership Activation). Both take
+  `now` as an explicit parameter rather than calling `new Date()`, which keeps them pure, lets a
+  test pin the clock, and makes it impossible for a caller to snapshot a value that expires.
+- **Row-data formulas default to computed-on-read** because all of them are cheap arithmetic or
+  string joins: the four email due dates, `creatorCostWithFee`, `differenceCpa`,
+  `campaignOfferName`, `creativeSheetName`.
+
+This sits beside D-028 (naming formulas stay with their vocabulary rather than in
+`packages/domain/naming`) and is the same reasoning: `packages/db` is the only layer that can see a
+row's columns and be imported by every reader, and `@tas/db` may not import `@tas/domain`
+(CLAUDE.md package direction). Every formula was transcribed from the Gratsi base's own metadata
+with field ids resolved to names — see `docs/decisions/formula-policy-2026-10-02.md`, which records
+the two places the base contradicts its own documentation: the chained email due dates (copywriting
+is ten days before the send date, not five) and the platform-dependent UGC fee (5.5% Fiverr, 10%
+Insense, not a flat 5%).
+
