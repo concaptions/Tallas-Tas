@@ -217,12 +217,13 @@ describe('resolveTemplateBrandId', () => {
 });
 
 describe('PROPAGATION_TABLES', () => {
-  it('registers exactly the 20 content tables', () => {
+  it('registers exactly the 21 content tables that carry propagationColumns()', () => {
     const keys = Object.keys(PROPAGATION_TABLES).sort();
     expect(keys).toEqual([
       'ai_characters',
       'angles',
       'campaigns_offers',
+      'client_asset_folders',
       'collections',
       'competitive_research',
       'concepts',

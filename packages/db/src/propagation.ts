@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import {
+  clientAssetFolders,
   aiCharacters,
   angles,
   brands,
@@ -201,6 +202,8 @@ export async function propagateInterfaceConfig(
  * columns: `template_row_id`, `overridden_fields`, `custom_fields`.
  */
 export const PROPAGATION_TABLES: Record<string, BrandedTable> = {
+  // Carries propagationColumns() like the other 20 but was missing from this registry.
+  client_asset_folders: clientAssetFolders,
   products,
   personas,
   angles,

@@ -342,3 +342,6 @@ export type { ActivityActor, ActivityChangeInput } from './activity-log';
 
 // THE Airtable formula fields, computed at read time (docs/decisions/formula-policy-2026-10-02.md).
 export * from './formulas';
+
+// The per-column inheritance resolver (docs/audits/inheritance-plan-2026-10-02.md).
+export * from './column-definitions';
