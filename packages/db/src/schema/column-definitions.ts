@@ -1,0 +1,68 @@
+import { boolean, index, integer, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
+
+import { baseColumns } from '../columns';
+import { brands } from './brands';
+
+/**
+ * THE per-column configuration of one table on one base — the Airtable-style column inheritance
+ * (`docs/audits/inheritance-plan-2026-10-02.md`).
+ *
+ * One row = one column of one table on one base. The PARENT base (`brands.is_template = true`)
+ * holds the master set; a child brand holds a row only where it departs from the parent. A child
+ * with no row for a column INHERITS the parent's row — resolved by READING the parent at query time
+ * (`brands.template_brand_id`), never by copying, which is why a parent edit reaches every attached
+ * child with no propagation job to go stale and no child left to repair.
+ *
+ * `column_key` is the stable key and never changes: the Postgres column (`demographic`) or, for a
+ * two-way link, the junction table (`angle_personas`). `display_label` is what a brand reads
+ * ("Description [Age Status Salary]"), so a relabel is a UI fact and never a column rename.
+ *
+ * Shape borrowed deliberately from `interface_fields`, which has carried label/visible/position per
+ * brand in production since migration 0012 — including its INTEGER position, because
+ * `custom_field_schemas.sort_order` is text and therefore orders '10' before '2'.
+ */
+export const columnDefinitions = pgTable(
+  'column_definitions',
+  {
+    ...baseColumns(),
+    /** The base this row applies to: the template brand for the master set, else a child. */
+    brandId: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id),
+    /** The content table, as `PROPAGATION_TABLES` keys it (`personas`, `creative_briefs`). */
+    tableKey: text('table_key').notNull(),
+    /** The Postgres column, or a junction table name for a link column. Never renamed. */
+    columnKey: text('column_key').notNull(),
+    /** What this base displays for the column. */
+    displayLabel: text('display_label').notNull(),
+    /** Integer on purpose; see the note about `sort_order` above. */
+    displayOrder: integer('display_order').notNull(),
+    /** Excluded from the resolved list, kept in the table. Hiding never drops data. */
+    isHidden: boolean('is_hidden').notNull().default(false),
+    /**
+     * TRUE on a child row means it REPLACES the parent's row and stops following parent edits.
+     * FALSE means the row still tracks the parent, so a parent relabel or reorder flows through.
+     * Always false on a parent row, which has nothing to detach from.
+     */
+    isDetached: boolean('is_detached').notNull().default(false),
+    /** The Airtable/Drizzle type, so the admin UI can offer a sane editor. */
+    fieldType: text('field_type'),
+    /**
+     * `parent` = part of the master set. `custom` = a column this child added for itself.
+     * A child's override of a parent column carries `parent`, because the column is the parent's.
+     */
+    source: text('source').$type<'parent' | 'custom'>().notNull().default('parent'),
+  },
+  (table) => [
+    index('column_definitions_brand_table_idx').on(table.brandId, table.tableKey),
+    index('column_definitions_table_key_idx').on(table.tableKey),
+    unique('column_definitions_brand_table_column_unique').on(
+      table.brandId,
+      table.tableKey,
+      table.columnKey,
+    ),
+  ],
+);
+
+export type ColumnDefinition = typeof columnDefinitions.$inferSelect;
+export type NewColumnDefinition = typeof columnDefinitions.$inferInsert;

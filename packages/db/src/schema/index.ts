@@ -6,6 +6,7 @@ export * from './assets';
 export * from './angles';
 export * from './brand-assignments';
 export * from './brands';
+export * from './column-definitions';
 export * from './competitor-ads';
 export * from './creator-rankings';
 export * from './custom-field-schemas';
