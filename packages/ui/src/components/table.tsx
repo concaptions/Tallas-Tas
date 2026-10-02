@@ -22,7 +22,10 @@ function TableBody({ className, ...props }: React.ComponentProps<'tbody'>) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn('[&_tr:last-child]:border-0', className)}
+      // `border-b-0`, not shadcn's `border-0`: the only rule to drop on the last row is the bottom
+      // one that `TableRow` adds. `border-0` zeroed all four sides, and because the selector outranks
+      // a plain utility it silently erased the left stage stripe on the last brief in the list.
+      className={cn('[&_tr:last-child]:border-b-0', className)}
       {...props}
     />
   );
