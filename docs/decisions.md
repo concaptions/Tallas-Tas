@@ -785,3 +785,28 @@ the two places the base contradicts its own documentation: the chained email due
 is ten days before the send date, not five) and the platform-dependent UGC fee (5.5% Fiverr, 10%
 Insense, not a flat 5%).
 
+## 2026-10-03 — `/app/column-admin` exceeds the 300-line diff ceiling: waiver, with the split it should have been
+
+CLAUDE.md's Definition of Done caps a ticket at 300 lines of production code and says a bigger one
+must be split. The ADMIN-UI track landed roughly 1,100 non-blank, non-comment production lines in
+one go: the route (`page.tsx`, `source.ts`, `fields.ts`, `actions.ts`,
+`column-admin-workspace.tsx`), its `/design-system` story, and ~95 more lines across the
+`/app/interface-config` gate, the nav entry and one doc comment in `data-source.ts`. That is between
+three and four times the ceiling. It was commissioned and reviewed as one unit of work, and
+splitting it after the fact would mean re-cutting code that is already written and already green, so
+the waiver is recorded here rather than pretended away.
+
+The split it should have been, and the shape any follow-up should take:
+
+1. **The read.** `fields.ts` + `source.ts` + `page.tsx` + the admin gate: the chooser, the resolved
+   column list and the Inheritance chip, read-only. This is the half that is pure and testable
+   without a session.
+2. **The writes.** `actions.ts` + the control cluster in the workspace: one Server Action per
+   statement kind, the role re-check, the transaction, the key allow-list.
+3. **The `/app/interface-config` gate**, which is a security fix with nothing to do with columns and
+   should never have travelled with a feature. It is the one part of this diff that is urgent on its
+   own: that page edited per-brand client-interface visibility with no role check in the page and
+   none in the action.
+
+Consequence: the next column-admin ticket is read-only-or-write-only, not both, and this entry is
+the precedent that a waiver is written down with its split rather than claimed in a commit message.

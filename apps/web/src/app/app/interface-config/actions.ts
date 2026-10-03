@@ -2,13 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { setFieldVisibility, setPageEnabled } from '@tas/db';
-import { INTERFACE_PAGE_KEYS } from '@tas/domain';
+import { listTeam, setFieldVisibility, setPageEnabled, type Db } from '@tas/db';
+import { INTERFACE_PAGE_KEYS, canSeePropagationPage } from '@tas/domain';
 import { z } from 'zod';
 
+import { resolveLiveAgencyId } from '@/lib/data-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withBrandScope } from '@/lib/interface-config-source';
 import { interfaceConfigPath } from '@/lib/routes';
+import { teamPageActorFrom } from '@/lib/team-actor';
 
 /**
  * The Interface Config route's mutation (PRD §10). ONE action: the page holds its whole draft in
@@ -25,6 +27,8 @@ import { interfaceConfigPath } from '@/lib/routes';
  * 2. validate the submission with zod, which owns the shape: real uuids, real booleans, and page
  *    keys drawn from `INTERFACE_PAGE_KEYS` in `@tas/domain` rather than from the submission, so a
  *    tampered form cannot name a page the product does not have;
+ * 2b. re-check the ADMIN rule inside the scope (`adminRefusal` below, 2026-10-03). The page gate
+ *    alone was not a gate, and until this landed there was no gate at all on either side;
  * 3. write through the scoped `@tas/db` functions, which put `brand_id` on every statement — a row
  *    id belonging to another brand simply never resolves and comes back as `null`;
  * 4. revalidate the page and return a typed result. None of them ever throws to the client.
@@ -93,6 +97,31 @@ async function actorId(): Promise<string | null> {
   return userId;
 }
 
+/** What a non-admin is told when the save refuses. */
+const NOT_ADMIN_REFUSAL = 'Only an agency Admin can change what the client interface shows.';
+
+/**
+ * THE OTHER HALF OF THE GATE (2026-10-03), re-asked inside the scope that writes.
+ *
+ * `page.tsx` decides who may open this route; this decides who may change it, with the SAME
+ * `canSeePropagationPage` rule from `@tas/domain` rather than a second predicate that agrees today.
+ * It is not redundant: a Server Action is a reachable endpoint whether or not a switch was rendered,
+ * and before this the only thing between a signed-in client-role account and every brand's client
+ * interface was that the page did not draw them a button. The roster read is what the guard costs,
+ * and it happens on the connection the save already holds.
+ *
+ * Returns the sentence to refuse with, or null when the actor may write.
+ */
+async function adminRefusal(db: Db, clerkUserId: string): Promise<string | null> {
+  const agencyId = await resolveLiveAgencyId(db);
+  if (agencyId === null) {
+    return 'This workspace has no agency yet.';
+  }
+  const team = await listTeam(db, agencyId);
+  const actor = teamPageActorFrom(team.find((row) => row.clerkUserId === clerkUserId));
+  return canSeePropagationPage(actor) ? null : NOT_ADMIN_REFUSAL;
+}
+
 /** `FormData` entries are `FormDataEntryValue | null`; zod sees strings, or nothing. */
 function entry(formData: FormData, key: string): string | undefined {
   const value = formData.get(key);
@@ -137,7 +166,11 @@ export async function saveInterfaceConfigAction(
     if (actor === null) {
       return failure('Your session has expired. Sign in again to save.');
     }
-    const written = await withBrandScope(async (db, brandId) => {
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const refusal = await adminRefusal(db, actor);
+      if (refusal !== null) {
+        return { refusal, ids: [] as string[] };
+      }
       const ids: string[] = [];
       for (const page of parsed.data.pages) {
         const savedPage = await setPageEnabled(db, brandId, page.id, page.enabled, actor);
@@ -151,11 +184,15 @@ export async function saveInterfaceConfigAction(
           }
         }
       }
-      return ids;
+      return { refusal: null, ids };
     });
-    if (written === null) {
+    if (outcome === null) {
       return failure('This workspace has no brand yet.');
     }
+    if (outcome.refusal !== null) {
+      return failure(outcome.refusal);
+    }
+    const written = outcome.ids;
     if (written.length === 0) {
       return failure('This interface configuration is no longer available.');
     }

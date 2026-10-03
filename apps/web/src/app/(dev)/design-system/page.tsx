@@ -174,6 +174,11 @@ import {
 import { QueueCardStory, QueueColumnStory } from './queue-card.stories';
 import { TeamEmptyStory, TeamTableStory } from './team.stories';
 import { AngleStatusStory } from './angles.stories';
+import {
+  ColumnAdminBrandStory,
+  ColumnAdminTemplateStory,
+  ColumnOriginChipsStory,
+} from './column-admin.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
 
 export const metadata = {
@@ -1350,6 +1355,34 @@ export default function DesignSystemPage() {
               blank panel
             </h3>
             <PropagationEmptyStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Column Admin: the Inheritance chip and the row-control cluster"
+        note="The shapes /app/column-admin introduces. Mounted from the route's own workspace with the Personas columns COLUMN_SEED carries, so the story and the page cannot drift. Chip tones come from ORIGIN_TONE and labels from ORIGIN_LABEL — no status string is written here. The controls are Server Actions that refuse without a Clerk key, so the workspace is mounted in its demo state, with the shared DisabledWrite tooltip the route uses for every write control."
+      >
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              inheritance — all five values, including the two one base can never show at once
+            </h3>
+            <ColumnOriginChipsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              the parent template — every column is the master set, so no row offers detach or
+              reattach
+            </h3>
+            <ColumnAdminTemplateStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              a brand — its own labels, what a local row really does to a read, and the restore list
+              for the template columns it hides
+            </h3>
+            <ColumnAdminBrandStory />
           </div>
         </div>
       </Section>
