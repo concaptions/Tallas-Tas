@@ -13,7 +13,7 @@ export interface ResolvedColumn {
   readonly displayLabel: string;
   readonly displayOrder: number;
   readonly fieldType: string | null;
-  readonly source: 'parent' | 'custom';
+  readonly source: 'parent' | 'custom' | 'platform';
   /** true when this base overrides the parent for this column and ignores parent edits. */
   readonly isDetached: boolean;
   /** The parent brand id this definition was read from, or null when the base owns the row. */
@@ -121,7 +121,7 @@ export interface UpsertColumnDefinition {
   readonly isHidden?: boolean;
   readonly isDetached?: boolean;
   readonly fieldType?: string | null;
-  readonly source?: 'parent' | 'custom';
+  readonly source?: 'parent' | 'custom' | 'platform';
 }
 
 /**

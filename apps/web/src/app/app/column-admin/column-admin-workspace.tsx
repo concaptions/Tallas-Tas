@@ -30,6 +30,9 @@ import {
   LEAVES_TEMPLATE_WARNING,
   ORIGIN_LABEL,
   ORIGIN_TONE,
+  PLATFORM_LABEL,
+  PLATFORM_NOTE,
+  PLATFORM_TONE,
   REATTACH_WARNING,
   RESTORE_NOTE,
   columnAdminPath,
@@ -332,7 +335,21 @@ export function ColumnAdminWorkspace({
                     <TableCell className="text-sm">{row.displayLabel}</TableCell>
                     <TableCell className="text-xs text-text3">{row.fieldType ?? '—'}</TableCell>
                     <TableCell>
-                      <StatusChip tone={ORIGIN_TONE[row.origin]} label={ORIGIN_LABEL[row.origin]} />
+                      <div className="flex flex-wrap items-center gap-1">
+                        <StatusChip
+                          tone={ORIGIN_TONE[row.origin]}
+                          label={ORIGIN_LABEL[row.origin]}
+                        />
+                        {/*
+                         * Beside the origin, never instead of it: the origin says where the row
+                         * lives and whether Detach applies, this says the platform owns the column.
+                         */}
+                        {row.isPlatform ? (
+                          <span data-slot="platform-marker" title={PLATFORM_NOTE}>
+                            <StatusChip tone={PLATFORM_TONE} label={PLATFORM_LABEL} />
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center justify-end gap-1">

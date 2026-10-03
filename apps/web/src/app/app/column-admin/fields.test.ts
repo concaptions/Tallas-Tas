@@ -22,6 +22,7 @@ import {
   restoreWriteOf,
   seedColumnsFor,
   seedHiddenColumnKeys,
+  sourceForWrite,
   toColumnAdminRows,
   writeOf,
   type ColumnAdminBase,
@@ -399,5 +400,73 @@ describe('the page copy', () => {
   it('says demo mode stubs the role check rather than skipping it', () => {
     expect(DEMO_COLUMN_ADMIN_NOTE).toContain('Admin');
     expect(DEMO_COLUMN_ADMIN_NOTE).toContain('stubbed, not skipped');
+  });
+});
+
+/**
+ * Platform columns: the approval tracks and the generated names, which Airtable has no field for.
+ * They are reported as their own fact rather than through `origin`, because `origin` decides whether
+ * Detach and Reattach apply and platform columns follow the same rules as any inherited column.
+ */
+describe('isPlatform', () => {
+  const column = (source: 'parent' | 'custom' | 'platform') => ({
+    columnKey: 'internal_status',
+    displayLabel: 'Internal Status',
+    displayOrder: 22,
+    fieldType: 'singleSelect',
+    source,
+    isDetached: false,
+    inheritedFrom: 'template-brand-id',
+  });
+
+  it('marks a platform column while leaving its origin — and so its controls — alone', () => {
+    const [row] = toColumnAdminRows([column('platform')], false);
+
+    expect(row?.isPlatform).toBe(true);
+    // Inherited, exactly like a parent column it is read from the template alongside.
+    expect(row?.origin).toBe('inherited');
+    expect(row?.canDetach).toBe(true);
+    expect(row?.canReattach).toBe(false);
+  });
+
+  it('does not mark a parent or a custom column', () => {
+    expect(toColumnAdminRows([column('parent')], false)[0]?.isPlatform).toBe(false);
+    expect(toColumnAdminRows([column('custom')], false)[0]?.isPlatform).toBe(false);
+  });
+});
+
+/**
+ * The rule a save applies to `source`. Submitted values are not trusted: `source` decides whether
+ * Detach and Reattach can apply again, so a wrong one strands the column.
+ */
+describe('sourceForWrite', () => {
+  const parentKeys = new Set(['name', 'batch', 'internal_status']);
+  const platformKeys = new Set(['name', 'internal_status', 'client_status']);
+  const args = { isTemplateBase: false, parentKeys, platformKeys };
+
+  it('keeps a platform column platform, whatever the client submitted', () => {
+    expect(sourceForWrite({ ...args, columnKey: 'internal_status', submitted: 'parent' })).toBe(
+      'platform',
+    );
+    expect(sourceForWrite({ ...args, columnKey: 'client_status', submitted: 'custom' })).toBe(
+      'platform',
+    );
+  });
+
+  it('keeps it platform on the template base too, where everything else is the master set', () => {
+    expect(
+      sourceForWrite({ ...args, isTemplateBase: true, columnKey: 'name', submitted: 'custom' }),
+    ).toBe('platform');
+    expect(
+      sourceForWrite({ ...args, isTemplateBase: true, columnKey: 'batch', submitted: 'custom' }),
+    ).toBe('parent');
+  });
+
+  it("forces parent for a key the parent defines, so a child's override stays reattachable", () => {
+    expect(sourceForWrite({ ...args, columnKey: 'batch', submitted: 'custom' })).toBe('parent');
+  });
+
+  it('keeps the submitted value only for a key the parent does not have', () => {
+    expect(sourceForWrite({ ...args, columnKey: 'passion', submitted: 'custom' })).toBe('custom');
   });
 });

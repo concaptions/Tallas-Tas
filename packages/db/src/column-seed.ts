@@ -461,6 +461,54 @@ const CREATIVE_BRIEFS_GRATSI = childRows('creative_briefs', [
  * `Themes` (field 3) gets no row either: the parent's link points at the table LABELLED `Themes`
  * which is Creative-Modules shaped, and the parent audit could not establish its junction.
  */
+/**
+ * PLATFORM COLUMNS: the ones this platform owns and Airtable has no field for.
+ *
+ * Every other row in this seed describes an Airtable field, because the seed was read off the two
+ * bases. That leaves a hole: the platform adds columns of its own, and a page that starts reading
+ * its columns from `resolveColumns` renders exactly what the resolver returns — so a column the
+ * seed never mentions DISAPPEARS the moment that page is migrated. For Concepts the hole is the
+ * whole point of the product: the two approval tracks (CLAUDE.md non-negotiable 4 — Internal Status
+ * is team-only, Client Status is what the client sees, and a creative reaches the client interface
+ * only on Internal = Approved AND Client = Pending for Approval) and the generated Batch-Angle-Theme
+ * name (non-negotiable 6 — names are never hand typed). Migrating the Concepts page without these
+ * would have dropped both tracks and the name, which is why they are seeded before that happens.
+ *
+ * They carry `source: 'platform'`, a third kind beside `parent` and `custom`, so the admin screen
+ * can say a column is the platform's rather than an Airtable field someone could reasonably detach
+ * or hide by mistake. They are seeded on the PARENT, so every brand inherits them from one
+ * definition — they are not per-brand configuration and no base should be without them.
+ *
+ * `name` sorts before every Airtable column (the generated name is the record's title); the two
+ * tracks sort after them, which is where every panel already groups approval.
+ */
+const CONCEPTS_PLATFORM: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'concepts',
+    columnKey: 'name',
+    displayLabel: 'Concept Name',
+    displayOrder: 0,
+    fieldType: 'generated',
+    source: 'platform',
+  },
+  {
+    tableKey: 'concepts',
+    columnKey: 'internal_status',
+    displayLabel: 'Internal Status',
+    displayOrder: 22,
+    fieldType: 'singleSelect',
+    source: 'platform',
+  },
+  {
+    tableKey: 'concepts',
+    columnKey: 'client_status',
+    displayLabel: 'Client Status',
+    displayOrder: 23,
+    fieldType: 'singleSelect',
+    source: 'platform',
+  },
+];
+
 const CONCEPTS_PARENT = parentRows('concepts', [
   ['batch', 'Batch', 2, 'singleSelect'],
   ['concept_angles', 'Angles', 4, 'multipleRecordLinks'],
@@ -899,6 +947,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...COPYWRITING_PARENT,
       ...CREATIVE_BRIEFS_PARENT,
       ...CONCEPTS_PARENT,
+      ...CONCEPTS_PLATFORM,
       ...ANGLES_PARENT,
       ...CREATIVE_MODULES_PARENT,
       ...CREATIVE_SHEET_ITEMS_PARENT,

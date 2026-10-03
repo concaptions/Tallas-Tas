@@ -375,3 +375,79 @@ describe('the column seed, checked against the real schema', () => {
     }
   });
 });
+
+/**
+ * Platform columns — the two approval tracks and the generated name. Every other seed row describes
+ * an Airtable field, so a column the platform adds would simply be absent from the resolver, and a
+ * page that reads its columns from the resolver renders only what it returns: migrating the Concepts
+ * page would have dropped both approval tracks (non-negotiable 4) and the Batch-Angle-Theme name
+ * (non-negotiable 6). These tests are what stops that happening quietly.
+ */
+describe('platform columns on concepts', () => {
+  const PLATFORM = ['name', 'internal_status', 'client_status'];
+
+  async function brandIdBySlug(
+    db: Awaited<ReturnType<typeof testDb>>,
+    slug: string,
+  ): Promise<string> {
+    const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));
+    if (row === undefined) throw new Error(`the seed has no ${slug} brand`);
+    return row.id;
+  }
+
+  it("resolve on the template base, marked as the platform's own", async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+    const templateId = await (async () => {
+      const [row] = await db
+        .select({ id: brands.id })
+        .from(brands)
+        .where(eq(brands.isTemplate, true));
+      if (row === undefined) throw new Error('the seed has no template brand');
+      return row.id;
+    })();
+
+    const resolved = await resolveColumns(db, templateId, 'concepts');
+    const platform = resolved.filter((column) => column.source === 'platform');
+
+    expect(platform.map((column) => column.columnKey).sort()).toEqual([...PLATFORM].sort());
+    expect(resolved[0]?.columnKey).toBe('name');
+  });
+
+  /**
+   * The case that matters: Gratsi has its own rows on `concepts` (seven level shifts), so it is the
+   * base most likely to lose an inherited column — and it must still carry all three.
+   */
+  it('reach a child that has rows of its own, by inheritance from the parent', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const resolved = await resolveColumns(db, await brandIdBySlug(db, 'gratsi'), 'concepts');
+
+    for (const key of PLATFORM) {
+      const column = resolved.find((candidate) => candidate.columnKey === key);
+      expect(column, `Gratsi lost the platform column ${key}`).toBeDefined();
+      expect(column?.source).toBe('platform');
+      expect(column?.inheritedFrom).not.toBeNull();
+    }
+    // Both tracks, and in that order: Internal is the team's, Client is the client-facing one.
+    const statuses = resolved
+      .filter((column) => column.columnKey.endsWith('_status') && column.source === 'platform')
+      .map((column) => column.displayLabel);
+    expect(statuses).toEqual(['Internal Status', 'Client Status']);
+  });
+
+  it('are the only platform rows in the seed, so nothing else claims that ownership by accident', () => {
+    const claimed = COLUMN_SEED.flatMap((group) =>
+      group.rows
+        .filter((row) => row.source === 'platform')
+        .map((row) => `${row.tableKey}.${row.columnKey}`),
+    );
+
+    expect(claimed.sort()).toEqual(
+      ['concepts.client_status', 'concepts.internal_status', 'concepts.name'].sort(),
+    );
+  });
+});

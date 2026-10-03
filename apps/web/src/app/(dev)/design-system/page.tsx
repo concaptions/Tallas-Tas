@@ -176,6 +176,7 @@ import { TeamEmptyStory, TeamTableStory } from './team.stories';
 import { AngleStatusStory } from './angles.stories';
 import {
   ColumnAdminBrandStory,
+  ColumnAdminPlatformStory,
   ColumnAdminTemplateStory,
   ColumnOriginChipsStory,
 } from './column-admin.stories';
@@ -1383,6 +1384,13 @@ export default function DesignSystemPage() {
               for the template columns it hides
             </h3>
             <ColumnAdminBrandStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              platform columns — the approval tracks and the generated name, owned by the platform
+              rather than by Airtable, marked beside their origin
+            </h3>
+            <ColumnAdminPlatformStory />
           </div>
         </div>
       </Section>

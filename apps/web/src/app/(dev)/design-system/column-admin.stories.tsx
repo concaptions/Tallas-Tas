@@ -65,6 +65,44 @@ export function ColumnOriginChipsStory() {
   );
 }
 
+/**
+ * Concepts on a BRAND, which is where the platform marker appears: `name`, `internal_status` and
+ * `client_status` are columns the platform owns rather than Airtable fields, so each carries the
+ * marker beside its origin chip — inherited from the template like any other column, but owned by
+ * the platform (CLAUDE.md non-negotiables 4 and 6). Gratsi is the base to show it on: it holds
+ * seven of its own rows on Concepts, so it is the one most likely to have lost an inherited column.
+ */
+export function ColumnAdminPlatformStory() {
+  const own = seedColumnsFor(COLUMN_SEED, 'gratsi', 'concepts');
+  const inherited = seedColumnsFor(COLUMN_SEED, SEED_PARENT_BASE_ID, 'concepts').filter(
+    (column) => !own.some((row) => row.columnKey === column.columnKey),
+  );
+  const columns = [...own, ...inherited].sort(
+    (left, right) =>
+      left.displayOrder - right.displayOrder || left.columnKey.localeCompare(right.columnKey),
+  );
+
+  return (
+    <ColumnAdminWorkspace
+      bases={BASES}
+      tables={TABLES}
+      baseId="gratsi"
+      tableKey="concepts"
+      isTemplateBase={false}
+      rows={toColumnAdminRows(
+        columns.map((column) =>
+          column.source === 'platform' ? { ...column, inheritedFrom: SEED_PARENT_BASE_ID } : column,
+        ),
+        false,
+      )}
+      restorable={[]}
+      demo
+      adminNote={COLUMN_ADMIN_ADMIN_NOTE}
+      demoNote={DEMO_COLUMN_ADMIN_NOTE}
+    />
+  );
+}
+
 /** The parent base: every column is the master set, so no row offers detach or reattach. */
 export function ColumnAdminTemplateStory() {
   const columns = seedColumnsFor(COLUMN_SEED, SEED_PARENT_BASE_ID, 'personas');

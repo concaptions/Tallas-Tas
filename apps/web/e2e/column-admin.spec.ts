@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { ORIGIN_LABEL, columnAdminPath } from '../src/app/app/column-admin/fields';
+import { ORIGIN_LABEL, PLATFORM_LABEL, columnAdminPath } from '../src/app/app/column-admin/fields';
 
 /**
  * Column Admin with no environment variables at all — the Vercel deployment as it stands.
@@ -143,6 +143,41 @@ test.describe('column admin in demo mode (no Clerk publishable key)', () => {
 
     await expect(page.locator('[data-slot="column-row"]')).toHaveCount(0);
     await expect(page.getByText('No columns are configured')).toBeVisible();
+  });
+
+  /**
+   * The platform's own columns. Every other row in the seed describes an Airtable field, so a column
+   * the platform adds would simply be absent from the resolver — and a page that reads its columns
+   * from the resolver renders only what it returns. For Concepts that would have dropped both
+   * approval tracks and the generated name (CLAUDE.md non-negotiables 4 and 6), so they are seeded
+   * on the template and marked as the platform's rather than as fields anyone could re-import away.
+   */
+  test('marks the columns the platform owns, beside their origin and not instead of it', async ({
+    page,
+  }) => {
+    await page.goto(`${columnAdminPath}?table=concepts`);
+
+    for (const columnKey of ['name', 'internal_status', 'client_status']) {
+      const row = page.locator(`[data-slot="column-row"][data-column="${columnKey}"]`);
+      await expect(row.locator('[data-slot="platform-marker"]')).toHaveText(PLATFORM_LABEL);
+      // The origin chip is still there: on the parent base every column is the master set, and the
+      // marker says who owns the column, not where the row lives.
+      await expect(row.locator('[data-slot="status-chip"]').first()).toHaveText(
+        ORIGIN_LABEL.master,
+      );
+    }
+
+    // The generated concept name sorts before every Airtable field.
+    await expect(page.locator('[data-slot="column-row"]').first()).toHaveAttribute(
+      'data-column',
+      'name',
+    );
+    // An Airtable field of the same table carries no marker.
+    await expect(
+      page
+        .locator('[data-slot="column-row"][data-column="batch"]')
+        .locator('[data-slot="platform-marker"]'),
+    ).toHaveCount(0);
   });
 
   test('every control that would write is disabled, and says why', async ({ page }) => {

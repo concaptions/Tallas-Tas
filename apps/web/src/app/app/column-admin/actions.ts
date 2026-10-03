@@ -19,7 +19,7 @@ import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withAgencyScope } from '@/lib/propagation-source';
 import { teamPageActorFrom } from '@/lib/team-actor';
 
-import { columnAdminPath } from './fields';
+import { columnAdminPath, sourceForWrite } from './fields';
 
 /**
  * Column Admin's two mutations. Both write through `@tas/db` — `upsertColumnDefinition` and
@@ -88,7 +88,7 @@ const columnWriteSchema = z.object({
   isHidden: z.boolean(),
   isDetached: z.boolean(),
   fieldType: z.string().trim().max(64).nullable(),
-  source: z.enum(['parent', 'custom']),
+  source: z.enum(['parent', 'custom', 'platform']),
 });
 
 const tableKeySchema = z.string().refine((value) => TABLE_KEYS.includes(value), 'Unknown table.');
@@ -169,6 +169,13 @@ function payload(formData: FormData): unknown {
  * `source` is forced to `parent` on the template base, where every column IS the master set, and on
  * a child for any key the parent defines. Only a key the parent does not have keeps the submitted
  * value, which is the one case where `custom` is the truth.
+ *
+ * A PLATFORM column outranks that forcing. The two approval tracks and the generated names are the
+ * platform's, not Airtable fields, and they are seeded on the template — so without this a child's
+ * relabel of Internal Status would come back as `parent` and that brand would stop being told the
+ * platform defines the column. Who owns it is not something a relabel changes. The forcing's own
+ * purpose is untouched: `platform` behaves exactly like `parent` for Detach and Reattach, because
+ * the parent does define the key, which is the property `custom` would have broken.
  */
 export async function saveColumnsAction(
   _previous: ColumnActionResult | null,
@@ -188,6 +195,11 @@ export async function saveColumnsAction(
       const own = await resolveColumns(db, baseId, tableKey);
       const parent = isTemplateBase ? own : await resolveColumns(db, templateBaseId, tableKey);
       const parentKeys = new Set(parent.map((column) => column.columnKey));
+      const platformKeys = new Set(
+        [...parent, ...own]
+          .filter((column) => column.source === 'platform')
+          .map((column) => column.columnKey),
+      );
       const known = new Set([...own.map((column) => column.columnKey), ...parentKeys]);
       const unknown = columns.find((column) => !known.has(column.columnKey));
       if (unknown !== undefined) {
@@ -198,8 +210,13 @@ export async function saveColumnsAction(
       }
       await db.transaction(async (tx) => {
         for (const column of columns) {
-          const source =
-            isTemplateBase || parentKeys.has(column.columnKey) ? 'parent' : column.source;
+          const source = sourceForWrite({
+            columnKey: column.columnKey,
+            submitted: column.source,
+            isTemplateBase,
+            parentKeys,
+            platformKeys,
+          });
           await upsertColumnDefinition(tx, baseId, { ...column, tableKey, source }, userId);
         }
       });

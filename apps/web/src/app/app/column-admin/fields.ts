@@ -110,7 +110,7 @@ export interface ResolvedColumnView {
   readonly displayLabel: string;
   readonly displayOrder: number;
   readonly fieldType: string | null;
-  readonly source: 'parent' | 'custom';
+  readonly source: 'parent' | 'custom' | 'platform';
   readonly isDetached: boolean;
   readonly inheritedFrom: string | null;
 }
@@ -128,6 +128,20 @@ export interface ResolvedColumnView {
  * says that in the UI rather than letting the chips imply a difference the code does not have.
  */
 export type ColumnOrigin = 'master' | 'inherited' | 'overriding' | 'detached' | 'custom';
+
+/**
+ * What the platform marker means, said on the page rather than left for an admin to infer. The two
+ * approval tracks and the generated names are columns the platform owns, so they appear on every
+ * base and are not Airtable fields anyone could re-import or declare away.
+ */
+export const PLATFORM_NOTE =
+  'This platform defines this column — the approval tracks and the generated names. It is not an ' +
+  'Airtable field, and every base has it. Relabel or reorder it freely; hiding it only changes ' +
+  'this grid, never the approval rules behind it.';
+
+/** The marker's own label and tone, read from here so the page never spells either inline. */
+export const PLATFORM_LABEL = 'Platform';
+export const PLATFORM_TONE: ChipTone = 'info';
 
 export const ORIGIN_LABEL: Record<ColumnOrigin, string> = {
   master: 'Master',
@@ -164,6 +178,15 @@ export function columnOrigin(column: ResolvedColumnView, isTemplateBase: boolean
 /** A resolved column plus the two answers the controls need. */
 export interface ColumnAdminRow extends ResolvedColumnView {
   readonly origin: ColumnOrigin;
+  /**
+   * A column the PLATFORM owns, which Airtable has no field for: the two approval tracks and the
+   * generated names (CLAUDE.md non-negotiables 4 and 6). Reported separately from `origin` rather
+   * than folded into it, because the two answer different questions — `origin` says where the row
+   * lives and decides whether Detach and Reattach apply, which platform columns follow like any
+   * other inherited column, while this says who the column belongs to. An admin seeing "Following
+   * template" against Internal Status should still be told the platform defines it.
+   */
+  readonly isPlatform: boolean;
   /** Detaching needs a parent to stop following, and a row that is not detached already. */
   readonly canDetach: boolean;
   /** Reattaching needs a local row to drop; an inherited column has none. */
@@ -179,6 +202,7 @@ export function toColumnAdminRows(
     return {
       ...column,
       origin,
+      isPlatform: column.source === 'platform',
       canDetach: !isTemplateBase && origin !== 'detached' && origin !== 'custom',
       canReattach: !isTemplateBase && origin !== 'inherited' && origin !== 'custom',
     };
@@ -193,7 +217,36 @@ export interface ColumnWrite {
   readonly isHidden: boolean;
   readonly isDetached: boolean;
   readonly fieldType: string | null;
-  readonly source: 'parent' | 'custom';
+  readonly source: 'parent' | 'custom' | 'platform';
+}
+
+/**
+ * What `source` a write should carry — the rule `saveColumnsAction` applies, as a pure function so
+ * it is tested without a database or a session.
+ *
+ * The submitted value is not trusted, because `source` decides whether Detach and Reattach can ever
+ * apply again and a wrong one strands the column:
+ *
+ * - A PLATFORM column stays `platform` wherever it is written. The platform owns the approval tracks
+ *   and the generated names; relabelling one on a brand does not transfer ownership, and the brand
+ *   must keep being told. It behaves like `parent` for Detach and Reattach regardless, because the
+ *   template does define the key.
+ * - On the TEMPLATE base every column IS the master set, so `parent`.
+ * - On a child, any key the parent defines is `parent`: a child's override of a parent column is an
+ *   override, and a `custom` row for it could never be detached or reattached again.
+ * - Only a key the parent does not have keeps what was submitted, which is the one case where
+ *   `custom` is the truth.
+ */
+export function sourceForWrite(args: {
+  readonly columnKey: string;
+  readonly submitted: 'parent' | 'custom' | 'platform';
+  readonly isTemplateBase: boolean;
+  readonly parentKeys: ReadonlySet<string>;
+  readonly platformKeys: ReadonlySet<string>;
+}): 'parent' | 'custom' | 'platform' {
+  if (args.platformKeys.has(args.columnKey)) return 'platform';
+  if (args.isTemplateBase || args.parentKeys.has(args.columnKey)) return 'parent';
+  return args.submitted;
 }
 
 /**
@@ -333,7 +386,7 @@ export interface SeedRowLike {
   readonly isHidden?: boolean;
   readonly isDetached?: boolean;
   readonly fieldType?: string | null;
-  readonly source?: 'parent' | 'custom';
+  readonly source?: 'parent' | 'custom' | 'platform';
 }
 
 export interface SeedGroupLike {

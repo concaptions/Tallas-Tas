@@ -51,7 +51,14 @@ export const columnDefinitions = pgTable(
      * `parent` = part of the master set. `custom` = a column this child added for itself.
      * A child's override of a parent column carries `parent`, because the column is the parent's.
      */
-    source: text('source').$type<'parent' | 'custom'>().notNull().default('parent'),
+    /**
+     * Where the column comes from. `parent` is an Airtable field of the template base (a child's
+     * override of one carries `parent` too); `custom` is a field a child base added for itself;
+     * `platform` is a column the PLATFORM owns and Airtable has no field for — the two approval
+     * tracks and the generated names — which exists on every base and must never be dropped when a
+     * page starts reading its columns from the resolver.
+     */
+    source: text('source').$type<'parent' | 'custom' | 'platform'>().notNull().default('parent'),
   },
   (table) => [
     index('column_definitions_brand_table_idx').on(table.brandId, table.tableKey),
