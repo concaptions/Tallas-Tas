@@ -13,8 +13,14 @@ import {
   StatusChip,
 } from '@tas/ui';
 
-import { KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import { CountCell, TextCell } from '@/components/views/grid-cells';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { moveCreativeSheetItemAction } from './actions';
 import { CreativeSheetPanel, NEW_ITEM, type LinkOption } from './creative-sheet-panel';
@@ -53,6 +59,10 @@ export interface SheetItemView {
 }
 
 interface CreativeSheetWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadCreativeSheetColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly SheetItemView[];
   readonly briefs: readonly LinkOption[];
   readonly demo: boolean;
@@ -112,62 +122,93 @@ function chipOrDash(view: SheetStatusView | null) {
 }
 
 /**
- * The Airtable-style grid columns: the frozen generated name in `font-mono`, the linked brief, the
- * three selects as `StatusChip`s, Used as one tick and QA as three.
+ * THE Creative Sheet renderer registry, keyed by the resolver's `column_key`.
+ *
+ * `name` is a VIRTUAL column — `creative_sheet_items` has no `name` column at all, because
+ * Airtable's field 1 is a formula and storing the result would let the month drift from
+ * `created_at`. The value arrives on the row already computed by `creativeSheetName`, and it renders
+ * in `font-mono` as generated output does. Gratsi words the column `Name` where the parent calls it
+ * `Name + Angle + Offer`; the formula survives that relabel because the resolver reads it from the
+ * parent row.
+ *
+ * THE THREE QA CHECKS ARE THREE COLUMNS, not one. The grid used to draw a single `QA` header over
+ * all three booleans, which left the resolver returning three columns where the page drew one cell —
+ * so an admin hiding "QA" in Column Admin would have been hiding something other than what they
+ * saw. Airtable has three separate fields, and mirroring Airtable is the rule, so each gets its own
+ * tick. `QaTicks` is still exported for the panel, which groups them on purpose.
  */
-export const CREATIVE_SHEET_COLUMNS: readonly GridColumn<SheetItemView>[] = [
-  {
-    key: 'name',
-    header: 'Name',
-    frozen: true,
-    minWidth: 260,
-    sortValue: ({ item }) => item.name,
+export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
+  name: {
     render: ({ item }) => <span className="font-mono text-xs font-medium">{item.name}</span>,
+    sortValue: ({ item }) => item.name,
   },
-  {
-    key: 'brief',
-    header: 'Brief',
-    sortValue: ({ item }) => item.briefName ?? '',
-    cellTitle: ({ item }) => item.briefName ?? undefined,
+  brief_id: {
     render: ({ item }) =>
       item.briefName === null ? (
         <span className="text-text4">{EM_DASH}</span>
       ) : (
         <span className="font-mono text-xs">{item.briefName}</span>
       ),
+    sortValue: ({ item }) => item.briefName ?? '',
+    cellTitle: ({ item }) => item.briefName ?? undefined,
   },
-  {
-    key: 'internalStatus',
-    header: 'Internal Status',
-    sortValue: ({ item }) => internalStatusView(item.internalStatus)?.label ?? '',
-    render: ({ item }) => chipOrDash(internalStatusView(item.internalStatus)),
-  },
-  {
-    key: 'status',
-    header: 'Status',
-    sortValue: ({ item }) => statusView(item.status)?.label ?? '',
+  status: {
     render: ({ item }) => chipOrDash(statusView(item.status)),
+    sortValue: ({ item }) => statusView(item.status)?.label ?? '',
   },
-  {
-    key: 'winning',
-    header: 'Winning',
-    sortValue: ({ item }) => winningView(item.winning)?.label ?? '',
-    render: ({ item }) => chipOrDash(winningView(item.winning)),
+  client_comments: {
+    render: ({ item }) => <TextCell value={item.clientComments} maxWidth={280} />,
+    cellTitle: ({ item }) => item.clientComments ?? undefined,
   },
-  {
-    key: 'used',
-    header: 'Used',
+  internal_status: {
+    render: ({ item }) => chipOrDash(internalStatusView(item.internalStatus)),
+    sortValue: ({ item }) => internalStatusView(item.internalStatus)?.label ?? '',
+  },
+  qa_checklist_doc: {
+    render: ({ item }) => <CountCell count={item.qaChecklistDoc?.length ?? 0} noun="file" />,
+    sortValue: ({ item }) => item.qaChecklistDoc?.length ?? 0,
+  },
+  qa_video_editor: {
+    render: ({ item }) => <Tick on={item.qaVideoEditor} label="Video Editor QA" />,
+    sortValue: ({ item }) => (item.qaVideoEditor ? 1 : 0),
     align: 'center',
-    sortValue: ({ item }) => (item.used ? 1 : 0),
+  },
+  qa_designer: {
+    render: ({ item }) => <Tick on={item.qaDesigner} label="Graphic Designer QA" />,
+    sortValue: ({ item }) => (item.qaDesigner ? 1 : 0),
+    align: 'center',
+  },
+  qa_strategist: {
+    render: ({ item }) => <Tick on={item.qaStrategist} label="Creative Strategist QA" />,
+    sortValue: ({ item }) => (item.qaStrategist ? 1 : 0),
+    align: 'center',
+  },
+  used: {
     render: ({ item }) => <Tick on={item.used} label="Used" />,
+    sortValue: ({ item }) => (item.used ? 1 : 0),
+    align: 'center',
   },
-  {
-    key: 'qa',
-    header: 'QA',
-    sortValue: ({ item }) => QA_CHECKS.filter((check) => item[check.name]).length,
-    render: ({ item }) => <QaTicks item={item} />,
+  denied_revisions_needed: {
+    render: ({ item }) => <Tick on={item.deniedRevisionsNeeded} label="Denied/revisions needed" />,
+    sortValue: ({ item }) => (item.deniedRevisionsNeeded ? 1 : 0),
+    align: 'center',
   },
-];
+  winning: {
+    render: ({ item }) => chipOrDash(winningView(item.winning)),
+    sortValue: ({ item }) => winningView(item.winning)?.label ?? '',
+  },
+  spell_check_requested: {
+    render: ({ item }) => (
+      <Tick on={item.spellCheckRequested} label="Click for AI Spell Checker Again" />
+    ),
+    sortValue: ({ item }) => (item.spellCheckRequested ? 1 : 0),
+    align: 'center',
+  },
+  spelling_feedback: {
+    render: ({ item }) => <TextCell value={item.spellingFeedback} maxWidth={280} />,
+    cellTitle: ({ item }) => item.spellingFeedback ?? undefined,
+  },
+};
 
 export function CreativeSheetWorkspace({
   items,
@@ -177,7 +218,18 @@ export function CreativeSheetWorkspace({
   initialSearch,
   initialView = 'grid',
   initialKanbanField = 'internalStatus',
+  columns,
+  unconfiguredColumns = false,
 }: CreativeSheetWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, CREATIVE_SHEET_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 260,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -308,6 +360,12 @@ export function CreativeSheetWorkspace({
             />
           </div>
           <div className="flex items-center gap-2">
+            <ColumnNotices
+              slotPrefix="sheet"
+              unconfigured={unconfiguredColumns}
+              missing={grid.missing}
+              registryName="CREATIVE_SHEET_RENDERERS in creative-sheet-workspace.tsx"
+            />
             {activeView === 'kanban' ? (
               <select
                 value={kanbanField}
@@ -352,7 +410,7 @@ export function CreativeSheetWorkspace({
         ) : (
           <AirtableGrid
             tableKey={CAP.tableKey}
-            columns={CREATIVE_SHEET_COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={({ item }) => item.id}
             rowLabel={({ item }) => item.name}

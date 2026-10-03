@@ -1,7 +1,7 @@
 import type { ViewType } from '@tas/domain';
 
 import { loadBriefs } from '@/lib/briefs-source';
-import { loadCreativeSheetItems } from '@/lib/creative-sheet-source';
+import { loadCreativeSheetColumns, loadCreativeSheetItems } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
@@ -28,11 +28,13 @@ interface CreativeSheetPageProps {
 const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban']);
 
 export default async function CreativeSheetPage({ searchParams }: CreativeSheetPageProps) {
-  const [{ rows }, briefResult, params] = await Promise.all([
-    loadCreativeSheetItems(),
-    loadBriefs(),
-    searchParams,
-  ]);
+  const [{ rows }, { columns, unconfigured: unconfiguredColumns }, briefResult, params] =
+    await Promise.all([
+      loadCreativeSheetItems(),
+      loadCreativeSheetColumns(),
+      loadBriefs(),
+      searchParams,
+    ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -64,6 +66,8 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
 
   return (
     <CreativeSheetWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       briefs={briefs}
       demo={demo}

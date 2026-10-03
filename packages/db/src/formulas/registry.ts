@@ -1,15 +1,17 @@
+// Imported from the CONCRETE modules, never from `./index`: the barrel re-exports this file, so
+// importing the barrel here would make the cycle index -> registry -> index. It resolves at runtime
+// because function declarations hoist, but a cycle through a barrel is exactly the kind of thing
+// that makes a bundler's module graph unpredictable, and there is no reason to have one.
 import {
-  campaignOfferName,
-  creativeSheetName,
-  creatorCostWithFee,
   creatorNotifyFlag,
-  differenceCpa,
   emailCampaignCopywritingDueDate,
   emailCampaignDesignDueDate,
   emailFlowCopywritingDueDate,
   emailFlowDesignDueDate,
   smReminderTrigger,
-} from './index';
+} from './dates';
+import { campaignOfferName, creativeSheetName } from './names';
+import { creatorCostWithFee, differenceCpa } from './numbers';
 
 /**
  * THE formulas a `column_definitions` row may name, by name.

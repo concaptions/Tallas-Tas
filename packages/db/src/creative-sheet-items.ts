@@ -13,6 +13,7 @@ import {
   type NewCreativeSheetItem,
 } from './schema';
 import { withBrand, type BrandScope } from './tenancy';
+import { creativeSheetName } from './formulas';
 
 /**
  * The Creative Sheet page's data access (Airtable `tblGC0TxnHI7lKaNQ`, audit §2.3). A copy of
@@ -23,7 +24,7 @@ import { withBrand, type BrandScope } from './tenancy';
  *
  * The one thing this module computes is the row's NAME. Airtable's primary field is the formula
  * `DATETIME_FORMAT({Created}, "MMMM") & "-" & {Creative Name}`; the schema stores no name column
- * (CLAUDE.md non-negotiable 6), so `creativeSheetItemName` builds it here from `created_at` and the
+ * (CLAUDE.md non-negotiable 6), so `creativeSheetName` from `./formulas` computes it from `created_at` and the
  * joined brief's name, and the page renders it in `font-mono` and never offers an input for it.
  */
 
@@ -56,33 +57,6 @@ export interface CreativeSheetBriefFields {
 export type CreativeSheetItemListRow = CreativeSheetItem &
   CreativeSheetBriefFields & { name: string };
 
-/** English month names, index 0 = January: what Airtable's `DATETIME_FORMAT(…, "MMMM")` prints. */
-export const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
-
-/**
- * Airtable's "Name" formula: the month the row was created, a hyphen, the linked brief's name
- * (`October-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2`). The month is read in UTC so
- * the server and a browser in another zone print the same string, and a row with no brief is named
- * by its month alone rather than carrying a dangling separator. Pure, so a test can pin it.
- */
-export function creativeSheetItemName(createdAt: Date, briefName: string | null): string {
-  const month = MONTH_NAMES[createdAt.getUTCMonth()] ?? '';
-  return briefName === null || briefName === '' ? month : `${month}-${briefName}`;
-}
-
 /** The brand's live briefs by id, for the join. Scoped, so another brand's brief never resolves. */
 async function briefsById(scope: BrandScope): Promise<Map<string, CreativeBrief>> {
   const rows = await scope.select(creativeBriefs);
@@ -98,7 +72,9 @@ function withBrief(
   const briefName = brief?.name ?? null;
   return {
     ...row,
-    name: creativeSheetItemName(row.createdAt, briefName),
+    // `created_at` is NOT NULL in Postgres, so the formula's null branch — an absent timestamp —
+    // is unreachable here; the fallback keeps `name` non-nullable without widening the row type.
+    name: creativeSheetName(row.createdAt, briefName) ?? '',
     briefName,
     briefType: brief?.type ?? null,
     briefPlatform: brief?.platform ?? [],

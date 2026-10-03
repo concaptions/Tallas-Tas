@@ -34,7 +34,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/creative-sheet needs a session and real data',
   );
 
-  test('lists the five fixture rows in the seven-column grid, named by the formula', async ({
+  test('lists the five fixture rows with the resolved columns, named by the formula', async ({
     page,
   }) => {
     await page.goto(creativeSheetPath);
@@ -43,31 +43,63 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(5);
     await expect(page.locator('[data-slot="creative-sheet-count"]')).toContainText('5 rows');
 
+    /*
+     * The resolver's labels, in the template's order. Demo mode's brand is Niagara, which owns no
+     * rows, so it inherits the template: the parent base's own field names first — `Name + Angle +
+     * Offer` is field 1, a FORMULA, so the column is VIRTUAL and nothing stores it — then the ten
+     * fields only GRATSI's base defines, which are the platform's and sort after the parent's
+     * 17-field range.
+     *
+     * THE THREE QA CHECKS ARE THREE COLUMNS NOW, not one `QA` header. Airtable has three separate
+     * fields and the rule is to mirror Airtable; the single header also left the resolver returning
+     * three columns where the page drew one cell, so an admin hiding "QA" would have been hiding
+     * something other than what they saw. Gratsi's own set differs in one label only — it words the
+     * primary field `Name` — and that is asserted against PGlite in column-seed.test.ts.
+     */
     await expect(page.locator('[data-slot="creative-sheet-table"] thead th')).toHaveText([
-      'Name',
-      'Brief',
-      'Internal Status',
+      'Name + Angle + Offer',
+      'Creative Name',
       'Status',
-      'Winning',
+      "Client's Comments",
+      'Internal Status',
+      'QA Checklist Doc',
+      'Video Editor QA',
+      'Graphic Designer QA',
+      'Creative Strategist QA',
       'Used',
-      'QA',
+      'Denied/revisions needed',
+      'Winning',
+      'Click for AI Spell Checker Again',
+      'Spelling Feedback',
     ]);
 
-    // The name is the month plus the brief's name, generated and rendered in the mono face.
+    /*
+     * The name is the month plus the brief's name — computed on read by `creativeSheetName`, with no
+     * `name` column behind it, and rendered in the mono face because generated output always is.
+     * Cells by COLUMN KEY, not position: the order is configuration now.
+     */
     const first = page.locator('[data-slot="creative-sheet-row"]').first();
-    await expect(first.locator('td').first()).toContainText(/^October-/);
-    await expect(first.locator('td').first().locator('.font-mono')).toHaveCount(1);
+    await expect(first.locator('td[data-column="name"]')).toContainText(/^October-/);
+    await expect(first.locator('td[data-column="name"] .font-mono')).toHaveCount(1);
 
     // A row with no creative linked is named by its month alone and dashes its Brief cell.
     const unlinked = page.locator(
       '[data-creative-sheet-id="c5c5c5c5-c5c5-4c5c-8c5c-000000000002"]',
     );
-    await expect(unlinked.locator('td').first()).toHaveText('October');
-    await expect(unlinked.locator('td').nth(1)).toHaveText('—');
+    // With no brief there is nothing to concatenate, and Airtable's `&` leaves the separator — the
+    // faithful reading, which is why `creativeSheetItemName` and its tidier "October" are gone.
+    await expect(unlinked.locator('td[data-column="name"]')).toHaveText('October-');
+    await expect(unlinked.locator('td[data-column="brief_id"]')).toHaveText('—');
 
-    // Statuses are the shared chip, never bare text, and QA is three ticks per row.
+    // Statuses are the shared chip, never bare text.
     await expect(first.locator('[data-slot="status-chip"]').first()).toBeVisible();
-    await expect(first.locator('[data-slot="sheet-qa"] [data-slot="sheet-tick"]')).toHaveCount(3);
+    // The three QA checks are three columns, each with its own tick.
+    for (const column of ['qa_video_editor', 'qa_designer', 'qa_strategist']) {
+      await expect(
+        first.locator(`td[data-column="${column}"] [data-slot="sheet-tick"]`),
+        `${column} should draw its own tick`,
+      ).toHaveCount(1);
+    }
   });
 
   test('a row opens the panel with every stored field, the URL carries it and Escape closes it', async ({

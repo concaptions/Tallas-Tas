@@ -78,7 +78,23 @@ export async function resolveColumns(
   const own = new Map(ownRows.map((row) => [row.columnKey, row]));
   const resolved: ResolvedColumn[] = [];
 
-  const take = (row: ColumnDefinition, inheritedFrom: string | null): void => {
+  /**
+   * `formula` falls back to the PARENT's, because whether a column is computed is a property of the
+   * COLUMN and not of a brand's opinion about it. A child row exists to relabel, reorder or hide;
+   * letting it also decide that a virtual column is suddenly stored would point the page at a
+   * Postgres column that does not exist — and the Creative Sheet name is exactly that case, since
+   * Gratsi words the parent's `Name + Angle + Offer` as `Name` and must still compute it.
+   *
+   * This is the structural version of what `formulaForWrite` enforces on the admin's write path, and
+   * it is stronger: no seed row, no hand-made POST and no future writer can detach a column from its
+   * formula, because the resolver reads it from the parent regardless. A child-added column keeps its
+   * own, since there is no parent row to inherit from.
+   */
+  const take = (
+    row: ColumnDefinition,
+    inheritedFrom: string | null,
+    parentRow?: ColumnDefinition,
+  ): void => {
     if (row.isHidden) return;
     resolved.push({
       columnKey: row.columnKey,
@@ -86,7 +102,7 @@ export async function resolveColumns(
       displayOrder: row.displayOrder,
       fieldType: row.fieldType,
       source: row.source,
-      formula: row.formula,
+      formula: row.formula ?? parentRow?.formula ?? null,
       isDetached: row.isDetached,
       inheritedFrom,
     });
@@ -96,7 +112,7 @@ export async function resolveColumns(
   for (const parentRow of parentRows) {
     const childRow = own.get(parentRow.columnKey);
     if (childRow === undefined) take(parentRow, parentBrandId);
-    else take(childRow, null);
+    else take(childRow, null, parentRow);
   }
   // Then the child's own additions, which the parent knows nothing about.
   const parentKeys = new Set(parentRows.map((row) => row.columnKey));

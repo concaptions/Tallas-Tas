@@ -1,5 +1,6 @@
 import type { BriefListRow } from './briefs';
-import { creativeSheetItemName, type CreativeSheetItemListRow } from './creative-sheet-items';
+import { type CreativeSheetItemListRow } from './creative-sheet-items';
+import { creativeSheetName } from './formulas';
 import { DEMO_ACTOR_ID, DEMO_BRAND_ID, demoBriefs } from './demo-data';
 
 /**
@@ -9,7 +10,7 @@ import { DEMO_ACTOR_ID, DEMO_BRAND_ID, demoBriefs } from './demo-data';
  * order — the order `listCreativeSheetItems` returns — so a test can compare the two directly.
  *
  * Four rows link to a seeded brief and read their brief fields FROM that fixture, so the sheet and
- * the Creative Design fixtures cannot disagree; `name` is `creativeSheetItemName` over the row's own
+ * the Creative Design fixtures cannot disagree; `name` is `creativeSheetName` over the row's own
  * `created_at`, never typed. The fifth has `briefId: null` — Airtable lets a sheet row exist before
  * its link is filled, the same rule as `creative_briefs.concept_id` — and is named by its month alone.
  * Three rows were created in September and two in October, so both month prefixes are on screen.
@@ -57,7 +58,7 @@ function fromBrief(briefId: string | null, createdAt: string) {
   const brief = briefId === null ? null : demoBrief(briefId);
   return {
     briefId,
-    name: creativeSheetItemName(at(createdAt), brief?.name ?? null),
+    name: creativeSheetName(at(createdAt), brief?.name ?? null) ?? '',
     briefName: brief?.name ?? null,
     briefType: brief?.type ?? null,
     briefPlatform: brief?.platform ?? [],

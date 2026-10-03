@@ -752,22 +752,67 @@ const CREATIVE_SHEET_ITEMS_PARENT = parentRows('creative_sheet_items', [
 ]);
 
 /**
+ * The primary field, and the reason virtual columns exist.
+ *
+ * `creative_sheet_items` has NO `name` column: Airtable's field 1 is a formula, and the schema says
+ * in its own voice that storing the result would let the month drift from `created_at`. So this is a
+ * VIRTUAL row — computed on every read by `creativeSheetName`, written by nothing.
+ *
+ * `parent`, NOT `platform`, and the distinction is the point: the parent base really does define
+ * this field (`Name + Angle + Offer`, field 1), so the column is the parent's and merely happens to
+ * be computed. `source` says who owns a column; `formula` says whether there is anything to store.
+ * They are different questions, and this is the row that shows it.
+ */
+const CREATIVE_SHEET_ITEMS_NAME: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'creative_sheet_items',
+    columnKey: 'name',
+    displayLabel: 'Name + Angle + Offer',
+    displayOrder: 1,
+    fieldType: 'formula',
+    formula: 'creativeSheetName',
+  },
+];
+
+/**
+ * The ten fields GRATSI's base defines on this table and the PARENT's does not.
+ *
+ * The page draws every one of them for every brand, so leaving them as Gratsi-only rows would have
+ * deleted ten columns from the grid on Niagara, Mattress Central, Funky Painting and demo mode —
+ * the same failure found on Angles, Concepts, UGC and Creative Modules. They are the platform's,
+ * because the parent base has no field for any of them, and they carry Gratsi's own labels since
+ * Gratsi's base is the only one that names them.
+ *
+ * `Denied/revisions needed` keeps Airtable's spelling, unspaced, which is also what the importer
+ * keys on. The panel writes it spaced; that panel is hand-built and not resolver-driven, so the two
+ * now differ and the report says so rather than quietly picking one.
+ *
+ * Ordered from 18, after the parent's 17-field Airtable range, preserving Gratsi's relative order.
+ */
+const CREATIVE_SHEET_ITEMS_PLATFORM = platformRows('creative_sheet_items', [
+  ['internal_status', 'Internal Status', 18, 'singleSelect'],
+  ['qa_checklist_doc', 'QA Checklist Doc', 19, 'multipleAttachments'],
+  ['qa_video_editor', 'Video Editor QA', 20, 'checkbox'],
+  ['qa_designer', 'Graphic Designer QA', 21, 'checkbox'],
+  ['qa_strategist', 'Creative Strategist QA', 22, 'checkbox'],
+  ['used', 'Used', 23, 'checkbox'],
+  ['denied_revisions_needed', 'Denied/revisions needed', 24, 'checkbox'],
+  ['winning', 'Winning', 25, 'singleSelect'],
+  ['spell_check_requested', 'Click for AI Spell Checker Again', 26, 'checkbox'],
+  ['spelling_feedback', 'Spelling Feedback', 27, 'multilineText'],
+]);
+
+/**
  * Gratsi `Creative Sheet` — 29 fields, 16 derived: the table is almost entirely lookups through
  * `Creative Name`. `creative_sheet_items` holds ZERO rows in production for every brand against 377
  * live Airtable records, so this is the least-exercised column map in the seed; flagged, not
  * smoothed over.
  */
 const CREATIVE_SHEET_ITEMS_GRATSI = childRows('creative_sheet_items', [
-  ['internal_status', 'Internal Status', 10, 'custom', 'singleSelect'],
-  ['qa_checklist_doc', 'QA Checklist Doc', 12, 'custom', 'multipleAttachments'],
-  ['qa_video_editor', 'Video Editor QA', 13, 'custom', 'checkbox'],
-  ['qa_designer', 'Graphic Designer QA', 14, 'custom', 'checkbox'],
-  ['qa_strategist', 'Creative Strategist QA', 15, 'custom', 'checkbox'],
-  ['used', 'Used', 23, 'custom', 'checkbox'],
-  ['denied_revisions_needed', 'Denied/revisions needed', 24, 'custom', 'checkbox'],
-  ['winning', 'Winning', 25, 'custom', 'singleSelect'],
-  ['spell_check_requested', 'Click for AI Spell Checker Again', 28, 'custom', 'checkbox'],
-  ['spelling_feedback', 'Spelling Feedback', 29, 'custom', 'multilineText'],
+  // Gratsi words the primary field `Name` where the parent calls it `Name + Angle + Offer`. A
+  // relabel only: the resolver reads `formula` from the parent row, so the column stays computed
+  // however a child words it — a child cannot make a virtual column stored.
+  ['name', 'Name', 1, 'relabel', 'formula'],
 ]);
 
 /**
@@ -1313,6 +1358,8 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CREATIVE_MODULES_PARENT,
       ...CREATIVE_MODULES_PLATFORM,
       ...CREATIVE_SHEET_ITEMS_PARENT,
+      ...CREATIVE_SHEET_ITEMS_NAME,
+      ...CREATIVE_SHEET_ITEMS_PLATFORM,
       ...CREATORS_PARENT,
       ...CREATORS_PLATFORM,
       ...AI_CHARACTERS_PARENT,

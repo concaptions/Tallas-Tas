@@ -221,6 +221,60 @@ describe('virtual columns', () => {
     expect(onParent?.displayLabel).toBe('Creative Name');
   });
 
+  /**
+   * THE structural guarantee, and it is stronger than the admin's `formulaForWrite`: the resolver
+   * reads `formula` from the PARENT row when a child's is null, so nothing — no seed row, no
+   * hand-made POST, no future writer — can detach a column from its formula by writing a child row
+   * without one. Creative Sheet is the case that needed it: Gratsi words the parent's
+   * `Name + Angle + Offer` as `Name`, and that relabel must not turn a computed column into a stored
+   * one, because `creative_sheet_items` has no `name` column to read.
+   */
+  it('keeps computing when a child relabels it WITHOUT restating the formula', async () => {
+    const db = await testDb();
+    await seed(db);
+    const parent = await templateId(db);
+    const gratsi = await brandIdFor(db, 'gratsi');
+    await upsertColumnDefinition(
+      db,
+      parent,
+      {
+        tableKey: 'creative_sheet_items',
+        columnKey: 'name',
+        displayLabel: 'Name + Angle + Offer',
+        displayOrder: 1,
+        fieldType: 'formula',
+        formula: 'creativeSheetName',
+      },
+      'test',
+    );
+    // A child row with NO formula of its own — exactly what `childRows` writes for a relabel.
+    await upsertColumnDefinition(
+      db,
+      gratsi,
+      {
+        tableKey: 'creative_sheet_items',
+        columnKey: 'name',
+        displayLabel: 'Name',
+        displayOrder: 1,
+        fieldType: 'formula',
+        isDetached: true,
+      },
+      'test',
+    );
+
+    const onGratsi = (await resolveColumns(db, gratsi, 'creative_sheet_items')).find(
+      (column) => column.columnKey === 'name',
+    );
+
+    expect(onGratsi?.displayLabel).toBe('Name');
+    // The label is Gratsi's own row; the formula is the parent's, read through.
+    expect(onGratsi?.inheritedFrom).toBeNull();
+    expect(onGratsi?.formula).toBe('creativeSheetName');
+    if (onGratsi === undefined) throw new Error('Gratsi lost the column');
+    expect(isVirtualColumn(onGratsi)).toBe(true);
+    expect(storedColumns([onGratsi])).toEqual([]);
+  });
+
   it('hides like any other column, so a brand can drop a computed column from its view', async () => {
     const db = await testDb();
     await seed(db);

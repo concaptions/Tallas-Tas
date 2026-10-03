@@ -2,7 +2,6 @@ import { sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
-  creativeSheetItemName,
   getCreativeSheetItemById,
   insertCreativeSheetItem,
   listCreativeSheetItems,
@@ -16,6 +15,7 @@ import { creativeBriefs, creativeSheetItems, type CreativeSheetItem } from './sc
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
 import { withBrand } from './tenancy';
+import { creativeSheetName } from './formulas';
 
 /** Index names from `pg_indexes` for one table, so a test can state which index serves which key. */
 async function indexNames(db: PgliteDb, table: string): Promise<string[]> {
@@ -121,17 +121,24 @@ describe('creative_sheet_items migration on PGlite', () => {
 
 describe('creativeSheetItemName', () => {
   it('is the UTC month of created_at, a hyphen and the brief name — the Airtable formula', () => {
-    expect(creativeSheetItemName(new Date('2026-10-01T08:00:00.000Z'), 'TV1-B1-Unboxing-V3')).toBe(
+    expect(creativeSheetName(new Date('2026-10-01T08:00:00.000Z'), 'TV1-B1-Unboxing-V3')).toBe(
       'October-TV1-B1-Unboxing-V3',
     );
-    expect(creativeSheetItemName(new Date('2026-09-30T23:59:00.000Z'), 'RS1-B4-V3')).toBe(
+    expect(creativeSheetName(new Date('2026-09-30T23:59:00.000Z'), 'RS1-B4-V3')).toBe(
       'September-RS1-B4-V3',
     );
   });
 
   it('names a row with no brief by its month alone, never with a dangling separator', () => {
-    expect(creativeSheetItemName(new Date('2026-10-01T07:00:00.000Z'), null)).toBe('October');
-    expect(creativeSheetItemName(new Date('2026-01-15T12:00:00.000Z'), '')).toBe('January');
+    /*
+     * The TRAILING HYPHEN is Airtable's answer, and the ruling is to mirror Airtable: its formula is
+     * `DATETIME_FORMAT({Created},"MMMM") & "-" & {Creative Name}`, and `&` concatenates an absent
+     * value as an empty string. The deleted `creativeSheetItemName` dropped the separator as a
+     * tidiness, which made two readings of one record disagree — the bug class the formulas module
+     * exists to prevent.
+     */
+    expect(creativeSheetName(new Date('2026-10-01T07:00:00.000Z'), null)).toBe('October-');
+    expect(creativeSheetName(new Date('2026-01-15T12:00:00.000Z'), '')).toBe('January-');
   });
 });
 
@@ -157,7 +164,7 @@ describe('creative sheet queries', () => {
 
     const [first, second] = rows;
     expect(second).toMatchObject({
-      name: creativeSheetItemName(linked.createdAt, brief.name),
+      name: creativeSheetName(linked.createdAt, brief.name),
       briefName: brief.name,
       briefType: brief.type,
       briefPlatform: brief.platform,
@@ -168,7 +175,7 @@ describe('creative sheet queries', () => {
     expect(second?.name.endsWith(`-${brief.name}`)).toBe(true);
     // A row with no brief inherits nothing and is named by its month alone.
     expect(first).toMatchObject({
-      name: creativeSheetItemName(standalone.createdAt, null),
+      name: creativeSheetName(standalone.createdAt, null),
       briefName: null,
       briefType: null,
       briefPlatform: [],
@@ -192,7 +199,7 @@ describe('creative sheet queries', () => {
     const gone = await getCreativeSheetItemById(db, brandId, row.id);
     expect(gone?.briefId).toBe(briefId);
     expect(gone?.briefName).toBeNull();
-    expect(gone?.name).toBe(creativeSheetItemName(row.createdAt, null));
+    expect(gone?.name).toBe(creativeSheetName(row.createdAt, null));
   });
 
   it('returns nothing for another brand, and nothing once a row is soft-deleted', async () => {
@@ -298,7 +305,7 @@ describe('demoCreativeSheetItems', () => {
 
   it('are named by the formula and read every brief field from the brief fixture', () => {
     for (const row of demoCreativeSheetItems) {
-      expect(row.name).toBe(creativeSheetItemName(row.createdAt, row.briefName));
+      expect(row.name).toBe(creativeSheetName(row.createdAt, row.briefName));
       const brief = demoBriefs.find((candidate) => candidate.id === row.briefId);
       if (row.briefId === null) {
         expect(row.briefName).toBeNull();
@@ -315,7 +322,8 @@ describe('demoCreativeSheetItems', () => {
         briefDesignFileUrl: brief?.designFileUrl,
       });
     }
-    // Both month prefixes are on screen, and the unlinked row is named by its month alone.
+    // Both month prefixes are on screen, and the unlinked row is its month plus the separator
+    // Airtable's own formula leaves behind when there is no brief to concatenate.
     expect(demoCreativeSheetItems.map((row) => row.name.split('-')[0])).toEqual([
       'October',
       'October',
@@ -325,7 +333,7 @@ describe('demoCreativeSheetItems', () => {
     ]);
     expect(
       demoCreativeSheetItems.filter((row) => row.briefId === null).map((row) => row.name),
-    ).toEqual(['October']);
+    ).toEqual(['October-']);
   });
 
   it('seed row for row into the child brand and list back as the fixtures', async () => {

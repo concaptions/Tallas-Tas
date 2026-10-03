@@ -4,7 +4,7 @@ import type { CreativeSheetItemListRow } from '@tas/db';
 import { StatusChip } from '@tas/ui';
 
 import {
-  CREATIVE_SHEET_COLUMNS,
+  CREATIVE_SHEET_RENDERERS,
   QaTicks,
   Tick,
   type SheetItemView,
@@ -17,13 +17,14 @@ import {
   type SheetStatusView,
 } from '@/app/app/creative-sheet/fields';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { gridColumnsFrom, type ResolvedColumnView } from '@/components/views/resolved-columns';
 
 /**
  * The three shapes the Creative Sheet route introduces, mounted as the product mounts them
  * (CLAUDE.md UI governance rule 4): the grid with its generated `font-mono` name, the three select
  * vocabularies as chips, and the tick glyphs the Used and QA columns are drawn with.
  *
- * Nothing is re-drawn here. The columns are the route's own `CREATIVE_SHEET_COLUMNS`, every chip
+ * Nothing is re-drawn here. The columns are joined from the route's own registry, every chip
  * tone comes from the route's `fields.ts` views, and the rows are plain objects in the `@tas/db`
  * row shape so this client module never imports the database package itself (a type import is
  * erased). The three rows are the demo fixtures' first three, restated by hand for that reason.
@@ -85,7 +86,8 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
   {
     item: sampleRow({
       id: 'ds-sheet-2',
-      name: 'October',
+      // Airtable's formula leaves the separator when there is no brief to concatenate.
+      name: 'October-',
       internalStatus: 'sent_to_designer',
     }),
     updatedLabel: '4h ago',
@@ -108,12 +110,30 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
   },
 ];
 
+interface CreativeSheetGridStoryProps {
+  /** The template's master set, read from the seed by the server page that mounts this. */
+  readonly columns: readonly ResolvedColumnView[];
+}
+
 /** The grid: frozen mono name, brief, three chips, one tick and three ticks; a null status dashes. */
-export function CreativeSheetGridStory() {
+export function CreativeSheetGridStory({ columns }: CreativeSheetGridStoryProps) {
+  /*
+   * Joined HERE, not handed over ready-made. This module is `'use client'`, so it cannot read the
+   * seed itself — `parentColumnsFor` lives beside the brand resolver and reaching it from a client
+   * module drags `next/headers` and the database package into the browser graph, which is what broke
+   * the dev-server compile when this story first tried it. And the join cannot happen on the server
+   * either, because a column carries `render` functions and functions do not cross that boundary.
+   * So the server passes plain column DATA and the client draws it — which is exactly what the real
+   * page does.
+   */
+  const storyColumns = gridColumnsFrom(columns, CREATIVE_SHEET_RENDERERS, {
+    freezeFirst: true,
+    frozenMinWidth: 260,
+  }).columns;
   return (
     <AirtableGrid
       tableKey="creative-sheet-story"
-      columns={CREATIVE_SHEET_COLUMNS}
+      columns={storyColumns}
       rows={SAMPLE_ROWS}
       rowId={({ item }) => item.id}
       rowLabel={({ item }) => item.name}

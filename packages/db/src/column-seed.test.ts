@@ -203,6 +203,20 @@ describe('the column seed, checked against the real schema', () => {
     const notAJunctionOfItsTable: string[] = [];
     const virtualButStored: string[] = [];
     const unknownFormula: string[] = [];
+    /*
+     * The formula each column is known to have, from the PARENT group — because the resolver reads
+     * `formula` from the parent row when a child's is null, so whether a column is computed is a
+     * property of the column and not of the row in front of you. Without this a child's RELABEL of a
+     * virtual column looks like a stored column to the gate, and its key is rejected for naming
+     * neither a Postgres column nor a table: Gratsi's `Name` over the parent's
+     * `Name + Angle + Offer` is exactly that row.
+     */
+    const parentFormula = new Map(
+      COLUMN_SEED.filter((group) => group.target.kind === 'parent')
+        .flatMap((group) => group.rows)
+        .filter((row) => row.formula !== undefined && row.formula !== null)
+        .map((row) => [`${row.tableKey}.${row.columnKey}`, row.formula as string]),
+    );
     for (const group of COLUMN_SEED) {
       for (const row of group.rows) {
         if (row.columnKey === UNMAPPED_COLUMN_KEY) continue;
@@ -216,9 +230,11 @@ describe('the column seed, checked against the real schema', () => {
          * stored one would give two readings of one datum, which is the bug class the
          * one-vocabulary rules exist to prevent.
          */
-        if (row.formula !== undefined && row.formula !== null) {
-          if (!isVirtualFormulaName(row.formula)) {
-            unknownFormula.push(`${row.tableKey}.${row.columnKey} -> ${row.formula}`);
+        const formula =
+          row.formula ?? parentFormula.get(`${row.tableKey}.${row.columnKey}`) ?? null;
+        if (formula !== null) {
+          if (!isVirtualFormulaName(formula)) {
+            unknownFormula.push(`${row.tableKey}.${row.columnKey} -> ${formula}`);
           }
           if (ownColumns?.has(row.columnKey) === true) {
             virtualButStored.push(`${row.tableKey}.${row.columnKey}`);
@@ -617,6 +633,19 @@ describe('platform columns on concepts', () => {
         // explicitly declined to assert a field.
         'creative_modules.creative_module_designs',
         'creative_modules.foreplay_link',
+        // Creative Sheet: the ten fields Gratsi's base defines on this table and the parent's does
+        // not. `name` is NOT here — the parent base really does define field 1, so that column is
+        // the parent's and merely happens to be computed.
+        'creative_sheet_items.denied_revisions_needed',
+        'creative_sheet_items.internal_status',
+        'creative_sheet_items.qa_checklist_doc',
+        'creative_sheet_items.qa_designer',
+        'creative_sheet_items.qa_strategist',
+        'creative_sheet_items.qa_video_editor',
+        'creative_sheet_items.spell_check_requested',
+        'creative_sheet_items.spelling_feedback',
+        'creative_sheet_items.used',
+        'creative_sheet_items.winning',
       ].sort(),
     );
   });
@@ -956,8 +985,16 @@ describe("re-seeding retires the seed's own stale rows", () => {
     const before = (await resolveColumns(db, brandId, 'email_campaigns')).find(
       (column) => column.columnKey === 'design_due_date',
     );
-    // Stale, and winning: it reports no formula, so the column reads as stored.
-    expect(before?.formula).toBeNull();
+    /*
+     * Stale, and winning: the label, order and `source` are the old row's. The FORMULA survives,
+     * because the resolver reads it from the parent when a child's is null — which is the point of
+     * that fallback, and it is what keeps a stale row from turning a computed column into a stored
+     * one. So the damage a stale row can do is now limited to presentation, and this is the
+     * assertion that says so.
+     */
+    expect(before?.formula).toBe('emailCampaignDesignDueDate');
+    expect(before?.source).toBe('custom');
+    expect(before?.inheritedFrom).toBeNull();
 
     const results = await seedColumnDefinitions(db, 'script:seed-columns');
 
@@ -1002,6 +1039,82 @@ describe("re-seeding retires the seed's own stale rows", () => {
  * six), and GRATSI gets the same columns under its own wording wherever its base words them
  * differently.
  */
+/**
+ * Creative Sheet, the last page migrated and the one virtual columns were built for.
+ */
+describe('the Creative Sheet column set', () => {
+  async function brandFor(db: Awaited<ReturnType<typeof testDb>>, slug: string): Promise<string> {
+    const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));
+    if (row === undefined) throw new Error(`the seed has no ${slug} brand`);
+    return row.id;
+  }
+
+  it('names the primary field as the PARENT base does, computed, and Gratsi as Gratsi does', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const onNiagara = await resolveColumns(
+      db,
+      await brandFor(db, 'niagara-sleep-solutions'),
+      'creative_sheet_items',
+    );
+    const onGratsi = await resolveColumns(db, await brandFor(db, 'gratsi'), 'creative_sheet_items');
+
+    expect(onNiagara).toHaveLength(14);
+    expect(onGratsi).toHaveLength(14);
+    expect(onNiagara[0]?.displayLabel).toBe('Name + Angle + Offer');
+    // Gratsi words it `Name`, and the formula survives the relabel because the resolver reads it
+    // from the parent row — the column has no Postgres column to fall back to.
+    expect(onGratsi[0]?.displayLabel).toBe('Name');
+    for (const set of [onNiagara, onGratsi]) {
+      const name = set.find((column) => column.columnKey === 'name');
+      expect(name?.formula).toBe('creativeSheetName');
+      expect(storedColumns(set).some((column) => column.columnKey === 'name')).toBe(false);
+      // It is the PARENT's column, not the platform's: the parent base really defines field 1.
+      expect(name?.source).toBe('parent');
+    }
+  });
+
+  it('returns every column the page draws, the three QA checks among them', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const resolved = await resolveColumns(
+      db,
+      await brandFor(db, 'niagara-sleep-solutions'),
+      'creative_sheet_items',
+    );
+    const keys = new Set(resolved.map((column) => column.columnKey));
+
+    for (const drawn of [
+      'name',
+      'brief_id',
+      'status',
+      'client_comments',
+      'internal_status',
+      'qa_checklist_doc',
+      'qa_video_editor',
+      'qa_designer',
+      'qa_strategist',
+      'used',
+      'denied_revisions_needed',
+      'winning',
+      'spell_check_requested',
+      'spelling_feedback',
+    ]) {
+      expect(keys.has(drawn), `the Creative Sheet grid draws ${drawn}`).toBe(true);
+    }
+    // Three separate columns, because Airtable has three separate fields — not one `QA` header.
+    expect(
+      resolved.filter(
+        (column) => column.columnKey.startsWith('qa_') && column.fieldType === 'checkbox',
+      ),
+    ).toHaveLength(3);
+  });
+});
+
 describe('the all-platform tables resolve for every brand', () => {
   const EXPECTED = [
     { tableKey: 'copy_types', inheriting: 4, gratsi: 4, gratsiOwnRows: 2, virtual: 0 },

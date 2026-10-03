@@ -182,6 +182,7 @@ import {
   ColumnOriginChipsStory,
 } from './column-admin.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 export const metadata = {
   title: 'Design system — TAS Creative Platform',
@@ -1176,7 +1177,7 @@ export default function DesignSystemPage() {
             <CreativeSheetChipsStory />
           </div>
           <div className="flex-1 basis-full">
-            <CreativeSheetGridStory />
+            <CreativeSheetGridStory columns={parentColumnsFor('creative_sheet_items')} />
           </div>
           <div className="flex-1 basis-full">
             <CreativeSheetTicksStory />
