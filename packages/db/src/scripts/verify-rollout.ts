@@ -31,6 +31,8 @@ const EXPECTED: readonly {
   { tableKey: 'youtube_copy', inheriting: 16, gratsi: 16, virtual: 0 },
   { tableKey: 'creative_modules', inheriting: 4, gratsi: 4, virtual: 0 },
   { tableKey: 'client_asset_folders', inheriting: 4, gratsi: 4, virtual: 0 },
+  // The name is virtual on both bases: Gratsi relabels it and the formula is read from the parent.
+  { tableKey: 'creative_sheet_items', inheriting: 14, gratsi: 14, virtual: 1 },
 ];
 
 async function main(): Promise<void> {
