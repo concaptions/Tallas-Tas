@@ -1,6 +1,8 @@
+import { firstField, normalizeFieldName } from './airtable-import';
 import { describe, expect, it } from 'vitest';
 
 import {
+  isCreativeModulesShape,
   GRATSI_TABLES,
   TEMPLATE_IDS_WITH_DIFFERENT_GRATSI_NAME,
   UnknownAirtableTableError,
@@ -74,5 +76,82 @@ describe('resolveTableIds', () => {
     expect(() => resolveTableIds(GRATSI_META, { X: 'No Such Table' }, 'appllDG4OmkK2Hdnn')).toThrow(
       'Airtable table "No Such Table" is not in base appllDG4OmkK2Hdnn',
     );
+  });
+});
+
+describe('Themes is id-anchored, because the name collides across bases', () => {
+  // The decoy: the TEMPLATE base has a table called `Themes` whose fields are the Creative Modules
+  // shape. Verified against both live bases on 2026-10-03.
+  const DECOY = {
+    id: 'tblzS73a9JrJGiV2J',
+    name: 'Themes',
+    fields: [{ name: 'Module Name' }, { name: 'Reference Link' }, { name: 'Concepts' }],
+  };
+  const REAL = {
+    id: 'tbl1aFLMJXxhdVKiz',
+    name: 'Themes',
+    fields: [
+      { name: 'Name' },
+      { name: 'Notes' },
+      { name: 'Assignee' },
+      { name: 'Status' },
+      { name: 'Attachments' },
+      { name: 'Attachment Summary' },
+    ],
+  };
+
+  it('resolves Themes to the real library by id, not by the name it shares with the decoy', () => {
+    const resolved = resolveTableIds([REAL, DECOY], { Themes: 'Themes' }, 'appllDG4OmkK2Hdnn');
+    expect(resolved['Themes']).toBe('tbl1aFLMJXxhdVKiz');
+  });
+
+  it('never resolves to the Creative Modules shape, even when that is the only table named Themes', () => {
+    // This is the failure the owner asked to be made impossible: a base where the ONLY `Themes` is
+    // the module-shaped decoy must raise, not silently feed six unmatched field names and write
+    // empty rows.
+    expect(() => resolveTableIds([DECOY], { Themes: 'Themes' }, 'appnaSGAgOUbJ0f9m')).toThrow(
+      /Creative Modules shape/,
+    );
+  });
+
+  it('still raises the unknown-table error when the anchored id is absent from the base', () => {
+    expect(() =>
+      resolveTableIds([{ id: 'tblSomethingElse', name: 'Themes' }], { Themes: 'Themes' }, 'appX'),
+    ).toThrow(UnknownAirtableTableError);
+  });
+
+  it('recognises the decoy shape regardless of field order', () => {
+    expect(isCreativeModulesShape(['Reference Link', 'Concepts', 'Module Name'])).toBe(true);
+    expect(isCreativeModulesShape(['Name', 'Notes', 'Assignee'])).toBe(false);
+    expect(isCreativeModulesShape(['Module Name', 'Reference Link'])).toBe(false);
+  });
+});
+
+describe('field names match case-insensitively and whitespace-normalised', () => {
+  it('matches the parent\'s "Creator\'s Video Intro" against Gratsi\'s "Creator\'s video Intro"', () => {
+    // One capital letter apart in the two live bases. An exact-string resolver drops it silently.
+    expect(
+      firstField({ "Creator's video Intro": 'https://cdn/intro.mp4' }, ["Creator's Video Intro"]),
+    ).toBe('https://cdn/intro.mp4');
+  });
+
+  it('matches Gratsi\'s double space in "Description  [Age Status Salary]"', () => {
+    expect(
+      firstField({ 'Description  [Age Status Salary]': '25-34' }, [
+        'Description [Age Status Salary]',
+      ]),
+    ).toBe('25-34');
+  });
+
+  it('prefers an exact match over a normalised near-duplicate', () => {
+    expect(firstField({ Passion: 'exact', passion: 'other' }, ['Passion'])).toBe('exact');
+  });
+
+  it('still returns undefined when no name matches at all', () => {
+    expect(firstField({ Name: 'x' }, ['Nothing Like It'])).toBeUndefined();
+  });
+
+  it('normalises the way the matcher claims to', () => {
+    expect(normalizeFieldName("  Creator's   VIDEO  Intro ")).toBe("creator's video intro");
   });
 });

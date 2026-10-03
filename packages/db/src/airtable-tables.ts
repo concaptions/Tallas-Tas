@@ -14,6 +14,8 @@
 export interface AirtableTableMeta {
   readonly id: string;
   readonly name: string;
+  /** Present on a metadata response; optional so a caller may pass a name/id pair only. */
+  readonly fields?: readonly { readonly name: string }[];
 }
 
 /** exportKey → the table's NAME in the Gratsi base. Nothing here is an id. */
@@ -54,6 +56,54 @@ export const TEMPLATE_IDS_WITH_DIFFERENT_GRATSI_NAME: Readonly<Record<string, st
   tblzS73a9JrJGiV2J: 'Themes',
 };
 
+/**
+ * Tables that MUST resolve by id, not by name, because the name is ambiguous ACROSS BASES.
+ *
+ * Verified against both live bases on 2026-10-03. `Themes` is the whole reason this exists:
+ *   - Gratsi `Themes` = tbl1aFLMJXxhdVKiz — the real library: Name, Notes, Assignee, Status,
+ *     Attachments, Attachment Summary.
+ *   - The TEMPLATE base also has a table called `Themes`, tblzS73a9JrJGiV2J — but its three fields
+ *     are Module Name, Reference Link, Concepts, i.e. the shape Gratsi calls
+ *     "(Internal) Creative Modules".
+ *
+ * So a name resolver pointed at the template does not fail loudly: it resolves `Themes` to the
+ * module-shaped table and feeds it to the `themes` mapping, whose six field names match none of
+ * those three, and writes EMPTY rows. A name collision defeating the resolver built for id
+ * collisions. `tbl1aFLMJXxhdVKiz` does not exist in the template base at all, which is consistent
+ * with themes being a GLOBAL library (CLAUDE.md non-negotiable 3) with no per-brand parent set.
+ */
+export const ID_ANCHORED_TABLES: Readonly<Record<string, string>> = {
+  Themes: 'tbl1aFLMJXxhdVKiz',
+};
+
+/** The field shape of the template's decoy `Themes`; resolving to this is always a bug. */
+export const CREATIVE_MODULES_SHAPE: readonly string[] = [
+  'Concepts',
+  'Module Name',
+  'Reference Link',
+];
+
+/**
+ * True when a table carries the decoy shape — the guard the Themes test asserts against, exported
+ * so the importer and the test agree on one definition rather than two copies.
+ */
+export function isCreativeModulesShape(fieldNames: readonly string[]): boolean {
+  const sorted = [...fieldNames].sort((left, right) => left.localeCompare(right));
+  return (
+    sorted.length === CREATIVE_MODULES_SHAPE.length &&
+    sorted.every((name, index) => name === CREATIVE_MODULES_SHAPE[index])
+  );
+}
+
+/** Raised when a table resolves to a table whose shape proves it is the wrong one. */
+export class AmbiguousAirtableTableError extends Error {
+  constructor(exportKey: string, resolvedId: string, baseId: string) {
+    super(
+      `Airtable table "${exportKey}" resolved to ${resolvedId} in base ${baseId}, whose fields are the Creative Modules shape (Module Name / Reference Link / Concepts). "Themes" names two different tables across the bases; resolve it by id (ID_ANCHORED_TABLES), never by name.`,
+    );
+  }
+}
+
 export class UnknownAirtableTableError extends Error {
   constructor(name: string, baseId: string) {
     super(`Airtable table "${name}" is not in base ${baseId}`);
@@ -70,10 +120,33 @@ export function resolveTableIds(
   baseId: string,
 ): Record<string, string> {
   const byName = new Map(meta.map((table) => [table.name, table.id]));
+  const byId = new Map(meta.map((table) => [table.id, table]));
   const resolved: Record<string, string> = {};
   for (const [exportKey, name] of Object.entries(tables)) {
-    const id = byName.get(name);
-    if (id === undefined) throw new UnknownAirtableTableError(name, baseId);
+    // An id-anchored table ignores the name entirely: see ID_ANCHORED_TABLES for why.
+    const anchored = ID_ANCHORED_TABLES[exportKey];
+    const id =
+      anchored !== undefined ? (byId.has(anchored) ? anchored : undefined) : byName.get(name);
+    if (id === undefined) {
+      // The anchored table is absent. If this base nonetheless HAS a table of that name and it
+      // carries the decoy shape, say so — "not in base" would send the operator looking for a
+      // missing table when the real problem is that the name means something else here.
+      const sameName = byName.get(name);
+      const decoyFields = sameName === undefined ? undefined : byId.get(sameName)?.fields;
+      if (
+        sameName !== undefined &&
+        decoyFields !== undefined &&
+        isCreativeModulesShape(decoyFields.map((field) => field.name))
+      ) {
+        throw new AmbiguousAirtableTableError(exportKey, sameName, baseId);
+      }
+      throw new UnknownAirtableTableError(name, baseId);
+    }
+    const table = byId.get(id);
+    const fieldNames = table?.fields?.map((field) => field.name);
+    if (fieldNames !== undefined && isCreativeModulesShape(fieldNames)) {
+      throw new AmbiguousAirtableTableError(exportKey, id, baseId);
+    }
     resolved[exportKey] = id;
   }
   return resolved;
