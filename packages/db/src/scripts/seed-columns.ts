@@ -44,11 +44,16 @@ async function main(): Promise<void> {
       if (!(error instanceof DryRunRollback)) throw error;
     }
     const written = results.reduce((total, row) => total + row.written, 0);
+    const retired = results.flatMap((row) => row.retired);
     for (const row of results) {
       console.log(
-        `  ${row.brand.padEnd(18)} ${String(row.written).padStart(4)} rows  ${row.brandId}`,
+        `  ${row.brand.padEnd(18)} ${String(row.written).padStart(4)} rows  ${row.brandId}` +
+          (row.retired.length > 0 ? `  (${String(row.retired.length)} retired)` : ''),
       );
     }
+    // Rows the seed wrote before and no longer lists. Named, never just counted: a retirement is a
+    // column disappearing from a brand's grid, which is worth reading before it happens.
+    for (const pair of retired) console.log(`    retired ${pair}`);
     console.log(
       `\n${apply ? '[APPLIED]' : '[DRY RUN — ROLLED BACK]'} ${String(written)} column definitions over ${String(results.filter((row) => row.written > 0).length)} base(s).`,
     );

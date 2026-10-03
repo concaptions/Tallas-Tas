@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveColumns } from './column-definitions';
 import { COLUMN_SEED, seedColumnDefinitions, UNMAPPED_COLUMN_KEY } from './column-seed';
+import { upsertColumnDefinition } from './column-definitions';
 import { PROPAGATION_TABLES } from './propagation';
 import { seed } from './seed';
 import { brands, columnDefinitions } from './schema';
@@ -772,5 +773,101 @@ describe('the Products column set', () => {
         `the Products grid draws ${drawn} and the resolver must return it`,
       ).toBe(true);
     }
+  });
+});
+
+/**
+ * The seed removing its OWN stale rows, and nothing else.
+ *
+ * `seedColumnDefinitions` is an upsert, which is what makes it safe to re-run — but upsert-only
+ * means a row dropped from `COLUMN_SEED` lives on and keeps winning, because a child row always
+ * beats the parent's. The Angles rollout turned nine Gratsi child-added rows into two relabels, so
+ * seven would have stayed behind and production would have resolved Gratsi's OLD labels and order
+ * while these tests, on a fresh database, proved the new ones.
+ */
+describe("re-seeding retires the seed's own stale rows", () => {
+  async function gratsiId(db: Awaited<ReturnType<typeof testDb>>): Promise<string> {
+    const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, 'gratsi'));
+    if (row === undefined) throw new Error('the seed has no gratsi brand');
+    return row.id;
+  }
+
+  it('soft-deletes a row it wrote before and no longer lists', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db, 'script:seed-columns');
+    const brandId = await gratsiId(db);
+
+    // A row the seed USED to write on a table it still covers — exactly the Angles case.
+    await upsertColumnDefinition(
+      db,
+      brandId,
+      {
+        tableKey: 'angles',
+        columnKey: 'potential',
+        displayLabel: 'Stale Potential',
+        displayOrder: 3,
+      },
+      'script:seed-columns',
+    );
+    expect(
+      (await resolveColumns(db, brandId, 'angles')).find(
+        (c) => c.displayLabel === 'Stale Potential',
+      ),
+    ).toBeDefined();
+
+    const results = await seedColumnDefinitions(db, 'script:seed-columns');
+
+    expect(results.flatMap((row) => row.retired)).toContain('angles.potential');
+    const resolved = await resolveColumns(db, brandId, 'angles');
+    expect(resolved.find((column) => column.displayLabel === 'Stale Potential')).toBeUndefined();
+    // The column is still THERE — it falls back to the parent's platform row, which is the point.
+    const potential = resolved.find((column) => column.columnKey === 'potential');
+    expect(potential?.displayLabel).toBe('Potential');
+    expect(potential?.source).toBe('platform');
+  });
+
+  /** The line that makes reconciliation safe: Column Admin's whole purpose is per-brand edits. */
+  it('never touches a row an ADMIN made, even when the seed says nothing about that column', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db, 'script:seed-columns');
+    const brandId = await gratsiId(db);
+
+    await upsertColumnDefinition(
+      db,
+      brandId,
+      { tableKey: 'angles', columnKey: 'potential', displayLabel: 'Upside', displayOrder: 3 },
+      'user_admin_123',
+    );
+
+    const results = await seedColumnDefinitions(db, 'script:seed-columns');
+
+    expect(results.flatMap((row) => row.retired)).not.toContain('angles.potential');
+    expect(
+      (await resolveColumns(db, brandId, 'angles')).find((c) => c.columnKey === 'potential')
+        ?.displayLabel,
+    ).toBe('Upside');
+  });
+
+  it('leaves a table the seed deliberately says nothing about completely alone', async () => {
+    const db = await testDb();
+    await seed(db);
+    const brandId = await gratsiId(db);
+    // `themes` is global and deliberately unseeded
+    // (docs/decisions/themes-stays-outside-the-resolver-2026-10-03.md).
+    await upsertColumnDefinition(
+      db,
+      brandId,
+      { tableKey: 'themes', columnKey: 'name', displayLabel: 'Theme', displayOrder: 1 },
+      'script:seed-columns',
+    );
+
+    const results = await seedColumnDefinitions(db, 'script:seed-columns');
+
+    expect(results.flatMap((row) => row.retired)).toEqual([]);
+    expect((await resolveColumns(db, brandId, 'themes')).map((c) => c.displayLabel)).toEqual([
+      'Theme',
+    ]);
   });
 });

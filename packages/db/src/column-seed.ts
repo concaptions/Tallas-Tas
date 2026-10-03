@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 import { upsertColumnDefinition, type UpsertColumnDefinition } from './column-definitions';
 import type { Db } from './db';
-import { brands } from './schema';
+import { brands, columnDefinitions } from './schema';
 
 /**
  * THE seed of `column_definitions` — the parent's master column set, and each child's departures
@@ -1187,6 +1187,13 @@ export interface ColumnSeedResult {
   readonly brand: string;
   readonly brandId: string;
   readonly written: number;
+  /**
+   * Rows the seed wrote on a previous run and no longer lists, soft-deleted. The Angles rollout
+   * created seven of these on Gratsi in one go (nine child-added rows became two relabels), and
+   * without reconciliation they would have stayed in the database and WON over the parent's new
+   * platform rows — so production would have resolved a different column set from the tests.
+   */
+  readonly retired: readonly string[];
 }
 
 /**
@@ -1194,6 +1201,61 @@ export interface ColumnSeedResult {
  * (brand, table, column), so a re-run updates rather than duplicating. A brand the database does not
  * have is skipped and reported rather than failing the whole seed.
  */
+/**
+ * Soft-delete the rows this seed wrote before and no longer lists, for the tables it DOES list.
+ *
+ * The seed is an upsert, which is what makes it safe to re-run — but upsert-only means a row removed
+ * from `COLUMN_SEED` lives on in the database and keeps winning, because a child row always beats
+ * the parent's. The Angles rollout turned nine Gratsi child-added rows into two relabels, so seven
+ * rows would have stayed behind and Gratsi would have resolved its OLD labels and order in
+ * production while the tests, running on a fresh database, proved the new ones. A seed that cannot
+ * remove its own mistakes is a seed that drifts.
+ *
+ * IT ONLY EVER TOUCHES ITS OWN ROWS. The filter is `created_by = actorId`, so a row an admin made in
+ * Column Admin — the whole point of the feature — is never removed by a re-seed, even when the seed
+ * has nothing to say about that column. And it is scoped to the table keys this group lists, so a
+ * table the seed deliberately says nothing about (`themes`) is left completely alone.
+ *
+ * Soft delete, never `DELETE FROM` (CLAUDE.md): the row is recoverable and the audit trail stays.
+ */
+async function retireUnseededRows(
+  db: Db,
+  brandId: string,
+  rows: readonly UpsertColumnDefinition[],
+  actorId: string,
+): Promise<readonly string[]> {
+  const tableKeys = [...new Set(rows.map((row) => row.tableKey))];
+  if (tableKeys.length === 0) return [];
+  const seeded = new Set(rows.map((row) => `${row.tableKey}.${row.columnKey}`));
+  const existing = await db
+    .select({
+      id: columnDefinitions.id,
+      tableKey: columnDefinitions.tableKey,
+      columnKey: columnDefinitions.columnKey,
+    })
+    .from(columnDefinitions)
+    .where(
+      and(
+        eq(columnDefinitions.brandId, brandId),
+        isNull(columnDefinitions.deletedAt),
+        eq(columnDefinitions.createdBy, actorId),
+        inArray(columnDefinitions.tableKey, tableKeys),
+      ),
+    );
+
+  const retired: string[] = [];
+  for (const row of existing) {
+    const pair = `${row.tableKey}.${row.columnKey}`;
+    if (seeded.has(pair)) continue;
+    await db
+      .update(columnDefinitions)
+      .set({ deletedAt: new Date(), updatedBy: actorId, updatedAt: new Date() })
+      .where(eq(columnDefinitions.id, row.id));
+    retired.push(pair);
+  }
+  return retired;
+}
+
 export async function seedColumnDefinitions(
   db: Db,
   actorId = 'column-seed',
@@ -1214,11 +1276,12 @@ export async function seedColumnDefinitions(
             .where(eq(brands.slug, group.target.slug))
             .limit(1);
     if (brand === undefined) {
-      results.push({ brand: label, brandId: '(absent)', written: 0 });
+      results.push({ brand: label, brandId: '(absent)', written: 0, retired: [] });
       continue;
     }
     for (const row of group.rows) await upsertColumnDefinition(db, brand.id, row, actorId);
-    results.push({ brand: label, brandId: brand.id, written: group.rows.length });
+    const retired = await retireUnseededRows(db, brand.id, group.rows, actorId);
+    results.push({ brand: label, brandId: brand.id, written: group.rows.length, retired });
   }
   return results;
 }
