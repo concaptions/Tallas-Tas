@@ -51,14 +51,32 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     // The Creators tab is the grid; the partnership table is on the other tab.
     await expect(page.locator('[data-slot="partnership-table"]')).toHaveCount(0);
 
-    // The frozen name cell carries the avatar and the name together; the first headers are fixed.
+    /*
+     * The headers are the RESOLVER's labels now, from `column_definitions`. Demo mode's brand is
+     * `DEMO_BRAND_ID` (Niagara), which owns no rows of its own, so it inherits the template — and
+     * the template's labels are the parent base's own Airtable field names, which is why the name
+     * column reads in full and the three tracks sit at their Airtable positions rather than at 2-4.
+     * The tracks are addressed by COLUMN KEY, because order is configuration now.
+     */
     const headers = page.locator('[data-slot="creators-table"] thead th');
-    await expect(headers.first()).toHaveText('Name');
+    await expect(headers.first()).toHaveText('Creator name (Filled by UGC Manager)');
     await expect(headers.first()).toHaveCSS('position', 'sticky');
-    await expect(headers.nth(1)).toHaveText('Internal Status');
-    await expect(headers.nth(2)).toHaveText('Client Status');
-    await expect(headers.nth(3)).toHaveText('Assets Status');
-    expect(await headers.count()).toBeGreaterThan(30);
+    await expect(headers.locator('css=[data-column="internal_creator_status"]')).toHaveCount(0);
+    await expect(
+      page.locator('[data-slot="creators-table"] thead th[data-column="internal_creator_status"]'),
+    ).toHaveText("Internal Creator's Status");
+    await expect(
+      page.locator('[data-slot="creators-table"] thead th[data-column="client_status"]'),
+    ).toHaveText('Status');
+    await expect(
+      page.locator('[data-slot="creators-table"] thead th[data-column="internal_assets_status"]'),
+    ).toHaveText('Internal Assets Status');
+    // Thirty-three drawn, the same count as the hand-written array. Three template columns this grid
+    // has never drawn as columns are stated in the notice instead.
+    expect(await headers.count()).toBe(33);
+    await expect(page.locator('[data-slot="creator-missing-columns"]')).toContainText(
+      'profile_pic_url',
+    );
 
     // Every row carries a picture, a name and all three tracks — never a blank.
     for (let index = 0; index < 5; index += 1) {

@@ -766,17 +766,46 @@ const CREATORS_PARENT = parentRows('creators', [
  * field is a second, jsonb-backed link (`creators.concept_ids`) alongside the `creator_concepts`
  * junction, so both get a row and neither is guessed into the other.
  */
+/**
+ * Creators' PLATFORM columns: five internal money-and-process fields the UGC grid draws for every
+ * brand, which the parent Airtable base has no field for.
+ *
+ * Seeded as Gratsi-only `custom` rows until the UGC rollout, so migrating the page would have
+ * deleted five columns from the grid on every inheriting brand — the third table where the same bug
+ * turned up. These are internal figures (CLAUDE.md non-negotiable 10): the team workspace shows
+ * them, the client interface never does, and that boundary is enforced by the client pages being
+ * separate, not by this configuration.
+ *
+ * `creator_cost` carries the platform fee the formulas module computes (1.055 Fiverr / 1.10
+ * Insense); the column stores the creator's own figure and the fee is applied on read, never stored.
+ * Orders follow the positions Gratsi already used, so its grid is unchanged.
+ */
+const CREATORS_PLATFORM: readonly UpsertColumnDefinition[] = [
+  ['creator_cost', 'Creator Cost (USD)', 17, 'currency'],
+  ['cost_usd', 'Paid by TAS (USD)', 23, 'currency'],
+  ['payment_date', 'Payment Date', 24, 'date'],
+  ['creator_info_request', 'Creator Info Request', 26, 'multilineText'],
+  ['slack_notified', 'Slack Notified', 30, 'checkbox'],
+].map(([columnKey, displayLabel, displayOrder, fieldType]) => ({
+  tableKey: 'creators',
+  columnKey: columnKey as string,
+  displayLabel: displayLabel as string,
+  displayOrder: displayOrder as number,
+  fieldType: fieldType as string,
+  source: 'platform' as const,
+}));
+
 const CREATORS_GRATSI = childRows('creators', [
   ['creator_concepts', 'Concept to film', 7, 'relabel', 'multipleRecordLinks'],
   ['video_intro_url', "Creator's video Intro", 11, 'relabel', 'multipleAttachments'],
   ['internal_brief', 'Additional Note - TAS Team', 16, 'relabel', 'richText'],
-  ['creator_cost', "Creator's cost (USD) - Internal", 17, 'custom', 'currency'],
+  ['creator_cost', "Creator's cost (USD) - Internal", 17, 'relabel-platform', 'currency'],
   ['internal_creator_status', 'Creator Status', 22, 'relabel', 'singleSelect'],
-  ['cost_usd', 'Paid by TAS', 23, 'custom', 'currency'],
-  ['payment_date', 'Payment Date', 24, 'custom', 'date'],
+  ['cost_usd', 'Paid by TAS', 23, 'relabel-platform', 'currency'],
+  ['payment_date', 'Payment Date', 24, 'relabel-platform', 'date'],
   ['concept_ids', 'Concepts', 25, 'custom', 'multipleRecordLinks'],
-  ['creator_info_request', 'Creator Info Request', 26, 'custom', 'richText'],
-  ['slack_notified', 'Slack Notified ', 30, 'custom', 'checkbox'],
+  ['creator_info_request', 'Creator Info Request', 26, 'relabel-platform', 'richText'],
+  ['slack_notified', 'Slack Notified ', 30, 'relabel-platform', 'checkbox'],
   ['deadline', '(Internal) Deadline for the request', 2, 'hidden', 'date'],
   ['for_partnership_ads', 'For Partnership Ads?', 11, 'hidden', 'singleSelect'],
   ['internal_assets_status', 'Internal Assets Status', 14, 'hidden', 'singleSelect'],
@@ -1118,6 +1147,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CREATIVE_MODULES_PARENT,
       ...CREATIVE_SHEET_ITEMS_PARENT,
       ...CREATORS_PARENT,
+      ...CREATORS_PLATFORM,
       ...AI_CHARACTERS_PARENT,
       ...COLLECTIONS_PARENT,
       ...PRODUCTS_PARENT,

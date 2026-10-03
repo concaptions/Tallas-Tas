@@ -563,6 +563,12 @@ describe('platform columns on concepts', () => {
         'concepts.description',
         'concepts.pain_points',
         'concepts.usp',
+        // Creators: five internal money-and-process fields the UGC grid draws for every brand.
+        'creators.cost_usd',
+        'creators.creator_cost',
+        'creators.creator_info_request',
+        'creators.payment_date',
+        'creators.slack_notified',
       ].sort(),
     );
   });

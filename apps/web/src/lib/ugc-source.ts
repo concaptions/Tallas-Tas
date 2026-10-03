@@ -19,6 +19,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the UGC Management route gets its rows (PRD §5.8 and §5.8.1). A copy of
@@ -129,6 +130,21 @@ function inDemoMode(deps: UgcSourceDeps): boolean {
 /** The live instant the partnership arithmetic is read against. Never called in demo mode. */
 function liveNow(deps: UgcSourceDeps): Date {
   return (deps.clock ?? (() => new Date()))();
+}
+
+const CREATORS_TABLE_KEY = 'creators';
+
+/**
+ * THE ordered, labelled, visible creators columns of the working brand, through the ONE loader every
+ * resolver-driven page shares (`lib/resolved-columns-source.ts`). The table key is `creators`, not
+ * `ugc`: the page is named for the module, the table for the records.
+ */
+export async function loadCreatorColumns(deps: UgcSourceDeps = {}): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(CREATORS_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /** Every creator of the working brand, newest edit first. */

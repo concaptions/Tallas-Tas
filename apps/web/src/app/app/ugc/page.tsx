@@ -3,7 +3,12 @@ import { isR2Available } from '@tas/db';
 import { loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
-import { loadCollaborations, loadCreatorVideos, loadUgc } from '@/lib/ugc-source';
+import {
+  loadCollaborations,
+  loadCreatorVideos,
+  loadUgc,
+  loadCreatorColumns,
+} from '@/lib/ugc-source';
 import { loadUserViews } from '@/lib/user-view-actions';
 
 import {
@@ -20,14 +25,21 @@ interface UgcPageProps {
 }
 
 export default async function UgcPage({ searchParams }: UgcPageProps) {
-  const [{ creators, partnerships, now }, conceptResult, productResult, userViews, params] =
-    await Promise.all([
-      loadUgc(),
-      loadConcepts(),
-      loadProducts(),
-      loadUserViews('creators'),
-      searchParams,
-    ]);
+  const [
+    { creators, partnerships, now },
+    { columns, unconfigured: unconfiguredColumns },
+    conceptResult,
+    productResult,
+    userViews,
+    params,
+  ] = await Promise.all([
+    loadUgc(),
+    loadCreatorColumns(),
+    loadConcepts(),
+    loadProducts(),
+    loadUserViews('creators'),
+    searchParams,
+  ]);
   const demo = isDemoMode();
 
   // `CreatorPanelRow`, not `CreatorCardRow`: the full shape, so a panel column this map forgets is
@@ -113,6 +125,8 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
 
   return (
     <UgcWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       creators={cards}
       partnerships={rows}
       concepts={conceptOptions}

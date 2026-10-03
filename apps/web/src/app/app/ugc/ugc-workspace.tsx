@@ -23,7 +23,13 @@ import {
   ViewToolbar,
   galleryItemsFrom,
 } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import {
@@ -68,6 +74,10 @@ const CREATORS_CAP = getTableCapability('creators') as NonNullable<
 >;
 
 export interface UgcWorkspaceProps {
+  /** The brand's ordered, labelled, visible creators columns, from `loadCreatorColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly creators: readonly CreatorCardRow[];
   readonly partnerships: readonly PartnershipRow[];
   readonly concepts: readonly LinkOption[];
@@ -102,20 +112,42 @@ function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
+/** One of the three approval tracks, drawn from the resolver's key for it. */
+function trackRenderer(trackKey: 'internal' | 'client' | 'assets') {
+  return {
+    render: (creator: CreatorCardRow) => {
+      const entry = creatorTracks(creator).find((candidate) => candidate.key === trackKey);
+      return (
+        <span data-slot="creator-track" data-track={trackKey}>
+          <ChipCell
+            chip={entry === undefined ? null : { label: entry.statusLabel, tone: entry.tone }}
+          />
+        </span>
+      );
+    },
+    sortValue: (creator: CreatorCardRow) =>
+      creatorTracks(creator).find((entry) => entry.key === trackKey)?.statusLabel ?? null,
+  };
+}
+
 /**
- * The Airtable-style grid columns for UGC creators: the frozen name cell carries the avatar (the
- * profile picture, or initials on `bg-surface3` when there is none — never a broken image), then
- * the three labelled status tracks and every other stored column of `creators`, in the panel's
- * order. Costs and payments are internal figures (CLAUDE.md non-negotiable 10); this grid is the
- * team workspace, never the client interface.
+ * THE UGC creators renderer registry, keyed by the resolver's `column_key`.
+ *
+ * This replaces the hand-written `CREATOR_COLUMNS` array — the widest on the platform at 33 columns.
+ * No header string and no ordering live here: labels, order and visibility arrive as data from
+ * `column_definitions`, and this says only how a cell is DRAWN. The frozen name cell keeps its
+ * avatar (the profile picture, or initials on `bg-surface3` when there is none — never a broken
+ * image), the three status tracks keep their `data-track` hooks, and costs stay `MoneyCell`.
+ *
+ * Costs and payments are INTERNAL figures (CLAUDE.md non-negotiable 10). This grid is the team
+ * workspace; the client interface is a different page and never reads this registry.
+ *
+ * Four template columns have no entry, because this grid has never drawn them as columns:
+ * `profile_pic_url` (it renders inside the name cell), `deadline`, `for_partnership_ads` and
+ * `client_note`. They come back in `missing` and are stated on the page.
  */
-const CREATOR_COLUMNS: readonly GridColumn<CreatorCardRow>[] = [
-  {
-    key: 'name',
-    header: 'Name',
-    frozen: true,
-    minWidth: 240,
-    sortValue: (creator) => creator.name,
+const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
+  name: {
     render: (creator) => (
       <span className="flex items-center gap-2">
         {creator.profilePicUrl === null ? (
@@ -142,52 +174,26 @@ const CREATOR_COLUMNS: readonly GridColumn<CreatorCardRow>[] = [
         </span>
       </span>
     ),
+    sortValue: (creator) => creator.name,
   },
-  ...creatorTracks({
-    internalCreatorStatus: '',
-    clientStatus: '',
-    internalAssetsStatus: '',
-  }).map((track): GridColumn<CreatorCardRow> => ({
-    key: `status-${track.key}`,
-    header: `${track.label} Status`,
-    sortValue: (creator) =>
-      creatorTracks(creator).find((entry) => entry.key === track.key)?.statusLabel ?? null,
-    render: (creator) => {
-      const entry = creatorTracks(creator).find((candidate) => candidate.key === track.key);
-      return (
-        <span data-slot="creator-track" data-track={track.key}>
-          <ChipCell
-            chip={entry === undefined ? null : { label: entry.statusLabel, tone: entry.tone }}
-          />
-        </span>
-      );
-    },
-  })),
-  {
-    key: 'gender',
-    header: 'Gender',
-    sortValue: (creator) => creator.gender,
+  internal_creator_status: trackRenderer('internal'),
+  client_status: trackRenderer('client'),
+  internal_assets_status: trackRenderer('assets'),
+  gender: {
     render: (creator) => <TextCell value={creator.gender} />,
+    sortValue: (creator) => creator.gender,
   },
-  {
-    key: 'ageBracket',
-    header: 'Age Bracket',
-    sortValue: (creator) => creator.ageBracket,
+  age_bracket: {
     render: (creator) =>
       creator.ageBracket === null || creator.ageBracket === '' ? (
         <TextCell value={null} />
       ) : (
         <span data-slot="creator-identity">{ageBracketLabel(creator.ageBracket)}</span>
       ),
+    sortValue: (creator) => creator.ageBracket,
   },
-  {
-    key: 'ethnicity',
-    header: 'Ethnicity',
-    render: (creator) => <TextCell value={creator.ethnicity} />,
-  },
-  {
-    key: 'platform',
-    header: 'Platform',
+  ethnicity: { render: (creator) => <TextCell value={creator.ethnicity} /> },
+  platform: {
     render: (creator) => (
       <ChipListCell
         chips={creator.platform.map((entry) => ({
@@ -197,175 +203,103 @@ const CREATOR_COLUMNS: readonly GridColumn<CreatorCardRow>[] = [
       />
     ),
   },
-  {
-    key: 'creatorLink',
-    header: 'Creator Link',
-    render: (creator) => <LinkCell value={creator.creatorLink} />,
-  },
-  {
-    key: 'instagramUsername',
-    header: 'Instagram Username',
-    sortValue: (creator) => creator.instagramUsername ?? null,
+  creator_link: { render: (creator) => <LinkCell value={creator.creatorLink} /> },
+  instagram_username: {
     render: (creator) => <TextCell value={creator.instagramUsername} mono />,
+    sortValue: (creator) => creator.instagramUsername ?? null,
   },
-  {
-    key: 'facebookProfileUrl',
-    header: 'Facebook Profile',
-    render: (creator) => <LinkCell value={creator.facebookProfileUrl} />,
-  },
-  {
-    key: 'concepts',
-    header: 'Linked Concepts',
-    sortValue: (creator) => creator.conceptIds.length,
+  facebook_profile_url: { render: (creator) => <LinkCell value={creator.facebookProfileUrl} /> },
+  // Junctions, as counts. `withLinks` overrides these from `creator_concepts` / `creator_products`,
+  // because the identically named jsonb columns on the row are dead.
+  creator_concepts: {
     render: (creator) => <CountCell count={creator.conceptIds.length} noun="concept" />,
+    sortValue: (creator) => creator.conceptIds.length,
   },
-  {
-    key: 'products',
-    header: 'Linked Products',
-    sortValue: (creator) => creator.productIds.length,
+  creator_products: {
     render: (creator) => <CountCell count={creator.productIds.length} noun="product" />,
+    sortValue: (creator) => creator.productIds.length,
   },
-  {
-    key: 'internalBrief',
-    header: 'Internal Brief',
-    render: (creator) => <TextCell value={creator.internalBrief} />,
-  },
-  {
-    key: 'clientNote',
-    header: "Client's Note",
-    render: (creator) => <TextCell value={creator.clientNote} />,
-  },
-  {
-    key: 'creatorInfoRequest',
-    header: 'Creator Info Request',
-    render: (creator) => <TextCell value={creator.creatorInfoRequest} />,
-  },
-  {
-    key: 'rawAssetsUrl',
-    header: 'Raw Assets URL',
-    render: (creator) => <LinkCell value={creator.rawAssetsUrl} />,
-  },
-  {
-    key: 'videoIntroUrl',
-    header: 'Video Intro',
-    render: (creator) => <LinkCell value={creator.videoIntroUrl} />,
-  },
-  {
-    key: 'shippingLocation',
-    header: 'Shipping Location',
-    render: (creator) => <TextCell value={creator.shippingLocation} />,
-  },
-  {
-    key: 'trackingNumber',
-    header: 'Tracking Number',
-    render: (creator) => <TextCell value={creator.trackingNumber} mono />,
-  },
-  {
-    key: 'dateOfManagement',
-    header: 'Date of Management',
-    sortValue: (creator) => creator.dateOfManagement?.toISOString() ?? null,
+  internal_brief: { render: (creator) => <TextCell value={creator.internalBrief} /> },
+  creator_info_request: { render: (creator) => <TextCell value={creator.creatorInfoRequest} /> },
+  raw_assets_url: { render: (creator) => <LinkCell value={creator.rawAssetsUrl} /> },
+  video_intro_url: { render: (creator) => <LinkCell value={creator.videoIntroUrl} /> },
+  shipping_location: { render: (creator) => <TextCell value={creator.shippingLocation} /> },
+  tracking_number: { render: (creator) => <TextCell value={creator.trackingNumber} mono /> },
+  date_of_management: {
     render: (creator) => <DateCell value={creator.dateOfManagement} />,
+    sortValue: (creator) => creator.dateOfManagement?.toISOString() ?? null,
   },
-  {
-    key: 'budgetPer60s',
-    header: 'Budget per 60sec Video',
-    align: 'right',
-    sortValue: (creator) => creator.budgetPer60s ?? null,
+  budget_per_60s: {
     render: (creator) => <MoneyCell value={creator.budgetPer60s} />,
-  },
-  {
-    key: 'creatorCost',
-    header: 'Creator Cost (USD)',
+    sortValue: (creator) => creator.budgetPer60s ?? null,
     align: 'right',
-    sortValue: (creator) => creator.creatorCost ?? null,
+  },
+  creator_cost: {
     render: (creator) => <MoneyCell value={creator.creatorCost} />,
-  },
-  {
-    key: 'costUsd',
-    header: 'Paid by TAS (USD)',
+    sortValue: (creator) => creator.creatorCost ?? null,
     align: 'right',
-    sortValue: (creator) => creator.costUsd,
+  },
+  cost_usd: {
     render: (creator) => <MoneyCell value={creator.costUsd} />,
+    sortValue: (creator) => creator.costUsd,
+    align: 'right',
   },
-  {
-    key: 'paymentDate',
-    header: 'Payment Date',
-    sortValue: (creator) => creator.paymentDate?.toISOString() ?? null,
+  payment_date: {
     render: (creator) => <DateCell value={creator.paymentDate} />,
+    sortValue: (creator) => creator.paymentDate?.toISOString() ?? null,
   },
-  {
-    key: 'partnershipActivity',
-    header: 'Partnership Activity',
-    sortValue: (creator) => creator.partnershipActivity ?? null,
+  partnership_activity: {
     render: (creator) => {
       const chip = partnershipActivityChip(creator.partnershipActivity);
       return <ChipCell chip={chip.key === '' ? null : { label: chip.label, tone: chip.tone }} />;
     },
+    sortValue: (creator) => creator.partnershipActivity ?? null,
   },
-  {
-    key: 'partnershipActivatedAt',
-    header: 'Date of Partnership Activation',
-    sortValue: (creator) => creator.partnershipActivatedAt?.toISOString() ?? null,
+  partnership_activated_at: {
     render: (creator) => <DateCell value={creator.partnershipActivatedAt} />,
+    sortValue: (creator) => creator.partnershipActivatedAt?.toISOString() ?? null,
   },
-  {
-    key: 'partnershipPeriodDays',
-    header: 'Partnership Period (days)',
-    align: 'right',
-    sortValue: (creator) => creator.partnershipPeriodDays ?? null,
+  partnership_period_days: {
     render: (creator) =>
       creator.partnershipPeriodDays === null || creator.partnershipPeriodDays === undefined ? (
         <TextCell value={null} />
       ) : (
         <span className="font-mono text-xs">{String(creator.partnershipPeriodDays)}</span>
       ),
-  },
-  {
-    key: 'extensionDays',
-    header: 'Extension (days)',
+    sortValue: (creator) => creator.partnershipPeriodDays ?? null,
     align: 'right',
-    sortValue: (creator) => creator.extensionDays ?? 0,
+  },
+  extension_days: {
     render: (creator) =>
       (creator.extensionDays ?? 0) === 0 ? (
         <TextCell value={null} />
       ) : (
         <span className="font-mono text-xs">{String(creator.extensionDays)}</span>
       ),
-  },
-  {
-    key: 'partnershipPricePer30Days',
-    header: 'Partnership Price per 30 Days',
+    sortValue: (creator) => creator.extensionDays ?? 0,
     align: 'right',
-    sortValue: (creator) => creator.partnershipPricePer30Days,
-    render: (creator) => <MoneyCell value={creator.partnershipPricePer30Days} />,
   },
-  {
-    key: 'continueWorkingWith',
-    header: 'Continue Working With?',
-    align: 'center',
+  partnership_price_per_30_days: {
+    render: (creator) => <MoneyCell value={creator.partnershipPricePer30Days} />,
+    sortValue: (creator) => creator.partnershipPricePer30Days,
+    align: 'right',
+  },
+  continue_working_with: {
     render: (creator) =>
       creator.continueWorkingWith === null || creator.continueWorkingWith === undefined ? (
         <TextCell value={null} />
       ) : (
         <BoolCell value={creator.continueWorkingWith} />
       ),
-  },
-  {
-    key: 'partnershipNotes',
-    header: 'Partnership Notes',
-    render: (creator) => <TextCell value={creator.partnershipNotes} />,
-  },
-  {
-    key: 'slackNotified',
-    header: 'Slack Notified',
     align: 'center',
-    render: (creator) => <BoolCell value={creator.slackNotified} />,
   },
-];
-
-/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
-const FIELD_KEYS: readonly string[] = CREATOR_COLUMNS.map((column) => column.key);
-const FIELD_OPTIONS = CREATOR_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+  partnership_notes: { render: (creator) => <TextCell value={creator.partnershipNotes} /> },
+  slack_notified: {
+    render: (creator) => <BoolCell value={creator.slackNotified} />,
+    align: 'center',
+  },
+  client_note: { render: (creator) => <TextCell value={creator.clientNote} /> },
+};
 
 export function UgcWorkspace({
   creators,
@@ -381,8 +315,21 @@ export function UgcWorkspace({
   initialVideos = [],
   uploadsEnabled = false,
   userViews,
+  columns,
+  unconfiguredColumns = false,
 }: UgcWorkspaceProps) {
   const router = useRouter();
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () => gridColumnsFrom(columns, CREATOR_RENDERERS, { freezeFirst: true, frozenMinWidth: 240 }),
+    [columns],
+  );
+  /** Every column key the Fields popover can toggle, and its label, in resolved order (VIEWS-01). */
+  const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);
+  const fieldOptions = useMemo(
+    () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
+    [grid],
+  );
   const [tab, setTab] = useState<UgcTabKey>(initialTab);
   const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
@@ -437,7 +384,7 @@ export function UgcWorkspace({
     initialViews: userViews.views,
     defaultViewType: 'grid',
     initialViewType: initialView ?? null,
-    fieldKeys: FIELD_KEYS,
+    fieldKeys,
     onActivate: adoptView,
   });
   const activeView = tableView.viewType;
@@ -492,7 +439,7 @@ export function UgcWorkspace({
   // The card image is the creator's profile picture (Sprint 7 gallery); none shows their initials.
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visibleCreators, CREATOR_COLUMNS, (creator) => ({
+      galleryItemsFrom(visibleCreators, grid.columns, (creator) => ({
         id: creator.id,
         name: creator.name,
         imageUrl: creator.profilePicUrl,
@@ -602,12 +549,18 @@ export function UgcWorkspace({
               onCreateView={tableView.createView}
               onRenameView={tableView.renameView}
               onDeleteView={tableView.deleteView}
-              fields={FIELD_OPTIONS}
+              fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
               error={tableView.error}
             />
           </div>
+          <ColumnNotices
+            slotPrefix="creator"
+            unconfigured={unconfiguredColumns}
+            missing={grid.missing}
+            registryName="CREATOR_RENDERERS in ugc-workspace.tsx"
+          />
           {visibleCreators.length === 0 ? (
             emptyPanel('creators-empty', NO_CREATORS_NOTE)
           ) : activeView === 'kanban' ? (
@@ -633,7 +586,7 @@ export function UgcWorkspace({
               tableKey="creators"
               view={tableView.config}
               onSortChange={tableView.setSort}
-              columns={CREATOR_COLUMNS}
+              columns={grid.columns}
               rows={visibleCreators}
               rowId={(creator) => creator.id}
               rowLabel={(creator) => creator.name}
