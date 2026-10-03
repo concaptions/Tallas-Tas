@@ -135,11 +135,19 @@ test.describe('column admin in demo mode (no Clerk publishable key)', () => {
   });
 
   test('a table with no definitions is empty rather than broken', async ({ page }) => {
-    await page.goto(columnAdminPath);
-    // `youtube_copy` is one of the six tables that exist in the Gratsi base alone, so the PARENT
-    // base the page opens on owns no rows for it. (`angles` served as this case while the seed
-    // covered Personas only; it now covers all twenty-one propagation tables on both bases.)
-    await page.locator('[data-slot="table-option"][data-option="youtube_copy"]').click();
+    /*
+     * A CHILD base is the only place this case still exists. The parent now has a master set for all
+     * twenty-one propagation tables — including the six the parent Airtable base does not have,
+     * which is the point of the all-platform sets — so no parent/table pair is empty any more.
+     * Gratsi owns no rows on `creative_dimensions`: it inherits the parent's. (`angles`, then
+     * `youtube_copy`, each served as this case before being seeded.)
+     */
+    // Addressed by URL rather than by two clicks: the chooser rows are links, so clicking the base
+    // and then the table races — the table's href still carries the base it was rendered with.
+    await page.goto(`${columnAdminPath}?base=gratsi&table=creative_dimensions`);
+    await expect(page.locator('[data-slot="base-option"][data-active="true"]')).toContainText(
+      'Gratsi',
+    );
 
     await expect(page.locator('[data-slot="column-row"]')).toHaveCount(0);
     await expect(page.getByText('No columns are configured')).toBeVisible();
