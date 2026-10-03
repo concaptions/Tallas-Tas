@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import type { AwarenessStage, PersonaListRow } from '@tas/db';
 import {
   Button,
@@ -20,10 +20,11 @@ import { createPersonaAction, updatePersonaAction, type PersonaActionResult } fr
 import {
   AWARENESS_OPTIONS,
   NOT_SET,
-  PERSONA_FIELD_GROUPS,
-  type PersonaField,
+  personaPanelFrom,
   type PersonaFieldName,
+  type PersonaPanelField,
 } from './fields';
+import type { ResolvedColumnView } from '@/components/views/resolved-columns';
 import { LinkField } from '@/components/links/link-field';
 
 /** The `?persona=` value that means "the panel is open on a persona that does not exist yet". */
@@ -31,6 +32,13 @@ export const NEW_PERSONA = 'new';
 
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
+
+/**
+ * The heading over the resolved fields. Grouping is NOT a concept the resolver has — a column has a
+ * label and an order and nothing else — so the panel shows one section of the brand's stored fields
+ * and one section per link column, rather than inventing groups the configuration cannot express.
+ */
+const FIELDS_HEADING = 'Persona';
 
 /** One angle of the brand the Angles field can pick from. */
 export interface AngleLinkOption {
@@ -40,6 +48,9 @@ export interface AngleLinkOption {
 
 interface PersonaPanelProps {
   readonly persona: PersonaListRow | null;
+  /** The brand's Personas columns from `resolveColumns`: which fields this panel shows, and their
+   * labels. The same data the grid is built from, so a header and its field label cannot drift. */
+  readonly columns: readonly ResolvedColumnView[];
   /** The brand's angles, for the two-way Angles field (`angle_personas`). */
   readonly angles?: readonly AngleLinkOption[];
   /** The angle ids currently linked to the persona, from the same junction the angle panel writes. */
@@ -64,11 +75,15 @@ function valueOf(persona: PersonaListRow | null, name: PersonaFieldName): string
  * point of a panel. It is fixed to the right edge at 60% of the viewport, full width under 900px,
  * and it closes on Escape or on its close button.
  *
- * Every one of the fourteen PRD §5.4 fields is editable in place; the form posts to the Server
- * Actions. In demo mode the fields are read-only and the footer says so instead of saving.
+ * WHICH FIELDS IT SHOWS IS CONFIGURATION, not code: `personaPanelFrom` turns the brand's resolved
+ * columns into the form's fields, in the resolver's order and under the resolver's labels, and maps
+ * each `column_key` to the camelCase field the Server Action validates. The action's schema stays
+ * wider than any brand's form on purpose (every column, `.nullish()`), so a brand whose resolver
+ * returns more columns can save them and an absent field is left alone by `updatePersona`'s patch.
  */
 export function PersonaPanel({
   persona,
+  columns,
   angles = [],
   angleIds = [],
   demo,
@@ -82,6 +97,7 @@ export function PersonaPanel({
     null,
   );
   const [stage, setStage] = useState<AwarenessStage | ''>(persona?.stageOfAwareness ?? '');
+  const layout = useMemo(() => personaPanelFrom(columns), [columns]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -104,7 +120,7 @@ export function PersonaPanel({
   const fieldError = (name: PersonaFieldName): string | undefined =>
     state !== null && !state.ok ? state.fieldErrors?.[name] : undefined;
 
-  const renderField = (field: PersonaField) => {
+  const renderField = (field: PersonaPanelField) => {
     const id = `persona-field-${field.name}`;
     const error = fieldError(field.name);
     const shared = {
@@ -112,12 +128,14 @@ export function PersonaPanel({
       name: field.name,
       readOnly: demo,
       'aria-invalid': error !== undefined,
+      // The one field the action refuses to save empty says so to a screen reader.
+      'aria-required': field.required ? true : undefined,
       placeholder: NOT_SET,
       defaultValue: valueOf(persona, field.name),
     };
 
     return (
-      <div key={field.name} className="flex flex-col gap-1.5">
+      <div key={field.columnKey} className="flex flex-col gap-1.5">
         <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
           {field.label}
         </Label>
@@ -185,25 +203,23 @@ export function PersonaPanel({
 
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-7">
-            {PERSONA_FIELD_GROUPS.map((group) => (
-              <section key={group.heading} className="flex flex-col gap-3">
-                <h3
-                  data-slot="persona-group-heading"
-                  className="border-b border-line pb-1 text-sm font-medium text-text2"
-                >
-                  {group.heading}
-                </h3>
-                <div className="flex flex-col gap-4">{group.fields.map(renderField)}</div>
-              </section>
-            ))}
+            <section className="flex flex-col gap-3">
+              <h3
+                data-slot="persona-group-heading"
+                className="border-b border-line pb-1 text-sm font-medium text-text2"
+              >
+                {FIELDS_HEADING}
+              </h3>
+              <div className="flex flex-col gap-4">{layout.fields.map(renderField)}</div>
+            </section>
 
-            {creating ? null : (
+            {creating || layout.anglesLabel === null ? null : (
               <section className="flex flex-col gap-3">
                 <h3
                   data-slot="persona-group-heading"
                   className="border-b border-line pb-1 text-sm font-medium text-text2"
                 >
-                  Angles
+                  {layout.anglesLabel}
                 </h3>
                 {/* The same LinkField the angle panel uses for its personas: one `angle_personas`
                     row per pair, written on the spot, so the angle shows this persona next render. */}
@@ -219,6 +235,15 @@ export function PersonaPanel({
                 />
               </section>
             )}
+
+            {/* A configured column this panel has no editor for is stated rather than dropped. */}
+            {layout.missing.length > 0 ? (
+              <p data-slot="persona-missing-fields" className="text-xs text-text3">
+                Configured for this brand but not editable here:{' '}
+                <span className="font-mono">{layout.missing.join(', ')}</span>. Add an entry to
+                PERSONA_COLUMN_EDITORS in fields.ts.
+              </p>
+            ) : null}
           </div>
         </div>
 

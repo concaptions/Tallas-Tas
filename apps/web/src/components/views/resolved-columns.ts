@@ -47,6 +47,27 @@ export interface GridColumnsFromOptions {
 }
 
 /**
+ * THE ordering of resolved columns, defined once.
+ *
+ * `resolveColumns` already sorts its own output this way; the order is re-applied here because an
+ * array that reaches a page has crossed a serialization boundary and a caller may hand over a
+ * subset it assembled itself. `displayOrder` first, `columnKey` as the tie-break, so two columns
+ * that share an order come out stable rather than insertion-ordered.
+ *
+ * Both consumers of a resolved set call this — the grid through `gridColumnsFrom`, an editing form
+ * through its own layout function (`personaPanelFrom`) — so a header and its field label cannot
+ * drift apart, and the next page inherits the helper instead of a fourth copy of the comparator.
+ */
+export function orderColumns<Column extends ResolvedColumnView>(
+  resolved: readonly Column[],
+): Column[] {
+  return [...resolved].sort(
+    (left, right) =>
+      left.displayOrder - right.displayOrder || left.columnKey.localeCompare(right.columnKey),
+  );
+}
+
+/**
  * THE adapter between the column resolver and `<AirtableGrid>`: label, order and visibility come
  * from the database as DATA; rendering stays code in the page's registry.
  *
@@ -59,10 +80,7 @@ export function gridColumnsFrom<Row>(
   registry: ColumnRegistry<Row>,
   options: GridColumnsFromOptions = {},
 ): GridColumnsFromResult<Row> {
-  const ordered = [...resolved].sort(
-    (left, right) =>
-      left.displayOrder - right.displayOrder || left.columnKey.localeCompare(right.columnKey),
-  );
+  const ordered = orderColumns(resolved);
   const columns: GridColumn<Row>[] = [];
   const missing: string[] = [];
 

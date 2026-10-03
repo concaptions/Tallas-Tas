@@ -1,13 +1,25 @@
 import { awarenessStages, type AwarenessStage } from '@tas/db/schema';
 import type { ChipTone } from '@tas/domain/state';
 
+import { orderColumns, type ResolvedColumnView } from '@/components/views/resolved-columns';
+
 /**
- * The fourteen PRD §5.4 persona fields, grouped as the design handoff groups them, and the awareness
- * stage's presentation. One module, so the panel, the table and the Server Actions cannot drift:
- * the labels a strategist reads, the column each one writes and the tone of the chip are stated once.
+ * The Personas page's field vocabulary, and the awareness stage's presentation.
  *
- * `stage_of_awareness` values come from `awarenessStages` in `@tas/db` (the pg enum), never a string
- * literal, exactly as status values come from `@tas/domain/state`.
+ * WHICH columns this page shows, in WHAT order and under WHICH labels is no longer decided here: it
+ * comes from `resolveColumns(db, brandId, 'personas')` (`packages/db/src/column-definitions.ts`) —
+ * the parent template's master set, as each brand departs from it — so a relabel or a reorder is an
+ * edit to `column_definitions` and never an edit to this file. The hand-narrowed
+ * `PERSONA_FIELD_GROUPS` / `PERSONA_HIDDEN_FIELDS` that used to live here were scaffolding for
+ * exactly one brand and are gone.
+ *
+ * What stays is the part that cannot be expressed as data:
+ *
+ * - `PERSONA_COLUMN_EDITORS` — the Postgres column (`core_desires`, the resolver's `column_key`)
+ *   mapped to the camelCase field the form posts under and `PersonaListRow` carries (`coreDesires`),
+ *   plus whether it is edited as a line, a paragraph or the awareness Select.
+ * - the awareness vocabulary's labels and chip tones, keyed off `awarenessStages` from
+ *   `@tas/db/schema` (the pg enum), never a string literal.
  */
 export type PersonaFieldName =
   | 'name'
@@ -26,70 +38,122 @@ export type PersonaFieldName =
   | 'triggerWords'
   | 'passion';
 
-export interface PersonaField {
+/** `input` is one line, `textarea` is strategist prose, `stage` is the awareness Select. */
+export type PersonaFieldKind = 'input' | 'textarea' | 'stage';
+
+export interface PersonaFieldEditor {
   readonly name: PersonaFieldName;
+  readonly kind: PersonaFieldKind;
+}
+
+/** The record's own column: NOT NULL in Postgres and `min(1)` in the action's schema. */
+export const PERSONA_NAME_COLUMN = 'name';
+
+/** What the name field is labelled when the resolver returns no row for it at all. */
+export const PERSONA_NAME_FALLBACK_LABEL = 'Name';
+
+/** The two-way Angles link. Its `column_key` is the junction table, not a stored column. */
+export const PERSONA_ANGLES_COLUMN = 'angle_personas';
+
+const NAME_EDITOR: PersonaFieldEditor = { name: 'name', kind: 'input' };
+
+/**
+ * Every persona column this page knows how to EDIT, keyed by the resolver's `column_key`.
+ *
+ * Wider than any one brand displays, on purpose: a brand whose parent row is visible for
+ * `trigger_words` must get a working editor for it without a code change, which is the whole point
+ * of resolving the column set at read time. A `column_key` absent from here is reported as missing
+ * (see `personaPanelFrom`), never silently dropped.
+ */
+export const PERSONA_COLUMN_EDITORS: Readonly<Record<string, PersonaFieldEditor>> = {
+  name: NAME_EDITOR,
+  day_in_the_life: { name: 'dayInTheLife', kind: 'textarea' },
+  demographic: { name: 'demographic', kind: 'textarea' },
+  psychographic: { name: 'psychographic', kind: 'textarea' },
+  core_desires: { name: 'coreDesires', kind: 'textarea' },
+  passion: { name: 'passion', kind: 'textarea' },
+  emotional_triggers: { name: 'emotionalTriggers', kind: 'textarea' },
+  pain_points: { name: 'painPoints', kind: 'textarea' },
+  success_factors: { name: 'successFactors', kind: 'textarea' },
+  perceived_barriers: { name: 'perceivedBarriers', kind: 'textarea' },
+  stage_of_awareness: { name: 'stageOfAwareness', kind: 'stage' },
+  buying_triggers: { name: 'buyingTriggers', kind: 'textarea' },
+  problem_challenge: { name: 'problemChallenge', kind: 'textarea' },
+  success_transformation: { name: 'successTransformation', kind: 'textarea' },
+  trigger_words: { name: 'triggerWords', kind: 'textarea' },
+};
+
+/** One editable field of the panel: the resolver's label, the form field, the editor to draw. */
+export interface PersonaPanelField {
+  readonly columnKey: string;
   readonly label: string;
-  /** `input` is one line, `textarea` is strategist prose, `stage` is the awareness Select. */
-  readonly kind: 'input' | 'textarea' | 'stage';
+  readonly name: PersonaFieldName;
+  readonly kind: PersonaFieldKind;
+  /** True for the one field the action refuses to save empty, so the label can say so. */
+  readonly required: boolean;
 }
 
-export interface PersonaFieldGroup {
-  readonly heading: string;
-  readonly fields: readonly PersonaField[];
+export interface PersonaPanelLayout {
+  readonly fields: readonly PersonaPanelField[];
+  /** The resolved label of the two-way Angles link, or null when this brand does not show it. */
+  readonly anglesLabel: string | null;
+  /** Resolved column keys with no editor here. Surfaced by the panel, never dropped in silence. */
+  readonly missing: readonly string[];
 }
 
 /**
- * THE Personas fields, as the Gratsi base defines them (`docs/decisions/gratsi-display-spec-2026-10-02.md`).
+ * THE panel's field list, from the resolved columns. The grid's equivalent is `gridColumnsFrom`;
+ * this is the same join for an editing form — label and order as data, editor as code.
  *
- * The Airtable Gratsi base `appllDG4OmkK2Hdnn` is the source of truth for what this page shows, so
- * the label is GRATSI'S field name and the `name` is our column — a relabelling in the UI only; no
- * column was renamed in the database. Seven fields, in the base's own order.
+ * ORDER IS NOT DEFINED HERE. It comes from `orderColumns`, the one comparator the grid adapter uses
+ * too, so the panel's field order and the grid's header order cannot drift and the next table to
+ * copy this page inherits the helper rather than a second copy of the sort.
  *
- * `PERSONA_HIDDEN_FIELDS` below lists the columns this page deliberately does NOT show, because the
- * Gratsi base has no field for them. They are not deprecated and nothing was dropped: Niagara Sleep
- * Solutions populates every one of them on all three of its personas, so the data stays and stays
- * readable through its own brand's surfaces. Per-brand visibility belongs in the `column_definitions`
- * table (docs/audits/inheritance-plan-2026-10-02.md), not in this hard-coded list — which is why this
- * constant is temporary scaffolding, not the destination.
+ * `angle_personas` is lifted out because it is a junction, not a column: it is edited by the
+ * two-way `LinkField`, which writes rows the moment it changes rather than posting with the form.
+ *
+ * The `name` field is ALWAYS offered, even when the resolver does not return it. `personas.name` is
+ * NOT NULL and the action's zod schema requires it, so a brand that hid the column would otherwise
+ * be handed a form that can never save; under those conditions a missing control is the bug, not a
+ * faithful rendering of the configuration.
  */
-export const PERSONA_FIELD_GROUPS: readonly PersonaFieldGroup[] = [
-  {
-    heading: 'Persona',
-    fields: [
-      { name: 'name', label: 'Name', kind: 'input' },
-      { name: 'demographic', label: 'Description [Age Status Salary]', kind: 'textarea' },
-      { name: 'psychographic', label: 'Personality', kind: 'textarea' },
-      { name: 'coreDesires', label: 'Drivers for this persona', kind: 'textarea' },
-      { name: 'passion', label: 'Passion', kind: 'textarea' },
-      { name: 'stageOfAwareness', label: 'Problem-Solution Awareness Level', kind: 'stage' },
-    ],
-  },
-];
+export function personaPanelFrom(resolved: readonly ResolvedColumnView[]): PersonaPanelLayout {
+  const ordered = orderColumns(resolved);
+  const fields: PersonaPanelField[] = [];
+  const missing: string[] = [];
+  let anglesLabel: string | null = null;
 
-/**
- * Columns the Personas page hides because the Gratsi base defines no field for them. Kept in the
- * database with their data (see the schema comment on `personas`), and listed here rather than
- * silently omitted so the next reader can tell a deliberate omission from an oversight.
- */
-export const PERSONA_HIDDEN_FIELDS: readonly string[] = [
-  'dayInTheLife',
-  'emotionalTriggers',
-  'painPoints',
-  'successFactors',
-  'perceivedBarriers',
-  'buyingTriggers',
-  'problemChallenge',
-  'successTransformation',
-  'triggerWords',
-  'productId',
-];
+  for (const column of ordered) {
+    if (column.columnKey === PERSONA_ANGLES_COLUMN) {
+      anglesLabel = column.displayLabel;
+      continue;
+    }
+    const editor = PERSONA_COLUMN_EDITORS[column.columnKey];
+    if (editor === undefined) {
+      missing.push(column.columnKey);
+      continue;
+    }
+    fields.push({
+      columnKey: column.columnKey,
+      label: column.displayLabel,
+      required: column.columnKey === PERSONA_NAME_COLUMN,
+      ...editor,
+    });
+  }
 
-/** Every field, flattened; the Server Actions' zod schema is built from this list. */
-export const PERSONA_FIELDS: readonly PersonaField[] = PERSONA_FIELD_GROUPS.flatMap(
-  (group) => group.fields,
-);
+  if (!fields.some((field) => field.columnKey === PERSONA_NAME_COLUMN)) {
+    fields.unshift({
+      columnKey: PERSONA_NAME_COLUMN,
+      label: PERSONA_NAME_FALLBACK_LABEL,
+      required: true,
+      ...NAME_EDITOR,
+    });
+  }
 
-/** The human label and chip tone of each of Breakthrough Advertising's five stages. */
+  return { fields, anglesLabel, missing };
+}
+
+/** The human label and chip tone of each of Breakthrough Advertising's stages. */
 const STAGE_PRESENTATION: Record<AwarenessStage, { label: string; tone: ChipTone }> = {
   unaware: { label: 'Unaware', tone: 'mute' },
   unaware_to_problem_aware: { label: 'Unaware → Problem Aware', tone: 'warn' },
@@ -100,7 +164,7 @@ const STAGE_PRESENTATION: Record<AwarenessStage, { label: string; tone: ChipTone
   most_aware: { label: 'Most Aware', tone: 'ok' },
 };
 
-/** The five stages in their canonical order, coldest first, ready for the Select and the chip. */
+/** The stages in their canonical order, coldest first, ready for the Select and the chip. */
 export const AWARENESS_OPTIONS: readonly {
   value: AwarenessStage;
   label: string;
@@ -115,6 +179,5 @@ export function awarenessTone(stage: AwarenessStage): ChipTone {
   return STAGE_PRESENTATION[stage].tone;
 }
 
-/** The dash a null cell or an unset field shows, so an empty value is never a blank gap. */
-export const EM_DASH = '—';
+/** The placeholder an unset field shows, so an empty value reads as unset and not as a gap. */
 export const NOT_SET = 'Not set';

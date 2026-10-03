@@ -8,6 +8,14 @@ import { personasPath } from '../src/lib/routes';
  * The middleware lets the route through, the data source serves the in-repo fixtures, and the page
  * is fully usable read-only: three rows, a side panel that is not a modal, and the open persona in
  * the URL.
+ *
+ * WHICH COLUMNS APPEAR IS NOW CONFIGURATION, resolved per brand from `column_definitions`. Demo mode
+ * has no database, so `resolveColumns` cannot run and `loadPersonaColumns()` serves the static
+ * fallback instead: the PARENT TEMPLATE'S MASTER SET, read out of `COLUMN_SEED` in `@tas/db`,
+ * because the demo fixtures are Niagara Sleep Solutions — a child brand with no departures of its
+ * own, which is exactly what the resolver would return for it. So this spec asserts the PARENT's
+ * fifteen field names, and asserts that Gratsi's relabels (which belong to one other brand's rows)
+ * appear nowhere: a regression that hard-codes any brand's labels back into the page fails here.
  */
 test.describe('personas in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -26,17 +34,36 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
       page.locator('[data-slot="personas-table"] [data-slot="status-chip"]'),
     ).toHaveCount(3);
 
-    // EXACTLY the seven fields the Gratsi base defines, in its order and under its names. Product,
-    // Updated and the nine template prose columns are deliberately absent.
+    // The parent template's fifteen Personas fields, in the Airtable field order `display_order`
+    // seeds from. Product and Updated are absent because the parent base has no field for them, so
+    // the seed writes no row and the resolver never emits one. `Passion` is absent because it is
+    // Gratsi's own child-added column, not the parent's.
     await expect(page.locator('[data-slot="personas-table"] thead th')).toHaveText([
-      'Name',
-      'Description [Age Status Salary]',
-      'Personality',
-      'Drivers for this persona',
-      'Passion',
-      'Problem-Solution Awareness Level',
+      'Persona Name',
+      'A Day in the Life',
+      'Demographic',
+      'Psychographic',
+      'Core Desires (Cashvertising)',
+      'Emotional Triggers (Cashvertising)',
+      'Pain Points (Cashvertising)',
+      'Success Factors (Buyer Personas)',
+      'Perceived Barriers (Buyer Personas)',
+      'Stage of Market Awareness (Breakthrough Advertising)',
+      'Buying Triggers (Breakthrough Advertising)',
+      'Problem/Challenge (StoryBrand)',
+      'Success/Transformation (StoryBrand)',
+      'Trigger Words (Mindstates)',
       'Angles',
     ]);
+
+    // Every resolved column was drawn: nothing fell through to the missing-renderer notice.
+    await expect(page.locator('[data-slot="persona-missing-columns"]')).toHaveCount(0);
+
+    // And the fallback is NOT flagged here. `loadPersonaColumns` serves the same parent master set
+    // in two cases and tells them apart: demo mode, where it is the designed answer (this page),
+    // and a live brand that resolved nothing, where it is a misconfiguration and the page says so
+    // through `persona-unconfigured-columns`. Demo mode must never show that notice.
+    await expect(page.locator('[data-slot="persona-unconfigured-columns"]')).toHaveCount(0);
   });
 
   test('a row opens the panel, Escape closes it, and the URL carries the persona', async ({
@@ -54,45 +81,43 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="persona-panel-title"]')).toHaveText(name);
 
-    // The Gratsi base defines what this page shows (docs/decisions/gratsi-display-spec-2026-10-02.md),
-    // so the panel is one group of its six fields plus the two-way Angles link.
+    // Grouping is not something `column_definitions` can express, so the panel is one section of
+    // the brand's resolved fields plus one section per link column — here the two-way Angles link,
+    // whose heading is the resolver's own label for the `angle_personas` junction.
     await expect(panel.locator('[data-slot="persona-group-heading"]')).toHaveText([
       'Persona',
       'Angles',
     ]);
 
-    // Every label is GRATSI'S field name, not the template's. These are the strings the owner
-    // pinned, so a silent drift back to "Demographic" or "Core Desires" fails here.
+    // Every label is the RESOLVER'S, and the panel's labels are the grid's: same rows, same strings.
     for (const label of [
-      'Name',
-      'Description [Age Status Salary]',
-      'Personality',
-      'Drivers for this persona',
-      'Passion',
-      'Problem-Solution Awareness Level',
+      'Persona Name',
+      'A Day in the Life',
+      'Demographic',
+      'Psychographic',
+      'Core Desires (Cashvertising)',
+      'Stage of Market Awareness (Breakthrough Advertising)',
+      'Trigger Words (Mindstates)',
     ]) {
       await expect(
         panel.locator(`:not(option):text-is(${JSON.stringify(label)})`).first(),
       ).toBeVisible();
     }
 
-    // And the template-only fields are gone from the page. They are NOT dropped — Niagara Sleep
-    // Solutions populates all of them — they are simply not what the Gratsi base defines, so a
-    // regression that re-renders them is a regression.
-    for (const hidden of [
-      'A Day in the Life',
-      'Demographic',
-      'Psychographic',
-      'Core Desires',
-      'Emotional Triggers',
-      'Pain Points',
-      'Success Factors',
-      'Perceived Barriers',
-      'Problem/Challenge',
-      'Buying Triggers',
-      'Trigger Words',
+    // Every field this brand resolves has an editor: nothing fell through to the panel's notice.
+    await expect(panel.locator('[data-slot="persona-missing-fields"]')).toHaveCount(0);
+
+    // And GRATSI'S names appear nowhere. They are not dropped — they are rows on Gratsi's own base,
+    // and this brand departs from the parent nowhere — so a regression that hard-codes one brand's
+    // labels back into the page, as `PERSONA_FIELD_GROUPS` did, fails here.
+    for (const other of [
+      'Description [Age Status Salary]',
+      'Personality',
+      'Drivers for this persona',
+      'Passion',
+      'Problem-Solution Awareness Level',
     ]) {
-      await expect(panel.locator(`:not(option):text-is(${JSON.stringify(hidden)})`)).toHaveCount(0);
+      await expect(page.locator(`:not(option):text-is(${JSON.stringify(other)})`)).toHaveCount(0);
     }
 
     // Open state is in the URL, so a refresh reopens it and the link is shareable.

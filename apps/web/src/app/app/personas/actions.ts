@@ -16,8 +16,9 @@ import type { PersonaFieldName } from './fields';
  *
  * 1. refuse immediately in DEMO MODE, before any validation, actor lookup or connection — the demo
  *    deployment is unauthenticated, so a write must never reach a database;
- * 2. validate the fourteen PRD §5.4 fields with zod (an empty text field is stored as NULL, never
- *    as an empty string, so "unset" has one representation);
+ * 2. validate every PRD §5.4 persona field with zod, whichever subset the brand's resolved columns
+ *    actually submitted (an empty text field is stored as NULL, never as an empty string, so
+ *    "unset" has one representation);
  * 3. write through the scoped `@tas/db` functions, which put `brand_id` on every statement;
  * 4. revalidate the page and return a typed result. Neither ever throws to the client.
  */
@@ -39,11 +40,12 @@ export type PersonaActionResult = PersonaActionSuccess | PersonaActionFailure;
 /**
  * A text column: trimmed, empty means NULL, and ABSENT means "leave it alone".
  *
- * `.nullish()` rather than `.nullable()` is load-bearing. The Personas form shows only the fields
- * the Gratsi base defines, so it no longer submits `dayInTheLife` and the eight others; with a
- * merely nullable validator every save would fail "Required". Absent now parses to `undefined`,
- * which `updatePersona`'s partial patch skips, so another brand's data in those columns survives an
- * edit made through this form. `personas.test.ts` pins that.
+ * `.nullish()` rather than `.nullable()` is load-bearing. The Personas form renders whichever
+ * columns `resolveColumns(db, brandId, 'personas')` returns for the brand, so a brand that hides
+ * `day_in_the_life` submits nothing for it; with a merely nullable validator every save would fail
+ * "Required". Absent now parses to `undefined`, which `updatePersona`'s partial patch skips, so
+ * another brand's data in those columns survives an edit made through a narrowed form.
+ * `personas.test.ts` pins that.
  */
 const text = z
   .string()
@@ -52,9 +54,10 @@ const text = z
   .nullish();
 
 /**
- * Every column the form may write. Wider than what the page DISPLAYS on purpose: the Gratsi set is
- * six fields plus the Angles link, but a brand whose own base carries the others must still be able
- * to save them, so they stay accepted and simply are not rendered here.
+ * Every column the form may write. Wider than what the page DISPLAYS on purpose, and it must stay
+ * that way: the displayed set is now per brand, resolved at read time, so a brand whose resolver
+ * returns a column this list did not accept would be shown an editor that cannot save. Every
+ * persona column is accepted; which ones are rendered is configuration.
  */
 const personaSchema = z.object({
   name: z.string().trim().min(1, 'A persona needs a name.'),
