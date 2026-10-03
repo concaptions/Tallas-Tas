@@ -103,6 +103,56 @@ export function ColumnAdminPlatformStory() {
   );
 }
 
+/**
+ * A VIRTUAL column beside a stored one. `creative_sheet_items.name` has no Postgres column at all —
+ * Airtable's primary field there is a formula, and storing it would let the month drift from
+ * `created_at` — so it is computed on every read by `creativeSheetName`. The row carries the
+ * Computed marker beside its origin: an admin may relabel or reorder it, and there is nothing to
+ * edit and nothing a save could write.
+ */
+export function ColumnAdminVirtualStory() {
+  const rows = toColumnAdminRows(
+    [
+      {
+        columnKey: 'name',
+        displayLabel: 'Creative Name',
+        displayOrder: 1,
+        fieldType: 'formula',
+        source: 'platform' as const,
+        formula: 'creativeSheetName',
+        isDetached: false,
+        inheritedFrom: SEED_PARENT_BASE_ID,
+      },
+      {
+        columnKey: 'status',
+        displayLabel: 'Status',
+        displayOrder: 2,
+        fieldType: 'singleSelect',
+        source: 'platform' as const,
+        formula: null,
+        isDetached: false,
+        inheritedFrom: SEED_PARENT_BASE_ID,
+      },
+    ],
+    false,
+  );
+
+  return (
+    <ColumnAdminWorkspace
+      bases={BASES}
+      tables={TABLES}
+      baseId="gratsi"
+      tableKey="creative_sheet_items"
+      isTemplateBase={false}
+      rows={rows}
+      restorable={[]}
+      demo
+      adminNote={COLUMN_ADMIN_ADMIN_NOTE}
+      demoNote={DEMO_COLUMN_ADMIN_NOTE}
+    />
+  );
+}
+
 /** The parent base: every column is the master set, so no row offers detach or reattach. */
 export function ColumnAdminTemplateStory() {
   const columns = seedColumnsFor(COLUMN_SEED, SEED_PARENT_BASE_ID, 'personas');

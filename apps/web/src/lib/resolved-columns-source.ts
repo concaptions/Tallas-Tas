@@ -72,6 +72,7 @@ export function parentColumnsFor(tableKey: string): readonly ResolvedColumn[] {
         displayOrder: row.displayOrder,
         fieldType: row.fieldType ?? null,
         source: row.source ?? 'parent',
+        formula: row.formula ?? null,
         isDetached: false,
         inheritedFrom: null,
       })),

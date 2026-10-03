@@ -38,6 +38,7 @@ function column(partial: Partial<ResolvedColumnView> = {}): ResolvedColumnView {
     displayOrder: 3,
     fieldType: 'multilineText',
     source: 'parent',
+    formula: null,
     isDetached: false,
     inheritedFrom: null,
     ...partial,
@@ -134,6 +135,7 @@ describe('writeOf', () => {
       isDetached: true,
       fieldType: 'multilineText',
       source: 'parent',
+      formula: null,
     });
   });
 
@@ -200,6 +202,7 @@ describe('restoreWriteOf', () => {
       isDetached: false,
       fieldType: 'multilineText',
       source: 'parent',
+      formula: null,
     });
   });
 });
@@ -415,6 +418,7 @@ describe('isPlatform', () => {
     displayOrder: 22,
     fieldType: 'singleSelect',
     source,
+    formula: null,
     isDetached: false,
     inheritedFrom: 'template-brand-id',
   });

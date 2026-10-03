@@ -111,6 +111,8 @@ export interface ResolvedColumnView {
   readonly displayOrder: number;
   readonly fieldType: string | null;
   readonly source: 'parent' | 'custom' | 'platform';
+  /** Non-null means the column is VIRTUAL: computed by that formula, with nothing stored. */
+  readonly formula: string | null;
   readonly isDetached: boolean;
   readonly inheritedFrom: string | null;
 }
@@ -140,6 +142,18 @@ export const PLATFORM_NOTE =
   'this grid, never the approval rules behind it.';
 
 /** The marker's own label and tone, read from here so the page never spells either inline. */
+/**
+ * What the virtual marker means. A computed column has nothing stored behind it, so relabelling or
+ * reordering it is fine and there is simply nothing to edit — which a row that looked like every
+ * other row would not say.
+ */
+export const VIRTUAL_NOTE =
+  'Computed on every read by a formula, never stored. Relabel or reorder it freely; there is no ' +
+  'value to edit, and nothing a save could write.';
+
+export const VIRTUAL_LABEL = 'Computed';
+export const VIRTUAL_TONE: ChipTone = 'mute';
+
 export const PLATFORM_LABEL = 'Platform';
 export const PLATFORM_TONE: ChipTone = 'info';
 
@@ -187,6 +201,12 @@ export interface ColumnAdminRow extends ResolvedColumnView {
    * template" against Internal Status should still be told the platform defines it.
    */
   readonly isPlatform: boolean;
+  /**
+   * A VIRTUAL column: computed by a formula, with no Postgres column behind it. Reported so the page
+   * can say so — an admin reordering or relabelling one is fine, but there is nothing to edit and
+   * nothing a write could store, and a row that looks like every other row would not say that.
+   */
+  readonly isVirtual: boolean;
   /** Detaching needs a parent to stop following, and a row that is not detached already. */
   readonly canDetach: boolean;
   /** Reattaching needs a local row to drop; an inherited column has none. */
@@ -203,6 +223,7 @@ export function toColumnAdminRows(
       ...column,
       origin,
       isPlatform: column.source === 'platform',
+      isVirtual: column.formula !== null,
       canDetach: !isTemplateBase && origin !== 'detached' && origin !== 'custom',
       canReattach: !isTemplateBase && origin !== 'inherited' && origin !== 'custom',
     };
@@ -218,6 +239,7 @@ export interface ColumnWrite {
   readonly isDetached: boolean;
   readonly fieldType: string | null;
   readonly source: 'parent' | 'custom' | 'platform';
+  readonly formula: string | null;
 }
 
 /**
@@ -250,6 +272,24 @@ export function sourceForWrite(args: {
 }
 
 /**
+ * What `formula` a write should carry — the companion of `sourceForWrite`, and the same hole.
+ *
+ * Whether a column is computed is a property of the COLUMN, not of a brand's opinion about it, so a
+ * child relabelling or reordering one must not be able to make it stored. The known value wins over
+ * anything submitted: a virtual column stays virtual with its formula intact, and a stored column
+ * can never be given a formula from the client. Without this, relabelling "Creative Name" on a brand
+ * would write `formula: null` and the next read would look for a `creative_sheet_items.name` column
+ * that does not exist.
+ */
+export function formulaForWrite(args: {
+  readonly columnKey: string;
+  /** The formula the resolver already reports for this key, on this base or on the parent. */
+  readonly known: string | null;
+}): string | null {
+  return args.known;
+}
+
+/**
  * One column as it stands, ready to be changed. `upsertColumnDefinition` REPLACES the row, so every
  * write carries the whole state and a change is "this row, with one field different".
  */
@@ -262,6 +302,7 @@ export function writeOf(row: ColumnAdminRow, change: Partial<ColumnWrite> = {}):
     isDetached: row.isDetached,
     fieldType: row.fieldType,
     source: row.source,
+    formula: row.formula,
     ...change,
   };
 }
@@ -292,6 +333,8 @@ export function restoreWriteOf(parentColumn: ResolvedColumnView): ColumnWrite {
     columnKey: parentColumn.columnKey,
     displayLabel: parentColumn.displayLabel,
     displayOrder: parentColumn.displayOrder,
+    // The parent's formula comes with it: restoring a VIRTUAL column must not make it stored.
+    formula: parentColumn.formula,
     isHidden: false,
     isDetached: false,
     fieldType: parentColumn.fieldType,
@@ -387,6 +430,7 @@ export interface SeedRowLike {
   readonly isDetached?: boolean;
   readonly fieldType?: string | null;
   readonly source?: 'parent' | 'custom' | 'platform';
+  readonly formula?: string | null;
 }
 
 export interface SeedGroupLike {
@@ -443,6 +487,7 @@ export function seedColumnsFor(
       displayOrder: row.displayOrder,
       fieldType: row.fieldType ?? null,
       source: row.source ?? 'parent',
+      formula: row.formula ?? null,
       isDetached: row.isDetached ?? false,
       inheritedFrom: null,
     }))

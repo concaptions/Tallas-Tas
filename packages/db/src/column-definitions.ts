@@ -14,6 +14,11 @@ export interface ResolvedColumn {
   readonly displayOrder: number;
   readonly fieldType: string | null;
   readonly source: 'parent' | 'custom' | 'platform';
+  /**
+   * The formula that computes this column, or null when it is stored. A non-null value means the
+   * column is VIRTUAL: there is no Postgres column behind it and nothing may write to it.
+   */
+  readonly formula: string | null;
   /** true when this base overrides the parent for this column and ignores parent edits. */
   readonly isDetached: boolean;
   /** The parent brand id this definition was read from, or null when the base owns the row. */
@@ -81,6 +86,7 @@ export async function resolveColumns(
       displayOrder: row.displayOrder,
       fieldType: row.fieldType,
       source: row.source,
+      formula: row.formula,
       isDetached: row.isDetached,
       inheritedFrom,
     });
@@ -122,12 +128,44 @@ export interface UpsertColumnDefinition {
   readonly isDetached?: boolean;
   readonly fieldType?: string | null;
   readonly source?: 'parent' | 'custom' | 'platform';
+  /** Names the formula that computes the column; omit or null for a stored column. */
+  readonly formula?: string | null;
 }
 
 /**
  * Write one base's definition of one column. Structure changes are admin-only; the Server Action
  * enforces the role, and this function is the single write path so there is one place to audit.
  */
+/**
+ * Whether a resolved column is VIRTUAL — computed on read, with no Postgres column behind it.
+ *
+ * The one question every write path has to ask. A virtual column has nothing to store, so offering
+ * an editor for it or including its key in a write is not a degraded experience, it is a crash or a
+ * silently discarded edit.
+ */
+export function isVirtualColumn(column: Pick<ResolvedColumn, 'formula'>): boolean {
+  return column.formula !== null;
+}
+
+/**
+ * The subset of a resolved set a write may touch: the stored columns, virtual ones removed.
+ *
+ * THE guard for "virtual is never stored". Because the displayed column set is per-brand data, a
+ * page that builds a form or a patch from `resolveColumns` would otherwise reach a virtual column
+ * the moment an admin configures one — and the failure would be silent, because the key simply is
+ * not a column, so an INSERT either throws at the driver or drops the value. Every caller that turns
+ * resolved columns into something writable goes through this, so the rule is enforced once rather
+ * than remembered in each page.
+ */
+export function storedColumns(columns: readonly ResolvedColumn[]): readonly ResolvedColumn[] {
+  return columns.filter((column) => !isVirtualColumn(column));
+}
+
+/** The virtual columns of a resolved set, for a renderer that needs to compute rather than read. */
+export function virtualColumns(columns: readonly ResolvedColumn[]): readonly ResolvedColumn[] {
+  return columns.filter((column) => isVirtualColumn(column));
+}
+
 export async function upsertColumnDefinition(
   db: Db,
   brandId: string,
@@ -146,6 +184,7 @@ export async function upsertColumnDefinition(
         isDetached: input.isDetached ?? false,
         fieldType: input.fieldType ?? null,
         source: input.source ?? 'parent',
+        formula: input.formula ?? null,
         deletedAt: null,
         updatedBy: actorId,
         updatedAt: new Date(),

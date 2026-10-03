@@ -178,6 +178,7 @@ import {
   ColumnAdminBrandStory,
   ColumnAdminPlatformStory,
   ColumnAdminTemplateStory,
+  ColumnAdminVirtualStory,
   ColumnOriginChipsStory,
 } from './column-admin.stories';
 import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
@@ -1391,6 +1392,13 @@ export default function DesignSystemPage() {
               rather than by Airtable, marked beside their origin
             </h3>
             <ColumnAdminPlatformStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              a computed column — no postgres column behind it, worked out by a formula on every
+              read, so there is nothing to edit and nothing a save could write
+            </h3>
+            <ColumnAdminVirtualStory />
           </div>
         </div>
       </Section>

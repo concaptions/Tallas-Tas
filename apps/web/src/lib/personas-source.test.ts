@@ -169,6 +169,7 @@ describe('loadPersonaColumns when the brand resolves nothing', () => {
       source: 'parent' as const,
       isDetached: true,
       inheritedFrom: null,
+      formula: null,
     };
 
     const result = await loadPersonaColumns({

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveColumns } from './column-definitions';
 import { COLUMN_SEED, seedColumnDefinitions, UNMAPPED_COLUMN_KEY } from './column-seed';
 import { upsertColumnDefinition } from './column-definitions';
+import { isVirtualFormulaName } from './formulas/registry';
 import { PROPAGATION_TABLES } from './propagation';
 import { seed } from './seed';
 import { brands, columnDefinitions } from './schema';
@@ -200,11 +201,30 @@ describe('the column seed, checked against the real schema', () => {
 
     const unknown: string[] = [];
     const notAJunctionOfItsTable: string[] = [];
+    const virtualButStored: string[] = [];
+    const unknownFormula: string[] = [];
     for (const group of COLUMN_SEED) {
       for (const row of group.rows) {
         if (row.columnKey === UNMAPPED_COLUMN_KEY) continue;
         const ownColumns = columnsByTable.get(row.tableKey);
         expect(ownColumns, `${row.tableKey} is not a table`).toBeDefined();
+        /*
+         * A VIRTUAL column is exempt from the key rule and gets two rules of its own, because its
+         * whole point is that no Postgres column backs it. It must name a formula this platform
+         * actually exports — otherwise a typo in the seed is invisible until a page renders nothing —
+         * and its key must NOT be a real column of the table, because a virtual column shadowing a
+         * stored one would give two readings of one datum, which is the bug class the
+         * one-vocabulary rules exist to prevent.
+         */
+        if (row.formula !== undefined && row.formula !== null) {
+          if (!isVirtualFormulaName(row.formula)) {
+            unknownFormula.push(`${row.tableKey}.${row.columnKey} -> ${row.formula}`);
+          }
+          if (ownColumns?.has(row.columnKey) === true) {
+            virtualButStored.push(`${row.tableKey}.${row.columnKey}`);
+          }
+          continue;
+        }
         // A scalar is a column of its own table; a link column is keyed by its junction TABLE.
         if (ownColumns?.has(row.columnKey) === true) continue;
         const pair = `${row.tableKey}.${row.columnKey}`;
@@ -221,6 +241,11 @@ describe('the column seed, checked against the real schema', () => {
 
     expect(unknown).toEqual([]);
     expect(notAJunctionOfItsTable).toEqual([]);
+    expect(unknownFormula, 'a virtual column names a formula that is not exported').toEqual([]);
+    expect(
+      virtualButStored,
+      'a virtual column shadows a real Postgres column, so one datum has two readings',
+    ).toEqual([]);
   });
 
   it('would catch a table-named key that is no junction of the table it sits on', async () => {

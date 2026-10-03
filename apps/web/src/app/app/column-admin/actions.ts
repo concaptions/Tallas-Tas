@@ -19,7 +19,7 @@ import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withAgencyScope } from '@/lib/propagation-source';
 import { teamPageActorFrom } from '@/lib/team-actor';
 
-import { columnAdminPath, sourceForWrite } from './fields';
+import { columnAdminPath, formulaForWrite, sourceForWrite } from './fields';
 
 /**
  * Column Admin's two mutations. Both write through `@tas/db` — `upsertColumnDefinition` and
@@ -195,6 +195,15 @@ export async function saveColumnsAction(
       const own = await resolveColumns(db, baseId, tableKey);
       const parent = isTemplateBase ? own : await resolveColumns(db, templateBaseId, tableKey);
       const parentKeys = new Set(parent.map((column) => column.columnKey));
+      /*
+       * The formula each key is ALREADY known to have, on this base or on the parent. Whether a
+       * column is computed is a property of the column, not of a brand's opinion about it, so a
+       * relabel must not be able to make a virtual column stored — the next read would look for a
+       * Postgres column that does not exist.
+       */
+      const knownFormula = new Map(
+        [...parent, ...own].map((column) => [column.columnKey, column.formula]),
+      );
       const platformKeys = new Set(
         [...parent, ...own]
           .filter((column) => column.source === 'platform')
@@ -217,7 +226,16 @@ export async function saveColumnsAction(
             parentKeys,
             platformKeys,
           });
-          await upsertColumnDefinition(tx, baseId, { ...column, tableKey, source }, userId);
+          const formula = formulaForWrite({
+            columnKey: column.columnKey,
+            known: knownFormula.get(column.columnKey) ?? null,
+          });
+          await upsertColumnDefinition(
+            tx,
+            baseId,
+            { ...column, tableKey, source, formula },
+            userId,
+          );
         }
       });
       revalidatePath(columnAdminPath);

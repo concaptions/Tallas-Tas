@@ -59,6 +59,21 @@ export const columnDefinitions = pgTable(
      * page starts reading its columns from the resolver.
      */
     source: text('source').$type<'parent' | 'custom' | 'platform'>().notNull().default('parent'),
+    /**
+     * The formula that COMPUTES this column, when it is not stored at all.
+     *
+     * NULL means `column_key` names a stored Postgres column (or a junction). A non-null value names
+     * an export of `packages/db/src/formulas/` — validated against `VIRTUAL_FORMULAS`, never free
+     * text — and means the column is VIRTUAL: computed on every read, written by nothing.
+     *
+     * One column rather than a boolean beside a name, on purpose: a boolean would permit "virtual,
+     * with nothing to compute it". The marker and the pointer are the same fact.
+     *
+     * Orthogonal to `source`. All seven virtual columns today are also `platform` — the platform
+     * owns them and no Airtable field backs them — but the two answer different questions: `source`
+     * says who the column belongs to, `formula` says whether there is anything to store.
+     */
+    formula: text('formula'),
   },
   (table) => [
     index('column_definitions_brand_table_idx').on(table.brandId, table.tableKey),

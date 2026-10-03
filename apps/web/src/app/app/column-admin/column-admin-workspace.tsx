@@ -33,6 +33,9 @@ import {
   PLATFORM_LABEL,
   PLATFORM_NOTE,
   PLATFORM_TONE,
+  VIRTUAL_LABEL,
+  VIRTUAL_NOTE,
+  VIRTUAL_TONE,
   REATTACH_WARNING,
   RESTORE_NOTE,
   columnAdminPath,
@@ -347,6 +350,12 @@ export function ColumnAdminWorkspace({
                         {row.isPlatform ? (
                           <span data-slot="platform-marker" title={PLATFORM_NOTE}>
                             <StatusChip tone={PLATFORM_TONE} label={PLATFORM_LABEL} />
+                          </span>
+                        ) : null}
+                        {/* Computed, so there is nothing stored and nothing to edit. */}
+                        {row.isVirtual ? (
+                          <span data-slot="virtual-marker" title={VIRTUAL_NOTE}>
+                            <StatusChip tone={VIRTUAL_TONE} label={VIRTUAL_LABEL} />
                           </span>
                         ) : null}
                       </div>
