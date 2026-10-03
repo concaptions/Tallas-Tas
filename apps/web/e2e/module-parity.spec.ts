@@ -609,18 +609,22 @@ const MODULES: readonly ModuleEntry[] = [
     heading: 'Personas',
     rowSlot: 'persona-row',
     opens: { panelSlot: 'persona-panel' },
+    // The Personas page shows the GRATSI base's own field names now, not the template's
+    // (docs/decisions/gratsi-display-spec-2026-10-02.md), so every pair below is identical: the
+    // label IS the Gratsi field. This entry used to assert the template labels — "Persona Name",
+    // "Demographic", "Psychographic" — which is exactly what the change replaced.
     fields: [
-      { gratsi: 'Name', label: 'Persona Name' },
-      // Gratsi's "Description" (two spaces before the bracket, as the base spells it) is the
-      // demographic column (import-mappings: 'Airtable "Description" maps to demographic').
-      { gratsi: 'Description  [Age Status Salary]', label: 'Demographic' },
-      { gratsi: 'Personality', label: 'Psychographic' },
-      { gratsi: 'Drivers for this persona', label: 'Emotional Triggers' },
-      { gratsi: 'Passion', label: 'Core Desires' },
+      { gratsi: 'Name', label: 'Name' },
+      // Two spaces before the bracket, as the base spells it; the column is `demographic`.
+      { gratsi: 'Description  [Age Status Salary]', label: 'Description [Age Status Salary]' },
+      { gratsi: 'Personality', label: 'Personality' },
+      { gratsi: 'Drivers for this persona', label: 'Drivers for this persona' },
+      // Its own column since migration 0044; it used to be misfiled into `core_desires`.
+      { gratsi: 'Passion', label: 'Passion' },
+      { gratsi: 'Problem-Solution Awareness Level', label: 'Problem-Solution Awareness Level' },
       // Despite its name the field links the CONCEPTS table; the platform infers angle_personas
-      // from it and the panel lists those angles read-only under "Linked angles".
-      { gratsi: 'Angles', label: 'Linked angles' },
-      { gratsi: 'Problem-Solution Awareness Level', label: 'Stage of Market Awareness' },
+      // from it and the panel lists those angles read-only under "Angles".
+      { gratsi: 'Angles', label: 'Angles' },
     ],
     excluded: [],
   },

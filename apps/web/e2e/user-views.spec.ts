@@ -40,7 +40,11 @@ const TABLES: readonly TableCase[] = [
     label: 'Personas',
     path: personasPath,
     tableSlot: 'personas-table',
-    field: { key: 'updated', header: 'Updated' },
+    // NOT `updated`: the Personas grid shows only the fields the Gratsi base defines, and `Updated`
+    // is platform metadata rather than a Gratsi field, so it was removed from every grid
+    // (docs/decisions/gratsi-display-spec-2026-10-02.md). `Personality` is Gratsi's own label for
+    // the `psychographic` column and is toggleable like any other.
+    field: { key: 'psychographic', header: 'Personality' },
   },
   {
     label: 'Angles',
