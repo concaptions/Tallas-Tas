@@ -14,7 +14,13 @@ import {
   PropagationBadge,
 } from '@tas/ui';
 
-import { GalleryView, galleryItemsFrom, useTableView, ViewToolbar } from '@/components/views';
+import {
+  ColumnNotices,
+  GalleryView,
+  galleryItemsFrom,
+  useTableView,
+  ViewToolbar,
+} from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import {
   gridColumnsFrom,
@@ -389,36 +395,12 @@ export function ProductsWorkspace({
           />
         </div>
 
-        {/* The brand resolved no columns of its own, so the parent master set is standing in. Said
-
-            out loud rather than passed off as this brand's configuration. */}
-
-        {unconfiguredColumns ? (
-          <p
-            data-slot="product-unconfigured-columns"
-
-            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
-          >
-            This brand has no column configuration yet, so the template's master set is shown. Use
-            Column Admin to give it its own labels and order.
-          </p>
-        ) : null}
-
-        {/* A column an admin configured that this page cannot draw is stated, not swallowed: a
-
-            silent omission would make the page quietly lie about the brand's configuration. */}
-
-        {grid.missing.length > 0 ? (
-          <p
-            data-slot="product-missing-columns"
-
-            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
-          >
-            Configured for this brand but not drawn here:{' '}
-            <span className="font-mono">{grid.missing.join(', ')}</span>. Add an entry to
-            PRODUCT_RENDERERS in products-workspace.tsx.
-          </p>
-        ) : null}
+        <ColumnNotices
+          slotPrefix="product"
+          unconfigured={unconfiguredColumns}
+          missing={grid.missing}
+          registryName="PRODUCT_RENDERERS in products-workspace.tsx"
+        />
 
         {activeView === 'gallery' ? (
           <GalleryView

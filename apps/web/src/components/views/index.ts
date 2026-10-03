@@ -7,3 +7,4 @@ export { ViewsMenu } from './views-menu';
 export { ViewToolbar } from './view-toolbar';
 export { useTableView, type TableViewState } from './use-table-view';
 export { TimelineView, type TimelineItem } from './timeline-view';
+export { ColumnNotices, type ColumnNoticesProps } from './column-notices';

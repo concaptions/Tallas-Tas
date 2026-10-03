@@ -7,6 +7,7 @@ import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input } from '@tas/ui';
 
 import {
+  ColumnNotices,
   KanbanBoard,
   type KanbanItem,
   useTableView,
@@ -360,28 +361,12 @@ export function PersonasWorkspace({
         {/* The brand resolved no columns at all, so what is on screen is the parent template's
             master set, not this brand's configuration. Stated for the same reason as the notice
             below: a fallback shown silently would read as a configuration that does not exist. */}
-        {unconfiguredColumns ? (
-          <p
-            data-slot="persona-unconfigured-columns"
-            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
-          >
-            This brand resolved no Personas columns of its own, so the parent template’s master set
-            is shown. Seed <span className="font-mono">column_definitions</span> for the brand, or
-            attach it to the template, to give it its own labels and order.
-          </p>
-        ) : null}
-        {/* A column an admin configured that this page cannot draw is stated, not swallowed: a
-            silent omission would make the page quietly lie about the brand's configuration. */}
-        {grid.missing.length > 0 ? (
-          <p
-            data-slot="persona-missing-columns"
-            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
-          >
-            Configured for this brand but not drawn here:{' '}
-            <span className="font-mono">{grid.missing.join(', ')}</span>. Add an entry to
-            PERSONA_RENDERERS in personas-workspace.tsx.
-          </p>
-        ) : null}
+        <ColumnNotices
+          slotPrefix="persona"
+          unconfigured={unconfiguredColumns}
+          missing={grid.missing}
+          registryName="PERSONA_RENDERERS in personas-workspace.tsx"
+        />
         {activeView === 'kanban' ? (
           <KanbanBoard
             items={kanbanItems}
