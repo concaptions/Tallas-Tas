@@ -34,7 +34,12 @@ const TABLES: readonly TableCase[] = [
     label: 'Products',
     path: productsPath,
     tableSlot: 'products-table',
-    field: { key: 'updated', header: 'Updated' },
+    // NOT `updated`: Products now reads its columns from the resolver, and `Updated` is platform
+    // metadata rather than an Airtable field, so it is off every grid
+    // (docs/decisions/gratsi-display-spec-2026-10-02.md). `Collection Link` is the template's own
+    // label for `collection_link`, which demo mode renders because its brand (Niagara) inherits the
+    // template's columns.
+    field: { key: 'collection_link', header: 'Collection Link' },
   },
   {
     label: 'Personas',

@@ -57,8 +57,10 @@ describe('loadColumnAdmin in demo mode', () => {
   });
 
   it('is empty for a base that owns no rows on the table, without breaking', async () => {
-    // Gratsi has no rows on `products`: it inherits the parent's two columns there.
-    const data = await loadColumnAdmin('gratsi', 'products');
+    // Gratsi has no rows on `creative_dimensions`: it inherits the parent's columns there. (This
+    // was `products` until the Products rollout gave Gratsi three hidden rows and a relabel on that
+    // table — the pair has to be one the seed genuinely says nothing about for this base.)
+    const data = await loadColumnAdmin('gratsi', 'creative_dimensions');
     expect(data.columns).toEqual([]);
     expect(data.restorable).toEqual([]);
   });

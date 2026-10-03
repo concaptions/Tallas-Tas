@@ -5,7 +5,7 @@ import { loadBriefs } from '@/lib/briefs-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
-import { loadProducts } from '@/lib/products-source';
+import { loadProductColumns, loadProducts } from '@/lib/products-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { loadCreators } from '@/lib/ugc-source';
 import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
@@ -51,6 +51,7 @@ interface ProductsPageProps {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const [
     { rows },
+    { columns, unconfigured: unconfiguredColumns },
     { rows: emailCampaignRows },
     { rows: youtubeCopyRows },
     { rows: briefRows },
@@ -59,6 +60,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     params,
   ] = await Promise.all([
     loadProducts(),
+    loadProductColumns(),
     loadEmailCampaigns(),
     loadYoutubeCopyWorkspace(),
     loadBriefs(),
@@ -96,6 +98,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   return (
     <ProductsWorkspace
       items={items}
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

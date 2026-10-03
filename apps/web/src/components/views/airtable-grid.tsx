@@ -150,6 +150,11 @@ export function AirtableGrid<Row>({
                 <th
                   key={column.key}
                   scope="col"
+                  // The column's own key, so a header or cell can be addressed by WHICH column it
+                  // is rather than by position. That matters now that order is configuration: a
+                  // reorder in Column Admin is a data edit, and a test that counted `td` positions
+                  // would start asserting the wrong column without anything in the page changing.
+                  data-column={column.key}
                   style={column.minWidth === undefined ? undefined : { minWidth: column.minWidth }}
                   className={cn(
                     'px-3 py-2 text-left font-medium whitespace-nowrap text-text2',
@@ -226,6 +231,7 @@ export function AirtableGrid<Row>({
                     {visibleColumns.map((column) => (
                       <td
                         key={column.key}
+                        data-column={column.key}
                         title={column.cellTitle?.(row)}
                         className={cn(
                           'px-3 py-1.5 whitespace-nowrap text-text2',

@@ -179,7 +179,18 @@ describe('the column seed, checked against the real schema', () => {
    * the same for `angle_personas` (`docs/audits/overnight-gratsi-columns.md:510-511`). Every other
    * table-shaped key must carry a foreign key back to its own table.
    */
-  const INFERRED_JUNCTIONS = new Set(['concepts.angle_products', 'concepts.angle_personas']);
+  const INFERRED_JUNCTIONS = new Set([
+    'concepts.angle_products',
+    'concepts.angle_personas',
+    // The Products page's concept count, which is two hops away and computed on read
+    // (`products -> angle_products -> angles -> concepts`, packages/db/src/products.ts:89). It is
+    // the mirror of the two chains above — the same inferred concept x angle relationship, read from
+    // the other end — so `concepts` carries no foreign key back to `products` and cannot satisfy the
+    // junction rule. Named here rather than admitted quietly, so the gate still catches a genuine
+    // transcription slip; see docs/decisions/column-key-relations-2026-10-03.md, which also records
+    // that whether a two-hop derived count belongs in a configurable column set is the owner's call.
+    'products.concepts',
+  ]);
 
   it('keys every column to a real Postgres column or a junction OF ITS OWN TABLE', async () => {
     const db = await testDb();
@@ -439,15 +450,178 @@ describe('platform columns on concepts', () => {
     expect(statuses).toEqual(['Internal Status', 'Client Status']);
   });
 
+  /**
+   * A child may relabel a platform column — Gratsi's base spells the YouTube link
+   * `Youtube Copywriting` where the platform row calls it `YouTube Copy` — and doing so must NOT
+   * transfer ownership. `childRows`' `relabel-platform` kind exists for exactly this, and the admin's
+   * write path keeps the same property through `sourceForWrite`, so the seed and the admin cannot
+   * disagree about who owns a column.
+   */
+  it('keeps platform ownership through a CHILD relabel, rather than writing it back to parent', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const resolved = await resolveColumns(db, await brandIdBySlug(db, 'gratsi'), 'products');
+    const youtube = resolved.find((column) => column.columnKey === 'youtube_copy_products');
+
+    expect(youtube?.displayLabel).toBe('Youtube Copywriting');
+    expect(youtube?.source).toBe('platform');
+    // Its own row, not the parent's: that is what makes the label Gratsi's.
+    expect(youtube?.inheritedFrom).toBeNull();
+  });
+
   it('are the only platform rows in the seed, so nothing else claims that ownership by accident', () => {
-    const claimed = COLUMN_SEED.flatMap((group) =>
-      group.rows
-        .filter((row) => row.source === 'platform')
-        .map((row) => `${row.tableKey}.${row.columnKey}`),
-    );
+    // DISTINCT, because a child may relabel a platform column and keep its ownership, which puts a
+    // second row under the same key (Gratsi's `Youtube Copywriting`). The invariant is which COLUMNS
+    // the platform owns, not how many rows mention them.
+    const claimed = [
+      ...new Set(
+        COLUMN_SEED.flatMap((group) =>
+          group.rows
+            .filter((row) => row.source === 'platform')
+            .map((row) => `${row.tableKey}.${row.columnKey}`),
+        ),
+      ),
+    ];
 
     expect(claimed.sort()).toEqual(
-      ['concepts.client_status', 'concepts.internal_status', 'concepts.name'].sort(),
+      [
+        // Concepts: the two approval tracks and the generated Batch-Angle-Theme name.
+        'concepts.client_status',
+        'concepts.internal_status',
+        'concepts.name',
+        // Products: a stored column and three relations the page shows that no Airtable field on
+        // `(Internal) Product` backs in either base — checked live, see
+        // docs/decisions/column-key-relations-2026-10-03.md.
+        'products.collection_link',
+        'products.concepts',
+        'products.email_campaign_products',
+        'products.youtube_copy_products',
+      ].sort(),
     );
+  });
+});
+
+/**
+ * Products, the first table after Personas to read its columns from the resolver.
+ *
+ * The parent's `(Internal) Product` has 8 Airtable fields and SIX of them are record links whose
+ * stored side is the other table's foreign key. An earlier pass seeded only the two scalars, which
+ * is right for import parity and wrong for a display set — so these tests pin the full set, and in
+ * particular pin that the page's own columns survive, because migrating a page to the resolver
+ * renders exactly what the resolver returns and nothing else.
+ */
+describe('the Products column set', () => {
+  async function brandId(db: Awaited<ReturnType<typeof testDb>>, slug: string): Promise<string> {
+    const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));
+    if (row === undefined) throw new Error(`the seed has no ${slug} brand`);
+    return row.id;
+  }
+
+  it("gives an INHERITING brand the parent's own Airtable field names, in the API's order", async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const resolved = await resolveColumns(
+      db,
+      await brandId(db, 'niagara-sleep-solutions'),
+      'products',
+    );
+
+    expect(resolved.map((column) => column.displayLabel)).toEqual([
+      'Product Name / Landing Page Name',
+      'Link',
+      '(Internal) Collections',
+      'Campaigns & Offers',
+      'Angles',
+      '(Internal) Creative Design',
+      'Meta Copywriting',
+      'UGC Management',
+      'Collection Link',
+      'Email Campaigns',
+      'YouTube Copy',
+      'Concepts',
+    ]);
+    // Every link column is keyed by the table that holds the foreign key back to `products`.
+    expect(resolved.map((column) => column.columnKey)).toEqual([
+      'name',
+      'link',
+      'collections',
+      'campaigns_offers',
+      'angle_products',
+      'creative_briefs',
+      'copywriting',
+      'creator_products',
+      'collection_link',
+      'email_campaign_products',
+      'youtube_copy_products',
+      'concepts',
+    ]);
+  });
+
+  it('gives GRATSI only what the Gratsi base defines, under the names Gratsi uses', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const resolved = await resolveColumns(db, await brandId(db, 'gratsi'), 'products');
+
+    expect(resolved.map((column) => column.displayLabel)).toEqual([
+      'Product Name / Landing Page Name',
+      'Link',
+      'Angles',
+      '(Internal) Creative Design',
+      'UGC Management',
+      'Collection Link',
+      'Email Campaigns',
+      // Gratsi's base spells the YouTube link this way; the template calls it 'YouTube Copy'.
+      'Youtube Copywriting',
+      'Concepts',
+    ]);
+    // The three parent fields Gratsi's base does not have are hidden, not relabelled away.
+    for (const key of ['collections', 'campaigns_offers', 'copywriting']) {
+      expect(
+        resolved.some((column) => column.columnKey === key),
+        `Gratsi should hide ${key}, which its base has no field for`,
+      ).toBe(false);
+    }
+  });
+
+  /**
+   * The regression this whole set exists to prevent. Every column the Products page draws must be in
+   * the resolved set for a brand that configures nothing, or switching the page to the resolver would
+   * have deleted it from the grid. `updated` is the one deliberate exception, removed from every grid
+   * by docs/decisions/gratsi-display-spec-2026-10-02.md.
+   */
+  it('returns every column the Products page draws, so the page lost nothing by migrating', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const resolved = await resolveColumns(
+      db,
+      await brandId(db, 'niagara-sleep-solutions'),
+      'products',
+    );
+    const keys = new Set(resolved.map((column) => column.columnKey));
+
+    for (const drawn of [
+      'name',
+      'link',
+      'collection_link',
+      'angle_products',
+      'concepts',
+      'creative_briefs',
+      'creator_products',
+      'email_campaign_products',
+      'youtube_copy_products',
+    ]) {
+      expect(
+        keys.has(drawn),
+        `the Products grid draws ${drawn} and the resolver must return it`,
+      ).toBe(true);
+    }
   });
 });

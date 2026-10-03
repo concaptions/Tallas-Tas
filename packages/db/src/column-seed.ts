@@ -309,8 +309,15 @@ function parentRows(
  * parent edit; a child-added column has no parent row to track; a hidden row exists precisely to
  * stop following the parent. A hidden row keeps the PARENT's `display_order` so that un-hiding it
  * puts the column back where the template has it.
+ *
+ * - `relabel-platform` — a relabel of a column the PLATFORM owns. Same as `relabel` in every
+ *   respect except that it keeps `source: 'platform'`, because who owns a column is not something
+ *   relabelling it changes. Without this kind a child's relabel would write `parent` and that brand
+ *   would stop being told the platform defines the column — the same hole `sourceForWrite` closes on
+ *   the admin's write path (`apps/web/src/app/app/column-admin/fields.ts`), closed here too so the
+ *   seed and the admin cannot disagree.
  */
-type ChildKind = 'relabel' | 'custom' | 'hidden' | 'hidden-custom';
+type ChildKind = 'relabel' | 'relabel-platform' | 'custom' | 'hidden' | 'hidden-custom';
 
 type ChildColumn = readonly [
   columnKey: string,
@@ -332,9 +339,14 @@ function childRows(
     isDetached: true,
     isHidden: kind === 'hidden' || kind === 'hidden-custom',
     // A child-added column carries `custom` whether it is shown or hidden; only a row that really
-    // has a parent counterpart may claim `parent`.
+    // has a parent counterpart may claim `parent`; and a relabel of a platform column stays
+    // `platform`, since relabelling does not transfer ownership.
     source:
-      kind === 'custom' || kind === 'hidden-custom' ? ('custom' as const) : ('parent' as const),
+      kind === 'custom' || kind === 'hidden-custom'
+        ? ('custom' as const)
+        : kind === 'relabel-platform'
+          ? ('platform' as const)
+          : ('parent' as const),
     fieldType,
   }));
 }
@@ -772,12 +784,105 @@ const COLLECTIONS_GRATSI = childRows('collections', [
 ]);
 
 /**
- * `(Internal) Product` `tblfvfJMYNBz2OYYw` — 8 fields, SIX of them reverse links owned by the other
- * table. Only two seed. `products.collection_link` is a stored column neither base has a field for.
+ * `(Internal) Product` `tblfvfJMYNBz2OYYw` — all 8 fields, in the Airtable Meta API's own order
+ * (read live from both bases on 2026-10-03).
+ *
+ * SIX of the eight are record links whose stored side is the other table's foreign key, and an
+ * earlier pass seeded only the two scalars because that is the right answer for IMPORT parity: there
+ * is no column on `products` to write them to. It is the wrong answer for a DISPLAY set, which is
+ * what `column_definitions` is — the Products page shows all six today, as counts and name lists, so
+ * leaving them unseeded would have deleted six columns from the page the moment it started reading
+ * the resolver. Drop nothing.
+ *
+ * Their keys name the table that holds the foreign key BACK to products, which is the rule
+ * `column-seed.test.ts` already enforces against `information_schema` ("a real Postgres column or a
+ * junction OF ITS OWN TABLE") — wider than a pure junction, and deliberately so, because the reverse
+ * side of a one-to-many is the same shape. All six were checked against production's foreign keys
+ * before being written here; see `docs/decisions/column-key-relations-2026-10-03.md`.
  */
 const PRODUCTS_PARENT = parentRows('products', [
   ['name', 'Product Name / Landing Page Name', 1, 'multilineText'],
   ['link', 'Link', 2, 'url'],
+  ['collections', '(Internal) Collections', 3, 'multipleRecordLinks'],
+  ['campaigns_offers', 'Campaigns & Offers', 4, 'multipleRecordLinks'],
+  ['angle_products', 'Angles', 5, 'multipleRecordLinks'],
+  ['creative_briefs', '(Internal) Creative Design', 6, 'multipleRecordLinks'],
+  ['copywriting', 'Meta Copywriting', 7, 'multipleRecordLinks'],
+  ['creator_products', 'UGC Management', 8, 'multipleRecordLinks'],
+]);
+
+/**
+ * Products' PLATFORM columns: displayed by the page, backed by real data, and with no Airtable field
+ * on `(Internal) Product` in EITHER base. Verified field by field against the live Meta API, not
+ * inferred from a document — the parent has 8 fields and Gratsi 11, and none of them is any of
+ * these.
+ *
+ * - `collection_link` is a stored `text` column with 2 of 9 live products populated in production.
+ *   `airtable-import.ts:837` reads `f['Collection Link']` for it, a field neither base defines, so
+ *   the column can never be written by an import; that is filed as its own defect. The column and
+ *   its data exist regardless, and the page renders them as "Collection link".
+ * - `email_campaign_products` and `youtube_copy_products` are junctions the app maintains and
+ *   indexes for the page's counts. Neither base has an Email Campaigns link on this table (Gratsi's
+ *   two `Email Campaigns Management copy` fields are `singleLineText`, not links), and only Gratsi
+ *   has a `Youtube Copywriting` link. Seeding them on the PARENT is what keeps an inheriting brand
+ *   from losing two columns it shows today; Gratsi relabels the YouTube one to its own wording below.
+ * - `concepts` is the page's concept count, two hops away
+ *   (`products → angle_products → angles → concepts`) and computed on read at
+ *   `packages/db/src/products.ts:89`. `concepts` carries no foreign key back to `products`, so it is
+ *   named in the gate's documented exemption list beside the two existing inferred chains rather
+ *   than being quietly admitted. Whether a two-hop derived count belongs in a configurable column
+ *   set at all is a question for the owner; until it is answered the column is kept, because the
+ *   page shows it.
+ */
+const PRODUCTS_PLATFORM: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'products',
+    columnKey: 'collection_link',
+    displayLabel: 'Collection Link',
+    displayOrder: 9,
+    fieldType: 'url',
+    source: 'platform',
+  },
+  {
+    tableKey: 'products',
+    columnKey: 'email_campaign_products',
+    displayLabel: 'Email Campaigns',
+    displayOrder: 10,
+    fieldType: 'multipleRecordLinks',
+    source: 'platform',
+  },
+  {
+    tableKey: 'products',
+    columnKey: 'youtube_copy_products',
+    displayLabel: 'YouTube Copy',
+    displayOrder: 11,
+    fieldType: 'multipleRecordLinks',
+    source: 'platform',
+  },
+  {
+    tableKey: 'products',
+    columnKey: 'concepts',
+    displayLabel: 'Concepts',
+    displayOrder: 12,
+    fieldType: 'count',
+    source: 'platform',
+  },
+];
+
+/**
+ * Gratsi's `(Internal) Product` — 11 fields, and it renames NOTHING (audit §10). Its `Angles`,
+ * `(Internal) Creative Design` and `UGC Management` carry the parent's own names, so Gratsi inherits
+ * those three and holds no row for them.
+ *
+ * What it does hold: the three parent fields Gratsi's base does NOT have, hidden so the page shows
+ * Gratsi only what Gratsi defines; and one relabel, because Gratsi's base spells the YouTube link
+ * `Youtube Copywriting` where the platform row above calls it `YouTube Copy`.
+ */
+const PRODUCTS_GRATSI = childRows('products', [
+  ['youtube_copy_products', 'Youtube Copywriting', 11, 'relabel-platform', 'multipleRecordLinks'],
+  ['collections', '(Internal) Collections', 100, 'hidden', 'multipleRecordLinks'],
+  ['campaigns_offers', 'Campaigns & Offers', 101, 'hidden', 'multipleRecordLinks'],
+  ['copywriting', 'Meta Copywriting', 102, 'hidden', 'multipleRecordLinks'],
 ]);
 
 /** `Campaigns & Offers` `tblRNaWCVa1cCIwLL` — 14 fields; the `Name` formula and 2 links skipped. */
@@ -955,6 +1060,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...AI_CHARACTERS_PARENT,
       ...COLLECTIONS_PARENT,
       ...PRODUCTS_PARENT,
+      ...PRODUCTS_PLATFORM,
       ...CAMPAIGNS_OFFERS_PARENT,
       ...CREATIVE_DIMENSIONS_PARENT,
       ...COMPETITIVE_RESEARCH_PARENT,
@@ -974,6 +1080,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CREATORS_GRATSI,
       ...AI_CHARACTERS_GRATSI,
       ...COLLECTIONS_GRATSI,
+      ...PRODUCTS_GRATSI,
       ...CAMPAIGNS_OFFERS_GRATSI,
       ...YOUTUBE_COPY_GRATSI,
       ...EMAIL_CAMPAIGNS_GRATSI,

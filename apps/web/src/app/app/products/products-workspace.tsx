@@ -15,7 +15,12 @@ import {
 } from '@tas/ui';
 
 import { GalleryView, galleryItemsFrom, useTableView, ViewToolbar } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { CountCell, TextCell } from '@/components/views/grid-cells';
@@ -57,6 +62,14 @@ export interface ProductItem {
 
 interface ProductsWorkspaceProps {
   readonly items: readonly ProductItem[];
+  /** The brand's ordered, labelled, visible Products columns, from `loadProductColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /**
+   * True when `columns` is the parent master-set fallback because the brand resolved none of its own.
+   * Stated on the page rather than passed off as the brand's configuration — the counterpart of the
+   * `missing` notice, for the other direction.
+   */
+  readonly unconfiguredColumns?: boolean;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
@@ -120,18 +133,23 @@ function matches(item: ProductItem, query: string): boolean {
 }
 
 /**
- * The Airtable-style grid columns for Products (P2A): the frozen name column carries the propagation
- * badge; the two link columns show the host and keep the full URL in the cell title; then every
- * linked record set the panel lists, as counts, so nothing needs a row opened to be seen. The first
- * three headers are the ones the plain table used, so the page's automation contract still holds.
+ * THE Products renderer registry, keyed by the resolver's `column_key` — a Postgres column, or the
+ * table that carries the foreign key back to `products` for a link column.
+ *
+ * This replaces the hand-written `PRODUCT_COLUMNS` array, and the difference is the whole point:
+ * there is no header string and no ordering here. Labels, order and visibility arrive as data from
+ * `column_definitions`; this says only how a cell is DRAWN — the propagation badge beside the name,
+ * a host with the full URL in the cell title, a joined name list, a count with its noun.
+ *
+ * It covers every column this page can draw, not the set any one brand shows. Three parent columns
+ * are deliberately absent — `collections`, `campaigns_offers` and `copywriting`, the reverse links
+ * the parent base defines and this page has never displayed. Drawing them would mean three more
+ * whole-table reads on a page that already makes six, so they come back in `missing` and are stated
+ * on the page instead of being silently omitted. Gratsi hides all three, so only an inheriting brand
+ * sees that notice.
  */
-const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
-  {
-    key: 'name',
-    header: 'Product name',
-    frozen: true,
-    minWidth: 200,
-    sortValue: (item) => item.product.name,
+const PRODUCT_RENDERERS: ColumnRegistry<ProductItem> = {
+  name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.product.name}
@@ -141,68 +159,46 @@ const PRODUCT_COLUMNS: readonly GridColumn<ProductItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.product.name,
   },
-  {
-    key: 'link',
-    header: 'Landing page URL',
+  link: {
+    render: (item) => item.linkHost,
     sortValue: (item) => item.linkHost,
     cellTitle: (item) => item.product.link,
-    render: (item) => item.linkHost,
   },
-  {
-    key: 'collection',
-    header: 'Collection link',
-    cellTitle: (item) => item.product.collectionLink ?? undefined,
+  // A stored column with no Airtable field in either base, so a platform row
+  // (docs/decisions/column-key-relations-2026-10-03.md).
+  collection_link: {
     render: (item) => item.collectionHost ?? <span className="text-text4">{EM_DASH}</span>,
+    cellTitle: (item) => item.product.collectionLink ?? undefined,
   },
-  {
-    key: 'angles',
-    header: 'Angles',
-    sortValue: (item) => item.product.angleNames.length,
+  // The junction, by name rather than by count: the angles are few and worth reading in the row.
+  angle_products: {
     render: (item) => <TextCell value={item.product.angleNames.join(', ')} maxWidth={320} />,
+    sortValue: (item) => item.product.angleNames.length,
   },
-  {
-    key: 'concepts',
-    header: 'Concepts',
-    sortValue: (item) => item.product.conceptCount,
+  // Two hops away and computed on read; see the gate's documented exemption in column-seed.test.ts.
+  concepts: {
     render: (item) => <CountCell count={item.product.conceptCount} noun="concept" />,
+    sortValue: (item) => item.product.conceptCount,
   },
-  {
-    key: 'creativeDesigns',
-    header: 'Creative Designs',
-    sortValue: (item) => item.creativeDesigns.length,
+  creative_briefs: {
     render: (item) => <CountCell count={item.creativeDesigns.length} noun="design" />,
+    sortValue: (item) => item.creativeDesigns.length,
   },
-  {
-    key: 'creators',
-    header: 'Creators',
-    sortValue: (item) => item.creators.length,
+  creator_products: {
     render: (item) => <CountCell count={item.creators.length} noun="creator" />,
+    sortValue: (item) => item.creators.length,
   },
-  {
-    key: 'emailCampaigns',
-    header: 'Email Campaigns',
-    sortValue: (item) => item.emailCampaigns.length,
+  email_campaign_products: {
     render: (item) => <CountCell count={item.emailCampaigns.length} noun="campaign" />,
+    sortValue: (item) => item.emailCampaigns.length,
   },
-  {
-    key: 'youtubeCopy',
-    header: 'YouTube Copy',
-    sortValue: (item) => item.youtubeCopy.length,
+  youtube_copy_products: {
     render: (item) => <CountCell count={item.youtubeCopy.length} noun="copy" />,
+    sortValue: (item) => item.youtubeCopy.length,
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
-
-/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
-const FIELD_KEYS: readonly string[] = PRODUCT_COLUMNS.map((column) => column.key);
-const FIELD_OPTIONS = PRODUCT_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+};
 
 export function ProductsWorkspace({
   items,
@@ -212,10 +208,24 @@ export function ProductsWorkspace({
   templateColumns,
   userViews,
   angleOptions = [],
+  columns,
+  unconfiguredColumns = false,
 }: ProductsWorkspaceProps) {
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
+
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () => gridColumnsFrom(columns, PRODUCT_RENDERERS, { freezeFirst: true, frozenMinWidth: 200 }),
+    [columns],
+  );
+  /** Every column key the Fields popover can toggle, and its label, in resolved order (VIEWS-01). */
+  const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);
+  const fieldOptions = useMemo(
+    () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
+    [grid],
+  );
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -240,7 +250,7 @@ export function ProductsWorkspace({
     initialViews: userViews.views,
     defaultViewType: 'grid',
     initialViewType: null,
-    fieldKeys: FIELD_KEYS,
+    fieldKeys,
     onActivate: adoptView,
   });
   const activeView = tableView.viewType;
@@ -274,12 +284,12 @@ export function ProductsWorkspace({
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, PRODUCT_COLUMNS, (item) => ({
+      galleryItemsFrom(visible, grid.columns, (item) => ({
         id: item.product.id,
         name: item.product.name,
         subtitle: item.linkHost,
       })),
-    [visible],
+    [visible, grid],
   );
 
   const openItem = items.find((item) => item.product.id === selection) ?? null;
@@ -360,7 +370,7 @@ export function ProductsWorkspace({
               onCreateView={tableView.createView}
               onRenameView={tableView.renameView}
               onDeleteView={tableView.deleteView}
-              fields={FIELD_OPTIONS}
+              fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
               error={tableView.error}
@@ -379,6 +389,37 @@ export function ProductsWorkspace({
           />
         </div>
 
+        {/* The brand resolved no columns of its own, so the parent master set is standing in. Said
+
+            out loud rather than passed off as this brand's configuration. */}
+
+        {unconfiguredColumns ? (
+          <p
+            data-slot="product-unconfigured-columns"
+
+            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
+          >
+            This brand has no column configuration yet, so the template's master set is shown. Use
+            Column Admin to give it its own labels and order.
+          </p>
+        ) : null}
+
+        {/* A column an admin configured that this page cannot draw is stated, not swallowed: a
+
+            silent omission would make the page quietly lie about the brand's configuration. */}
+
+        {grid.missing.length > 0 ? (
+          <p
+            data-slot="product-missing-columns"
+
+            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
+          >
+            Configured for this brand but not drawn here:{' '}
+            <span className="font-mono">{grid.missing.join(', ')}</span>. Add an entry to
+            PRODUCT_RENDERERS in products-workspace.tsx.
+          </p>
+        ) : null}
+
         {activeView === 'gallery' ? (
           <GalleryView
             items={galleryItems}
@@ -394,7 +435,7 @@ export function ProductsWorkspace({
             tableKey="products"
             view={tableView.config}
             onSortChange={tableView.setSort}
-            columns={PRODUCT_COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={(item) => item.product.id}
             rowLabel={(item) => item.product.name}

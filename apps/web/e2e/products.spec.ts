@@ -25,18 +25,36 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="product-row"]')).toHaveCount(3);
     await expect(page.locator('[data-slot="product-count"]')).toContainText('3 products');
 
+    /*
+     * The headers are now the RESOLVER's labels, from `column_definitions`, not strings in
+     * products-workspace.tsx — which is what makes a relabel a data edit. Demo mode's brand is
+     * `DEMO_BRAND_ID` (Niagara), which owns no rows of its own, so it inherits the template's
+     * labels: these are the parent base's own Airtable field names, read live from
+     * `appnaSGAgOUbJ0f9m` on 2026-10-03 and seeded in that order.
+     *
+     * Two differences from the hand-written array this replaced, both deliberate:
+     *   - `Updated` is gone from every grid (docs/decisions/gratsi-display-spec-2026-10-02.md).
+     *   - `collections`, `campaigns_offers` and `copywriting` are configured for the template but
+     *     this page draws none of them, so they are absent here and named in the missing-columns
+     *     notice asserted below instead.
+     * Gratsi's own labels are a per-brand database fact and are asserted against PGlite in
+     * packages/db/src/column-seed.test.ts.
+     */
     await expect(page.locator('[data-slot="products-table"] thead th')).toHaveText([
-      'Product name',
-      'Landing page URL',
-      'Collection link',
+      'Product Name / Landing Page Name',
+      'Link',
       'Angles',
-      'Concepts',
-      'Creative Designs',
-      'Creators',
+      '(Internal) Creative Design',
+      'UGC Management',
+      'Collection Link',
       'Email Campaigns',
       'YouTube Copy',
-      'Updated',
+      'Concepts',
     ]);
+    // The three template columns this page cannot draw are stated, never silently omitted.
+    await expect(page.locator('[data-slot="product-missing-columns"]')).toContainText(
+      'collections, campaigns_offers, copywriting',
+    );
     // The name column is frozen so it stays put while the rest scroll horizontally.
     await expect(page.locator('[data-slot="products-table"] thead th').first()).toHaveCSS(
       'position',
@@ -45,12 +63,15 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
 
     // The landing page shows its host, with the full URL in the cell's title.
     const first = page.locator('[data-slot="product-row"]').first();
-    await expect(first.locator('td').nth(1)).toHaveText('niagarasleep.example');
-    await expect(first.locator('td').nth(1)).toHaveAttribute('title', /^https:\/\/niagarasleep/);
+    await expect(first.locator('td[data-column="link"]')).toHaveText('niagarasleep.example');
+    await expect(first.locator('td[data-column="link"]')).toHaveAttribute(
+      'title',
+      /^https:\/\/niagarasleep/,
+    );
 
     // The sleep mask has no collection link, so its cell is the em dash, never an empty cell.
     const mask = page.locator('[data-product-id="22222222-2222-4222-8222-000000000002"]');
-    await expect(mask.locator('td').nth(2)).toHaveText('—');
+    await expect(mask.locator('td[data-column="collection_link"]')).toHaveText('—');
   });
 
   test('a row opens the panel, the URL carries it, a reload reopens it and Escape closes it', async ({
