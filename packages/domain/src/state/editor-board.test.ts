@@ -8,6 +8,7 @@ import {
 import {
   canStartBrief,
   EDITOR_STAGE_KEYS,
+  EDITOR_STAGES,
   editorStageLabel,
   editorStageOf,
   editorStageTone,
@@ -29,7 +30,7 @@ describe('editor board stages', () => {
     expect(editorStageOf('nonsense')).toBeNull();
   });
 
-  it('reads Incoming → Under Editing → Under Review the way the mapping states', () => {
+  it('reads the three stages in order, by key, the way the mapping states', () => {
     expect(editorStageOf('sent_to_video_editor')).toBe('incoming');
     expect(editorStageOf('sent_to_designer')).toBe('incoming');
     expect(editorStageOf('video_editing_in_progress')).toBe('under_editing');
@@ -39,12 +40,30 @@ describe('editor board stages', () => {
     expect(editorStageOf('ad_submitted')).toBe('under_review');
     expect(editorStageOf('revisions_submitted')).toBe('under_review');
     expect(EDITOR_STAGE_KEYS).toEqual(['incoming', 'under_editing', 'under_review']);
-    expect(editorStageLabel('under_review')).toBe('Under Review');
     expect(editorStageTone('incoming')).toBe('info');
     expect(editorStageTone(null)).toBe('mute');
   });
 
-  it('Start acts on Incoming only and lands on the track step the state machine allows', () => {
+  /**
+   * AI-59. The wording an editor reads changed and the stored value did not: the heading says
+   * "Sent to Editor/Designer", the key stays `incoming` because it is the Kanban group value, the
+   * `?group=editorStage` URL value and the `data-stage` attribute. Both halves are asserted here
+   * so a future rename cannot quietly take the key with it.
+   */
+  it('labels the first stage "Sent to Editor/Designer" while its key stays incoming', () => {
+    expect(editorStageLabel('incoming')).toBe('Sent to Editor/Designer');
+    expect(editorStageLabel('under_editing')).toBe('Under Editing');
+    expect(editorStageLabel('under_review')).toBe('Under Review');
+    expect(EDITOR_STAGES[0].key).toBe('incoming');
+    expect(editorStageOf('sent_to_video_editor')).toBe('incoming');
+    expect(editorStageOf('sent_to_designer')).toBe('incoming');
+    // No label is a status key, and no key is a label: the two vocabularies never cross.
+    for (const stage of EDITOR_STAGES) {
+      expect(stage.label).not.toBe(stage.key);
+    }
+  });
+
+  it('Start acts on the incoming stage only and lands on the step the state machine allows', () => {
     expect(canStartBrief('sent_to_video_editor')).toBe(true);
     expect(canStartBrief('video_editing_in_progress')).toBe(false);
     expect(startedStatusFor('video')).toBe('video_editing_in_progress');
