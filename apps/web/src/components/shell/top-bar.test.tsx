@@ -24,7 +24,12 @@ function mounts(node: unknown, component: unknown): boolean {
   return [...elements(node)].some((element) => element.type === component);
 }
 
-const BRAND = { id: '11111111-1111-4111-8111-000000000001', name: 'Niagara', status: 'active' };
+const BRAND = {
+  id: '11111111-1111-4111-8111-000000000001',
+  name: 'Niagara',
+  status: 'active',
+  isTemplate: false,
+};
 const SCOPE = { active: BRAND, options: [BRAND] };
 
 describe('TopBar', () => {

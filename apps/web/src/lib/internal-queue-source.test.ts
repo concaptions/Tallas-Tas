@@ -75,7 +75,13 @@ describe('loadInternalQueue in live mode', () => {
       demoMode: () => false,
       briefs: () => Promise.resolve({ rows, source: 'database' as const }),
       actor: () => Promise.resolve({ fullName: 'Imogen Bardsley' }),
-      brand: () => Promise.resolve({ id: DEMO_BRAND_ID, name: 'Live Brand', status: 'active' }),
+      brand: () =>
+        Promise.resolve({
+          id: DEMO_BRAND_ID,
+          name: 'Live Brand',
+          status: 'active',
+          isTemplate: false,
+        }),
     });
 
     expect(result.source).toBe('database');
@@ -96,9 +102,14 @@ describe('queueBrandOptions', () => {
   }
 
   it('is empty for an empty board rather than offering a brand with nothing behind it', () => {
-    expect(queueBrandOptions([], { id: DEMO_BRAND_ID, name: 'Niagara', status: 'active' })).toEqual(
-      [],
-    );
+    expect(
+      queueBrandOptions([], {
+        id: DEMO_BRAND_ID,
+        name: 'Niagara',
+        status: 'active',
+        isTemplate: false,
+      }),
+    ).toEqual([]);
   });
 
   it('counts each brand and keeps first-seen order', () => {
@@ -114,6 +125,7 @@ describe('queueBrandOptions', () => {
     const options = queueBrandOptions([row(DEMO_BRAND_ID), row('other')], {
       id: DEMO_BRAND_ID,
       name: 'Niagara Sleep Solutions',
+      isTemplate: false,
       status: 'active',
     });
 

@@ -89,7 +89,15 @@ export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps
                   )}
                   <span className="truncate">{brand.name}</span>
                 </span>
-                <StatusChip tone="ok" label={brand.status} />
+                {/*
+                 * The parent template reads as what it is, never as another client brand: working
+                 * in it means edits propagate to every child (CLAUDE.md non-negotiable 1), and only
+                 * an agency admin is offered it at all (`agencyBrands` in `lib/data-source.ts`).
+                 */}
+                <StatusChip
+                  tone={brand.isTemplate ? 'accent' : 'ok'}
+                  label={brand.isTemplate ? 'template' : brand.status}
+                />
               </span>
             );
 

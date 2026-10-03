@@ -94,6 +94,7 @@ describe('resolveLiveBrand scoped to the actor', () => {
       id: 'brand-a',
       name: 'Brand brand-a',
       status: 'active',
+      isTemplate: false,
     });
   });
 
@@ -188,6 +189,90 @@ describe('resolveLiveBrand with an actor scope', () => {
     const db = fakeDb({ agencies: [agencyA, agencyB], brands: [brandOfA] });
 
     await expect(resolveLiveBrand(db, { actorScope: asOrg('org-b') })).resolves.toBeNull();
+  });
+});
+
+/**
+ * The parent template in the switcher, which is a ROLE question and nothing else.
+ *
+ * `agencyBrands` excludes the template from every brand list, because that one list is also the
+ * entitlement list for `selectBrandAction` and the input to `pickActiveBrand` that ~20 per-brand
+ * sources read AND write through — so admitting the parent for everyone would let any member point
+ * the whole workspace at it and have each create propagate into every child. Authoring the parent
+ * IS the admin's job, though, so an admin gets it as a last option. These tests hold both halves:
+ * the same fixtures, the same database, one actor who may and one who may not.
+ */
+describe('the parent template is offered to an agency admin alone', () => {
+  const adminRows = {
+    agencies: [agencyA],
+    brands: [brandOfA, templateOfA],
+    users: [{ id: 'user-1', clerkUserId: 'clerk-1', deletedAt: null }],
+    memberships: [{ userId: 'user-1', agencyId: 'agency-a', role: 'admin', deletedAt: null }],
+  };
+  const memberRows = {
+    ...adminRows,
+    memberships: [{ ...adminRows.memberships[0], role: 'member' }],
+  };
+  const asAdmin = (): Promise<ActorScope> =>
+    Promise.resolve({ clerkOrgId: 'org-a', clerkUserId: 'clerk-1' });
+
+  it('lists it LAST for an admin, so the default working brand does not change', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+    const scope = await loadBrandScope({
+      demoMode: () => false,
+      connect: () => ({ db: fakeDb(adminRows), close: () => Promise.resolve() }),
+      actorScope: asAdmin,
+      activeBrandId: () => Promise.resolve(null),
+    });
+
+    expect(scope.options.map((option) => option.id)).toEqual(['brand-a', 'template-a']);
+    expect(scope.options.at(-1)?.isTemplate).toBe(true);
+    // The default is still the client brand: the template is reachable, never preselected.
+    expect(scope.active?.id).toBe('brand-a');
+  });
+
+  it('does not list it for a member of the same agency', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+    const scope = await loadBrandScope({
+      demoMode: () => false,
+      connect: () => ({ db: fakeDb(memberRows), close: () => Promise.resolve() }),
+      actorScope: asAdmin,
+      activeBrandId: () => Promise.resolve(null),
+    });
+
+    expect(scope.options.map((option) => option.id)).toEqual(['brand-a']);
+  });
+
+  it('lets an admin select it, and scopes the request to it', async () => {
+    const deps = {
+      actorScope: asAdmin,
+      activeBrandId: () => Promise.resolve('template-a'),
+    };
+    const db = fakeDb(adminRows);
+
+    await expect(isBrandSelectable(db, 'template-a', deps)).resolves.toBe(true);
+    await expect(resolveLiveBrandId(db, deps)).resolves.toBe('template-a');
+  });
+
+  /**
+   * The entitlement half. A member who sends the template's id — a stale cookie, or a forged
+   * request — is refused it and falls back to their own brand, exactly as for another tenant's id.
+   */
+  it('refuses the same id for a member, and falls back to their own brand', async () => {
+    const deps = {
+      actorScope: asAdmin,
+      activeBrandId: () => Promise.resolve('template-a'),
+    };
+    const db = fakeDb(memberRows);
+
+    await expect(isBrandSelectable(db, 'template-a', deps)).resolves.toBe(false);
+    await expect(resolveLiveBrandId(db, deps)).resolves.toBe('brand-a');
+  });
+
+  it('offers nothing extra when the actor has no membership row to carry a role', async () => {
+    const db = fakeDb({ ...adminRows, memberships: [] });
+
+    await expect(isBrandSelectable(db, 'template-a', { actorScope: asAdmin })).resolves.toBe(false);
   });
 });
 
@@ -391,7 +476,12 @@ describe('resolveLiveBrand honouring the active-brand cookie', () => {
 
     await expect(
       resolveLiveBrand(db, { actorScope: asOrg('org-a'), activeBrandId: requesting('brand-a2') }),
-    ).resolves.toEqual({ id: 'brand-a2', name: 'Brand brand-a2', status: 'active' });
+    ).resolves.toEqual({
+      id: 'brand-a2',
+      name: 'Brand brand-a2',
+      status: 'active',
+      isTemplate: false,
+    });
   });
 
   it('ignores a cookie that points at another agency’s brand and stays on its own first brand', async () => {

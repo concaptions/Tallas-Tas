@@ -51,6 +51,8 @@ export interface BrandSummary {
   readonly id: string;
   readonly name: string;
   readonly status: string;
+  /** The parent template base. Only an agency admin is ever offered it (see `agencyBrands`). */
+  readonly isTemplate: boolean;
 }
 
 export interface SectionCounts {
@@ -127,6 +129,10 @@ const DEMO_BRAND: BrandSummary = {
   id: DEMO_BRAND_ID,
   name: 'Niagara Sleep Solutions',
   status: 'active',
+  // Niagara is a CHILD base, and demo mode has no session to carry an agency role, so the parent
+  // template is never offered here. It is also why the demo-mode specs assert Niagara's INHERITED
+  // column labels: with no rows of its own it resolves to the template's (see personas-source).
+  isTemplate: false,
 };
 
 const EMPTY_COUNTS: SectionCounts = { personas: 0, angles: 0, themes: 0, concepts: 0 };
@@ -280,7 +286,11 @@ async function computeScope(db: Db, deps: BrandResolverDeps): Promise<ResolvedSc
   if (agencyId === null) {
     return { agencyId: null, options: [], active: null };
   }
-  const options = agencyBrands(await db.select().from(brands), agencyId);
+  const rows = await db.select().from(brands);
+  const options = [
+    ...agencyBrands(rows, agencyId),
+    ...(await templateOptionFor(db, deps, rows, agencyId)),
+  ];
   const requestedId = await (deps.activeBrandId ?? readActiveBrandId)();
   return { agencyId, options, active: pickActiveBrand(options, requestedId) };
 }
@@ -304,7 +314,7 @@ interface BrandRowLike {
 }
 
 function toBrandSummary(row: BrandRowLike): BrandSummary {
-  return { id: row.id, name: row.name, status: row.status };
+  return { id: row.id, name: row.name, status: row.status, isTemplate: row.isTemplate };
 }
 
 /**
@@ -317,11 +327,60 @@ function toBrandSummary(row: BrandRowLike): BrandSummary {
  * input to `pickActiveBrand`, which ~20 per-brand sources use for reads AND writes. Admitting the
  * template here would let any signed-in agency member scope the whole workspace to the parent base
  * and have every create land in `PROPAGATION_TABLES` rows that `propagateTemplateRow` then copies
- * into every child. `/app/column-admin` reaches the parent column set without this list — it builds
- * its own base list from `resolveTemplateBrandId` + `listChildBrands` — so nothing needs it.
+ * into every child.
+ *
+ * An AGENCY ADMIN is the exception, and `templateOptionFor` below is the only thing that adds it:
+ * authoring the parent base is the admin's job (CLAUDE.md non-negotiables 1 and 2 — a structural
+ * change in the parent lands in every child, and only an admin approves a promotion), so the
+ * template has to be reachable from the switcher for them. The gate is the ROLE, not a second list:
+ * the template joins `options` itself, so read scope, `pickActiveBrand` and `isBrandSelectable`
+ * cannot drift from each other — exactly the property this function exists to hold. It is appended
+ * LAST so no agency's default working brand changes.
  */
 function agencyBrands(rows: readonly BrandRowLike[], agencyId: string): BrandRowLike[] {
   return rows.filter((row) => isLive(row) && !row.isTemplate && row.agencyId === agencyId);
+}
+
+/** The agency's live parent template, or null when it has none yet. */
+function agencyTemplate(rows: readonly BrandRowLike[], agencyId: string): BrandRowLike | null {
+  return rows.find((row) => isLive(row) && row.isTemplate && row.agencyId === agencyId) ?? null;
+}
+
+/**
+ * Whether the actor is an ADMIN of `agencyId`, read from `memberships` — the same column
+ * `canSeePropagationPage` reads through `currentTeamActor`, so "admin" has one meaning across the
+ * app. Resolved from the SESSION's Clerk user, never from anything the client sends.
+ *
+ * An actor with a Clerk org but no membership row is not an admin: the role lives on the
+ * membership, so absence of the row is absence of the role rather than a reason to assume one.
+ */
+async function actorIsAgencyAdmin(
+  db: Db,
+  deps: BrandResolverDeps,
+  agencyId: string,
+): Promise<boolean> {
+  const scope = await (deps.actorScope ?? clerkActorScope)();
+  if (scope.clerkUserId === null) return false;
+  const user = (await db.select().from(users))
+    .filter(isLive)
+    .find((row) => row.clerkUserId === scope.clerkUserId);
+  if (user === undefined) return false;
+  const membership = (await db.select().from(memberships))
+    .filter(isLive)
+    .find((row) => row.userId === user.id && row.agencyId === agencyId);
+  return membership?.role === 'admin';
+}
+
+/** The template, but only for an admin — the one place the parent base enters a brand list. */
+async function templateOptionFor(
+  db: Db,
+  deps: BrandResolverDeps,
+  rows: readonly BrandRowLike[],
+  agencyId: string,
+): Promise<readonly BrandRowLike[]> {
+  const template = agencyTemplate(rows, agencyId);
+  if (template === null) return [];
+  return (await actorIsAgencyAdmin(db, deps, agencyId)) ? [template] : [];
 }
 
 /**

@@ -31,4 +31,16 @@ describe('brand-switcher.tsx', () => {
     expect(code).toMatch(/startTransition\(/);
     expect(code).toMatch(/selectBrandAction\(brand\.id\)/);
   });
+
+  /**
+   * The parent template is offered to an agency admin (`agencyBrands`, `lib/data-source.ts`), and
+   * selecting it means every create propagates into every child (CLAUDE.md non-negotiable 1), so it
+   * must never read as just another client brand. The label comes off `isTemplate`, not off the
+   * brand's status, and the tone differs — asserted at source level for the same reason as the rest
+   * of this file: there is no renderer here to open a Radix menu with.
+   */
+  it('marks the parent template instead of showing it a status, so it cannot pass for a brand', () => {
+    expect(code).toMatch(/brand\.isTemplate \? 'template' : brand\.status/);
+    expect(code).toMatch(/tone=\{brand\.isTemplate \? 'accent' : 'ok'\}/);
+  });
 });
