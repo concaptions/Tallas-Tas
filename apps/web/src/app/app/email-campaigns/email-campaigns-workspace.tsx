@@ -18,8 +18,19 @@ import {
   StatusChip,
 } from '@tas/ui';
 
-import { KanbanBoard, TimelineView, ViewSwitcher, type KanbanItem } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import {
+  ColumnNotices,
+  KanbanBoard,
+  TimelineView,
+  ViewSwitcher,
+  type KanbanItem,
+} from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { moveEmailCampaignAction } from './actions';
 import {
@@ -54,6 +65,10 @@ import {
 export type { EmailCampaignItem };
 
 interface EmailCampaignsWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadEmailCampaignColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly EmailCampaignItem[];
   readonly campaignOptions: readonly EmailCampaignLinkOption[];
   readonly productOptions: readonly EmailCampaignLinkOption[];
@@ -97,17 +112,14 @@ function Choice({ view }: { view: ChoiceOption | null }) {
 }
 
 /**
- * The grid columns: the frozen name carries the propagation badge; Status, Type and Channel are the
- * shared chip; every date is mono; the two due dates are the base's formulas and say so in their
- * cell title; the two links show their host and keep the full URL in the title.
+ * THE Email Campaigns renderer registry, keyed by the resolver's `column_key`.
+ *
+ * `design_due_date` and `copywriting_due_date` are VIRTUAL — the send date minus 5 and minus 10
+ * days, formulas with no Postgres column behind either, and the copywriting one calls the design one
+ * so the chain cannot drift. Each keeps the cell title that says where its number comes from.
  */
-const COLUMNS: readonly GridColumn<EmailCampaignItem>[] = [
-  {
-    key: 'name',
-    header: 'Name',
-    frozen: true,
-    minWidth: 220,
-    sortValue: (item) => item.row.name,
+const EMAIL_CAMPAIGN_RENDERERS: ColumnRegistry<EmailCampaignItem> = {
+  name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.row.name}
@@ -117,67 +129,47 @@ const COLUMNS: readonly GridColumn<EmailCampaignItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.row.name,
   },
-  {
-    key: 'status',
-    header: 'Status',
-    sortValue: (item) => statusView(item.row.status)?.label ?? null,
+  status: {
     render: (item) => <Choice view={statusView(item.row.status)} />,
+    sortValue: (item) => statusView(item.row.status)?.label ?? null,
   },
-  {
-    key: 'type',
-    header: 'Type',
-    sortValue: (item) => typeView(item.row.type)?.label ?? null,
+  type: {
     render: (item) => <Choice view={typeView(item.row.type)} />,
+    sortValue: (item) => typeView(item.row.type)?.label ?? null,
   },
-  {
-    key: 'channel',
-    header: 'Channel',
-    sortValue: (item) => channelView(item.row.channel)?.label ?? null,
+  channel: {
     render: (item) => <Choice view={channelView(item.row.channel)} />,
+    sortValue: (item) => channelView(item.row.channel)?.label ?? null,
   },
-  {
-    key: 'sendDate',
-    header: 'Send date',
-    sortValue: (item) => item.row.sendDate,
+  send_date: {
     render: (item) => <MonoDate value={item.row.sendDate} />,
+    sortValue: (item) => item.row.sendDate,
   },
-  {
-    key: 'designDueDate',
-    header: 'Design due',
+  design_due_date: {
+    render: (item) => <MonoDate value={item.row.designDueDate} />,
     sortValue: (item) => item.row.designDueDate,
     cellTitle: () => 'Send date − 5 days (formula, read-only)',
-    render: (item) => <MonoDate value={item.row.designDueDate} />,
   },
-  {
-    key: 'copywritingDueDate',
-    header: 'Copywriting due',
+  copywriting_due_date: {
+    render: (item) => <MonoDate value={item.row.copywritingDueDate} />,
     sortValue: (item) => item.row.copywritingDueDate,
     cellTitle: () => 'Send date − 10 days (formula, read-only)',
-    render: (item) => <MonoDate value={item.row.copywritingDueDate} />,
   },
-  {
-    key: 'assignee',
-    header: 'Assignee',
-    sortValue: (item) => item.row.assigneeName,
+  assignee_id: {
     render: (item) => item.row.assigneeName ?? <Dash />,
+    sortValue: (item) => item.row.assigneeName,
   },
-  {
-    key: 'klaviyoLink',
-    header: 'Klaviyo',
-    cellTitle: (item) => item.row.klaviyoLink ?? undefined,
+  klaviyo_link: {
     render: (item) => item.klaviyoHost ?? <Dash />,
+    cellTitle: (item) => item.row.klaviyoLink ?? undefined,
   },
-  {
-    key: 'copyLink',
-    header: 'Copy link',
-    cellTitle: (item) => item.row.copyLink ?? undefined,
+  copy_link: {
     render: (item) => item.copyHost ?? <Dash />,
+    cellTitle: (item) => item.row.copyLink ?? undefined,
   },
-  {
-    key: 'campaigns',
-    header: 'Campaigns & Offers',
-    sortValue: (item) => item.row.campaignOfferNames.join(', '),
+  email_campaign_campaigns: {
     render: (item) =>
       item.row.campaignOfferNames.length === 0 ? (
         <Dash />
@@ -188,15 +180,9 @@ const COLUMNS: readonly GridColumn<EmailCampaignItem>[] = [
           ))}
         </span>
       ),
+    sortValue: (item) => item.row.campaignOfferNames.join(', '),
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 export function EmailCampaignsWorkspace({
   items,
@@ -209,7 +195,18 @@ export function EmailCampaignsWorkspace({
   initialSearch,
   initialView = 'grid',
   initialGroupField = 'status',
+  columns,
+  unconfiguredColumns = false,
 }: EmailCampaignsWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, EMAIL_CAMPAIGN_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 220,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -363,6 +360,12 @@ export function EmailCampaignsWorkspace({
               data-slot="email-campaign-search"
               className="h-8 w-full sm:w-72"
             />
+            <ColumnNotices
+              slotPrefix="email-campaign"
+              unconfigured={unconfiguredColumns}
+              missing={grid.missing}
+              registryName="EMAIL_CAMPAIGN_RENDERERS in email-campaigns-workspace.tsx"
+            />
             {activeView === 'kanban' ? (
               <Select
                 value={groupField}
@@ -417,7 +420,7 @@ export function EmailCampaignsWorkspace({
         ) : (
           <AirtableGrid
             tableKey={CAP.tableKey}
-            columns={COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={(item) => item.row.id}
             rowLabel={(item) => item.row.name}

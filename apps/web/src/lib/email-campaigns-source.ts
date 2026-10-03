@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the Email Campaigns route gets its rows (Airtable "Email Campaigns Management", audit
@@ -75,6 +76,22 @@ function inDemoMode(deps: EmailCampaignSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const EMAIL_CAMPAIGNS_TABLE_KEY = 'email_campaigns';
+
+/**
+ * THE ordered, labelled, visible Email Campaigns columns of the working brand, through the ONE
+ * loader every resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadEmailCampaignColumns(
+  deps: EmailCampaignSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(EMAIL_CAMPAIGNS_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

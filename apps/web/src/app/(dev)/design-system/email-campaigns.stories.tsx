@@ -14,6 +14,7 @@ import {
   toEmailCampaignItem,
   TYPE_OPTIONS,
 } from '@/app/app/email-campaigns/fields';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
  * The Email Campaigns module on the design-system page (CLAUDE.md UI governance rule 4): the
@@ -36,6 +37,7 @@ const ASSIGNEE_OPTIONS = demoTeam.map(({ clerkUserId, fullName }) => ({
 function workspace(view: 'grid' | 'kanban' | 'timeline') {
   return (
     <EmailCampaignsWorkspace
+      columns={parentColumnsFor('email_campaigns')}
       items={ITEMS}
       campaignOptions={CAMPAIGN_OPTIONS}
       productOptions={PRODUCT_OPTIONS}

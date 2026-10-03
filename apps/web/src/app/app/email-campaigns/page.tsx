@@ -3,7 +3,7 @@ import { getTableCapability, type ViewType } from '@tas/domain';
 import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadCollections } from '@/lib/collections-source';
 import { isDemoMode } from '@/lib/demo-mode';
-import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
+import { loadEmailCampaignColumns, loadEmailCampaigns } from '@/lib/email-campaigns-source';
 import { loadProducts } from '@/lib/products-source';
 import { loadTeam } from '@/lib/team-source';
 
@@ -32,16 +32,23 @@ interface EmailCampaignsPageProps {
 const CAP = getTableCapability('email-campaigns');
 
 export default async function EmailCampaignsPage({ searchParams }: EmailCampaignsPageProps) {
-  const [{ rows }, campaignRows, productRows, collectionRows, teamRows, params] = await Promise.all(
-    [
-      loadEmailCampaigns(),
-      loadCampaigns(),
-      loadProducts(),
-      loadCollections(),
-      loadTeam(),
-      searchParams,
-    ],
-  );
+  const [
+    { rows },
+    { columns, unconfigured: unconfiguredColumns },
+    campaignRows,
+    productRows,
+    collectionRows,
+    teamRows,
+    params,
+  ] = await Promise.all([
+    loadEmailCampaigns(),
+    loadEmailCampaignColumns(),
+    loadCampaigns(),
+    loadProducts(),
+    loadCollections(),
+    loadTeam(),
+    searchParams,
+  ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -77,6 +84,8 @@ export default async function EmailCampaignsPage({ searchParams }: EmailCampaign
 
   return (
     <EmailCampaignsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       campaignOptions={campaignOptions}
       productOptions={productOptions}

@@ -47,32 +47,48 @@ test.describe('email campaigns in demo mode (no Clerk publishable key)', () => {
       '5 email campaigns',
     );
     await expect(page.locator('[data-slot="email-campaigns-table"] thead th')).toHaveText([
+      /*
+       * The resolver's labels, in the template's order. The parent base has no Email Campaigns table,
+       * so the whole set is platform-owned and takes the Gratsi base's own field names and positions
+       * — which is why the two due dates sit beside the send date and `Type`/`Channel` move after
+       * the links. `Design Due Date` and `Copywriting Due Date` are VIRTUAL, the send date minus 5
+       * and minus 10 days with nothing stored. `Updated` is off every grid
+       * (docs/decisions/gratsi-display-spec-2026-10-02.md).
+       */
       'Name',
       'Status',
+      'Send Date',
+      'Copywriting Due Date',
+      'Design Due Date',
+      'Assignee',
+      'Copy Link',
+      'Klaviyo Link',
       'Type',
       'Channel',
-      'Send date',
-      'Design due',
-      'Copywriting due',
-      'Assignee',
-      'Klaviyo',
-      'Copy link',
       'Campaigns & Offers',
-      'Updated',
     ]);
+    // Six template columns this grid has never drawn are stated, not silently omitted.
+    await expect(page.locator('[data-slot="email-campaign-missing-columns"]')).toContainText(
+      'campaign_purpose',
+    );
 
     const first = page.locator(`[data-email-campaign-id="${BFCM_EARLY_ACCESS}"]`);
     // The status is the shared chip, labelled from the vocabulary, never the stored key.
-    await expect(first.locator('td').nth(1).locator('[data-slot="status-chip"]')).toHaveText(
-      'Template Design',
-    );
+    await expect(
+      first.locator('td[data-column="status"]').locator('[data-slot="status-chip"]'),
+    ).toHaveText('Template Design');
     // Send date, and the two formulas: design five days before, copywriting ten.
-    await expect(first.locator('td').nth(4)).toHaveText('2026-11-20');
-    await expect(first.locator('td').nth(5)).toHaveText('2026-11-15');
-    await expect(first.locator('td').nth(6)).toHaveText('2026-11-10');
-    await expect(first.locator('td').nth(5).locator('span')).toHaveClass(/font-mono/);
-    await expect(first.locator('td').nth(7)).toHaveText('Rhiannon Okafor');
-    await expect(first.locator('td').nth(8)).toHaveAttribute('title', /^https:\/\/klaviyo/);
+    await expect(first.locator('td[data-column="send_date"]')).toHaveText('2026-11-20');
+    await expect(first.locator('td[data-column="design_due_date"]')).toHaveText('2026-11-15');
+    await expect(first.locator('td[data-column="copywriting_due_date"]')).toHaveText('2026-11-10');
+    await expect(first.locator('td[data-column="design_due_date"]').locator('span')).toHaveClass(
+      /font-mono/,
+    );
+    await expect(first.locator('td[data-column="assignee_id"]')).toHaveText('Rhiannon Okafor');
+    await expect(first.locator('td[data-column="klaviyo_link"]')).toHaveAttribute(
+      'title',
+      /^https:\/\/klaviyo/,
+    );
   });
 
   test('a row opens the panel with every stored field, the URL carries it and Escape closes it', async ({
