@@ -47,16 +47,30 @@ test.describe('youtube copywriting in demo mode (no Clerk publishable key)', () 
     await expect(page.locator('[data-slot="youtube-copy-count"]')).toContainText('4 copy rows');
 
     await expect(page.locator('[data-slot="youtube-copy-table"] thead th')).toHaveText([
+      /*
+       * The resolver's labels, in the template's order, and SIX MORE than the hand-written array
+       * drew: `Collections`, `Product`, `Angle`, `News Feed`, `Campaign Code`, `Copy Type` and
+       * `Client's Comment` were stored and never shown. Migrating this page ADDS columns rather than
+       * risking losing them — the item already carried every value. The parent base has no YouTube
+       * Copywriting table, so the labels and order are the Gratsi base's own, and `Updated` is off
+       * every grid (docs/decisions/gratsi-display-spec-2026-10-02.md).
+       */
       'Copy #',
-      'Headline',
-      'Descriptions',
       'Status',
+      'Collections',
+      'Product',
+      'Angle',
+      'Descriptions',
+      'Headline',
+      'News Feed',
       'CTA',
+      'Campaign Code',
       'Funnel',
+      'Copy Type',
+      "Client's Comment",
       'Used',
       'Winning',
-      'Meta rating',
-      'Updated',
+      'Meta Rating',
     ]);
 
     // The title is the auto-generated "Copy N", in font-mono, never an input.
@@ -67,10 +81,20 @@ test.describe('youtube copywriting in demo mode (no Clerk publishable key)', () 
       await expect(title).toHaveClass(/font-mono/);
     }
 
-    // Every status is the shared chip, never a bare string: one per row, plus Used and Winning.
-    await expect(
-      page.locator('[data-slot="youtube-copy-table"] tbody [data-slot="status-chip"]'),
-    ).toHaveCount(12);
+    /*
+     * Every status is the shared chip, never a bare string — asserted per COLUMN rather than as one
+     * total, because the resolver now draws four link columns that are chips too, and a single count
+     * over the whole tbody would change every time a column is configured without saying anything
+     * about the statuses.
+     */
+    for (const column of ['status', 'used', 'winning']) {
+      await expect(
+        page.locator(
+          `[data-slot="youtube-copy-table"] tbody td[data-column="${column}"] [data-slot="status-chip"]`,
+        ),
+        `every row should carry a chip in ${column}`,
+      ).toHaveCount(4);
+    }
   });
 
   test('a row opens the panel with a labelled control for every stored field, the URL carries it, and Escape closes it', async ({

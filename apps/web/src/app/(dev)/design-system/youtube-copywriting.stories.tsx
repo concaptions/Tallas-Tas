@@ -10,6 +10,7 @@ import { StatusChip } from '@tas/ui';
 
 import { copyNumberLabel, toYoutubeCopyItem } from '@/app/app/youtube-copywriting/fields';
 import { YoutubeCopywritingWorkspace } from '@/app/app/youtube-copywriting/youtube-copywriting-workspace';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
  * The shapes the YouTube Copywriting route introduces (CLAUDE.md UI governance rule 4), mounted as
@@ -27,6 +28,7 @@ const STORY_NOW = new Date('2026-09-18T09:00:00.000Z');
 export function YoutubeCopyGridStory() {
   return (
     <YoutubeCopywritingWorkspace
+      columns={parentColumnsFor('youtube_copy')}
       items={demoYoutubeCopy.map((row) => toYoutubeCopyItem(row, STORY_NOW))}
       collections={demoCollections.map(({ id, name }) => ({ id, name }))}
       products={demoProducts.map(({ id, name }) => ({ id, name }))}

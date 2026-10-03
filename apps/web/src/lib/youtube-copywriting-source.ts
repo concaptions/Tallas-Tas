@@ -18,6 +18,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the YouTube Copywriting route gets its rows (Airtable `tblVR1UmkbDoDzJ7z`). A copy of
@@ -115,6 +116,22 @@ function toCampaignOption(row: {
   readonly code: string | null;
 }): CampaignOption {
   return { id: row.id, name: row.name, code: row.code };
+}
+
+const YOUTUBE_COPY_TABLE_KEY = 'youtube_copy';
+
+/**
+ * THE ordered, labelled, visible YouTube Copywriting columns of the working brand, through the ONE
+ * loader every resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadYoutubeCopyColumns(
+  deps: YoutubeCopySourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(YOUTUBE_COPY_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

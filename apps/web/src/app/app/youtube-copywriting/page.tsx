@@ -1,7 +1,7 @@
 import { supportsView, type ViewType } from '@tas/domain';
 
 import { isDemoMode } from '@/lib/demo-mode';
-import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
+import { loadYoutubeCopyColumns, loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 
 import { SEARCH_PARAM, SELECTION_PARAM, toYoutubeCopyItem } from './fields';
 import { YoutubeCopywritingWorkspace } from './youtube-copywriting-workspace';
@@ -32,10 +32,11 @@ const TABLE_KEY = 'youtube-copywriting';
 export default async function YoutubeCopywritingPage({
   searchParams,
 }: YoutubeCopywritingPageProps) {
-  const [{ rows, collections, products, campaigns, copyTypes }, params] = await Promise.all([
-    loadYoutubeCopyWorkspace(),
-    searchParams,
-  ]);
+  const [
+    { rows, collections, products, campaigns, copyTypes },
+    { columns, unconfigured: unconfiguredColumns },
+    params,
+  ] = await Promise.all([loadYoutubeCopyWorkspace(), loadYoutubeCopyColumns(), searchParams]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -55,6 +56,8 @@ export default async function YoutubeCopywritingPage({
 
   return (
     <YoutubeCopywritingWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       collections={collections}
       products={products}

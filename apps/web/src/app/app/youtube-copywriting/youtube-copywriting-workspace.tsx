@@ -5,8 +5,14 @@ import { useRouter } from 'next/navigation';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input, StatusChip, Tabs, TabsList, TabsTrigger } from '@tas/ui';
 
-import { KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
+import { ChipListCell, TextCell } from '@/components/views/grid-cells';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { updateYoutubeCopyAction } from './actions';
 import {
@@ -48,6 +54,10 @@ import { YoutubeCopyPanel } from './youtube-copywriting-panel';
  * other column and every link untouched.
  */
 interface YoutubeCopywritingWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadYoutubeCopyColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly YoutubeCopyItem[];
   readonly collections: readonly LinkOption[];
   readonly products: readonly LinkOption[];
@@ -82,86 +92,112 @@ function dash(value: string | null) {
 }
 
 /**
- * The grid columns: the frozen generated title in `font-mono`, the copy, the status chip, the two
- * vocabularies by label, the two checkboxes as Yes/No chips, the rating and the timestamp. Every
- * column but the free text is sortable.
+ * THE YouTube Copywriting renderer registry, keyed by the resolver's `column_key`.
+ *
+ * This page is the one where migrating ADDS columns rather than risking losing them: the template's
+ * set has sixteen and the hand-written array drew ten, so `angle`, `news_feed`, `client_comment` and
+ * the four link junctions were stored and never shown. They are drawn here — the item already
+ * carried every one of them, so nothing new is loaded.
+ *
+ * `copy_number` is the generated Copy # title and keeps its `youtube-copy-row-title` hook and
+ * `font-mono` (CLAUDE.md non-negotiable 6 — generated output always renders in the mono face).
  */
-const COLUMNS: readonly GridColumn<YoutubeCopyItem>[] = [
-  {
-    key: 'copyNumber',
-    header: 'Copy #',
-    frozen: true,
-    minWidth: 120,
-    sortValue: (item) => item.copyNumber,
+const YOUTUBE_COPY_RENDERERS: ColumnRegistry<YoutubeCopyItem> = {
+  copy_number: {
     render: (item) => (
       <span data-slot="youtube-copy-row-title" className="font-mono text-xs font-medium">
         {item.title}
       </span>
     ),
+    sortValue: (item) => item.copyNumber,
   },
-  {
-    key: 'headline',
-    header: 'Headline',
-    minWidth: 220,
-    sortValue: (item) => item.headline,
-    render: (item) => dash(item.headline),
+  status: {
+    render: (item) => <StatusChip tone={item.statusTone} label={item.statusLabel} />,
+    sortValue: (item) => item.statusLabel,
   },
-  {
-    key: 'descriptions',
-    header: 'Descriptions',
-    minWidth: 260,
-    cellTitle: (item) => item.descriptions ?? undefined,
+  youtube_copy_collections: {
+    render: (item) => (
+      <ChipListCell
+        chips={item.linkedCollections.map((entry) => ({ label: entry.name, tone: 'info' }))}
+      />
+    ),
+    sortValue: (item) => item.linkedCollections.length,
+  },
+  youtube_copy_products: {
+    render: (item) => (
+      <ChipListCell
+        chips={item.linkedProducts.map((entry) => ({ label: entry.name, tone: 'mute' }))}
+      />
+    ),
+    sortValue: (item) => item.linkedProducts.length,
+  },
+  angle: {
+    render: (item) => <TextCell value={item.angle} maxWidth={240} />,
+    sortValue: (item) => item.angle,
+  },
+  descriptions: {
     render: (item) =>
       item.descriptions === null ? dash(null) : truncate(item.descriptions, DESCRIPTIONS_PREVIEW),
+    cellTitle: (item) => item.descriptions ?? undefined,
+    minWidth: 260,
   },
-  {
-    key: 'status',
-    header: 'Status',
-    sortValue: (item) => item.statusLabel,
-    render: (item) => <StatusChip tone={item.statusTone} label={item.statusLabel} />,
+  headline: {
+    render: (item) => dash(item.headline),
+    sortValue: (item) => item.headline,
+    minWidth: 220,
   },
-  {
-    key: 'cta',
-    header: 'CTA',
-    sortValue: (item) => item.ctaLabel,
+  news_feed: {
+    render: (item) => <TextCell value={item.newsFeed} maxWidth={240} />,
+    sortValue: (item) => item.newsFeed,
+  },
+  cta: {
     render: (item) => dash(item.ctaLabel),
+    sortValue: (item) => item.ctaLabel,
   },
-  {
-    key: 'funnel',
-    header: 'Funnel',
-    sortValue: (item) => item.funnelLabel,
+  youtube_copy_campaigns: {
+    render: (item) => (
+      <ChipListCell
+        chips={item.linkedCampaigns.map((entry) => ({
+          label: entry.code ?? entry.name,
+          tone: 'accent',
+        }))}
+      />
+    ),
+    sortValue: (item) => item.linkedCampaigns.length,
+  },
+  funnel: {
     render: (item) => dash(item.funnelLabel),
+    sortValue: (item) => item.funnelLabel,
   },
-  {
-    key: 'used',
-    header: 'Used',
-    sortValue: (item) => (item.used ? 1 : 0),
+  youtube_copy_copy_types: {
+    render: (item) => (
+      <ChipListCell
+        chips={item.linkedCopyTypes.map((entry) => ({ label: entry.name, tone: 'info' }))}
+      />
+    ),
+    sortValue: (item) => item.linkedCopyTypes.length,
+  },
+  client_comment: {
+    render: (item) => <TextCell value={item.clientComment} maxWidth={260} />,
+    sortValue: (item) => item.clientComment,
+  },
+  used: {
     render: (item) => <StatusChip {...booleanChip(item.used)} />,
+    sortValue: (item) => (item.used ? 1 : 0),
   },
-  {
-    key: 'winning',
-    header: 'Winning',
-    sortValue: (item) => (item.winning ? 1 : 0),
+  winning: {
     render: (item) => <StatusChip {...booleanChip(item.winning)} />,
+    sortValue: (item) => (item.winning ? 1 : 0),
   },
-  {
-    key: 'metaRating',
-    header: 'Meta rating',
-    align: 'right',
-    sortValue: (item) => item.metaRating,
+  meta_rating: {
     render: (item) => {
       const label = metaRatingLabel(item.metaRating);
       return label === null ? dash(null) : <span className="font-mono text-xs">{label}</span>;
     },
+    sortValue: (item) => item.metaRating,
+    align: 'right',
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 export function YoutubeCopywritingWorkspace({
   items,
@@ -173,7 +209,18 @@ export function YoutubeCopywritingWorkspace({
   initialSelection,
   initialSearch,
   initialView = 'grid',
+  columns,
+  unconfiguredColumns = false,
 }: YoutubeCopywritingWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, YOUTUBE_COPY_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 120,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [selection, setSelection] = useState<string | null>(initialSelection);
@@ -286,6 +333,12 @@ export function YoutubeCopywritingWorkspace({
               onViewChange={setActiveView}
               kanbanGroupByField={kanbanGroup}
             />
+            <ColumnNotices
+              slotPrefix="youtube-copy"
+              unconfigured={unconfiguredColumns}
+              missing={grid.missing}
+              registryName="YOUTUBE_COPY_RENDERERS in youtube-copywriting-workspace.tsx"
+            />
             {activeView === 'kanban' ? (
               <Tabs
                 value={kanbanGroup}
@@ -332,7 +385,7 @@ export function YoutubeCopywritingWorkspace({
         ) : (
           <AirtableGrid
             tableKey={TABLE_KEY}
-            columns={COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={(item) => item.id}
             rowLabel={(item) => item.title}
