@@ -2,7 +2,7 @@ import type { ViewType } from '@tas/domain';
 
 import { loadCampaigns } from '@/lib/campaigns-source';
 import { isDemoMode } from '@/lib/demo-mode';
-import { loadEmailFlows } from '@/lib/email-flows-source';
+import { loadEmailFlowColumns, loadEmailFlows } from '@/lib/email-flows-source';
 import { loadTeam } from '@/lib/team-source';
 
 import type { LinkOption } from './email-flows-panel';
@@ -33,8 +33,15 @@ interface EmailFlowsPageProps {
 const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban']);
 
 export default async function EmailFlowsPage({ searchParams }: EmailFlowsPageProps) {
-  const [{ rows }, campaignResult, teamResult, params] = await Promise.all([
+  const [
+    { rows },
+    { columns, unconfigured: unconfiguredColumns },
+    campaignResult,
+    teamResult,
+    params,
+  ] = await Promise.all([
     loadEmailFlows(),
+    loadEmailFlowColumns(),
     loadCampaigns(),
     loadTeam(),
     searchParams,
@@ -69,6 +76,8 @@ export default async function EmailFlowsPage({ searchParams }: EmailFlowsPagePro
 
   return (
     <EmailFlowsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       campaigns={campaigns}
       assignees={assignees}

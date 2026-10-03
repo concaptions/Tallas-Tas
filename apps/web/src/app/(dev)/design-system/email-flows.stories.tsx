@@ -12,6 +12,19 @@ import {
   EMAIL_FLOW_TYPE_OPTIONS,
   emailFlowItem,
 } from '@/app/app/email-flows/fields';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
+import { gridColumnsFrom } from '@/components/views/resolved-columns';
+import { EMAIL_FLOW_RENDERERS } from '@/app/app/email-flows/email-flows-workspace';
+
+/**
+ * The grid's columns, joined exactly as the route joins them: the template's master set from the
+ * seed, drawn by the page's own registry. A story that invented its own columns would stop being
+ * evidence of what the product renders.
+ */
+const STORY_COLUMNS = gridColumnsFrom(parentColumnsFor('email_flows'), EMAIL_FLOW_RENDERERS, {
+  freezeFirst: true,
+  frozenMinWidth: 220,
+}).columns;
 
 /**
  * The shapes the Email Flows route introduces (CLAUDE.md UI governance rule 4), mounted as the
@@ -55,7 +68,7 @@ export function EmailFlowChipsStory() {
  * Klaviyo host with the full URL in the cell title. Rows are not clickable here.
  */
 export function EmailFlowsGridStory() {
-  return <EmailFlowsGrid items={ITEMS} />;
+  return <EmailFlowsGrid columns={STORY_COLUMNS} items={ITEMS} />;
 }
 
 /** The board grouped by status: every vocabulary column kept, each card chipped with its type. */
@@ -71,6 +84,7 @@ export function EmailFlowsBoardStory() {
 export function EmailFlowsWorkspaceStory() {
   return (
     <EmailFlowsWorkspace
+      columns={parentColumnsFor('email_flows')}
       items={ITEMS}
       campaigns={CAMPAIGNS}
       assignees={ASSIGNEES}

@@ -14,8 +14,13 @@ import {
   StatusChip,
 } from '@tas/ui';
 
-import { KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
+import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { updateEmailFlowAction } from './actions';
 import { EmailFlowPanel, NEW_EMAIL_FLOW, type LinkOption } from './email-flows-panel';
@@ -51,6 +56,10 @@ const EMAIL_FLOWS_CAP = getTableCapability('email-flows') as NonNullable<
 >;
 
 interface EmailFlowsWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadEmailFlowColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly EmailFlowItem[];
   readonly campaigns: readonly LinkOption[];
   readonly assignees: readonly LinkOption[];
@@ -130,18 +139,16 @@ function dash() {
 }
 
 /**
- * The Airtable-style grid columns for Email Flows: the frozen name column carries the propagation
- * badge; Status and Type are the shared `StatusChip`; the two due-date columns are computed system
- * output and render in `font-mono`; the Klaviyo column shows the host and keeps the full URL in the
- * cell title.
+ * THE Email Flows renderer registry, keyed by the resolver's `column_key`.
+ *
+ * `design_due_date` and `copywriting_due_date` are VIRTUAL — Airtable formulas chained off the
+ * expected setup date, with no Postgres column behind either. The copywriting one calls the design
+ * one so the chain cannot drift, and both are computed on read in `packages/db/src/email-flows.ts`;
+ * the values arrive on the row already worked out. They render in `font-mono`, as generated output
+ * does.
  */
-const EMAIL_FLOW_COLUMNS: readonly GridColumn<EmailFlowItem>[] = [
-  {
-    key: 'flowName',
-    header: 'Flow name',
-    frozen: true,
-    minWidth: 220,
-    sortValue: (item) => item.flow.flowName,
+export const EMAIL_FLOW_RENDERERS: ColumnRegistry<EmailFlowItem> = {
+  flow_name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.flow.flowName}
@@ -151,95 +158,87 @@ const EMAIL_FLOW_COLUMNS: readonly GridColumn<EmailFlowItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.flow.flowName,
   },
-  {
-    key: 'status',
-    header: 'Status',
-    sortValue: (item) => (item.flow.status === null ? null : statusLabel(item.flow.status)),
+  status: {
     render: (item) =>
       item.flow.status === null ? (
         dash()
       ) : (
         <StatusChip tone={statusTone(item.flow.status)} label={statusLabel(item.flow.status)} />
       ),
+    sortValue: (item) => (item.flow.status === null ? null : statusLabel(item.flow.status)),
   },
-  {
-    key: 'type',
-    header: 'Type',
-    sortValue: (item) => (item.flow.type === null ? null : typeLabel(item.flow.type)),
+  type: {
     render: (item) =>
       item.flow.type === null ? (
         dash()
       ) : (
         <StatusChip tone={typeTone(item.flow.type)} label={typeLabel(item.flow.type)} />
       ),
+    sortValue: (item) => (item.flow.type === null ? null : typeLabel(item.flow.type)),
   },
-  {
-    key: 'expectedSetupDate',
-    header: 'Expected setup date',
+  expected_setup_date: {
+    render: (item) => (item.flow.expectedSetupDate === null ? dash() : item.setupLabel),
     sortValue: (item) => item.flow.expectedSetupDate,
     cellTitle: (item) => item.flow.expectedSetupDate ?? undefined,
-    render: (item) => (item.flow.expectedSetupDate === null ? dash() : item.setupLabel),
   },
-  {
-    key: 'designDueDate',
-    header: 'Design due',
-    sortValue: (item) => item.flow.designDueDate,
-    cellTitle: (item) => item.flow.designDueDate ?? undefined,
+  design_due_date: {
     render: (item) =>
       item.flow.designDueDate === null ? (
         dash()
       ) : (
         <span className="font-mono text-xs">{item.designDueLabel}</span>
       ),
+    sortValue: (item) => item.flow.designDueDate,
+    cellTitle: (item) => item.flow.designDueDate ?? undefined,
   },
-  {
-    key: 'copywritingDueDate',
-    header: 'Copywriting due',
-    sortValue: (item) => item.flow.copywritingDueDate,
-    cellTitle: (item) => item.flow.copywritingDueDate ?? undefined,
+  copywriting_due_date: {
     render: (item) =>
       item.flow.copywritingDueDate === null ? (
         dash()
       ) : (
         <span className="font-mono text-xs">{item.copywritingDueLabel}</span>
       ),
+    sortValue: (item) => item.flow.copywritingDueDate,
+    cellTitle: (item) => item.flow.copywritingDueDate ?? undefined,
   },
-  {
-    key: 'assignee',
-    header: 'Assignee',
-    sortValue: (item) => item.flow.assigneeName,
+  assignee_id: {
     render: (item) => item.flow.assigneeName ?? dash(),
+    sortValue: (item) => item.flow.assigneeName,
   },
-  {
-    key: 'klaviyoLink',
-    header: 'Klaviyo link',
+  klaviyo_link: {
+    render: (item) => item.klaviyoHost ?? dash(),
     sortValue: (item) => item.klaviyoHost,
     cellTitle: (item) => item.flow.klaviyoLink ?? undefined,
-    render: (item) => item.klaviyoHost ?? dash(),
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 interface EmailFlowsGridProps {
   readonly items: readonly EmailFlowItem[];
+  /**
+   * The grid columns, already joined from the resolver and the registry. Passed IN rather than built
+   * here because this component is mounted twice — by the workspace and by the design-system page —
+   * and a column set is per-brand data, which a presentational grid has no way to resolve.
+   */
+  readonly columns: readonly GridColumn<EmailFlowItem>[];
   readonly selectedId?: string | null;
   readonly onRowClick?: (item: EmailFlowItem) => void;
   readonly empty?: ReactNode;
 }
 
 /** The grid alone: the route mounts it with a row handler, the design-system page without one. */
-export function EmailFlowsGrid({ items, selectedId, onRowClick, empty }: EmailFlowsGridProps) {
+export function EmailFlowsGrid({
+  items,
+  columns,
+  selectedId,
+  onRowClick,
+  empty,
+}: EmailFlowsGridProps) {
   return (
     <AirtableGrid
       tableKey="email-flows"
-      columns={EMAIL_FLOW_COLUMNS}
+      columns={columns}
       rows={items}
       rowId={(item) => item.flow.id}
       rowLabel={(item) => item.flow.flowName}
@@ -331,7 +330,15 @@ export function EmailFlowsWorkspace({
   initialSearch,
   initialView = 'grid',
   initialGroupField = 'status',
+  columns,
+  unconfiguredColumns = false,
 }: EmailFlowsWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, EMAIL_FLOW_RENDERERS, { freezeFirst: true, frozenMinWidth: 220 }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -461,6 +468,12 @@ export function EmailFlowsWorkspace({
               onViewChange={setActiveView}
               kanbanGroupByField={groupField}
             />
+            <ColumnNotices
+              slotPrefix="email-flow"
+              unconfigured={unconfiguredColumns}
+              missing={grid.missing}
+              registryName="EMAIL_FLOW_RENDERERS in email-flows-workspace.tsx"
+            />
             {activeView === 'kanban' ? (
               <select
                 value={groupField}
@@ -503,6 +516,7 @@ export function EmailFlowsWorkspace({
         ) : (
           <EmailFlowsGrid
             items={visible}
+            columns={grid.columns}
             selectedId={selection}
             onRowClick={(item) => {
               select(item.flow.id);

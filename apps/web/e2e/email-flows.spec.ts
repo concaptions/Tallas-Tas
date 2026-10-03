@@ -40,32 +40,51 @@ test.describe('email flows in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="email-flow-count"]')).toContainText('4 flows');
 
     await expect(page.locator('[data-slot="email-flows-table"] thead th')).toHaveText([
-      'Flow name',
+      /*
+       * The resolver's labels, in the template's order. The parent base has no Email Flows table, so
+       * the whole set is platform-owned and takes the Gratsi base's own field names and positions.
+       * `Design Due Date` and `Copywriting Due Date` are VIRTUAL — formulas chained off the expected
+       * setup date, nothing stored — and render in `font-mono`. `Updated` is off every grid
+       * (docs/decisions/gratsi-display-spec-2026-10-02.md).
+       */
+      'Flow Name',
+      'Expected Setup Date',
       'Status',
+      'Copywriting Due Date',
+      'Design Due Date',
+      'Klaviyo Link',
       'Type',
-      'Expected setup date',
-      'Design due',
-      'Copywriting due',
       'Assignee',
-      'Klaviyo link',
-      'Updated',
     ]);
+    // Five template columns this grid has never drawn are stated, not silently omitted.
+    await expect(page.locator('[data-slot="email-flow-missing-columns"]')).toContainText(
+      'flow_purpose',
+    );
 
-    // Status and Type are the shared StatusChip, never bare text.
+    /*
+     * Cells by COLUMN KEY, not position: the order is configuration now, and a reorder in Column
+     * Admin would silently repoint a positional assertion at a different column.
+     */
     const first = page.locator('[data-slot="email-flow-row"]').first();
-    await expect(first.locator('td').nth(1).locator('[data-slot="status-chip"]')).toHaveText(
+    await expect(first.locator('td[data-column="status"] [data-slot="status-chip"]')).toHaveText(
       'Template Design',
     );
-    await expect(first.locator('td').nth(2).locator('[data-slot="status-chip"]')).toHaveText(
+    await expect(first.locator('td[data-column="type"] [data-slot="status-chip"]')).toHaveText(
       'Email',
     );
-    // The two formulas: design due five days before setup, copywriting five before that.
-    await expect(first.locator('td').nth(3)).toHaveText('Oct 20, 2026');
-    await expect(first.locator('td').nth(4)).toHaveText('Oct 15, 2026');
-    await expect(first.locator('td').nth(5)).toHaveText('Oct 10, 2026');
+    // The typed date, then the two VIRTUAL ones: design due five days before setup, copywriting
+    // five before that. Neither is stored; both are the formula's answer for this read.
+    await expect(first.locator('td[data-column="expected_setup_date"]')).toHaveText('Oct 20, 2026');
+    await expect(first.locator('td[data-column="design_due_date"]')).toHaveText('Oct 15, 2026');
+    await expect(first.locator('td[data-column="copywriting_due_date"]')).toHaveText(
+      'Oct 10, 2026',
+    );
     // The Klaviyo link shows its host, with the full URL in the cell's title.
-    await expect(first.locator('td').nth(7)).toHaveText('klaviyo.com');
-    await expect(first.locator('td').nth(7)).toHaveAttribute('title', /^https:\/\/www\.klaviyo/);
+    await expect(first.locator('td[data-column="klaviyo_link"]')).toHaveText('klaviyo.com');
+    await expect(first.locator('td[data-column="klaviyo_link"]')).toHaveAttribute(
+      'title',
+      /^https:\/\/www\.klaviyo/,
+    );
 
     // A flow with no setup date renders the dash in all three date cells, never an empty cell.
     const push = page.locator('[data-email-flow-id="ef10ef10-ef10-4ef1-8ef1-000000000004"]');
