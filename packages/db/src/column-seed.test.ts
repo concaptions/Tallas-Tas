@@ -613,6 +613,10 @@ describe('platform columns on concepts', () => {
         'creators.creator_info_request',
         'creators.payment_date',
         'creators.slack_notified',
+        // Creative Modules: two the page draws for every brand, for which the parent audit
+        // explicitly declined to assert a field.
+        'creative_modules.creative_module_designs',
+        'creative_modules.foreplay_link',
       ].sort(),
     );
   });

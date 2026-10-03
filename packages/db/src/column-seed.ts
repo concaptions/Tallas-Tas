@@ -710,10 +710,33 @@ const CREATIVE_MODULES_PARENT = parentRows('creative_modules', [
   ['creative_module_angles', 'Concepts', 3, 'multipleRecordLinks'],
 ]);
 
-/** Gratsi `(Internal) Creative Modules` — 4 fields: 2 inherit, 2 of its own. */
+/**
+ * Creative Modules' PLATFORM columns: two the page draws for every brand that the parent base has no
+ * field for.
+ *
+ * `foreplay_link` and the designs junction were Gratsi-only `custom` rows, so migrating the page
+ * would have left an inheriting brand with two of the four columns it draws today. The parent
+ * audit explicitly declined to assert a column for its `Reference Link` field, so there is no parent
+ * Airtable field to inherit from and these are the platform's. Ordered from 20, after the Airtable
+ * range.
+ */
+const CREATIVE_MODULES_PLATFORM = platformRows('creative_modules', [
+  ['foreplay_link', 'Foreplay Link', 20, 'url'],
+  ['creative_module_designs', 'Creative Designs', 21, 'multipleRecordLinks'],
+]);
+
+/**
+ * Gratsi `(Internal) Creative Modules` — 4 fields. Two inherit, `foreplay_link` now inherits the
+ * platform row under the same label, and only the designs link is worded differently.
+ */
 const CREATIVE_MODULES_GRATSI = childRows('creative_modules', [
-  ['foreplay_link', 'Foreplay Link', 3, 'custom', 'url'],
-  ['creative_module_designs', '(Internal) Creative Design', 4, 'custom', 'multipleRecordLinks'],
+  [
+    'creative_module_designs',
+    '(Internal) Creative Design',
+    21,
+    'relabel-platform',
+    'multipleRecordLinks',
+  ],
 ]);
 
 /**
@@ -1285,6 +1308,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...ANGLES_PARENT,
       ...ANGLES_PLATFORM,
       ...CREATIVE_MODULES_PARENT,
+      ...CREATIVE_MODULES_PLATFORM,
       ...CREATIVE_SHEET_ITEMS_PARENT,
       ...CREATORS_PARENT,
       ...CREATORS_PLATFORM,

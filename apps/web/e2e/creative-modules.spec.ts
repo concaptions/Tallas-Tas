@@ -32,29 +32,40 @@ test.describe('creative modules in demo mode (no Clerk publishable key)', () => 
     await expect(page.locator('[data-slot="creative-module-count"]')).toContainText('4 modules');
 
     await expect(page.locator('[data-slot="creative-modules-table"] thead th')).toHaveText([
-      'Module name',
-      'Foreplay link',
-      'Angles',
-      'Creative designs',
-      'Updated',
+      // The resolver's labels. `Concepts` is the parent base's own name for the angles junction —
+      // the parent table whose id is called `Themes` is CREATIVE MODULES by its field set, which is
+      // why ID_ANCHORED_TABLES exists. `Foreplay Link` and `Creative Designs` are platform rows: the
+      // parent audit declined to assert a field for either, and both were Gratsi-only until now, so
+      // an inheriting brand would otherwise have lost them. `Updated` is off every grid.
+      'Module Name',
+      'Concepts',
+      'Foreplay Link',
+      'Creative Designs',
     ]);
 
     // The board link shows its host, with the full URL in the cell's title.
     const first = page.locator(`[data-creative-module-id="${FIRST_MODULE_ID}"]`);
-    await expect(first.locator('td').nth(1)).toHaveText('app.foreplay.co');
-    await expect(first.locator('td').nth(1)).toHaveAttribute('title', /^https:\/\/app\.foreplay/);
+    await expect(first.locator('td[data-column="foreplay_link"]')).toHaveText('app.foreplay.co');
+    await expect(first.locator('td[data-column="foreplay_link"]')).toHaveAttribute(
+      'title',
+      /^https:\/\/app\.foreplay/,
+    );
 
     // The counts are the shared StatusChip, never bare text, and they pluralise.
-    await expect(first.locator('td').nth(2).locator('[data-slot="status-chip"]')).toHaveText(
-      '2 angles',
-    );
-    await expect(first.locator('td').nth(3).locator('[data-slot="status-chip"]')).toHaveText(
-      '3 designs',
-    );
+    await expect(
+      first
+        .locator('td[data-column="creative_module_angles"]')
+        .locator('[data-slot="status-chip"]'),
+    ).toHaveText('2 angles');
+    await expect(
+      first
+        .locator('td[data-column="creative_module_designs"]')
+        .locator('[data-slot="status-chip"]'),
+    ).toHaveText('3 designs');
 
     // A module with no board link renders the em dash, never an empty cell.
     const noBoard = page.locator(`[data-creative-module-id="${NO_BOARD_MODULE_ID}"]`);
-    await expect(noBoard.locator('td').nth(1)).toHaveText('—');
+    await expect(noBoard.locator('td[data-column="foreplay_link"]')).toHaveText('—');
 
     // A module with no design yet renders a zero in the mute tone, never a blank.
     const zero = page

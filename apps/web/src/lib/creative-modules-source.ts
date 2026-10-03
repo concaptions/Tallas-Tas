@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the Creative Modules route gets its rows (Airtable "(Internal) Creative Modules", audit
@@ -81,6 +82,22 @@ function inDemoMode(deps: CreativeModuleSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const CREATIVE_MODULES_TABLE_KEY = 'creative_modules';
+
+/**
+ * THE ordered, labelled, visible Creative Modules columns of the working brand, through the ONE
+ * loader every resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadCreativeModuleColumns(
+  deps: CreativeModuleSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(CREATIVE_MODULES_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

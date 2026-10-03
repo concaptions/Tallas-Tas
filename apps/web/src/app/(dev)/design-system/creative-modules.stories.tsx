@@ -6,6 +6,7 @@ import {
 } from '@/app/app/creative-modules/creative-modules-workspace';
 import { hostLabel } from '@/app/app/creative-modules/fields';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
  * The Creative Modules route (CLAUDE.md UI governance rule 4): the identical `CreativeModulesWorkspace`
@@ -46,6 +47,7 @@ export function CreativeModulesGridStory() {
   return (
     <StoryFrame>
       <CreativeModulesWorkspace
+        columns={parentColumnsFor('creative_modules')}
         items={STORY_ITEMS}
         angles={STORY_ANGLES}
         briefs={STORY_BRIEFS}
@@ -67,6 +69,7 @@ export function CreativeModulePanelStory() {
   return (
     <StoryFrame>
       <CreativeModulesWorkspace
+        columns={parentColumnsFor('creative_modules')}
         items={STORY_ITEMS}
         angles={STORY_ANGLES}
         briefs={STORY_BRIEFS}

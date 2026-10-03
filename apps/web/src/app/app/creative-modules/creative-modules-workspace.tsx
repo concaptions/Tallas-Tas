@@ -6,8 +6,13 @@ import type { CreativeModuleListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input, PropagationBadge, StatusChip } from '@tas/ui';
 
-import { ViewSwitcher } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices, ViewSwitcher } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { CreativeModulePanel, NEW_CREATIVE_MODULE, type LinkOption } from './creative-module-panel';
 import { angleCountLabel, designCountLabel, EM_DASH, linkCountTone } from './fields';
@@ -33,6 +38,10 @@ export interface CreativeModuleItem {
 }
 
 interface CreativeModulesWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadCreativeModuleColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly CreativeModuleItem[];
   /** The brand's angles and briefs, the options the panel's two chip pickers offer. */
   readonly angles: readonly LinkOption[];
@@ -73,17 +82,14 @@ function matches(item: CreativeModuleItem, query: string): boolean {
 }
 
 /**
- * The Airtable-style grid columns: the frozen name column carries the propagation badge; the link
- * column shows the host and keeps the full URL in the cell title; the two counts are the shared
- * `StatusChip` in the count tones, never bare text, so a zero is a visible chip.
+ * THE Creative Modules renderer registry, keyed by the resolver's `column_key`.
+ *
+ * `creative_module_angles` is the junction the parent base calls `Concepts`, which is worth knowing
+ * when reading the header: the parent table whose id is named `Themes` is CREATIVE MODULES by its
+ * field set, which is why `ID_ANCHORED_TABLES` exists.
  */
-const CREATIVE_MODULE_COLUMNS: readonly GridColumn<CreativeModuleItem>[] = [
-  {
-    key: 'moduleName',
-    header: 'Module name',
-    frozen: true,
-    minWidth: 220,
-    sortValue: (item) => item.creativeModule.moduleName,
+const CREATIVE_MODULE_RENDERERS: ColumnRegistry<CreativeModuleItem> = {
+  module_name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.creativeModule.moduleName}
@@ -93,43 +99,31 @@ const CREATIVE_MODULE_COLUMNS: readonly GridColumn<CreativeModuleItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.creativeModule.moduleName,
   },
-  {
-    key: 'foreplayLink',
-    header: 'Foreplay link',
+  foreplay_link: {
+    render: (item) => item.foreplayHost ?? <span className="text-text4">{EM_DASH}</span>,
     sortValue: (item) => item.foreplayHost,
     cellTitle: (item) => item.creativeModule.foreplayLink ?? undefined,
-    render: (item) => item.foreplayHost ?? <span className="text-text4">{EM_DASH}</span>,
   },
-  {
-    key: 'angles',
-    header: 'Angles',
-    sortValue: (item) => item.angleCount,
-    cellTitle: (item) => item.creativeModule.angleNames.join(', ') || undefined,
+  creative_module_angles: {
     render: (item) => (
       <StatusChip tone={linkCountTone(item.angleCount)} label={angleCountLabel(item.angleCount)} />
     ),
+    sortValue: (item) => item.angleCount,
+    cellTitle: (item) => item.creativeModule.angleNames.join(', ') || undefined,
   },
-  {
-    key: 'designs',
-    header: 'Creative designs',
-    sortValue: (item) => item.designCount,
-    cellTitle: (item) => item.creativeModule.briefNames.join(', ') || undefined,
+  creative_module_designs: {
     render: (item) => (
       <StatusChip
         tone={linkCountTone(item.designCount)}
         label={designCountLabel(item.designCount)}
       />
     ),
+    sortValue: (item) => item.designCount,
+    cellTitle: (item) => item.creativeModule.briefNames.join(', ') || undefined,
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 export function CreativeModulesWorkspace({
   items,
@@ -139,7 +133,18 @@ export function CreativeModulesWorkspace({
   initialSelection,
   initialSearch,
   initialView = 'grid',
+  columns,
+  unconfiguredColumns = false,
 }: CreativeModulesWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, CREATIVE_MODULE_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 220,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -230,9 +235,19 @@ export function CreativeModulesWorkspace({
           </div>
         </div>
 
+        <ColumnNotices
+          slotPrefix="creative-module"
+
+          unconfigured={unconfiguredColumns}
+
+          missing={grid.missing}
+
+          registryName="CREATIVE_MODULE_RENDERERS in creative-modules-workspace.tsx"
+        />
+
         <AirtableGrid
           tableKey={TABLE_KEY}
-          columns={CREATIVE_MODULE_COLUMNS}
+          columns={grid.columns}
           rows={visible}
           rowId={(item) => item.creativeModule.id}
           rowLabel={(item) => item.creativeModule.moduleName}

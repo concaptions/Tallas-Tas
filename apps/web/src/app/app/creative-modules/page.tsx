@@ -1,6 +1,6 @@
 import { loadAngles } from '@/lib/angles-source';
 import { loadBriefs } from '@/lib/briefs-source';
-import { loadCreativeModules } from '@/lib/creative-modules-source';
+import { loadCreativeModuleColumns, loadCreativeModules } from '@/lib/creative-modules-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
@@ -28,8 +28,15 @@ interface CreativeModulesPageProps {
 }
 
 export default async function CreativeModulesPage({ searchParams }: CreativeModulesPageProps) {
-  const [{ rows }, angleResult, briefResult, params] = await Promise.all([
+  const [
+    { rows },
+    { columns, unconfigured: unconfiguredColumns },
+    angleResult,
+    briefResult,
+    params,
+  ] = await Promise.all([
     loadCreativeModules(),
+    loadCreativeModuleColumns(),
     loadAngles(),
     loadBriefs(),
     searchParams,
@@ -57,6 +64,8 @@ export default async function CreativeModulesPage({ searchParams }: CreativeModu
 
   return (
     <CreativeModulesWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       angles={angleOptions}
       briefs={briefOptions}
