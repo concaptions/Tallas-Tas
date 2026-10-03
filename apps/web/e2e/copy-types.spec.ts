@@ -21,7 +21,7 @@ test.describe('copy types in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/copy-types needs a session and real data',
   );
 
-  test('lists the four fixture copy types with their link counts in five columns', async ({
+  test('lists the four fixture copy types with their link counts, from the resolver', async ({
     page,
   }) => {
     await page.goto(copyTypesPath);
@@ -31,29 +31,42 @@ test.describe('copy types in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="copy-type-count"]')).toContainText('4 copy types');
 
     await expect(page.locator('[data-slot="copy-types-table"] thead th')).toHaveText([
+      // The resolver's labels, from `column_definitions`. Demo mode's brand is Niagara, which owns
+      // no rows, so it inherits the template's all-platform set for this table — the parent base has
+      // no Copy Type table at all. `Updated` is off every grid
+      // (docs/decisions/gratsi-display-spec-2026-10-02.md), and the two link columns sort in the
+      // Gratsi base's own field order, which is the only order evidence such a table has.
       'Name',
       'Description',
-      'Meta copies',
       'YouTube copies',
-      'Updated',
+      'Meta copies',
     ]);
 
-    // The counts are the shared StatusChip, never bare text, and they pluralise.
+    /*
+     * Cells are addressed by COLUMN KEY, not position: the order is configuration now, and a reorder
+     * in Column Admin would silently repoint a positional assertion at a different column. The keys
+     * are the junctions that carry a foreign key back to `copy_types`.
+     */
     const first = page.locator(`[data-copy-type-id="${FIRST_COPY_TYPE_ID}"]`);
-    await expect(first.locator('td').nth(2).locator('[data-slot="status-chip"]')).toHaveText(
-      '2 Meta copies',
-    );
-    await expect(first.locator('td').nth(3).locator('[data-slot="status-chip"]')).toHaveText(
-      '2 YouTube copies',
-    );
+    await expect(
+      first.locator('td[data-column="copywriting_copy_types"] [data-slot="status-chip"]'),
+    ).toHaveText('2 Meta copies');
+    await expect(
+      first.locator('td[data-column="youtube_copy_copy_types"] [data-slot="status-chip"]'),
+    ).toHaveText('2 YouTube copies');
     // The description cell shows its first line and keeps the full text in the cell's title.
-    await expect(first.locator('td').nth(1)).toHaveAttribute('title', /^Name the 3am problem/);
+    await expect(first.locator('td[data-column="description"]')).toHaveAttribute(
+      'title',
+      /^Name the 3am problem/,
+    );
 
     // A type with no description renders the em dash, never an empty cell, and a zero in the mute
     // tone, never a blank.
     const founderNote = page.locator(`[data-copy-type-id="${FOUNDER_NOTE_ID}"]`);
-    await expect(founderNote.locator('td').nth(1)).toHaveText('—');
-    const zero = founderNote.locator('td').nth(2).locator('[data-slot="status-chip"]');
+    await expect(founderNote.locator('td[data-column="description"]')).toHaveText('—');
+    const zero = founderNote.locator(
+      'td[data-column="copywriting_copy_types"] [data-slot="status-chip"]',
+    );
     await expect(zero).toHaveText('0 Meta copies');
     await expect(zero).toHaveAttribute('data-tone', 'mute');
   });

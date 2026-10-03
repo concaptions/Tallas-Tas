@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveColumns } from './column-definitions';
 import { COLUMN_SEED, seedColumnDefinitions, UNMAPPED_COLUMN_KEY } from './column-seed';
-import { upsertColumnDefinition } from './column-definitions';
+import { storedColumns, upsertColumnDefinition } from './column-definitions';
 import { isVirtualFormulaName } from './formulas/registry';
 import { PROPAGATION_TABLES } from './propagation';
 import { seed } from './seed';
@@ -940,5 +940,91 @@ describe("re-seeding retires the seed's own stale rows", () => {
     expect((await resolveColumns(db, brandId, 'themes')).map((c) => c.displayLabel)).toEqual([
       'Theme',
     ]);
+  });
+});
+
+/**
+ * The six tables the parent template base does not have, resolved per brand.
+ *
+ * Data-driven on purpose: six near-identical describes would be a transcription of the seed, and
+ * what matters is the same two facts for each — an INHERITING brand gets the whole platform set (if
+ * it got nothing, a resolver-driven page would render an empty grid, which is what blocked these
+ * six), and GRATSI gets the same columns under its own wording wherever its base words them
+ * differently.
+ */
+describe('the all-platform tables resolve for every brand', () => {
+  const EXPECTED = [
+    { tableKey: 'copy_types', inheriting: 4, gratsi: 4, gratsiOwnRows: 2, virtual: 0 },
+    { tableKey: 'creative_reporting', inheriting: 13, gratsi: 13, gratsiOwnRows: 0, virtual: 1 },
+    { tableKey: 'email_campaigns', inheriting: 17, gratsi: 17, gratsiOwnRows: 0, virtual: 2 },
+    { tableKey: 'email_flows', inheriting: 13, gratsi: 13, gratsiOwnRows: 0, virtual: 2 },
+    { tableKey: 'sm_campaign_feed_tasks', inheriting: 6, gratsi: 6, gratsiOwnRows: 0, virtual: 1 },
+    // Gratsi hides its status banner, which has no column at all, so it shows one fewer.
+    { tableKey: 'youtube_copy', inheriting: 16, gratsi: 16, gratsiOwnRows: 2, virtual: 0 },
+  ] as const;
+
+  it.each(EXPECTED)(
+    '$tableKey: an inheriting brand gets $inheriting columns and Gratsi gets $gratsi',
+    async ({ tableKey, inheriting, gratsi, gratsiOwnRows, virtual }) => {
+      const db = await testDb();
+      await seed(db);
+      await seedColumnDefinitions(db);
+      const brandId = async (slug: string): Promise<string> => {
+        const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));
+        if (row === undefined) throw new Error(`the seed has no ${slug} brand`);
+        return row.id;
+      };
+
+      const onNiagara = await resolveColumns(
+        db,
+        await brandId('niagara-sleep-solutions'),
+        tableKey,
+      );
+      const onGratsi = await resolveColumns(db, await brandId('gratsi'), tableKey);
+
+      expect(
+        onNiagara,
+        `${tableKey} resolved nothing for an inheriting brand, so its page would be an empty grid`,
+      ).toHaveLength(inheriting);
+      expect(onGratsi).toHaveLength(gratsi);
+
+      // Every column of these tables is the platform's: the parent base has no such table.
+      expect(onNiagara.filter((column) => column.source !== 'platform')).toEqual([]);
+      expect(onGratsi.filter((column) => column.source !== 'platform')).toEqual([]);
+
+      // Virtual columns carry their formula and no stored column backs them.
+      expect(onNiagara.filter((column) => column.formula !== null)).toHaveLength(virtual);
+      expect(storedColumns(onNiagara)).toHaveLength(inheriting - virtual);
+
+      // Gratsi reads its own labels only where its base words a column differently.
+      expect(onGratsi.filter((column) => column.inheritedFrom === null)).toHaveLength(
+        gratsiOwnRows,
+      );
+    },
+  );
+
+  it('words the two Gratsi departures on youtube_copy and copy_types as Gratsi does', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+    const [gratsi] = await db
+      .select({ id: brands.id })
+      .from(brands)
+      .where(eq(brands.slug, 'gratsi'));
+    if (gratsi === undefined) throw new Error('the seed has no gratsi brand');
+
+    const youtube = await resolveColumns(db, gratsi.id, 'youtube_copy');
+    expect(youtube.find((c) => c.columnKey === 'descriptions')?.displayLabel).toBe(
+      'Descriptions (90 caractères max)',
+    );
+    expect(youtube.find((c) => c.columnKey === 'used')?.displayLabel).toBe('USED');
+
+    const copyTypes = await resolveColumns(db, gratsi.id, 'copy_types');
+    expect(copyTypes.find((c) => c.columnKey === 'copywriting_copy_types')?.displayLabel).toBe(
+      'Ads Copywriting copy',
+    );
+    expect(copyTypes.find((c) => c.columnKey === 'youtube_copy_copy_types')?.displayLabel).toBe(
+      'Copywriting',
+    );
   });
 });

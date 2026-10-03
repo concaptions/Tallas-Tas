@@ -5,8 +5,13 @@ import { useRouter } from 'next/navigation';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input, PropagationBadge, StatusChip } from '@tas/ui';
 
-import { ViewSwitcher } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices, ViewSwitcher } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { CopyTypePanel, NEW_COPY_TYPE, type CopyTypeItem } from './copy-type-panel';
 import { EM_DASH, linkCountTone, metaCopyCountLabel, youtubeCopyCountLabel } from './fields';
@@ -23,6 +28,10 @@ export type { CopyTypeItem };
  * it. The filter is URL-backed the same way, in `?q=`.
  */
 interface CopyTypesWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from the shared resolver loader. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly CopyTypeItem[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
@@ -63,17 +72,15 @@ function matches(item: CopyTypeItem, query: string): boolean {
 }
 
 /**
- * The Airtable-style grid columns: the frozen name column carries the propagation badge; the
- * description column shows its first line and keeps the full text in the cell title; the two counts
- * are the shared `StatusChip` in the count tones, never bare text, so a zero is a visible chip.
+ * THE Copy Types renderer registry, keyed by the resolver's `column_key` — a Postgres column, or the
+ * junction that carries a foreign key back to `copy_types` for a link column.
+ *
+ * This replaces the hand-written `COPY_TYPE_COLUMNS` array: no header string and no ordering here,
+ * only how a cell is drawn. The two counts stay the shared `StatusChip` in the count tones, never
+ * bare text, so a zero is a visible chip rather than an empty cell.
  */
-const COPY_TYPE_COLUMNS: readonly GridColumn<CopyTypeItem>[] = [
-  {
-    key: 'name',
-    header: 'Name',
-    frozen: true,
-    minWidth: 200,
-    sortValue: (item) => item.copyType.name,
+const COPY_TYPE_RENDERERS: ColumnRegistry<CopyTypeItem> = {
+  name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.copyType.name}
@@ -83,47 +90,35 @@ const COPY_TYPE_COLUMNS: readonly GridColumn<CopyTypeItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.copyType.name,
   },
-  {
-    key: 'description',
-    header: 'Description',
-    minWidth: 240,
+  description: {
+    render: (item) => item.descriptionPreview ?? <span className="text-text4">{EM_DASH}</span>,
     sortValue: (item) => item.descriptionPreview,
     cellTitle: (item) => item.copyType.description ?? undefined,
-    render: (item) => item.descriptionPreview ?? <span className="text-text4">{EM_DASH}</span>,
+    minWidth: 240,
   },
-  {
-    key: 'metaCopies',
-    header: 'Meta copies',
-    sortValue: (item) => item.metaCopies.length,
-    cellTitle: (item) => item.metaCopies.map((copy) => copy.label).join(', ') || undefined,
+  copywriting_copy_types: {
     render: (item) => (
       <StatusChip
         tone={linkCountTone(item.metaCopies.length)}
         label={metaCopyCountLabel(item.metaCopies.length)}
       />
     ),
+    sortValue: (item) => item.metaCopies.length,
+    cellTitle: (item) => item.metaCopies.map((copy) => copy.label).join(', ') || undefined,
   },
-  {
-    key: 'youtubeCopies',
-    header: 'YouTube copies',
-    sortValue: (item) => item.youtubeCopies.length,
-    cellTitle: (item) => item.youtubeCopies.map((copy) => copy.label).join(', ') || undefined,
+  youtube_copy_copy_types: {
     render: (item) => (
       <StatusChip
         tone={linkCountTone(item.youtubeCopies.length)}
         label={youtubeCopyCountLabel(item.youtubeCopies.length)}
       />
     ),
+    sortValue: (item) => item.youtubeCopies.length,
+    cellTitle: (item) => item.youtubeCopies.map((copy) => copy.label).join(', ') || undefined,
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 export function CopyTypesWorkspace({
   items,
@@ -131,7 +126,14 @@ export function CopyTypesWorkspace({
   initialSelection,
   initialSearch,
   initialView = 'grid',
+  columns,
+  unconfiguredColumns = false,
 }: CopyTypesWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () => gridColumnsFrom(columns, COPY_TYPE_RENDERERS, { freezeFirst: true, frozenMinWidth: 200 }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -222,9 +224,16 @@ export function CopyTypesWorkspace({
           </div>
         </div>
 
+        <ColumnNotices
+          slotPrefix="copy-type"
+          unconfigured={unconfiguredColumns}
+          missing={grid.missing}
+          registryName="COPY_TYPE_RENDERERS in copy-types-workspace.tsx"
+        />
+
         <AirtableGrid
           tableKey={TABLE_KEY}
-          columns={COPY_TYPE_COLUMNS}
+          columns={grid.columns}
           rows={visible}
           rowId={(item) => item.copyType.id}
           rowLabel={(item) => item.copyType.name}

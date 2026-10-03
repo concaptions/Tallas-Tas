@@ -1,4 +1,4 @@
-import { loadCopyTypes } from '@/lib/copy-types-source';
+import { loadCopyTypeColumns, loadCopyTypes } from '@/lib/copy-types-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
@@ -27,7 +27,11 @@ interface CopyTypesPageProps {
 }
 
 export default async function CopyTypesPage({ searchParams }: CopyTypesPageProps) {
-  const [{ rows }, params] = await Promise.all([loadCopyTypes(), searchParams]);
+  const [{ rows }, { columns, unconfigured: unconfiguredColumns }, params] = await Promise.all([
+    loadCopyTypes(),
+    loadCopyTypeColumns(),
+    searchParams,
+  ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -48,6 +52,8 @@ export default async function CopyTypesPage({ searchParams }: CopyTypesPageProps
 
   return (
     <CopyTypesWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       demo={demo}
       initialSelection={selection}

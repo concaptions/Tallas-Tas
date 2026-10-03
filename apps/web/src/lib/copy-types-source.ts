@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the Copy Types route gets its rows (Airtable "(Internal) Copy Type", gap audit 2026-10-01
@@ -81,6 +82,22 @@ function inDemoMode(deps: CopyTypeSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const COPY_TYPES_TABLE_KEY = 'copy_types';
+
+/**
+ * THE ordered, labelled, visible columns of the working brand, through the ONE loader every
+ * resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadCopyTypeColumns(
+  deps: CopyTypeSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(COPY_TYPES_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

@@ -3,6 +3,7 @@ import { demoCopyTypes } from '@tas/db';
 import { CopyTypesWorkspace, type CopyTypeItem } from '@/app/app/copy-types/copy-types-workspace';
 import { descriptionPreview, linkedCopyLabel } from '@/app/app/copy-types/fields';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
  * The Copy Types route (CLAUDE.md UI governance rule 4): the identical `CopyTypesWorkspace` the page
@@ -39,7 +40,13 @@ function StoryFrame({ children }: { readonly children: React.ReactNode }) {
 export function CopyTypesGridStory() {
   return (
     <StoryFrame>
-      <CopyTypesWorkspace items={STORY_ITEMS} demo initialSelection={null} initialSearch="" />
+      <CopyTypesWorkspace
+        columns={parentColumnsFor('copy_types')}
+        items={STORY_ITEMS}
+        demo
+        initialSelection={null}
+        initialSearch=""
+      />
     </StoryFrame>
   );
 }
@@ -53,6 +60,7 @@ export function CopyTypePanelStory() {
   return (
     <StoryFrame>
       <CopyTypesWorkspace
+        columns={parentColumnsFor('copy_types')}
         items={STORY_ITEMS}
         demo
         initialSelection={first?.id ?? null}
