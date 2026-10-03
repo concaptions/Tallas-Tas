@@ -13,20 +13,21 @@ import {
   StatusChip,
 } from '@tas/ui';
 
-import { ViewSwitcher } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices, ViewSwitcher } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import { CountCell, EmptyCell, MetricCell, TextCell } from '@/components/views/grid-cells';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import {
   CreativeReportingPanel,
   NEW_CREATIVE_REPORT,
   type CreativeReportBriefOption,
 } from './creative-reporting-panel';
-import {
-  countLabel,
-  EM_DASH,
-  matchesCreativeReportSearch,
-  type CreativeReportItem,
-} from './fields';
+import { countLabel, matchesCreativeReportSearch, type CreativeReportItem } from './fields';
 
 /**
  * The Creative Reporting workspace: the Airtable-style grid (the base's only view), the header
@@ -37,6 +38,10 @@ import {
 export type { CreativeReportItem };
 
 interface CreativeReportingWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadCreativeReportColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly CreativeReportItem[];
   readonly briefOptions: readonly CreativeReportBriefOption[];
   readonly demo: boolean;
@@ -62,28 +67,20 @@ function syncUrl(key: UrlKey, value: string | null): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
-function Dash() {
-  return <span className="text-text4">{EM_DASH}</span>;
-}
-
-/** A metric the server already formatted: right-aligned, in the mono face, or the dash. */
-function Metric({ label }: { label: string }) {
-  return label === EM_DASH ? <Dash /> : <span className="font-mono text-xs">{label}</span>;
-}
-
 /**
- * The grid columns: the frozen name carries the propagation badge; the Creative is the brief's
- * auto-generated name in the mono face; every metric is right-aligned mono; Difference CPA is the
- * base's formula as a chip and says so in its cell title; the ad link shows its host and keeps the
- * full URL in the title.
+ * THE Creative Reporting renderer registry, keyed by the resolver's `column_key`.
+ *
+ * `difference_cpa` is VIRTUAL — CPA minus target CPA, the base's own formula, with no Postgres
+ * column behind it — and says so in its cell title. `brief_id` is the opposite and worth naming: a
+ * REAL stored foreign key that no Airtable field maps to, because the base's `Creative Name` is a
+ * formula and `Creative Name (from Creative)` is a lookup; it renders the brief's generated name.
+ *
+ * The seven metric cells are the shared `MetricCell` now, which replaced this file's private
+ * `Metric`/`Dash` pair — the duplication `grid-cells.tsx` exists to end, so an empty value reads the
+ * same on every table.
  */
-const COLUMNS: readonly GridColumn<CreativeReportItem>[] = [
-  {
-    key: 'nameAngleOffer',
-    header: 'Name + Angle + Offer',
-    frozen: true,
-    minWidth: 240,
-    sortValue: (item) => item.row.nameAngleOffer,
+const CREATIVE_REPORT_RENDERERS: ColumnRegistry<CreativeReportItem> = {
+  name_angle_offer: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.row.nameAngleOffer}
@@ -93,94 +90,69 @@ const COLUMNS: readonly GridColumn<CreativeReportItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.row.nameAngleOffer,
   },
-  {
-    key: 'creative',
-    header: 'Creative',
+  brief_id: {
+    render: (item) => <MetricCell label={item.row.briefName} />,
     sortValue: (item) => item.row.briefName,
-    render: (item) =>
-      item.row.briefName === null ? (
-        <Dash />
-      ) : (
-        <span className="font-mono text-xs">{item.row.briefName}</span>
-      ),
   },
-  {
-    key: 'ctr',
-    header: 'CTR (%)',
-    align: 'right',
+  notes: { render: (item) => <TextCell value={item.row.notes} /> },
+  ad_design: {
+    render: (item) => <CountCell count={item.row.adDesign?.length ?? 0} noun="file" />,
+    sortValue: (item) => item.row.adDesign?.length ?? 0,
+  },
+  ad_link: {
+    render: (item) => item.adLinkHost ?? <EmptyCell />,
+    cellTitle: (item) => item.row.adLink ?? undefined,
+  },
+  ctr: {
+    render: (item) => <MetricCell label={item.ctrLabel} />,
     sortValue: (item) => (item.row.ctr === null ? null : Number(item.row.ctr)),
-    render: (item) => <Metric label={item.ctrLabel} />,
-  },
-  {
-    key: 'thumbStopRate',
-    header: 'Thumb-stop rate',
     align: 'right',
+  },
+  thumb_stop_rate: {
+    render: (item) => <MetricCell label={item.thumbStopLabel} />,
     sortValue: (item) => (item.row.thumbStopRate === null ? null : Number(item.row.thumbStopRate)),
-    render: (item) => <Metric label={item.thumbStopLabel} />,
-  },
-  {
-    key: 'results',
-    header: 'Results',
     align: 'right',
+  },
+  results: {
+    render: (item) => <MetricCell label={item.resultsLabel} />,
     sortValue: (item) => (item.row.results === null ? null : Number(item.row.results)),
-    render: (item) => <Metric label={item.resultsLabel} />,
-  },
-  {
-    key: 'cpa',
-    header: 'CPA',
     align: 'right',
+  },
+  cpa: {
+    render: (item) => <MetricCell label={item.cpaLabel} />,
     sortValue: (item) => (item.row.cpa === null ? null : Number(item.row.cpa)),
-    render: (item) => <Metric label={item.cpaLabel} />,
-  },
-  {
-    key: 'targetCpa',
-    header: 'Target CPA',
     align: 'right',
+  },
+  target_cpa: {
+    render: (item) => <MetricCell label={item.targetCpaLabel} />,
     sortValue: (item) => (item.row.targetCpa === null ? null : Number(item.row.targetCpa)),
-    render: (item) => <Metric label={item.targetCpaLabel} />,
-  },
-  {
-    key: 'differenceCpa',
-    header: 'Difference CPA',
     align: 'right',
-    sortValue: (item) => item.row.differenceCpa,
-    cellTitle: () => 'CPA − Target CPA (formula, read-only)',
+  },
+  // The virtual one: nothing stored, and the cell title says where the number comes from.
+  difference_cpa: {
     render: (item) =>
       item.differenceCpa === null ? (
-        <Dash />
+        <EmptyCell />
       ) : (
         <StatusChip tone={item.differenceCpa.tone} label={item.differenceCpa.label} />
       ),
-  },
-  {
-    key: 'roas',
-    header: 'ROAS',
+    sortValue: (item) => item.row.differenceCpa,
+    cellTitle: () => 'CPA − Target CPA (formula, read-only)',
     align: 'right',
+  },
+  roas: {
+    render: (item) => <MetricCell label={item.roasLabel} />,
     sortValue: (item) => (item.row.roas === null ? null : Number(item.row.roas)),
-    render: (item) => <Metric label={item.roasLabel} />,
-  },
-  {
-    key: 'targetRoas',
-    header: 'Target ROAS',
     align: 'right',
+  },
+  target_roas: {
+    render: (item) => <MetricCell label={item.targetRoasLabel} />,
     sortValue: (item) => (item.row.targetRoas === null ? null : Number(item.row.targetRoas)),
-    render: (item) => <Metric label={item.targetRoasLabel} />,
+    align: 'right',
   },
-  {
-    key: 'adLink',
-    header: 'Ad link',
-    cellTitle: (item) => item.row.adLink ?? undefined,
-    render: (item) => item.adLinkHost ?? <Dash />,
-  },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 export function CreativeReportingWorkspace({
   items,
@@ -189,7 +161,18 @@ export function CreativeReportingWorkspace({
   initialSelection,
   initialSearch,
   initialView = 'grid',
+  columns,
+  unconfiguredColumns = false,
 }: CreativeReportingWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, CREATIVE_REPORT_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 240,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -287,9 +270,19 @@ export function CreativeReportingWorkspace({
           </div>
         </div>
 
+        <ColumnNotices
+          slotPrefix="creative-report"
+
+          unconfigured={unconfiguredColumns}
+
+          missing={grid.missing}
+
+          registryName="CREATIVE_REPORT_RENDERERS in creative-reporting-workspace.tsx"
+        />
+
         <AirtableGrid
           tableKey={CAP.tableKey}
-          columns={COLUMNS}
+          columns={grid.columns}
           rows={visible}
           rowId={(item) => item.row.id}
           rowLabel={(item) => item.row.nameAngleOffer}

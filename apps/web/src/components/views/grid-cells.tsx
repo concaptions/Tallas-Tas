@@ -125,6 +125,25 @@ export function DateCell({ value }: { readonly value: Date | string | null | und
 }
 
 /** A money column, whole dollars; the dash when unset. */
+/**
+ * A number the SERVER already formatted — a percentage, a rate, a currency figure, a ROAS multiple —
+ * in the mono face, right-aligned by its column.
+ *
+ * It takes the finished STRING, not a number, because every one of these is formatted in the page's
+ * own `fields.ts` (`formatCtr`, `formatRate`, `formatCurrency`, `formatRoas`) so the server and the
+ * client cannot disagree about rounding or a locale. `MoneyCell` cannot stand in: it takes a number
+ * and prints whole dollars.
+ *
+ * It accepts either dash constant. `grid-cells.tsx` writes `GRID_EMPTY` and the pages write their
+ * own `EM_DASH`; they are the same character, and a formatter that already returned one must not
+ * then be rendered as a value.
+ */
+export function MetricCell({ label }: { readonly label: string | null | undefined }) {
+  const text = cellText(label);
+  if (text === null || text === GRID_EMPTY) return <EmptyCell />;
+  return <span className="font-mono text-xs">{text}</span>;
+}
+
 export function MoneyCell({ value }: { readonly value: number | null | undefined }) {
   if (value === null || value === undefined) return <EmptyCell />;
   return <span className="font-mono text-xs">${String(value)}</span>;

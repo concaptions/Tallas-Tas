@@ -44,53 +44,61 @@ test.describe('creative reporting in demo mode (no Clerk publishable key)', () =
     await expect(page.locator('[data-slot="creative-report-row"]')).toHaveCount(4);
     await expect(page.locator('[data-slot="creative-report-count"]')).toContainText('4 reports');
     await expect(page.locator('[data-slot="creative-reporting-table"] thead th')).toHaveText([
+      /*
+       * The resolver's labels, in the template's order. The parent base has no Creative Reporting
+       * table, so the whole set is platform-owned and takes the Gratsi base's own field names and
+       * positions — which is why `Creative` reads first-class at order 2 and `Notes`/`Ad Design`
+       * appear, both stored and not previously drawn. `Difference CPA` is VIRTUAL (CPA − Target CPA)
+       * and `Updated` is off every grid (docs/decisions/gratsi-display-spec-2026-10-02.md).
+       */
       'Name + Angle + Offer',
       'Creative',
-      'CTR (%)',
-      'Thumb-stop rate',
+      'Notes',
+      'Ad Design',
+      'Ad Link',
+      'CTR',
+      'Thumb-Stop Rate',
       'Results',
       'CPA',
       'Target CPA',
       'Difference CPA',
       'ROAS',
       'Target ROAS',
-      'Ad link',
-      'Updated',
     ]);
 
     const launched = page.locator(`[data-creative-report-id="${BODY_CLOCK_LAUNCHED}"]`);
     // The Creative is the brief's auto-generated name, in the mono face.
-    await expect(launched.locator('td').nth(1)).toHaveText(
+    await expect(launched.locator('td[data-column="brief_id"]')).toHaveText(
       'TAS-TV3-B1-Your Body Clock Is Not Broken-Problem/Solution-V1',
     );
-    await expect(launched.locator('td').nth(1).locator('span')).toHaveClass(/font-mono/);
+    await expect(launched.locator('td[data-column="brief_id"]').locator('span')).toHaveClass(
+      /font-mono/,
+    );
     // CTR is stored as a fraction and read as a percent; CPA and ROAS carry their units.
-    await expect(launched.locator('td').nth(2)).toHaveText('4.12%');
-    await expect(launched.locator('td').nth(5)).toHaveText('$19.80');
-    await expect(launched.locator('td').nth(6)).toHaveText('$22.00');
-    await expect(launched.locator('td').nth(8)).toHaveText('3.40x');
-    await expect(launched.locator('td').nth(10)).toHaveAttribute(
+    await expect(launched.locator('td[data-column="ctr"]')).toHaveText('4.12%');
+    await expect(launched.locator('td[data-column="cpa"]')).toHaveText('$19.80');
+    await expect(launched.locator('td[data-column="target_cpa"]')).toHaveText('$22.00');
+    await expect(launched.locator('td[data-column="roas"]')).toHaveText('3.40x');
+    await expect(launched.locator('td[data-column="ad_link"]')).toHaveAttribute(
       'title',
       /^https:\/\/www\.facebook/,
     );
     // Under target: the formula chip is ok and carries its sign.
-    const under = launched.locator('td').nth(7).locator('[data-slot="status-chip"]');
+    const under = launched.locator('td[data-column="difference_cpa"] [data-slot="status-chip"]');
     await expect(under).toHaveText('−$2.20');
     await expect(under).toHaveAttribute('data-tone', 'ok');
 
     // Over target: bad.
     const over = page
       .locator(`[data-creative-report-id="${BODY_CLOCK_V2}"]`)
-      .locator('td')
-      .nth(7)
-      .locator('[data-slot="status-chip"]');
+      .locator('td[data-column="difference_cpa"] [data-slot="status-chip"]');
     await expect(over).toHaveText('+$2.50');
     await expect(over).toHaveAttribute('data-tone', 'bad');
 
     // No CPA yet: the formula is the dash, never a blank, and so is the missing creative.
     const legacy = page.locator(`[data-creative-report-id="${LEGACY_BUNDLE}"]`);
-    await expect(legacy.locator('td').nth(1)).toHaveText('—');
-    await expect(legacy.locator('td').nth(7)).toHaveText('—');
+    await expect(legacy.locator('td[data-column="brief_id"]')).toHaveText('—');
+    await expect(legacy.locator('td[data-column="difference_cpa"]')).toHaveText('—');
   });
 
   test('a row opens the panel with every stored field, the URL carries it and Escape closes it', async ({

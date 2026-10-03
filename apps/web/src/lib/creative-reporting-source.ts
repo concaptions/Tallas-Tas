@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the Creative Reporting route gets its rows (Airtable "Creative Reporting", audit §2 row 14
@@ -78,6 +79,22 @@ function inDemoMode(deps: CreativeReportSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const CREATIVE_REPORTING_TABLE_KEY = 'creative_reporting';
+
+/**
+ * THE ordered, labelled, visible Creative Reporting columns of the working brand, through the ONE
+ * loader every resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadCreativeReportColumns(
+  deps: CreativeReportSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(CREATIVE_REPORTING_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

@@ -3,6 +3,7 @@ import { StatusChip } from '@tas/ui';
 
 import { CreativeReportingWorkspace } from '@/app/app/creative-reporting/creative-reporting-workspace';
 import { differenceCpaView, toCreativeReportItem } from '@/app/app/creative-reporting/fields';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
  * The Creative Reporting module on the design-system page (CLAUDE.md UI governance rule 4): the
@@ -20,6 +21,7 @@ const BRIEF_OPTIONS = demoBriefs.map(({ id, name }) => ({ id, name }));
 export function CreativeReportingGridStory() {
   return (
     <CreativeReportingWorkspace
+      columns={parentColumnsFor('creative_reporting')}
       items={ITEMS}
       briefOptions={BRIEF_OPTIONS}
       demo

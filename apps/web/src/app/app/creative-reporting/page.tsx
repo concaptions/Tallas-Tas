@@ -1,7 +1,7 @@
 import { getTableCapability, type ViewType } from '@tas/domain';
 
 import { loadBriefs } from '@/lib/briefs-source';
-import { loadCreativeReports } from '@/lib/creative-reporting-source';
+import { loadCreativeReportColumns, loadCreativeReports } from '@/lib/creative-reporting-source';
 import { isDemoMode } from '@/lib/demo-mode';
 
 import type { CreativeReportBriefOption } from './creative-reporting-panel';
@@ -29,11 +29,13 @@ interface CreativeReportingPageProps {
 const CAP = getTableCapability('creative-reporting');
 
 export default async function CreativeReportingPage({ searchParams }: CreativeReportingPageProps) {
-  const [{ rows }, briefRows, params] = await Promise.all([
-    loadCreativeReports(),
-    loadBriefs(),
-    searchParams,
-  ]);
+  const [{ rows }, { columns, unconfigured: unconfiguredColumns }, briefRows, params] =
+    await Promise.all([
+      loadCreativeReports(),
+      loadCreativeReportColumns(),
+      loadBriefs(),
+      searchParams,
+    ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -58,6 +60,8 @@ export default async function CreativeReportingPage({ searchParams }: CreativeRe
 
   return (
     <CreativeReportingWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       briefOptions={briefOptions}
       demo={demo}

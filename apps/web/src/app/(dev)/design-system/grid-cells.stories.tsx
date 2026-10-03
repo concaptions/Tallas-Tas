@@ -8,6 +8,7 @@ import {
   DateCell,
   EmptyCell,
   LinkCell,
+  MetricCell,
   MoneyCell,
   TextCell,
 } from '@/components/views/grid-cells';
@@ -65,6 +66,10 @@ const CELLS: readonly { readonly label: string; readonly cell: React.ReactNode }
   },
   { label: 'DateCell', cell: <DateCell value={new Date('2026-07-22T10:00:00Z')} /> },
   { label: 'MoneyCell', cell: <MoneyCell value={750} /> },
+  // A figure the server already formatted, in the mono face. The empty case takes either dash
+  // constant, because a formatter that returned one must not then be rendered as a value.
+  { label: 'MetricCell', cell: <MetricCell label="4.12%" /> },
+  { label: 'MetricCell (empty)', cell: <MetricCell label="—" /> },
 ];
 
 export function GridCellsStory() {
