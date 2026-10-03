@@ -5,8 +5,13 @@ import { useRouter } from 'next/navigation';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input, PropagationBadge, StatusChip } from '@tas/ui';
 
-import { KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { moveSmCampaignFeedTaskAction } from './actions';
 import {
@@ -47,6 +52,10 @@ export type { SmTaskItem } from './fields';
 
 interface SmCampaignFeedWorkspaceProps {
   readonly items: readonly SmTaskItem[];
+  /** The brand's ordered, labelled, visible columns, from `loadSmCampaignFeedColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
@@ -72,17 +81,19 @@ function syncUrl(key: 'task' | 'q', value: string | null): void {
 }
 
 /**
- * The Airtable-style grid columns: the frozen task column carries the propagation badge; Platform,
- * Status and Reminder are the shared `StatusChip` (never bare text); Due Date and Updated are the
- * strings the page computed. Notes are truncated in the cell and carried whole in its title.
+ * THE SM Campaign Feed renderer registry, keyed by the resolver's `column_key`.
+ *
+ * This replaces the hand-written `SM_TASK_COLUMNS` array: no header string and no ordering here,
+ * only how a cell is drawn.
+ *
+ * `reminder_trigger` is a VIRTUAL column — an Airtable formula over the due date and the current
+ * time, with no Postgres column behind it. The value is computed once per request by
+ * `smReminderTrigger` with a single `now` (see the page), which is why the formula takes `now` as a
+ * parameter rather than reading the clock: two cells in one render must never disagree about what
+ * time it is. This registry only draws what the page already computed.
  */
-const SM_TASK_COLUMNS: readonly GridColumn<SmTaskItem>[] = [
-  {
-    key: 'taskName',
-    header: 'Task',
-    frozen: true,
-    minWidth: 240,
-    sortValue: (item) => item.task.taskName,
+const SM_TASK_RENDERERS: ColumnRegistry<SmTaskItem> = {
+  task_name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.task.taskName}
@@ -92,11 +103,9 @@ const SM_TASK_COLUMNS: readonly GridColumn<SmTaskItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.task.taskName,
   },
-  {
-    key: 'platform',
-    header: 'Platform',
-    sortValue: (item) => (item.task.platform === null ? null : platformLabel(item.task.platform)),
+  platform: {
     render: (item) =>
       item.task.platform === null ? (
         <span className="text-text4">{EM_DASH}</span>
@@ -106,59 +115,46 @@ const SM_TASK_COLUMNS: readonly GridColumn<SmTaskItem>[] = [
           label={platformLabel(item.task.platform)}
         />
       ),
+    sortValue: (item) => (item.task.platform === null ? null : platformLabel(item.task.platform)),
   },
-  {
-    key: 'dueDate',
-    header: 'Due date',
-    sortValue: (item) => item.task.dueDate?.getTime() ?? null,
+  due_date: {
     render: (item) =>
       item.task.dueDate === null ? (
         <span className="text-text4">{EM_DASH}</span>
       ) : (
         <span className="text-text2">{item.dueLabel}</span>
       ),
+    sortValue: (item) => item.task.dueDate?.getTime() ?? null,
   },
-  {
-    key: 'status',
-    header: 'Status',
-    sortValue: (item) => (item.task.status === null ? null : statusLabel(item.task.status)),
+  status: {
     render: (item) =>
       item.task.status === null ? (
         <span className="text-text4">{EM_DASH}</span>
       ) : (
         <StatusChip tone={statusTone(item.task.status)} label={statusLabel(item.task.status)} />
       ),
+    sortValue: (item) => (item.task.status === null ? null : statusLabel(item.task.status)),
   },
-  {
-    key: 'reminder',
-    header: 'Reminder',
-    sortValue: (item) => (item.reminder === 'due' ? 1 : 0),
+  // The virtual one. Nothing is stored; `item.reminder` is the formula's answer for this request.
+  reminder_trigger: {
     render: (item) =>
       item.reminder === 'due' ? (
         <StatusChip tone={REMINDER_TONE} label={REMINDER_LABEL} />
       ) : (
         <span className="text-text4">{EM_DASH}</span>
       ),
+    sortValue: (item) => (item.reminder === 'due' ? 1 : 0),
   },
-  {
-    key: 'notes',
-    header: 'Notes',
-    cellTitle: (item) => item.task.notes ?? undefined,
+  notes: {
     render: (item) =>
       item.task.notes === null ? (
         <span className="text-text4">{EM_DASH}</span>
       ) : (
         <span className="block max-w-[28rem] truncate">{item.task.notes}</span>
       ),
+    cellTitle: (item) => item.task.notes ?? undefined,
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 function initialGroupField(requested: string | null | undefined): SmKanbanField {
   return typeof requested === 'string' && isSmKanbanField(requested) ? requested : 'status';
@@ -171,7 +167,14 @@ export function SmCampaignFeedWorkspace({
   initialSearch,
   initialView = 'grid',
   initialKanbanField = null,
+  columns,
+  unconfiguredColumns = false,
 }: SmCampaignFeedWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () => gridColumnsFrom(columns, SM_TASK_RENDERERS, { freezeFirst: true, frozenMinWidth: 240 }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -311,6 +314,12 @@ export function SmCampaignFeedWorkspace({
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <ColumnNotices
+              slotPrefix="sm-task"
+              unconfigured={unconfiguredColumns}
+              missing={grid.missing}
+              registryName="SM_TASK_RENDERERS in sm-campaign-feed-workspace.tsx"
+            />
             {activeView === 'kanban' ? (
               <select
                 value={kanbanField}
@@ -354,7 +363,7 @@ export function SmCampaignFeedWorkspace({
         ) : (
           <AirtableGrid
             tableKey={TABLE_KEY}
-            columns={SM_TASK_COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={(item) => item.task.id}
             rowLabel={(item) => item.task.taskName}

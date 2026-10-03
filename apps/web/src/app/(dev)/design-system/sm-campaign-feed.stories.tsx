@@ -9,6 +9,7 @@ import {
   STATUS_OPTIONS,
 } from '@/app/app/sm-campaign-feed/fields';
 import { SmCampaignFeedWorkspace } from '@/app/app/sm-campaign-feed/sm-campaign-feed-workspace';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
  * The SM Campaign Feed module (module parity 2026-10-01, UI governance rule 4): the identical
@@ -24,6 +25,7 @@ const ITEMS = demoSmCampaignFeedTasks.map((task) => buildSmTaskItem(task, STORY_
 export function SmCampaignFeedGridStory() {
   return (
     <SmCampaignFeedWorkspace
+      columns={parentColumnsFor('sm_campaign_feed_tasks')}
       items={ITEMS}
       demo
       initialSelection={null}
@@ -36,6 +38,7 @@ export function SmCampaignFeedGridStory() {
 export function SmCampaignFeedKanbanStory() {
   return (
     <SmCampaignFeedWorkspace
+      columns={parentColumnsFor('sm_campaign_feed_tasks')}
       items={ITEMS}
       demo
       initialSelection={null}

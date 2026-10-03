@@ -1,7 +1,7 @@
 import { supportsView, type ViewType } from '@tas/domain';
 
 import { isDemoMode } from '@/lib/demo-mode';
-import { loadSmCampaignFeedTasks } from '@/lib/sm-campaign-feed-source';
+import { loadSmCampaignFeedColumns, loadSmCampaignFeedTasks } from '@/lib/sm-campaign-feed-source';
 import { loadViewPreference } from '@/lib/view-preference-actions';
 
 import { buildSmTaskItem } from './fields';
@@ -30,11 +30,13 @@ interface SmCampaignFeedPageProps {
 }
 
 export default async function SmCampaignFeedPage({ searchParams }: SmCampaignFeedPageProps) {
-  const [{ rows }, params, viewPref] = await Promise.all([
-    loadSmCampaignFeedTasks(),
-    searchParams,
-    loadViewPreference(TABLE_KEY, 'grid'),
-  ]);
+  const [{ rows }, { columns, unconfigured: unconfiguredColumns }, params, viewPref] =
+    await Promise.all([
+      loadSmCampaignFeedTasks(),
+      loadSmCampaignFeedColumns(),
+      searchParams,
+      loadViewPreference(TABLE_KEY, 'grid'),
+    ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -55,6 +57,8 @@ export default async function SmCampaignFeedPage({ searchParams }: SmCampaignFee
 
   return (
     <SmCampaignFeedWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       demo={demo}
       initialSelection={selection}

@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the SM Campaign Feed route gets its rows (Airtable `tblLRajTW55XEhVhk`). A copy of
@@ -87,6 +88,22 @@ function inDemoMode(deps: SmCampaignFeedSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const SM_CAMPAIGN_FEED_TABLE_KEY = 'sm_campaign_feed_tasks';
+
+/**
+ * THE ordered, labelled, visible SM Campaign Feed columns of the working brand, through the ONE
+ * loader every resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadSmCampaignFeedColumns(
+  deps: SmCampaignFeedSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(SM_CAMPAIGN_FEED_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

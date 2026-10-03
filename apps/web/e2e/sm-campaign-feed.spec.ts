@@ -35,25 +35,39 @@ test.describe('sm campaign feed in demo mode (no Clerk publishable key)', () => 
     await expect(page.locator('[data-slot="sm-task-row"]')).toHaveCount(FIXTURE_COUNT);
     await expect(page.locator('[data-slot="sm-task-count"]')).toContainText('5 tasks');
 
+    /*
+     * The resolver's labels, from `column_definitions`. The parent base has no SM Campaign Feed
+     * table at all, so the whole set is platform-owned and takes the Gratsi base's own field names
+     * and order — which is why `Reminder Trigger` now sorts last and `Updated` is gone (off every
+     * grid, docs/decisions/gratsi-display-spec-2026-10-02.md).
+     *
+     * `Reminder Trigger` is a VIRTUAL column: nothing is stored, and the value is computed once per
+     * request by `smReminderTrigger` with a single `now`.
+     */
     await expect(page.locator('[data-slot="sm-tasks-table"] thead th')).toHaveText([
-      'Task',
+      'Task Name',
       'Platform',
-      'Due date',
+      'Due Date',
       'Status',
-      'Reminder',
       'Notes',
-      'Updated',
+      'Reminder Trigger',
     ]);
 
     // The finished X thread is past its due moment, but a done task never reminds.
     const done = page.locator(`[data-sm-task-id="${X_MENTIONS_DONE}"]`);
-    await expect(done.locator('td').nth(1).locator('[data-slot="status-chip"]')).toHaveText('X');
-    await expect(done.locator('td').nth(3).locator('[data-slot="status-chip"]')).toHaveText('Done');
-    await expect(done.locator('td').nth(4)).toHaveText('—');
+    await expect(done.locator('td[data-column="platform"] [data-slot="status-chip"]')).toHaveText(
+      'X',
+    );
+    await expect(done.locator('td[data-column="status"] [data-slot="status-chip"]')).toHaveText(
+      'Done',
+    );
+    await expect(done.locator('td[data-column="reminder_trigger"]')).toHaveText('—');
 
     // The in-progress Meta post was due on 2026-09-30, so it reminds — the shared chip, warn tone.
     const overdue = page.locator(`[data-sm-task-id="${META_DISCOUNT_OVERDUE}"]`);
-    const reminder = overdue.locator('td').nth(4).locator('[data-slot="status-chip"]');
+    const reminder = overdue
+      .locator('td[data-column="reminder_trigger"]')
+      .locator('[data-slot="status-chip"]');
     await expect(reminder).toHaveText('Due');
     await expect(reminder).toHaveAttribute('data-tone', 'warn');
 
@@ -61,7 +75,7 @@ test.describe('sm campaign feed in demo mode (no Clerk publishable key)', () => 
     const last = page.locator('[data-slot="sm-task-row"]').last();
     await expect(last).toHaveAttribute('data-sm-task-id', CALENDAR_UNDATED);
     await expect(last.locator('td').nth(1)).toHaveText('—');
-    await expect(last.locator('td').nth(2)).toHaveText('—');
+    await expect(last.locator('td[data-column="due_date"]')).toHaveText('—');
   });
 
   test('a row opens the panel with a labelled control for every stored field, the URL carries it, and Escape closes it', async ({
