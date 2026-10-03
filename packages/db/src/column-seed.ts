@@ -1375,6 +1375,18 @@ export interface ColumnSeedResult {
  * have is skipped and reported rather than failing the whole seed.
  */
 /**
+ * Every table the seed has an opinion about, across ALL groups. The reconciler's scope: a table in
+ * here may have the seed's own stale rows cleaned up on any brand, and a table absent from it
+ * (`themes`) is never touched.
+ *
+ * Computed on call rather than at module load, because `COLUMN_SEED` is declared further down this
+ * file and a module-level const reading it here would sit in its temporal dead zone.
+ */
+function seededTableKeys(): readonly string[] {
+  return [...new Set(COLUMN_SEED.flatMap((group) => group.rows.map((row) => row.tableKey)))];
+}
+
+/**
  * Soft-delete the rows this seed wrote before and no longer lists, for the tables it DOES list.
  *
  * The seed is an upsert, which is what makes it safe to re-run — but upsert-only means a row removed
@@ -1386,8 +1398,17 @@ export interface ColumnSeedResult {
  *
  * IT ONLY EVER TOUCHES ITS OWN ROWS. The filter is `created_by = actorId`, so a row an admin made in
  * Column Admin — the whole point of the feature — is never removed by a re-seed, even when the seed
- * has nothing to say about that column. And it is scoped to the table keys this group lists, so a
- * table the seed deliberately says nothing about (`themes`) is left completely alone.
+ * has nothing to say about that column.
+ *
+ * THE SCOPE IS EVERY TABLE THE SEED COVERS, not the tables this GROUP lists, and the difference is
+ * load-bearing. Scoping per group left 42 stale Gratsi rows behind the moment a group stopped
+ * listing a table at all: emptying `EMAIL_CAMPAIGNS_GRATSI` and the three like it meant the Gratsi
+ * group no longer named those tables, so the reconciler skipped them and their old `custom` rows
+ * survived — and a child row always wins, so Gratsi would have resolved stored columns where the
+ * parent now has VIRTUAL ones, pointing four pages at columns that do not exist. Found by a dry run
+ * against production before anything was written. The union across groups is the honest
+ * precondition: "the seed has an opinion about this table". `themes` is in no group at all, so it is
+ * still left completely alone.
  *
  * Soft delete, never `DELETE FROM` (CLAUDE.md): the row is recoverable and the audit trail stays.
  */
@@ -1397,7 +1418,7 @@ async function retireUnseededRows(
   rows: readonly UpsertColumnDefinition[],
   actorId: string,
 ): Promise<readonly string[]> {
-  const tableKeys = [...new Set(rows.map((row) => row.tableKey))];
+  const tableKeys = seededTableKeys();
   if (tableKeys.length === 0) return [];
   const seeded = new Set(rows.map((row) => `${row.tableKey}.${row.columnKey}`));
   const existing = await db

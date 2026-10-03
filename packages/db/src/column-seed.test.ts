@@ -925,6 +925,52 @@ describe("re-seeding retires the seed's own stale rows", () => {
     ).toBe('Upside');
   });
 
+  /**
+   * The gap a production dry run found, before anything was written. Reconciliation used to be
+   * scoped to the tables the CURRENT GROUP lists — so the moment a group stopped listing a table at
+   * all (emptying Gratsi's `email_campaigns` rows, because the platform set now carries those
+   * labels), the reconciler skipped that table and its old rows survived. A child row always wins,
+   * so Gratsi would have resolved STORED columns where the parent now has virtual ones, pointing
+   * four pages at columns that do not exist. 42 rows were in that state in production.
+   */
+  it("retires a stale row on a table this brand's group no longer lists at all", async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db, 'script:seed-columns');
+    const brandId = await gratsiId(db);
+
+    // Gratsi's group lists NO rows for `email_campaigns` — the platform set carries those labels —
+    // but a previous seed wrote one, exactly as production had.
+    await upsertColumnDefinition(
+      db,
+      brandId,
+      {
+        tableKey: 'email_campaigns',
+        columnKey: 'design_due_date',
+        displayLabel: 'Design Due Date',
+        displayOrder: 7,
+        source: 'custom',
+      },
+      'script:seed-columns',
+    );
+    const before = (await resolveColumns(db, brandId, 'email_campaigns')).find(
+      (column) => column.columnKey === 'design_due_date',
+    );
+    // Stale, and winning: it reports no formula, so the column reads as stored.
+    expect(before?.formula).toBeNull();
+
+    const results = await seedColumnDefinitions(db, 'script:seed-columns');
+
+    expect(results.flatMap((row) => row.retired)).toContain('email_campaigns.design_due_date');
+    const after = (await resolveColumns(db, brandId, 'email_campaigns')).find(
+      (column) => column.columnKey === 'design_due_date',
+    );
+    // The parent's virtual row again: computed, and the column is back to being the platform's.
+    expect(after?.formula).toBe('emailCampaignDesignDueDate');
+    expect(after?.source).toBe('platform');
+    expect(after?.inheritedFrom).not.toBeNull();
+  });
+
   it('leaves a table the seed deliberately says nothing about completely alone', async () => {
     const db = await testDb();
     await seed(db);
