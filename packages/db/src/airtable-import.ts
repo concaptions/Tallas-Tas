@@ -767,12 +767,32 @@ const PERSONA_FIELDS = {
 } as const satisfies Record<string, readonly string[]>;
 
 /** The first of `names` the record actually carries, so one builder reads either base. */
+export function normalizeFieldName(name: string): string {
+  return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * The first of `names` the record carries, matched CASE-INSENSITIVELY and with whitespace
+ * normalised — never by exact string.
+ *
+ * Verified against both live bases on 2026-10-03: the parent spells it `Creator's Video Intro` and
+ * Gratsi spells it `Creator's video Intro`. One capital letter, the same field. An exact-string
+ * resolver drops it silently, and the same class of bug hides behind Gratsi's double space in
+ * `Description  [Age Status Salary]`. Normalising both sides is the only way a rename map can be
+ * trusted.
+ */
 export function firstField(
   fields: Readonly<Record<string, unknown>>,
   names: readonly string[],
 ): unknown {
+  const byNormalized = new Map<string, unknown>();
+  for (const [key, value] of Object.entries(fields)) {
+    const normalized = normalizeFieldName(key);
+    // First writer wins, so an exact match is never shadowed by a later near-duplicate.
+    if (!byNormalized.has(normalized)) byNormalized.set(normalized, value);
+  }
   for (const name of names) {
-    const value = fields[name];
+    const value = fields[name] ?? byNormalized.get(normalizeFieldName(name));
     if (value !== undefined && value !== null && value !== '') return value;
   }
   return undefined;

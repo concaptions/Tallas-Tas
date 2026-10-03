@@ -345,3 +345,4 @@ export * from './formulas';
 
 // The per-column inheritance resolver (docs/audits/inheritance-plan-2026-10-02.md).
 export * from './column-definitions';
+export * from './column-seed';
