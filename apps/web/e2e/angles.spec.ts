@@ -48,26 +48,38 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="angle-row"]')).toHaveCount(5);
     await expect(page.locator('[data-slot="angle-count"]')).toContainText('5 angles');
 
-    // The Airtable-style grid: every stored column of an angle is a column here, readable without
-    // opening a row; the first three headers are the ones the plain table had.
+    /*
+     * The headers are the RESOLVER's labels now, from `column_definitions`, not strings in
+     * angles-workspace.tsx. Demo mode's brand is `DEMO_BRAND_ID` (Niagara), which owns no rows of
+     * its own, so it inherits the template: the parent base's seven Airtable field names first, in
+     * the Meta API's order, then the nine columns the PLATFORM owns, for which the parent base
+     * defines no field at all.
+     *
+     * Two differences from the hand-written array this replaced:
+     *   - `Updated` is gone from every grid (docs/decisions/gratsi-display-spec-2026-10-02.md).
+     *   - 'Persona' and 'Product' now read 'Personas' and 'Product', the parent base's own wording
+     *     for the two junction columns.
+     * Gratsi's set — eleven columns, five hidden because it keeps them on Concepts, and its own
+     * 'Brief' / 'Exact Script' wording — is asserted against PGlite in
+     * packages/db/src/column-seed.test.ts.
+     */
     await expect(page.locator('[data-slot="angles-table"] thead th')).toHaveText([
       'Name',
-      'Persona',
-      'Product',
-      'Status',
-      'Potential',
-      'Winning',
-      'Formats to create',
       'Type',
+      'Product',
+      'Personas',
       'Description',
       'Pain Points',
       'USP',
+      'Status',
+      'Potential',
+      'Formats to create',
       'Ad Inspo',
       'Brief URL',
       'Exact Script URL',
+      'Winning',
       'Internal Notes',
       'Client Notes',
-      'Updated',
     ]);
 
     // The name column is frozen (sticky) so it stays put while the rest scroll horizontally.
@@ -77,18 +89,20 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     );
 
     // Persona is an info chip carrying the name before the em dash, the whole name in the title.
+    // Cells are addressed by COLUMN KEY, not position: order is configuration now, so a reorder in
+    // Column Admin would silently repoint a positional assertion at a different column.
     const row = page.locator(`[data-angle-id="${DAYLIGHT}"]`);
-    await expect(row.locator('td')).toHaveCount(17);
-    const persona = row.locator('td').nth(1).locator('[data-slot="status-chip"]');
+    await expect(row.locator('td')).toHaveCount(16);
+    const personaCell = row.locator('td[data-column="angle_personas"]');
+    const persona = personaCell.locator('[data-slot="status-chip"]');
     await expect(persona).toHaveText('Marcus');
     await expect(persona).toHaveAttribute('data-tone', 'info');
-    await expect(row.locator('td').nth(1)).toHaveAttribute('title', /rotating-shift nurse/);
+    await expect(personaCell).toHaveAttribute('title', /rotating-shift nurse/);
 
-    // Product is the mute chip on the same row; Updated closes the row where Formats used to sit.
-    await expect(row.locator('td').nth(2).locator('[data-slot="status-chip"]')).toHaveAttribute(
-      'data-tone',
-      'mute',
-    );
+    // Product is the mute chip on the same row.
+    await expect(
+      row.locator('td[data-column="angle_products"]').locator('[data-slot="status-chip"]'),
+    ).toHaveAttribute('data-tone', 'mute');
   });
 
   test('a row opens the panel, the URL carries it, a reload reopens it and Escape closes it', async ({

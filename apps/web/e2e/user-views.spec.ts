@@ -57,7 +57,10 @@ const TABLES: readonly TableCase[] = [
     label: 'Angles',
     path: anglesPath,
     tableSlot: 'angles-table',
-    field: { key: 'updated', header: 'Updated' },
+    // NOT `updated`: Angles reads its columns from the resolver now, and `Updated` is platform
+    // metadata rather than an Airtable field, so it is off every grid
+    // (docs/decisions/gratsi-display-spec-2026-10-02.md).
+    field: { key: 'description', header: 'Description' },
   },
   {
     label: 'Themes',

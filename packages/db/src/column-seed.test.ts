@@ -259,18 +259,27 @@ describe('the column seed, checked against the real schema', () => {
 
     const resolved = await resolveColumns(db, gratsi.id, 'angles');
 
+    /*
+     * The same eleven columns as before the Angles rollout — nothing dropped — in a new ORDER. The
+     * nine app-owned columns used to be seeded as Gratsi-only `custom` rows carrying Gratsi's own
+     * field positions (2, 3, 10, 11, 13-17), which is what put Status second. They are platform rows
+     * on the parent now, because every brand has them and the parent base defines a field for none
+     * of them, so they sort after the parent's Airtable fields (1-8) at 20-28. The parent's own
+     * fields keep their Airtable positions; where a platform column sits is configuration, and any
+     * brand can move it in Column Admin.
+     */
     expect(resolved.map((column) => column.displayLabel)).toEqual([
       'Name',
+      'Description',
       'Status',
       'Potential',
-      'Description',
       'Formats to create',
-      'Client Notes',
+      'Ad Inspo',
       'Brief',
       'Exact Script',
-      'Ad Inspo',
       'Winning',
       'Internal Notes',
+      'Client Notes',
     ]);
     // Gratsi keeps these on Concepts, so its Angles table has no field for them. Hidden, not gone.
     for (const hidden of ['type', 'angle_products', 'angle_personas', 'pain_points', 'usp']) {
@@ -498,6 +507,18 @@ describe('platform columns on concepts', () => {
         'products.concepts',
         'products.email_campaign_products',
         'products.youtube_copy_products',
+        // Angles: nine stored columns the page draws for every brand, for which the parent base
+        // defines no field. Seeded as Gratsi-only `custom` rows until the Angles rollout, which
+        // would have deleted all nine from the grid on every inheriting brand.
+        'angles.ad_inspo_links',
+        'angles.brief_url',
+        'angles.client_notes',
+        'angles.exact_script_url',
+        'angles.formats',
+        'angles.internal_notes',
+        'angles.potential',
+        'angles.status',
+        'angles.winning',
       ].sort(),
     );
   });
@@ -512,6 +533,84 @@ describe('platform columns on concepts', () => {
  * particular pin that the page's own columns survive, because migrating a page to the resolver
  * renders exactly what the resolver returns and nothing else.
  */
+/**
+ * Angles, and the regression that made this table worth its own gate: nine of the seventeen columns
+ * the page draws were seeded as GRATSI-ONLY rows, so switching the page to the resolver would have
+ * deleted all nine on every inheriting brand while Gratsi kept them.
+ */
+describe('the Angles column set', () => {
+  async function brandIdFor(db: Awaited<ReturnType<typeof testDb>>, slug: string): Promise<string> {
+    const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));
+    if (row === undefined) throw new Error(`the seed has no ${slug} brand`);
+    return row.id;
+  }
+
+  it('returns every column the Angles page draws, for a brand that configures nothing', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const resolved = await resolveColumns(
+      db,
+      await brandIdFor(db, 'niagara-sleep-solutions'),
+      'angles',
+    );
+    const keys = new Set(resolved.map((column) => column.columnKey));
+
+    // The seventeen the page drew before the migration, less `updated` (off every grid).
+    for (const drawn of [
+      'name',
+      'angle_personas',
+      'angle_products',
+      'status',
+      'potential',
+      'winning',
+      'formats',
+      'type',
+      'description',
+      'pain_points',
+      'usp',
+      'ad_inspo_links',
+      'brief_url',
+      'exact_script_url',
+      'internal_notes',
+      'client_notes',
+    ]) {
+      expect(
+        keys.has(drawn),
+        `the Angles grid draws ${drawn} and the resolver must return it`,
+      ).toBe(true);
+    }
+    expect(resolved).toHaveLength(16);
+  });
+
+  it("marks the nine app-owned columns as the platform's, on every brand", async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    for (const slug of ['niagara-sleep-solutions', 'gratsi']) {
+      const resolved = await resolveColumns(db, await brandIdFor(db, slug), 'angles');
+      const platform = resolved
+        .filter((column) => column.source === 'platform')
+        .map((column) => column.columnKey)
+        .sort();
+
+      expect(platform, `${slug} should carry all nine platform columns`).toEqual([
+        'ad_inspo_links',
+        'brief_url',
+        'client_notes',
+        'exact_script_url',
+        'formats',
+        'internal_notes',
+        'potential',
+        'status',
+        'winning',
+      ]);
+    }
+  });
+});
+
 describe('the Products column set', () => {
   async function brandId(db: Awaited<ReturnType<typeof testDb>>, slug: string): Promise<string> {
     const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));

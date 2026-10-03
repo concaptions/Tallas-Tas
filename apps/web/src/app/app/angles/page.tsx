@@ -1,4 +1,4 @@
-import { loadAngles } from '@/lib/angles-source';
+import { loadAngleColumns, loadAngles } from '@/lib/angles-source';
 import { loadBriefs } from '@/lib/briefs-source';
 import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeModules } from '@/lib/creative-modules-source';
@@ -55,16 +55,25 @@ interface AnglesPageProps {
 }
 
 export default async function AnglesPage({ searchParams }: AnglesPageProps) {
-  const [{ rows }, personaRows, productRows, creativeModuleRows, conceptRows, briefRows, params] =
-    await Promise.all([
-      loadAngles(),
-      loadPersonas(),
-      loadProducts(),
-      loadCreativeModules(),
-      loadConcepts(),
-      loadBriefs(),
-      searchParams,
-    ]);
+  const [
+    { rows },
+    { columns, unconfigured: unconfiguredColumns },
+    personaRows,
+    productRows,
+    creativeModuleRows,
+    conceptRows,
+    briefRows,
+    params,
+  ] = await Promise.all([
+    loadAngles(),
+    loadAngleColumns(),
+    loadPersonas(),
+    loadProducts(),
+    loadCreativeModules(),
+    loadConcepts(),
+    loadBriefs(),
+    searchParams,
+  ]);
   const demo = isDemoMode();
   const userViews = await loadUserViews('angles');
   const now = new Date();
@@ -90,6 +99,8 @@ export default async function AnglesPage({ searchParams }: AnglesPageProps) {
 
   return (
     <AnglesWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       personas={personas}
       products={products}

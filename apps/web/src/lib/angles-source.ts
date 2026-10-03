@@ -4,6 +4,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the Angles route gets its rows (PRD §5.6). A copy of `personas-source.ts`, function for
@@ -79,6 +80,20 @@ function inDemoMode(deps: AngleSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const ANGLES_TABLE_KEY = 'angles';
+
+/**
+ * THE ordered, labelled, visible Angles columns of the working brand, through the ONE loader every
+ * resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadAngleColumns(deps: AngleSourceDeps = {}): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(ANGLES_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

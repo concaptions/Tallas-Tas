@@ -12,6 +12,7 @@ import {
 import { Button, DEMO_WRITE_HINT, disabledWriteClassName, DisabledWrite, Input } from '@tas/ui';
 
 import {
+  ColumnNotices,
   KanbanBoard,
   type KanbanItem,
   useTableView,
@@ -19,7 +20,12 @@ import {
   GalleryView,
   galleryItemsFrom,
 } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import {
@@ -84,6 +90,10 @@ function linkedTo(index: LinkedIndex, angle: AngleListRow | null): readonly Link
 
 interface AnglesWorkspaceProps {
   readonly items: readonly AngleItem[];
+  /** The brand's ordered, labelled, visible Angles columns, from `loadAngleColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly personas: readonly LinkOption[];
   readonly products: readonly LinkOption[];
   /** The brand's concepts, for the panel's two-way Concepts field (LINK-01). */
@@ -127,24 +137,26 @@ function matches(item: AngleItem, query: string): boolean {
 }
 
 /**
- * The Airtable-style grid columns for Angles: every stored field of `angles` plus the two linked
- * names, in the order the panel groups them. Name is frozen; Persona and Product keep their chips
- * (the whole linked name in the cell title); every vocabulary value goes through `@tas/domain`.
+ * THE Angles renderer registry, keyed by the resolver's `column_key` — a Postgres column, or the
+ * junction table for a link column.
+ *
+ * This replaces the hand-written `ANGLE_COLUMNS` array. No header string and no ordering live here:
+ * labels, order and visibility arrive as data from `column_definitions`, and this says only how a
+ * cell is DRAWN — a chip whose tone comes from a `@tas/domain` vocabulary, a linked name with the
+ * whole value in the cell title, a link, a count, a checkbox.
+ *
+ * It covers every angle column, not the set any one brand shows: the parent template carries seven
+ * Airtable fields and nine platform columns, and Gratsi hides five of the seven because it keeps
+ * them on Concepts instead. A resolved column with no entry here comes back in `missing` and is
+ * stated on the page rather than dropped.
  */
-const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
-  {
-    key: 'name',
-    header: 'Name',
-    frozen: true,
-    minWidth: 220,
-    sortValue: (item) => item.angle.name,
+const ANGLE_RENDERERS: ColumnRegistry<AngleItem> = {
+  name: {
     render: (item) => <span className="font-medium">{item.angle.name}</span>,
+    sortValue: (item) => item.angle.name,
   },
-  {
-    key: 'persona',
-    header: 'Persona',
-    sortValue: (item) => item.angle.personaName,
-    cellTitle: (item) => item.angle.personaName ?? undefined,
+  // A junction, not a column: the first linked persona's name, whole value in the cell title.
+  angle_personas: {
     render: (item) => (
       <ChipCell
         chip={
@@ -154,12 +166,10 @@ const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
         }
       />
     ),
+    sortValue: (item) => item.angle.personaName,
+    cellTitle: (item) => item.angle.personaName ?? undefined,
   },
-  {
-    key: 'product',
-    header: 'Product',
-    sortValue: (item) => item.angle.productName,
-    cellTitle: (item) => item.angle.productName ?? undefined,
+  angle_products: {
     render: (item) => (
       <ChipCell
         chip={
@@ -169,20 +179,19 @@ const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
         }
       />
     ),
+    sortValue: (item) => item.angle.productName,
+    cellTitle: (item) => item.angle.productName ?? undefined,
   },
-  {
-    key: 'status',
-    header: 'Status',
-    sortValue: (item) => angleStatusView(item.angle.status)?.label ?? null,
+  // The approval track from migration 0039. Its chip is a UI-governance fixture on /design-system,
+  // so it keeps rendering through `StatusChip` and never as bare text.
+  status: {
     render: (item) => {
       const view = angleStatusView(item.angle.status);
       return <ChipCell chip={view === null ? null : { label: view.label, tone: view.tone }} />;
     },
+    sortValue: (item) => angleStatusView(item.angle.status)?.label ?? null,
   },
-  {
-    key: 'potential',
-    header: 'Potential',
-    sortValue: (item) => item.angle.potential,
+  potential: {
     render: (item) => (
       <ChipCell
         chip={
@@ -195,17 +204,14 @@ const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
         }
       />
     ),
+    sortValue: (item) => item.angle.potential,
   },
-  {
-    key: 'winning',
-    header: 'Winning',
-    align: 'center',
-    sortValue: (item) => (item.angle.winning ? 1 : 0),
+  winning: {
     render: (item) => <BoolCell value={item.angle.winning} />,
+    sortValue: (item) => (item.angle.winning ? 1 : 0),
+    align: 'center',
   },
-  {
-    key: 'formats',
-    header: 'Formats to create',
+  formats: {
     render: (item) => (
       <ChipListCell
         chips={angleFormatEntries(item.angle.formats).map((entry) => ({
@@ -215,9 +221,7 @@ const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
       />
     ),
   },
-  {
-    key: 'type',
-    header: 'Type',
+  type: {
     render: (item) => (
       <ChipListCell
         chips={angleTypeEntries(item.angle.type).map((entry) => ({
@@ -227,56 +231,22 @@ const ANGLE_COLUMNS: readonly GridColumn<AngleItem>[] = [
       />
     ),
   },
-  {
-    key: 'description',
-    header: 'Description',
-    sortValue: (item) => item.angle.description,
+  description: {
     render: (item) => <TextCell value={item.angle.description} />,
+    sortValue: (item) => item.angle.description,
   },
-  {
-    key: 'painPoints',
-    header: 'Pain Points',
-    render: (item) => <TextCell value={item.angle.painPoints} />,
-  },
-  { key: 'usp', header: 'USP', render: (item) => <TextCell value={item.angle.usp} /> },
-  {
-    key: 'adInspo',
-    header: 'Ad Inspo',
-    sortValue: (item) => item.angle.adInspoLinks.length,
+  pain_points: { render: (item) => <TextCell value={item.angle.painPoints} /> },
+  usp: { render: (item) => <TextCell value={item.angle.usp} /> },
+  // A count over the stored jsonb, computed in the cell: the links themselves are in the panel.
+  ad_inspo_links: {
     render: (item) => <CountCell count={item.angle.adInspoLinks.length} noun="link" />,
+    sortValue: (item) => item.angle.adInspoLinks.length,
   },
-  {
-    key: 'briefUrl',
-    header: 'Brief URL',
-    render: (item) => <LinkCell value={item.angle.briefUrl} />,
-  },
-  {
-    key: 'exactScriptUrl',
-    header: 'Exact Script URL',
-    render: (item) => <LinkCell value={item.angle.exactScriptUrl} />,
-  },
-  {
-    key: 'internalNotes',
-    header: 'Internal Notes',
-    render: (item) => <TextCell value={item.angle.internalNotes} />,
-  },
-  {
-    key: 'clientNotes',
-    header: 'Client Notes',
-    render: (item) => <TextCell value={item.angle.clientNotes} />,
-  },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
-
-/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
-const FIELD_KEYS: readonly string[] = ANGLE_COLUMNS.map((column) => column.key);
-const FIELD_OPTIONS = ANGLE_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+  brief_url: { render: (item) => <LinkCell value={item.angle.briefUrl} /> },
+  exact_script_url: { render: (item) => <LinkCell value={item.angle.exactScriptUrl} /> },
+  internal_notes: { render: (item) => <TextCell value={item.angle.internalNotes} /> },
+  client_notes: { render: (item) => <TextCell value={item.angle.clientNotes} /> },
+};
 
 export function AnglesWorkspace({
   items,
@@ -291,7 +261,20 @@ export function AnglesWorkspace({
   initialSearch,
   initialView = 'grid',
   userViews,
+  columns,
+  unconfiguredColumns = false,
 }: AnglesWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () => gridColumnsFrom(columns, ANGLE_RENDERERS, { freezeFirst: true, frozenMinWidth: 220 }),
+    [columns],
+  );
+  /** Every column key the Fields popover can toggle, and its label, in resolved order (VIEWS-01). */
+  const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);
+  const fieldOptions = useMemo(
+    () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
+    [grid],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -319,7 +302,7 @@ export function AnglesWorkspace({
     initialViews: userViews.views,
     defaultViewType: 'grid',
     initialViewType: initialView,
-    fieldKeys: FIELD_KEYS,
+    fieldKeys,
     onActivate: adoptView,
   });
   const activeView = tableView.viewType;
@@ -388,12 +371,12 @@ export function AnglesWorkspace({
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, ANGLE_COLUMNS, (item) => ({
+      galleryItemsFrom(visible, grid.columns, (item) => ({
         id: item.angle.id,
         name: item.angle.name,
         subtitle: item.angle.personaName ?? undefined,
       })),
-    [visible],
+    [visible, grid],
   );
 
   const newAngle = (
@@ -448,7 +431,7 @@ export function AnglesWorkspace({
               onCreateView={tableView.createView}
               onRenameView={tableView.renameView}
               onDeleteView={tableView.deleteView}
-              fields={FIELD_OPTIONS}
+              fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
               error={tableView.error}
@@ -466,6 +449,16 @@ export function AnglesWorkspace({
             className="h-8 w-full sm:w-72"
           />
         </div>
+
+        <ColumnNotices
+          slotPrefix="angle"
+
+          unconfigured={unconfiguredColumns}
+
+          missing={grid.missing}
+
+          registryName="ANGLE_RENDERERS in angles-workspace.tsx"
+        />
 
         {activeView === 'kanban' ? (
           <KanbanBoard
@@ -490,7 +483,7 @@ export function AnglesWorkspace({
             tableKey="angles"
             view={tableView.config}
             onSortChange={tableView.setSort}
-            columns={ANGLE_COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={(item) => item.angle.id}
             rowLabel={(item) => item.angle.name}

@@ -578,22 +578,57 @@ const ANGLES_PARENT = parentRows('angles', [
 ]);
 
 /**
- * Gratsi `Angles` — 21 fields, nine of them child-added. The five hidden rows are the level shift
- * seen from this side: Gratsi keeps `Type`, `Product`, `Personas`, `Pain Points` and `USP` on
- * Concepts, so its Angles table has no field for them. Hiding is per base and never a drop —
- * `angle_personas` holds 78 Gratsi rows and `angle_products` 57, inferred from the Concepts side,
- * and every other brand still shows the columns.
+ * Angles' PLATFORM columns: nine stored columns the page shows for EVERY brand, which the parent
+ * Airtable base has no field for.
+ *
+ * These were seeded as Gratsi-only `custom` rows, and that is the bug this block fixes. They are
+ * real columns of `angles` for every brand — `status` arrived in migration 0039 and its chip is a
+ * UI-governance fixture on /design-system — and the page draws all nine today. Left as child-added
+ * rows, switching the page to the resolver would have deleted NINE columns from the grid on
+ * Niagara, Mattress Central, Funky Painting and demo mode, while Gratsi kept them. Drop nothing.
+ *
+ * They are the parent's because every brand has them, and `platform` rather than `parent` because
+ * the parent BASE defines no field for any of them: its Angles table has 11 fields and none is
+ * Status, Potential, Winning, Formats, Ad Inspo, Brief, Exact Script, Internal Notes or Client
+ * Notes. The labels are the platform's own, which is what the page has always shown; Gratsi
+ * relabels the two its base words differently.
+ *
+ * Ordered from 20 so they sort after the parent's Airtable fields (1-8) and collide with none of
+ * them — the same shape as CONCEPTS_PLATFORM's tracks at 22-23.
+ */
+const ANGLES_PLATFORM: readonly UpsertColumnDefinition[] = [
+  ['status', 'Status', 20, 'singleSelect'],
+  ['potential', 'Potential', 21, 'singleSelect'],
+  ['formats', 'Formats to create', 22, 'multipleSelects'],
+  ['ad_inspo_links', 'Ad Inspo', 23, 'multilineText'],
+  ['brief_url', 'Brief URL', 24, 'url'],
+  ['exact_script_url', 'Exact Script URL', 25, 'url'],
+  ['winning', 'Winning', 26, 'checkbox'],
+  ['internal_notes', 'Internal Notes', 27, 'multilineText'],
+  ['client_notes', 'Client Notes', 28, 'multilineText'],
+].map(([columnKey, displayLabel, displayOrder, fieldType]) => ({
+  tableKey: 'angles',
+  columnKey: columnKey as string,
+  displayLabel: displayLabel as string,
+  displayOrder: displayOrder as number,
+  fieldType: fieldType as string,
+  source: 'platform' as const,
+}));
+
+/**
+ * Gratsi `Angles` — 21 fields. The five hidden rows are the level shift seen from this side: Gratsi
+ * keeps `Type`, `Product`, `Personas`, `Pain Points` and `USP` on Concepts, so its Angles table has
+ * no field for them. Hiding is per base and never a drop — `angle_personas` holds 78 Gratsi rows and
+ * `angle_products` 57, inferred from the Concepts side, and every other brand still shows them.
+ *
+ * The nine columns that used to be listed here as `custom` are now platform rows on the parent
+ * (above), so Gratsi INHERITS seven of them and holds a row only for the two its base words
+ * differently: `Brief` for `brief_url` and `Exact Script` for `exact_script_url`. Those two are
+ * `relabel-platform`, because relabelling a column does not transfer ownership of it.
  */
 const ANGLES_GRATSI = childRows('angles', [
-  ['status', 'Status', 2, 'custom', 'singleSelect'],
-  ['potential', 'Potential', 3, 'custom', 'singleSelect'],
-  ['formats', 'Formats to create', 10, 'custom', 'multipleSelects'],
-  ['client_notes', 'Client Notes', 11, 'custom', 'multilineText'],
-  ['brief_url', 'Brief', 13, 'custom', 'url'],
-  ['exact_script_url', 'Exact Script', 14, 'custom', 'url'],
-  ['ad_inspo_links', 'Ad Inspo', 15, 'custom', 'multilineText'],
-  ['winning', 'Winning', 16, 'custom', 'checkbox'],
-  ['internal_notes', 'Internal Notes', 17, 'custom', 'multilineText'],
+  ['brief_url', 'Brief', 24, 'relabel-platform', 'url'],
+  ['exact_script_url', 'Exact Script', 25, 'relabel-platform', 'url'],
   ['type', 'Type', 2, 'hidden', 'multipleSelects'],
   ['angle_products', 'Product', 3, 'hidden', 'multipleRecordLinks'],
   ['angle_personas', 'Personas', 5, 'hidden', 'multipleRecordLinks'],
@@ -1054,6 +1089,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CONCEPTS_PARENT,
       ...CONCEPTS_PLATFORM,
       ...ANGLES_PARENT,
+      ...ANGLES_PLATFORM,
       ...CREATIVE_MODULES_PARENT,
       ...CREATIVE_SHEET_ITEMS_PARENT,
       ...CREATORS_PARENT,
