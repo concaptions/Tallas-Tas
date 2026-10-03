@@ -151,6 +151,54 @@ export function toggleViewField(
 }
 
 /** Whether a field is shown under a view; everything is shown under `null`. */
+/** `dayInTheLife` -> `day_in_the_life`, the spelling a Postgres column key uses. */
+function toSnakeCase(key: string): string {
+  return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
+/**
+ * Reconcile a SAVED `visibleFields` against the field keys a table actually has today.
+ *
+ * A view stores the keys of the columns it shows, so it is only meaningful while those keys exist.
+ * The column-inheritance work changed the vocabulary underneath: a grid's keys used to be the
+ * module's own camelCase field names (`dayInTheLife`, `stageOfAwareness`, `angles`) and are now the
+ * resolver's column keys, which are Postgres column and junction names (`day_in_the_life`,
+ * `stage_of_awareness`, `angle_personas`). `isViewFieldVisible` treats "not in the list" as hidden,
+ * so a view saved before the change would have hidden EVERY column — a blank grid and empty gallery
+ * cards, from a view the person had set up to show everything.
+ *
+ * Each stored key is therefore resolved in turn: used as-is when the table still has it, matched by
+ * its snake_case spelling when that is what the key became, and dropped when neither exists (a
+ * column that is gone, like the `updated` metadata column removed from every grid). Then:
+ *
+ * - `null` stays `null`. It means "no choice recorded", i.e. show everything.
+ * - `[]` stays `[]`. An empty list is a real choice — the person hid every column one by one — and
+ *   is distinguishable from staleness precisely because nothing was stored to go stale.
+ * - A non-empty list that resolves to nothing becomes `null`. Every key it names belongs to a
+ *   vocabulary the table no longer speaks, so it records no usable choice, and showing everything is
+ *   the honest reading of that. Treating it as "hide all" would be inventing an intent.
+ *
+ * The next save writes the reconciled keys back, so a view migrates itself by being used.
+ */
+export function reconcileViewFields(
+  visibleFields: readonly string[] | null,
+  allKeys: readonly string[],
+): readonly string[] | null {
+  if (visibleFields === null) return null;
+  if (visibleFields.length === 0) return [];
+  const bySnakeCase = new Map(allKeys.map((key) => [toSnakeCase(key), key]));
+  const resolved = [
+    ...new Set(
+      visibleFields.flatMap((stored) => {
+        if (allKeys.includes(stored)) return [stored];
+        const match = bySnakeCase.get(toSnakeCase(stored));
+        return match === undefined ? [] : [match];
+      }),
+    ),
+  ];
+  return resolved.length === 0 ? null : resolved;
+}
+
 export function isViewFieldVisible(
   view: Pick<UserViewConfig, 'visibleFields'>,
   key: string,

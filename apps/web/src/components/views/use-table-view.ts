@@ -5,6 +5,7 @@ import {
   defaultUserViewConfig,
   isViewFieldVisible,
   parseUserViewConfig,
+  reconcileViewFields,
   toggleViewField,
   type UserView,
   type UserViewConfig,
@@ -132,9 +133,24 @@ export function useTableView({
   onActivate,
 }: UseTableViewArgs): TableViewState {
   const [views, setViews] = useState<readonly UserView[]>(initialViews);
+  /**
+   * A stored config, read against the keys THIS table has now. A view holds the keys of the columns
+   * it shows, and the column resolver changed that vocabulary from the module's camelCase field
+   * names to Postgres column keys — so without this a view saved beforehand names nothing the table
+   * recognises, and `isViewFieldVisible` reads every column as hidden: a blank grid. The reconciler
+   * in `@tas/domain` re-spells what it can, drops what is gone and falls back to "show everything"
+   * when a list resolves to nothing; the next save writes the reconciled keys back.
+   */
+  const reconcile = useCallback(
+    (config: UserViewConfig): UserViewConfig => ({
+      ...config,
+      visibleFields: reconcileViewFields(config.visibleFields, fieldKeys),
+    }),
+    [fieldKeys],
+  );
   const [draft, setDraft] = useState<UserViewConfig>(() => {
     const active = initialViews.find((view) => view.isActive);
-    const base = active ?? defaultUserViewConfig(defaultViewType);
+    const base = reconcile(active ?? defaultUserViewConfig(defaultViewType));
     return initialViewType === null ? { ...base } : { ...base, viewType: initialViewType };
   });
   const [error, setError] = useState<string | null>(null);
@@ -270,10 +286,10 @@ export function useTableView({
 
   const adopt = useCallback(
     (config: UserViewConfig) => {
-      setDraft({ ...config });
+      setDraft(reconcile(config));
       onActivate?.(config);
     },
-    [onActivate],
+    [onActivate, reconcile],
   );
 
   const activateView = useCallback(

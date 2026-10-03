@@ -4,6 +4,7 @@ import {
   applyUserView,
   defaultUserViewConfig,
   isViewFieldVisible,
+  reconcileViewFields,
   parseUserViewConfig,
   toggleViewField,
   USER_VIEW_NAME_MAX,
@@ -115,5 +116,103 @@ describe('parseUserViewConfig', () => {
     expect(parseUserViewConfig({ viewType: 'bogus', sort: { key: 'x' } }).viewType).toBe('grid');
     expect(parseUserViewConfig({ viewType: 'bogus' }).sort).toBeNull();
     expect(parseUserViewConfig({}).visibleFields).toBeNull();
+  });
+});
+
+/**
+ * The namespace change the column resolver brought: a grid's keys were the module's camelCase field
+ * names and are now Postgres column keys. A view saved before it would otherwise hide every column,
+ * because `isViewFieldVisible` reads "absent from the list" as hidden.
+ */
+describe('reconcileViewFields', () => {
+  const PERSONA_KEYS = [
+    'name',
+    'day_in_the_life',
+    'demographic',
+    'psychographic',
+    'core_desires',
+    'angle_personas',
+  ];
+
+  it('keeps a key the table still has, untouched', () => {
+    expect(reconcileViewFields(['name', 'demographic'], PERSONA_KEYS)).toEqual([
+      'name',
+      'demographic',
+    ]);
+  });
+
+  it('matches a camelCase key to the snake_case column it became', () => {
+    expect(reconcileViewFields(['name', 'dayInTheLife', 'coreDesires'], PERSONA_KEYS)).toEqual([
+      'name',
+      'day_in_the_life',
+      'core_desires',
+    ]);
+  });
+
+  it('drops a key whose column is gone, keeping the rest of the choice', () => {
+    // `updated` was removed from every grid; `product` is not a persona column.
+    expect(reconcileViewFields(['name', 'updated', 'product'], PERSONA_KEYS)).toEqual(['name']);
+  });
+
+  /**
+   * The row this was written for: a production view listing all seventeen pre-resolver persona
+   * keys. Reconciled it shows the columns the table has, instead of a blank grid.
+   */
+  it('reconciles the real production view rather than hiding everything', () => {
+    const stored = [
+      'name',
+      'product',
+      'angles',
+      'buyingTriggers',
+      'emotionalTriggers',
+      'triggerWords',
+      'updated',
+      'stageOfAwareness',
+      'dayInTheLife',
+      'psychographic',
+      'demographic',
+      'coreDesires',
+      'successFactors',
+      'successTransformation',
+      'painPoints',
+      'perceivedBarriers',
+      'problemChallenge',
+    ];
+
+    const reconciled = reconcileViewFields(stored, PERSONA_KEYS);
+
+    // The person's own order is preserved; only the spelling of a key changes.
+    expect(reconciled).toEqual([
+      'name',
+      'day_in_the_life',
+      'psychographic',
+      'demographic',
+      'core_desires',
+    ]);
+    // `angles` is NOT among them: the column is `angle_personas`, which no spelling rule derives
+    // from `angles`, so it is dropped rather than guessed at.
+    expect(reconciled).not.toContain('angle_personas');
+    for (const key of PERSONA_KEYS) {
+      expect(isViewFieldVisible({ visibleFields: reconciled }, key)).toBe(
+        reconciled?.includes(key) ?? true,
+      );
+    }
+  });
+
+  it('turns a list that resolves to nothing into "show everything", never "hide everything"', () => {
+    expect(reconcileViewFields(['gone', 'alsoGone'], PERSONA_KEYS)).toBeNull();
+    expect(isViewFieldVisible({ visibleFields: null }, 'name')).toBe(true);
+  });
+
+  it('leaves an EMPTY list alone: hiding every column is a real choice, not staleness', () => {
+    expect(reconcileViewFields([], PERSONA_KEYS)).toEqual([]);
+    expect(isViewFieldVisible({ visibleFields: [] }, 'name')).toBe(false);
+  });
+
+  it('passes null through, and never duplicates a key two spellings both reach', () => {
+    expect(reconcileViewFields(null, PERSONA_KEYS)).toBeNull();
+    expect(reconcileViewFields(['core_desires', 'coreDesires'], PERSONA_KEYS)).toEqual([
+      'core_desires',
+    ]);
   });
 });
