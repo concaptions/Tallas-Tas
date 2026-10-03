@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { copyTypesPath } from '../src/lib/routes';
+import { closePanelWithEscape } from './support/close-panel';
 
 /**
  * The Copy Types route with no environment variables at all — the Vercel deployment as it stands.
@@ -110,8 +111,7 @@ test.describe('copy types in demo mode (no Clerk publishable key)', () => {
     // Not a modal: the grid is still there beside the panel.
     await expect(page.locator('[data-slot="copy-type-row"]')).toHaveCount(4);
 
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-slot="copy-type-panel"]')).toHaveCount(0);
+    await closePanelWithEscape(page, 'copy-type-panel');
     await expect(page).not.toHaveURL(/\?copyType=/);
   });
 

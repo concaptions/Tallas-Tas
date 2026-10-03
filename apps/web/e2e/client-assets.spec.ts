@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { clientAssetsPath } from '../src/lib/routes';
+import { closePanelWithEscape } from './support/close-panel';
 
 /**
  * The Client Assets route with no environment variables at all — the Vercel deployment as it
@@ -117,8 +118,7 @@ test.describe('client assets in demo mode (no Clerk publishable key)', () => {
     // Not a modal: the grid is still there beside the panel.
     await expect(page.locator('[data-slot="client-asset-folder-row"]')).toHaveCount(3);
 
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-slot="client-asset-panel"]')).toHaveCount(0);
+    await closePanelWithEscape(page, 'client-asset-panel');
     await expect(page).not.toHaveURL(/\?folder=/);
   });
 

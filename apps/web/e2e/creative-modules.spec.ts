@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { creativeModulesPath } from '../src/lib/routes';
+import { closePanelWithEscape } from './support/close-panel';
 
 /**
  * The Creative Modules route with no environment variables at all — the Vercel deployment as it
@@ -123,8 +124,7 @@ test.describe('creative modules in demo mode (no Clerk publishable key)', () => 
     // Not a modal: the grid is still there beside the panel.
     await expect(page.locator('[data-slot="creative-module-row"]')).toHaveCount(4);
 
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-slot="creative-module-panel"]')).toHaveCount(0);
+    await closePanelWithEscape(page, 'creative-module-panel');
     await expect(page).not.toHaveURL(/\?module=/);
   });
 
