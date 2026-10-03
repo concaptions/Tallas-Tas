@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PersonaListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
-import { Button, Input, StatusChip } from '@tas/ui';
+import { Button, Input } from '@tas/ui';
 
 import {
   KanbanBoard,
@@ -14,14 +14,20 @@ import {
   GalleryView,
   galleryItemsFrom,
 } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ColumnRenderer,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
-import { TextCell } from '@/components/views/grid-cells';
+import { ChipCell, TextCell, type GridChip } from '@/components/views/grid-cells';
 
 import type { AwarenessStage } from '@tas/db/schema';
 
-import { awarenessLabel, awarenessTone, EM_DASH, PERSONA_FIELDS } from './fields';
+import { awarenessLabel, awarenessTone, type PersonaFieldName } from './fields';
 import { PersonaPanel, NEW_PERSONA } from './persona-panel';
 
 /**
@@ -41,6 +47,18 @@ export interface PersonaItem {
 
 interface PersonasWorkspaceProps {
   readonly items: readonly PersonaItem[];
+  /**
+   * The brand's Personas columns, as `resolveColumns` returned them: label, order and visibility,
+   * resolved from `column_definitions` on the server. This component chooses nothing about them —
+   * it supplies the RENDERING and nothing else.
+   */
+  readonly columns: readonly ResolvedColumnView[];
+  /**
+   * True when `columns` is the parent template's master set served as a FALLBACK, because this
+   * brand resolved none of its own. The page says so rather than passing a fallback off as the
+   * brand's configuration — the counterpart of the `missing` notice, for the other direction.
+   */
+  readonly unconfiguredColumns?: boolean;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
@@ -89,61 +107,69 @@ function matches(item: PersonaItem, query: string): boolean {
   ].some((value) => value.toLowerCase().includes(query));
 }
 
-/**
- * The Airtable-style grid columns for the Personas grid view (P2A-3). The Stage-of-Awareness column
- * keeps rendering a `<StatusChip>` (never bare text) so the automation that counts the chips inside
- * the table stays green. EXACTLY the seven fields the Gratsi base defines, in its order and under
- * its names (docs/decisions/gratsi-display-spec-2026-10-02.md): the frozen Name, the four prose
- * fields from `PERSONA_FIELD_GROUPS`, the awareness select, and the two-way Angles link. Product,
- * Updated and the nine template prose columns are deliberately absent — the base has no field for
- * them, and `PERSONA_HIDDEN_FIELDS` records that so an omission cannot be mistaken for an oversight.
- */
-const PERSONA_COLUMNS: readonly GridColumn<PersonaItem>[] = [
-  {
-    key: 'name',
-    header: 'Name',
-    frozen: true,
-    minWidth: 200,
-    sortValue: (item) => item.persona.name,
-    render: (item) => <span className="font-medium">{item.persona.name}</span>,
-  },
-  // The remaining prose columns come from PERSONA_FIELD_GROUPS, so the grid header and the panel
-  // label are the same string from the same place and cannot drift apart.
-  ...PERSONA_FIELDS.filter(
-    (field) => field.name !== 'name' && field.name !== 'stageOfAwareness',
-  ).map((field): GridColumn<PersonaItem> => ({
-    key: field.name,
-    header: field.label,
-    render: (item) => <TextCell value={item.persona[field.name]} />,
-  })),
-  {
-    key: 'stageOfAwareness',
-    header: 'Problem-Solution Awareness Level',
-    sortValue: (item) => item.persona.stageOfAwareness,
-    render: (item) =>
-      item.persona.stageOfAwareness === null ? (
-        <span className="text-text4">{EM_DASH}</span>
-      ) : (
-        <StatusChip
-          tone={awarenessTone(item.persona.stageOfAwareness)}
-          label={awarenessLabel(item.persona.stageOfAwareness)}
-        />
-      ),
-  },
-  {
-    key: 'angles',
-    header: 'Angles',
-    sortValue: (item) => item.persona.angleNames.length,
-    render: (item) => <TextCell value={item.persona.angleNames.join(', ')} maxWidth={320} />,
-  },
-];
+/** Every persona field that holds plain text — `stage_of_awareness` is the enum, drawn as a chip. */
+type PersonaProseField = Exclude<PersonaFieldName, 'stageOfAwareness'>;
 
-/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
-const FIELD_KEYS: readonly string[] = PERSONA_COLUMNS.map((column) => column.key);
-const FIELD_OPTIONS = PERSONA_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+/** A prose column: one clipped line, the whole value in the cell title. */
+function prose(field: PersonaProseField): ColumnRenderer<PersonaItem> {
+  return { render: (item) => <TextCell value={item.persona[field]} /> };
+}
+
+function awarenessChip(persona: PersonaListRow): GridChip | null {
+  const stage = persona.stageOfAwareness;
+  return stage === null ? null : { label: awarenessLabel(stage), tone: awarenessTone(stage) };
+}
+
+/**
+ * THE Personas renderer registry, keyed by the resolver's `column_key` (the Postgres column, or the
+ * junction table for a link column).
+ *
+ * This replaces the hand-written `PERSONA_COLUMNS` array, and the difference is the whole point:
+ * there is no header string and no ordering here. Labels, order and visibility arrive as data from
+ * `column_definitions`; this says only how a cell is DRAWN, which is the part that cannot be
+ * expressed as data — a chip whose tone comes from the awareness vocabulary, a joined link list, a
+ * clipped paragraph. `gridColumnsFrom` joins the two.
+ *
+ * It deliberately covers EVERY persona column, not the set any one brand shows: the parent template
+ * carries fifteen, Gratsi detaches six of them and adds `passion`, and a brand that unhides
+ * `trigger_words` tomorrow must get a drawn column without a deployment. A resolved column with no
+ * entry here comes back in `missing` and is reported on the page rather than dropped.
+ */
+export const PERSONA_RENDERERS: ColumnRegistry<PersonaItem> = {
+  name: {
+    render: (item) => <span className="font-medium">{item.persona.name}</span>,
+    sortValue: (item) => item.persona.name,
+  },
+  day_in_the_life: prose('dayInTheLife'),
+  demographic: prose('demographic'),
+  psychographic: prose('psychographic'),
+  core_desires: prose('coreDesires'),
+  passion: prose('passion'),
+  emotional_triggers: prose('emotionalTriggers'),
+  pain_points: prose('painPoints'),
+  success_factors: prose('successFactors'),
+  perceived_barriers: prose('perceivedBarriers'),
+  buying_triggers: prose('buyingTriggers'),
+  problem_challenge: prose('problemChallenge'),
+  success_transformation: prose('successTransformation'),
+  trigger_words: prose('triggerWords'),
+  // The awareness stage keeps rendering through `StatusChip` (never bare text), so the automation
+  // that counts the chips inside the table stays green.
+  stage_of_awareness: {
+    render: (item) => <ChipCell chip={awarenessChip(item.persona)} />,
+    sortValue: (item) => item.persona.stageOfAwareness,
+  },
+  // A junction, not a column: the names of the angles written from this persona.
+  angle_personas: {
+    render: (item) => <TextCell value={item.persona.angleNames.join(', ')} maxWidth={320} />,
+    sortValue: (item) => item.persona.angleNames.length,
+  },
+};
 
 export function PersonasWorkspace({
   items,
+  columns,
+  unconfiguredColumns = false,
   demo,
   initialSelection,
   initialSearch,
@@ -154,6 +180,22 @@ export function PersonasWorkspace({
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
+
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, PERSONA_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 200,
+      }),
+    [columns],
+  );
+  /** Every column key the Fields popover can toggle, and its label, in resolved order (VIEWS-01). */
+  const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);
+  const fieldOptions = useMemo(
+    () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
+    [grid],
+  );
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -190,7 +232,7 @@ export function PersonasWorkspace({
     initialViews: userViews.views,
     defaultViewType: 'grid',
     initialViewType: initialView,
-    fieldKeys: FIELD_KEYS,
+    fieldKeys,
     onActivate: adoptView,
   });
   const activeView = tableView.viewType;
@@ -245,12 +287,12 @@ export function PersonasWorkspace({
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, PERSONA_COLUMNS, (item) => ({
+      galleryItemsFrom(visible, grid.columns, (item) => ({
         id: item.persona.id,
         name: item.persona.name,
         subtitle: item.persona.productName ?? undefined,
       })),
-    [visible],
+    [visible, grid],
   );
 
   return (
@@ -308,13 +350,38 @@ export function PersonasWorkspace({
               onCreateView={tableView.createView}
               onRenameView={tableView.renameView}
               onDeleteView={tableView.deleteView}
-              fields={FIELD_OPTIONS}
+              fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
               error={tableView.error}
             />
           </div>
         </div>
+        {/* The brand resolved no columns at all, so what is on screen is the parent template's
+            master set, not this brand's configuration. Stated for the same reason as the notice
+            below: a fallback shown silently would read as a configuration that does not exist. */}
+        {unconfiguredColumns ? (
+          <p
+            data-slot="persona-unconfigured-columns"
+            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
+          >
+            This brand resolved no Personas columns of its own, so the parent template’s master set
+            is shown. Seed <span className="font-mono">column_definitions</span> for the brand, or
+            attach it to the template, to give it its own labels and order.
+          </p>
+        ) : null}
+        {/* A column an admin configured that this page cannot draw is stated, not swallowed: a
+            silent omission would make the page quietly lie about the brand's configuration. */}
+        {grid.missing.length > 0 ? (
+          <p
+            data-slot="persona-missing-columns"
+            className="rounded-card border border-line bg-surface2 px-3 py-2 text-xs text-text3"
+          >
+            Configured for this brand but not drawn here:{' '}
+            <span className="font-mono">{grid.missing.join(', ')}</span>. Add an entry to
+            PERSONA_RENDERERS in personas-workspace.tsx.
+          </p>
+        ) : null}
         {activeView === 'kanban' ? (
           <KanbanBoard
             items={kanbanItems}
@@ -338,7 +405,7 @@ export function PersonasWorkspace({
             tableKey="personas"
             view={tableView.config}
             onSortChange={tableView.setSort}
-            columns={PERSONA_COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={(item) => item.persona.id}
             rowLabel={(item) => item.persona.name}
@@ -358,6 +425,7 @@ export function PersonasWorkspace({
         <PersonaPanel
           key={selection}
           persona={creating ? null : open}
+          columns={columns}
           angles={angleOptions}
           angleIds={openItem?.angleIds ?? []}
           demo={demo}
