@@ -327,6 +327,43 @@ type ChildColumn = readonly [
   fieldType: string,
 ];
 
+/**
+ * Every column of a table the PARENT BASE DOES NOT HAVE AT ALL.
+ *
+ * Six tables are in this position — `copy_types`, `creative_reporting`, `email_campaigns`,
+ * `email_flows`, `sm_campaign_feed_tasks`, `youtube_copy` — because the parent template base has
+ * only 15 tables and none of these six is among them. There is no Airtable field on the parent to
+ * inherit from, so the PLATFORM owns every column, and the parent row set is entirely `platform`.
+ *
+ * Without these rows a resolver-driven page renders an EMPTY grid for every brand except Gratsi,
+ * which is the whole reason the six were blocked. Labels and order come from the Gratsi base's own
+ * field names and field order, because for a table the parent base does not have that is the only
+ * evidence there is; a brand that wants different wording detaches and relabels.
+ *
+ * `formula` names the function that computes a column with nothing stored behind it; omit it and the
+ * column is stored.
+ */
+function platformRows(
+  tableKey: string,
+  columns: readonly (readonly [
+    columnKey: string,
+    displayLabel: string,
+    displayOrder: number,
+    fieldType: string,
+    formula?: string,
+  ])[],
+): readonly UpsertColumnDefinition[] {
+  return columns.map(([columnKey, displayLabel, displayOrder, fieldType, formula]) => ({
+    tableKey,
+    columnKey,
+    displayLabel,
+    displayOrder,
+    fieldType,
+    source: 'platform' as const,
+    ...(formula === undefined ? {} : { formula }),
+  }));
+}
+
 function childRows(
   tableKey: string,
   columns: readonly ChildColumn[],
@@ -1036,96 +1073,199 @@ const CLIENT_ASSET_FOLDERS_PARENT = parentRows('client_asset_folders', [
  * classification rests on metadata and on the engine's row builders.
  */
 
-/** Gratsi `Youtube Copywriting` `tblVR1UmkbDoDzJ7z` — 29 fields: 16 stored, 12 derived, 1 banner. */
+/**
+ * Gratsi `Youtube Copywriting` `tblVR1UmkbDoDzJ7z` — 29 fields: 16 stored, 12 derived, 1 banner. Two labels differ from the platform set and the banner has no column at all, so three rows stay.
+ *
+ * Its rows are now the PARENT's, since the parent base has no such table and the platform set above
+ * was derived from this base's own field names and order. What is left here is only what Gratsi
+ * genuinely words differently; the rest are retired by the reconciling seed, which soft-deletes rows
+ * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
+ * duplicates that would win over the parent for no reason.
+ */
 const YOUTUBE_COPY_GRATSI = childRows('youtube_copy', [
-  ['copy_number', 'Copy #', 1, 'custom', 'singleLineText'],
-  ['status', 'Status', 2, 'custom', 'singleSelect'],
-  ['youtube_copy_collections', 'Collections', 3, 'custom', 'multipleRecordLinks'],
-  ['youtube_copy_products', 'Product', 4, 'custom', 'multipleRecordLinks'],
-  ['angle', 'Angle', 5, 'custom', 'singleLineText'],
-  ['descriptions', 'Descriptions (90 caractères max)', 6, 'custom', 'richText'],
-  ['headline', 'Headline', 7, 'custom', 'singleLineText'],
-  ['news_feed', 'News Feed', 8, 'custom', 'singleLineText'],
-  ['cta', 'CTA', 9, 'custom', 'singleSelect'],
-  ['youtube_copy_campaigns', 'Campaign Code', 10, 'custom', 'multipleRecordLinks'],
-  ['funnel', 'Funnel', 14, 'custom', 'singleSelect'],
-  ['youtube_copy_copy_types', 'Copy Type', 15, 'custom', 'multipleRecordLinks'],
-  ['client_comment', "Client's Comment", 16, 'custom', 'multilineText'],
-  ['used', 'USED', 20, 'custom', 'checkbox'],
-  ['winning', 'Winning', 21, 'custom', 'checkbox'],
-  ['meta_rating', 'Meta Rating', 22, 'custom', 'rating'],
+  ['descriptions', 'Descriptions (90 caractères max)', 6, 'relabel-platform', 'richText'],
+  ['used', 'USED', 20, 'relabel-platform', 'checkbox'],
   [
     UNMAPPED_COLUMN_KEY,
     '⚠️ Please Change the Status of the copy',
     29,
     'hidden-custom',
-    'singleLineText',
+    'singleSelect',
   ],
 ]);
 
-/** Gratsi `Email Campaigns Management` `tblABjVpwRpYtY7de` — 17 fields; 2 formula due dates. */
-const EMAIL_CAMPAIGNS_GRATSI = childRows('email_campaigns', [
-  ['name', 'Name', 1, 'custom', 'singleLineText'],
-  ['campaign_purpose', 'Campaign Purpose', 2, 'custom', 'multilineText'],
-  ['status', 'Status', 3, 'custom', 'singleSelect'],
-  ['send_date', 'Send Date', 4, 'custom', 'date'],
-  ['copywriting', 'Copywriting', 6, 'custom', 'richText'],
-  ['assignee_id', 'Assignee', 8, 'custom', 'singleCollaborator'],
-  ['copy_link', 'Copy Link', 9, 'custom', 'url'],
-  ['design', 'Design', 10, 'custom', 'multipleAttachments'],
-  ['klaviyo_link', 'Klaviyo Link', 11, 'custom', 'url'],
-  ['assets', 'Assets', 12, 'custom', 'multipleAttachments'],
-  ['type', 'Type', 13, 'custom', 'singleSelect'],
-  ['channel', 'Channel', 14, 'custom', 'singleSelect'],
-  ['email_campaign_campaigns', 'Campaigns & Offers', 15, 'custom', 'multipleRecordLinks'],
-  ['email_campaign_products', '(Internal) Product', 16, 'custom', 'multipleRecordLinks'],
-  ['email_campaign_collections', '(Internal) Collections', 17, 'custom', 'multipleRecordLinks'],
+/**
+ * Gratsi `Email Campaigns Management` `tblABjVpwRpYtY7de` — 17 fields; the two formula due dates are virtual columns now. Every label matches the platform set, so Gratsi holds NO rows and inherits all seventeen.
+ *
+ * Its rows are now the PARENT's, since the parent base has no such table and the platform set above
+ * was derived from this base's own field names and order. What is left here is only what Gratsi
+ * genuinely words differently; the rest are retired by the reconciling seed, which soft-deletes rows
+ * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
+ * duplicates that would win over the parent for no reason.
+ */
+const EMAIL_CAMPAIGNS_GRATSI = childRows('email_campaigns', []);
+
+/**
+ * Gratsi `Email Flows Management` `tblubVflAQZgJSxcF` — ked 13 fields; the same due-date chain, both virtual now. Every label matches, so Gratsi holds NO rows.
+ *
+ * Its rows are now the PARENT's, since the parent base has no such table and the platform set above
+ * was derived from this base's own field names and order. What is left here is only what Gratsi
+ * genuinely words differently; the rest are retired by the reconciling seed, which soft-deletes rows
+ * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
+ * duplicates that would win over the parent for no reason.
+ */
+const EMAIL_FLOWS_GRATSI = childRows('email_flows', []);
+
+/**
+ * Gratsi `SM Campaign Management Feed` `tblLRajTW55XEhVhk` — 6 fields; `Reminder Trigger` is a formula and now a virtual column. Every label matches, so Gratsi holds NO rows.
+ *
+ * Its rows are now the PARENT's, since the parent base has no such table and the platform set above
+ * was derived from this base's own field names and order. What is left here is only what Gratsi
+ * genuinely words differently; the rest are retired by the reconciling seed, which soft-deletes rows
+ * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
+ * duplicates that would win over the parent for no reason.
+ */
+const SM_CAMPAIGN_FEED_GRATSI = childRows('sm_campaign_feed_tasks', []);
+
+/**
+ * `sm_campaign_feed_tasks` — no parent table, so all platform. `reminder_trigger` is VIRTUAL: an
+ * Airtable formula over the due date and the current time, computed by `smReminderTrigger`, which
+ * takes `now` as an explicit parameter so the page can pass ONE `now` per request.
+ */
+const SM_CAMPAIGN_FEED_PLATFORM = platformRows('sm_campaign_feed_tasks', [
+  ['task_name', 'Task Name', 1, 'singleLineText'],
+  ['platform', 'Platform', 2, 'singleSelect'],
+  ['due_date', 'Due Date', 3, 'dateTime'],
+  ['status', 'Status', 4, 'singleSelect'],
+  ['notes', 'Notes', 5, 'multilineText'],
+  ['reminder_trigger', 'Reminder Trigger', 6, 'formula', 'smReminderTrigger'],
 ]);
 
-/** Gratsi `Email Flows Management` `tblubVflAQZgJSxcF` — 13 fields; the same due-date chain. */
-const EMAIL_FLOWS_GRATSI = childRows('email_flows', [
-  ['flow_name', 'Flow Name', 1, 'custom', 'singleLineText'],
-  ['expected_setup_date', 'Expected Setup Date', 2, 'custom', 'date'],
-  ['flow_purpose', 'Flow Purpose', 3, 'custom', 'multilineText'],
-  ['status', 'Status', 4, 'custom', 'singleSelect'],
-  ['copywriting', 'Copywriting', 7, 'custom', 'richText'],
-  ['design', 'Design', 8, 'custom', 'multipleAttachments'],
-  ['klaviyo_link', 'Klaviyo Link', 9, 'custom', 'url'],
-  ['type', 'Type', 10, 'custom', 'singleSelect'],
-  ['email_flow_campaigns', 'Campaigns & Offers', 11, 'custom', 'multipleRecordLinks'],
-  ['inspo', 'Inspo', 12, 'custom', 'multipleAttachments'],
-  ['assignee_id', 'Assignee', 13, 'custom', 'singleCollaborator'],
+/**
+ * `email_flows` — no parent table, so all platform. The two due dates are VIRTUAL, chained off the
+ * expected setup date; the copywriting one calls the design one, so the chain cannot drift.
+ */
+const EMAIL_FLOWS_PLATFORM = platformRows('email_flows', [
+  ['flow_name', 'Flow Name', 1, 'singleLineText'],
+  ['expected_setup_date', 'Expected Setup Date', 2, 'date'],
+  ['flow_purpose', 'Flow Purpose', 3, 'multilineText'],
+  ['status', 'Status', 4, 'singleSelect'],
+  ['copywriting_due_date', 'Copywriting Due Date', 5, 'formula', 'emailFlowCopywritingDueDate'],
+  ['design_due_date', 'Design Due Date', 6, 'formula', 'emailFlowDesignDueDate'],
+  ['copywriting', 'Copywriting', 7, 'richText'],
+  ['design', 'Design', 8, 'multipleAttachments'],
+  ['klaviyo_link', 'Klaviyo Link', 9, 'url'],
+  ['type', 'Type', 10, 'singleSelect'],
+  ['email_flow_campaigns', 'Campaigns & Offers', 11, 'multipleRecordLinks'],
+  ['inspo', 'Inspo', 12, 'multipleAttachments'],
+  ['assignee_id', 'Assignee', 13, 'singleCollaborator'],
 ]);
 
-/** Gratsi `SM Campaign Management Feed` `tblLRajTW55XEhVhk` — 6 fields; `Reminder Trigger` is a formula. */
-const SM_CAMPAIGN_FEED_GRATSI = childRows('sm_campaign_feed_tasks', [
-  ['task_name', 'Task Name', 1, 'custom', 'singleLineText'],
-  ['platform', 'Platform', 2, 'custom', 'singleSelect'],
-  ['due_date', 'Due Date', 3, 'custom', 'dateTime'],
-  ['status', 'Status', 4, 'custom', 'singleSelect'],
-  ['notes', 'Notes', 5, 'custom', 'multilineText'],
+/**
+ * `creative_reporting` — no parent table, so all platform. `difference_cpa` is VIRTUAL (CPA minus
+ * target CPA, `differenceCpa`). `brief_id` is the opposite case and worth naming: a REAL stored uuid
+ * foreign key that no Airtable field maps to, because Gratsi's `Creative Name` is a formula and
+ * `Creative Name (from Creative)` is a lookup — the same shape as `products.collection_link`.
+ */
+const CREATIVE_REPORTING_PLATFORM = platformRows('creative_reporting', [
+  ['name_angle_offer', 'Name + Angle + Offer', 1, 'singleLineText'],
+  ['brief_id', 'Creative', 2, 'multipleRecordLinks'],
+  ['notes', 'Notes', 3, 'multilineText'],
+  ['ad_design', 'Ad Design', 4, 'multipleAttachments'],
+  ['ad_link', 'Ad Link', 5, 'singleLineText'],
+  ['ctr', 'CTR', 6, 'percent'],
+  ['thumb_stop_rate', 'Thumb-Stop Rate', 7, 'number'],
+  ['results', 'Results', 8, 'number'],
+  ['cpa', 'CPA', 9, 'currency'],
+  ['target_cpa', 'Target CPA', 10, 'currency'],
+  ['difference_cpa', 'Difference CPA', 11, 'formula', 'differenceCpa'],
+  ['roas', 'ROAS', 12, 'number'],
+  ['target_roas', 'Target ROAS', 13, 'number'],
 ]);
 
-/** Gratsi `(Internal) Copy Type` `tblQiBPj9ypCmYxev` — 4 fields; 2 are the copy tables' reverse links. */
+/**
+ * `email_campaigns` — no parent table, so all platform. Two VIRTUAL due dates off the send date
+ * (minus 5 and minus 10 days), the copywriting one calling the design one.
+ */
+const EMAIL_CAMPAIGNS_PLATFORM = platformRows('email_campaigns', [
+  ['name', 'Name', 1, 'singleLineText'],
+  ['campaign_purpose', 'Campaign Purpose', 2, 'multilineText'],
+  ['status', 'Status', 3, 'singleSelect'],
+  ['send_date', 'Send Date', 4, 'date'],
+  ['copywriting_due_date', 'Copywriting Due Date', 5, 'formula', 'emailCampaignCopywritingDueDate'],
+  ['copywriting', 'Copywriting', 6, 'richText'],
+  ['design_due_date', 'Design Due Date', 7, 'formula', 'emailCampaignDesignDueDate'],
+  ['assignee_id', 'Assignee', 8, 'singleCollaborator'],
+  ['copy_link', 'Copy Link', 9, 'url'],
+  ['design', 'Design', 10, 'multipleAttachments'],
+  ['klaviyo_link', 'Klaviyo Link', 11, 'url'],
+  ['assets', 'Assets', 12, 'multipleAttachments'],
+  ['type', 'Type', 13, 'singleSelect'],
+  ['channel', 'Channel', 14, 'singleSelect'],
+  ['email_campaign_campaigns', 'Campaigns & Offers', 15, 'multipleRecordLinks'],
+  ['email_campaign_products', '(Internal) Product', 16, 'multipleRecordLinks'],
+  ['email_campaign_collections', '(Internal) Collections', 17, 'multipleRecordLinks'],
+]);
+
+/**
+ * `youtube_copy` — no parent table, so all platform. `copy_number` is the generated Copy # title,
+ * which always renders in `font-mono` (CLAUDE.md non-negotiable 6). The gaps in the order follow the
+ * Gratsi base's own field positions, which is the only evidence of order a table the parent base
+ * does not have can have.
+ */
+const YOUTUBE_COPY_PLATFORM = platformRows('youtube_copy', [
+  ['copy_number', 'Copy #', 1, 'singleLineText'],
+  ['status', 'Status', 2, 'singleSelect'],
+  ['youtube_copy_collections', 'Collections', 3, 'multipleRecordLinks'],
+  ['youtube_copy_products', 'Product', 4, 'multipleRecordLinks'],
+  ['angle', 'Angle', 5, 'singleLineText'],
+  ['descriptions', 'Descriptions', 6, 'richText'],
+  ['headline', 'Headline', 7, 'singleLineText'],
+  ['news_feed', 'News Feed', 8, 'singleLineText'],
+  ['cta', 'CTA', 9, 'singleSelect'],
+  ['youtube_copy_campaigns', 'Campaign Code', 10, 'multipleRecordLinks'],
+  ['funnel', 'Funnel', 14, 'singleSelect'],
+  ['youtube_copy_copy_types', 'Copy Type', 15, 'multipleRecordLinks'],
+  ['client_comment', "Client's Comment", 16, 'multilineText'],
+  ['used', 'Used', 20, 'checkbox'],
+  ['winning', 'Winning', 21, 'checkbox'],
+  ['meta_rating', 'Meta Rating', 22, 'rating'],
+]);
+
+/**
+ * `copy_types` — the parent base has no Copy Type table, so every column is the platform's.
+ *
+ * The two link columns are keyed by the junction that carries a foreign key back to `copy_types`.
+ * Gratsi's base classifies both as derived because the engine writes nothing from this side, but the
+ * junctions exist and the page counts them, so they are columns here and the count is read.
+ */
+const COPY_TYPES_PLATFORM = platformRows('copy_types', [
+  ['name', 'Name', 1, 'singleLineText'],
+  ['description', 'Description', 2, 'multilineText'],
+  ['youtube_copy_copy_types', 'YouTube copies', 3, 'multipleRecordLinks'],
+  ['copywriting_copy_types', 'Meta copies', 4, 'multipleRecordLinks'],
+]);
+
+/**
+ * Gratsi `(Internal) Copy Type` `tblQiBPj9ypCmYxev` — 4 fields. `Name` and `Description` carry the
+ * platform's own labels, so Gratsi inherits those two and holds rows only for the two link columns,
+ * which its base words differently.
+ */
 const COPY_TYPES_GRATSI = childRows('copy_types', [
-  ['name', 'Name', 1, 'custom', 'singleLineText'],
-  ['description', 'Description', 2, 'custom', 'multilineText'],
+  ['youtube_copy_copy_types', 'Copywriting', 3, 'relabel-platform', 'multipleRecordLinks'],
+  ['copywriting_copy_types', 'Ads Copywriting copy', 4, 'relabel-platform', 'multipleRecordLinks'],
 ]);
 
-/** Gratsi `Creative Reporting` `tblgW4bwDSSeqihlr` — 14 fields; 3 derived, `Difference CPA` a formula. */
-const CREATIVE_REPORTING_GRATSI = childRows('creative_reporting', [
-  ['name_angle_offer', 'Name + Angle + Offer', 2, 'custom', 'singleLineText'],
-  ['notes', 'Notes', 3, 'custom', 'multilineText'],
-  ['ad_design', 'Ad Design', 4, 'custom', 'multipleAttachments'],
-  ['ad_link', 'Ad Link', 5, 'custom', 'singleLineText'],
-  ['ctr', 'CTR', 6, 'custom', 'percent'],
-  ['thumb_stop_rate', 'Thumb-Stop Rate', 7, 'custom', 'number'],
-  ['results', 'Results', 8, 'custom', 'number'],
-  ['cpa', 'CPA', 9, 'custom', 'currency'],
-  ['target_cpa', 'Target CPA', 10, 'custom', 'currency'],
-  ['roas', 'ROAS', 12, 'custom', 'number'],
-  ['target_roas', 'Target ROAS', 13, 'custom', 'number'],
-]);
+/**
+ * Gratsi `Creative Reporting` `tblgW4bwDSSeqihlr` — 14 fields; 3 derived, `Difference CPA` a formula, now a virtual column. Gratsi words every column exactly as the platform set does, so it holds NO rows at all and inherits all thirteen.
+ *
+ * Its rows are now the PARENT's, since the parent base has no such table and the platform set above
+ * was derived from this base's own field names and order. What is left here is only what Gratsi
+ * genuinely words differently; the rest are retired by the reconciling seed, which soft-deletes rows
+ * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
+ * duplicates that would win over the parent for no reason.
+ */
+const CREATIVE_REPORTING_GRATSI = childRows('creative_reporting', []);
 
 /**
  * The seed, grouped by base: one group per base, so the two naming worlds stay visibly apart.
@@ -1154,6 +1294,12 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...PRODUCTS_PLATFORM,
       ...CAMPAIGNS_OFFERS_PARENT,
       ...CREATIVE_DIMENSIONS_PARENT,
+      ...COPY_TYPES_PLATFORM,
+      ...SM_CAMPAIGN_FEED_PLATFORM,
+      ...EMAIL_FLOWS_PLATFORM,
+      ...CREATIVE_REPORTING_PLATFORM,
+      ...EMAIL_CAMPAIGNS_PLATFORM,
+      ...YOUTUBE_COPY_PLATFORM,
       ...COMPETITIVE_RESEARCH_PARENT,
       ...CLIENT_ASSET_FOLDERS_PARENT,
     ],

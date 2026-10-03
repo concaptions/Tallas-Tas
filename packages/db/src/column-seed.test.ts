@@ -429,6 +429,20 @@ describe('the column seed, checked against the real schema', () => {
  * page would have dropped both approval tracks (non-negotiable 4) and the Batch-Angle-Theme name
  * (non-negotiable 6). These tests are what stops that happening quietly.
  */
+/**
+ * The six tables the parent template base does not have. `appnaSGAgOUbJ0f9m` carries 15 tables and
+ * none of these is among them, so the platform owns every column of them and their parent sets are
+ * entirely `platform` (see `platformRows` in column-seed.ts).
+ */
+const ALL_PLATFORM_TABLES = new Set([
+  'copy_types',
+  'creative_reporting',
+  'email_campaigns',
+  'email_flows',
+  'sm_campaign_feed_tasks',
+  'youtube_copy',
+]);
+
 describe('platform columns on concepts', () => {
   /**
    * Eleven, not three. The first three are the generated name and the two approval tracks; the other
@@ -541,10 +555,18 @@ describe('platform columns on concepts', () => {
     expect(youtube?.inheritedFrom).toBeNull();
   });
 
-  it('are the only platform rows in the seed, so nothing else claims that ownership by accident', () => {
-    // DISTINCT, because a child may relabel a platform column and keep its ownership, which puts a
-    // second row under the same key (Gratsi's `Youtube Copywriting`). The invariant is which COLUMNS
-    // the platform owns, not how many rows mention them.
+  /**
+   * Which columns the platform claims, kept honest in the two different situations that exist.
+   *
+   * On a table the parent BASE has, `platform` is the exception — a handful of app-owned columns
+   * among the Airtable fields — so the exact list is worth pinning: a column quietly joining it
+   * would mean the platform had taken ownership of an Airtable field by accident.
+   *
+   * On a table the parent base does NOT have, every column is the platform's by definition, so the
+   * list would just transcribe the seed. What matters there is the opposite: that the table has a
+   * parent set AT ALL, and that none of it claims to be an Airtable field it cannot be.
+   */
+  it('claims exactly the right columns on the tables where platform is the EXCEPTION', () => {
     const claimed = [
       ...new Set(
         COLUMN_SEED.flatMap((group) =>
@@ -553,24 +575,29 @@ describe('platform columns on concepts', () => {
             .map((row) => `${row.tableKey}.${row.columnKey}`),
         ),
       ),
-    ];
+    ].filter((pair) => !ALL_PLATFORM_TABLES.has(pair.split('.')[0] ?? ''));
 
     expect(claimed.sort()).toEqual(
       [
-        // Concepts: the two approval tracks and the generated Batch-Angle-Theme name.
+        // Concepts: the two approval tracks, the generated name, and the eight the parent base reads
+        // back from its Angles link as lookups.
+        'concepts.angle_personas',
+        'concepts.angle_products',
+        'concepts.client_comments',
         'concepts.client_status',
+        'concepts.concept_collections',
+        'concepts.concept_themes',
+        'concepts.description',
         'concepts.internal_status',
         'concepts.name',
-        // Products: a stored column and three relations the page shows that no Airtable field on
-        // `(Internal) Product` backs in either base — checked live, see
-        // docs/decisions/column-key-relations-2026-10-03.md.
+        'concepts.pain_points',
+        'concepts.usp',
+        // Products: a stored column and three relations no Airtable field backs in either base.
         'products.collection_link',
         'products.concepts',
         'products.email_campaign_products',
         'products.youtube_copy_products',
-        // Angles: nine stored columns the page draws for every brand, for which the parent base
-        // defines no field. Seeded as Gratsi-only `custom` rows until the Angles rollout, which
-        // would have deleted all nine from the grid on every inheriting brand.
+        // Angles: nine stored columns the page draws for every brand.
         'angles.ad_inspo_links',
         'angles.brief_url',
         'angles.client_notes',
@@ -580,16 +607,7 @@ describe('platform columns on concepts', () => {
         'angles.potential',
         'angles.status',
         'angles.winning',
-        // Concepts: eight more, for the same reason as the Angles nine.
-        'concepts.angle_personas',
-        'concepts.angle_products',
-        'concepts.client_comments',
-        'concepts.concept_collections',
-        'concepts.concept_themes',
-        'concepts.description',
-        'concepts.pain_points',
-        'concepts.usp',
-        // Creators: five internal money-and-process fields the UGC grid draws for every brand.
+        // Creators: five internal money-and-process fields.
         'creators.cost_usd',
         'creators.creator_cost',
         'creators.creator_info_request',
@@ -597,6 +615,34 @@ describe('platform columns on concepts', () => {
         'creators.slack_notified',
       ].sort(),
     );
+  });
+
+  /**
+   * The six tables the parent template base does not have at all. Each must have a parent set, or a
+   * resolver-driven page renders an empty grid for every brand except Gratsi — which is exactly what
+   * blocked these six. And every row of those sets must be `platform`, because there is no Airtable
+   * field on the parent for any of them to be `parent`.
+   */
+  it('gives every table the parent base lacks a parent set, entirely platform-owned', () => {
+    const parentRowsOf = (tableKey: string) =>
+      COLUMN_SEED.filter((group) => group.target.kind === 'parent')
+        .flatMap((group) => group.rows)
+        .filter((row) => row.tableKey === tableKey);
+
+    for (const tableKey of ALL_PLATFORM_TABLES) {
+      const rows = parentRowsOf(tableKey);
+      expect(
+        rows.length,
+        `${tableKey} has no parent set, so it would resolve empty`,
+      ).toBeGreaterThan(0);
+      const notPlatform = rows
+        .filter((row) => row.source !== 'platform')
+        .map((row) => row.columnKey);
+      expect(
+        notPlatform,
+        `${tableKey} claims Airtable fields the parent base does not have`,
+      ).toEqual([]);
+    }
   });
 });
 
