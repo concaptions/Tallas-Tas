@@ -46,6 +46,19 @@ describe('loadColumnAdmin in demo mode', () => {
 
     expect(data.baseId).toBe('gratsi');
     expect(data.tableKey).toBe('angles');
+    // Gratsi owns rows on `angles`, so honouring the address means returning THEM, in order —
+    // a stronger assertion than the empty list this used to expect, which only held while the seed
+    // covered personas alone.
+    expect(data.columns.length).toBeGreaterThan(0);
+    expect(data.columns).toEqual(
+      [...data.columns].sort((left, right) => left.displayOrder - right.displayOrder),
+    );
+    expect(data.columns.every((column) => column.displayLabel.length > 0)).toBe(true);
+  });
+
+  it('is empty for a base that owns no rows on the table, without breaking', async () => {
+    // Gratsi has no rows on `products`: it inherits the parent's two columns there.
+    const data = await loadColumnAdmin('gratsi', 'products');
     expect(data.columns).toEqual([]);
     expect(data.restorable).toEqual([]);
   });

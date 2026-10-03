@@ -136,7 +136,10 @@ test.describe('column admin in demo mode (no Clerk publishable key)', () => {
 
   test('a table with no definitions is empty rather than broken', async ({ page }) => {
     await page.goto(columnAdminPath);
-    await page.locator('[data-slot="table-option"][data-option="angles"]').click();
+    // `youtube_copy` is one of the six tables that exist in the Gratsi base alone, so the PARENT
+    // base the page opens on owns no rows for it. (`angles` served as this case while the seed
+    // covered Personas only; it now covers all twenty-one propagation tables on both bases.)
+    await page.locator('[data-slot="table-option"][data-option="youtube_copy"]').click();
 
     await expect(page.locator('[data-slot="column-row"]')).toHaveCount(0);
     await expect(page.getByText('No columns are configured')).toBeVisible();

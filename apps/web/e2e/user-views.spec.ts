@@ -40,11 +40,13 @@ const TABLES: readonly TableCase[] = [
     label: 'Personas',
     path: personasPath,
     tableSlot: 'personas-table',
-    // NOT `updated`: the Personas grid shows only the fields the Gratsi base defines, and `Updated`
-    // is platform metadata rather than a Gratsi field, so it was removed from every grid
-    // (docs/decisions/gratsi-display-spec-2026-10-02.md). `Personality` is Gratsi's own label for
-    // the `psychographic` column and is toggleable like any other.
-    field: { key: 'psychographic', header: 'Personality' },
+    // NOT `updated`: a grid shows only the fields its base defines, and `Updated` is platform
+    // metadata rather than an Airtable field, so it was removed from every grid
+    // (docs/decisions/gratsi-display-spec-2026-10-02.md). The header is the TEMPLATE's label:
+    // demo mode's brand is `DEMO_BRAND_ID` (Niagara), which owns no `column_definitions` rows and
+    // so inherits the template's. Gratsi's own label for this column is "Personality", which is a
+    // per-brand database fact asserted in `packages/db/src/column-seed.test.ts`.
+    field: { key: 'psychographic', header: 'Psychographic' },
   },
   {
     label: 'Angles',

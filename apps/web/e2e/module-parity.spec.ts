@@ -609,24 +609,38 @@ const MODULES: readonly ModuleEntry[] = [
     heading: 'Personas',
     rowSlot: 'persona-row',
     opens: { panelSlot: 'persona-panel' },
-    // The Personas page shows the GRATSI base's own field names now, not the template's
-    // (docs/decisions/gratsi-display-spec-2026-10-02.md), so every pair below is identical: the
-    // label IS the Gratsi field. This entry used to assert the template labels — "Persona Name",
-    // "Demographic", "Psychographic" — which is exactly what the change replaced.
+    // Labels here are the PARENT TEMPLATE's, and that is the point of the column-inheritance work:
+    // the page no longer hard-codes one base's names, it renders whatever `resolveColumns` returns
+    // for the brand in view (docs/decisions/gratsi-display-spec-2026-10-02.md,
+    // docs/audits/inheritance-plan-2026-10-02.md). Demo mode's brand is `DEMO_BRAND_ID` — Niagara,
+    // whose fixtures are the weighted-blanket product — and Niagara owns NO rows in
+    // `column_definitions`, so it inherits the template's fifteen columns under the template's
+    // labels. Each pair below therefore reads "this Gratsi field is stored and labelled, under the
+    // name the viewing brand uses for it": the field is still proven present, in the only base this
+    // spec can reach. GRATSI's own seven labels are a database fact, not a demo-mode one, and are
+    // asserted against PGlite in `packages/db/src/column-seed.test.ts` ("Gratsi resolves to exactly
+    // these seven"), which is the gate for the display spec.
     fields: [
-      { gratsi: 'Name', label: 'Name' },
-      // Two spaces before the bracket, as the base spells it; the column is `demographic`.
-      { gratsi: 'Description  [Age Status Salary]', label: 'Description [Age Status Salary]' },
-      { gratsi: 'Personality', label: 'Personality' },
-      { gratsi: 'Drivers for this persona', label: 'Drivers for this persona' },
-      // Its own column since migration 0044; it used to be misfiled into `core_desires`.
-      { gratsi: 'Passion', label: 'Passion' },
-      { gratsi: 'Problem-Solution Awareness Level', label: 'Problem-Solution Awareness Level' },
+      // Two spaces before the bracket in Gratsi, as the base spells it; the column is `demographic`.
+      { gratsi: 'Name', label: 'Persona Name' },
+      { gratsi: 'Description  [Age Status Salary]', label: 'Demographic' },
+      { gratsi: 'Personality', label: 'Psychographic' },
+      { gratsi: 'Drivers for this persona', label: 'Core Desires (Cashvertising)' },
+      {
+        gratsi: 'Problem-Solution Awareness Level',
+        label: 'Stage of Market Awareness (Breakthrough Advertising)',
+      },
       // Despite its name the field links the CONCEPTS table; the platform infers angle_personas
       // from it and the panel lists those angles read-only under "Angles".
       { gratsi: 'Angles', label: 'Angles' },
     ],
-    excluded: [],
+    excluded: [
+      {
+        field: 'Passion',
+        reason:
+          'a CHILD-ADDED column: `passion` exists in Gratsi only (column_definitions source "custom", migration 0044), so the template base does not define it and a brand that inherits the template — Niagara, which is demo mode — correctly renders no Passion field at all. Not a gap and not a drop: asserted for Gratsi against PGlite in packages/db/src/column-seed.test.ts',
+      },
+    ],
   },
   {
     label: 'Angles',

@@ -327,8 +327,18 @@ describe('seedColumnsFor (demo mode)', () => {
   });
 
   it('is empty for a base the seed says nothing about', () => {
+    // Funky Painting has no seed group at all, so the base owns no rows of its own.
     expect(seedColumnsFor(COLUMN_SEED, 'funky-painting', 'personas')).toEqual([]);
-    expect(seedColumnsFor(COLUMN_SEED, SEED_PARENT_BASE_ID, 'products')).toEqual([]);
+    // `youtube_copy` is one of the six tables that exist only in the Gratsi base, so the PARENT has
+    // no rows for it. (`products` used to serve as this case and no longer can: the seed now covers
+    // all 21 tables, and the parent owns two products columns.)
+    expect(seedColumnsFor(COLUMN_SEED, SEED_PARENT_BASE_ID, 'youtube_copy')).toEqual([]);
+  });
+
+  it('returns the parent rows for a table the seed DOES cover, so the empty case above means something', () => {
+    const products = seedColumnsFor(COLUMN_SEED, SEED_PARENT_BASE_ID, 'products');
+    expect(products.length).toBeGreaterThan(0);
+    expect(products.map((column) => column.columnKey)).toContain('name');
   });
 });
 
