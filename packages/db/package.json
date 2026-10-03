@@ -17,7 +17,10 @@
     "migrate-urls": "tsx src/scripts/migrate-airtable-urls.ts",
     "airtable-fetch": "tsx src/scripts/airtable-fetch.ts",
     "migrate-prod": "tsx src/scripts/migrate-prod.ts",
-    "airtable-parity": "tsx src/scripts/airtable-parity.ts"
+    "airtable-parity": "tsx src/scripts/airtable-parity.ts",
+    "seed-columns": "tsx src/scripts/seed-columns.ts",
+    "check-columns": "tsx src/scripts/check-columns.ts",
+    "import-passion": "tsx src/scripts/import-passion.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
