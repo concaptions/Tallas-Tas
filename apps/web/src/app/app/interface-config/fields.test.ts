@@ -7,6 +7,9 @@ import { toConceptRow, type ConceptRow } from '@/lib/concepts-source';
 
 import {
   CONCEPT_CARD_PAGE_KEY,
+  INTERFACE_CONFIG_ADMIN_NOTE,
+  INTERFACE_CONFIG_ENFORCEMENT_NOTE,
+  INTERFACE_CONFIG_NOT_ADMIN_NOTE,
   PAGE_PREVIEW_BODY,
   clientStatusView,
   conceptPreview,
@@ -185,5 +188,20 @@ describe('isMonoField', () => {
     expect(isMonoField('batch')).toBe(true);
     expect(isMonoField('description')).toBe(false);
     expect(isMonoField('hook_examples')).toBe(false);
+  });
+});
+
+describe("the gate's copy (2026-10-03: this page had no role check at all)", () => {
+  it('says the page is admin only, and what a change here does', () => {
+    expect(INTERFACE_CONFIG_ADMIN_NOTE).toContain('admin only');
+    expect(INTERFACE_CONFIG_ADMIN_NOTE).toContain('client');
+  });
+
+  it('names the role a refused reader has to go to', () => {
+    expect(INTERFACE_CONFIG_NOT_ADMIN_NOTE).toContain('Admin');
+  });
+
+  it('says the save checks the rule again, so the page gate is not the only gate', () => {
+    expect(INTERFACE_CONFIG_ENFORCEMENT_NOTE).toContain('again on the server');
   });
 });

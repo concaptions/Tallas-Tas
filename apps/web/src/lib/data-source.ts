@@ -311,6 +311,14 @@ function toBrandSummary(row: BrandRowLike): BrandSummary {
  * Every live, non-template brand of one agency, in the query's order. The switcher's options and
  * the single working brand are both drawn from THIS list, so "which brands exist for me" has one
  * definition and the chooser can never offer a brand a read would then refuse.
+ *
+ * THE PARENT TEMPLATE IS NOT IN IT, and that is a tenancy boundary rather than a convenience: this
+ * one list is also the entitlement list `isBrandSelectable` checks for `selectBrandAction`, and the
+ * input to `pickActiveBrand`, which ~20 per-brand sources use for reads AND writes. Admitting the
+ * template here would let any signed-in agency member scope the whole workspace to the parent base
+ * and have every create land in `PROPAGATION_TABLES` rows that `propagateTemplateRow` then copies
+ * into every child. `/app/column-admin` reaches the parent column set without this list — it builds
+ * its own base list from `resolveTemplateBrandId` + `listChildBrands` — so nothing needs it.
  */
 function agencyBrands(rows: readonly BrandRowLike[], agencyId: string): BrandRowLike[] {
   return rows.filter((row) => isLive(row) && !row.isTemplate && row.agencyId === agencyId);
@@ -338,7 +346,7 @@ export function pickActiveBrand(
 
 /**
  * THE working brand: the one the switcher last selected if it is still in scope, otherwise the first
- * live client workspace OF THE AGENCY IN SCOPE, never the parent template. The agency comes from the
+ * live brand OF THE AGENCY IN SCOPE, never the parent template. The agency comes from the
  * actor when there is one, and otherwise from the database only while it can answer without guessing;
  * `AmbiguousBrandError` is thrown rather than returning a brand the actor may not belong to.
  *

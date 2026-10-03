@@ -38,6 +38,8 @@ import {
   youtubeCopywritingPath,
 } from '@/lib/routes';
 
+import { columnAdminPath } from '@/app/app/column-admin/fields';
+
 import type { IconName } from './icons';
 
 /**
@@ -280,6 +282,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         href: notificationsPath,
       },
       { key: 'propagation', label: 'Propagation', icon: 'propagation', href: propagationPath },
+      {
+        key: 'column-admin',
+        label: 'Column Admin',
+        icon: 'assets',
+        href: columnAdminPath,
+      },
       {
         key: 'onboarding-forms',
         label: 'Onboarding Forms',

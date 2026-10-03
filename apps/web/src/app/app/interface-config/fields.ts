@@ -30,6 +30,25 @@ export const EM_DASH = '—';
 export const CLIENT_PRIVACY_NOTE =
   'The client sees nothing internal. No internal status, no budget, no creator cost, no partnership price — those columns are not configurable here because they never reach the client interface at all.';
 
+/**
+ * THE GATE'S COPY (2026-10-03). This page edits per-column visibility for a whole brand and had no
+ * role check at all — page or action — unlike `/app/propagation`, which has both. Per-column
+ * structure is an admin decision, so the page now asks the same `canSeePropagationPage` rule and
+ * the save asks it again on the server.
+ */
+export const INTERFACE_CONFIG_ADMIN_NOTE =
+  'This page is admin only. Switching a page or a field off changes what every client of this brand ' +
+  'sees in their interface.';
+
+/** What the page says instead of the tree when the guard refuses. */
+export const INTERFACE_CONFIG_NOT_ADMIN_NOTE =
+  'Only an agency Admin can change what the client interface shows. Ask your Admin to switch a page ' +
+  'or a field on or off.';
+
+/** Said in both modes: the page gate is not the only gate. */
+export const INTERFACE_CONFIG_ENFORCEMENT_NOTE =
+  'Saving checks the same rule again on the server before it writes.';
+
 /** The line the page shows in demo mode: toggling is real, saving is not. */
 export const DEMO_DRAFT_NOTICE =
   'Demo mode — toggle anything you like: the preview updates immediately, but this is a draft and nothing is saved.';
