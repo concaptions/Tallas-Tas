@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the Client Assets route gets its rows (Airtable "Client Assets Organisation", audit §2.9).
@@ -81,6 +82,22 @@ function inDemoMode(deps: ClientAssetFolderSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const CLIENT_ASSET_FOLDERS_TABLE_KEY = 'client_asset_folders';
+
+/**
+ * THE ordered, labelled, visible Client Assets columns of the working brand, through the ONE loader
+ * every resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadClientAssetColumns(
+  deps: ClientAssetFolderSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(CLIENT_ASSET_FOLDERS_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

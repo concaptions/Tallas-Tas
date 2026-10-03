@@ -6,6 +6,7 @@ import {
 } from '@/app/app/client-assets/client-assets-workspace';
 import { hostLabel } from '@/app/app/client-assets/fields';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
  * The Client Assets route (CLAUDE.md UI governance rule 4): the identical `ClientAssetsWorkspace`
@@ -44,6 +45,7 @@ export function ClientAssetsGridStory() {
   return (
     <StoryFrame>
       <ClientAssetsWorkspace
+        columns={parentColumnsFor('client_asset_folders')}
         items={STORY_ITEMS}
         briefs={STORY_BRIEFS}
         demo
@@ -64,6 +66,7 @@ export function ClientAssetPanelStory() {
   return (
     <StoryFrame>
       <ClientAssetsWorkspace
+        columns={parentColumnsFor('client_asset_folders')}
         items={STORY_ITEMS}
         briefs={STORY_BRIEFS}
         demo

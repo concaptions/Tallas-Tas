@@ -33,31 +33,35 @@ test.describe('client assets in demo mode (no Clerk publishable key)', () => {
     );
 
     await expect(page.locator('[data-slot="client-assets-table"] thead th')).toHaveText([
-      'Folder name',
+      // The resolver's labels — the parent base's own field names, which this table shares with
+      // Gratsi because Gratsi holds no rows for it at all, so both bases resolve the identical set.
+      // `Updated` is off every grid (docs/decisions/gratsi-display-spec-2026-10-02.md).
+      'Name [Folder]',
       'Description',
       'Location',
-      'Linked designs',
-      'Updated',
+      '(Internal) Creative Design',
     ]);
 
     // The location shows its host as a real link, with the full URL in the cell's title.
     const first = page.locator(`[data-client-asset-folder-id="${BRAND_KIT_FOLDER_ID}"]`);
-    const location = first.locator('td').nth(2);
+    const location = first.locator('td[data-column="location_url"]');
     await expect(location).toHaveAttribute('title', /^https:\/\/drive\.google\.com/);
     const link = location.locator('[data-slot="client-asset-location-link"]');
     await expect(link).toHaveText('drive.google.com');
     await expect(link).toHaveAttribute('href', /^https:\/\/drive\.google\.com/);
 
     // The count is the shared StatusChip, never bare text, and it pluralises.
-    await expect(first.locator('td').nth(3).locator('[data-slot="status-chip"]')).toHaveText(
-      '2 designs',
-    );
+    await expect(
+      first.locator('td[data-column="brief_asset_folders"]').locator('[data-slot="status-chip"]'),
+    ).toHaveText('2 designs');
 
     // A folder with no location yet renders the em dash, never an empty cell, and a zero in the
     // mute tone, never a blank.
     const noLocation = page.locator(`[data-client-asset-folder-id="${NO_LOCATION_FOLDER_ID}"]`);
-    await expect(noLocation.locator('td').nth(2)).toHaveText('—');
-    const zero = noLocation.locator('td').nth(3).locator('[data-slot="status-chip"]');
+    await expect(noLocation.locator('td[data-column="location_url"]')).toHaveText('—');
+    const zero = noLocation
+      .locator('td[data-column="brief_asset_folders"]')
+      .locator('[data-slot="status-chip"]');
     await expect(zero).toHaveText('0 designs');
     await expect(zero).toHaveAttribute('data-tone', 'mute');
   });

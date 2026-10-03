@@ -6,8 +6,13 @@ import type { ClientAssetFolderListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { Button, Input, PropagationBadge, StatusChip } from '@tas/ui';
 
-import { ViewSwitcher } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { ColumnNotices, ViewSwitcher } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { ClientAssetPanel, NEW_CLIENT_ASSET_FOLDER, type LinkOption } from './client-asset-panel';
 import { designCountLabel, EM_DASH, linkCountTone } from './fields';
@@ -33,6 +38,10 @@ export interface ClientAssetFolderItem {
 }
 
 interface ClientAssetsWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadClientAssetColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly ClientAssetFolderItem[];
   /** The brand's briefs, the options the panel's chip picker offers. */
   readonly briefs: readonly LinkOption[];
@@ -72,18 +81,14 @@ function matches(item: ClientAssetFolderItem, query: string): boolean {
 }
 
 /**
- * The Airtable-style grid columns: the frozen name column carries the propagation badge; the
- * description is truncated with the full text in the cell title; the location is the host as a real
- * link that opens the folder without opening the panel; the count is the shared `StatusChip` in the
- * count tones, never bare text, so a zero is a visible chip.
+ * THE Client Assets renderer registry, keyed by the resolver's `column_key`.
+ *
+ * `brief_asset_folders` is the junction behind the linked-designs count — field 4 of the parent
+ * base, which had no seed row because the importer skips this side of the link: right for import
+ * parity, wrong for a display set.
  */
-const CLIENT_ASSET_COLUMNS: readonly GridColumn<ClientAssetFolderItem>[] = [
-  {
-    key: 'name',
-    header: 'Folder name',
-    frozen: true,
-    minWidth: 220,
-    sortValue: (item) => item.folder.name,
+const CLIENT_ASSET_RENDERERS: ColumnRegistry<ClientAssetFolderItem> = {
+  name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">
         {item.folder.name}
@@ -93,24 +98,19 @@ const CLIENT_ASSET_COLUMNS: readonly GridColumn<ClientAssetFolderItem>[] = [
         />
       </span>
     ),
+    sortValue: (item) => item.folder.name,
   },
-  {
-    key: 'description',
-    header: 'Description',
-    minWidth: 240,
-    cellTitle: (item) => item.folder.description ?? undefined,
+  description: {
     render: (item) =>
       item.folder.description === null ? (
         <span className="text-text4">{EM_DASH}</span>
       ) : (
         <span className="block max-w-[28rem] truncate">{item.folder.description}</span>
       ),
+    cellTitle: (item) => item.folder.description ?? undefined,
+    minWidth: 240,
   },
-  {
-    key: 'location',
-    header: 'Location',
-    sortValue: (item) => item.locationHost,
-    cellTitle: (item) => item.folder.locationUrl ?? undefined,
+  location_url: {
     render: (item) =>
       item.folder.locationUrl === null ? (
         <span className="text-text4">{EM_DASH}</span>
@@ -131,27 +131,20 @@ const CLIENT_ASSET_COLUMNS: readonly GridColumn<ClientAssetFolderItem>[] = [
           {item.locationHost}
         </a>
       ),
+    sortValue: (item) => item.locationHost,
+    cellTitle: (item) => item.folder.locationUrl ?? undefined,
   },
-  {
-    key: 'designs',
-    header: 'Linked designs',
-    sortValue: (item) => item.designCount,
-    cellTitle: (item) => item.folder.briefNames.join(', ') || undefined,
+  brief_asset_folders: {
     render: (item) => (
       <StatusChip
         tone={linkCountTone(item.designCount)}
         label={designCountLabel(item.designCount)}
       />
     ),
+    sortValue: (item) => item.designCount,
+    cellTitle: (item) => item.folder.briefNames.join(', ') || undefined,
   },
-  {
-    key: 'updated',
-    header: 'Updated',
-    sortValue: (item) => item.updatedTitle,
-    cellTitle: (item) => item.updatedTitle,
-    render: (item) => <span className="text-text3">{item.updatedLabel}</span>,
-  },
-];
+};
 
 export function ClientAssetsWorkspace({
   items,
@@ -160,7 +153,18 @@ export function ClientAssetsWorkspace({
   initialSelection,
   initialSearch,
   initialView = 'grid',
+  columns,
+  unconfiguredColumns = false,
 }: ClientAssetsWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, CLIENT_ASSET_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 220,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -251,9 +255,19 @@ export function ClientAssetsWorkspace({
           </div>
         </div>
 
+        <ColumnNotices
+          slotPrefix="client-asset"
+
+          unconfigured={unconfiguredColumns}
+
+          missing={grid.missing}
+
+          registryName="CLIENT_ASSET_RENDERERS in client-assets-workspace.tsx"
+        />
+
         <AirtableGrid
           tableKey={TABLE_KEY}
-          columns={CLIENT_ASSET_COLUMNS}
+          columns={grid.columns}
           rows={visible}
           rowId={(item) => item.folder.id}
           rowLabel={(item) => item.folder.name}

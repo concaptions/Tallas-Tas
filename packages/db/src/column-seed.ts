@@ -1088,6 +1088,9 @@ const CLIENT_ASSET_FOLDERS_PARENT = parentRows('client_asset_folders', [
   ['name', 'Name [Folder]', 1, 'singleLineText'],
   ['description', 'Description', 2, 'multilineText'],
   ['location_url', 'Location', 3, 'url'],
+  // Field 4, the reverse link the page counts. It had no row because the importer skips this side —
+  // right for import parity, wrong for a display set, exactly as on Products.
+  ['brief_asset_folders', '(Internal) Creative Design', 4, 'multipleRecordLinks'],
 ]);
 
 /**

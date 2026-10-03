@@ -1,5 +1,5 @@
 import { loadBriefs } from '@/lib/briefs-source';
-import { loadClientAssetFolders } from '@/lib/client-assets-source';
+import { loadClientAssetColumns, loadClientAssetFolders } from '@/lib/client-assets-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
@@ -28,11 +28,13 @@ interface ClientAssetsPageProps {
 }
 
 export default async function ClientAssetsPage({ searchParams }: ClientAssetsPageProps) {
-  const [{ rows }, briefResult, params] = await Promise.all([
-    loadClientAssetFolders(),
-    loadBriefs(),
-    searchParams,
-  ]);
+  const [{ rows }, { columns, unconfigured: unconfiguredColumns }, briefResult, params] =
+    await Promise.all([
+      loadClientAssetFolders(),
+      loadClientAssetColumns(),
+      loadBriefs(),
+      searchParams,
+    ]);
   const demo = isDemoMode();
   const now = new Date();
 
@@ -54,6 +56,8 @@ export default async function ClientAssetsPage({ searchParams }: ClientAssetsPag
 
   return (
     <ClientAssetsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       briefs={briefOptions}
       demo={demo}
