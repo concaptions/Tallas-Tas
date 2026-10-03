@@ -39,31 +39,47 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
     await expect(page.locator('[data-slot="concept-board"]')).toHaveCount(0);
 
-    // TASK 5: Persona and Product ride along from the linked angle, so the table carries seven
-    // columns now — an intentional UX change, updated with the feature.
+    /*
+     * The headers are the RESOLVER's labels now, from `column_definitions`, not strings in
+     * concepts-workspace.tsx. Demo mode's brand is `DEMO_BRAND_ID` (Niagara), which owns no rows of
+     * its own, so it inherits the template: the parent base's Airtable field names in the Meta API's
+     * order, then the eleven columns the PLATFORM owns — the generated name, the two approval tracks
+     * and the eight the parent base reads back from its Angles link as lookups.
+     *
+     * The wording differs from the hand-written array in a few places because the template's own
+     * field names differ: 'Angle' reads 'Angles', 'Hook Examples' reads 'Hook examples', 'Script
+     * Idea' reads 'Script idea', 'Creators' reads 'Creator'. Gratsi's own set — including its
+     * misspelt 'Decription', which is how its base spells it — is asserted against PGlite in
+     * packages/db/src/column-seed.test.ts.
+     */
     await expect(page.locator('[data-slot="concepts-table"] thead th')).toHaveText([
-      'Name',
+      'Concept Name',
       'Batch',
-      'Angle',
-      'Persona',
-      'Product',
-      'Theme',
-      'Internal Status',
-      'Client Status',
-      'Approval Status',
+      'Angles',
       'Category',
       'Concept Style',
+      'Approval Status',
+      'Hook examples',
+      'Script idea',
       'Formats to create',
-      'Hook Examples',
-      'Script Idea',
+      'Ad Inspo',
+      'Creator',
+      'Internal Status',
+      'Client Status',
+      'Theme',
       'Description',
       'Pain Points',
       'USP',
+      'Product',
+      'Persona',
       'Client Comments',
       'Collection',
-      'Creators',
-      'Ad Inspo',
     ]);
+    // Production Status is configured on the template but this grid has never drawn it
+    // (docs/decisions.md), so it is STATED rather than silently omitted.
+    await expect(page.locator('[data-slot="concept-missing-columns"]')).toContainText(
+      'production_status',
+    );
     // Production Status is hidden from the grid on purpose (docs/decisions.md); the name is frozen.
     await expect(page.locator('[data-slot="concepts-table"] thead th').first()).toHaveCSS(
       'position',

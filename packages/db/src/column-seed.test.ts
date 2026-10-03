@@ -404,7 +404,27 @@ describe('the column seed, checked against the real schema', () => {
  * (non-negotiable 6). These tests are what stops that happening quietly.
  */
 describe('platform columns on concepts', () => {
-  const PLATFORM = ['name', 'internal_status', 'client_status'];
+  /**
+   * Eleven, not three. The first three are the generated name and the two approval tracks; the other
+   * eight were added by the Concepts rollout, because the page draws all eight for every brand and
+   * they had been seeded as Gratsi-only `custom` rows — so migrating the page would have deleted
+   * eight columns from the grid on every inheriting brand. The parent BASE defines a field for none
+   * of them: it reads `Pain Points`, `USP`, `Decription`, `Product` and `Personas` back from its
+   * Angles link as lookups, which is the level shift the audits describe.
+   */
+  const PLATFORM = [
+    'name',
+    'internal_status',
+    'client_status',
+    'concept_themes',
+    'description',
+    'pain_points',
+    'usp',
+    'angle_products',
+    'angle_personas',
+    'client_comments',
+    'concept_collections',
+  ];
 
   async function brandIdBySlug(
     db: Awaited<ReturnType<typeof testDb>>,
@@ -439,7 +459,12 @@ describe('platform columns on concepts', () => {
    * The case that matters: Gratsi has its own rows on `concepts` (seven level shifts), so it is the
    * base most likely to lose an inherited column — and it must still carry all three.
    */
-  it('reach a child that has rows of its own, by inheritance from the parent', async () => {
+  /**
+   * Gratsi is the base most likely to lose an inherited column here, because it holds seventeen rows
+   * of its own on Concepts. Every one of the eleven must still reach it, and must still be the
+   * platform's — whether it arrives by inheritance or through Gratsi's own relabel.
+   */
+  it("all reach Gratsi and stay the platform's, whether inherited or relabelled locally", async () => {
     const db = await testDb();
     await seed(db);
     await seedColumnDefinitions(db);
@@ -449,9 +474,19 @@ describe('platform columns on concepts', () => {
     for (const key of PLATFORM) {
       const column = resolved.find((candidate) => candidate.columnKey === key);
       expect(column, `Gratsi lost the platform column ${key}`).toBeDefined();
-      expect(column?.source).toBe('platform');
-      expect(column?.inheritedFrom).not.toBeNull();
+      expect(column?.source, `${key} stopped being the platform's on Gratsi`).toBe('platform');
     }
+    // The three Gratsi holds no row for arrive by inheritance, from the template.
+    for (const inherited of ['name', 'internal_status', 'client_status']) {
+      expect(
+        resolved.find((column) => column.columnKey === inherited)?.inheritedFrom,
+        `${inherited} should be read from the template, not from a Gratsi row`,
+      ).not.toBeNull();
+    }
+    // The eight Gratsi DOES hold rows for keep Gratsi's own wording, from its own rows.
+    const decription = resolved.find((column) => column.columnKey === 'description');
+    expect(decription?.displayLabel).toBe('Decription');
+    expect(decription?.inheritedFrom).toBeNull();
     // Both tracks, and in that order: Internal is the team's, Client is the client-facing one.
     const statuses = resolved
       .filter((column) => column.columnKey.endsWith('_status') && column.source === 'platform')
@@ -519,6 +554,15 @@ describe('platform columns on concepts', () => {
         'angles.potential',
         'angles.status',
         'angles.winning',
+        // Concepts: eight more, for the same reason as the Angles nine.
+        'concepts.angle_personas',
+        'concepts.angle_products',
+        'concepts.client_comments',
+        'concepts.concept_collections',
+        'concepts.concept_themes',
+        'concepts.description',
+        'concepts.pain_points',
+        'concepts.usp',
       ].sort(),
     );
   });

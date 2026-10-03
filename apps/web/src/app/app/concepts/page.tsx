@@ -1,4 +1,4 @@
-import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
+import { CONCEPT_TRACK, loadConceptColumns, loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { conceptPath } from '@/lib/routes';
@@ -46,7 +46,11 @@ interface ConceptsPageProps {
 }
 
 export default async function ConceptsPage({ searchParams }: ConceptsPageProps) {
-  const [{ rows }, params] = await Promise.all([loadConcepts(), searchParams]);
+  const [{ rows }, { columns, unconfigured: unconfiguredColumns }, params] = await Promise.all([
+    loadConcepts(),
+    loadConceptColumns(),
+    searchParams,
+  ]);
   const demo = isDemoMode();
   const userViews = await loadUserViews('concepts');
 
@@ -85,6 +89,8 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
 
   return (
     <ConceptsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={items}
       track={CONCEPT_TRACK}
       demo={demo}

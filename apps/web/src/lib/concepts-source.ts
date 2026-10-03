@@ -19,6 +19,7 @@ import { serverEnv } from '@tas/env';
 import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 /**
  * Where the Concepts route gets its rows (PRD §5.7). A copy of `personas-source.ts`, function for
@@ -150,6 +151,22 @@ function inDemoMode(deps: ConceptSourceDeps): boolean {
     return true;
   }
   return serverEnv().DATABASE_URL === undefined;
+}
+
+const CONCEPTS_TABLE_KEY = 'concepts';
+
+/**
+ * THE ordered, labelled, visible Concepts columns of the working brand, through the ONE loader every
+ * resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadConceptColumns(
+  deps: ConceptSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(CONCEPTS_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**

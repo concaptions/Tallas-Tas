@@ -495,6 +495,31 @@ const CREATIVE_BRIEFS_GRATSI = childRows('creative_briefs', [
  * tracks sort after them, which is where every panel already groups approval.
  */
 const CONCEPTS_PLATFORM: readonly UpsertColumnDefinition[] = [
+  // Eight more, added by the Concepts rollout for the same reason as the Angles nine: the page draws
+  // all eight for EVERY brand, they were seeded as Gratsi-only `custom` rows, and switching the page
+  // to the resolver with them in the child group would have deleted eight columns from the grid on
+  // every inheriting brand. The parent base defines a field for none of them — it reads `Pain
+  // Points`, `USP`, `Decription`, `Product` and `Personas` back from its Angles link as LOOKUPS,
+  // which is the "level shift" the audits describe — so they are the platform's, not the parent
+  // base's. Ordered from 24, after the Airtable range (2-21) and the two approval tracks (22-23);
+  // Gratsi holds its own rows for all eight at its own Airtable positions, so its order is unchanged.
+  ...[
+    ['concept_themes', 'Theme', 24, 'multipleRecordLinks'],
+    ['description', 'Description', 25, 'multilineText'],
+    ['pain_points', 'Pain Points', 26, 'multilineText'],
+    ['usp', 'USP', 27, 'multilineText'],
+    ['angle_products', 'Product', 28, 'multipleRecordLinks'],
+    ['angle_personas', 'Persona', 29, 'multipleRecordLinks'],
+    ['client_comments', 'Client Comments', 30, 'multilineText'],
+    ['concept_collections', 'Collection', 31, 'multipleRecordLinks'],
+  ].map(([columnKey, displayLabel, displayOrder, fieldType]) => ({
+    tableKey: 'concepts',
+    columnKey: columnKey as string,
+    displayLabel: displayLabel as string,
+    displayOrder: displayOrder as number,
+    fieldType: fieldType as string,
+    source: 'platform' as const,
+  })),
   {
     tableKey: 'concepts',
     columnKey: 'name',
@@ -547,20 +572,20 @@ const CONCEPTS_PARENT = parentRows('concepts', [
  * decision, not a column one.
  */
 const CONCEPTS_GRATSI = childRows('concepts', [
-  ['concept_themes', 'Theme', 3, 'custom', 'multipleSelects'],
+  ['concept_themes', 'Theme', 3, 'relabel-platform', 'multipleSelects'],
   ['concept_angles', 'Angle', 4, 'relabel', 'multipleRecordLinks'],
   ['concept_style', 'Style', 6, 'relabel', 'singleSelect'],
   ['formats', 'Type', 8, 'custom', 'multipleSelects'],
-  ['angle_products', 'Product', 10, 'custom', 'multipleRecordLinks'],
-  ['angle_personas', 'Personas', 11, 'custom', 'multipleRecordLinks'],
+  ['angle_products', 'Product', 10, 'relabel-platform', 'multipleRecordLinks'],
+  ['angle_personas', 'Personas', 11, 'relabel-platform', 'multipleRecordLinks'],
   ['approval_status', 'Status', 12, 'relabel', 'singleSelect'],
-  ['description', 'Decription', 13, 'custom', 'multilineText'],
+  ['description', 'Decription', 13, 'relabel-platform', 'multilineText'],
   ['script_idea', 'Script', 14, 'relabel', 'richText'],
-  ['concept_collections', 'Collection', 15, 'custom', 'multipleRecordLinks'],
-  ['pain_points', 'Pain Points', 16, 'custom', 'richText'],
-  ['usp', 'USP', 17, 'custom', 'richText'],
+  ['concept_collections', 'Collection', 15, 'relabel-platform', 'multipleRecordLinks'],
+  ['pain_points', 'Pain Points', 16, 'relabel-platform', 'richText'],
+  ['usp', 'USP', 17, 'relabel-platform', 'richText'],
   ['hook_examples', 'Hooks', 18, 'relabel', 'richText'],
-  ['client_comments', "Client's Comments", 19, 'custom', 'multilineText'],
+  ['client_comments', "Client's Comments", 19, 'relabel-platform', 'multilineText'],
   ['formats_to_create', 'Formats to create', 18, 'hidden', 'multipleSelects'],
   ['ad_inspo_links', 'Ad Inspo', 20, 'hidden', 'multilineText'],
   ['creator_concepts', 'Creator', 21, 'hidden', 'multipleRecordLinks'],

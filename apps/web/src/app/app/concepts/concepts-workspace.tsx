@@ -14,8 +14,19 @@ import {
 } from '@tas/ui';
 
 import { conceptPath } from '@/lib/routes';
-import { GalleryView, galleryItemsFrom, useTableView, ViewToolbar } from '@/components/views';
-import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import {
+  ColumnNotices,
+  GalleryView,
+  galleryItemsFrom,
+  useTableView,
+  ViewToolbar,
+} from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
@@ -64,6 +75,10 @@ import {
  */
 interface ConceptsWorkspaceProps {
   readonly items: readonly ConceptItem[];
+  /** The brand's ordered, labelled, visible Concepts columns, from `loadConceptColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   /** Which internal track a concept runs on, resolved on the server beside the data source. */
   readonly track: CreativeTrack;
   readonly demo: boolean;
@@ -112,150 +127,100 @@ function syncUrl(view: ConceptView, search: string): void {
 }
 
 /**
- * The Airtable-style grid columns for the Concepts table view (P2A-3). The first seven headers are
- * `CONCEPT_COLUMNS`; the generated name keeps its `concept-row-name` hook and `font-mono`, and the
- * two status tracks render a `<StatusChip>` each. Every other stored column follows, so a concept is
- * readable end to end without opening it. Production Status is hidden on purpose (docs/decisions.md).
+ * THE Concepts renderer registry, keyed by the resolver's `column_key` — a Postgres column, or the
+ * junction table for a link column.
+ *
+ * This replaces the hand-written `CONCEPT_GRID_COLUMNS` array. No header string and no ordering
+ * live here: labels, order and visibility arrive as data from `column_definitions`, and this says
+ * only how a cell is DRAWN. The generated name keeps its `concept-row-name` hook and `font-mono`
+ * (CLAUDE.md non-negotiable 6 — generated output always renders in `font-mono`), and the two
+ * approval tracks keep their `StatusChip`s.
+ *
+ * `production_status` has no entry on purpose: the column is configured on the template but this
+ * grid has never drawn it (docs/decisions.md), so it comes back in `missing` and is stated on the
+ * page rather than silently omitted.
  */
-const CONCEPT_GRID_COLUMNS: readonly GridColumn<ConceptItem>[] = [
-  {
-    key: 'name',
-    header: 'Name',
-    frozen: true,
-    minWidth: 220,
-    sortValue: (item) => item.name,
+const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
+  name: {
     render: (item) => (
       <span data-slot="concept-row-name" className="font-mono text-xs">
         {item.name}
       </span>
     ),
+    sortValue: (item) => item.name,
   },
-  {
-    key: 'batch',
-    header: 'Batch',
-    sortValue: (item) => item.batch,
+  batch: {
     render: (item) =>
       item.batch === null ? (
         <span className="text-text4">{EM_DASH}</span>
       ) : (
         <span className="font-mono text-xs">{item.batch}</span>
       ),
+    sortValue: (item) => item.batch,
   },
-  {
-    key: 'angle',
-    header: 'Angle',
-    sortValue: (item) => item.angleName,
+  concept_angles: {
     render: (item) => item.angleName ?? <span className="text-text4">{EM_DASH}</span>,
+    sortValue: (item) => item.angleName,
   },
-  {
-    key: 'persona',
-    header: 'Persona',
-    sortValue: (item) => item.personaName,
+  angle_personas: {
     render: (item) => item.personaName ?? <span className="text-text4">{EM_DASH}</span>,
+    sortValue: (item) => item.personaName,
   },
-  {
-    key: 'product',
-    header: 'Product',
-    sortValue: (item) => item.productName,
+  angle_products: {
     render: (item) => item.productName ?? <span className="text-text4">{EM_DASH}</span>,
+    sortValue: (item) => item.productName,
   },
-  {
-    key: 'theme',
-    header: 'Theme',
-    sortValue: (item) => item.themeName,
+  concept_themes: {
     render: (item) => item.themeName ?? <span className="text-text4">{EM_DASH}</span>,
+    sortValue: (item) => item.themeName,
   },
-  {
-    key: 'status',
-    header: 'Internal Status',
-    sortValue: (item) => item.status.label,
+  // The two tracks of CLAUDE.md non-negotiable 4. Internal is team-only, Client is client-facing.
+  internal_status: {
     render: (item) => <StatusChip tone={item.status.tone} label={item.status.label} />,
+    sortValue: (item) => item.status.label,
   },
-  {
-    key: 'clientStatus',
-    header: 'Client Status',
-    sortValue: (item) => item.clientStatus.label,
+  client_status: {
     render: (item) => <StatusChip tone={item.clientStatus.tone} label={item.clientStatus.label} />,
+    sortValue: (item) => item.clientStatus.label,
   },
-  {
-    key: 'approvalStatus',
-    header: 'Approval Status',
-    sortValue: (item) => item.approvalStatusLabel,
+  approval_status: {
     render: (item) => <TextCell value={item.approvalStatusLabel} />,
+    sortValue: (item) => item.approvalStatusLabel,
   },
-  {
-    key: 'category',
-    header: 'Category',
-    sortValue: (item) => item.categoryLabel,
+  category: {
     render: (item) => <TextCell value={item.categoryLabel} />,
+    sortValue: (item) => item.categoryLabel,
   },
-  {
-    key: 'conceptStyle',
-    header: 'Concept Style',
-    sortValue: (item) => item.styleLabel,
+  concept_style: {
     render: (item) => <TextCell value={item.styleLabel} />,
+    sortValue: (item) => item.styleLabel,
   },
-  {
-    key: 'formatsToCreate',
-    header: 'Formats to create',
+  formats_to_create: {
     render: (item) => (
       <ChipListCell
         chips={item.formatsToCreate.map((format) => ({ label: format, tone: 'accent' }))}
       />
     ),
   },
-  {
-    key: 'hookExamples',
-    header: 'Hook Examples',
-    render: (item) => <TextCell value={item.hookExamples} />,
-  },
-  {
-    key: 'scriptIdea',
-    header: 'Script Idea',
-    render: (item) => <TextCell value={item.scriptIdea} />,
-  },
-  {
-    key: 'description',
-    header: 'Description',
-    render: (item) => <TextCell value={item.description} />,
-  },
-  {
-    key: 'painPoints',
-    header: 'Pain Points',
-    render: (item) => <TextCell value={item.painPoints} />,
-  },
-  { key: 'usp', header: 'USP', render: (item) => <TextCell value={item.usp} /> },
-  {
-    key: 'clientComments',
-    header: 'Client Comments',
-    render: (item) => <TextCell value={item.clientComments} />,
-  },
-  {
-    key: 'collection',
-    header: 'Collection',
-    sortValue: (item) => item.collectionName,
+  hook_examples: { render: (item) => <TextCell value={item.hookExamples} /> },
+  script_idea: { render: (item) => <TextCell value={item.scriptIdea} /> },
+  description: { render: (item) => <TextCell value={item.description} /> },
+  pain_points: { render: (item) => <TextCell value={item.painPoints} /> },
+  usp: { render: (item) => <TextCell value={item.usp} /> },
+  client_comments: { render: (item) => <TextCell value={item.clientComments} /> },
+  concept_collections: {
     render: (item) => <TextCell value={item.collectionName} />,
+    sortValue: (item) => item.collectionName,
   },
-  {
-    key: 'creators',
-    header: 'Creators',
-    sortValue: (item) => item.creatorCount,
+  creator_concepts: {
     render: (item) => <CountCell count={item.creatorCount} noun="creator" />,
+    sortValue: (item) => item.creatorCount,
   },
-  {
-    key: 'adInspo',
-    header: 'Ad Inspo',
-    sortValue: (item) => item.adInspoCount,
+  ad_inspo_links: {
     render: (item) => <CountCell count={item.adInspoCount} noun="link" />,
+    sortValue: (item) => item.adInspoCount,
   },
-];
-
-/** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
-const FIELD_KEYS: readonly string[] = CONCEPT_GRID_COLUMNS.map((column) => column.key);
-const FIELD_OPTIONS = CONCEPT_GRID_COLUMNS.map((column) => ({
-  key: column.key,
-  label: column.header,
-}));
+};
 
 export function ConceptsWorkspace({
   items,
@@ -264,7 +229,20 @@ export function ConceptsWorkspace({
   initialView,
   initialSearch,
   userViews,
+  columns,
+  unconfiguredColumns = false,
 }: ConceptsWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () => gridColumnsFrom(columns, CONCEPT_RENDERERS, { freezeFirst: true, frozenMinWidth: 220 }),
+    [columns],
+  );
+  /** Every column key the Fields popover can toggle, and its label, in resolved order (VIEWS-01). */
+  const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);
+  const fieldOptions = useMemo(
+    () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
+    [grid],
+  );
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
   const viewRef = useRef<ConceptView>(initialView);
@@ -288,7 +266,7 @@ export function ConceptsWorkspace({
     initialViews: userViews.views,
     defaultViewType: 'grid',
     initialViewType: VIEW_TYPE_OF[initialView],
-    fieldKeys: FIELD_KEYS,
+    fieldKeys,
     onActivate: adoptView,
   });
   const activeView = tableView.viewType;
@@ -335,11 +313,12 @@ export function ConceptsWorkspace({
 
   const narrowed = visible.length !== items.length;
 
-  const columns = useMemo(() => conceptColumns(track, visible), [track, visible]);
+  // The Kanban board's lanes. Named apart from `columns`, which is the resolved COLUMN SET.
+  const boardColumns = useMemo(() => conceptColumns(track, visible), [track, visible]);
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, CONCEPT_GRID_COLUMNS, (item) => ({
+      galleryItemsFrom(visible, grid.columns, (item) => ({
         id: item.id,
         name: item.name,
         subtitle: item.themeName ?? undefined,
@@ -408,13 +387,20 @@ export function ConceptsWorkspace({
               onCreateView={tableView.createView}
               onRenameView={tableView.renameView}
               onDeleteView={tableView.deleteView}
-              fields={FIELD_OPTIONS}
+              fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
               error={tableView.error}
             />
           </div>
         </div>
+
+        <ColumnNotices
+          slotPrefix="concept"
+          unconfigured={unconfiguredColumns}
+          missing={grid.missing}
+          registryName="CONCEPT_RENDERERS in concepts-workspace.tsx"
+        />
 
         {visible.length === 0 ? (
           <div
@@ -447,7 +433,7 @@ export function ConceptsWorkspace({
             )}
           </div>
         ) : view === 'board' ? (
-          <ConceptBoard columns={columns} onOpen={open} />
+          <ConceptBoard columns={boardColumns} onOpen={open} />
         ) : view === 'gallery' ? (
           <GalleryView
             items={galleryItems}
@@ -463,7 +449,7 @@ export function ConceptsWorkspace({
             tableKey="concepts"
             view={tableView.config}
             onSortChange={tableView.setSort}
-            columns={CONCEPT_GRID_COLUMNS}
+            columns={grid.columns}
             rows={visible}
             rowId={(item) => item.id}
             rowLabel={(item) => item.name}
