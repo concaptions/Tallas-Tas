@@ -19,9 +19,11 @@ interface Seam {
   actor: string | null;
   /** Every `updateCreator` call's `{ id, patch }`, in order. */
   updated: { id: string; patch: Partial<CreatorInput> }[];
+  /** Every junction write the save made, with the brand it was scoped to. */
+  links: { brandId: string; junction: string; sourceId: string; targetIds: readonly string[] }[];
 }
 
-const seam = vi.hoisted<Seam>(() => ({ actor: 'user_2TESTACTOR', updated: [] }));
+const seam = vi.hoisted<Seam>(() => ({ actor: 'user_2TESTACTOR', updated: [], links: [] }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
@@ -45,8 +47,16 @@ vi.mock('@tas/db', async (importOriginal) => ({
     seam.updated.push({ id, patch });
     return Promise.resolve({ id });
   },
-  syncCreatorConcepts: (): Promise<void> => Promise.resolve(),
-  syncCreatorProducts: (): Promise<void> => Promise.resolve(),
+  syncLinksInBrand: (
+    _db: Db,
+    brandId: string,
+    spec: { junction: string },
+    sourceId: string,
+    targetIds: readonly string[],
+  ): Promise<readonly string[]> => {
+    seam.links.push({ brandId, junction: spec.junction, sourceId, targetIds });
+    return Promise.resolve(targetIds);
+  },
 }));
 
 function form(values: Record<string, string>): FormData {
@@ -109,6 +119,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   seam.actor = 'user_2TESTACTOR';
   seam.updated = [];
+  seam.links = [];
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -342,6 +353,51 @@ describe('with Clerk configured · the partnership window and the management dat
     expect(patch.clientNote).toBe('She is the one.');
     expect(patch.profilePicUrl).toBeNull();
     expect(patch.videoIntroUrl).toBe(filled.videoIntroUrl);
+  });
+});
+
+describe('with Clerk configured · the two junctions this panel links', () => {
+  /**
+   * The panel's Concepts and Products fields are two-way LinkFields, and the Save mirrors their
+   * selection as hidden inputs. Those ids are a plain list in a request body, so the Save has to be
+   * brand-checked exactly as the field's own write is: it goes through `syncLinksInBrand`, which
+   * filters the ids against the brand's own rows, and NOT through the bare junction syncs it used
+   * to call — which took no brand at all, so an id from another brand would have been stored.
+   */
+  it('writes both junctions through the brand scope, never a bare junction sync', async () => {
+    live();
+    const data = new FormData();
+    for (const [key, value] of Object.entries(filled)) data.set(key, value);
+    data.append('conceptIds', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000001');
+    data.append('conceptIds', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000002');
+    data.append('productIds', '22222222-2222-4222-8222-000000000001');
+
+    const result = await updateCreatorAction(null, data);
+
+    expect(result).toMatchObject({ ok: true });
+    expect(seam.links).toEqual([
+      {
+        brandId: 'brand-under-test',
+        junction: 'creator_concepts',
+        sourceId: CREATOR_ID,
+        targetIds: ['aaaaaaaa-aaaa-4aaa-8aaa-000000000001', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000002'],
+      },
+      {
+        brandId: 'brand-under-test',
+        junction: 'creator_products',
+        sourceId: CREATOR_ID,
+        targetIds: ['22222222-2222-4222-8222-000000000001'],
+      },
+    ]);
+  });
+
+  it('touches neither junction when the save itself is refused', async () => {
+    live();
+    seam.actor = null;
+
+    await updateCreatorAction(null, form(filled));
+
+    expect(seam.links).toEqual([]);
   });
 });
 
