@@ -40,6 +40,22 @@ const EXPECTED: readonly {
   // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
   // platform's own `due_date`; Gratsi hides three and adds five of its own.
   { tableKey: 'creative_briefs', inheriting: 31, gratsi: 33, virtual: 0 },
+  // GRATSI-MATCH campaigns_offers (2026-10-04, WIRING cluster): absent from this script until that
+  // run, because the page was not resolver-driven. 13 of the template's 14 fields (`Design
+  // attached` is register-excluded); Gratsi = its 20 fields minus the `Product` lookup and
+  // `Design attached` (both rule-5 flags in docs/decisions.md), with `(Internal) Product` hidden.
+  { tableKey: 'campaigns_offers', inheriting: 13, gratsi: 18, virtual: 0 },
+  // GRATSI-MATCH collections (2026-10-04, WIRING cluster): absent until that run. The template's
+  // 8 fields; Gratsi = its 13 fields minus the four rule-5 flags (Creative Sheet, Table 17, the
+  // duplicate Email Campaigns Management copy pair — docs/decisions.md "GRATSI-MATCH collections"),
+  // with the template's angle_id and creative_design_2_id hidden.
+  { tableKey: 'collections', inheriting: 8, gratsi: 9, virtual: 0 },
+  // GRATSI-MATCH creative_dimensions (2026-10-04, WIRING cluster): absent until that run.
+  // Identical in both bases — four fields, no flags, Gratsi holds no rows and inherits all four.
+  { tableKey: 'creative_dimensions', inheriting: 4, gratsi: 4, virtual: 0 },
+  // GRATSI-MATCH competitive_research (2026-10-04, WIRING cluster): absent until that run.
+  // Identical in both bases — seven stored fields, no flags, Gratsi holds no rows.
+  { tableKey: 'competitive_research', inheriting: 7, gratsi: 7, virtual: 0 },
 ];
 
 async function main(): Promise<void> {

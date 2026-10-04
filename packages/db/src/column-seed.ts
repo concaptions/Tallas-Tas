@@ -1011,10 +1011,17 @@ const AI_CHARACTERS_GRATSI = childRows(
 );
 
 /**
- * `(Internal) Collections` `tbl6LBNrRqa6Hh4I2` — 8 fields, 7 of which seed. The three link columns
- * are keyed by the FK that `collections` actually carries (`angle_id`, `product_id`,
- * `copywriting_id`), which is what the engine writes in pass 2; the parent audit's junction guesses
- * for fields 4 and 5 are not columns this schema has.
+ * `(Internal) Collections` `tbl6LBNrRqa6Hh4I2` — 8 fields, ALL seeded (GRATSI-MATCH collections,
+ * 2026-10-04). The link columns are keyed by the FK that `collections` actually carries
+ * (`campaign_id`, `angle_id`, `product_id`, `copywriting_id`, `creative_design_2_id`).
+ *
+ * Fields 6 and 8 were previously conflated into one row. `schema/collections.ts` is the authority
+ * for what each column stores: `creative_design_note` "mirrors Airtable's loose-text field" — the
+ * TEMPLATE's field 6 `(Internal) Creative Design` (singleLineText) — and `creative_design_2_id` is
+ * "a proper FK to briefs", the template's field 8 `(Internal) Creative Design 2`
+ * (multipleRecordLinks → Creative Sheet (Internal & Interface)); the demo fixtures populate both
+ * exactly that way. The old row keyed the note column under the field-8 label as a record link,
+ * which showed a text column as a link and left field 6 without a column.
  */
 const COLLECTIONS_PARENT = parentRows('collections', [
   ['name', 'Collection Name', 1, 'singleLineText'],
@@ -1022,18 +1029,50 @@ const COLLECTIONS_PARENT = parentRows('collections', [
   ['campaign_id', 'Campaigns & Offers', 3, 'multipleRecordLinks'],
   ['angle_id', 'Angles', 4, 'multipleRecordLinks'],
   ['product_id', '(Internal) Product', 5, 'multipleRecordLinks'],
+  ['creative_design_note', '(Internal) Creative Design', 6, 'singleLineText'],
   ['copywriting_id', 'Ads Copywriting copy', 7, 'multipleRecordLinks'],
-  ['creative_design_note', '(Internal) Creative Design 2', 8, 'multipleRecordLinks'],
+  ['creative_design_2_id', '(Internal) Creative Design 2', 8, 'multipleRecordLinks'],
 ]);
 
 /**
- * Gratsi `(Internal) Collections` — 13 fields, one relabel and nothing else. Its `Copywriting` field
- * (order 3) gets no row: the engine writes it to `collections.copywriting_id`, which field 13
- * `Ads Copywriting copy` already owns, and one column can carry one row per base. Recorded in the
- * decision doc rather than duplicated.
+ * Gratsi `(Internal) Collections` — 13 fields, orders the Gratsi base's own positions
+ * (`import-mappings.ts` keeps them in field order; the duplicate `Email Campaigns Management
+ * copy` pair collapses to one mapping entry, positions 11-12). Nine display; four are rule-5
+ * flags with NO row (decision entry "GRATSI-MATCH collections" in docs/decisions.md): `Creative
+ * Sheet` (5) and the `Email Campaigns Management copy` pair (11-12) are the exclusion register's
+ * residual texts, and `Table 17` (10) is the audit's junk-named field (annotation 4) — its email
+ * campaigns already reach the panel through `email_campaign_collections`.
+ *
+ * The same label names DIFFERENT storage in the two bases, which is why most rows are same-label
+ * detached relabels at Gratsi's own positions:
+ *
+ *  - `Copywriting` (3) links YOUTUBE Copywriting — the inverse of Youtube Copywriting ›
+ *    Collections, i.e. the `youtube_copy_collections` junction (`import-mappings.ts`
+ *    `collections.Copywriting`, gate-derived from `inverseLinkFieldId`). NOT the template's
+ *    Meta-copy link, and no new junction is needed.
+ *  - `Ads Copywriting copy` (13) IS the Meta Copywriting link, stored in
+ *    `collections.copywriting_id` — the template's field 7 column under the same label.
+ *  - `Angles` (6) links CONCEPTS despite its name (`concept_collections`); the template's
+ *    `angle_id` is hidden for Gratsi, whose base has no angle link here.
+ *  - `(Internal) Product` (7) is the register's empty text remnant; the platform's `product_id`
+ *    keeps the label so the displayed set matches, and the import never writes it for Gratsi.
+ *  - `(Internal) Creative Design` (8) is the REAL reverse link — Creative Design › (Internal)
+ *    Collections 3 into `creative_briefs.collection_id` — so it is keyed by `creative_briefs`,
+ *    the table holding the FK back (the `PRODUCTS_PARENT` rule).
+ *  - `(Internal) Creative Design 2` (9) is Gratsi's loose text, the `creative_design_note`
+ *    column; the template's `creative_design_2_id` link is hidden, its base has no such link.
  */
 const COLLECTIONS_GRATSI = childRows('collections', [
   ['name', 'Main Collection', 1, 'relabel', 'singleLineText'],
+  ['youtube_copy_collections', 'Copywriting', 3, 'custom', 'multipleRecordLinks'],
+  ['campaign_id', 'Campaigns & Offers', 4, 'relabel', 'multipleRecordLinks'],
+  ['concept_collections', 'Angles', 6, 'custom', 'multipleRecordLinks'],
+  ['product_id', '(Internal) Product', 7, 'relabel', 'multipleRecordLinks'],
+  ['creative_briefs', '(Internal) Creative Design', 8, 'custom', 'multipleRecordLinks'],
+  ['creative_design_note', '(Internal) Creative Design 2', 9, 'relabel', 'singleLineText'],
+  ['copywriting_id', 'Ads Copywriting copy', 13, 'relabel', 'multipleRecordLinks'],
+  ['angle_id', 'Angles', 4, 'hidden', 'multipleRecordLinks'],
+  ['creative_design_2_id', '(Internal) Creative Design 2', 8, 'hidden', 'multipleRecordLinks'],
 ]);
 
 /**
@@ -1138,8 +1177,25 @@ const PRODUCTS_GRATSI = childRows('products', [
   ['copywriting', 'Meta Copywriting', 102, 'hidden', 'multipleRecordLinks'],
 ]);
 
-/** `Campaigns & Offers` `tblRNaWCVa1cCIwLL` — 14 fields; the `Name` formula and 2 links skipped. */
+/**
+ * `Campaigns & Offers` `tblRNaWCVa1cCIwLL` — 14 fields, 13 seeded (GRATSI-MATCH campaigns_offers,
+ * 2026-10-04).
+ *
+ * `Name` (field 1) is an Airtable formula, but unlike the Concepts case it IS a stored column:
+ * the importer materialises `CONCATENATE({Holiday},'-',{Discount Offer},'-',{Code})` into
+ * `campaigns_offers.name` (`import-mappings.ts` `campaignsOffers.Name`, handler `formula`), the
+ * arrangement `schema/campaigns.ts` documents under CLAUDE.md non-negotiable 6. So it seeds as the
+ * parent's own column with no virtual formula; `fieldType` keeps the Airtable type as every other
+ * row does. `Collections` (field 12) is the reverse of `collections.campaign_id`, so it is keyed by
+ * the table that holds the foreign key back to this one — the `PRODUCTS_PARENT` rule.
+ *
+ * The one field with NO row is `Design attached` (field 14): loose reference text with no typed
+ * home (`schema/campaigns.ts`), excluded by the 2026-10-01 "Airtable field exclusion register" in
+ * `docs/decisions.md` ("Campaigns & Offers › Design attached — loose single-line text with no
+ * target"). Rule 5: decision-doc it, never guess it into a column.
+ */
 const CAMPAIGNS_OFFERS_PARENT = parentRows('campaigns_offers', [
+  ['name', 'Name', 1, 'formula'],
   ['holiday', 'Holiday', 2, 'singleLineText'],
   ['official_date', 'Official Date', 3, 'date'],
   ['country', 'Country', 4, 'singleLineText'],
@@ -1150,25 +1206,59 @@ const CAMPAIGNS_OFFERS_PARENT = parentRows('campaigns_offers', [
   ['ads_end_date', 'Ads End Date', 9, 'date'],
   ['discount_offer', 'Discount Offer', 10, 'singleLineText'],
   ['code', 'Code', 11, 'singleLineText'],
+  ['collections', 'Collections', 12, 'multipleRecordLinks'],
   ['product_id', '(Internal) Product', 13, 'multipleRecordLinks'],
 ]);
 
 /**
- * Gratsi `Campaigns & Offers` — 20 fields, 0 live records. Its field LABELLED `Angles` links the
- * CONCEPTS table, which is why its key is the `campaign_concepts` junction and not an angle one.
+ * Gratsi `Campaigns & Offers` — 20 fields, 0 live records; orders are the Gratsi base's own field
+ * positions (`import-mappings.ts` keeps them in field order). Its field LABELLED `Angles` links the
+ * CONCEPTS table (`schema/campaign-links.ts` documents the swap), which is why its key is the
+ * `campaign_concepts` junction and not an angle one. The four reverse links the strict
+ * Gratsi-matches rule adds (GRATSI-MATCH campaigns_offers, 2026-10-04) are each keyed by the
+ * junction that carries the foreign key back to this table, exactly as `import-mappings.ts` names
+ * them: `COPY` ← Youtube Copywriting › Campaign Code, `Email Campaigns` ← Email Campaigns
+ * Management › Campaigns & Offers, `Email Campaigns Management copy` ← Email FLOWS Management ›
+ * Campaigns & Offers (the flows side, despite the label), and `Ads Copywriting copy` ← Meta
+ * Copywriting › Campaign Code.
+ *
+ * Two Gratsi fields stay rule-5 flags with NO row (decision entry "GRATSI-MATCH campaigns_offers"
+ * in docs/decisions.md): `Product` (field 14), a lookup through Collections whose underlying
+ * collections field is the register-excluded `(Internal) Collections › (Internal) Product` text
+ * remnant — empty on every live row, so there is nothing to resolve the lookup through; and
+ * `Design attached` (field 17), the register's "loose single-line text with no target".
  */
 const CAMPAIGNS_OFFERS_GRATSI = childRows('campaigns_offers', [
   ['promotional_ideas', 'Promotional Ideas', 6, 'custom', 'richText'],
   ['confirmed_by_client', 'Interested', 7, 'relabel', 'checkbox'],
+  ['youtube_copy_campaigns', 'COPY', 15, 'custom', 'multipleRecordLinks'],
   ['campaign_concepts', 'Angles', 16, 'custom', 'multipleRecordLinks'],
+  ['email_campaign_campaigns', 'Email Campaigns', 18, 'custom', 'multipleRecordLinks'],
+  ['email_flow_campaigns', 'Email Campaigns Management copy', 19, 'custom', 'multipleRecordLinks'],
+  ['copywriting_campaigns', 'Ads Copywriting copy', 20, 'custom', 'multipleRecordLinks'],
   ['product_id', '(Internal) Product', 13, 'hidden', 'multipleRecordLinks'],
 ]);
 
-/** `(Internal) Creative Dimensions` `tblli0Y76yJvG56zK` — identical in both bases; 1 reverse link. */
+/**
+ * `(Internal) Creative Dimensions` `tblli0Y76yJvG56zK` — 4 fields, identical in both bases, ALL
+ * seeded (GRATSI-MATCH creative_dimensions, 2026-10-04); Gratsi holds no rows and inherits.
+ *
+ * Field 4 `(Internal) Creative Design` is the REVERSE of the briefs' `Dimensions` link, which the
+ * engine stores on the OTHER side as placement names in the `creative_briefs.dimensions` jsonb
+ * (`import-mappings.ts` `creativeDimensions.(Internal) Creative Design`: "written from Creative
+ * Design › Dimensions into creative_briefs.dimensions (by placement name)"). No junction exists
+ * and no FK points back here, so the table-shaped key the other reverse links use would fail the
+ * gate; the key is instead `creative_design_id`, the uuid column `schema/creative-dimensions.ts`
+ * RESERVED for exactly this brief link ("a Creative Design link (FK to briefs stored as uuid)") —
+ * the same shape as `creative_reporting.brief_id`, a real stored column no Airtable field writes.
+ * The page resolves the display through both ends: the briefs whose `dimensions` carry this row's
+ * name, plus the brief the stored uuid points at. Display-only; nothing new is stored.
+ */
 const CREATIVE_DIMENSIONS_PARENT = parentRows('creative_dimensions', [
   ['name', 'Name', 1, 'singleLineText'],
   ['dimensions', 'Dimensions', 2, 'singleLineText'],
   ['link_description', 'Link Description', 3, 'singleSelect'],
+  ['creative_design_id', '(Internal) Creative Design', 4, 'multipleRecordLinks'],
 ]);
 
 /**

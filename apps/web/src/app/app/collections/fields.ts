@@ -338,6 +338,29 @@ export function indexConceptsByCollection(
 }
 
 /**
+ * The brief `collections.creative_design_2_id` points at — the template base's `(Internal)
+ * Creative Design 2` link — as one read-only record, or `null` when the collection has none or
+ * the id resolves to no brief of the brand. Same contract as `metaCopyLink`: generated §7 name
+ * (non-negotiable 6, rendered in `font-mono`), the brief's own detail route, the module's own
+ * status chip. GRATSI-MATCH collections (2026-10-04): the grid column needs the name, not a uuid.
+ */
+export function creativeDesign2Link(
+  creativeDesign2Id: string | null,
+  rows: readonly Omit<CreativeDesignSource, 'collectionId'>[],
+): LinkedRecord | null {
+  if (creativeDesign2Id === null) return null;
+  const row = rows.find((candidate) => candidate.id === creativeDesign2Id);
+  if (row === undefined) return null;
+  const status = briefInternalStatusView(row.track, row.internalStatus);
+  return {
+    id: row.id,
+    label: row.name,
+    href: briefPath(row.id),
+    chip: { label: status.label, tone: status.tone },
+  };
+}
+
+/**
  * The Meta Copywriting row `collections.copywriting_id` points at, as one read-only record, or
  * `null` when the collection has none — or when the id resolves to no row of the brand, which the
  * scoped `listCopy` makes the same outcome as no link at all. The label is the auto-generated

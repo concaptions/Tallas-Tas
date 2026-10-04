@@ -73,3 +73,47 @@ export function matchesQuery(
     value.toLowerCase().includes(query),
   );
 }
+
+/** One brief linked to a dimension, as the `(Internal) Creative Design` cell renders it. */
+export interface LinkedDesign {
+  readonly id: string;
+  /** The brief's auto-generated §7 name (non-negotiable 6; the cell renders it in `font-mono`). */
+  readonly label: string;
+}
+
+/**
+ * The minimum a brief row has to carry to be listed on a dimension: its id, its generated name,
+ * and the `dimensions` placement-name array the import writes from the Airtable `Dimensions` link
+ * (`import-mappings.ts`: "into creative_briefs.dimensions (by placement name)"). Structural, so a
+ * test's fixtures need no more than these three fields.
+ */
+export interface DimensionDesignSource {
+  readonly id: string;
+  readonly name: string;
+  readonly dimensions: readonly string[];
+}
+
+/**
+ * The `(Internal) Creative Design` reverse link, resolved from BOTH ends of the relationship
+ * (GRATSI-MATCH creative_dimensions, 2026-10-04): the briefs whose `dimensions` jsonb carries this
+ * dimension's NAME — the placement-name convention the Gratsi import writes — plus the one brief
+ * the row's own stored `creative_design_id` points at, deduped by id, in the briefs' own order
+ * (newest edit first). Display-only: nothing here writes, and a brief whose `dimensions` carry
+ * ratios rather than names (the §8 defaults on an inheriting brand) simply never matches.
+ */
+export function linkedDesignsForDimension(
+  dimension: { readonly name: string; readonly creativeDesignId: string | null },
+  briefs: readonly DimensionDesignSource[],
+): readonly LinkedDesign[] {
+  const linked: LinkedDesign[] = [];
+  const seen = new Set<string>();
+  for (const brief of briefs) {
+    const byName = brief.dimensions.includes(dimension.name);
+    const byStoredId = brief.id === dimension.creativeDesignId;
+    if ((byName || byStoredId) && !seen.has(brief.id)) {
+      seen.add(brief.id);
+      linked.push({ id: brief.id, label: brief.name });
+    }
+  }
+  return linked;
+}

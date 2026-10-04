@@ -983,3 +983,116 @@ required: the client-facing interface reads `concepts.client_status` from the da
 nothing in `apps/web/src/app/client` or `client-data-source.ts` touches `resolveColumns`), so the
 client gate is untouched by what the team's grid displays. Only the Gratsi team grid loses the
 display chip. The Postgres column, every writer, Niagara's view and the platform row all stay.
+
+## 2026-10-04 — GRATSI-MATCH campaigns_offers: the grid reads the resolver; two fields stay flagged
+
+The Campaigns & Offers grid now reads its columns from `resolveColumns` (seed sections
+`CAMPAIGNS_OFFERS_PARENT` / `CAMPAIGNS_OFFERS_GRATSI`), closing the audit's eight-column gap
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §Campaigns & Offers). Storage was verified against
+`schema/campaigns.ts`, `schema/campaign-links.ts` and `import-mappings.ts` before any seed row was
+written: `Name` is the MATERIALISED Airtable formula in `campaigns_offers.name` (stored, not
+virtual); `Collections` is the reverse of `collections.campaign_id`; `COPY` is
+`youtube_copy_campaigns`; `Angles` is `campaign_concepts` and links CONCEPTS despite its name;
+`Email Campaigns` is `email_campaign_campaigns`; `Email Campaigns Management copy` is
+`email_flow_campaigns` (the FLOWS side); `Ads Copywriting copy` is `copywriting_campaigns`. All
+reverse links are display-only read-throughs — nothing new is stored and no migration ran.
+
+Two Gratsi fields are rule-5 flags, NOT columns, so the strict Gratsi-matches rule is met "minus
+named flags": `Design attached` (field 17) is the 2026-10-01 exclusion register's "Campaigns &
+Offers › Design attached — loose single-line text with no target"; `Product` (field 14) is a
+lookup through `Collections` whose underlying collections field is the register's "(Internal)
+Collections › (Internal) Product — single-line text where the platform has product_id; nothing to
+resolve" (empty on every live row), and the Gratsi import never writes `collections.product_id`
+(`DRIZZLE_COLUMNS_WITHOUT_AIRTABLE_SOURCE.collections`), so there is nothing to resolve the lookup
+through. If the client ever fills that remnant, the mapping note above says exactly where the
+lookup would resolve from. Gratsi displays 18 of its 20 fields, in field order; the `Updated`
+column leaves this grid as it left every other (gratsi-display-spec-2026-10-02).
+
+## 2026-10-04 — GRATSI-MATCH collections: the grid reads the resolver; four flags; two labels, two storages
+
+The Collections grid now reads its columns from `resolveColumns` (seed sections
+`COLLECTIONS_PARENT` / `COLLECTIONS_GRATSI`), closing the audit's six-column gap
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §(Internal) Collections). Storage verified first
+(`schema/collections.ts`, `import-mappings.ts`, `schema/youtube-copy.ts`): the parent seed's old
+single `(Internal) Creative Design 2` row conflated the template's fields 6 and 8 — the loose
+TEXT field 6 `(Internal) Creative Design` is `creative_design_note` ("mirrors Airtable's
+loose-text field") and the LINK field 8 `(Internal) Creative Design 2` is `creative_design_2_id`
+("a proper FK to briefs") — so the parent now seeds both, in template order.
+
+THE SAME LABEL NAMES DIFFERENT STORAGE IN THE TWO BASES, and the seed follows the verified
+import mappings rather than the label: Gratsi's `Copywriting` is the inverse of Youtube
+Copywriting › Collections (`youtube_copy_collections`, which exists — no new junction was needed
+and none was built), while Gratsi's `Ads Copywriting copy` IS the Meta Copywriting link stored in
+`collections.copywriting_id`. The WIRING brief had these two swapped and expected `Copywriting` to
+wait on a copywriting↔collections junction; `import-mappings.ts` (gate-derived from
+`inverseLinkFieldId`) and the module-parity spec's own annotations both say otherwise, so the
+column ships now, backed by the junction that already exists. If the copy track later adds a
+`copywriting_collections` junction, that work belongs to the COPYWRITING table's own `Collections`
+field and does not touch these labels. Gratsi's `Angles` links CONCEPTS (`concept_collections`),
+so the template's `angle_id` is Gratsi-hidden; `(Internal) Creative Design` is the real reverse of
+`creative_briefs.collection_id` (keyed `creative_briefs`), not a remnant — the remnant of that
+family on this table is `(Internal) Creative Design 2`, Gratsi's loose text in
+`creative_design_note`.
+
+Four Gratsi fields are rule-5 flags, NOT columns, so the strict rule is met "minus named flags":
+`Creative Sheet` and both `Email Campaigns Management copy` fields are the 2026-10-01 exclusion
+register's residual texts, and `Table 17` is the gratsi-column-diff audit's junk-named field
+(annotation 4: decision-doc it, do not invent columns) — its content already reaches the panel as
+"Email campaigns" through `email_campaign_collections`, and surfacing a grid column literally
+headed "Table 17" is withheld pending a ruling. `(Internal) Product` stays displayed: the label
+matches Gratsi's field, the backing is the platform's `product_id`, and the register records
+Gratsi's own field as empty text on every live row ("nothing to resolve"), so an empty link column
+is exactly what the base shows. Gratsi displays 9 of 13 fields, in field order; reverse links are
+display-only read-throughs; no migration ran.
+
+## 2026-10-04 — GRATSI-MATCH creative_dimensions: the grid reads the resolver; the reverse link is keyed by the reserved uuid column
+
+The Creative Dimensions grid now reads its columns from `resolveColumns`
+(`CREATIVE_DIMENSIONS_PARENT`), closing the audit's one-column gap
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §(Internal) Creative Dimensions). The table is
+identical in both bases, so Gratsi holds no child rows and inherits all four fields.
+
+`(Internal) Creative Design` (field 4) is the REVERSE of the briefs' `Dimensions` link, and its
+storage is asymmetric: the engine writes the far side as placement NAMES into
+`creative_briefs.dimensions` (`import-mappings.ts`), no junction exists, and no FK points back at
+`creative_dimensions` — so the table-shaped key the other reverse links use would fail the
+column-seed gate ("a junction OF ITS OWN TABLE"). The column is keyed by `creative_design_id`
+instead, the uuid column `schema/creative-dimensions.ts` reserved for exactly this brief link,
+the same shape as `creative_reporting.brief_id` (a real stored column no Airtable field writes).
+The cell resolves through BOTH ends at read time — briefs whose `dimensions` carry the row's
+name, plus the brief the stored uuid points at, deduped (`linkedDesignsForDimension`) — and the
+demo fixtures exercise the stored end, so the demo page keeps rendering. Display-only; the
+WIRING brief's suggestion of a `creative_briefs`-shaped key would have needed a new gate
+exemption in `column-seed.test.ts`, which is outside this cluster's files, and the reserved
+column says the same thing without one. No migration ran.
+
+## 2026-10-04 — GRATSI-MATCH competitive_research: the grid reads the resolver; no flags
+
+The Competitive Research grid now reads its columns from `resolveColumns`
+(`COMPETITIVE_RESEARCH_PARENT`, unchanged — the seed already carried all seven fields). The table
+is identical in both bases and the audit scored it 7 = 7
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §Competitive research), so this is the pure wire:
+no seed change, no flags, no Gratsi rows. The conversion is still a display change twice over —
+the three stored fields the hardcoded grid never drew (`FB Page`, `Meta Ads Library`, `Analysis`)
+now render, which is exactly the configurability the seed comment promised, and the platform-only
+`Updated` column leaves this grid as it left every other
+(docs/decisions/gratsi-display-spec-2026-10-02.md). Panel, actions and search untouched; no
+migration ran.
+
+## 2026-10-04 — Themes under the strict Gratsi-matches rule: a flagged, deliberate exception, pending a ruling
+
+Recorded by the WIRING cluster so the gratsi-column-diff audit's "Themes 6 vs 0 · NOT
+RESOLVER-DRIVEN" row is not mistaken for unfinished conversion work. Themes is the GLOBAL library
+across all brands (CLAUDE.md non-negotiable 3). It is held out of the per-brand column resolver by
+standing decision (docs/decisions/themes-stays-outside-the-resolver-2026-10-03.md): it is not in
+`PROPAGATION_TABLES`, has no legal `table_key`, seeds no `column_definitions` rows, and the
+reconciling seed deliberately leaves it alone (`column-seed.test.ts` pins that).
+
+Its page displays the hardcoded eight: Airtable's six fields (Name, Notes, Assignee, Status,
+Attachments, Attachment Summary) PLUS the platform's own `category` and `referenceLinks`. Under
+the strict Gratsi-matches-Airtable rule those two platform fields are a mismatch — but a
+PER-BRAND hide is impossible without putting the global library into the per-brand resolver,
+which would break the non-negotiable before it fixed a display diff. So this is a FLAGGED,
+DELIBERATE EXCEPTION, not per-brand hidden and not silently conformed: the two extra displays
+stay until the owner rules either that Themes may join the resolver under a sanctioned global
+mechanism or that `category` / `referenceLinks` leave the page. No code changed with this entry.
