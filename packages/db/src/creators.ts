@@ -52,7 +52,10 @@ export type CreatorInput = Omit<NewCreator, ManagedColumn>;
  * rows). The identically named jsonb columns on `creators` are a legacy shape nothing writes;
  * overriding them here is what makes a saved link survive a reload.
  */
-export type CreatorListRow = Creator;
+export type CreatorListRow = Creator & {
+  /** The row's OWN stored concept ids (the base's second Concepts link) — NOT the junction. */
+  readonly legacyConceptIds: readonly string[];
+};
 
 function withLinks(
   row: Creator,
@@ -61,6 +64,7 @@ function withLinks(
 ): CreatorListRow {
   return {
     ...row,
+    legacyConceptIds: row.conceptIds,
     conceptIds: conceptMap.get(row.id) ?? [],
     productIds: productMap.get(row.id) ?? [],
   };

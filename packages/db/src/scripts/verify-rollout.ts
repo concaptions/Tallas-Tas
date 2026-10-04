@@ -24,17 +24,21 @@ const EXPECTED: readonly {
   // GRATSI-MATCH 2026-10-04 (links cluster): Gratsi angles now carries the live base's 21 fields
   // minus the five decision-register exclusions — three reverse links and the two Concepts-side
   // lookups resolve as read-only columns, in Airtable order.
-  { tableKey: 'angles', inheriting: 16, gratsi: 16, virtual: 0 },
+  // Fidelity flip 2026-10-04: Creators shown fidelity-empty (virtual lookupRollup; stores nothing).
+  { tableKey: 'angles', inheriting: 16, gratsi: 17, virtual: 0 },
   // AI-34: production_status is HIDDEN by the resolver on both bases (never dropped — 73 live values).
   // AI-33 (Talal, 2026-10-04) + the client_status follow-up: both platform tracks are
   // Gratsi-hidden — Gratsi's base has Status only. The client gate reads the DB column.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus UGC Management (creator_concepts un-hidden),
   // Campaigns & Offers, (Internal) Creative Design and the virtual Performance lookup — Gratsi 21.
-  { tableKey: 'concepts', inheriting: 21, gratsi: 21, virtual: 0 },
+  // Fidelity flip 2026-10-04: Production Status shown again for Gratsi (its base has it; AI-34
+  // keeps the hide everywhere else).
+  { tableKey: 'concepts', inheriting: 21, gratsi: 22, virtual: 0 },
   // AI-41: Gratsi's dead second Concepts link (concept_ids) is retired; 'Concept to film' remains.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the two formula fields as virtual columns
   // (Creator's cost (USD), Notify Flag) in the live base's order — Gratsi 35.
-  { tableKey: 'creators', inheriting: 36, gratsi: 35, virtual: 0 },
+  // Fidelity flip 2026-10-04: the second Concepts link drawn again (own stored ids, 0/70).
+  { tableKey: 'creators', inheriting: 36, gratsi: 36, virtual: 0 },
   { tableKey: 'personas', inheriting: 15, gratsi: 7, virtual: 0 },
   { tableKey: 'copy_types', inheriting: 4, gratsi: 4, virtual: 0 },
   // GRATSI-MATCH 2026-10-04 (links cluster): Gratsi words the first two columns as its base does
@@ -66,7 +70,8 @@ const EXPECTED: readonly {
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the live base's remaining fields — three
   // reverse links, the Last Modified/Created displays and the Concepts (from Angles) lookup —
   // minus the four decision-register exclusions; Due Date stays per AI-49. Gratsi 39.
-  { tableKey: 'creative_briefs', inheriting: 31, gratsi: 39, virtual: 0 },
+  // Fidelity flip 2026-10-04: Ads Copywriting copy shown fidelity-empty (virtual). Gratsi 40.
+  { tableKey: 'creative_briefs', inheriting: 31, gratsi: 40, virtual: 0 },
   // GRATSI-MATCH campaigns_offers (2026-10-04, WIRING cluster): absent from this script until that
   // run, because the page was not resolver-driven. 13 of the template's 14 fields (`Design
   // attached` is register-excluded); Gratsi = its 20 fields minus the `Product` lookup and

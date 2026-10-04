@@ -208,6 +208,12 @@ const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
     render: (item) => <TextCell value={item.approvalStatusLabel} />,
     sortValue: (item) => item.approvalStatusLabel,
   },
+  // Fidelity flip 2026-10-04: the live base HAS Production Status, so Gratsi resolves it again
+  // (visible child row over the AI-34-hidden parent; other brands keep the hide).
+  production_status: {
+    render: (item) => <TextCell value={item.productionStatusLabel} />,
+    sortValue: (item) => item.productionStatusLabel ?? '',
+  },
   category: {
     render: (item) => <TextCell value={item.categoryLabel} />,
     sortValue: (item) => item.categoryLabel,

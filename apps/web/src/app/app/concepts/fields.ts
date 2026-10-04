@@ -185,11 +185,13 @@ export interface ConceptItem {
   readonly href: string;
   /**
    * The rest of the stored record, so the Airtable-style grid shows every column without a row
-   * being opened. Resolved on the server like `status`; the client never looks a label up. Production
-   * Status is deliberately absent (hidden from the list, the form and the panel; the column stays).
+   * being opened. Resolved on the server like `status`; the client never looks a label up.
+   * Production Status is BACK for the grid (fidelity flip 2026-10-04: the live base has it, so
+   * Gratsi shows it; other brands keep AI-34's hide) — the form and the panel still leave it alone.
    */
   readonly clientStatus: ConceptClientStatusView;
   readonly approvalStatusLabel: string | null;
+  readonly productionStatusLabel: string | null;
   readonly categoryLabel: string | null;
   readonly styleLabel: string | null;
   readonly formatsToCreate: readonly string[];
@@ -241,6 +243,7 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   ConceptItem,
   | 'clientStatus'
   | 'approvalStatusLabel'
+  | 'productionStatusLabel'
   | 'categoryLabel'
   | 'styleLabel'
   | 'formatsToCreate'
@@ -260,6 +263,7 @@ export const EMPTY_CONCEPT_RECORD: Pick<
 > = {
   clientStatus: { key: 'pending_for_approval', label: 'Pending for Approval', tone: 'info' },
   approvalStatusLabel: null,
+  productionStatusLabel: null,
   categoryLabel: null,
   styleLabel: null,
   formatsToCreate: [],

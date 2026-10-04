@@ -171,6 +171,8 @@ export interface CreatorCardRow extends Partial<CreatorPanelFields> {
   readonly internalAssetsStatus: string;
   readonly rawAssetsUrl: string | null;
   readonly conceptIds: readonly string[];
+  /** Fidelity flip 2026-10-04: the base's second Concepts link — the row's own ids, 0/70 today. */
+  readonly legacyConceptIds: readonly string[];
   readonly productIds: readonly string[];
   readonly ethnicity: string | null;
   readonly creatorLink: string | null;

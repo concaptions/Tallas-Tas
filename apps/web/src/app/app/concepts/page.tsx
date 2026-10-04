@@ -10,6 +10,7 @@ import { briefPath, conceptPath, ugcPath } from '@/lib/routes';
 
 import {
   conceptApprovalStatusLabel,
+  conceptProductionStatusLabel,
   conceptCategoryLabel,
   conceptStyleLabel,
 } from '@tas/domain/concepts';
@@ -103,6 +104,8 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     clientStatus: clientStatusView(row.clientStatus),
     approvalStatusLabel:
       row.approvalStatus === null ? null : conceptApprovalStatusLabel(row.approvalStatus),
+    productionStatusLabel:
+      row.productionStatus === null ? null : conceptProductionStatusLabel(row.productionStatus),
     categoryLabel: row.category === null ? null : conceptCategoryLabel(row.category),
     styleLabel: row.conceptStyle === null ? null : conceptStyleLabel(row.conceptStyle),
     formatsToCreate: row.formatsToCreate,

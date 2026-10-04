@@ -236,6 +236,9 @@ const ANGLE_RENDERERS: ColumnRegistry<AngleItem> = {
     render: (item) => <TextCell value={item.angle.description} />,
     sortValue: (item) => item.angle.description,
   },
+  // Fidelity flip 2026-10-04: the base's Creators link stores nothing anywhere on this platform
+  // (no junction, no FK; importer skip). Shown fidelity-empty, read-only.
+  creators_link: { render: () => <TextCell value={null} /> },
   pain_points: { render: (item) => <TextCell value={item.angle.painPoints} /> },
   usp: { render: (item) => <TextCell value={item.angle.usp} /> },
   // A count over the stored jsonb, computed in the cell: the links themselves are in the panel.

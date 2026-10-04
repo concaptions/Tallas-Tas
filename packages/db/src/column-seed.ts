@@ -686,6 +686,18 @@ const CREATIVE_BRIEFS_GRATSI = childRows('creative_briefs', [
  * `storedColumns` keeps every write path away from it.
  */
 const CREATIVE_BRIEFS_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  // Fidelity flip 2026-10-04: the live base HAS Ads Copywriting copy (field 38) and nothing on
+  // this platform stores its side; shown fidelity-empty, read-only, loader-fed [].
+  {
+    tableKey: 'creative_briefs',
+    columnKey: 'ads_copywriting_copy',
+    displayLabel: 'Ads Copywriting copy',
+    displayOrder: 38,
+    fieldType: 'multipleRecordLinks',
+    source: 'custom',
+    isDetached: true,
+    formula: 'lookupRollup',
+  },
   {
     tableKey: 'creative_briefs',
     columnKey: 'concepts_from_angles',
@@ -837,6 +849,9 @@ const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
  * decision, not a column one.
  */
 const CONCEPTS_GRATSI = childRows('concepts', [
+  // Fidelity flip 2026-10-04: the live base HAS Production Status (field 7), so Gratsi shows it
+  // — a visible child row over the AI-34-hidden parent row; every other brand keeps the hide.
+  ['production_status', 'Production Status', 7, 'relabel', 'singleSelect'],
   // GRATSI-MATCH 2026-10-04: the base's own primary-field wording. The platform row says
   // 'Concept Name'; Gratsi's base says `Name` (diff relabel candidate) — a child relabel only,
   // so the template and every inheriting brand keep the platform's wording.
@@ -974,6 +989,25 @@ const ANGLES_PLATFORM: readonly UpsertColumnDefinition[] = [
  *   and the four residual text remnants `(Internal) Creative Design`, `Creative Sheet`,
  *   `UGC Management copy`, `Concepts copy` (rule 5: decision-doc lines, never invented columns).
  */
+
+/**
+ * Fidelity flips 2026-10-04: live-base fields that STORE NOTHING anywhere on this platform, shown
+ * for exact Airtable fidelity as read-only, loader-fed-empty lookup columns. Virtual because the
+ * key rule is right: no Postgres column backs them, and a fabricated key must say so.
+ */
+const ANGLES_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'angles',
+    columnKey: 'creators_link',
+    displayLabel: 'Creators',
+    displayOrder: 5,
+    fieldType: 'multipleRecordLinks',
+    source: 'custom',
+    isDetached: true,
+    formula: 'lookupRollup',
+  },
+];
+
 const ANGLES_GRATSI = childRows('angles', [
   ['status', 'Status', 2, 'relabel-platform', 'singleSelect'],
   ['potential', 'Potential', 3, 'relabel-platform', 'singleSelect'],
@@ -1304,7 +1338,10 @@ const CREATORS_GRATSI = childRows('creators', [
   ['internal_creator_status', 'Creator Status', 22, 'relabel', 'singleSelect'],
   ['cost_usd', 'Paid by TAS', 23, 'relabel-platform', 'currency'],
   ['payment_date', 'Payment Date', 24, 'relabel-platform', 'date'],
-  ['concept_ids', 'Concepts', 25, 'hidden-custom', 'multipleRecordLinks'],
+  // Fidelity flip 2026-10-04: AI-41 kept this remembered-not-drawn; the live base HAS the field
+  // (25, 0/70 filled), so it is drawn again — rendering the row's OWN stored concept_ids
+  // (empty today), never the creator_concepts junction. AI-41's point stands: two links, two data.
+  ['concept_ids', 'Concepts', 25, 'custom', 'multipleRecordLinks'],
   ['creator_info_request', 'Creator Info Request', 26, 'relabel-platform', 'richText'],
   ['partnership_activated_at', 'Date of Partnership Activation', 28, 'relabel', 'date'],
   ['slack_notified', 'Slack Notified ', 30, 'relabel-platform', 'checkbox'],
@@ -1994,6 +2031,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CONCEPTS_GRATSI,
       ...CONCEPTS_GRATSI_VIRTUAL,
       ...ANGLES_GRATSI,
+      ...ANGLES_GRATSI_VIRTUAL,
       ...CREATIVE_MODULES_GRATSI,
       ...CREATIVE_SHEET_ITEMS_GRATSI,
       ...CREATORS_GRATSI,

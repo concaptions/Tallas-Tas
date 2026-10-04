@@ -289,7 +289,7 @@ describe('the column seed, checked against the real schema', () => {
     }
   });
 
-  it('resolves Gratsi angles as the live base reads, sixteen columns in Airtable order', async () => {
+  it('resolves Gratsi angles as the live base reads, seventeen columns in Airtable order', async () => {
     const db = await testDb();
     await seed(db);
     await seedColumnDefinitions(db);
@@ -315,6 +315,7 @@ describe('the column seed, checked against the real schema', () => {
       'Status',
       'Potential',
       'Description',
+      'Creators',
       'Concepts',
       'Product (from Angles)',
       'Personas (from Angles)',
@@ -355,7 +356,7 @@ describe('the column seed, checked against the real schema', () => {
    * is remembered and an admin can un-hide it the day it carries data, and the real link keeps its
    * own label and position.
    */
-  it('remembers Gratsi second, empty Concepts link without resolving it', async () => {
+  it('draws Gratsi second Concepts link again, as its own stored ids, never the junction', async () => {
     const db = await testDb();
     await seed(db);
     await seedColumnDefinitions(db);
@@ -367,7 +368,10 @@ describe('the column seed, checked against the real schema', () => {
 
     const resolved = await resolveColumns(db, gratsi.id, 'creators');
 
-    expect(resolved.map((column) => column.columnKey)).not.toContain('concept_ids');
+    // Fidelity flip 2026-10-04: the base HAS the field (0/70), so it resolves — visibly.
+    const second = resolved.find((column) => column.columnKey === 'concept_ids');
+    // Presence in the resolved set IS visibility: hidden rows never resolve.
+    expect(second?.displayLabel).toBe('Concepts');
     // The link the importer really writes is untouched, under Gratsi label, at its own position.
     const real = resolved.find((column) => column.columnKey === 'creator_concepts');
     expect(real?.displayLabel).toBe('Concept to film');
@@ -385,7 +389,8 @@ describe('the column seed, checked against the real schema', () => {
         ),
       );
     expect(row?.displayLabel).toBe('Concepts');
-    expect(row?.isHidden).toBe(true);
+    // Flip 2026-10-04: drawn again, still custom — the seed row is the same one AI-41 kept.
+    expect(row?.isHidden).toBe(false);
     expect(row?.source).toBe('custom');
   });
 
@@ -624,12 +629,17 @@ describe('platform columns on concepts', () => {
    * missing-columns notice — the removed field's name on screen for every brand. There is no child
    * row for the key anywhere, so hiding the parent is enough to hide it everywhere.
    */
-  it('hides production_status for every brand, with the parent row kept so it can come back', async () => {
+  it('hides production_status everywhere but Gratsi, whose base has the field (flip 2026-10-04)', async () => {
     const db = await testDb();
     await seed(db);
     await seedColumnDefinitions(db);
 
-    for (const slug of ['gratsi', 'niagara-sleep-solutions', 'funky-painting']) {
+    const shown = await resolveColumns(db, await brandIdBySlug(db, 'gratsi'), 'concepts');
+    expect(shown.find((column) => column.columnKey === 'production_status')?.displayLabel).toBe(
+      'Production Status',
+    );
+
+    for (const slug of ['niagara-sleep-solutions', 'funky-painting']) {
       const resolved = await resolveColumns(db, await brandIdBySlug(db, slug), 'concepts');
       expect(
         resolved.find((column) => column.columnKey === 'production_status'),
@@ -1400,7 +1410,7 @@ describe('the Creative Design column set', () => {
      * visible. Three reverse links, the two system-field displays and the one virtual lookup are
      * all Gratsi child rows; the parent set above is untouched.
      */
-    expect(onGratsi).toHaveLength(39);
+    expect(onGratsi).toHaveLength(40);
     for (const hidden of ['ad_content', 'campaign_offer_id', 'asset_id']) {
       expect(onGratsi.map((column) => column.columnKey)).not.toContain(hidden);
       expect(onNiagara.map((column) => column.columnKey)).toContain(hidden);

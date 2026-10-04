@@ -277,6 +277,9 @@ export const BRIEF_RENDERERS: ColumnRegistry<BriefItem> = {
   },
   // The `Concepts (from Angles)` lookup, VIRTUAL — the server computed the finished string with
   // `briefConceptsFromAngles`; generated concept names render in the mono face.
+  // Fidelity flip 2026-10-04: the base's Ads Copywriting copy link (field 38) has no stored side
+  // anywhere on this platform. Shown fidelity-empty, read-only.
+  ads_copywriting_copy: { render: () => <TextCell value={null} mono /> },
   concepts_from_angles: {
     render: (item) => <TextCell value={item.conceptsFromAngles} mono />,
     sortValue: (item) => item.conceptsFromAngles,

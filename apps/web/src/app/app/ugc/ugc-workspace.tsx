@@ -208,6 +208,19 @@ const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
     ),
     sortValue: (creator) => creator.name,
   },
+  // Fidelity flip 2026-10-04: the base's SECOND Concepts link (0/70 filled) — the row's own
+  // stored ids, never the creator_concepts junction (AI-41 stands). The em dash on every row today.
+  concept_ids: {
+    render: (creator) => (
+      <TextCell
+        value={
+          creator.legacyConceptIds.length === 0
+            ? null
+            : `${String(creator.legacyConceptIds.length)} linked`
+        }
+      />
+    ),
+  },
   internal_creator_status: trackRenderer('internal'),
   client_status: trackRenderer('client'),
   internal_assets_status: trackRenderer('assets'),

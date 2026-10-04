@@ -1374,3 +1374,20 @@ assert):
 
 Order values keep the Airtable positions (gaps at 17, 25, 26, 28, 29), so an un-flag later lands
 in the right place.
+
+## 2026-10-04 — five fidelity rulings on the Gratsi set (operator, same day as GRATSI-MATCH)
+
+1. **Production Status — SHOWN for Gratsi again.** The live base has the field, so the strict
+   match-Airtable rule SUPERSEDES AI-34 for Gratsi alone: a visible Gratsi child row wins over the
+   AI-34-hidden parent row. Every other brand keeps AI-34's hide; the column and its 73 live values
+   were never touched. (This entry amends "Production Status: HIDDEN, never dropped" above.)
+2. **Due Date — HELD, unchanged.** The base lacks it but AI-49 asked for it; stays shown pending a
+   Talal decision.
+3. **UGC › Concepts — DRAWN again, AI-41's point intact.** The base has the second link (0/70
+   filled); the column renders the row's OWN stored concept_ids — empty today — and never the
+   creator_concepts junction. (Amends the AI-41 "hidden, not dropped" entry above: now shown.)
+4. **Angles › Creators — SHOWN fidelity-empty.** Nothing stores it anywhere on this platform
+   (importer skip, no junction, no FK); a Gratsi virtual (`creators_link`, lookupRollup) renders
+   the em dash. Exact Airtable fidelity chosen over omission.
+5. **Creative Design › Ads Copywriting copy — SHOWN fidelity-empty**, same mechanism
+   (`ads_copywriting_copy` virtual); its stored side still does not exist.

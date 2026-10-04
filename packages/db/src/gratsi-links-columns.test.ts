@@ -64,7 +64,9 @@ describe('GRATSI-MATCH · angles', () => {
 
   /*
    * Deliberately excluded, each by name (none may be invented as a column):
-   *  - `Creators` — a link to UGC Management with NO stored inverse anywhere in the schema
+   *  (FLIPPED 2026-10-04: `Creators` is now SHOWN fidelity-empty as the `creators_link` virtual —
+   *  storage still does not exist; the operator chose exact-Airtable fidelity over omission.)
+   *  - formerly `Creators` — a link to UGC Management with NO stored inverse anywhere in the schema
    *    (no junction, no FK; `import-mappings.ts` angles › Creators: handler 'skip', "empty on all
    *    43 live rows; excluded in docs/decisions.md"). Storage does not exist, so per the no-new-
    *    storage rule it stays a decision-doc flag, not a column.
@@ -76,7 +78,6 @@ describe('GRATSI-MATCH · angles', () => {
    *    carries (rule 5; exclusion register).
    */
   const EXCLUDED = new Set([
-    'Creators',
     '(Internal) Creative Design',
     'Creative Sheet',
     'UGC Management copy',
@@ -101,8 +102,13 @@ describe('GRATSI-MATCH · angles', () => {
     // The two Concepts-side lookups are the platform's own junctions, relabelled, not new storage.
     expect(byLabel.get('Product (from Angles)')?.columnKey).toBe('angle_products');
     expect(byLabel.get('Personas (from Angles)')?.columnKey).toBe('angle_personas');
-    // Nothing virtual here: every one of these is backed by a real junction or FK table.
-    expect(resolved.every((column) => column.formula === null)).toBe(true);
+    // Every reverse link is backed by a real junction/FK — except the fidelity-empty Creators
+    // column (flip 2026-10-04), which is virtual by design: no storage exists for it.
+    expect(byLabel.get('Creators')?.columnKey).toBe('creators_link');
+    expect(byLabel.get('Creators')?.formula).toBe('lookupRollup');
+    expect(
+      resolved.every((column) => column.formula === null || column.columnKey === 'creators_link'),
+    ).toBe(true);
   });
 });
 
@@ -159,21 +165,16 @@ describe('GRATSI-MATCH · creative_briefs', () => {
    *    one, `Created`, displays `created_at`).
    *  - `(Internal) Collections 2` — residual single-line text left by a converted link (rule 5;
    *    the live link is `(Internal) Collections 3` → `collection_id`).
-   *  - `Ads Copywriting copy` — the unread half of the duplicate copy-table link pair; its stored
-   *    side does not exist (`copywriting` carries ONE brief FK, `creative_brief_id`, which
-   *    `Meta Copywriting` reverses) and the copywriting side belongs to the copy track — flagged
-   *    waiting-on-the-copy-track in docs/decisions.md, never migrated from here.
+   *  (FLIPPED 2026-10-04: `Ads Copywriting copy` is now SHOWN fidelity-empty as the
+   *  `ads_copywriting_copy` virtual — its stored side still does not exist (`copywriting` carries
+   *  ONE brief FK, `creative_brief_id`, which `Meta Copywriting` reverses); the operator chose
+   *  exact-Airtable fidelity over omission.)
    *  - `Angles` — residual single-line text; the real link is the `Angle` field → `angle_id`
    *    (rule 5).
    * And one deliberate ADDITION the strict rule would call a leak: `Due Date`, kept visible by
    * the standing AI-49 ruling (Talal asked for it), recorded in the same decisions entry.
    */
-  const EXCLUDED = new Set([
-    'Created 2',
-    '(Internal) Collections 2',
-    'Ads Copywriting copy',
-    'Angles',
-  ]);
+  const EXCLUDED = new Set(['Created 2', '(Internal) Collections 2', 'Angles']);
 
   it('resolves the Airtable list minus the named exclusions, plus the AI-49 Due Date', async () => {
     const resolved = await gratsiColumns('creative_briefs');
@@ -198,6 +199,10 @@ describe('GRATSI-MATCH · creative_briefs', () => {
     const lookup = byLabel.get('Concepts (from Angles)');
     expect(lookup?.columnKey).toBe('concepts_from_angles');
     expect(lookup?.formula).toBe('briefConceptsFromAngles');
+    // The fidelity-empty flip (2026-10-04): shown, virtual, storing nothing.
+    const adsCopy = byLabel.get('Ads Copywriting copy');
+    expect(adsCopy?.columnKey).toBe('ads_copywriting_copy');
+    expect(adsCopy?.formula).toBe('lookupRollup');
   });
 });
 
@@ -238,7 +243,9 @@ describe('GRATSI-MATCH · concepts', () => {
    *  - `UGC Management copy` — residual single-line text left by a converted link (rule 5); the
    *    live `UGC Management` link resolves through `creator_concepts`.
    */
-  const EXCLUDED = new Set(['Production Status', 'UGC Management copy']);
+  // FLIPPED 2026-10-04: Production Status is shown again for Gratsi (the base has it; AI-34's
+  // hide stands everywhere else).
+  const EXCLUDED = new Set(['UGC Management copy']);
 
   it('resolves exactly the Airtable list minus the named exclusions, in Airtable order', async () => {
     const resolved = await gratsiColumns('concepts');
@@ -369,7 +376,9 @@ describe('GRATSI-MATCH · creators (UGC Management)', () => {
    *    re-add it beside the real `Concept to film` junction. The standing ruling WINS pending a
    *    ruling that names the winner — not re-added (docs/decisions.md, GRATSI-MATCH entry).
    */
-  const EXCLUDED = new Set(['Concepts']);
+  // FLIPPED 2026-10-04: the base's second Concepts link is shown again — rendering the row's
+  // OWN stored concept_ids (0/70 today), never the creator_concepts junction (AI-41 stands).
+  const EXCLUDED = new Set<string>([]);
 
   it('resolves exactly the Airtable list minus the AI-41 exclusion, in Airtable order', async () => {
     const resolved = await gratsiColumns('creators');

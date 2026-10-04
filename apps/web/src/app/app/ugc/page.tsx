@@ -58,6 +58,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     clientNote: row.clientNote,
     rawAssetsUrl: row.rawAssetsUrl,
     conceptIds: row.conceptIds,
+    legacyConceptIds: row.legacyConceptIds,
     productIds: row.productIds,
     ethnicity: row.ethnicity,
     creatorLink: row.creatorLink,
