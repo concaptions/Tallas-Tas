@@ -7,14 +7,7 @@ import { INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS } from '@tas/domain/state
 import { loadBriefs, type BriefSourceDeps } from './briefs-source';
 import { loadConcepts } from './concepts-source';
 import { loadCopy } from './copy-source';
-import {
-  anglesPath,
-  briefsPath,
-  conceptsPath,
-  copywritingPath,
-  internalQueuePath,
-  ugcPath,
-} from './routes';
+import { briefsPath, conceptsPath, copywritingPath, internalQueuePath, ugcPath } from './routes';
 import { loadUgc } from './ugc-source';
 
 export interface DashboardItem {
@@ -111,8 +104,15 @@ function designerItems(data: DashboardData): DashboardItem[] {
   ];
 }
 
+/**
+ * The CSM's own queue: what is still in production and what has cleared internal review. There is
+ * deliberately no library tile here. One used to be: an "Angles in library" tile that counted
+ * CONCEPTS and linked to Angles — wrong on both halves — and it duplicated a count the sidebar's
+ * own Angles section already carries. Removed by action item 8 (Talal's review: angles do not
+ * belong in a queue of work); the data itself is untouched and still reached from the nav.
+ */
 function csmItems(data: DashboardData): DashboardItem[] {
-  const { briefs, concepts } = data;
+  const { briefs } = data;
   const pending = briefs.filter(
     (b) => b.internalStatus !== 'approved' && b.internalStatus !== 'launched',
   );
@@ -122,7 +122,6 @@ function csmItems(data: DashboardData): DashboardItem[] {
   return [
     { label: 'Briefs in progress', count: pending.length, href: internalQueuePath },
     { label: 'Ready for client', count: clientReady.length, href: internalQueuePath },
-    { label: 'Angles in library', count: concepts.length, href: anglesPath },
   ];
 }
 

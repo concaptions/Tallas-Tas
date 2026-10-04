@@ -24,23 +24,39 @@ describe('hasSpellingIssues', () => {
 });
 
 describe('roleDashboard', () => {
-  it('returns well-formed items for every role — three per brand role, four for admin', () => {
-    const roles = [
-      'strategist',
-      'video_editor',
-      'designer',
-      'csm',
-      'media_buyer',
-      'admin',
-    ] as const;
-    for (const role of roles) {
-      const d = roleDashboard(role);
-      expect(d.items).toHaveLength(role === 'admin' ? 4 : 3);
+  /**
+   * The tile count per role, stated rather than computed: csm is TWO since action item 8 took the
+   * "Angles in library" tile out, and admin is csm's two plus the spell-check tile.
+   */
+  const TILE_COUNT = {
+    strategist: 3,
+    video_editor: 3,
+    designer: 3,
+    csm: 2,
+    media_buyer: 3,
+    admin: 3,
+  } as const;
+
+  it('returns well-formed items for every role, as many as that role is defined to have', () => {
+    for (const [role, expected] of Object.entries(TILE_COUNT)) {
+      const d = roleDashboard(role as keyof typeof TILE_COUNT);
+      expect(d.items, role).toHaveLength(expected);
       expect(d.roleLabel.length).toBeGreaterThan(0);
       for (const item of d.items) {
         expect(item.href).toMatch(/^\/app\//);
         expect(typeof item.count).toBe('number');
       }
+    }
+  });
+
+  it('carries no library tile on any role — action item 8 removed it', () => {
+    for (const role of Object.keys(TILE_COUNT) as (keyof typeof TILE_COUNT)[]) {
+      const labels = roleDashboard(role).items.map((i) => i.label);
+      expect(labels, role).not.toContain('Angles in library');
+      expect(
+        labels.some((label) => /angle/i.test(label)),
+        role,
+      ).toBe(false);
     }
   });
 
@@ -119,6 +135,9 @@ function brief(overrides: Partial<BriefListRow>): BriefListRow {
     qaDesigner: false,
     designFileUrl: null,
     performance: null,
+    // The Admin set reads this column (`hasSpellingIssues`), so the stand-in has to carry it: a
+    // partial fixture that leaves it undefined throws inside the builder rather than counting 0.
+    spellingFeedback: null,
     ...overrides,
   } as BriefListRow;
 }
@@ -144,7 +163,18 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
     expect(buyer.items.find((i) => i.label === 'Currently live')?.count).toBe(1);
 
     const csm = buildRoleDashboard('csm', data);
-    expect(csm.items.find((i) => i.label === 'Angles in library')?.count).toBe(3);
+    // Both briefs have cleared internal review, so the CSM's queue is empty and both are ready.
+    expect(csm.items.find((i) => i.label === 'Briefs in progress')?.count).toBe(0);
+    expect(csm.items.find((i) => i.label === 'Ready for client')?.count).toBe(2);
+    // The three concepts in `data` are no longer counted anywhere on the CSM's tiles — nor on the
+    // two sets built from this one: `adminItems` spreads it and `client` aliases it.
+    expect(csm.items.map((i) => i.label)).not.toContain('Angles in library');
+    expect(buildRoleDashboard('admin', data).items.map((i) => i.label)).not.toContain(
+      'Angles in library',
+    );
+    expect(buildRoleDashboard('client', data).items.map((i) => i.label)).not.toContain(
+      'Angles in library',
+    );
 
     const editor = buildRoleDashboard('video_editor', data);
     expect(editor.items.find((i) => i.label === 'Copy pending review')?.count).toBe(1);

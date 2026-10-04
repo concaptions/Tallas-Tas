@@ -17,7 +17,7 @@ import { Icon, type IconName } from '@/components/shell/icons';
 import { loadOverviewPanels } from '@/lib/dashboard-source';
 import { loadActiveRole, loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
-import { anglesPath, conceptsPath, personasPath, themesPath } from '@/lib/routes';
+import { conceptsPath, personasPath, themesPath } from '@/lib/routes';
 
 /**
  * The workspace Overview. Counts come from the data source, which is the demo fixtures when Clerk
@@ -44,6 +44,9 @@ export default async function OverviewPage() {
     loadOverviewPanels(role),
   ]);
 
+  // The library sections the Overview surfaces. ANGLES IS NOT ONE OF THEM: action item 8 took it
+  // out of this section, the same removal that dropped the CSM's "Angles in library" tile. The
+  // Angles table is unchanged and still reached from the sidebar; only the duplicate count is gone.
   const cards: readonly SectionCard[] = [
     {
       label: 'Personas',
@@ -51,13 +54,6 @@ export default async function OverviewPage() {
       count: counts.personas,
       blurb: 'Who the creative speaks to.',
       href: personasPath,
-    },
-    {
-      label: 'Angles',
-      icon: 'angles',
-      count: counts.angles,
-      blurb: 'The argument each ad makes.',
-      href: anglesPath,
     },
     {
       label: 'Themes',
@@ -97,11 +93,15 @@ export default async function OverviewPage() {
 
       <RoleDashboardSection dashboard={dashboard} />
 
-      <section aria-labelledby="library-heading" className="flex flex-col gap-3">
+      <section
+        aria-labelledby="library-heading"
+        data-slot="overview-library"
+        className="flex flex-col gap-3"
+      >
         <h2 id="library-heading" className="text-sm font-medium text-text2">
           Library
         </h2>
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {cards.map((card) => {
             const body = (
               <Card
