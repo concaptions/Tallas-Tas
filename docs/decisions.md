@@ -874,3 +874,15 @@ Gratsi's own Airtable base — the rollout report records that seven migrated ta
 has not filled the module in, not a table nobody needs. DECISION: nothing is dropped, no migration
 is written; the next brand's import decides which modules fill. Revisit only if Talal names a
 specific table.
+
+## 2026-10-04 — "replicate the reference" is checkable only against the Gratsi base, and that check passes (AI-47)
+
+No brief-screen reference exists in the repo: `docs/prd-assets/` holds the PRD, the dashboard
+reference and the team-assignment reference, and nothing else. The ONLY checkable reading of
+"the brief UI should replicate the reference" is therefore the client's own Airtable base, and
+that reading is proven green: `apps/web/e2e/module-parity.spec.ts` asserts 35 named Gratsi fields
+render on the Creative Design detail page by label, and the briefs grid now reads its columns from
+the resolver (AI-64a). DECISION: adopted as done under the Gratsi-base reading. If Talal meant
+another platform's brief screens, that is a different item and it needs the screenshots in
+`docs/prd-assets/` first — asked as part of the consolidated questions in
+`docs/audits/action-items-stuck.md`.
