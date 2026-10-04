@@ -1112,3 +1112,25 @@ are already in the 2026-10-02 exclusion register.
 
 Pinned in `gratsi-links-columns.test.ts` (labels AND keys, in order) and the Products describes
 of `column-seed.test.ts`; `verify-rollout` expects gratsi 7.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: UGC Management computes its two formulas; the dead Concepts link defers to AI-41
+
+The strict rule applied to `creators`. Gratsi resolves THIRTY-FIVE columns — the base's 36 minus
+the AI-41 flag — in the base's own order:
+
+- **`Creator's cost (USD)`** (position 27) and **`Notify Flag`** (29) are VIRTUAL columns over
+  the already-registered formulas `creatorCostWithFee` (Fiverr ×1.055 / Insense ×1.10 over the
+  stored internal figure) and `creatorNotifyFlag` (≥ 25 days since partnership activation).
+  Computed per request on the server with the one `now` `loadUgc` already returns; the
+  wall-clock one cannot be cached because nothing stores it — `storedColumns` keeps both out of
+  every writable set, and the stored internal figure keeps its own separate column (17).
+- **Order**: nineteen inherited columns gain Gratsi rows at the live base's positions (the audit
+  recorded "ORDER DIVERGES"); labels unchanged.
+
+**One field stays out, by name:** `Concepts` (position 25) — RULING CONFLICT. AI-41 kept the
+dead second link to Concepts as a hidden `concept_ids` row (0/70 live rows, importer `skip`);
+the strict rule would re-add it beside the real `Concept to film` junction. The standing ruling
+WINS pending a ruling that names the winner; the hidden row stays exactly as AI-41 left it.
+
+Pinned in `gratsi-links-columns.test.ts` (the 36-field list minus exactly `Concepts`, plus the
+virtual/stored cost split); `verify-rollout` expects gratsi 35.

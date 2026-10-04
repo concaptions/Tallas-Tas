@@ -1,4 +1,4 @@
-import { isR2Available } from '@tas/db';
+import { creatorCostWithFee, creatorNotifyFlag, isR2Available } from '@tas/db';
 
 import { loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
@@ -80,6 +80,10 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     extensionDays: row.extensionDays,
     continueWorkingWith: row.continueWorkingWith,
     partnershipNotes: row.partnershipNotes,
+    // GRATSI-MATCH 2026-10-04: the base's two formula fields, computed here at read time with the
+    // request's one `now` — never stored, never cached (the wall-clock rule of the formula policy).
+    costWithFee: creatorCostWithFee(row.creatorCost, row.platform),
+    notifyFlag: creatorNotifyFlag(row.partnershipActivatedAt, now),
   }));
 
   const rows: PartnershipRow[] = partnerships.map((row) => partnershipRow(row, now));

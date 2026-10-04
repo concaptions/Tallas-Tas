@@ -32,7 +32,9 @@ const EXPECTED: readonly {
   // Campaigns & Offers, (Internal) Creative Design and the virtual Performance lookup — Gratsi 21.
   { tableKey: 'concepts', inheriting: 21, gratsi: 21, virtual: 0 },
   // AI-41: Gratsi's dead second Concepts link (concept_ids) is retired; 'Concept to film' remains.
-  { tableKey: 'creators', inheriting: 36, gratsi: 33, virtual: 0 },
+  // GRATSI-MATCH 2026-10-04 (links cluster): plus the two formula fields as virtual columns
+  // (Creator's cost (USD), Notify Flag) in the live base's order — Gratsi 35.
+  { tableKey: 'creators', inheriting: 36, gratsi: 35, virtual: 0 },
   { tableKey: 'personas', inheriting: 15, gratsi: 7, virtual: 0 },
   { tableKey: 'copy_types', inheriting: 4, gratsi: 4, virtual: 0 },
   { tableKey: 'creative_reporting', inheriting: 13, gratsi: 13, virtual: 1 },

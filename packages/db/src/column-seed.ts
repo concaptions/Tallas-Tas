@@ -1096,20 +1096,73 @@ const CREATORS_PLATFORM: readonly UpsertColumnDefinition[] = [
 }));
 
 const CREATORS_GRATSI = childRows('creators', [
+  // GRATSI-MATCH 2026-10-04: the audit recorded "ORDER DIVERGES" because inherited rows carry the
+  // PARENT base's field order; every column whose Gratsi position differs now holds a Gratsi row
+  // at the live base's own position (audit §8), labels unchanged except the four real relabels.
+  ['client_status', 'Status', 2, 'relabel', 'singleSelect'],
   ['creator_concepts', 'Concept to film', 7, 'relabel', 'multipleRecordLinks'],
+  ['creator_products', 'Products', 8, 'relabel', 'multipleRecordLinks'],
+  ['budget_per_60s', 'Budget per 60sec video', 9, 'relabel', 'currency'],
+  ['partnership_activity', 'Partnership Activity', 10, 'relabel', 'singleSelect'],
   ['video_intro_url', "Creator's video Intro", 11, 'relabel', 'multipleAttachments'],
+  ['profile_pic_url', "Creator's Profile Pic", 12, 'relabel', 'multipleAttachments'],
+  ['facebook_profile_url', 'Facebook Profile for Partnership', 13, 'relabel', 'richText'],
+  ['platform', 'Platform', 14, 'relabel', 'singleSelect'],
+  ['client_note', "(Client's) Note or Comments", 15, 'relabel', 'multilineText'],
   ['internal_brief', 'Additional Note - TAS Team', 16, 'relabel', 'richText'],
   ['creator_cost', "Creator's cost (USD) - Internal", 17, 'relabel-platform', 'currency'],
+  ['raw_assets_url', 'Raw assets', 18, 'relabel', 'url'],
+  ['shipping_location', 'Shipping Location', 19, 'relabel', 'multilineText'],
+  // The trailing space is the live field name, as the parent row carries it.
+  ['tracking_number', 'Tracking Number ', 20, 'relabel', 'singleLineText'],
+  ['creator_link', 'Creator Link', 21, 'relabel', 'url'],
   ['internal_creator_status', 'Creator Status', 22, 'relabel', 'singleSelect'],
   ['cost_usd', 'Paid by TAS', 23, 'relabel-platform', 'currency'],
   ['payment_date', 'Payment Date', 24, 'relabel-platform', 'date'],
   ['concept_ids', 'Concepts', 25, 'hidden-custom', 'multipleRecordLinks'],
   ['creator_info_request', 'Creator Info Request', 26, 'relabel-platform', 'richText'],
+  ['partnership_activated_at', 'Date of Partnership Activation', 28, 'relabel', 'date'],
   ['slack_notified', 'Slack Notified ', 30, 'relabel-platform', 'checkbox'],
+  ['partnership_period_days', 'Partnership Time Period (days)', 31, 'relabel', 'number'],
+  ['continue_working_with', 'Continue Working With?', 32, 'relabel', 'singleSelect'],
+  ['extension_days', 'Extension Time Period', 33, 'relabel', 'singleSelect'],
+  ['partnership_price_per_30_days', 'Partnership Price per 30 days', 34, 'relabel', 'currency'],
+  ['partnership_notes', 'Notes for Partnership ads', 35, 'relabel', 'multilineText'],
+  ['instagram_username', 'Instagram Username', 36, 'relabel', 'singleLineText'],
   ['deadline', '(Internal) Deadline for the request', 2, 'hidden', 'date'],
   ['for_partnership_ads', 'For Partnership Ads?', 11, 'hidden', 'singleSelect'],
   ['internal_assets_status', 'Internal Assets Status', 14, 'hidden', 'singleSelect'],
 ]);
+
+/**
+ * The two VIRTUAL rows of the Gratsi UGC set (GRATSI-MATCH 2026-10-04): the base's two FORMULA
+ * fields, computed at read time by the registered functions and never stored — `Notify Flag` is
+ * wall-clock and takes the request's `now`, so a cached copy cannot exist by construction. Both
+ * are `custom` (the parent base's copy of `Creator's cost (USD)` is a stored currency the audits
+ * assert no column for, and it has no Notify Flag at all) and both sit at the live positions.
+ */
+const CREATORS_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'creators',
+    columnKey: 'creator_cost_with_fee',
+    displayLabel: "Creator's cost (USD)",
+    displayOrder: 27,
+    fieldType: 'formula',
+    source: 'custom',
+    isDetached: true,
+    formula: 'creatorCostWithFee',
+  },
+  {
+    tableKey: 'creators',
+    columnKey: 'notify_flag',
+    displayLabel: 'Notify Flag',
+    displayOrder: 29,
+    fieldType: 'formula',
+    source: 'custom',
+    isDetached: true,
+    formula: 'creatorNotifyFlag',
+  },
+];
 
 /**
  * `AI Characters / Personas` `tblgfe8A7nmce6lzn` — 12 fields, all stored, all paired by content with
@@ -1605,6 +1658,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CREATIVE_MODULES_GRATSI,
       ...CREATIVE_SHEET_ITEMS_GRATSI,
       ...CREATORS_GRATSI,
+      ...CREATORS_GRATSI_VIRTUAL,
       ...AI_CHARACTERS_GRATSI,
       ...COLLECTIONS_GRATSI,
       ...PRODUCTS_GRATSI,

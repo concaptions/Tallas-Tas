@@ -320,3 +320,76 @@ describe('GRATSI-MATCH · products', () => {
     ]);
   });
 });
+
+describe('GRATSI-MATCH · creators (UGC Management)', () => {
+  /** The Gratsi `UGC Management` table (`tblRsVqiqUaZRcQYd`), all 36 fields in live order. */
+  const AIRTABLE_UGC: readonly string[] = [
+    'Creator name (Filled by UGC Manager)',
+    'Status',
+    'Date of Management',
+    'Age',
+    'Gender',
+    'Ethnicity',
+    'Concept to film',
+    'Products',
+    'Budget per 60sec video',
+    'Partnership Activity',
+    "Creator's video Intro",
+    "Creator's Profile Pic",
+    'Facebook Profile for Partnership',
+    'Platform',
+    "(Client's) Note or Comments",
+    'Additional Note - TAS Team',
+    "Creator's cost (USD) - Internal",
+    'Raw assets',
+    'Shipping Location',
+    'Tracking Number ',
+    'Creator Link',
+    'Creator Status',
+    'Paid by TAS',
+    'Payment Date',
+    'Concepts',
+    'Creator Info Request',
+    "Creator's cost (USD)",
+    'Date of Partnership Activation',
+    'Notify Flag',
+    'Slack Notified ',
+    'Partnership Time Period (days)',
+    'Continue Working With?',
+    'Extension Time Period',
+    'Partnership Price per 30 days',
+    'Notes for Partnership ads',
+    'Instagram Username',
+  ];
+
+  /*
+   * Deliberately excluded, by name:
+   *  - `Concepts` — RULING CONFLICT. AI-41 (2026-10-04) kept the dead second link to Concepts as
+   *    a HIDDEN row (`concept_ids`, 0/70 live rows, importer `skip`); the strict rule would
+   *    re-add it beside the real `Concept to film` junction. The standing ruling WINS pending a
+   *    ruling that names the winner — not re-added (docs/decisions.md, GRATSI-MATCH entry).
+   */
+  const EXCLUDED = new Set(['Concepts']);
+
+  it('resolves exactly the Airtable list minus the AI-41 exclusion, in Airtable order', async () => {
+    const resolved = await gratsiColumns('creators');
+    expect(resolved.map((column) => column.displayLabel)).toEqual(
+      expectedLabels(AIRTABLE_UGC, EXCLUDED),
+    );
+  });
+
+  it('computes the two formula fields at read time — virtual, never stored, never writable', async () => {
+    const resolved = await gratsiColumns('creators');
+    const byLabel = new Map(resolved.map((column) => [column.displayLabel, column]));
+
+    const costWithFee = byLabel.get("Creator's cost (USD)");
+    expect(costWithFee?.columnKey).toBe('creator_cost_with_fee');
+    expect(costWithFee?.formula).toBe('creatorCostWithFee');
+    const notify = byLabel.get('Notify Flag');
+    expect(notify?.columnKey).toBe('notify_flag');
+    expect(notify?.formula).toBe('creatorNotifyFlag');
+    // Neither shadows a stored column; the stored internal figure keeps its own column.
+    expect(byLabel.get("Creator's cost (USD) - Internal")?.columnKey).toBe('creator_cost');
+    expect(byLabel.get("Creator's cost (USD) - Internal")?.formula).toBeNull();
+  });
+});

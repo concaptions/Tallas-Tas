@@ -271,6 +271,25 @@ const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
     sortValue: (creator) => creator.creatorCost ?? null,
     align: 'right',
   },
+  // GRATSI-MATCH 2026-10-04: the base's two FORMULA fields, virtual columns computed on the
+  // server (page.tsx, one `now` per request) — the cells only print what arrived on the row.
+  creator_cost_with_fee: {
+    render: (creator) =>
+      creator.costWithFee === null || creator.costWithFee === undefined ? (
+        <TextCell value={null} />
+      ) : (
+        <span className="font-mono text-xs">${creator.costWithFee.toFixed(2)}</span>
+      ),
+    sortValue: (creator) => creator.costWithFee ?? null,
+    align: 'right',
+  },
+  notify_flag: {
+    render: (creator) => (
+      <ChipCell chip={creator.notifyFlag === 'YES' ? { label: 'YES', tone: 'warn' } : null} />
+    ),
+    sortValue: (creator) => (creator.notifyFlag === 'YES' ? 1 : 0),
+    align: 'center',
+  },
   cost_usd: {
     render: (creator) => <MoneyCell value={creator.costUsd} />,
     sortValue: (creator) => creator.costUsd,

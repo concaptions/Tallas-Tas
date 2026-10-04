@@ -209,6 +209,15 @@ export interface CreatorPanelFields {
   readonly partnershipActivatedAt: Date | null;
   readonly partnershipPeriodDays: number | null;
   readonly extensionDays: number;
+  /**
+   * GRATSI-MATCH 2026-10-04 — the base's two FORMULA fields, computed on the server at read time
+   * (`packages/db/src/formulas/`, never stored, never cached): `Creator's cost (USD)` is
+   * `creatorCostWithFee` over the stored internal cost and the platform, and `Notify Flag` is the
+   * wall-clock `creatorNotifyFlag` over the partnership activation date and the request's one
+   * `now` (the same clock `loadUgc` already returns for the partnership table).
+   */
+  readonly costWithFee: number | null;
+  readonly notifyFlag: 'YES' | null;
 }
 
 export type CreatorPanelRow = CreatorCardRow & CreatorPanelFields;
