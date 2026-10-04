@@ -42,7 +42,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/briefs needs a session and real data',
   );
 
-  test('lists the seven fixtures in six columns, with the standalone chip in the concept cell', async ({
+  test('lists the seven fixtures under the resolved columns, with the standalone chip in the concept cell', async ({
     page,
   }) => {
     await page.goto(`${briefsPath}?view=grid`);
@@ -50,14 +50,28 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Design');
     await expect(page.locator('[data-slot="brief-count"]')).toHaveText(briefsLabel(BRIEF_COUNT));
 
-    await expect(page.locator('[data-slot="briefs-table"] thead th')).toHaveText([
-      'Name',
-      'Concept',
-      'Type',
-      'Priority',
-      'Assignee',
-      'Internal Status',
-    ]);
+    // AI-64a: the headers are `column_definitions` rows now, not a six-string tuple in the page, so
+    // a column is addressed by its KEY and its label is whatever the resolver returned. The
+    // thirty-one are the parent master set — thirty Airtable fields plus the platform's Due Date.
+    const headers = page.locator('[data-slot="briefs-table"] thead th');
+    await expect(headers).toHaveCount(31);
+    for (const key of [
+      'name',
+      'concept_id',
+      'type',
+      'priority',
+      'assignee',
+      'internal_status',
+      'due_date',
+    ]) {
+      await expect(
+        page.locator(`[data-slot="briefs-table"] thead th[data-column="${key}"]`),
+      ).toHaveCount(1);
+    }
+    // The label comes from the seed row, which is the point of the migration (AI-49).
+    await expect(
+      page.locator('[data-slot="briefs-table"] thead th[data-column="due_date"]'),
+    ).toHaveText('Due Date');
 
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
 
@@ -73,12 +87,21 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(standalone).toHaveText('Standalone');
     await expect(standalone).toHaveAttribute('data-tone', 'mute');
 
-    // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill.
-    const approved = page
-      .locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="status-chip"]`)
-      .last();
+    // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill. Read
+    // out of the internal-status COLUMN rather than as the row's last chip, so a reordered or
+    // relabelled column set cannot quietly move this assertion onto a different field.
+    const approved = page.locator(
+      `[data-brief-id="${BODY_CLOCK}"] td[data-column="internal_status"] [data-slot="status-chip"]`,
+    );
     await expect(approved).toHaveText('Approved');
     await expect(approved).toHaveAttribute('data-tone', 'ok');
+
+    // AI-49: the row carries the editor stage it sits at. This fixture is Approved, which is OFF
+    // the editor board, so it carries no stage at all rather than a made-up one.
+    await expect(page.locator(`[data-brief-id="${BODY_CLOCK}"]`)).not.toHaveAttribute(
+      'data-stage',
+      /.+/,
+    );
 
     // "New brief" is a write: disabled, and it explains itself.
     const newBrief = page.locator('[data-slot="new-brief"]');

@@ -2,12 +2,17 @@ import { getTableCapability, supportsView, type ViewType } from '@tas/domain';
 import { editorStageOf } from '@tas/domain/state';
 import { creativeFunnelLabel } from '@tas/domain/creatives';
 
+import { loadAngles } from '@/lib/angles-source';
+import { loadAssets } from '@/lib/assets-source';
 import type { BriefRow } from '@/lib/briefs-source';
-import { loadBriefs } from '@/lib/briefs-source';
+import { loadBriefColumns, loadBriefs } from '@/lib/briefs-source';
+import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadClientAssetFolders } from '@/lib/client-assets-source';
+import { loadCollections } from '@/lib/collections-source';
 import { loadCreativeModules } from '@/lib/creative-modules-source';
 import { loadCreativeReports } from '@/lib/creative-reporting-source';
 import { loadCreativeSheetItems } from '@/lib/creative-sheet-source';
+import { loadProducts } from '@/lib/products-source';
 import { loadViewPreference } from '@/lib/view-preference-actions';
 import { isDemoMode } from '@/lib/demo-mode';
 import { briefPath } from '@/lib/routes';
@@ -15,10 +20,13 @@ import { briefPath } from '@/lib/routes';
 import { BriefsWorkspace } from './briefs-workspace';
 import {
   NO_BRIEF_LINKS,
+  briefStageView,
   clientStatusView,
   creativeTypeLabel,
   indexBriefLinkCounts,
   internalStatusView,
+  linkedName,
+  performanceView,
   priorityView,
   type BriefFormSnapshot,
   type BriefItem,
@@ -63,8 +71,25 @@ function supportsKanbanField(tableKey: string, field: string): boolean {
 }
 
 export default async function BriefsPage({ searchParams }: BriefsPageProps) {
-  const [{ rows }, params, viewPref, sheetItems, modules, folders, reports] = await Promise.all([
+  const [
+    { rows },
+    { columns, unconfigured: unconfiguredColumns },
+    params,
+    viewPref,
+    sheetItems,
+    modules,
+    folders,
+    reports,
+    angleRows,
+    productRows,
+    collectionRows,
+    campaignRows,
+    assetRows,
+  ] = await Promise.all([
     loadBriefs(),
+    // The brand's own column configuration (AI-64a): the grid draws what this returns, so the page
+    // no longer decides which fields exist, what they are called or in which order they sit.
+    loadBriefColumns(),
     searchParams,
     // Briefs open on Kanban by default (P2B) — the media-buyer/strategist board is the primary view.
     loadViewPreference('briefs', 'kanban'),
@@ -74,8 +99,22 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
     loadCreativeModules(),
     loadClientAssetFolders(),
     loadCreativeReports(),
+    // The five tables a brief points AT, so a resolved link column renders the linked row's NAME
+    // rather than a uuid or a blank. Resolved here, on the server, exactly as the detail page does.
+    loadAngles(),
+    loadProducts(),
+    loadCollections(),
+    loadCampaigns(),
+    loadAssets(),
   ]);
   const demo = isDemoMode();
+
+  // One map per linked table, built once, rather than a `find` per row per column.
+  const angleNames = new Map(angleRows.rows.map((row) => [row.id, row.name]));
+  const productNames = new Map(productRows.rows.map((row) => [row.id, row.name]));
+  const collectionNames = new Map(collectionRows.rows.map((row) => [row.id, row.name]));
+  const campaignNames = new Map(campaignRows.rows.map((row) => [row.id, row.name]));
+  const assetNames = new Map(assetRows.rows.map((row) => [row.id, row.filename]));
 
   // Indexed once, by brief id, rather than four scans per row.
   const linkCounts = indexBriefLinkCounts({
@@ -118,6 +157,17 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       assignee: row.assignee,
       status: internalStatusView(row.track, row.internalStatus),
       clientStatus: clientStatusView(row.clientStatus),
+      performance: performanceView(row.performance),
+      stage: briefStageView(row.internalStatus),
+      row,
+      // The brief's OWN angle and product first, then the pair inherited through the concept — the
+      // order `brief-detail.tsx` documents, because `withInherited` follows the concept's FIRST
+      // angle and that angle's FIRST product, which need not be the one this brief was briefed on.
+      angleName: linkedName(row.angleId, angleNames) ?? row.angleName,
+      productName: linkedName(row.productId, productNames) ?? row.productName,
+      collectionName: linkedName(row.collectionId, collectionNames),
+      campaignOfferName: linkedName(row.campaignOfferId, campaignNames),
+      assetName: linkedName(row.assetId, assetNames),
       funnelLabel: creativeFunnelLabel(row.funnel),
       sourceLabel: row.source,
       href: briefPath(row.id),
@@ -157,6 +207,8 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
 
   return (
     <BriefsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfiguredColumns}
       items={visibleItems}
       demo={demo}
       initialSearch={initialSearch}

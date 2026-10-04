@@ -608,6 +608,10 @@ describe('platform columns on concepts', () => {
         'concepts.name',
         'concepts.pain_points',
         'concepts.usp',
+        // Creative Design: the one scheduling column the app added (migration 0043) and neither
+        // Airtable base has a field for. Nothing else on this table is the platform's — every other
+        // column of `creative_briefs` is an Airtable field of the parent base or of Gratsi's.
+        'creative_briefs.due_date',
         // Products: a stored column and three relations no Airtable field backs in either base.
         'products.collection_link',
         'products.concepts',
@@ -1189,5 +1193,96 @@ describe('the all-platform tables resolve for every brand', () => {
     expect(copyTypes.find((c) => c.columnKey === 'youtube_copy_copy_types')?.displayLabel).toBe(
       'Copywriting',
     );
+  });
+});
+
+/**
+ * Creative Design, the fifteenth and last grid to read its columns from the resolver (AI-64a).
+ *
+ * The page used to carry a six-string tuple, so the gate it needs is the opposite of exhaustive: the
+ * set must be the WHOLE table, the one column the platform owns must be in it, and Gratsi must get
+ * its own wording and its own departures. The counts here are the ones
+ * `pnpm --filter @tas/db verify-rollout` asserts against production.
+ */
+describe('the Creative Design column set', () => {
+  async function brandFor(db: Awaited<ReturnType<typeof testDb>>, slug: string): Promise<string> {
+    const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));
+    if (row === undefined) throw new Error(`the seed has no ${slug} brand`);
+    return row.id;
+  }
+
+  it('resolves the whole table for an inheriting brand, and Gratsi’s own set for Gratsi', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const onNiagara = await resolveColumns(
+      db,
+      await brandFor(db, 'niagara-sleep-solutions'),
+      'creative_briefs',
+    );
+    const onGratsi = await resolveColumns(db, await brandFor(db, 'gratsi'), 'creative_briefs');
+
+    // Thirty parent fields plus the platform's `due_date`.
+    expect(onNiagara).toHaveLength(31);
+    // Gratsi hides three (Ad Content, Campaigns & Offers, Assets) and adds five of its own.
+    expect(onGratsi).toHaveLength(33);
+    for (const hidden of ['ad_content', 'campaign_offer_id', 'asset_id']) {
+      expect(onGratsi.map((column) => column.columnKey)).not.toContain(hidden);
+      expect(onNiagara.map((column) => column.columnKey)).toContain(hidden);
+    }
+    for (const own of ['batch', 'language', 'script_content', 'offer', 'spelling_feedback_2']) {
+      expect(onGratsi.map((column) => column.columnKey)).toContain(own);
+      expect(onNiagara.map((column) => column.columnKey)).not.toContain(own);
+    }
+    // Gratsi's relabels, under Gratsi's words; the parent keeps its own.
+    expect(onGratsi.find((column) => column.columnKey === 'brief_to_design')?.displayLabel).toBe(
+      'Brief to Design/Editing',
+    );
+    expect(onNiagara.find((column) => column.columnKey === 'brief_to_design')?.displayLabel).toBe(
+      'Brief',
+    );
+  });
+
+  it('carries due_date as the PLATFORM’s column, on both bases, stored and never virtual', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    for (const slug of ['niagara-sleep-solutions', 'gratsi']) {
+      const resolved = await resolveColumns(db, await brandFor(db, slug), 'creative_briefs');
+      const dueDate = resolved.find((column) => column.columnKey === 'due_date');
+
+      // Neither Airtable base has a Due Date field, so the column cannot claim `parent`.
+      expect(dueDate?.source, `${slug} must inherit due_date from the platform`).toBe('platform');
+      expect(dueDate?.displayLabel).toBe('Due Date');
+      expect(dueDate?.formula).toBeNull();
+      expect(storedColumns(resolved).some((column) => column.columnKey === 'due_date')).toBe(true);
+    }
+  });
+
+  it('returns every column the Creative Design grid draws', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const keys = new Set(
+      (
+        await resolveColumns(db, await brandFor(db, 'niagara-sleep-solutions'), 'creative_briefs')
+      ).map((column) => column.columnKey),
+    );
+
+    // The six the hardcoded tuple used to name, plus the one this item adds.
+    for (const drawn of [
+      'name',
+      'concept_id',
+      'type',
+      'priority',
+      'assignee',
+      'internal_status',
+      'due_date',
+    ]) {
+      expect(keys.has(drawn), `the Creative Design grid draws ${drawn}`).toBe(true);
+    }
   });
 });

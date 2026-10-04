@@ -33,6 +33,9 @@ const EXPECTED: readonly {
   { tableKey: 'client_asset_folders', inheriting: 4, gratsi: 4, virtual: 0 },
   // The name is virtual on both bases: Gratsi relabels it and the formula is read from the parent.
   { tableKey: 'creative_sheet_items', inheriting: 14, gratsi: 14, virtual: 1 },
+  // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
+  // platform's own `due_date`; Gratsi hides three and adds five of its own.
+  { tableKey: 'creative_briefs', inheriting: 31, gratsi: 33, virtual: 0 },
 ];
 
 async function main(): Promise<void> {
