@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { MissingDatabaseUrlError } from '@/lib/data-source';
+
 import { SEED_PARENT_BASE_ID, TEMPLATE_BASE_LABEL } from './fields';
 import { columnAdminTables, loadColumnAdmin } from './source';
 
@@ -96,12 +98,13 @@ describe('loadColumnAdmin in demo mode', () => {
     expect(data.baseId).toBe(SEED_PARENT_BASE_ID);
   });
 
-  it('stays on the fixtures when Clerk is configured but no database is', async () => {
+  it('throws the operator-facing error when Clerk is configured but no database is', async () => {
     vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
 
-    const data = await loadColumnAdmin(undefined, undefined, { demoMode: () => false });
+    const error = await loadColumnAdmin(undefined, undefined, { demoMode: () => false }).catch(
+      (cause: unknown) => cause,
+    );
 
-    expect(data.source).toBe('demo');
-    expect(data.columns.length).toBeGreaterThan(0);
+    expect(error).toBeInstanceOf(MissingDatabaseUrlError);
   });
 });

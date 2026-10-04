@@ -7,8 +7,8 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
-import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
-import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
+import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
 
 /**
@@ -88,13 +88,6 @@ async function withDb<T>(
   } finally {
     await connection.close();
   }
-}
-
-function inDemoMode(deps: InterfaceConfigSourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) {
-    return true;
-  }
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 /**

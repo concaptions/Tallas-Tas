@@ -8,8 +8,8 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
-import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
-import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
+import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
 import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
@@ -88,13 +88,6 @@ async function withDb<T>(deps: ProductSourceDeps, query: (db: Db) => Promise<T>)
   } finally {
     await connection.close();
   }
-}
-
-function inDemoMode(deps: ProductSourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) {
-    return true;
-  }
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 const PRODUCTS_TABLE_KEY = 'products';

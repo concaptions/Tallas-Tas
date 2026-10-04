@@ -12,8 +12,8 @@ import {
 import { PROMOTION_STATUS_INITIAL, type PromotionStatusKey } from '@tas/domain/state';
 import { serverEnv } from '@tas/env';
 
-import { resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
-import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { inDemoMode, resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
+import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
 
 /**
@@ -95,13 +95,6 @@ async function withDb<T>(deps: PromotionSourceDeps, query: (db: Db) => Promise<T
   } finally {
     await connection.close();
   }
-}
-
-function inDemoMode(deps: PromotionSourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) {
-    return true;
-  }
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 /**

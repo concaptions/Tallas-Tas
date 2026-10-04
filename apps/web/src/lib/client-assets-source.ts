@@ -7,8 +7,8 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
-import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
-import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
+import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
 import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
@@ -75,13 +75,6 @@ async function withDb<T>(
   } finally {
     await connection.close();
   }
-}
-
-function inDemoMode(deps: ClientAssetFolderSourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) {
-    return true;
-  }
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 const CLIENT_ASSET_FOLDERS_TABLE_KEY = 'client_asset_folders';

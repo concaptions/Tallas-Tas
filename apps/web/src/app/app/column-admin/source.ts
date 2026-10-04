@@ -6,9 +6,8 @@ import {
   resolveColumns,
   resolveTemplateBrandId,
 } from '@tas/db';
-import { serverEnv } from '@tas/env';
 
-import { isDemoMode } from '@/lib/demo-mode';
+import { inDemoMode } from '@/lib/data-source';
 import { withAgencyScope } from '@/lib/propagation-source';
 
 import {
@@ -73,11 +72,6 @@ export function columnAdminTables(): readonly string[] {
 /** Seams, for tests only. Production passes nothing. */
 export interface ColumnAdminSourceDeps {
   readonly demoMode?: () => boolean;
-}
-
-function inDemoMode(deps: ColumnAdminSourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) return true;
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 /** The bases demo mode offers: the parent the seed targets, then the fixture brands by slug. */

@@ -153,6 +153,18 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   of agency A still sees only agency A's brand, and a request with no organisation selected fails loudly
   with `AmbiguousBrandError` instead of rendering the other tenant's workspace.
 
+- Live mode refuses to impersonate the demo (`inDemoMode` in `apps/web/src/lib/data-source.ts`). When
+  Clerk is configured but `DATABASE_URL` is not — the state the production deployment was in before
+  commit 657efbe exposed it — every data read now throws `MissingDatabaseUrlError` instead of rendering
+  the demo fixtures, so the deployment fails visibly rather than looking healthy. The decision and the
+  throw are unit tested with a stubbed environment (`data-source.test.ts`, `ugc-source.test.ts`,
+  `column-admin/source.test.ts`); what needs a human is the deployed behaviour. On a Vercel preview with
+  the Clerk pair set and `DATABASE_URL` deliberately unset: every `/app` route must show the framework
+  error page (the message, naming the variable and the remedy, is in the function logs — production
+  builds redact server error messages from the browser), and no route may render "Niagara Sleep
+  Solutions" sample data. With no Clerk key at all, the same build must still serve the demo fixtures
+  read-only.
+
 ## Local dev gotchas
 
 - **Node via Herd.** `~/.zshrc` loads Herd's own nvm (`NVM_DIR` under `Library/Application Support/Herd`), so

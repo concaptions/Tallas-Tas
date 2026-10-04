@@ -1,7 +1,8 @@
 import { demoThemes, getThemeById, listThemes, type Db, type ThemeListRow } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
-import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { inDemoMode } from './data-source';
+import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
 
 /**
@@ -72,13 +73,6 @@ async function withDb<T>(deps: ThemeSourceDeps, query: (db: Db) => Promise<T>): 
   } finally {
     await connection.close();
   }
-}
-
-function inDemoMode(deps: ThemeSourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) {
-    return true;
-  }
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 /**

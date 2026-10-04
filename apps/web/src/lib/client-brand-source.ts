@@ -2,7 +2,7 @@ import { brands, demoBrands, type Db } from '@tas/db';
 import { serverEnv } from '@tas/env';
 import { cache } from 'react';
 
-import { isDemoMode } from './demo-mode';
+import { inDemoMode } from './data-source';
 import { requestConnection } from '@/lib/request-db';
 
 export interface ClientBrand {
@@ -21,15 +21,14 @@ function neonConnection(databaseUrl: string): DbConnection {
 }
 
 async function resolveClientBrandUncached(slug: string): Promise<ClientBrand | null> {
-  if (isDemoMode()) {
+  if (inDemoMode()) {
     const match = demoBrands.find((b) => b.slug === slug);
     return match ? { id: match.id, name: match.name, slug: match.slug } : null;
   }
 
   const databaseUrl = serverEnv().DATABASE_URL;
   if (databaseUrl === undefined) {
-    const match = demoBrands.find((b) => b.slug === slug);
-    return match ? { id: match.id, name: match.name, slug: match.slug } : null;
+    throw new Error('DATABASE_URL is not configured.');
   }
 
   const { db, close } = neonConnection(databaseUrl);

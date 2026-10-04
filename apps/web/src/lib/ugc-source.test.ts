@@ -6,6 +6,7 @@ import {
 } from '@tas/db';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { MissingDatabaseUrlError } from './data-source';
 import { loadCreator, loadCreators, loadPartnerships, loadUgc, withBrandScope } from './ugc-source';
 
 /**
@@ -84,6 +85,21 @@ describe('loadUgc in demo mode', () => {
       /Demo mode/u,
     );
     expect(connect).not.toHaveBeenCalled();
+  });
+});
+
+describe('loadUgc when live but DATABASE_URL is missing', () => {
+  it('throws the shared operator-facing error instead of quietly serving fixtures', async () => {
+    // Pinned the other way until this test existed: Clerk configured + no DATABASE_URL rendered
+    // demo rows and looked healthy. The decision is `inDemoMode` in data-source.ts, imported —
+    // never a private copy — so one test here proves the delegation, not a second policy.
+    const error = await loadUgc({ demoMode: () => false, connect, clock }).catch(
+      (cause: unknown) => cause,
+    );
+
+    expect(error).toBeInstanceOf(MissingDatabaseUrlError);
+    expect(connect).not.toHaveBeenCalled();
+    expect(clock).not.toHaveBeenCalled();
   });
 });
 

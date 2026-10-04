@@ -1,8 +1,8 @@
 import { demoTeam, listTeam, type Db, type TeamListRow } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
-import { resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
-import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { inDemoMode, resolveLiveAgencyId, type BrandResolverDeps } from './data-source';
+import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
 
 /**
@@ -70,13 +70,6 @@ async function withDb<T>(deps: TeamSourceDeps, query: (db: Db) => Promise<T>): P
   } finally {
     await connection.close();
   }
-}
-
-function inDemoMode(deps: TeamSourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) {
-    return true;
-  }
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 /**

@@ -11,8 +11,8 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
-import { resolveLiveBrandId, type BrandResolverDeps } from './data-source';
-import { DEMO_MUTATION_REFUSED, isDemoMode } from './demo-mode';
+import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
+import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
 
 /**
@@ -119,13 +119,6 @@ async function withDb<T>(deps: CopySourceDeps, query: (db: Db) => Promise<T>): P
   } finally {
     await connection.close();
   }
-}
-
-function inDemoMode(deps: CopySourceDeps): boolean {
-  if ((deps.demoMode ?? isDemoMode)()) {
-    return true;
-  }
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 /** A brief row reduced to what the `<select>` needs; the name is the brief's own, never rebuilt. */

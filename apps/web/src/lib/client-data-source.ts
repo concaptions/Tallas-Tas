@@ -26,7 +26,7 @@ import {
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
-import { isDemoMode } from './demo-mode';
+import { inDemoMode } from './data-source';
 import { requestConnection } from '@/lib/request-db';
 
 interface DbConnection {
@@ -36,11 +36,6 @@ interface DbConnection {
 
 function neonConnection(databaseUrl: string): DbConnection {
   return requestConnection(databaseUrl);
-}
-
-function inFixtureMode(): boolean {
-  if (isDemoMode()) return true;
-  return serverEnv().DATABASE_URL === undefined;
 }
 
 async function withDb<T>(query: (db: Db) => Promise<T>): Promise<T> {
@@ -57,7 +52,7 @@ async function withDb<T>(query: (db: Db) => Promise<T>): Promise<T> {
 }
 
 export async function loadClientThemes(): Promise<ClientTheme[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return demoThemes.map((t) => ({
       id: t.id,
       name: t.name,
@@ -69,7 +64,7 @@ export async function loadClientThemes(): Promise<ClientTheme[]> {
 }
 
 export async function loadClientConcepts(brandId: string): Promise<ClientConcept[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return demoConcepts
       .filter((c) => c.brandId === DEMO_BRAND_ID)
       .map((c) => ({
@@ -94,14 +89,14 @@ export async function loadClientConcepts(brandId: string): Promise<ClientConcept
 }
 
 export async function loadClientCreatives(brandId: string): Promise<ClientCreative[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return [];
   }
   return withDb((db) => clientCreatives(db, brandId));
 }
 
 export async function loadClientCopywriting(brandId: string): Promise<ClientCopy[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return demoCopy
       .filter((c) => c.brandId === DEMO_BRAND_ID)
       .map((c) => ({
@@ -120,7 +115,7 @@ export async function loadClientCopywriting(brandId: string): Promise<ClientCopy
 }
 
 export async function loadClientCreators(brandId: string): Promise<ClientCreator[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return demoCreators
       .filter((c) => c.brandId === DEMO_BRAND_ID)
       .map((c) => ({
@@ -142,14 +137,14 @@ export async function loadClientCreators(brandId: string): Promise<ClientCreator
 }
 
 export async function loadClientPartnershipAds(brandId: string): Promise<ClientPartnershipAd[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return [];
   }
   return withDb((db) => clientPartnershipAds(db, brandId));
 }
 
 export async function loadClientAngles(brandId: string): Promise<ClientAngle[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return demoAngles
       .filter((a) => a.brandId === DEMO_BRAND_ID)
       .map((a) => ({
@@ -165,7 +160,7 @@ export async function loadClientAngles(brandId: string): Promise<ClientAngle[]> 
 }
 
 export async function loadClientCalendar(brandId: string): Promise<ClientCalendarEvent[]> {
-  if (inFixtureMode()) {
+  if (inDemoMode()) {
     return demoCampaigns
       .filter((c) => c.brandId === DEMO_BRAND_ID)
       .map((c) => ({

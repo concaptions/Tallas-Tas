@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AmbiguousBrandError,
+  MissingDatabaseUrlError,
   currentBrand,
+  inDemoMode,
   isBrandSelectable,
   listPersonaRows,
   loadActiveRole,
@@ -17,7 +19,7 @@ import {
 } from './data-source';
 
 /**
- * Two guarantees live here, and neither was asserted anywhere before.
+ * Three guarantees live here.
  *
  * 1. THE DEMO GUARANTEE. With no Clerk key and a `DATABASE_URL` set, every entry point answers from
  *    the fixtures and the connection factory is never called. The factory is injected for exactly
@@ -29,6 +31,12 @@ import {
  *    only means something while one agency exists. `resolveLiveBrand` therefore picks the brand of
  *    the agency IN SCOPE, and refuses — loudly, with `AmbiguousBrandError` — rather than handing a
  *    correctly-scoped `withBrand(brandId)` call a brand from the wrong tenant.
+ *
+ * 3. THE HONESTY GUARANTEE. Fixtures are DEMO data. When Clerk is configured but `DATABASE_URL` is
+ *    not, `inDemoMode` — the one decision every `*-source.ts` module now imports — throws
+ *    `MissingDatabaseUrlError` instead of answering "fixtures": a misconfigured live deployment
+ *    must fail loudly, not render sample data that makes it look healthy (which is exactly how the
+ *    production deployment misled its operator; see commit 657efbe's diagnostic for the write path).
  */
 const connect = vi.fn<(databaseUrl: string) => never>(() => {
   throw new Error('the demo branch opened a database connection');
@@ -301,6 +309,36 @@ describe('data-source in demo mode', () => {
     vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
 
     await expect(loadActiveRole({ connect })).resolves.toBe('admin');
+    expect(connect).not.toHaveBeenCalled();
+  });
+});
+
+describe('inDemoMode · the one fixtures-or-database decision', () => {
+  it('answers true in demo mode before the server environment is ever read', () => {
+    // DATABASE_URL is deliberately NOT stubbed: if the demo branch fell through to the
+    // environment check, this call would throw MissingDatabaseUrlError instead of answering.
+    expect(inDemoMode({ demoMode: () => true })).toBe(true);
+  });
+
+  it('answers false when Clerk and the database are both configured', () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+
+    expect(inDemoMode({ demoMode: () => false })).toBe(false);
+  });
+
+  it('throws the operator-facing error, naming variable and remedy, when live but unconfigured', () => {
+    expect(() => inDemoMode({ demoMode: () => false })).toThrow(MissingDatabaseUrlError);
+    expect(() => inDemoMode({ demoMode: () => false })).toThrow(/set DATABASE_URL.*and redeploy/u);
+  });
+});
+
+describe('data-source when live but DATABASE_URL is missing', () => {
+  it('rejects every read with MissingDatabaseUrlError rather than serving fixtures', async () => {
+    const live = { demoMode: () => false, connect };
+
+    await expect(loadOverview(live)).rejects.toBeInstanceOf(MissingDatabaseUrlError);
+    await expect(currentBrand(live)).rejects.toBeInstanceOf(MissingDatabaseUrlError);
+    await expect(listPersonaRows(live)).rejects.toBeInstanceOf(MissingDatabaseUrlError);
     expect(connect).not.toHaveBeenCalled();
   });
 });

@@ -42,7 +42,9 @@ import { requestConnection } from '@/lib/request-db';
  * (`requestConnection`, `request-db.ts`) shared by every loader and ended by `after` once the response
  * is sent; the agency and brand scope are resolved once per request too (`agencyIdFor`/`scopeFor`
  * below). Both are React `cache` memos, per request, never per process — no module-level singleton
- * (CLAUDE.md, "No shared mutable module state").
+ * (CLAUDE.md, "No shared mutable module state"). A live deployment with no `DATABASE_URL` is a
+ * configuration fault, and `inDemoMode` THROWS `MissingDatabaseUrlError` rather than serving
+ * fixtures that would make it look healthy.
  *
  * The fixtures and a seeded database are row-for-row identical, ids included (`seed(db)` writes the
  * same rows into a child brand whose id is `DEMO_BRAND_ID`), so a page renders one branch either way.
@@ -94,12 +96,16 @@ export interface BrandResolverDeps {
   readonly activeBrandId?: () => Promise<string | null>;
 }
 
+/** The seam `inDemoMode` takes: every `*-source.ts` deps type carries this same optional field. */
+export interface DemoModeDeps {
+  readonly demoMode?: () => boolean;
+}
+
 /**
  * Seams, for tests only. Production calls every function with no argument: `demoMode` reads the
  * environment through `@tas/env`, `connect` opens Neon and `actorScope` asks Clerk.
  */
-export interface DataSourceDeps extends BrandResolverDeps {
-  readonly demoMode?: () => boolean;
+export interface DataSourceDeps extends BrandResolverDeps, DemoModeDeps {
   readonly connect?: (databaseUrl: string) => DbConnection;
 }
 
@@ -121,6 +127,26 @@ export class AmbiguousBrandError extends Error {
     );
     this.name = 'AmbiguousBrandError';
     this.agencyIds = [...agencyIds];
+  }
+}
+
+/**
+ * Raised when Clerk is configured but `DATABASE_URL` is not. That deployment is live — the
+ * middleware protects routes, people sign in — and it has nothing to be live against. Serving the
+ * demo fixtures there (what every `*-source.ts` module did until this error existed) made the
+ * deployment LOOK healthy while every write failed, which misled the operator; failing loudly with
+ * the variable named and the remedy spelled out is the honest answer (same diagnostic contract as
+ * the onboarding action's env guard, commit 657efbe).
+ */
+export class MissingDatabaseUrlError extends Error {
+  constructor() {
+    super(
+      'DATABASE_URL is not set in this deployment, but Clerk is configured, so this is live ' +
+        'mode — refusing to fall back to demo fixtures. On Vercel, set DATABASE_URL (non-empty) ' +
+        'for this environment and redeploy: a deployment only sees the variables that existed ' +
+        'when it was created.',
+    );
+    this.name = 'MissingDatabaseUrlError';
   }
 }
 
@@ -159,15 +185,23 @@ async function withDb<T>(deps: DataSourceDeps, query: (db: Db) => Promise<T>): P
 }
 
 /**
- * True when the data layer should serve fixtures instead of querying the database. This is a
- * superset of `isDemoMode()`: fixtures are used when Clerk is absent (full demo) OR when the
- * database is not configured (auth works but no data store yet — the P5-001 transitional state).
+ * True when the data layer should serve fixtures instead of querying the database: demo mode, and
+ * ONLY demo mode. THE ONE PLACE that decision is made — every `*-source.ts` module imports this
+ * instead of keeping a private copy, because the private copies all drifted into the same lie:
+ * they also answered "fixtures" when Clerk WAS configured but `DATABASE_URL` was not, so a
+ * misconfigured live deployment rendered sample data on every page and looked healthy (the state
+ * production Vercel was in; see `MissingDatabaseUrlError`). That state now throws instead. The
+ * demo branch still returns BEFORE `serverEnv()` is read, so true demo mode (no Clerk key) is
+ * untouched by what the server environment does or does not contain.
  */
-function inFixtureMode(deps: DataSourceDeps): boolean {
+export function inDemoMode(deps: DemoModeDeps = {}): boolean {
   if ((deps.demoMode ?? isDemoMode)()) {
     return true;
   }
-  return serverEnv().DATABASE_URL === undefined;
+  if (serverEnv().DATABASE_URL === undefined) {
+    throw new MissingDatabaseUrlError();
+  }
+  return false;
 }
 
 /** A live row is current when it has not been soft deleted. Soft delete only, never `DELETE FROM`. */
@@ -436,7 +470,7 @@ export interface BrandScope {
  * `pickActiveBrand` gate, so the option marked active is always the one a scoped read will use.
  */
 export async function loadBrandScope(deps: DataSourceDeps = {}): Promise<BrandScope> {
-  if (inFixtureMode(deps)) {
+  if (inDemoMode(deps)) {
     return { active: DEMO_BRAND, options: [DEMO_BRAND] };
   }
   return withDb(deps, async (db) => {
@@ -476,7 +510,7 @@ export async function resolveLiveBrandId(
  * `themes` is the GLOBAL library (non-negotiable 3), so it is counted across brands, not scoped.
  */
 export async function loadOverview(deps: DataSourceDeps = {}): Promise<Overview> {
-  if (inFixtureMode(deps)) {
+  if (inDemoMode(deps)) {
     return {
       brand: DEMO_BRAND,
       counts: {
@@ -523,7 +557,7 @@ export async function loadOverview(deps: DataSourceDeps = {}): Promise<Overview>
  * `admin`, so no one gets a blank Overview.
  */
 export async function loadActiveRole(deps: DataSourceDeps = {}): Promise<DashboardRole> {
-  if (inFixtureMode(deps)) {
+  if (inDemoMode(deps)) {
     return 'admin';
   }
   return withDb(deps, async (db) => {
@@ -540,7 +574,7 @@ export async function loadActiveRole(deps: DataSourceDeps = {}): Promise<Dashboa
 
 /** Just the brand, for the shell's top bar. */
 export async function currentBrand(deps: DataSourceDeps = {}): Promise<BrandSummary | null> {
-  if (inFixtureMode(deps)) {
+  if (inDemoMode(deps)) {
     return DEMO_BRAND;
   }
   return withDb(deps, (db) => resolveLiveBrand(db, deps));
@@ -551,7 +585,7 @@ export async function currentBrand(deps: DataSourceDeps = {}): Promise<BrandSumm
  * Personas page calls this and nothing else; it never opens a connection of its own.
  */
 export async function listPersonaRows(deps: DataSourceDeps = {}): Promise<PersonaListRow[]> {
-  if (inFixtureMode(deps)) {
+  if (inDemoMode(deps)) {
     return demoPersonas;
   }
   return withDb(deps, async (db) => {
