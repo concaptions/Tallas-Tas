@@ -194,10 +194,22 @@ export function useTableView({
 
   const activeView = views.find((view) => view.isActive) ?? null;
 
+  /**
+   * Whether demo mode's stored state has been READ this mount. Writes are gated on it: a click
+   * that lands in the gap between hydration and the read effect below would otherwise persist
+   * the empty initial state over the visitor's stored views — wiping "My view" moments before
+   * the effect would have loaded it. The Cover e2e caught exactly that, flaking with the CPU:
+   * the effect usually wins the race, and under five parallel workers it sometimes does not.
+   * A pre-read interaction is applied optimistically but NOT persisted; the read then lands the
+   * stored state the same way fresh server data would, and every later change persists normally.
+   */
+  const localLoaded = useRef(false);
+
   // Demo mode: the browser is the store. Read it once after mount so hydration stays clean.
   useEffect(() => {
     if (!local) return;
     const stored = readStored(tableKey, defaultViewType);
+    localLoaded.current = true;
     if (stored === null) return;
     setViews(stored.views);
     const active = stored.views.find((view) => view.isActive);
@@ -211,7 +223,9 @@ export function useTableView({
 
   const persistLocal = useCallback(
     (nextViews: readonly UserView[], nextDraft: UserViewConfig) => {
-      if (local) writeStored(tableKey, { views: nextViews, draft: nextDraft });
+      if (local && localLoaded.current) {
+        writeStored(tableKey, { views: nextViews, draft: nextDraft });
+      }
     },
     [local, tableKey],
   );
