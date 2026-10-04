@@ -75,12 +75,21 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Client Comments',
       'Collection',
     ]);
-    // Production Status is configured on the template but this grid has never drawn it
-    // (docs/decisions.md), so it is STATED rather than silently omitted.
-    await expect(page.locator('[data-slot="concept-missing-columns"]')).toContainText(
+    /*
+     * Production Status is GONE, not reported missing.
+     *
+     * This assertion used to be the other way round — it required the words "production_status" to
+     * appear in the missing-columns notice — which meant the field Talal asked to take out was
+     * printed on the page for every brand. The column is seeded `is_hidden` now
+     * (packages/db/src/column-seed.ts), so the resolver never returns it, nothing can report it
+     * missing, and no notice is drawn at all. The Postgres column and its 73 stored values are
+     * untouched; this is about what the page shows.
+     */
+    await expect(page.locator('[data-slot="concept-missing-columns"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concepts-table"]')).not.toContainText(
       'production_status',
     );
-    // Production Status is hidden from the grid on purpose (docs/decisions.md); the name is frozen.
+    // The first column is frozen, so the generated name stays on screen as the grid scrolls.
     await expect(page.locator('[data-slot="concepts-table"] thead th').first()).toHaveCSS(
       'position',
       'sticky',
@@ -240,6 +249,40 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     // The plural is a field KEY, never a posted name: nothing on the server reads it.
     await expect(page.locator('input[name="themeIds"]')).toHaveCount(0);
     await expect(page.locator('input[name="angleIds"]')).toHaveCount(0);
+  });
+
+  /**
+   * Which fields are mandatory, said on the form instead of discovered by pressing Save.
+   *
+   * The marker comes from `Label`'s `required` prop in `@tas/ui`, and which fields carry it comes
+   * from `REQUIRED_CONCEPT_FIELDS` in `@tas/domain/concepts` — the same set the Server Action
+   * rejects a draft for. Asserting the pairing's three AND Category here is the point: Category was
+   * required by the validator and had never been called required anywhere in the UI, so a page that
+   * marked a hand-written list would have marked three of the four.
+   */
+  test('the form says which fields are required, and says it for the set the save path enforces', async ({
+    page,
+  }) => {
+    await page.goto(conceptPath(NOT_YOUR_AGE));
+
+    for (const field of ['batch', 'themeIds', 'category']) {
+      await expect(
+        page.locator(`[data-slot="concept-field-${field}"] [data-slot="label-requirement"]`),
+        `${field} is required by validateConceptDraft but the form does not say so`,
+      ).toHaveText('Required');
+    }
+    // The Angle is a LinkField, which draws its own label through the same primitive.
+    await expect(
+      page.locator('[data-slot="concept-angleIds"] [data-slot="label-requirement"]'),
+    ).toHaveText('Required');
+
+    // The Brief's own fields are optional, and say so rather than saying nothing.
+    await expect(
+      page.locator('[data-slot="concept-field-hookExamples"] [data-slot="label-requirement"]'),
+    ).toHaveText('Optional');
+
+    // The word, never an asterisk: these labels sit in panels with no legend to explain one.
+    await expect(page.locator('[data-slot="label-requirement"]').first()).not.toContainText('*');
   });
 
   test('the five inherited fields are read-only text, each labelled from Angle', async ({

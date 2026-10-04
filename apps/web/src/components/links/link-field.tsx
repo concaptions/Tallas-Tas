@@ -42,6 +42,12 @@ export interface LinkFieldProps {
   readonly slot?: string;
   /** What the field says when nothing is linked. */
   readonly empty?: string;
+  /**
+   * Marks the label Required or Optional, when the form this sits in has decided. Left out, the
+   * label says nothing, which is what every existing caller wants: a link is optional on most
+   * panels and mandatory only where a save path says so (a concept's Angle).
+   */
+  readonly required?: boolean;
 }
 
 /**
@@ -67,6 +73,7 @@ export function LinkField({
   error,
   slot,
   empty = 'Nothing linked yet.',
+  required,
 }: LinkFieldProps) {
   const router = useRouter();
   const entry = LINK_REGISTRY[link];
@@ -117,7 +124,9 @@ export function LinkField({
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5" data-slot={baseSlot} data-link={link}>
-      <Label className="text-[11px] tracking-wide text-text3 uppercase">{heading}</Label>
+      <Label required={required} className="text-[11px] tracking-wide text-text3 uppercase">
+        {heading}
+      </Label>
       <div className="flex flex-wrap items-center gap-1.5" data-slot={`${baseSlot}-chips`}>
         {chosen.length === 0 ? (
           <span className="text-xs text-text3" data-slot={`${baseSlot}-empty`}>

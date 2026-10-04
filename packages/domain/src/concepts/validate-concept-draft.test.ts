@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateConceptDraft, type ConceptDraft } from './validate-concept-draft';
+import {
+  REQUIRED_CONCEPT_FIELDS,
+  validateConceptDraft,
+  type ConceptDraft,
+  type ConceptDraftField,
+} from './validate-concept-draft';
 
 const valid: ConceptDraft = {
   batch: 'B2',
@@ -128,5 +133,39 @@ describe('validateConceptDraft · an empty draft', () => {
       'category',
       'themeIds',
     ]);
+  });
+});
+
+/**
+ * The list the UI marks its fields from, against the function that does the rejecting.
+ *
+ * Both halves matter. Every name in the list must be a field an empty draft is rejected for, or the
+ * form marks something "Required" that saves perfectly well; and every field an empty draft IS
+ * rejected for must be in the list, or the form leaves a mandatory field unmarked — which is how
+ * Category stayed unmarked while the server required it.
+ */
+describe('REQUIRED_CONCEPT_FIELDS', () => {
+  const emptyDraft: ConceptDraft = { batch: null, angleIds: [], themeIds: [], category: null };
+
+  it('is exactly the set an empty draft is rejected for', () => {
+    const rejected = Object.keys(validateConceptDraft(emptyDraft).fieldErrors).sort();
+
+    expect([...REQUIRED_CONCEPT_FIELDS].sort()).toEqual(rejected);
+  });
+
+  it('names a field whose absence alone fails the draft, one at a time', () => {
+    const blank: Record<ConceptDraftField, Partial<ConceptDraft>> = {
+      batch: { batch: null },
+      angleIds: { angleIds: [] },
+      themeIds: { themeIds: [] },
+      category: { category: null },
+      adInspoLinks: {},
+    };
+
+    for (const field of REQUIRED_CONCEPT_FIELDS) {
+      const result = validateConceptDraft({ ...valid, ...blank[field] });
+      expect(result.ok, `a draft with no ${field} was accepted`).toBe(false);
+      expect(Object.keys(result.fieldErrors)).toEqual([field]);
+    }
   });
 });

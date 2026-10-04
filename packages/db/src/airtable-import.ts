@@ -766,25 +766,57 @@ const PERSONA_FIELDS = {
   ],
 } as const satisfies Record<string, readonly string[]>;
 
+/**
+ * The concept's two LINK fields, per base, in the same shape as `PERSONA_FIELDS` above: the TEMPLATE
+ * base's field name first, then each client base's alias for the same link.
+ *
+ * The template base (`appnaSGAgOUbJ0f9m`) names them `Angles` and `Themes`; Gratsi
+ * (`appllDG4OmkK2Hdnn`) names them `Angle` and `Theme`. Both read live off the meta API on
+ * 2026-10-04. Pass 2 read only the singular names, so a TEMPLATE import wrote zero `concept_angles`
+ * and zero `concept_themes` — every concept's Angle and Theme cell an em dash, with nothing in the
+ * log to say why, because the plural field was never asked for and a field nobody asks for cannot
+ * fail to resolve. One alias list per link is what makes one importer serve either base, exactly as
+ * it does for the fifteen persona fields.
+ */
+const CONCEPT_LINK_FIELDS = {
+  angles: ['Angles', 'Angle'],
+  themes: ['Themes', 'Theme'],
+} as const satisfies Record<string, readonly string[]>;
+
 /** The first of `names` the record actually carries, so one builder reads either base. */
 export function normalizeFieldName(name: string): string {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 /**
- * The first of `names` the record carries, matched CASE-INSENSITIVELY and with whitespace
- * normalised — never by exact string.
+ * The first of `names` the record carries: by exact name if any alias matches one, and otherwise
+ * case-insensitively and with whitespace normalised.
  *
- * Verified against both live bases on 2026-10-03: the parent spells it `Creator's Video Intro` and
- * Gratsi spells it `Creator's video Intro`. One capital letter, the same field. An exact-string
- * resolver drops it silently, and the same class of bug hides behind Gratsi's double space in
- * `Description  [Age Status Salary]`. Normalising both sides is the only way a rename map can be
- * trusted.
+ * An exact match wins over a normalised one even when it is further down the alias list, which is
+ * the stronger evidence of the two — and it lets the common case answer without enumerating the
+ * record, which the comments in the body explain matters for the import's own reporting.
  */
 export function firstField(
   fields: Readonly<Record<string, unknown>>,
   names: readonly string[],
 ): unknown {
+  const present = (value: unknown): boolean =>
+    value !== undefined && value !== null && value !== '';
+
+  // EXACT NAMES FIRST, one property read each. Every alias in this file was taken from a live base's
+  // metadata, so this is the branch that answers in practice — and it is the only branch that does
+  // not ENUMERATE the record. Enumeration matters because `trackExport` wraps every record's fields
+  // in a Proxy that counts each key read: a scan would mark every field of the table as read and the
+  // "fields no mapper touched" report, which is the import's honest statement of what it leaves
+  // behind, would come back empty for the table.
+  for (const name of names) {
+    if (present(fields[name])) return fields[name];
+  }
+
+  // Nothing under an exact name. Fall back to a case- and whitespace-insensitive match, because the
+  // parent spells it `Creator's Video Intro` and Gratsi spells it `Creator's video Intro` — one
+  // capital letter, the same field, verified against both live bases on 2026-10-03 — and the same
+  // class of difference hides behind Gratsi's double space in `Description  [Age Status Salary]`.
   const byNormalized = new Map<string, unknown>();
   for (const [key, value] of Object.entries(fields)) {
     const normalized = normalizeFieldName(key);
@@ -792,8 +824,8 @@ export function firstField(
     if (!byNormalized.has(normalized)) byNormalized.set(normalized, value);
   }
   for (const name of names) {
-    const value = fields[name] ?? byNormalized.get(normalizeFieldName(name));
-    if (value !== undefined && value !== null && value !== '') return value;
+    const value = byNormalized.get(normalizeFieldName(name));
+    if (present(value)) return value;
   }
   return undefined;
 }
@@ -1575,32 +1607,36 @@ export async function importAirtableExport(
     const conceptId = conceptMap.get(rec.id);
     if (!conceptId) continue;
 
-    const angleIds = resolveRefs(angleMap, rec.fields.Angle);
+    // Read ONCE, under either base's name for the link, and reused by every branch below: a
+    // second read of a different property is how the plural name got missed in the first place.
+    const angleRef = firstField(rec.fields, CONCEPT_LINK_FIELDS.angles);
+    const angleIds = resolveRefs(angleMap, angleRef, w, 'concepts.Angles');
     for (const angleId of angleIds) {
       await db.insert(conceptAngles).values({ conceptId, angleId }).onConflictDoNothing();
     }
     if (angleIds.length === 0) {
-      const angleId = resolveRef(angleMap, rec.fields.Angle);
+      const angleId = resolveRef(angleMap, angleRef);
       if (angleId) {
         await db.insert(conceptAngles).values({ conceptId, angleId }).onConflictDoNothing();
       }
     }
 
     // Theme can be record links (standard Airtable) or multipleSelects (Gratsi) — try both
-    const themeRefsResolved = resolveRefs(themeMap, rec.fields.Theme);
+    const themeRef = firstField(rec.fields, CONCEPT_LINK_FIELDS.themes);
+    const themeRefsResolved = resolveRefs(themeMap, themeRef, w, 'concepts.Themes');
     if (themeRefsResolved.length > 0) {
       for (const themeId of themeRefsResolved) {
         await db.insert(conceptThemes).values({ conceptId, themeId }).onConflictDoNothing();
       }
     } else {
-      const singleThemeId = resolveRef(themeMap, rec.fields.Theme);
+      const singleThemeId = resolveRef(themeMap, themeRef);
       if (singleThemeId) {
         await db
           .insert(conceptThemes)
           .values({ conceptId, themeId: singleThemeId })
           .onConflictDoNothing();
       } else {
-        const themeNames = multiSelectArr(rec.fields.Theme);
+        const themeNames = multiSelectArr(themeRef);
         for (const themeName of themeNames) {
           for (const [airtableId, pgId] of themeMap.entries()) {
             const themeRec = (data.Themes ?? []).find((t) => t.id === airtableId);

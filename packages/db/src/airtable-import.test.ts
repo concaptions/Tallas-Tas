@@ -1508,3 +1508,162 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
     expect(gratsi).toMatchObject({ dayInTheLife: null, painPoints: null, triggerWords: null });
   });
 });
+
+/**
+ * The concept's two LINK fields, read from EITHER base.
+ *
+ * Pass 2 read `rec.fields.Angle` and `rec.fields.Theme` only. The template base
+ * (`appnaSGAgOUbJ0f9m`) names those fields `Angles` and `Themes` — plural, read live off the meta
+ * API on 2026-10-04 — so a template import wrote zero `concept_angles` and zero `concept_themes`,
+ * and every concept's Angle and Theme cell on the Concepts grid was an em dash. Nothing failed and
+ * nothing was logged: a field the engine never asks for cannot report a broken reference.
+ *
+ * Gratsi's singular names are asserted beside the plural ones in the same test, because the one
+ * thing an alias list must never do is fix one base by breaking the other — and a wrong alias here
+ * is unusually expensive, since pass 2 CLEARS a concept's junction rows before re-inserting them
+ * (`import-slicing-hazard`: a re-run that resolves nothing deletes the links it cannot restore).
+ */
+describe('concept links read either base’s field name (action item 35)', () => {
+  const BOTH: AirtableExport = {
+    Angles: [
+      { id: 'at_angle_plural', fields: { Name: 'It Is Not Just Your Age' } },
+      { id: 'at_angle_singular', fields: { Name: 'Your Body Clock Is Not Broken' } },
+    ],
+    Themes: [
+      { id: 'at_theme_plural', fields: { Name: 'Authority' } },
+      { id: 'at_theme_singular', fields: { Name: 'Green Screen' } },
+    ],
+    Concepts: [
+      {
+        // The TEMPLATE base: both links plural, both record-link arrays.
+        id: 'at_concept_template',
+        fields: {
+          Name: 'B1-Template',
+          Batch: 'B1',
+          Angles: ['at_angle_plural'],
+          Themes: ['at_theme_plural'],
+        },
+      },
+      {
+        // The GRATSI base: both links singular, which is what used to be the only name read.
+        id: 'at_concept_gratsi',
+        fields: {
+          Name: 'B2-Gratsi',
+          Batch: 'B2',
+          Angle: ['at_angle_singular'],
+          Theme: ['at_theme_singular'],
+        },
+      },
+    ],
+  };
+
+  async function linksOf(
+    db: Awaited<ReturnType<typeof seeded>>,
+    legacyId: string,
+  ): Promise<{ angleIds: string[]; themeIds: string[] }> {
+    const [concept] = await db
+      .select({ id: concepts.id })
+      .from(concepts)
+      .where(eq(concepts.legacyAirtableId, legacyId));
+    if (concept === undefined) throw new Error(`${legacyId} was not imported`);
+    const angleRows = await db
+      .select({ angleId: conceptAngles.angleId })
+      .from(conceptAngles)
+      .where(eq(conceptAngles.conceptId, concept.id));
+    const themeRows = await db
+      .select({ themeId: conceptThemes.themeId })
+      .from(conceptThemes)
+      .where(eq(conceptThemes.conceptId, concept.id));
+    return {
+      angleIds: angleRows.map((row) => row.angleId),
+      themeIds: themeRows.map((row) => row.themeId),
+    };
+  }
+
+  async function idOf(
+    db: Awaited<ReturnType<typeof seeded>>,
+    table: typeof angles | typeof themes,
+    legacyId: string,
+  ): Promise<string> {
+    const [row] = await db
+      .select({ id: table.id })
+      .from(table)
+      .where(eq(table.legacyAirtableId, legacyId));
+    if (row === undefined) throw new Error(`${legacyId} was not imported`);
+    return row.id;
+  }
+
+  it('writes the junctions for the plural TEMPLATE names and the singular Gratsi ones alike', async () => {
+    const db = await seeded();
+    await importAirtableExport(db, BOTH, DEMO_BRAND_ID, 'migration-actor');
+
+    const template = await linksOf(db, 'at_concept_template');
+    expect(template.angleIds).toEqual([await idOf(db, angles, 'at_angle_plural')]);
+    expect(template.themeIds).toEqual([await idOf(db, themes, 'at_theme_plural')]);
+
+    const gratsi = await linksOf(db, 'at_concept_gratsi');
+    expect(gratsi.angleIds).toEqual([await idOf(db, angles, 'at_angle_singular')]);
+    expect(gratsi.themeIds).toEqual([await idOf(db, themes, 'at_theme_singular')]);
+  });
+
+  it('COUNTS an angle or theme reference that resolves to nothing instead of dropping it', async () => {
+    const db = await seeded();
+    const warnings = emptyWarnings();
+    const broken: AirtableExport = {
+      ...BOTH,
+      Concepts: [
+        {
+          id: 'at_concept_broken',
+          fields: {
+            Name: 'B3-Broken',
+            Batch: 'B3',
+            // Two record ids that are not in the export at all — the shape a sliced import makes.
+            Angles: ['at_angle_plural', 'recNOTINEXPORT1'],
+            Themes: ['recNOTINEXPORT2'],
+          },
+        },
+      ],
+    };
+
+    await importAirtableExport(db, broken, DEMO_BRAND_ID, 'migration-actor', warnings);
+
+    expect(warnings.brokenRefs.get('concepts.Angles')).toBe(1);
+    expect(warnings.brokenRefs.get('concepts.Themes')).toBe(1);
+    // The reference that DID resolve is still written: a broken sibling drops nothing.
+    const links = await linksOf(db, 'at_concept_broken');
+    expect(links.angleIds).toEqual([await idOf(db, angles, 'at_angle_plural')]);
+  });
+
+  /**
+   * Reading through an alias list must not make the import claim it read everything.
+   *
+   * `trackExport` counts field reads with a Proxy, so a resolver that ENUMERATES the record marks
+   * every key as read and the "fields no mapper touched" report comes back empty for that table —
+   * the report going quiet looks exactly like a table with nothing left behind. `firstField` tries
+   * the exact names before it ever enumerates, which is what keeps the two apart.
+   */
+  it('leaves the unread-field report honest for a table read through aliases', async () => {
+    const db = await seeded();
+    const warnings = emptyWarnings();
+    const withExtra: AirtableExport = {
+      ...BOTH,
+      Concepts: [
+        {
+          id: 'at_concept_template',
+          fields: {
+            ...BOTH.Concepts?.[0]?.fields,
+            'Last Modified By': 'someone@tasdigital.com',
+          },
+        },
+      ],
+    };
+
+    await importAirtableExport(db, withExtra, DEMO_BRAND_ID, 'migration-actor', warnings);
+
+    const unread = warnings.unmappedFields.get('Concepts');
+    expect(unread?.get('Last Modified By')).toBe(1);
+    // The two links were read, under their plural names, so neither is reported unread.
+    expect(unread?.has('Angles')).toBe(false);
+    expect(unread?.has('Themes')).toBe(false);
+  });
+});

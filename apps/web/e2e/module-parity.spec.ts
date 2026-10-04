@@ -774,7 +774,7 @@ const MODULES: readonly ModuleEntry[] = [
       {
         field: 'Production Status',
         reason:
-          'stored (concepts.production_status round-trips through a hidden input) but deliberately not shown: Talal, 2026-09-28, "take it out" — docs/tickets/in-progress/sprint-p1-airtable-schema-parity.md (P2B: hide the field, keep the column)',
+          'stored (concepts.production_status round-trips through a hidden input) and HIDDEN IN THE RESOLVER, so the grid never resolves it and the missing-columns notice no longer names it: Talal, 2026-09-28, "take it out" — packages/db/src/column-seed.ts, docs/decisions.md (P2B: hide the field, keep the column)',
       },
       {
         field: 'UGC Management copy',
