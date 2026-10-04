@@ -622,3 +622,35 @@ export async function loadActorBrandPanels(
   }
   return loadBrandPanels(role, brands, deps);
 }
+
+/**
+ * TOTAL ASSETS, as the reference dashboard derives it: the sum of the metric-card counts. Both
+ * reference cards check out exactly — Victoria's 48+9+16+1+5+0+57+117+5+24+2 = 284 and Tammy's
+ * same eleven sum to 206 — so the number is defined by the cards on display, never a fourth query
+ * with a vocabulary of its own (AI-06).
+ */
+export function totalAssetCount(metrics: readonly MetricCard[]): number {
+  return metrics.reduce((sum, card) => sum + card.count, 0);
+}
+
+/** `284 total assets`, singular-safe; the card renders it uppercase with CSS, never a new string. */
+export function totalAssetsLabel(count: number): string {
+  return `${String(count)} total ${count === 1 ? 'asset' : 'assets'}`;
+}
+
+/**
+ * The card shell's header line, after the reference's "ADVERTISING CSM · 15 CLIENTS · 284 TOTAL
+ * ASSETS": the viewer's role label (`BRAND_ROLE_LABELS`, never a magic string), the size of their
+ * book and its combined asset total — every number derived from the panels, which is what makes
+ * the shell's one hardcodable line impossible to hardcode. Title case here; the heading uppercases
+ * with CSS, the same split the Overview's own eyebrow uses.
+ */
+export function brandPanelsHeader(
+  role: BrandRole | 'admin',
+  panels: readonly BrandPanel[],
+): string {
+  const label = role === 'admin' ? 'Admin' : BRAND_ROLE_LABELS[role];
+  const clients = `${String(panels.length)} ${panels.length === 1 ? 'client' : 'clients'}`;
+  const total = panels.reduce((sum, panel) => sum + totalAssetCount(panel.metrics), 0);
+  return `${label} · ${clients} · ${totalAssetsLabel(total)}`;
+}

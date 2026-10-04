@@ -101,6 +101,7 @@ import {
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
 } from './copywriting.stories';
+import { CsmCardsStory } from './csm-cards.stories';
 import { RoleDashboardAdminStory, RoleDashboardMediaBuyerStory } from './role-dashboard.stories';
 import {
   OverviewMetricsAdminStory,
@@ -1127,6 +1128,13 @@ export default function DesignSystemPage() {
             <ClientQueueColumnStory />
           </div>
         </div>
+      </Section>
+
+      <Section
+        title="Cross-client overview cards"
+        note="AI-06: the reference's CLIENT SUCCESS MANAGERS card as the signed-in actor's shell — a derived header line (role · clients · total assets), then one card per assigned brand, zero counts dimmed. Fed by AI-09's loader in production; here the demo fixtures next to an empty book."
+      >
+        <CsmCardsStory />
       </Section>
 
       <Section

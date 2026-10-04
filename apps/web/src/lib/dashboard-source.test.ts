@@ -17,6 +17,7 @@ import { testDb } from '@tas/db/testing';
 
 import { toBriefRow, type BriefSourceDeps } from './briefs-source';
 import {
+  brandPanelsHeader,
   buildRoleDashboard,
   hasSpellingIssues,
   loadActorBrandPanels,
@@ -27,6 +28,10 @@ import {
   buildOverviewMetrics,
   buildPipeline,
   overviewMetrics,
+  totalAssetCount,
+  totalAssetsLabel,
+  type BrandPanel,
+  type MetricCard,
 } from './dashboard-source';
 import { AmbiguousBrandError } from './data-source';
 
@@ -583,6 +588,63 @@ describe('the cross-client panels (AI-09)', () => {
 
     expect(await loadActorBrandPanels('csm', deps)).toEqual([]);
     expect(connect).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * AI-06: the pure derivations the card shell renders. The reference image is the oracle: both of
+ * its cards' TOTAL ASSETS figures are exactly the sum of their eleven visible counts (284 and
+ * 206), so the derivation is pinned to that arithmetic rather than invented here.
+ */
+describe('the cross-client card derivations (AI-06)', () => {
+  const card = (key: string, count: number): MetricCard => ({
+    key,
+    emoji: '🔢',
+    label: key,
+    count,
+    href: '/app/x',
+  });
+  const panel = (brandName: string, counts: readonly number[]): BrandPanel => ({
+    brandId: `panel-${brandName}`,
+    brandName,
+    metrics: counts.map((count, index) => card(`k${String(index)}`, count)),
+  });
+
+  it("TOTAL ASSETS is the sum of the visible cards — Victoria's reference column, 284 on the nose", () => {
+    expect(
+      totalAssetCount(panel('victoria', [48, 9, 16, 1, 5, 0, 57, 117, 5, 24, 2]).metrics),
+    ).toBe(284);
+    expect(totalAssetCount(panel('tammy', [6, 12, 20, 8, 4, 0, 18, 66, 2, 25, 45]).metrics)).toBe(
+      206,
+    );
+    expect(totalAssetCount([])).toBe(0);
+  });
+
+  it('labels the total singular-safely', () => {
+    expect(totalAssetsLabel(0)).toBe('0 total assets');
+    expect(totalAssetsLabel(1)).toBe('1 total asset');
+    expect(totalAssetsLabel(284)).toBe('284 total assets');
+  });
+
+  it('derives the whole header line from the panels: role label, client count, combined assets', () => {
+    const one = [panel('A', [1])];
+    expect(brandPanelsHeader('csm', one)).toBe('Client Success Manager · 1 client · 1 total asset');
+
+    const two = [...one, panel('B', [2, 0])];
+    expect(brandPanelsHeader('strategist', two)).toBe(
+      'Creative Strategist · 2 clients · 3 total assets',
+    );
+    expect(brandPanelsHeader('admin', two)).toBe('Admin · 2 clients · 3 total assets');
+    expect(brandPanelsHeader('csm', [])).toBe(
+      'Client Success Manager · 0 clients · 0 total assets',
+    );
+  });
+
+  it('sums over the fixture metrics the story and the demo card render', () => {
+    const metrics = overviewMetrics('csm');
+    const expected = metrics.map((m) => m.count).reduce((sum, count) => sum + count, 0);
+    expect(totalAssetCount(metrics)).toBe(expected);
+    expect(expected).toBeGreaterThan(0);
   });
 });
 

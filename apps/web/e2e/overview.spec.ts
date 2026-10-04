@@ -63,4 +63,40 @@ test.describe('the Overview in demo mode (no Clerk publishable key)', () => {
     );
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(count, { timeout: 45_000 });
   });
+
+  test('the hardcoded approval showcase is gone from the Overview; the metrics stay (AI-6)', async ({
+    page,
+  }) => {
+    await page.goto(appPath);
+
+    // The reference dashboard has no such element: the TwoTrackApproval block with its literal
+    // statuses no longer renders on the landing page...
+    await expect(page.locator('[data-slot="two-track-approval"]')).toHaveCount(0);
+    // ...and nothing else moved: the eleven pipeline cards still render over the fixtures.
+    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(11);
+
+    // The cross-client shell stays OFF here too — the demo workspace is a single brand, the same
+    // fallback a signed-in actor with fewer than two assignments gets. The signed-in multi-brand
+    // render needs real assignments and a session, which this environment has neither of; its
+    // loading logic is unit-tested on PGlite in dashboard-source.test.ts.
+    await expect(page.locator('[data-slot="csm-cards"]')).toHaveCount(0);
+  });
+
+  test('the showcase and the new card shell both live on /design-system (governance rule 4)', async ({
+    page,
+  }) => {
+    await page.goto('/design-system');
+
+    // The TwoTrackApproval showcase kept its home among the component stories...
+    await expect(page.locator('[data-slot="two-track-approval"]').first()).toBeVisible();
+    // ...and the cross-client shell's story is mounted: a derived header line, two brand cards,
+    // and the dimmed-zero treatment for the empty book.
+    const shell = page.locator('[data-slot="csm-cards"]');
+    await expect(shell).toHaveCount(1);
+    await expect(shell.locator('[data-slot="csm-card"]')).toHaveCount(2);
+    await expect(shell.getByRole('heading', { level: 2 })).toContainText(/client/i);
+    expect(
+      await shell.locator('[data-slot="csm-card-metric"][data-zero="true"]').count(),
+    ).toBeGreaterThan(0);
+  });
 });
