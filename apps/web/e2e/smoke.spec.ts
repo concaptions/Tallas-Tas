@@ -30,10 +30,6 @@ test.describe('demo mode (no Clerk publishable key)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Niagara Sleep Solutions');
     await expect(page.getByRole('link', { name: /Personas/ }).first()).toBeVisible();
 
-    // The signature widget renders with a locked client track.
-    await expect(page.locator('[data-slot="two-track-approval"]')).toBeVisible();
-    await expect(page.locator('[data-slot="client-track"]')).toHaveAttribute('data-open', 'false');
-
     // Tailwind and the token layer apply: the body is painted, never the browser default.
     await expect(page.locator('body')).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   });
@@ -61,6 +57,14 @@ test.describe('demo mode (no Clerk publishable key)', () => {
     await page.goto('/design-system');
 
     await expect(page).toHaveURL(/\/design-system$/);
+
+    // The signature widget renders here — its one production home since AI-06 removed the
+    // hardcoded showcase from the Overview — with the client track locked below internal approval.
+    await expect(page.locator('[data-slot="two-track-approval"]').first()).toBeVisible();
+    await expect(page.locator('[data-slot="client-track"]').first()).toHaveAttribute(
+      'data-open',
+      'false',
+    );
   });
 
   test('the theme toggle flips data-theme and remembers it', async ({ page }) => {
@@ -68,8 +72,22 @@ test.describe('demo mode (no Clerk publishable key)', () => {
     const html = page.locator('html');
     await expect(html).toHaveAttribute('data-theme', 'dark');
 
+    // AI-13: the top bar is a primary brand surface. In dark mode it carries the gradient
+    // utility, the gradient actually paints (a computed background-image, so a dropped @layer or
+    // a stale class cannot pass), and the bar pins dark tokens for its own text.
+    const topBar = page.locator('[data-slot="shell-top-bar"]');
+    await expect(topBar).toHaveClass(/bg-brand-gradient/);
+    await expect(topBar).toHaveCSS('background-image', /linear-gradient/);
+    await expect(topBar).toHaveAttribute('data-theme', 'dark');
+
     await page.getByRole('button', { name: 'Switch to light theme' }).click();
     await expect(html).toHaveAttribute('data-theme', 'light');
+
+    // Light theme: still the gradient, still dark-pinned — the light palette must not wash the
+    // brand surface out or put dark text on saturated purple.
+    await expect(topBar).toHaveClass(/bg-brand-gradient/);
+    await expect(topBar).toHaveCSS('background-image', /linear-gradient/);
+    await expect(topBar).toHaveAttribute('data-theme', 'dark');
 
     await page.reload();
     await expect(html).toHaveAttribute('data-theme', 'light');

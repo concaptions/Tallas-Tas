@@ -214,8 +214,13 @@ function isLive(row: { deletedAt: Date | null }): boolean {
  * background job, a script, a unit test — and that is not an error here: it means "no actor scope",
  * which the resolver answers by narrowing on the agency count or by refusing. It never becomes a
  * guess, so swallowing the throw cannot produce a cross-tenant read.
+ *
+ * Exported for ONE caller outside this module: the cross-client Overview loader
+ * (`dashboard-source.loadActorBrands`), which needs the actor — whose assignments — rather than the
+ * agency or brand the two resolvers here answer with. It takes the session through the same
+ * `deps.actorScope ?? clerkActorScope` chain as the resolvers, never a private copy of this read.
  */
-async function clerkActorScope(): Promise<ActorScope> {
+export async function clerkActorScope(): Promise<ActorScope> {
   try {
     const { userId, orgId } = await auth();
     return { clerkOrgId: orgId ?? null, clerkUserId: userId ?? null };

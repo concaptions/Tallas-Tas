@@ -1,20 +1,14 @@
 import { OrganizationSwitcher } from '@clerk/nextjs';
 import Link from 'next/link';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  TwoTrackApproval,
-} from '@tas/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@tas/ui';
 
 import { AccountSummary } from '@/components/account-summary';
+import { CsmCards } from '@/components/overview/csm-cards';
 import { MetricCards } from '@/components/overview/metric-cards';
 import { PipelineChart } from '@/components/overview/pipeline-chart';
 import { RoleDashboardSection } from '@/components/role-dashboard';
 import { Icon, type IconName } from '@/components/shell/icons';
-import { loadOverviewPanels } from '@/lib/dashboard-source';
+import { loadActorBrandPanels, loadOverviewPanels } from '@/lib/dashboard-source';
 import { loadActiveRole, loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { conceptsPath, personasPath, themesPath } from '@/lib/routes';
@@ -38,10 +32,13 @@ export default async function OverviewPage() {
   // without a role here resolve to `admin` — the all-cards view, unchanged from before role detection.
   const role = await loadActiveRole();
   // Independent reads: awaited together, not one after the other. All share the request's
-  // connection and its once-per-request brand resolution.
-  const [{ brand, counts }, { dashboard, metrics, pipeline }] = await Promise.all([
+  // connection and its once-per-request brand resolution. The third is the cross-client shell's
+  // data (AI-06/AI-09): the signed-in actor's OWN assigned brands, one panel each — empty for an
+  // actor with fewer than two, which keeps the single-brand Overview exactly as it was.
+  const [{ brand, counts }, { dashboard, metrics, pipeline }, brandPanels] = await Promise.all([
     loadOverview(),
     loadOverviewPanels(role),
+    loadActorBrandPanels(role),
   ]);
 
   // The library sections the Overview surfaces. ANGLES IS NOT ONE OF THEM: action item 8 took it
@@ -88,6 +85,8 @@ export default async function OverviewPage() {
       </header>
 
       <MetricCards cards={metrics} />
+
+      <CsmCards role={role} panels={brandPanels} />
 
       <PipelineChart steps={pipeline} />
 
@@ -141,18 +140,9 @@ export default async function OverviewPage() {
         </ul>
       </section>
 
-      <section aria-labelledby="approval-heading" className="flex flex-col gap-3">
-        <h2 id="approval-heading" className="text-sm font-medium text-text2">
-          Approval tracks
-        </h2>
-        <p className="max-w-2xl text-xs text-text3">
-          Internal status is the team&apos;s; the client bar stays locked until internal reaches
-          Approved. A creative reaches the client interface only then.
-        </p>
-        <div className="max-w-xl">
-          <TwoTrackApproval track="video" internal="ad_submitted" client="pending_for_approval" />
-        </div>
-      </section>
+      {/* The TwoTrackApproval showcase that used to sit here was design-system furniture with
+          hardcoded statuses, not a dashboard element — the reference has no such block (AI-06).
+          It still renders on /design-system, where component showcases live. */}
 
       {/* Clerk-only: the agency organisation is created on first run (D-003). Never rendered in
           demo mode, where no ClerkProvider exists for these components to read. */}

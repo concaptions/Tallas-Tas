@@ -6,12 +6,19 @@ import { cn } from '../lib/cn';
 
 // shadcn/ui new-york Button, moved out of apps/web. Colours come from the token utilities; the
 // radius is `rounded-input` (6px) because the design system has no pill buttons.
+//
+// The DEFAULT variant is the primary CTA, and since AI-13 it carries the signature purple
+// gradient: `bg-brand-gradient` (the utility tokens.css names for `--accent-gradient`, defined in
+// the app's globals.css) over a `bg-accent` fallback colour for any surface the utility has not
+// loaded on. The hover is opacity, not a colour shade — a `bg-accent/90` hover only repaints the
+// colour UNDER the gradient image, which is invisible — and the shared `disabled:opacity-50`
+// still reads over a background-image.
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-input text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-bad aria-invalid:ring-bad/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: 'bg-accent text-bg shadow-xs hover:bg-accent/90',
+        default: 'bg-accent bg-brand-gradient text-bg shadow-xs hover:opacity-90',
         destructive: 'bg-bad text-bg shadow-xs hover:bg-bad/90 focus-visible:ring-bad/20',
         outline: 'border border-line bg-surface text-text shadow-xs hover:bg-surface3',
         secondary: 'bg-surface3 text-text shadow-xs hover:bg-surface4',

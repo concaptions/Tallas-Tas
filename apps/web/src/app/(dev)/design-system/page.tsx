@@ -101,6 +101,7 @@ import {
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
 } from './copywriting.stories';
+import { CsmCardsStory } from './csm-cards.stories';
 import { RoleDashboardAdminStory, RoleDashboardMediaBuyerStory } from './role-dashboard.stories';
 import {
   OverviewMetricsAdminStory,
@@ -204,6 +205,9 @@ const PALETTE = [
   'accent',
   'accent-line',
   'accent-soft',
+  // The signature purple gradient (AI-13): an image token, rendered on the primary brand surfaces
+  // — the top bar and the default Button — through the `.bg-brand-gradient` utility.
+  'accent-gradient',
   'ok',
   'warn',
   'bad',
@@ -329,7 +333,9 @@ function PaletteColumn({ theme }: { theme: 'dark' | 'light' }) {
           <li key={token} className="flex items-center gap-3">
             <span
               className="size-7 shrink-0 rounded-input border border-line2"
-              style={{ backgroundColor: `var(--${token})` }}
+              // The `background` shorthand, not `backgroundColor`: `--accent-gradient` is an
+              // image, and the shorthand renders colour tokens and image tokens alike.
+              style={{ background: `var(--${token})` }}
             />
             <span className="font-mono text-[11px] text-text2">--{token}</span>
           </li>
@@ -1127,6 +1133,13 @@ export default function DesignSystemPage() {
             <ClientQueueColumnStory />
           </div>
         </div>
+      </Section>
+
+      <Section
+        title="Cross-client overview cards"
+        note="AI-06: the reference's CLIENT SUCCESS MANAGERS card as the signed-in actor's shell — a derived header line (role · clients · total assets), then one card per assigned brand, zero counts dimmed. Fed by AI-09's loader in production; here the demo fixtures next to an empty book."
+      >
+        <CsmCardsStory />
       </Section>
 
       <Section

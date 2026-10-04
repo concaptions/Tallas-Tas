@@ -1,5 +1,5 @@
-import type { BriefListRow } from '@tas/db';
-import { demoBriefs, demoConcepts, demoCopy, demoCreators } from '@tas/db';
+import type { BriefListRow, Db } from '@tas/db';
+import { demoBriefs, demoConcepts, demoCopy, demoCreators, listBrandsForActor } from '@tas/db';
 import type { BrandRole } from '@tas/domain';
 import { BRAND_ROLE_LABELS } from '@tas/domain';
 import {
@@ -8,12 +8,15 @@ import {
   type ClientStatusKey,
   type InternalStatusKey,
 } from '@tas/domain/state';
+import { serverEnv } from '@tas/env';
 
-import { loadBriefs, type BriefSourceDeps } from './briefs-source';
+import { loadBriefs, type BriefSourceDeps, type DbConnection } from './briefs-source';
 import { loadConcepts } from './concepts-source';
 import { loadCopy } from './copy-source';
+import { clerkActorScope, inDemoMode, loadBrandScope } from './data-source';
 import { briefsPath, conceptsPath, copywritingPath, internalQueuePath, ugcPath } from './routes';
 import { loadUgc } from './ugc-source';
+import { requestConnection } from '@/lib/request-db';
 
 export interface DashboardItem {
   readonly label: string;
@@ -238,7 +241,7 @@ export interface MetricCard {
  * status and therefore shows both revision columns side by side. Filtering it to one track would
  * hide the other track's revisions, which is worse than not filtering.
  */
-function allMetricCards(data: DashboardData): MetricCard[] {
+function allMetricCards(data: MetricsData): MetricCard[] {
   const { briefs, concepts, creators } = data;
   /**
    * The Briefs table, filtered. `status` is an internal key, `client` a client key, and the table
@@ -374,8 +377,16 @@ const CARD_KEYS_BY_ROLE: Record<BrandRole | 'admin', readonly string[] | 'all'> 
   client: ['awaiting_client', 'client_revisions'],
 };
 
+/**
+ * What the eleven cards actually read: everything but `copy`, which only the editor's role TILE
+ * counts. Named so the per-brand panel loader (below) can skip the one table the cards never touch
+ * instead of feeding them an empty array that would lie if a copy card ever appeared.
+ * `DashboardData` satisfies it, so every existing caller passes unchanged.
+ */
+export type MetricsData = Omit<DashboardData, 'copy'>;
+
 /** The role's cards over whichever data it is handed — pure, demo or live. */
-export function buildOverviewMetrics(role: BrandRole | 'admin', data: DashboardData): MetricCard[] {
+export function buildOverviewMetrics(role: BrandRole | 'admin', data: MetricsData): MetricCard[] {
   const cards = allMetricCards(data);
   const keys = CARD_KEYS_BY_ROLE[role];
   return keys === 'all' ? cards : cards.filter((card) => keys.includes(card.key));
@@ -482,4 +493,164 @@ export async function loadOverviewPanels(
     metrics: buildOverviewMetrics(role, data),
     pipeline: buildPipeline(data.briefs),
   };
+}
+
+// ── Cross-client overview (AI-09) ───────────────────────────────────────────
+
+/** A brand of the actor's book, as `listBrandsForActor` returns it. */
+export interface ActorBrand {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** One brand's slice of the cross-client Overview: its name and its role-scoped metric cards. */
+export interface BrandPanel {
+  readonly brandId: string;
+  readonly brandName: string;
+  readonly metrics: MetricCard[];
+}
+
+function neonConnection(databaseUrl: string): DbConnection {
+  return requestConnection(databaseUrl);
+}
+
+/** Opens a connection, runs `query`, and always closes it — the request's shared pool in production. */
+async function withDb<T>(deps: BriefSourceDeps, query: (db: Db) => Promise<T>): Promise<T> {
+  const connect = deps.connect ?? neonConnection;
+  const databaseUrl = serverEnv().DATABASE_URL;
+  if (databaseUrl === undefined) {
+    throw new Error('DATABASE_URL is not configured.');
+  }
+  const connection = connect(databaseUrl);
+  try {
+    return await query(connection.db);
+  } finally {
+    await connection.close();
+  }
+}
+
+/**
+ * The signed-in actor's book: the live, non-template brands their `brand_assignments` rows name,
+ * INTERSECTED with the brands the session's agency scope may select. The intersection is the
+ * tenancy guard: an assignment row pointing at another agency's brand (the moonlighting shape
+ * `team.test.ts` constructs) must not put that brand on this Overview — and it is also what makes
+ * the per-brand reads below exact, because `pickActiveBrand` honours a requested brand id only when
+ * it names one of the scope's options and silently falls back to the first brand otherwise. Every
+ * id this returns is therefore an id the resolver will honour as-is.
+ *
+ * Demo mode is the one demo brand and no connection, so there is no book to read: empty, which the
+ * caller reads as "single-brand behaviour". A request with no signed-in user is the same. The
+ * agency resolution inside `loadBrandScope` is untouched, so an actor in two agencies with neither
+ * selected still fails with `AmbiguousBrandError` exactly as every other loader on the page does.
+ */
+export async function loadActorBrands(deps: BriefSourceDeps = {}): Promise<ActorBrand[]> {
+  if (inDemoMode(deps)) {
+    return [];
+  }
+  const scope = await (deps.actorScope ?? clerkActorScope)();
+  const clerkUserId = scope.clerkUserId;
+  if (clerkUserId === null) {
+    return [];
+  }
+  const [brandScope, assigned] = await Promise.all([
+    loadBrandScope(deps),
+    withDb(deps, (db) => listBrandsForActor(db, clerkUserId)),
+  ]);
+  const selectable = new Set(brandScope.options.map((brand) => brand.id));
+  return assigned.filter((brand) => selectable.has(brand.id));
+}
+
+/**
+ * One panel per brand of `brands`, each counted over THAT brand's rows: the `brandIds` seam of
+ * AI-09. The per-brand read is the same three loaders the single-brand Overview uses — never a
+ * parallel query path — handed `activeBrandId` pinned to the brand, so the scoping still runs
+ * through `resolveLiveBrandId`/`pickActiveBrand` and the scoped `@tas/db` queries. `loadCopy` is
+ * deliberately not among them: the cards read `MetricsData`, which has no copy (see the type).
+ *
+ * ONE CONNECTION for the whole fan-out, not one per brand: every loader reaches the database
+ * through `requestConnection` (`request-db.ts`), which keys one pool on the request, so N brands
+ * are N queries down a shared pool — the pattern `loadOverviewPanels` already follows. Demo mode
+ * returns no panels and opens nothing: the demo workspace has one brand, so a cross-client fan-out
+ * over fixtures could only fabricate N identical books.
+ */
+export async function loadBrandPanels(
+  role: BrandRole | 'admin',
+  brands: readonly ActorBrand[],
+  deps: BriefSourceDeps = {},
+): Promise<BrandPanel[]> {
+  if (inDemoMode(deps)) {
+    return [];
+  }
+  return Promise.all(
+    brands.map(async (brand) => {
+      const scoped: BriefSourceDeps = {
+        ...deps,
+        activeBrandId: () => Promise.resolve(brand.id),
+      };
+      const [briefs, concepts, creators] = await Promise.all([
+        loadBriefs(scoped),
+        loadConcepts(scoped),
+        loadUgc(scoped),
+      ]);
+      return {
+        brandId: brand.id,
+        brandName: brand.name,
+        metrics: buildOverviewMetrics(role, {
+          briefs: briefs.rows,
+          concepts: concepts.rows,
+          creators: creators.creators,
+        }),
+      };
+    }),
+  );
+}
+
+/**
+ * The cross-client panels the Overview page renders, or none. WHOSE brands is decided here, once:
+ * the signed-in actor's assignments (`loadActorBrands`). An actor with fewer than two — no
+ * assignments, like an agency admin, or a single brand — falls back to the current single-brand
+ * behaviour: no panels, nothing else on the page moves, and no per-brand read is spent repeating
+ * what `loadOverviewPanels` already counted for the active brand.
+ */
+export async function loadActorBrandPanels(
+  role: BrandRole | 'admin',
+  deps: BriefSourceDeps = {},
+): Promise<BrandPanel[]> {
+  const brands = await loadActorBrands(deps);
+  if (brands.length < 2) {
+    return [];
+  }
+  return loadBrandPanels(role, brands, deps);
+}
+
+/**
+ * TOTAL ASSETS, as the reference dashboard derives it: the sum of the metric-card counts. Both
+ * reference cards check out exactly — Victoria's 48+9+16+1+5+0+57+117+5+24+2 = 284 and Tammy's
+ * same eleven sum to 206 — so the number is defined by the cards on display, never a fourth query
+ * with a vocabulary of its own (AI-06).
+ */
+export function totalAssetCount(metrics: readonly MetricCard[]): number {
+  return metrics.reduce((sum, card) => sum + card.count, 0);
+}
+
+/** `284 total assets`, singular-safe; the card renders it uppercase with CSS, never a new string. */
+export function totalAssetsLabel(count: number): string {
+  return `${String(count)} total ${count === 1 ? 'asset' : 'assets'}`;
+}
+
+/**
+ * The card shell's header line, after the reference's "ADVERTISING CSM · 15 CLIENTS · 284 TOTAL
+ * ASSETS": the viewer's role label (`BRAND_ROLE_LABELS`, never a magic string), the size of their
+ * book and its combined asset total — every number derived from the panels, which is what makes
+ * the shell's one hardcodable line impossible to hardcode. Title case here; the heading uppercases
+ * with CSS, the same split the Overview's own eyebrow uses.
+ */
+export function brandPanelsHeader(
+  role: BrandRole | 'admin',
+  panels: readonly BrandPanel[],
+): string {
+  const label = role === 'admin' ? 'Admin' : BRAND_ROLE_LABELS[role];
+  const clients = `${String(panels.length)} ${panels.length === 1 ? 'client' : 'clients'}`;
+  const total = panels.reduce((sum, panel) => sum + totalAssetCount(panel.metrics), 0);
+  return `${label} · ${clients} · ${totalAssetsLabel(total)}`;
 }
