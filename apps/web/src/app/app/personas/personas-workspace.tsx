@@ -11,6 +11,7 @@ import {
   useTableView,
   ViewToolbar,
   GalleryView,
+  ListView,
   galleryItemsFrom,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
@@ -170,7 +171,7 @@ export function PersonasWorkspace({
   demo,
   initialSelection,
   initialSearch,
-  initialView = 'grid',
+  initialView,
   userViews,
   angleOptions = [],
 }: PersonasWorkspaceProps) {
@@ -228,7 +229,10 @@ export function PersonasWorkspace({
     userId: userViews.userId,
     initialViews: userViews.views,
     defaultViewType: 'grid',
-    initialViewType: initialView,
+    // A HARDCODED 'grid' here used to override the saved view's own type on every load, which
+    // the hook's contract reserves for an explicit `?view=` (and which would have pinned the new
+    // List view shut). No URL value means no override.
+    initialViewType: initialView ?? null,
     fieldKeys,
     onActivate: adoptView,
   });
@@ -347,6 +351,16 @@ export function PersonasWorkspace({
             visibleFields={tableView.config.visibleFields}
             selectedId={selection}
             cardSlot="persona-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
+        ) : activeView === 'list' ? (
+          <ListView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            rowSlot="persona-list-row"
             onItemClick={(item) => {
               select(item.id);
             }}

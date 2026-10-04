@@ -121,6 +121,9 @@ describe('parseUserViewConfig', () => {
     expect(parseUserViewConfig({ viewType: 'bogus', sort: { key: 'x' } }).viewType).toBe('grid');
     expect(parseUserViewConfig({ viewType: 'bogus' }).sort).toBeNull();
     expect(parseUserViewConfig({}).visibleFields).toBeNull();
+    // 'list' is a real view type (AI-17): a saved list view survives the parse rather than
+    // degrading to the fallback the way an unknown word does.
+    expect(parseUserViewConfig({ viewType: 'list' }).viewType).toBe('list');
   });
 
   it('keeps a stored cover column and reads an empty string as the page default', () => {

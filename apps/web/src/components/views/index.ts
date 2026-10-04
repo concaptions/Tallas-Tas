@@ -1,6 +1,7 @@
 export { ViewSwitcher } from './view-switcher';
 export { KanbanBoard, type KanbanItem } from './kanban-board';
 export { GalleryView, initialTone, type GalleryField, type GalleryItem } from './gallery-view';
+export { ListView, type ListChip } from './list-view';
 export { CoverMenu } from './cover-menu';
 export { FieldsMenu, type FieldOption } from './fields-menu';
 export { FreezeMenu } from './freeze-menu';

@@ -18,7 +18,9 @@ import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   KanbanBoard,
   GalleryView,
+  ListView,
   type KanbanItem,
+  type ListChip,
   coverFieldOptions,
   useTableView,
   ViewToolbar,
@@ -454,6 +456,16 @@ export function UgcWorkspace({
     return labels;
   }, [kanbanColumns]);
 
+  /** The list rows wear the creator's INTERNAL status — the same track the board groups by. */
+  const listChips = useMemo(() => {
+    const chips: Record<string, ListChip> = {};
+    for (const creator of visibleCreators) {
+      const entry = creatorTracks(creator).find((candidate) => candidate.key === 'internal');
+      if (entry !== undefined) chips[creator.id] = { label: entry.statusLabel, tone: entry.tone };
+    }
+    return chips;
+  }, [visibleCreators]);
+
   /**
    * The cover columns a viewer may pick between here (action item 16): the two media columns the
    * creators capability declares, narrowed to the ones this brand actually resolves and labelled
@@ -626,6 +638,17 @@ export function UgcWorkspace({
               visibleFields={tableView.config.visibleFields}
               selectedId={selection}
               cardSlot="creator-gallery-card"
+              onItemClick={(item) => {
+                select(item.id);
+              }}
+            />
+          ) : activeView === 'list' ? (
+            <ListView
+              items={galleryItems}
+              visibleFields={tableView.config.visibleFields}
+              selectedId={selection}
+              rowSlot="creator-list-row"
+              chips={listChips}
               onItemClick={(item) => {
                 select(item.id);
               }}

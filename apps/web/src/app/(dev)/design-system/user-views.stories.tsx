@@ -9,7 +9,7 @@ import {
   type ViewType,
 } from '@tas/domain';
 
-import { FieldsMenu, GalleryView, ViewsMenu, ViewToolbar } from '@/components/views';
+import { FieldsMenu, GalleryView, ListView, ViewsMenu, ViewToolbar } from '@/components/views';
 
 /**
  * The per-user view controls (Sprint 7, VIEWS-01; UI governance rule 4): the toolbar that sits
@@ -198,6 +198,64 @@ export function GalleryInitialTileStory() {
         },
       ]}
       visibleFields={['status', 'platform']}
+    />
+  );
+}
+
+/**
+ * The List view (AI-17): one record per compact row — the name, up to two labelled values, and the
+ * record's status chip where the page provides one. The items are the SAME `GalleryItem`s the
+ * gallery renders and the chips wear `chipTone`'s tones through the one `StatusChip` primitive.
+ * The third row shows the cap: a record with more fields than the list shows still reads as two
+ * labelled values, because the list is a scan and the grid is where every column lives. Generated
+ * names (Concepts) render in `font-mono` through `monoNames`.
+ */
+export function ListViewStory() {
+  return (
+    <ListView
+      monoNames
+      items={[
+        {
+          id: 'l1',
+          name: 'B1-Your Body Clock Is Not Broken-Problem/Solution',
+          imageUrl: null,
+          mediaType: 'image',
+          subtitle: 'Niagara Sleep Solutions',
+          fields: [
+            { key: 'batch', label: 'Batch', value: 'B1' },
+            { key: 'theme', label: 'Theme', value: 'Problem/Solution' },
+          ],
+        },
+        {
+          id: 'l2',
+          name: 'B2-It Is Not Just Your Age-Green Screen',
+          imageUrl: null,
+          mediaType: 'image',
+          fields: [
+            { key: 'batch', label: 'Batch', value: 'B2' },
+            { key: 'theme', label: 'Theme', value: 'Green Screen' },
+          ],
+        },
+        {
+          id: 'l3',
+          name: 'B2-Daylight Is Not The Enemy-POV',
+          imageUrl: null,
+          mediaType: 'image',
+          fields: [
+            { key: 'batch', label: 'Batch', value: 'B2' },
+            { key: 'theme', label: 'Theme', value: 'POV' },
+            { key: 'category', label: 'Category', value: 'New' },
+          ],
+        },
+      ]}
+      chips={{
+        l1: { label: 'Videos Revisions', tone: 'warn' },
+        l2: { label: 'Video Editing In Progress', tone: 'info' },
+        l3: { label: 'Ad Submitted', tone: 'ok' },
+      }}
+      onItemClick={() => {
+        /* story */
+      }}
     />
   );
 }

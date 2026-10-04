@@ -59,10 +59,27 @@ describe('TABLE_VIEW_CAPABILITIES', () => {
     });
   });
 
-  it('products is grid and gallery, never kanban (it has no status to group by)', () => {
+  it('products is grid, gallery and list, never kanban (it has no status to group by)', () => {
     const cap = TABLE_VIEW_CAPABILITIES['products'];
     expect(cap).toBeDefined();
-    expect(cap?.supportedViews).toEqual(['grid', 'gallery']);
+    expect(cap?.supportedViews).toEqual(['grid', 'gallery', 'list']);
+  });
+
+  it('the six core tables offer the list — the compact reading of the same rows (AI-17)', () => {
+    for (const key of ['products', 'personas', 'angles', 'themes', 'concepts', 'creators']) {
+      expect(TABLE_VIEW_CAPABILITIES[key]?.supportedViews, key).toContain('list');
+    }
+  });
+
+  it('the list stays on the six data tables: no module table grew one unasked', () => {
+    // AI-17 names six tables. A list on, say, Performance would be a new product decision,
+    // not a side effect of this change.
+    for (const [key, cap] of Object.entries(TABLE_VIEW_CAPABILITIES)) {
+      if (['products', 'personas', 'angles', 'themes', 'concepts', 'creators'].includes(key)) {
+        continue;
+      }
+      expect(cap.supportedViews, key).not.toContain('list');
+    }
   });
 
   it('no data table offers Kanban, and none keeps a kanbanField (action item 18)', () => {
@@ -78,7 +95,11 @@ describe('TABLE_VIEW_CAPABILITIES', () => {
 
   it('the data tables keep the grid and the gallery — the lens went, the views did not', () => {
     for (const key of DATA_TABLES) {
-      expect(TABLE_VIEW_CAPABILITIES[key]?.supportedViews, key).toEqual(['grid', 'gallery']);
+      expect(TABLE_VIEW_CAPABILITIES[key]?.supportedViews, key).toEqual([
+        'grid',
+        'gallery',
+        'list',
+      ]);
     }
   });
 

@@ -92,7 +92,7 @@ function headers(page: Page, entry: TableCase) {
   return page.locator(`[data-slot="${entry.tableSlot}"] thead th`);
 }
 
-async function switchView(page: Page, name: 'Grid' | 'Gallery') {
+async function switchView(page: Page, name: 'Grid' | 'Gallery' | 'List') {
   await page
     .locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]', { hasText: name })
     .click();
@@ -334,6 +334,53 @@ test.describe('per-user views in demo mode (no Clerk publishable key)', () => {
         .locator('[data-slot="gallery-field"]')
         .first(),
     ).toHaveAttribute('data-field', third ?? '');
+  });
+
+  test('the List view is one compact row per record, honours hidden fields, and survives a reload', async ({
+    page,
+  }) => {
+    // AI-17: the List is the same rows under the same view config — the name, at most two labelled
+    // values derived from the same columns the grid renders, and the Fields popover still rules
+    // what shows. It persists like any other view type: into this viewer's view, read back on load.
+    await page.goto(productsPath);
+    await switchView(page, 'List');
+    await expect(page.locator('[data-slot="list-view"]')).toBeVisible();
+    await expect(page.locator('[data-slot="products-table"]')).toHaveCount(0);
+
+    const rows = page.locator('[data-slot="product-list-row"]');
+    await expect(rows.first()).toBeVisible();
+    const fieldCounts = await rows.evaluateAll((nodes) =>
+      nodes.map((node) => node.querySelectorAll('[data-slot="list-field"]').length),
+    );
+    expect(fieldCounts.length).toBeGreaterThan(0);
+    for (const count of fieldCounts) expect(count).toBeLessThanOrEqual(2);
+
+    // Hide the first labelled value through the SAME Fields popover the grid uses: the list drops
+    // it and the next visible column takes its place rather than leaving a hole.
+    const firstField = await rows
+      .first()
+      .locator('[data-slot="list-field"]')
+      .first()
+      .getAttribute('data-field');
+    expect(firstField).not.toBeNull();
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-fields"]').click();
+    await page.locator(`[data-slot="grid-field-toggle"][data-field="${firstField ?? ''}"]`).click();
+    await page.keyboard.press('Escape');
+    await expect(
+      rows.first().locator(`[data-slot="list-field"][data-field="${firstField ?? ''}"]`),
+    ).toHaveCount(0);
+
+    // The choice persisted into this viewer's view, and a reload comes back ON the List with the
+    // field still hidden.
+    await expect(page.locator('[data-slot="views-menu"]')).toHaveText('My view');
+    await page.reload();
+    await expect(page.locator('[data-slot="list-view"]')).toBeVisible();
+    await expect(
+      page
+        .locator('[data-slot="product-list-row"]')
+        .first()
+        .locator(`[data-slot="list-field"][data-field="${firstField ?? ''}"]`),
+    ).toHaveCount(0);
   });
 
   test('the Freeze control is a Grid control: the Gallery does not offer one', async ({ page }) => {

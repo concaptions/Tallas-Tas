@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import {
@@ -17,8 +18,10 @@ import {
   ColumnNotices,
   GalleryView,
   galleryItemsFrom,
+  ListView,
   useTableView,
   ViewToolbar,
+  type ListChip,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import {
@@ -30,6 +33,7 @@ import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
 
+import { ConceptPanel } from './concept-panel';
 import {
   EM_DASH,
   NEW_CONCEPT,
@@ -70,10 +74,12 @@ import {
  * search — a different sentence from the brand that has no concepts at all, because those are
  * different problems with different ways out (`NO_MATCH_NOTE` and `NO_CONCEPTS_NOTE`).
  *
- * A row and a card are the same thing: a click on either navigates to `/app/concepts/<id>`, a real
- * route segment, so the list is gone and Back restores it with the `?view=` it had. This is
- * deliberately NOT a side panel — a concept carries a brief, an inherited block and an approval
- * rail, which is a page's worth of material.
+ * A row, a card and a list row are the same thing: a click on any of them opens the side panel
+ * (AI-17, the operator's ruling — the shipped brief-panel pattern), so the list, the search and
+ * the view stay exactly where they were. The generated NAME — in the grid row and in the panel —
+ * is the real `<Link>` to `/app/concepts/<id>` (AI-52): editing a concept is still a page's worth
+ * of material (the pairing, the inherited block, the approval rail), it is just one deliberate
+ * navigation away instead of the price of a glance.
  */
 interface ConceptsWorkspaceProps {
   readonly items: readonly ConceptItem[];
@@ -100,11 +106,6 @@ const CONCEPTS_CAP = getTableCapability('concepts') as NonNullable<
  * instead of 404ing. It now lands on the grid, and the first thing that syncs the URL — a search, a
  * view switch — drops the stale parameter (action item 18).
  */
-const VIEW_TYPE_OF: Record<ConceptView, ViewType> = {
-  table: 'grid',
-  board: 'grid',
-  gallery: 'gallery',
-};
 function conceptViewOf(viewType: ViewType): ConceptView {
   return viewType === 'gallery' ? 'gallery' : 'table';
 }
@@ -149,9 +150,21 @@ function syncUrl(view: ConceptView, search: string): void {
 const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   name: {
     render: (item) => (
-      <span data-slot="concept-row-name" className="font-mono text-xs">
+      /*
+       * A REAL LINK (AI-52): the generated name is the way to the concept's own page, so it can be
+       * cmd-clicked, middle-clicked and copied. A plain click follows it too — the stopPropagation
+       * only keeps the ROW's click (which opens the panel) from firing underneath the navigation.
+       */
+      <Link
+        href={item.href}
+        data-slot="concept-row-name"
+        className="font-mono text-xs hover:underline"
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+      >
         {item.name}
-      </span>
+      </Link>
     ),
     sortValue: (item) => item.name,
   },
@@ -250,6 +263,7 @@ export function ConceptsWorkspace({
   );
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
+  const [selection, setSelection] = useState<string | null>(null);
   const viewRef = useRef<ConceptView>(initialView);
 
   const filter = useCallback((next: string) => {
@@ -270,7 +284,12 @@ export function ConceptsWorkspace({
     userId: userViews.userId,
     initialViews: userViews.views,
     defaultViewType: 'grid',
-    initialViewType: VIEW_TYPE_OF[initialView],
+    // Only an EXPLICIT `?view=gallery` overrides the saved view's own type. `table` is both the
+    // default and the word the server narrows every absent or stale value to, so passing it
+    // through as an override would pin a saved Gallery or List view back to the grid on every
+    // plain load of the page — the hook reserves the override for a view someone actually asked
+    // for in the URL.
+    initialViewType: initialView === 'gallery' ? 'gallery' : null,
     fieldKeys,
     onActivate: adoptView,
   });
@@ -299,12 +318,14 @@ export function ConceptsWorkspace({
     onSearch('');
   }, [onSearch]);
 
-  const open = useCallback(
-    (item: ConceptItem) => {
-      router.push(item.href);
-    },
-    [router],
-  );
+  /** A click on a row, card or list row opens the panel; only the NAME link navigates. */
+  const open = useCallback((item: ConceptItem) => {
+    setSelection(item.id);
+  }, []);
+
+  const closePanel = useCallback(() => {
+    setSelection(null);
+  }, []);
 
   const create = useCallback(() => {
     router.push(conceptPath(NEW_CONCEPT));
@@ -332,6 +353,16 @@ export function ConceptsWorkspace({
       ),
     [visible, grid, tableView.config.fieldOrder],
   );
+
+  /** The list rows wear the concept's INTERNAL status, the same chip the grid column shows. */
+  const listChips = useMemo(() => {
+    const chips: Record<string, ListChip> = {};
+    for (const item of visible)
+      chips[item.id] = { label: item.status.label, tone: item.status.tone };
+    return chips;
+  }, [visible]);
+
+  const openConcept = visible.find((item) => item.id === selection) ?? null;
 
   const newConcept = (
     <Button
@@ -442,11 +473,25 @@ export function ConceptsWorkspace({
               </DisabledWrite>
             )}
           </div>
-        ) : view === 'gallery' ? (
+        ) : activeView === 'gallery' ? (
           <GalleryView
             items={galleryItems}
             visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
             cardSlot="concept-card"
+            onItemClick={(item) => {
+              const target = visible.find((candidate) => candidate.id === item.id);
+              if (target !== undefined) open(target);
+            }}
+          />
+        ) : activeView === 'list' ? (
+          <ListView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            rowSlot="concept-list-row"
+            chips={listChips}
+            monoNames
             onItemClick={(item) => {
               const target = visible.find((candidate) => candidate.id === item.id);
               if (target !== undefined) open(target);
@@ -462,6 +507,7 @@ export function ConceptsWorkspace({
             rowId={(item) => item.id}
             rowLabel={(item) => item.name}
             rowAttributes={(item) => ({ 'data-concept-id': item.id })}
+            selectedId={selection}
             onRowClick={(item) => {
               open(item);
             }}
@@ -470,6 +516,8 @@ export function ConceptsWorkspace({
           />
         )}
       </section>
+
+      {openConcept === null ? null : <ConceptPanel item={openConcept} onClose={closePanel} />}
     </div>
   );
 }

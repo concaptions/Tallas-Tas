@@ -97,7 +97,8 @@ export function parseUserViewConfig(
       viewType === 'grid' ||
       viewType === 'kanban' ||
       viewType === 'gallery' ||
-      viewType === 'timeline'
+      viewType === 'timeline' ||
+      viewType === 'list'
         ? viewType
         : fallbackViewType,
     visibleFields:

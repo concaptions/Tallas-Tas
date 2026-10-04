@@ -18,6 +18,7 @@ import {
   ColumnNotices,
   GalleryView,
   galleryItemsFrom,
+  ListView,
   useTableView,
   ViewToolbar,
 } from '@/components/views';
@@ -419,6 +420,16 @@ export function ProductsWorkspace({
             visibleFields={tableView.config.visibleFields}
             selectedId={selection}
             cardSlot="product-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
+        ) : activeView === 'list' ? (
+          <ListView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            rowSlot="product-list-row"
             onItemClick={(item) => {
               select(item.id);
             }}

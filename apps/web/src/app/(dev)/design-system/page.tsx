@@ -149,6 +149,7 @@ import {
   FieldsArrangeStory,
   FieldsMenuStory,
   GalleryInitialTileStory,
+  ListViewStory,
   ViewsMenuStory,
   ViewToolbarStory,
 } from './user-views.stories';
@@ -1002,6 +1003,12 @@ export default function DesignSystemPage() {
               gallery — initial tile when a record has no picture; hidden field lines stay hidden
             </h3>
             <GalleryInitialTileStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              list — one compact row per record: name, two labelled values, status chip (AI-17)
+            </h3>
+            <ListViewStory />
           </div>
           <div className="flex flex-wrap gap-6">
             <div className="flex flex-col gap-2">

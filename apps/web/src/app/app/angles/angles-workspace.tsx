@@ -16,6 +16,7 @@ import {
   useTableView,
   ViewToolbar,
   GalleryView,
+  ListView,
   galleryItemsFrom,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
@@ -257,7 +258,7 @@ export function AnglesWorkspace({
   demo,
   initialSelection,
   initialSearch,
-  initialView = 'grid',
+  initialView,
   userViews,
   columns,
   unconfiguredColumns = false,
@@ -299,7 +300,10 @@ export function AnglesWorkspace({
     userId: userViews.userId,
     initialViews: userViews.views,
     defaultViewType: 'grid',
-    initialViewType: initialView,
+    // A HARDCODED 'grid' here used to override the saved view's own type on every load, which
+    // the hook's contract reserves for an explicit `?view=` (and which would have pinned the new
+    // List view shut). No URL value means no override.
+    initialViewType: initialView ?? null,
     fieldKeys,
     onActivate: adoptView,
   });
@@ -443,6 +447,16 @@ export function AnglesWorkspace({
             visibleFields={tableView.config.visibleFields}
             selectedId={selection}
             cardSlot="angle-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
+        ) : activeView === 'list' ? (
+          <ListView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            rowSlot="angle-list-row"
             onItemClick={(item) => {
               select(item.id);
             }}

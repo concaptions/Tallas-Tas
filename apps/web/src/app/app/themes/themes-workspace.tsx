@@ -7,7 +7,13 @@ import type { ViewType } from '@tas/domain';
 import { getTableCapability } from '@tas/domain';
 import { Button, Input } from '@tas/ui';
 
-import { useTableView, ViewToolbar, GalleryView, galleryItemsFrom } from '@/components/views';
+import {
+  useTableView,
+  ViewToolbar,
+  GalleryView,
+  galleryItemsFrom,
+  ListView,
+} from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
@@ -466,6 +472,16 @@ export function ThemesWorkspace({
             visibleFields={tableView.config.visibleFields}
             selectedId={selection}
             cardSlot="theme-gallery-card"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
+        ) : activeView === 'list' ? (
+          <ListView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            rowSlot="theme-list-row"
             onItemClick={(item) => {
               select(item.id);
             }}

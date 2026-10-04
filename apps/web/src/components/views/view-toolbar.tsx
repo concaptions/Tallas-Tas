@@ -57,7 +57,7 @@ interface ViewToolbarProps {
 
 /**
  * The strip above every one of the six tables (Sprint 7, VIEWS-01): the view type switch, the
- * viewer's saved views, the Fields popover (Grid and Gallery only — a Kanban column is not a
+ * viewer's saved views, the Fields popover (Grid, Gallery and List — a Kanban column is not a
  * field), the Freeze popover on the Grid (action item 22) and the Cover popover on the Gallery
  * (action item 16). One component so the controls sit in the same place on every page, and so a
  * control that makes no sense for the active view is simply not there.
@@ -124,7 +124,7 @@ export function ViewToolbar({
         onDelete={onDeleteView}
         error={error}
       />
-      {activeView === 'grid' || activeView === 'gallery' ? (
+      {activeView === 'grid' || activeView === 'gallery' || activeView === 'list' ? (
         <FieldsMenu
           fields={arrangedFields}
           isVisible={isFieldVisible}

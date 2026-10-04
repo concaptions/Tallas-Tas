@@ -1,4 +1,4 @@
-export type ViewType = 'grid' | 'kanban' | 'gallery' | 'timeline';
+export type ViewType = 'grid' | 'kanban' | 'gallery' | 'timeline' | 'list';
 
 export interface KanbanFieldOption {
   readonly field: string;
@@ -157,7 +157,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   concepts: {
     tableKey: 'concepts',
     label: 'Concepts',
-    supportedViews: ['grid', 'gallery'],
+    supportedViews: ['grid', 'gallery', 'list'],
     kanbanFields: [],
     galleryFields: [],
     timelineDates: null,
@@ -177,7 +177,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   creators: {
     tableKey: 'creators',
     label: 'UGC Creators',
-    supportedViews: ['grid', 'kanban', 'gallery'],
+    supportedViews: ['grid', 'kanban', 'gallery', 'list'],
     kanbanFields: [
       { field: 'internalCreatorStatus', label: 'Internal Status' },
       { field: 'clientStatus', label: 'Client Status' },
@@ -196,7 +196,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   personas: {
     tableKey: 'personas',
     label: 'Personas',
-    supportedViews: ['grid', 'gallery'],
+    supportedViews: ['grid', 'gallery', 'list'],
     kanbanFields: [],
     galleryFields: [],
     timelineDates: null,
@@ -213,7 +213,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   themes: {
     tableKey: 'themes',
     label: 'Themes',
-    supportedViews: ['grid', 'gallery'],
+    supportedViews: ['grid', 'gallery', 'list'],
     kanbanFields: [],
     galleryFields: [{ field: 'attachments', label: 'First attachment', mediaType: 'image' }],
     timelineDates: null,
@@ -222,7 +222,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   angles: {
     tableKey: 'angles',
     label: 'Angles',
-    supportedViews: ['grid', 'gallery'],
+    supportedViews: ['grid', 'gallery', 'list'],
     kanbanFields: [],
     galleryFields: [],
     timelineDates: null,
@@ -238,7 +238,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   products: {
     tableKey: 'products',
     label: 'Products',
-    supportedViews: ['grid', 'gallery'],
+    supportedViews: ['grid', 'gallery', 'list'],
     kanbanFields: [],
     galleryFields: [],
     timelineDates: null,

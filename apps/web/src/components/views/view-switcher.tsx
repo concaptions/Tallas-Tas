@@ -14,6 +14,7 @@ const VIEW_LABELS: Record<ViewType, string> = {
   kanban: 'Kanban',
   gallery: 'Gallery',
   timeline: 'Timeline',
+  list: 'List',
 };
 
 interface ViewSwitcherProps {
