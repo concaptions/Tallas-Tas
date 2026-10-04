@@ -12,6 +12,7 @@ import {
   type CreativeDimensionEntry,
 } from '@tas/domain/creatives';
 import type { InspoLinkKind } from '@tas/domain/angles';
+import { inheritedFromAngle } from '@tas/domain/concepts';
 import {
   CLIENT_STATUS,
   chipTone,
@@ -106,6 +107,47 @@ export const SEARCH_PARAM = 'q';
 /** The name of one row linked by a foreign key, or `null` when the link is absent or no longer live. */
 export function linkedName(id: string | null, names: ReadonlyMap<string, string>): string | null {
   return id === null ? null : (names.get(id) ?? null);
+}
+
+/**
+ * The PERSONA a brief inherits (AI-54, PRD §5.10: "Concept (link) → auto-fills Batch, Angle,
+ * Persona, Product").
+ *
+ * A brief has no persona column, and never should: the persona hangs off the ANGLE, so the chain is
+ * brief → angle → personas, and the one place that chain is resolved is
+ * `inheritedFromAngle` in `@tas/domain/concepts` — the same function the concept detail reads its
+ * five inherited fields from. This is only the adapter: it turns the angle row the facts list is
+ * already naming into that function's structural input and returns the `personaName` entry.
+ *
+ * EVERY persona of the angle, comma-joined, not the first of several — `angle_personas` is a
+ * junction, and `inheritedFromAngle` already joins the list when it is given one. That matters here
+ * because the fact sits beside Angle and Product, which carry the opposite, honestly-documented
+ * caveat (the concept's FIRST angle and that angle's FIRST product).
+ */
+export interface BriefPersonaAngle {
+  readonly personaIds: readonly string[];
+  /** The angle's first persona, already resolved — the fallback when no id maps to a name. */
+  readonly personaName: string | null;
+}
+
+export function briefPersonaName(
+  angle: BriefPersonaAngle | null,
+  personaNames: ReadonlyMap<string, string>,
+): string | null {
+  if (angle === null) {
+    return null;
+  }
+  const [persona] = inheritedFromAngle({
+    description: null,
+    painPoints: null,
+    usp: null,
+    personaName: angle.personaName,
+    productName: null,
+    personaNames: angle.personaIds
+      .map((id) => personaNames.get(id) ?? '')
+      .filter((name) => name !== ''),
+  }).filter((field) => field.key === 'personaName');
+  return persona?.value ?? null;
 }
 
 /**
@@ -596,6 +638,7 @@ export const BRIEF_HEADINGS = {
   concept: 'Concept',
   batch: 'Batch',
   angle: 'Angle',
+  persona: 'Persona',
   product: 'Product',
   performance: 'Performance',
   assignee: 'Assignee',

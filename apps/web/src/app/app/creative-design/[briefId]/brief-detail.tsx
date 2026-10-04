@@ -159,6 +159,13 @@ interface BriefDetailProps {
    */
   readonly angleName: string | null;
   readonly productName: string | null;
+  /**
+   * Every persona of the angle the facts list names, comma-joined on the server (AI-54); null when
+   * there is no angle to follow or it links no persona. A brief has no persona column: the chain is
+   * brief → angle → `angle_personas`, resolved by `briefPersonaName` through the domain's own
+   * `inheritedFromAngle`.
+   */
+  readonly personaName: string | null;
   /** The linked collection's and asset's names, resolved on the server; null when unlinked. */
   readonly collectionName: string | null;
   readonly assetName: string | null;
@@ -259,11 +266,13 @@ function LinkedRecordCard({ record }: { readonly record: BriefLinkedRecord }) {
  * it re-derives the name from the concept row it reads itself.
  *
  * THE CONCEPT CARD IS LABELLED. The card still shows the concept's own `Batch-Angle-Theme` name,
- * and under it a definition list names Batch, Angle and Product (PRD §5.10: "Concept (link) →
- * auto-fills Batch, Angle, Persona, Product"). Angle and Product read the brief's OWN `angle_id`
- * and `product_id` first — the live import writes them straight on the row — and fall back to the
- * pair inherited through the concept, then to the em dash. The list renders in BOTH branches,
- * because a standalone brief still carries its own batch and may carry its own angle and product.
+ * and under it a definition list names ALL FOUR fields PRD §5.10 says a concept link auto-fills —
+ * Batch, Angle, Persona and Product. Angle and Product read the brief's OWN `angle_id` and
+ * `product_id` first — the live import writes them straight on the row — and fall back to the pair
+ * inherited through the concept, then to the em dash. Persona is not a column on either the brief or
+ * the concept: it hangs off the ANGLE, so it is resolved from whichever angle the Angle fact above
+ * it names, through `inheritedFromAngle` in `@tas/domain/concepts` (AI-54). The list renders in BOTH
+ * branches, because a standalone brief still carries its own batch and may carry its own angle.
  *
  * PERFORMANCE IS THE SECOND SELECT. `creative_briefs.performance` is graded after launch (PRD
  * §5.10) and is null until then, so the dropdown offers the schema's three grades plus "Not graded
@@ -293,6 +302,7 @@ export function BriefDetail({
   conceptOptions,
   angleName,
   productName,
+  personaName,
   collectionName,
   assetName,
   copyLinks,
@@ -531,14 +541,16 @@ export function BriefDetail({
             )}
 
             {/*
-              Batch, Angle and Product, each under its own label. Batch comes from the concept or,
-              standalone, from the row. Angle and Product read the brief's OWN links first (the
-              import writes `angle_id` / `product_id` on the row), then the pair inherited through
-              the concept — which follows the concept's first angle and that angle's first product,
-              so it can name the wrong one of several — and show the em dash when neither is set,
-              rather than disappearing.
+              Batch, Angle, Persona and Product, each under its own label — the four fields PRD
+              §5.10 names (AI-54). Batch comes from the concept or, standalone, from the row. Angle
+              and Product read the brief's OWN links first (the import writes `angle_id` /
+              `product_id` on the row), then the pair inherited through the concept — which follows
+              the concept's first angle and that angle's first product, so it can name the wrong one
+              of several. Persona follows the same angle and lists EVERY persona linked to it, since
+              `angle_personas` is a junction and there is no "first" to prefer. All four show the em
+              dash when nothing is set, rather than disappearing.
             */}
-            <dl data-slot="brief-concept-facts" className="grid min-w-0 grid-cols-3 gap-3">
+            <dl data-slot="brief-concept-facts" className="grid min-w-0 grid-cols-2 gap-3">
               {conceptFact(
                 BRIEF_HEADINGS.batch,
                 concept?.batch ?? brief.batch,
@@ -551,6 +563,7 @@ export function BriefDetail({
                 'brief-angle',
                 false,
               )}
+              {conceptFact(BRIEF_HEADINGS.persona, personaName, 'brief-persona', false)}
               {conceptFact(
                 BRIEF_HEADINGS.product,
                 productName ?? concept?.productName ?? null,

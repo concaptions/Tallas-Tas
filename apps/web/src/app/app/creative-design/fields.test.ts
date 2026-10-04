@@ -23,6 +23,7 @@ import {
   clientStatusView,
   cpaVsTargetLabel,
   filteredBriefCountLabel,
+  briefPersonaName,
   briefStageView,
   indexBriefLinkCounts,
   internalStatusView,
@@ -159,6 +160,42 @@ describe('briefStageView', () => {
   it('is null for a status this build does not know, rather than guessing a stage', () => {
     expect(briefStageView('')).toBeNull();
     expect(briefStageView('sent_to_nobody')).toBeNull();
+  });
+});
+
+describe('briefPersonaName', () => {
+  const names = new Map([
+    ['persona-1', 'Night-shift nurse'],
+    ['persona-2', 'New parent'],
+  ]);
+
+  it('lists EVERY persona of the angle, in the angle’s own order', () => {
+    expect(
+      briefPersonaName(
+        { personaIds: ['persona-1', 'persona-2'], personaName: 'Night-shift nurse' },
+        names,
+      ),
+    ).toBe('Night-shift nurse, New parent');
+  });
+
+  it('is null when there is no angle to follow — the standalone case, never an error', () => {
+    expect(briefPersonaName(null, names)).toBeNull();
+  });
+
+  it('is null for an angle that links no persona, so the fact shows the em dash', () => {
+    expect(briefPersonaName({ personaIds: [], personaName: null }, names)).toBeNull();
+  });
+
+  it('falls back to the resolved first persona when no id maps to a name', () => {
+    expect(
+      briefPersonaName({ personaIds: ['persona-9'], personaName: 'Night-shift nurse' }, names),
+    ).toBe('Night-shift nurse');
+  });
+
+  it('drops a link whose persona is another brand’s or soft-deleted rather than naming a blank', () => {
+    expect(
+      briefPersonaName({ personaIds: ['persona-9', 'persona-2'], personaName: null }, names),
+    ).toBe('New parent');
   });
 });
 

@@ -113,6 +113,12 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="brief-concept"]')).toBeVisible();
     await expect(page.locator('[data-slot="brief-rail"]')).toBeVisible();
 
+    // AI-54. The concept link auto-fills all FOUR fields PRD §5.10 names, so Persona has a row of
+    // its own beside Batch, Angle and Product — the em dash when the angle links none, never a gap.
+    const facts = page.locator('[data-slot="brief-concept-facts"]');
+    await expect(facts.locator('dt')).toHaveText(['Batch', 'Angle', 'Persona', 'Product']);
+    await expect(page.locator('[data-slot="brief-persona"]')).not.toHaveText('');
+
     // Colour-coded by stage: the chip carries the stage and its tone.
     const stage = page.locator('[data-slot="brief-stage"]');
     await expect(stage).toHaveAttribute('data-stage', 'incoming');
