@@ -5,6 +5,16 @@ export interface KanbanFieldOption {
   readonly label: string;
 }
 
+/**
+ * One candidate COVER for a table's gallery cards — "customise the card" asks for a choice of which
+ * image field covers it (action item 16), and this is the allow-list that choice is made from.
+ *
+ * `field` is the RESOLVER's column key (a Postgres column name), not a module's camelCase field
+ * name, because the picker is built from the brand's resolved column set: that way a column an
+ * admin hid or relabelled cannot be offered as a cover under a label the brand does not use, and a
+ * table with no media column simply shows no picker. `label` here is a fallback only — the label a
+ * viewer reads is the resolver's `display_label`.
+ */
 export interface GalleryFieldOption {
   readonly field: string;
   readonly label: string;
@@ -134,8 +144,8 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
       { field: 'language', label: 'Language' },
     ],
     galleryFields: [
-      { field: 'designFile', label: 'Design File', mediaType: 'image' },
-      { field: 'inspirationImage', label: 'Inspiration Image', mediaType: 'image' },
+      { field: 'design_file', label: 'Design File', mediaType: 'image' },
+      { field: 'inspiration_image', label: 'Inspiration Image', mediaType: 'image' },
     ],
     timelineDates: null,
   },
@@ -177,8 +187,8 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
       { field: 'platform', label: 'Platform' },
     ],
     galleryFields: [
-      { field: 'profilePicUrl', label: 'Profile Pic', mediaType: 'image' },
-      { field: 'videoIntroUrl', label: 'Video Intro', mediaType: 'video' },
+      { field: 'profile_pic_url', label: "Creator's Profile Pic", mediaType: 'image' },
+      { field: 'video_intro_url', label: "Creator's Video Intro", mediaType: 'video' },
     ],
     timelineDates: null,
   },

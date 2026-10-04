@@ -22,7 +22,9 @@ import {
  *
  * Then the Freeze control (action item 22): a prefix of the columns pinned, each at its own left
  * offset rather than all at zero, the header row pinned with them, and the whole choice saved into
- * the same per-user view the Fields popover writes.
+ * the same per-user view the Fields popover writes. Then the Cover control (action item 16): which
+ * image covers a gallery card, offered only on the Gallery and only where the table declares more
+ * than the one media column it already uses.
  */
 interface TableCase {
   readonly label: string;
@@ -217,6 +219,79 @@ test.describe('per-user views in demo mode (no Clerk publishable key)', () => {
     await expect(otherCells.nth(0)).toHaveCSS('position', 'sticky');
     await expect(otherCells.nth(1)).not.toHaveCSS('position', 'sticky');
     await other.close();
+  });
+
+  test('the Cover control picks which image covers a gallery card, and only where there is a choice', async ({
+    page,
+    browser,
+  }) => {
+    // Action item 16, "customise the card": the card LINES were already a choice (the Fields
+    // popover), the cover was not — every page hard-coded it, so a creator's Video Intro was
+    // declared a gallery media field in the capability registry and could never be selected.
+    await page.goto(ugcPath);
+    await switchView(page, 'Gallery');
+    const firstCard = page.locator('[data-slot="creator-gallery-card"]').first();
+
+    // The page default: the creator's profile picture, an <img> on the card.
+    await expect(firstCard.locator('img')).toHaveCount(1);
+    const cover = page.locator('[data-slot="view-toolbar"] [data-slot="gallery-cover"]');
+    await expect(cover).toBeVisible();
+
+    // Choose the Video Intro. The profile <img> goes, whatever the intro URL then loads as — the
+    // fallback for a row with no value in the chosen column is unit-tested in gallery-items.test.ts.
+    await cover.click();
+    await page
+      .locator('[data-slot="gallery-cover-option"][data-field="video_intro_url"]')
+      .click();
+    await page.keyboard.press('Escape');
+    await expect(firstCard.locator('img')).toHaveCount(0);
+
+    // It persisted into this viewer's active view, and a reload reads it back.
+    await expect(page.locator('[data-slot="views-menu"]')).toHaveText('My view');
+    await page.reload();
+    await switchView(page, 'Gallery');
+    await expect(page.locator('[data-slot="creator-gallery-card"]').first().locator('img')).toHaveCount(
+      0,
+    );
+
+    // "Page default" gives the hard-coded cover back rather than leaving the card blank.
+    await cover.click();
+    await page.locator('[data-slot="gallery-cover-option"][data-field="__default__"]').click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-slot="creator-gallery-card"]').first().locator('img')).toHaveCount(
+      1,
+    );
+
+    // It is a per-viewer lens: another browser profile still sees the page default.
+    const other = await browser.newContext();
+    const otherPage = await other.newPage();
+    await otherPage.goto(ugcPath);
+    await switchView(otherPage, 'Gallery');
+    await expect(
+      otherPage.locator('[data-slot="creator-gallery-card"]').first().locator('img'),
+    ).toHaveCount(1);
+    await other.close();
+  });
+
+  test('the Cover control is a Gallery control, and never offered where there is no media column', async ({
+    page,
+  }) => {
+    await page.goto(ugcPath);
+    // Not on the Grid: a frozen name cell is not a card cover.
+    await expect(
+      page.locator('[data-slot="view-toolbar"] [data-slot="gallery-cover"]'),
+    ).toHaveCount(0);
+    await switchView(page, 'Gallery');
+    await expect(page.locator('[data-slot="view-toolbar"] [data-slot="gallery-cover"]')).toBeVisible();
+
+    // Concepts declares no gallery media field, so its Gallery shows no picker at all rather than
+    // an empty one advertising a setting that cannot be made.
+    await page.goto(conceptsPath);
+    await switchView(page, 'Gallery');
+    await expect(page.locator('[data-slot="gallery-view"]')).toBeVisible();
+    await expect(
+      page.locator('[data-slot="view-toolbar"] [data-slot="gallery-cover"]'),
+    ).toHaveCount(0);
   });
 
   test('the Freeze control is a Grid control: the Gallery does not offer one', async ({ page }) => {

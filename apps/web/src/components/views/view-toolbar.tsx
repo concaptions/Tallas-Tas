@@ -10,6 +10,7 @@ import {
   type ViewType,
 } from '@tas/domain';
 
+import { CoverMenu } from './cover-menu';
 import { FieldsMenu, type FieldOption } from './fields-menu';
 import { FreezeMenu } from './freeze-menu';
 import { ViewSwitcher } from './view-switcher';
@@ -37,14 +38,23 @@ interface ViewToolbarProps {
    */
   readonly viewConfig?: UserViewConfig;
   readonly onFreezeChange?: (frozenFields: readonly string[]) => void;
+  /**
+   * The media columns this table allows as a gallery cover, already narrowed to the ones this brand
+   * resolves (`coverFieldOptions`). Given together with `onCoverChange`, the Gallery carries the
+   * Cover popover (action item 16); an empty list renders no control, which is the right answer for
+   * the four core tables that declare no media column.
+   */
+  readonly coverFields?: readonly FieldOption[];
+  readonly onCoverChange?: (coverField: string | null) => void;
   readonly error?: string | null;
 }
 
 /**
  * The strip above every one of the six tables (Sprint 7, VIEWS-01): the view type switch, the
- * viewer's saved views, the Fields popover (Grid and Gallery only — a Kanban column is not a field)
- * and, on the Grid, the Freeze popover (action item 22). One component so the controls sit in the
- * same place on every page.
+ * viewer's saved views, the Fields popover (Grid and Gallery only — a Kanban column is not a
+ * field), the Freeze popover on the Grid (action item 22) and the Cover popover on the Gallery
+ * (action item 16). One component so the controls sit in the same place on every page, and so a
+ * control that makes no sense for the active view is simply not there.
  */
 export function ViewToolbar({
   tableKey,
@@ -63,6 +73,8 @@ export function ViewToolbar({
   onToggleField,
   viewConfig,
   onFreezeChange,
+  coverFields = [],
+  onCoverChange,
   error = null,
 }: ViewToolbarProps) {
   // The freeze is a prefix of the columns AS THE VIEWER SEES THEM, so the active view's order and
@@ -94,6 +106,13 @@ export function ViewToolbar({
       />
       {activeView === 'grid' || activeView === 'gallery' ? (
         <FieldsMenu fields={fields} isVisible={isFieldVisible} onToggle={onToggleField} />
+      ) : null}
+      {activeView === 'gallery' && viewConfig !== undefined && onCoverChange !== undefined ? (
+        <CoverMenu
+          fields={coverFields}
+          coverField={viewConfig.coverField}
+          onCoverChange={onCoverChange}
+        />
       ) : null}
       {activeView === 'grid' && viewConfig !== undefined && onFreezeChange !== undefined ? (
         <FreezeMenu

@@ -26,6 +26,12 @@ export interface UserViewConfig {
   readonly sort: UserViewSort | null;
   /** The search query the view opens with. */
   readonly filter: string;
+  /**
+   * Which media column covers a gallery card, or `null` for the page's own default cover (action
+   * item 16, "customise the card"). A RESOLVER column key, chosen from the table's declared
+   * `galleryFields`, so a cover is always a column the brand actually resolves.
+   */
+  readonly coverField: string | null;
 }
 
 export interface UserView extends UserViewConfig {
@@ -66,6 +72,7 @@ export function defaultUserViewConfig(viewType: ViewType = 'grid'): UserViewConf
     frozenFields: [],
     sort: null,
     filter: '',
+    coverField: null,
   };
 }
 
@@ -101,6 +108,10 @@ export function parseUserViewConfig(
     frozenFields: strings(value.frozenFields),
     sort: sortValue,
     filter: typeof value.filter === 'string' ? value.filter : '',
+    // A stored cover is narrowed to "the page's default" unless it is a non-empty string. `''` is
+    // not a column key, and reading it as one would ask the gallery for a cover that cannot exist.
+    coverField:
+      typeof value.coverField === 'string' && value.coverField !== '' ? value.coverField : null,
   };
 }
 

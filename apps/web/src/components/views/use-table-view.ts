@@ -60,6 +60,8 @@ export interface TableViewState {
   readonly setFilter: (next: string) => void;
   /** The frozen (sticky) columns, as a prefix of the viewer's own column order (action item 22). */
   readonly setFrozenFields: (next: readonly string[]) => void;
+  /** The media column that covers a gallery card, or null for the page's default (action item 16). */
+  readonly setCoverField: (next: string | null) => void;
   readonly toggleField: (key: string) => void;
   readonly isFieldVisible: (key: string) => boolean;
   readonly createView: (name: string) => void;
@@ -290,6 +292,13 @@ export function useTableView({
     [patch],
   );
 
+  const setCoverField = useCallback(
+    (next: string | null) => {
+      patch({ coverField: next });
+    },
+    [patch],
+  );
+
   const setFilter = useCallback(
     (next: string) => {
       // Typing is persisted a beat after it stops, never per keystroke.
@@ -420,6 +429,7 @@ export function useTableView({
     setSort,
     setFilter,
     setFrozenFields,
+    setCoverField,
     toggleField,
     isFieldVisible,
     createView,

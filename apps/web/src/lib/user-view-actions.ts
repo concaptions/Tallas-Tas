@@ -46,6 +46,7 @@ interface ViewRow {
   readonly frozenFields: string[];
   readonly sort: { key: string; direction: 'asc' | 'desc' } | null;
   readonly filter: string;
+  readonly coverField: string | null;
   readonly isActive: boolean;
 }
 
@@ -118,6 +119,7 @@ function configInput(
     frozenFields?: string[];
     sort?: { key: string; direction: 'asc' | 'desc' } | null;
     filter?: string;
+    coverField?: string | null;
   } = {};
   if (config.viewType !== undefined) {
     input.viewType = supportsView(tableKey, parsed.viewType) ? parsed.viewType : 'grid';
@@ -129,6 +131,7 @@ function configInput(
   if (config.frozenFields !== undefined) input.frozenFields = [...parsed.frozenFields];
   if (config.sort !== undefined) input.sort = parsed.sort;
   if (config.filter !== undefined) input.filter = parsed.filter;
+  if (config.coverField !== undefined) input.coverField = parsed.coverField;
   return input;
 }
 

@@ -78,6 +78,18 @@ describe('user table views', () => {
     expect(updated?.visibleFields).toEqual(['name', 'link']);
     expect(updated?.sort).toEqual({ key: 'name', direction: 'desc' });
     expect(updated?.viewType).toBe('gallery');
+    expect(updated?.frozenFields).toEqual(['name']);
+
+    // The gallery cover (action item 16): a new view records none, a choice is stored, and "page
+    // default" is written back as NULL rather than as an empty string that is not a column key.
+    expect(view.coverField).toBeNull();
+    expect(
+      (await updateUserTableViewConfig(db, ALICE, view.id, { coverField: 'video_intro_url' }))
+        ?.coverField,
+    ).toBe('video_intro_url');
+    expect(
+      (await updateUserTableViewConfig(db, ALICE, view.id, { coverField: null }))?.coverField,
+    ).toBeNull();
 
     expect(await deleteUserTableView(db, ALICE, view.id)).toBe(true);
     expect(await listUserTableViews(db, ALICE, 'products')).toEqual([]);
