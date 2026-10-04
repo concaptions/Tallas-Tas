@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { CreativeTrack } from '@tas/domain/state';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   Button,
@@ -31,7 +30,6 @@ import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
 
-import { ConceptBoard } from './concept-board';
 import {
   EM_DASH,
   NEW_CONCEPT,
@@ -39,7 +37,6 @@ import {
   NO_MATCH_NOTE,
   SEARCH_PARAM,
   VIEW_PARAM,
-  conceptColumns,
   conceptCountLabel,
   filteredConceptCountLabel,
   matchesQuery,
@@ -50,23 +47,28 @@ import {
 /**
  * The Concepts list: one set of rows, two ways of reading it (PRD §5.7, ticket criteria 2–5).
  *
- * TABLE is the default, because a concept list is a queue you work down and five columns read
- * faster than any card. BOARD is the same rows grouped by internal status, which is the question a
- * strategist actually asks on a Monday — what is stuck where. Neither view filters, sorts or
- * re-labels anything: `loadConcepts()` returns the rows newest edit first and the page already
- * resolved every status label and tone through `@tas/domain/state`.
+ * TABLE is the default, because a concept list is a queue you work down and the columns read faster
+ * than any card. GALLERY is the same rows as cards, for the pass where you are looking at concepts
+ * rather than working them. Neither view filters, sorts or re-labels anything: `loadConcepts()`
+ * returns the rows newest edit first and the page already resolved every status label and tone
+ * through `@tas/domain/state`.
+ *
+ * NO BOARD (action item 18: Kanban leaves the data tables). The lanes were internal status, which is
+ * still a grid column, still a chip on the row and still on the concept's own page — the board was a
+ * second reading of data that is all still here, and the two boards that ARE the workflow (Creative
+ * Briefs, UGC Management) keep theirs. `ConceptBoard` itself survives on `/design-system`, so the
+ * component is documented rather than deleted; nothing on this page mounts it. A `?view=board` link
+ * written before the change still opens — on the grid — rather than 404ing on a view that is gone.
  *
  * The chosen view lives in `?view=` and the search in `?q=`, both written with the History API
  * exactly as the Angles table writes `?angle=` and `?q=`: switching or typing is instant, a refresh
- * restores what you had, and the board — or the narrowed list — someone is looking at is a link
- * they can send. A value at its default is removed from the URL rather than written, so a clean
- * page has a clean address.
+ * restores what you had, and the narrowed list someone is looking at is a link they can send. A
+ * value at its default is removed from the URL rather than written, so a clean page has a clean
+ * address.
  *
- * ONE SEARCH, BOTH VIEWS. The filter runs on the rows before `conceptColumns` groups them, so the
- * board narrows with the table and a column's count is always the count of what is in it. Filtering
- * to nothing says so in its own words and offers to clear the search — a different sentence from
- * the brand that has no concepts at all, because those are different problems with different ways
- * out (`NO_MATCH_NOTE` and `NO_CONCEPTS_NOTE`).
+ * ONE SEARCH, BOTH VIEWS. Filtering to nothing says so in its own words and offers to clear the
+ * search — a different sentence from the brand that has no concepts at all, because those are
+ * different problems with different ways out (`NO_MATCH_NOTE` and `NO_CONCEPTS_NOTE`).
  *
  * A row and a card are the same thing: a click on either navigates to `/app/concepts/<id>`, a real
  * route segment, so the list is gone and Back restores it with the `?view=` it had. This is
@@ -79,8 +81,6 @@ interface ConceptsWorkspaceProps {
   readonly columns: readonly ResolvedColumnView[];
   /** True when `columns` is the parent master-set fallback because the brand resolved none. */
   readonly unconfiguredColumns?: boolean;
-  /** Which internal track a concept runs on, resolved on the server beside the data source. */
-  readonly track: CreativeTrack;
   readonly demo: boolean;
   readonly initialView: ConceptView;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
@@ -94,16 +94,19 @@ const CONCEPTS_CAP = getTableCapability('concepts') as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
 
-/** `?view=` ↔ the view switcher: the URL keeps its `table` / `board` words (shared links still work). */
+/**
+ * `?view=` ↔ the view switcher: the URL keeps its `table` / `gallery` words, and `board` is STILL a
+ * value the server narrows (`conceptViewFromParam`), so a link written while the board existed opens
+ * instead of 404ing. It now lands on the grid, and the first thing that syncs the URL — a search, a
+ * view switch — drops the stale parameter (action item 18).
+ */
 const VIEW_TYPE_OF: Record<ConceptView, ViewType> = {
   table: 'grid',
-  board: 'kanban',
+  board: 'grid',
   gallery: 'gallery',
 };
 function conceptViewOf(viewType: ViewType): ConceptView {
-  if (viewType === 'kanban') return 'board';
-  if (viewType === 'gallery') return 'gallery';
-  return 'table';
+  return viewType === 'gallery' ? 'gallery' : 'table';
 }
 
 /**
@@ -227,7 +230,6 @@ const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
 
 export function ConceptsWorkspace({
   items,
-  track,
   demo,
   initialView,
   initialSearch,
@@ -316,9 +318,6 @@ export function ConceptsWorkspace({
 
   const narrowed = visible.length !== items.length;
 
-  // The Kanban board's lanes. Named apart from `columns`, which is the resolved COLUMN SET.
-  const boardColumns = useMemo(() => conceptColumns(track, visible), [track, visible]);
-
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(visible, grid.columns, (item) => ({
@@ -383,7 +382,7 @@ export function ConceptsWorkspace({
               supportedViews={[...CONCEPTS_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
-              kanbanGroupByField="internalStatus"
+              kanbanGroupByField={null}
               views={tableView.views}
               activeViewId={tableView.activeView?.id ?? null}
               onActivateView={tableView.activateView}
@@ -393,6 +392,8 @@ export function ConceptsWorkspace({
               fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
+              viewConfig={tableView.config}
+              onFreezeChange={tableView.setFrozenFields}
               error={tableView.error}
             />
           </div>
@@ -435,8 +436,6 @@ export function ConceptsWorkspace({
               </DisabledWrite>
             )}
           </div>
-        ) : view === 'board' ? (
-          <ConceptBoard columns={boardColumns} onOpen={open} />
         ) : view === 'gallery' ? (
           <GalleryView
             items={galleryItems}

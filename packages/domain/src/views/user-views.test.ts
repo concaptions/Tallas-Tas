@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   applyUserView,
   defaultUserViewConfig,
+  freezeUpTo,
+  frozenUpTo,
   isViewFieldVisible,
   reconcileViewFields,
   parseUserViewConfig,
@@ -214,5 +216,55 @@ describe('reconcileViewFields', () => {
     expect(reconcileViewFields(['core_desires', 'coreDesires'], PERSONA_KEYS)).toEqual([
       'core_desires',
     ]);
+  });
+});
+
+describe('freezeUpTo', () => {
+  const KEYS = ['name', 'batch', 'theme', 'status'];
+
+  it('freezes the chosen column and everything to its left', () => {
+    expect(freezeUpTo(KEYS, 'theme')).toEqual(['name', 'batch', 'theme']);
+  });
+
+  it('freezes only the first column when the first is chosen', () => {
+    expect(freezeUpTo(KEYS, 'name')).toEqual(['name']);
+  });
+
+  it('returns the table default (an empty list) for null, never "nothing frozen"', () => {
+    // applyUserView reads [] as "keep the table's own freeze", which is the one column that is
+    // always worth pinning. A freeze control must be able to hand that state back.
+    expect(freezeUpTo(KEYS, null)).toEqual([]);
+  });
+
+  it('returns the table default for a key the view does not show', () => {
+    expect(freezeUpTo(KEYS, 'gone')).toEqual([]);
+  });
+
+  it('is a prefix of the ORDER IT IS GIVEN, so a reordered view freezes what the viewer sees', () => {
+    expect(freezeUpTo(['status', 'name'], 'name')).toEqual(['status', 'name']);
+  });
+});
+
+describe('frozenUpTo', () => {
+  const KEYS = ['name', 'batch', 'theme', 'status'];
+
+  it('is null while the table default is in force', () => {
+    expect(frozenUpTo(KEYS, { frozenFields: [] })).toBeNull();
+  });
+
+  it('names the last frozen column in the view order', () => {
+    expect(frozenUpTo(KEYS, { frozenFields: ['name', 'batch'] })).toBe('batch');
+  });
+
+  it('round-trips with freezeUpTo', () => {
+    expect(frozenUpTo(KEYS, { frozenFields: freezeUpTo(KEYS, 'theme') })).toBe('theme');
+  });
+
+  it('resolves a stored set that is not a clean prefix to its rightmost member', () => {
+    expect(frozenUpTo(KEYS, { frozenFields: ['theme'] })).toBe('theme');
+  });
+
+  it('ignores a frozen key the table no longer has', () => {
+    expect(frozenUpTo(KEYS, { frozenFields: ['gone'] })).toBeNull();
   });
 });

@@ -19,6 +19,10 @@ import {
  * profile: the view store is this profile's `localStorage`, which a second browser context does
  * not share. In live mode the same isolation is the `user_id` scope every statement in
  * `packages/db/src/user-table-views.ts` carries, pinned by its PGlite test.
+ *
+ * Then the Freeze control (action item 22): a prefix of the columns pinned, each at its own left
+ * offset rather than all at zero, the header row pinned with them, and the whole choice saved into
+ * the same per-user view the Fields popover writes.
  */
 interface TableCase {
   readonly label: string;
@@ -148,6 +152,83 @@ test.describe('per-user views in demo mode (no Clerk publishable key)', () => {
       await other.close();
     });
   }
+
+  test('the Freeze control pins a prefix of the columns, and the choice survives a reload', async ({
+    page,
+    browser,
+  }) => {
+    // Action item 22. Before this there was no control at all: `frozen_fields` existed end to end as
+    // data and production's one real saved view had it empty, because nothing could ever write it.
+    await page.goto(conceptsPath);
+    const cells = page.locator('[data-slot="concepts-table"] thead th');
+
+    // The table's own default: the name column alone is pinned, everything else scrolls.
+    await expect(cells.nth(0)).toHaveCSS('position', 'sticky');
+    await expect(cells.nth(1)).not.toHaveCSS('position', 'sticky');
+
+    // The header row is pinned too — the grid is its own scroll region (item 22 asks for ROWS as
+    // well as columns, and a header that scrolls away is the row freeze that was missing).
+    await expect(page.locator('[data-slot="concepts-table"] thead')).toHaveCSS(
+      'position',
+      'sticky',
+    );
+    await expect(page.locator('[data-slot="grid-scroll"]')).toBeVisible();
+
+    // Freeze up to and including the second column.
+    const second = await cells.nth(1).getAttribute('data-column');
+    expect(second).not.toBeNull();
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-freeze"]').click();
+    await page.locator(`[data-slot="grid-freeze-option"][data-field="${second ?? ''}"]`).click();
+    await page.keyboard.press('Escape');
+
+    // Both are sticky now, and — the bug the offsets exist for — the second is NOT at left 0 on top
+    // of the first: it sits exactly one column width in.
+    await expect(cells.nth(0)).toHaveCSS('position', 'sticky');
+    await expect(cells.nth(1)).toHaveCSS('position', 'sticky');
+    const [firstBox, secondBox] = await Promise.all([
+      cells.nth(0).boundingBox(),
+      cells.nth(1).boundingBox(),
+    ]);
+    expect(firstBox).not.toBeNull();
+    expect(secondBox).not.toBeNull();
+    expect(secondBox?.x ?? 0).toBeGreaterThan(firstBox?.x ?? 0);
+    const firstLeft = await cells.nth(0).evaluate((node) => getComputedStyle(node).left);
+    const secondLeft = await cells.nth(1).evaluate((node) => getComputedStyle(node).left);
+    expect(firstLeft).toBe('0px');
+    expect(secondLeft).not.toBe('0px');
+
+    // It persisted into this viewer's active view, and a reload reads it back.
+    await expect(page.locator('[data-slot="views-menu"]')).toHaveText('My view');
+    await page.reload();
+    await expect(cells.nth(1)).toHaveCSS('position', 'sticky');
+
+    // "Table default" hands the single pinned name column back rather than unpinning everything.
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-freeze"]').click();
+    await page.locator('[data-slot="grid-freeze-option"][data-field="__default__"]').click();
+    await page.keyboard.press('Escape');
+    await expect(cells.nth(0)).toHaveCSS('position', 'sticky');
+    await expect(cells.nth(1)).not.toHaveCSS('position', 'sticky');
+
+    // Another viewer's grid is untouched: the freeze is a per-user lens, not a column definition.
+    const other = await browser.newContext();
+    const otherPage = await other.newPage();
+    await otherPage.goto(conceptsPath);
+    const otherCells = otherPage.locator('[data-slot="concepts-table"] thead th');
+    await expect(otherCells.nth(0)).toHaveCSS('position', 'sticky');
+    await expect(otherCells.nth(1)).not.toHaveCSS('position', 'sticky');
+    await other.close();
+  });
+
+  test('the Freeze control is a Grid control: the Gallery does not offer one', async ({ page }) => {
+    await page.goto(conceptsPath);
+    await expect(
+      page.locator('[data-slot="view-toolbar"] [data-slot="grid-freeze"]'),
+    ).toBeVisible();
+    await switchView(page, 'Gallery');
+    await expect(page.locator('[data-slot="view-toolbar"] [data-slot="grid-freeze"]')).toHaveCount(
+      0,
+    );
+  });
 
   test('a view can be created, renamed and deleted, and it is this user’s alone', async ({
     page,

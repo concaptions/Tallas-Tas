@@ -1,8 +1,17 @@
 'use client';
 
-import type { UserView, ViewType } from '@tas/domain';
+import { useMemo } from 'react';
+import {
+  applyUserView,
+  freezeUpTo,
+  frozenUpTo,
+  type UserView,
+  type UserViewConfig,
+  type ViewType,
+} from '@tas/domain';
 
 import { FieldsMenu, type FieldOption } from './fields-menu';
+import { FreezeMenu } from './freeze-menu';
 import { ViewSwitcher } from './view-switcher';
 import { ViewsMenu } from './views-menu';
 
@@ -21,13 +30,21 @@ interface ViewToolbarProps {
   readonly fields: readonly FieldOption[];
   readonly isFieldVisible: (key: string) => boolean;
   readonly onToggleField: (key: string) => void;
+  /**
+   * The viewer's active config. Given together with `onFreezeChange`, the Grid also carries the
+   * Freeze popover (action item 22); the config is what tells it the viewer's column order and
+   * their current freeze. A table not wired for it yet simply shows no Freeze control.
+   */
+  readonly viewConfig?: UserViewConfig;
+  readonly onFreezeChange?: (frozenFields: readonly string[]) => void;
   readonly error?: string | null;
 }
 
 /**
  * The strip above every one of the six tables (Sprint 7, VIEWS-01): the view type switch, the
- * viewer's saved views, and the Fields popover (Grid and Gallery only — a Kanban column is not a
- * field). One component so the three controls sit in the same place on every page.
+ * viewer's saved views, the Fields popover (Grid and Gallery only — a Kanban column is not a field)
+ * and, on the Grid, the Freeze popover (action item 22). One component so the controls sit in the
+ * same place on every page.
  */
 export function ViewToolbar({
   tableKey,
@@ -44,8 +61,19 @@ export function ViewToolbar({
   fields,
   isFieldVisible,
   onToggleField,
+  viewConfig,
+  onFreezeChange,
   error = null,
 }: ViewToolbarProps) {
+  // The freeze is a prefix of the columns AS THE VIEWER SEES THEM, so the active view's order and
+  // visibility are applied before the control is handed its list — otherwise "freeze up to Theme"
+  // would mean a different set of columns in the menu than on screen.
+  const orderedFields = useMemo(
+    () => (viewConfig === undefined ? [] : applyUserView(fields, viewConfig)),
+    [fields, viewConfig],
+  );
+  const orderedKeys = useMemo(() => orderedFields.map((field) => field.key), [orderedFields]);
+
   return (
     <div className="flex flex-wrap items-center gap-2" data-slot="view-toolbar">
       <ViewSwitcher
@@ -66,6 +94,15 @@ export function ViewToolbar({
       />
       {activeView === 'grid' || activeView === 'gallery' ? (
         <FieldsMenu fields={fields} isVisible={isFieldVisible} onToggle={onToggleField} />
+      ) : null}
+      {activeView === 'grid' && viewConfig !== undefined && onFreezeChange !== undefined ? (
+        <FreezeMenu
+          fields={orderedFields}
+          frozenUpTo={frozenUpTo(orderedKeys, viewConfig)}
+          onFreezeChange={(key) => {
+            onFreezeChange(freezeUpTo(orderedKeys, key));
+          }}
+        />
       ) : null}
     </div>
   );

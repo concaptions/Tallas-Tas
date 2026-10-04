@@ -8,8 +8,6 @@ import { Button, Input } from '@tas/ui';
 
 import {
   ColumnNotices,
-  KanbanBoard,
-  type KanbanItem,
   useTableView,
   ViewToolbar,
   GalleryView,
@@ -25,8 +23,6 @@ import {
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipCell, TextCell, type GridChip } from '@/components/views/grid-cells';
-
-import type { AwarenessStage } from '@tas/db/schema';
 
 import { awarenessLabel, awarenessTone, type PersonaFieldName } from './fields';
 import { PersonaPanel, NEW_PERSONA } from './persona-panel';
@@ -256,36 +252,6 @@ export function PersonasWorkspace({
   const open = openItem?.persona ?? null;
   const creating = selection === NEW_PERSONA;
 
-  const kanbanItems: readonly KanbanItem[] = useMemo(() => {
-    return visible.map(({ persona }) => ({
-      id: persona.id,
-      name: persona.name,
-      groupValue: persona.stageOfAwareness ?? '',
-      chipLabel: persona.stageOfAwareness ? awarenessLabel(persona.stageOfAwareness) : undefined,
-      chipTone: persona.stageOfAwareness ? awarenessTone(persona.stageOfAwareness) : undefined,
-    }));
-  }, [visible]);
-
-  const kanbanColumns = useMemo(() => {
-    const seen = new Set<string>();
-    for (const item of kanbanItems) {
-      if (item.groupValue !== '') seen.add(item.groupValue);
-    }
-    return [...seen];
-  }, [kanbanItems]);
-
-  const kanbanLabels = useMemo(() => {
-    const labels: Record<string, string> = {};
-    for (const col of kanbanColumns) {
-      labels[col] = awarenessLabel(col as AwarenessStage);
-    }
-    return labels;
-  }, [kanbanColumns]);
-
-  const handleKanbanMove = useCallback(() => {
-    // Kanban drag for personas will be wired to updatePersonaAction in a follow-up
-  }, []);
-
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(visible, grid.columns, (item) => ({
@@ -344,7 +310,7 @@ export function PersonasWorkspace({
               supportedViews={[...PERSONAS_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
-              kanbanGroupByField="stageOfAwareness"
+              kanbanGroupByField={null}
               views={tableView.views}
               activeViewId={tableView.activeView?.id ?? null}
               onActivateView={tableView.activateView}
@@ -354,6 +320,8 @@ export function PersonasWorkspace({
               fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
+              viewConfig={tableView.config}
+              onFreezeChange={tableView.setFrozenFields}
               error={tableView.error}
             />
           </div>
@@ -367,15 +335,7 @@ export function PersonasWorkspace({
           missing={grid.missing}
           registryName="PERSONA_RENDERERS in personas-workspace.tsx"
         />
-        {activeView === 'kanban' ? (
-          <KanbanBoard
-            items={kanbanItems}
-            columns={kanbanColumns}
-            columnLabels={kanbanLabels}
-            onMove={handleKanbanMove}
-            demo={demo}
-          />
-        ) : activeView === 'gallery' ? (
+        {activeView === 'gallery' ? (
           <GalleryView
             items={galleryItems}
             visibleFields={tableView.config.visibleFields}

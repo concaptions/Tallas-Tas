@@ -139,16 +139,16 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
     ],
     timelineDates: null,
   },
+  // NO KANBAN on the data tables (Talal, 2026-09-28, action item 18: "drop Kanban from the data
+  // tables (products, personas, angles, themes, concepts)"). The board stays where the lanes ARE the
+  // workflow — Creative Briefs and UGC Management (item 29) — and leaves the five tables that are
+  // reference data you read down a grid. Dropping the LENS drops no data: every status a lane was
+  // built from is still a grid column and still on the record's form.
   concepts: {
     tableKey: 'concepts',
     label: 'Concepts',
-    supportedViews: ['grid', 'kanban', 'gallery'],
-    kanbanFields: [
-      { field: 'approvalStatus', label: 'Approval Status' },
-      { field: 'productionStatus', label: 'Production Status' },
-      { field: 'internalStatus', label: 'Internal Status' },
-      { field: 'clientStatus', label: 'Client Status' },
-    ],
+    supportedViews: ['grid', 'gallery'],
+    kanbanFields: [],
     galleryFields: [],
     timelineDates: null,
   },
@@ -182,11 +182,12 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
     ],
     timelineDates: null,
   },
+  // No Kanban (item 18): a persona is research, not a queue with stages to drag a card between.
   personas: {
     tableKey: 'personas',
     label: 'Personas',
-    supportedViews: ['grid', 'kanban', 'gallery'],
-    kanbanFields: [{ field: 'stageOfAwareness', label: 'Stage of Awareness' }],
+    supportedViews: ['grid', 'gallery'],
+    kanbanFields: [],
     galleryFields: [],
     timelineDates: null,
   },
@@ -198,22 +199,21 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
     galleryFields: [],
     timelineDates: { startField: 'adsLaunchDate', endField: 'adsEndDate' },
   },
+  // No Kanban (item 18); the category chip row above the Themes grid already does what the board did.
   themes: {
     tableKey: 'themes',
     label: 'Themes',
-    supportedViews: ['grid', 'kanban', 'gallery'],
-    kanbanFields: [
-      { field: 'category', label: 'Category' },
-      { field: 'status', label: 'Status' },
-    ],
+    supportedViews: ['grid', 'gallery'],
+    kanbanFields: [],
     galleryFields: [{ field: 'attachments', label: 'First attachment', mediaType: 'image' }],
     timelineDates: null,
   },
+  // No Kanban (item 18): Potential is a rating to sort the grid by, not a lane to move an angle through.
   angles: {
     tableKey: 'angles',
     label: 'Angles',
-    supportedViews: ['grid', 'kanban', 'gallery'],
-    kanbanFields: [{ field: 'potential', label: 'Potential' }],
+    supportedViews: ['grid', 'gallery'],
+    kanbanFields: [],
     galleryFields: [],
     timelineDates: null,
   },
@@ -282,4 +282,30 @@ export function getTableCapability(tableKey: string): TableViewCapability | unde
 export function supportsView(tableKey: string, view: ViewType): boolean {
   const cap = TABLE_VIEW_CAPABILITIES[tableKey];
   return cap !== undefined && cap.supportedViews.includes(view);
+}
+
+/**
+ * The view a table can actually render, given the one that was asked for.
+ *
+ * A saved view, a `?view=` in a shared link or a value left in a browser's store can name a view a
+ * table no longer offers — a Concepts board, say, now that item 18 has taken Kanban off the data
+ * tables. `loadUserViews` already narrows a view it read from Postgres, but the two other ways a
+ * view type reaches `useTableView` — the `?view=` parameter and demo mode's `localStorage` — went
+ * through no such check, so a stale value left the switcher sitting on a tab that is not rendered
+ * and the page showing a board component that is gone.
+ *
+ * Returns the requested view when the table still supports it, the fallback when it does not, and
+ * the table's first view when it does not support the fallback either. An unknown table key is
+ * passed through untouched: a capability nobody declared is not evidence against the request.
+ */
+export function resolveViewType(
+  tableKey: string,
+  requested: ViewType,
+  fallback: ViewType = 'grid',
+): ViewType {
+  const cap = TABLE_VIEW_CAPABILITIES[tableKey];
+  if (cap === undefined) return requested;
+  if (cap.supportedViews.includes(requested)) return requested;
+  if (cap.supportedViews.includes(fallback)) return fallback;
+  return cap.supportedViews[0] ?? 'grid';
 }

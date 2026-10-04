@@ -13,8 +13,6 @@ import { Button, DEMO_WRITE_HINT, disabledWriteClassName, DisabledWrite, Input }
 
 import {
   ColumnNotices,
-  KanbanBoard,
-  type KanbanItem,
   useTableView,
   ViewToolbar,
   GalleryView,
@@ -340,35 +338,6 @@ export function AnglesWorkspace({
   const openConcepts = linkedTo(conceptsByAngle, open);
   const openCreativeDesigns = linkedTo(creativeDesignsByAngle, open);
 
-  const kanbanItems: readonly KanbanItem[] = useMemo(() => {
-    return visible.map(({ angle }) => ({
-      id: angle.id,
-      name: angle.name,
-      groupValue: angle.potential ?? '',
-      subtitle: angle.personaName ?? undefined,
-    }));
-  }, [visible]);
-
-  const kanbanColumns = useMemo(() => {
-    const seen = new Set<string>();
-    for (const item of kanbanItems) {
-      if (item.groupValue !== '') seen.add(item.groupValue);
-    }
-    return [...seen];
-  }, [kanbanItems]);
-
-  const kanbanLabels = useMemo(() => {
-    const labels: Record<string, string> = {};
-    for (const col of kanbanColumns) {
-      labels[col] = col.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    }
-    return labels;
-  }, [kanbanColumns]);
-
-  const handleKanbanMove = useCallback(() => {
-    // Kanban drag for angles will be wired to updateAngleAction in a follow-up
-  }, []);
-
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(visible, grid.columns, (item) => ({
@@ -424,7 +393,7 @@ export function AnglesWorkspace({
               supportedViews={[...ANGLES_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
-              kanbanGroupByField="potential"
+              kanbanGroupByField={null}
               views={tableView.views}
               activeViewId={tableView.activeView?.id ?? null}
               onActivateView={tableView.activateView}
@@ -434,6 +403,8 @@ export function AnglesWorkspace({
               fields={fieldOptions}
               isFieldVisible={tableView.isFieldVisible}
               onToggleField={tableView.toggleField}
+              viewConfig={tableView.config}
+              onFreezeChange={tableView.setFrozenFields}
               error={tableView.error}
             />
           </div>
@@ -460,15 +431,7 @@ export function AnglesWorkspace({
           registryName="ANGLE_RENDERERS in angles-workspace.tsx"
         />
 
-        {activeView === 'kanban' ? (
-          <KanbanBoard
-            items={kanbanItems}
-            columns={kanbanColumns}
-            columnLabels={kanbanLabels}
-            onMove={handleKanbanMove}
-            demo={demo}
-          />
-        ) : activeView === 'gallery' ? (
+        {activeView === 'gallery' ? (
           <GalleryView
             items={galleryItems}
             visibleFields={tableView.config.visibleFields}

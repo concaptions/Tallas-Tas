@@ -836,3 +836,29 @@ call, not a builder's, and the question is on the list for Talal.
 `is_hidden` to true; `check-columns --table creators` should then resolve 33 columns for Gratsi
 instead of 34, with `creator_concepts` still at order 7. The seed change is committed; the
 production write is not done and needs the usual approval.
+## 2026-10-04 — Kanban leaves the five data tables; it stays where the lanes ARE the workflow (action item 18)
+
+Talal, 2026-09-28: "drop Kanban from the data tables (products, personas, angles, themes,
+concepts)". `packages/domain/src/views/table-views.ts` now lists `['grid', 'gallery']` for all five
+and an empty `kanbanFields` on each, which IS the behaviour — `ViewSwitcher` renders exactly the
+tabs the capability declares, so the registry is the only gate. The two boards that survive are the
+ones whose lanes are a real queue someone moves a card along: Creative Briefs (the media
+buyer / strategist board, and the editor's three stages) and UGC Management (action item 29, a
+partnership process).
+
+**Nothing was dropped but the lens.** Every field a lane was built from is still a stored column,
+still rendered in the grid by the resolver, and still on the record's own form: `stage_of_awareness`
+on a persona, `potential` on an angle, `category` and `status` on a theme, the four concept
+statuses. `apps/web/src/app/app/concepts/concept-board.tsx` is not deleted either — it still renders
+on `/design-system`, so the component is documented rather than lost; no page mounts it.
+
+Two compatibility edges, both deliberate:
+
+- `?view=board` on `/app/concepts` still parses (`conceptViewFromParam` keeps `board`) and opens the
+  grid. A link written while the board existed is not a 404, and the next URL sync drops the stale
+  parameter.
+- A SAVED view can still name `kanban`. `loadUserViews` already narrowed what it read from Postgres
+  through `supportsView`, but the `?view=` parameter and demo mode's `localStorage` did not — and
+  production holds one personas row saved as a Kanban. `resolveViewType` in
+  `packages/domain/src/views/table-views.ts` now narrows every path into `useTableView`, so a stale
+  value degrades to the grid instead of leaving the switcher on a tab that is not rendered.

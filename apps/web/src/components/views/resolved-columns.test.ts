@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { applyUserView, defaultUserViewConfig } from '@tas/domain';
+
 import { gridColumnsFrom, type ColumnRegistry, type ResolvedColumnView } from './resolved-columns';
 
 interface Row {
@@ -52,7 +54,7 @@ describe('gridColumnsFrom', () => {
     expect(columns.map((column) => column.key)).toEqual(['name', 'count']);
   });
 
-  it('freezes only the first column, and only when asked', () => {
+  it('freezes only the first column, and only when asked — the TABLE DEFAULT', () => {
     const plain = gridColumnsFrom(resolved(['name', 'Name', 1], ['count', 'N', 2]), registry);
     expect(plain.columns.every((column) => column.frozen === undefined)).toBe(true);
 
@@ -62,6 +64,37 @@ describe('gridColumnsFrom', () => {
     });
     expect(frozen.columns[0]).toMatchObject({ frozen: true, minWidth: 240 });
     expect(frozen.columns[1]?.frozen).toBeUndefined();
+  });
+
+  /**
+   * ONE OWNER OF `frozen`, and these two cases pin which (action item 22). `freezeFirst` here and
+   * `frozenFields` in `applyUserView` both write the same property, and the grid runs them in that
+   * order — so the VIEWER's freeze wins when they have made one, and the table's default stands
+   * when they have not. Without a test, the next edit to either side silently flips the precedence
+   * and a viewer's freeze choice is overwritten on every render.
+   */
+  it('a view with its own freeze overrides freezeFirst', () => {
+    const { columns } = gridColumnsFrom(
+      resolved(['name', 'Name', 1], ['count', 'N', 2]),
+      registry,
+      { freezeFirst: true },
+    );
+    const shown = applyUserView(columns, {
+      ...defaultUserViewConfig(),
+      frozenFields: ['name', 'count'],
+    });
+    expect(shown.map((column) => column.frozen)).toEqual([true, true]);
+  });
+
+  it('a view with no freeze of its own leaves freezeFirst standing', () => {
+    const { columns } = gridColumnsFrom(
+      resolved(['name', 'Name', 1], ['count', 'N', 2]),
+      registry,
+      { freezeFirst: true },
+    );
+    const shown = applyUserView(columns, defaultUserViewConfig());
+    expect(shown[0]?.frozen).toBe(true);
+    expect(shown[1]?.frozen).toBeUndefined();
   });
 
   it('is empty, not broken, when the resolver returns nothing', () => {
