@@ -126,7 +126,7 @@ function linkedOneCell(link: LinkedRecord | null) {
  * columns and Gratsi's three junction-backed reverse links. Every key either base can resolve has
  * an entry, so the "Configured but not drawn here" notice never fires.
  */
-const COLLECTION_RENDERERS: ColumnRegistry<CollectionItem> = {
+export const COLLECTION_RENDERERS: ColumnRegistry<CollectionItem> = {
   name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">

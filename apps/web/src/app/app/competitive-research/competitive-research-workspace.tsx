@@ -87,7 +87,7 @@ function longTextCell(value: string | null) {
  * — the full set either base can resolve — so the "Configured but not drawn here" notice never
  * fires.
  */
-const COMPETITIVE_RESEARCH_RENDERERS: ColumnRegistry<CompetitiveResearchItem> = {
+export const COMPETITIVE_RESEARCH_RENDERERS: ColumnRegistry<CompetitiveResearchItem> = {
   name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">

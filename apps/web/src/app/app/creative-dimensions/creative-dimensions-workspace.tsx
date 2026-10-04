@@ -75,7 +75,7 @@ function emptyCell() {
  * THE Creative Dimensions renderer registry, keyed by the resolver's `column_key`. Four entries —
  * the full set either base can resolve — so the "Configured but not drawn here" notice never fires.
  */
-const CREATIVE_DIMENSION_RENDERERS: ColumnRegistry<CreativeDimensionItem> = {
+export const CREATIVE_DIMENSION_RENDERERS: ColumnRegistry<CreativeDimensionItem> = {
   name: {
     render: (item) => (
       <span className="flex items-center gap-1.5 font-medium">

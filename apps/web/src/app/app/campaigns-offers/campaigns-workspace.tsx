@@ -120,7 +120,7 @@ const linkedTitle = (labels: readonly string[]) =>
  * parent's thirteen (the stored columns, `collections` and `product_id`) and Gratsi's six
  * junction-backed reverse links.
  */
-const CAMPAIGN_RENDERERS: ColumnRegistry<CampaignItem> = {
+export const CAMPAIGN_RENDERERS: ColumnRegistry<CampaignItem> = {
   name: {
     // The generated Holiday-Offer-Code name: system output, always font-mono (non-negotiable 6).
     render: (item) => (
