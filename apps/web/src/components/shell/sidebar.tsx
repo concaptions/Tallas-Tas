@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn, SoonChip } from '@tas/ui';
+import type { ViewerRole } from '@tas/domain';
 
 import { Icon } from './icons';
-import { NAV_GROUPS, activeSectionKey } from './nav';
+import { activeSectionKey, navGroupsForRole } from './nav';
 
 /**
  * The product's left rail. Below `md` it collapses to a 56px icon rail (labels hidden, the whole
@@ -13,10 +14,21 @@ import { NAV_GROUPS, activeSectionKey } from './nav';
  *
  * A section with no `href` is not built yet: muted, `aria-disabled`, marked with a `SoonChip` from
  * `@tas/ui`, rendered as a `div` so it cannot be clicked or focused.
+ *
+ * IT LISTS ONLY WHAT THE VIEWER'S ROLE INCLUDES (AI-57). `role` comes from the server — the shell
+ * layout resolves it once per request and passes it down — because a client component cannot be
+ * trusted to establish who it is rendering for. It is a prop and not a context read for the same
+ * reason the groups are filtered in `navGroupsForRole` and not here: this component decides nothing.
+ * A missing role lists nothing, which is the safe shape of being wrong.
  */
-export function Sidebar() {
+export interface SidebarProps {
+  readonly role: ViewerRole | null;
+}
+
+export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
   const active = activeSectionKey(pathname);
+  const groups = navGroupsForRole(role);
 
   return (
     <nav
@@ -25,7 +37,7 @@ export function Sidebar() {
       className="w-14 shrink-0 border-r border-line bg-surface md:w-56"
     >
       <div className="sticky top-14 flex flex-col gap-3 p-2">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <ul key={group.key} aria-label={group.label} className="flex flex-col gap-0.5">
             {group.label === undefined ? null : (
               <li

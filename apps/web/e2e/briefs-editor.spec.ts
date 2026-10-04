@@ -4,8 +4,8 @@ import { clerkKeys } from '../src/lib/clerk-keys';
 import { briefPath, briefsPath } from '../src/lib/routes';
 
 /**
- * The editor's board (Sprint 10): the Creative Design Kanban grouped by Editing stage — Incoming,
- * Under Editing, Under Review — the Start button on an Incoming card, the quick-look panel, and the
+ * The editor's board (Sprint 10): the Creative Design Kanban grouped by Editing stage — Sent to
+ * Editor/Designer, Under Editing, Under Review — the Start button on a first-stage card, the panel, and the
  * full page's facts, stage chip, Scripts table and Activity log.
  *
  * Demo mode has no session and refuses every write, so this file proves the board, the mapping,
@@ -14,7 +14,7 @@ import { briefPath, briefsPath } from '../src/lib/routes';
  * which runs in the `live` Playwright project against a Clerk dev instance and the E2E database
  * and skips itself without them (D-008).
  */
-/** `demoBriefs`: the one Incoming fixture (sent_to_video_editor), a carousel on the video track. */
+/** `demoBriefs`: the one first-stage fixture (sent_to_video_editor), a carousel on the video track. */
 const NINETY_MINUTES_CAROUSEL = '77777777-7777-4777-8777-000000000006';
 /** Under Editing: the static brief in design. */
 const NOT_YOUR_AGE_STATIC = '77777777-7777-4777-8777-000000000002';
@@ -31,7 +31,7 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: the board needs a session and real data',
   );
 
-  test('groups the board into Incoming, Under Editing and Under Review, in that order', async ({
+  test('groups the board into Sent to Editor/Designer, Under Editing and Under Review, in order', async ({
     page,
   }) => {
     await page.goto(EDITOR_BOARD);
@@ -43,11 +43,13 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     // Three columns, the mapping's order; the headers are the stage labels, never status keys.
     const columns = board.locator(':scope > div');
     await expect(columns).toHaveCount(3);
-    await expect(columns.nth(0)).toContainText('Incoming');
+    // AI-59: the heading reads the stage LABEL. The key behind it is still `incoming` — asserted
+    // by the `data-stage` attribute further down this file — because it is the URL group value.
+    await expect(columns.nth(0)).toContainText('Sent to Editor/Designer');
     await expect(columns.nth(1)).toContainText('Under Editing');
     await expect(columns.nth(2)).toContainText('Under Review');
 
-    // One fixture per stage, by the mapping: sent_to_video_editor → Incoming,
+    // One fixture per stage, by the mapping: sent_to_video_editor → the first stage,
     // static_design_in_progress → Under Editing, ad_submitted → Under Review.
     await expect(
       columns
@@ -68,7 +70,7 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     );
   });
 
-  test('an Incoming card carries Start, disabled with the reason; other stages do not', async ({
+  test('a first-stage card carries Start, disabled with the reason; other stages do not', async ({
     page,
   }) => {
     await page.goto(EDITOR_BOARD);
@@ -116,7 +118,7 @@ test.describe('editor board in demo mode (no Clerk publishable key)', () => {
     // Colour-coded by stage: the chip carries the stage and its tone.
     const stage = page.locator('[data-slot="brief-stage"]');
     await expect(stage).toHaveAttribute('data-stage', 'incoming');
-    await expect(stage.locator('[data-slot="status-chip"]')).toHaveText('Incoming');
+    await expect(stage.locator('[data-slot="status-chip"]')).toHaveText('Sent to Editor/Designer');
     await expect(stage.locator('[data-slot="status-chip"]')).toHaveAttribute('data-tone', 'info');
 
     // The Scripts table under the details, and the Activity log with its worded empty state.

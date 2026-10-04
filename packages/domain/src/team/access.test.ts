@@ -3,13 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { brandRoles, type BrandRole } from '../roles';
 import {
   DEMO_PROPAGATION_ACCESS_NOTE,
+  NAV_SECTION_KEYS,
+  NO_WORKSPACE_NOTE,
+  NO_WORKSPACE_TITLE,
+  SECTION_NOT_PERMITTED_NOTE,
+  SECTION_NOT_PERMITTED_TITLE,
   DEMO_TEAM_ACCESS_NOTE,
   DEMO_TEAM_ACTOR,
   PROPAGATION_ADMIN_NOTE,
   PROPAGATION_NOT_ADMIN_NOTE,
   TEAM_ACCESS_ROLES,
+  canSeeInternalWorkspace,
+  canSeeNavSection,
   canSeePropagationPage,
   canSeeTeamPage,
+  navSectionsForRole,
   teamAccessNote,
 } from './access';
 
@@ -145,6 +153,137 @@ describe('the propagation notes', () => {
       PROPAGATION_ADMIN_NOTE,
       DEMO_PROPAGATION_ACCESS_NOTE,
       PROPAGATION_NOT_ADMIN_NOTE,
+    ]) {
+      expect(note).not.toContain('<');
+      expect(note.trim()).toBe(note);
+      expect(note.endsWith('.')).toBe(true);
+    }
+  });
+});
+
+/**
+ * AI-57. One case per role, because the whole point of the rule is that the roles DIFFER: a test
+ * that only checked "an editor sees fewer sections" would pass with the client seeing everything.
+ */
+describe('canSeeNavSection / navSectionsForRole', () => {
+  it('gives an agency admin every section (PRD §11: everything, all brands)', () => {
+    expect(navSectionsForRole('admin')).toEqual(NAV_SECTION_KEYS);
+    for (const key of NAV_SECTION_KEYS) {
+      expect(canSeeNavSection('admin', key), key).toBe(true);
+    }
+  });
+
+  it('gives a client nothing internal (PRD §11: their own brand interface only)', () => {
+    expect(navSectionsForRole('client')).toEqual([]);
+    for (const key of NAV_SECTION_KEYS) {
+      expect(canSeeNavSection('client', key), key).toBe(false);
+    }
+  });
+
+  it('confines a video editor and a designer to the creative-design work', () => {
+    for (const role of ['video_editor', 'designer'] as const) {
+      expect(navSectionsForRole(role), role).toEqual([
+        'overview',
+        'briefs',
+        'creative-sheet',
+        'client-assets',
+        'assets',
+        'upload-links',
+        'creative-dimensions',
+        'notifications',
+      ]);
+      // Their own work, yes; somebody else's desk, no.
+      expect(canSeeNavSection(role, 'briefs')).toBe(true);
+      expect(canSeeNavSection(role, 'creative-sheet')).toBe(true);
+      expect(canSeeNavSection(role, 'personas')).toBe(false);
+      expect(canSeeNavSection(role, 'angles')).toBe(false);
+      expect(canSeeNavSection(role, 'themes')).toBe(false);
+      expect(canSeeNavSection(role, 'concepts')).toBe(false);
+      expect(canSeeNavSection(role, 'performance')).toBe(false);
+      expect(canSeeNavSection(role, 'team')).toBe(false);
+      expect(canSeeNavSection(role, 'internal-queue')).toBe(false);
+      expect(canSeeNavSection(role, 'client-queue')).toBe(false);
+    }
+  });
+
+  it('keeps the breadth a CSM, a strategist and a media buyer have today, less the admin pages', () => {
+    for (const role of ['csm', 'strategist', 'media_buyer'] as const) {
+      const sections = navSectionsForRole(role);
+      // Every section except the five the Admin keeps.
+      expect(sections.length, role).toBe(NAV_SECTION_KEYS.length - 5);
+      expect(canSeeNavSection(role, 'propagation'), role).toBe(false);
+      expect(canSeeNavSection(role, 'column-admin'), role).toBe(false);
+      expect(canSeeNavSection(role, 'interface-config'), role).toBe(false);
+      expect(canSeeNavSection(role, 'onboard'), role).toBe(false);
+      expect(canSeeNavSection(role, 'onboarding-forms'), role).toBe(false);
+      // The strategy, production, copy, campaign and reporting modules stay.
+      for (const key of ['personas', 'concepts', 'briefs', 'copywriting', 'performance'] as const) {
+        expect(canSeeNavSection(role, key), `${role}/${key}`).toBe(true);
+      }
+    }
+  });
+
+  /**
+   * The nav filter and the three routes that ALREADY refuse a non-admin must agree. All three call
+   * `canSeePropagationPage`, so a role this rule lets near them would be offered a link to a page
+   * that says no.
+   */
+  it('never offers an admin-only page to somebody the existing route guard refuses', () => {
+    for (const role of brandRoles) {
+      const actor = { agencyRole: null, brandRoles: [role] };
+      for (const key of ['propagation', 'column-admin', 'interface-config'] as const) {
+        if (!canSeePropagationPage(actor)) {
+          expect(canSeeNavSection(role, key), `${role}/${key}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('denies by default on an unresolved role and on an unknown key', () => {
+    expect(canSeeNavSection(null, 'briefs')).toBe(false);
+    expect(canSeeNavSection(undefined, 'briefs')).toBe(false);
+    expect(navSectionsForRole(null)).toEqual([]);
+    expect(navSectionsForRole(undefined)).toEqual([]);
+    for (const role of ['admin', ...brandRoles] as const) {
+      expect(canSeeNavSection(role, 'nonsense'), role).toBe(false);
+      expect(canSeeNavSection(role, ''), role).toBe(false);
+    }
+  });
+
+  it('answers for every role in both vocabularies, and keys are unique', () => {
+    for (const role of ['admin', 'member', ...brandRoles] as const) {
+      expect(() => navSectionsForRole(role), role).not.toThrow();
+    }
+    // `member` is the Clerk default for somebody with no brand assignment: not in the table, so it
+    // gets nothing rather than everything.
+    expect(navSectionsForRole('member')).toEqual([]);
+    expect(new Set(NAV_SECTION_KEYS).size).toBe(NAV_SECTION_KEYS.length);
+  });
+
+  it('answers whether a role belongs in the internal workspace at all', () => {
+    for (const role of [
+      'admin',
+      'csm',
+      'strategist',
+      'media_buyer',
+      'video_editor',
+      'designer',
+    ] as const) {
+      expect(canSeeInternalWorkspace(role), role).toBe(true);
+    }
+    // A client's product is `/client/<brand>`; a member has no assignment yet; null is unresolved.
+    expect(canSeeInternalWorkspace('client')).toBe(false);
+    expect(canSeeInternalWorkspace('member')).toBe(false);
+    expect(canSeeInternalWorkspace(null)).toBe(false);
+    expect(canSeeInternalWorkspace(undefined)).toBe(false);
+  });
+
+  it('refusal strings are plain sentences with no markup', () => {
+    for (const note of [
+      SECTION_NOT_PERMITTED_TITLE,
+      SECTION_NOT_PERMITTED_NOTE,
+      NO_WORKSPACE_TITLE,
+      NO_WORKSPACE_NOTE,
     ]) {
       expect(note).not.toContain('<');
       expect(note.trim()).toBe(note);

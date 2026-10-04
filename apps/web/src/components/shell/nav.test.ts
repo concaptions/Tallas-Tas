@@ -1,6 +1,13 @@
+import { NAV_SECTION_KEYS, navSectionsForRole } from '@tas/domain';
 import { describe, expect, it } from 'vitest';
 
-import { NAV_GROUPS, NAV_SECTIONS, activeSectionKey, pendingSections } from './nav';
+import {
+  NAV_GROUPS,
+  NAV_SECTIONS,
+  activeSectionKey,
+  navGroupsForRole,
+  pendingSections,
+} from './nav';
 
 describe('NAV_SECTIONS', () => {
   it('lists every module in sidebar order (regrouped 2026-10-01 for Airtable parity)', () => {
@@ -171,5 +178,82 @@ describe('activeSectionKey', () => {
 
   it('marks nothing on an unknown path', () => {
     expect(activeSectionKey('/sign-in')).toBeNull();
+  });
+});
+
+/**
+ * AI-57. The sidebar lists only what the viewer's role includes, and the decision is
+ * `@tas/domain`'s. These tests hold the two sides together: the nav's section keys and the domain's
+ * access table must name the SAME sections, or a section added to one silently has no rule in the
+ * other.
+ */
+describe('navGroupsForRole', () => {
+  it('nav keys and the domain access table are the same set, in the same order', () => {
+    expect(NAV_SECTIONS.map((section) => section.key)).toEqual([...NAV_SECTION_KEYS]);
+  });
+
+  it('gives an admin the whole catalogue, groups and all', () => {
+    expect(navGroupsForRole('admin')).toEqual(NAV_GROUPS);
+  });
+
+  it('gives a video editor and a designer only their own sections, and drops empty groups', () => {
+    for (const role of ['video_editor', 'designer'] as const) {
+      const groups = navGroupsForRole(role);
+      const keys = groups.flatMap((group) => group.sections.map((section) => section.key));
+
+      expect(keys, role).toEqual([...navSectionsForRole(role)]);
+      // No heading without sections under it, and no group left behind by the filter.
+      for (const group of groups) {
+        expect(group.sections.length, group.key).toBeGreaterThan(0);
+      }
+      expect(
+        groups.map((group) => group.key),
+        role,
+      ).toEqual(['home', 'production', 'lookups', 'settings']);
+      // Strategy, Copy, Campaigns, Reporting and Reference vanish entirely: every section in them
+      // is somebody else's desk, so the heading goes with them.
+      for (const gone of ['strategy', 'copy', 'campaigns-group', 'reporting', 'dev'] as const) {
+        expect(
+          groups.some((group) => group.key === gone),
+          `${role}/${gone}`,
+        ).toBe(false);
+      }
+      // Settings survives with exactly one section: the viewer's own notification preference.
+      expect(groups.find((group) => group.key === 'settings')?.sections.map((s) => s.key)).toEqual([
+        'notifications',
+      ]);
+    }
+  });
+
+  it('gives a client nothing, and an unresolved role nothing', () => {
+    expect(navGroupsForRole('client')).toEqual([]);
+    expect(navGroupsForRole(null)).toEqual([]);
+    expect(navGroupsForRole(undefined)).toEqual([]);
+  });
+
+  it("never invents a section: every role's list is a subset of the catalogue", () => {
+    const all = new Set(NAV_SECTIONS.map((section) => section.key));
+    for (const role of [
+      'admin',
+      'csm',
+      'strategist',
+      'media_buyer',
+      'video_editor',
+      'designer',
+      'client',
+    ] as const) {
+      for (const group of navGroupsForRole(role)) {
+        for (const section of group.sections) {
+          expect(all.has(section.key), `${role}/${section.key}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('leaves NAV_GROUPS itself untouched \u2014 the filter is a read, not a mutation', () => {
+    const before = JSON.stringify(NAV_GROUPS);
+    navGroupsForRole('video_editor');
+    navGroupsForRole('client');
+    expect(JSON.stringify(NAV_GROUPS)).toBe(before);
   });
 });
