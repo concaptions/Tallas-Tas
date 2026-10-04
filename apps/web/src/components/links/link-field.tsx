@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { LINK_REGISTRY, normaliseLinkIds, type LinkKind } from '@tas/domain';
+import type { ChipTone } from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -23,6 +25,14 @@ import { setLinksAction } from '@/lib/link-actions';
 export interface LinkOption {
   readonly id: string;
   readonly name: string;
+  /**
+   * Where the linked record lives. A side that used to show a read-only list of records carried the
+   * record's own route; making that side editable must not cost the reader the way there, so a chip
+   * with an `href` is a link to the record and one without stays plain text.
+   */
+  readonly href?: string;
+  /** The record's own status, drawn beside its name — the same chip its module renders. */
+  readonly chip?: { readonly label: string; readonly tone: ChipTone };
 }
 
 export interface LinkFieldProps {
@@ -54,6 +64,10 @@ export interface LinkFieldProps {
  * On a record that does not exist yet (`sourceId` null) it writes nothing and only posts the
  * hidden inputs, so the create action can sync the junction once the row has an id. In demo mode
  * the control is read-only with the usual reason.
+ *
+ * An option may carry an `href` and a `chip` of its own, which is what lets a side that showed a
+ * read-only list of records become editable without losing anything: the chip keeps the record's
+ * route and its status beside its name.
  */
 export function LinkField({
   link,
@@ -131,7 +145,16 @@ export function LinkField({
               data-slot={`${baseSlot}-chip`}
               data-record-id={option.id}
             >
-              <StatusChip tone="info" label={option.name} />
+              {option.href === undefined ? (
+                <StatusChip tone="info" label={option.name} />
+              ) : (
+                <Link href={option.href} className="underline-offset-2 hover:underline">
+                  <StatusChip tone="info" label={option.name} />
+                </Link>
+              )}
+              {option.chip === undefined ? null : (
+                <StatusChip tone={option.chip.tone} label={option.chip.label} />
+              )}
               {demo ? null : (
                 <button
                   type="button"

@@ -39,6 +39,16 @@ const ANGLE_PRODUCTS: LinkSpec = { junction: 'angle_products', source: 'angle', 
 const PRODUCT_ANGLES: LinkSpec = { junction: 'angle_products', source: 'product', target: 'angle' };
 const ANGLE_PERSONAS: LinkSpec = { junction: 'angle_personas', source: 'angle', target: 'persona' };
 const PERSONA_ANGLES: LinkSpec = { junction: 'angle_personas', source: 'persona', target: 'angle' };
+const CREATOR_PRODUCTS: LinkSpec = {
+  junction: 'creator_products',
+  source: 'creator',
+  target: 'product',
+};
+const PRODUCT_CREATORS: LinkSpec = {
+  junction: 'creator_products',
+  source: 'product',
+  target: 'creator',
+};
 
 describe('two-way links (one junction, both sides)', () => {
   it('a creator linked from the concept side is read back from the creator side', async () => {
@@ -90,6 +100,30 @@ describe('two-way links (one junction, both sides)', () => {
     const [row] = (await listAngles(db, angle.brandId)).filter((entry) => entry.id === angle.id);
     expect(row?.productIds).toContain(product.id);
     expect(row?.personaIds).toContain(persona.id);
+  });
+
+  /**
+   * `creator_products` is the junction the UGC panel used to own alone: it wrote the rows from a row
+   * of toggle buttons of its own and the product panel only listed them, telling the user to go to
+   * the other panel. Both ends go through one spec now, so a product booked from the creator and a
+   * creator booked from the product are the same row.
+   */
+  it('a product booked from the creator side is read back from the product side, and the reverse', async () => {
+    const { db, creators, products } = await seeded();
+    const [firstCreator, secondCreator] = creators;
+    const [firstProduct, secondProduct] = products;
+    if (!firstCreator || !secondCreator || !firstProduct || !secondProduct) {
+      throw new Error('fixtures missing');
+    }
+
+    await syncLinks(db, CREATOR_PRODUCTS, firstCreator.id, [firstProduct.id]);
+    expect(await listLinkedIds(db, PRODUCT_CREATORS, firstProduct.id)).toContain(firstCreator.id);
+
+    // Written from the PRODUCT side, the creator reads it back — and replacing that side's set
+    // leaves the other creator's own booking alone.
+    await syncLinks(db, PRODUCT_CREATORS, secondProduct.id, [secondCreator.id]);
+    expect(await listLinkedIds(db, CREATOR_PRODUCTS, secondCreator.id)).toEqual([secondProduct.id]);
+    expect(await listLinkedIds(db, CREATOR_PRODUCTS, firstCreator.id)).toEqual([firstProduct.id]);
   });
 
   it('an empty list clears the side without touching the other pairs of the target', async () => {

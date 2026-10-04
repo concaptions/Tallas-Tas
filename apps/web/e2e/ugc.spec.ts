@@ -116,6 +116,25 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(panel.locator('[data-slot="creator-panel-title"]')).toHaveText(DANIELLE);
     await expect(page).toHaveURL(/creator=/);
 
+    /*
+     * Both of the creator's links are the shared `LinkField`, so each is editable here AND from the
+     * other record's panel — one `creator_concepts` row, one `creator_products` row, whichever side
+     * writes it (LINK-01). Products used to be a row of toggle buttons of this panel's own, which
+     * wrote the junction on Save only and left the product panel with nothing but a sentence
+     * pointing back here; the toggles are gone and the picker is the same control as Concepts.
+     */
+    await expect(panel.locator('[data-slot="creator-concepts"]')).toHaveAttribute(
+      'data-link',
+      'creator-concepts',
+    );
+    await expect(panel.locator('[data-slot="creator-products"]')).toHaveAttribute(
+      'data-link',
+      'creator-products',
+    );
+    await expect(panel.locator('[data-slot="product-picker"]')).toHaveCount(0);
+    // Demo mode: the picker is mounted and inert, like every other write control on the page.
+    await expect(panel.locator('[data-slot="creator-products-add"]')).toBeDisabled();
+
     // NOT a modal: the grid stays beside it.
     await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
   });

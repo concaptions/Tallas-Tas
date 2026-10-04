@@ -138,7 +138,7 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     await expect(zero).toHaveAttribute('data-tone', 'mute');
   });
 
-  test('the panel lists the email campaigns, YouTube copy, creative designs and creators linked to the product, read-only, and links back to each', async ({
+  test('the panel lists the email campaigns, YouTube copy and creative designs read-only, offers the creators as a two-way link, and links back to each', async ({
     page,
   }) => {
     await page.goto(`${productsPath}?product=22222222-2222-4222-8222-000000000001`);
@@ -183,19 +183,33 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
       `${youtubeCopywritingPath}?youtube-copy=a1b2c3d4-0012-4012-8012-000000000004`,
     );
 
-    // No fixture brief carries a `product_id` and no fixture creator links a product through
-    // `creator_products`, so the two reverse lists render their empty sentence rather than a blank.
+    // No fixture brief carries a `product_id`, so that reverse list renders its empty sentence
+    // rather than a blank.
     await expect(panel.locator('[data-slot="product-creative-designs"]')).toHaveText(
       'No creative design is briefed on this product yet.',
     );
-    await expect(panel.locator('[data-slot="product-creators"]')).toHaveText(
-      'No creator is booked for this product yet. Link one from the creator’s panel.',
-    );
 
-    // Read-only: none of the four lists holds a control. These links are edited from the other end.
+    /*
+     * The creators are the one link under "Linked work" this panel can WRITE: `creator_products` is
+     * two-way (AI-42), so the same `LinkField` the creator panel mounts for its products is mounted
+     * here for its creators, and the empty sentence names both ends. No fixture creator books a
+     * product, so it is empty — with its picker beside it, inert in demo mode like every other
+     * write control.
+     */
+    await expect(panel.locator('[data-slot="product-creators"]')).toHaveAttribute(
+      'data-link',
+      'product-creators',
+    );
+    await expect(panel.locator('[data-slot="product-creators-empty"]')).toHaveText(
+      'No creator is booked for this product yet. Link one here or from the creator’s panel.',
+    );
+    await expect(panel.locator('[data-slot="product-creators-add"]')).toBeDisabled();
+
+    // Read-only: none of the three lists their own modules own holds a control. Those links are
+    // edited where they are written.
     await expect(
       panel.locator(
-        '[data-slot="product-email-campaigns"] :is(input, select, textarea, button), [data-slot="product-youtube-copy"] :is(input, select, textarea, button), [data-slot="product-creative-designs"] :is(input, select, textarea, button), [data-slot="product-creators"] :is(input, select, textarea, button)',
+        '[data-slot="product-email-campaigns"] :is(input, select, textarea, button), [data-slot="product-youtube-copy"] :is(input, select, textarea, button), [data-slot="product-creative-designs"] :is(input, select, textarea, button)',
       ),
     ).toHaveCount(0);
 

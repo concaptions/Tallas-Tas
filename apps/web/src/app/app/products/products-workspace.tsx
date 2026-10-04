@@ -31,7 +31,7 @@ import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { CountCell, TextCell } from '@/components/views/grid-cells';
 
-import { EM_DASH, type LinkedRecord } from './fields';
+import { EM_DASH, type CreatorOption, type LinkedRecord } from './fields';
 import { NEW_PRODUCT, ProductPanel } from './product-panel';
 
 /**
@@ -86,6 +86,8 @@ interface ProductsWorkspaceProps {
   readonly userViews: UserViewsResult;
   /** The brand's angles, for the panel's two-way Linked angles field (LINK-01). */
   readonly angleOptions?: readonly { readonly id: string; readonly name: string }[];
+  /** The brand's creators, for the panel's two-way Creators field (LINK-01). */
+  readonly creatorOptions?: readonly CreatorOption[];
 }
 
 // Safe: 'products' is always in TABLE_VIEW_CAPABILITIES
@@ -214,6 +216,7 @@ export function ProductsWorkspace({
   templateColumns,
   userViews,
   angleOptions = [],
+  creatorOptions = [],
   columns,
   unconfiguredColumns = false,
 }: ProductsWorkspaceProps) {
@@ -475,6 +478,7 @@ export function ProductsWorkspace({
           youtubeCopy={openItem?.youtubeCopy ?? []}
           creativeDesigns={openItem?.creativeDesigns ?? []}
           creators={openItem?.creators ?? []}
+          creatorOptions={creatorOptions}
           angleOptions={angleOptions}
           angleIds={openItem?.angleIds ?? []}
           demo={demo}

@@ -13,6 +13,7 @@ import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 import {
   creativeDesignLinks,
   creatorLinks,
+  creatorOptions,
   emailCampaignLinks,
   hostLabel,
   youtubeCopyLinks,
@@ -36,9 +37,11 @@ import { ProductsWorkspace, type ProductItem } from './products-workspace';
  * The four record links are resolved here too, from the OTHER side of each link: the email
  * campaigns, the YouTube copy rows, the briefs and the creators arrive through their own demo-aware
  * sources, each carrying the product id(s) it links to, and the `*Links` functions in `./fields`
- * index them per product into the plain `{id, label, href, chip}` lists the panel renders
- * read-only. The YouTube source only exposes its whole workspace read, so its picker options are
- * loaded and dropped; the rows are what this page needs.
+ * index them per product into the plain `{id, label, href, chip}` lists the panel renders. Three of
+ * the four are read-only; the creators are a two-way link (LINK-01), so the same rows are also
+ * handed down as `creatorOptions` — every creator of the brand, which is what a picker must offer.
+ * The YouTube source only exposes its whole workspace read, so its picker options are loaded and
+ * dropped; the rows are what this page needs.
  *
  * `PRODUCT_CSV_COLUMNS` is handed down as plain data rather than imported by the client component:
  * it lives in `@tas/db`, and a runtime import of that package from the browser bundle would drag the
@@ -88,6 +91,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       .map((angle) => angle.id),
   }));
   const angleOptions = angleRows.map(({ id, name }) => ({ id, name }));
+  // The Creators field offers every creator of the brand, not only the booked ones (LINK-01).
+  const creatorPickerOptions = creatorOptions(creatorRows);
 
   const requested = params.product;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -106,6 +111,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       templateColumns={[...PRODUCT_CSV_COLUMNS]}
       userViews={userViews}
       angleOptions={angleOptions}
+      creatorOptions={creatorPickerOptions}
     />
   );
 }

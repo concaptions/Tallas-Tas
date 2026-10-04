@@ -2,7 +2,13 @@ import { eq } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
-import { anglePersonas, angleProducts, conceptAngles, creatorConcepts } from './schema';
+import {
+  anglePersonas,
+  angleProducts,
+  conceptAngles,
+  creatorConcepts,
+  creatorProducts,
+} from './schema';
 
 /**
  * Two-way link writes (Sprint 9, LINK-01). One function for every link: it takes the junction and
@@ -16,7 +22,7 @@ import { anglePersonas, angleProducts, conceptAngles, creatorConcepts } from './
 export type LinkTable = 'concept' | 'angle' | 'creator' | 'product' | 'persona';
 
 export type LinkJunction =
-  'concept_angles' | 'creator_concepts' | 'angle_products' | 'angle_personas';
+  'concept_angles' | 'creator_concepts' | 'creator_products' | 'angle_products' | 'angle_personas';
 
 /** One direction of one junction: the table the source id is on, and the table the ids are on. */
 export interface LinkSpec {
@@ -49,6 +55,13 @@ const JUNCTIONS: Readonly<Record<LinkJunction, Junction>> = {
     sides: {
       creator: { column: creatorConcepts.creatorId, key: 'creatorId' },
       concept: { column: creatorConcepts.conceptId, key: 'conceptId' },
+    },
+  },
+  creator_products: {
+    table: creatorProducts,
+    sides: {
+      creator: { column: creatorProducts.creatorId, key: 'creatorId' },
+      product: { column: creatorProducts.productId, key: 'productId' },
     },
   },
   angle_products: {
