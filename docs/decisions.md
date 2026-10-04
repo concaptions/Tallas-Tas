@@ -1078,3 +1078,21 @@ now render, which is exactly the configurability the seed comment promised, and 
 `Updated` column leaves this grid as it left every other
 (docs/decisions/gratsi-display-spec-2026-10-02.md). Panel, actions and search untouched; no
 migration ran.
+
+## 2026-10-04 — Themes under the strict Gratsi-matches rule: a flagged, deliberate exception, pending a ruling
+
+Recorded by the WIRING cluster so the gratsi-column-diff audit's "Themes 6 vs 0 · NOT
+RESOLVER-DRIVEN" row is not mistaken for unfinished conversion work. Themes is the GLOBAL library
+across all brands (CLAUDE.md non-negotiable 3). It is held out of the per-brand column resolver by
+standing decision (docs/decisions/themes-stays-outside-the-resolver-2026-10-03.md): it is not in
+`PROPAGATION_TABLES`, has no legal `table_key`, seeds no `column_definitions` rows, and the
+reconciling seed deliberately leaves it alone (`column-seed.test.ts` pins that).
+
+Its page displays the hardcoded eight: Airtable's six fields (Name, Notes, Assignee, Status,
+Attachments, Attachment Summary) PLUS the platform's own `category` and `referenceLinks`. Under
+the strict Gratsi-matches-Airtable rule those two platform fields are a mismatch — but a
+PER-BRAND hide is impossible without putting the global library into the per-brand resolver,
+which would break the non-negotiable before it fixed a display diff. So this is a FLAGGED,
+DELIBERATE EXCEPTION, not per-brand hidden and not silently conformed: the two extra displays
+stay until the owner rules either that Themes may join the resolver under a sanctioned global
+mechanism or that `category` / `referenceLinks` leave the page. No code changed with this entry.
