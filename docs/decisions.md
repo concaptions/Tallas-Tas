@@ -897,3 +897,42 @@ is" — no decision record names such a platform and no artifact describes it, s
 to build against. DECISION: the noun reading is adopted and the item is done with the copywriting
 modules as its evidence; the verb reading, if intended, is the same missing-artifact question as
 AI-47 and sits with Talal in `docs/audits/action-items-stuck.md`.
+
+## 2026-10-04 — A gallery cover is a per-viewer lens, not a column definition (action item 16)
+
+"Customise card" asks for two things: which fields show, and which image field is the cover. The
+first already worked — a gallery card's labelled lines come from the same column set the grid
+renders, so one Fields toggle hides a column and a card line together. The second did not exist: the
+cover was whatever each page hard-coded in its `identity` callback, so `creators.galleryFields`
+declared a Profile Pic and a Video Intro and NEITHER could be chosen. That registry had no consumer
+at all.
+
+**Where the choice lives.** `user_table_views.cover_field` (migration 0047, nullable text), beside
+`visible_fields` and `frozen_fields`, and never in `column_definitions`. A cover is one person's way
+of looking at rows everyone shares, exactly as a hidden column or a freeze is; putting it in the
+column configuration would make one viewer's preference every brand's layout.
+
+**Where the OPTIONS come from.** The brand's resolved column set, intersected with the table's
+declared `galleryFields` (`coverFieldOptions`). The registry says which columns are media worth
+covering a card with; the resolver says which of them this brand has, in what order, under what
+label. So a column an admin hid is not offered, a relabelled column is offered under the brand's own
+word, and the `galleryFields` keys were respelled from camelCase field names to resolver column keys
+because that is now the vocabulary a view speaks. The resolved COLUMN SET is used rather than the
+grid's built columns because `profile_pic_url` — the creators gallery's existing default cover — has
+no grid renderer at all: it draws inside the frozen name cell.
+
+**Only UGC Management gets a picker today, and that is the correct answer.** Products, Personas,
+Angles and Concepts declare no media column, so `CoverMenu` renders nothing rather than offering an
+empty setting. Themes declares exactly one, `attachments`, which is already its default cover, so a
+picker there would offer the choice it is already making. Briefs and Assets declare media fields but
+their pages carry no per-user view toolbar yet; they inherit the control when they do.
+
+**Two fallbacks, both "degrade to the default, never to nothing"** — the rule
+`reconcileViewFields` set for hidden columns. A row with no value in the chosen column keeps the
+page's own cover, so a table-wide setting cannot blank the card of a record it does not apply to;
+and a stored `cover_field` naming a column the row does not carry is ignored rather than rendered as
+an empty card.
+
+NOT DONE by this entry: card line ORDER. `UserViewConfig.fieldOrder` exists and `applyUserView`
+applies it, but nothing writes it, and production's one saved view has `field_order = []`. "Customise
+the card" is satisfied for the cover and for which lines show; reordering them is a separate ticket.

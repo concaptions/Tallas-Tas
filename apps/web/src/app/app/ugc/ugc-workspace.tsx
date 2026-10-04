@@ -19,6 +19,7 @@ import {
   KanbanBoard,
   GalleryView,
   type KanbanItem,
+  coverFieldOptions,
   useTableView,
   ViewToolbar,
   galleryItemsFrom,
@@ -453,16 +454,39 @@ export function UgcWorkspace({
     return labels;
   }, [kanbanColumns]);
 
-  // The card image is the creator's profile picture (Sprint 7 gallery); none shows their initials.
+  /**
+   * The cover columns a viewer may pick between here (action item 16): the two media columns the
+   * creators capability declares, narrowed to the ones this brand actually resolves and labelled
+   * with the brand's own labels. `profile_pic_url` is in the resolved COLUMN SET but has no grid
+   * renderer (it draws inside the frozen name cell), which is exactly why the options come from
+   * `columns` rather than from `grid.columns`.
+   */
+  const coverFields = useMemo(
+    () => coverFieldOptions(columns, CREATORS_CAP.galleryFields),
+    [columns],
+  );
+
+  // The card image is the creator's profile picture by default (Sprint 7 gallery) and whichever
+  // media column the viewer chose when they have chosen one; a creator with neither shows their
+  // initials rather than a broken image.
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visibleCreators, grid.columns, (creator) => ({
-        id: creator.id,
-        name: creator.name,
-        imageUrl: creator.profilePicUrl,
-        subtitle: identityLine(creator) || undefined,
-      })),
-    [visibleCreators],
+      galleryItemsFrom(
+        visibleCreators,
+        grid.columns,
+        (creator) => ({
+          id: creator.id,
+          name: creator.name,
+          imageUrl: creator.profilePicUrl,
+          subtitle: identityLine(creator) || undefined,
+          covers: {
+            profile_pic_url: { url: creator.profilePicUrl, mediaType: 'image' },
+            video_intro_url: { url: creator.videoIntroUrl, mediaType: 'video' },
+          },
+        }),
+        { coverField: tableView.config.coverField },
+      ),
+    [visibleCreators, grid.columns, tableView.config.coverField],
   );
 
   const handleKanbanMove = useCallback(() => {
@@ -571,6 +595,8 @@ export function UgcWorkspace({
               onToggleField={tableView.toggleField}
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
+              coverFields={coverFields}
+              onCoverChange={tableView.setCoverField}
               error={tableView.error}
             />
           </div>

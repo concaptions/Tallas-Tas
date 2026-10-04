@@ -106,6 +106,7 @@ describe('parseUserViewConfig', () => {
         frozenFields: undefined,
         sort: { key: 'name', direction: 'desc' },
         filter: 42,
+        coverField: 7,
       }),
     ).toEqual({
       viewType: 'gallery',
@@ -114,10 +115,22 @@ describe('parseUserViewConfig', () => {
       frozenFields: [],
       sort: { key: 'name', direction: 'desc' },
       filter: '',
+      coverField: null,
     });
     expect(parseUserViewConfig({ viewType: 'bogus', sort: { key: 'x' } }).viewType).toBe('grid');
     expect(parseUserViewConfig({ viewType: 'bogus' }).sort).toBeNull();
     expect(parseUserViewConfig({}).visibleFields).toBeNull();
+  });
+
+  it('keeps a stored cover column and reads an empty string as the page default', () => {
+    // Action item 16. A row written before the cover existed has no `cover_field` at all, and must
+    // read as "the page's own cover" — never as a cover key of `''`, which no column has.
+    expect(parseUserViewConfig({ coverField: 'video_intro_url' }).coverField).toBe(
+      'video_intro_url',
+    );
+    expect(parseUserViewConfig({ coverField: '' }).coverField).toBeNull();
+    expect(parseUserViewConfig({}).coverField).toBeNull();
+    expect(defaultUserViewConfig().coverField).toBeNull();
   });
 });
 
