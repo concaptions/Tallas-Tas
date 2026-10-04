@@ -1,10 +1,4 @@
-import type {
-  LinkedCampaign,
-  LinkedCollection,
-  LinkedCopyType,
-  LinkedProduct,
-  YoutubeCopyListRow,
-} from '@tas/db';
+import type { LinkedCampaign, LinkedCollection, LinkedCopyType, LinkedProduct } from '@tas/db';
 import {
   youtubeCopyCtas,
   youtubeCopyFunnels,
@@ -12,9 +6,8 @@ import {
   type YoutubeCopyFunnelsKey,
 } from '@tas/db/schema';
 import { isCopyNumber } from '@tas/domain/copy';
-import { COPY_STATUS, copyStatusLabel, copyStatusTone, type ChipTone } from '@tas/domain/state';
+import { COPY_STATUS, type ChipTone } from '@tas/domain/state';
 
-import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import type { CampaignOption, LinkOption } from '@/lib/youtube-copywriting-source';
 
 /**
@@ -178,39 +171,33 @@ export interface YoutubeCopyItem {
   readonly linkedProducts: readonly LinkedProduct[];
   readonly linkedCampaigns: readonly LinkedCampaign[];
   readonly linkedCopyTypes: readonly LinkedCopyType[];
+  /**
+   * The Airtable LOOKUP cells (GRATSI-MATCH, 2026-10-04), each resolved on the server by
+   * `build-items.ts` through the row's links with `lookupRollup` — never stored, never editable,
+   * and `null` wherever the link points at nothing, which the grid renders as the muted em dash.
+   * The three campaign strings read the rows `youtube_copy_campaigns` links; the collection
+   * strings read `youtube_copy_collections` (and, for `productsFromCollections`, each linked
+   * collection's own product); the product strings read `youtube_copy_products`.
+   */
+  readonly offer: string | null;
+  readonly campaignNames: string | null;
+  readonly campaignCodes: string | null;
+  readonly collectionUrls: string | null;
+  readonly productLinks: string | null;
+  readonly productsFromCollections: string | null;
+  readonly internalProduct: string | null;
+  /** The shared `created_by` audit column, surfaced as Airtable's "Created By" (annotation 3). */
+  readonly createdBy: string | null;
   readonly updatedLabel: string;
   readonly updatedTitle: string;
 }
 
-/** The row to its item, with one `now` so the server and the story format the same string. */
-export function toYoutubeCopyItem(row: YoutubeCopyListRow, now: Date): YoutubeCopyItem {
-  return {
-    id: row.id,
-    copyNumber: row.copyNumber,
-    title: copyNumberLabel(row.copyNumber),
-    status: row.status,
-    statusLabel: copyStatusLabel(row.status),
-    statusTone: copyStatusTone(row.status),
-    angle: row.angle,
-    descriptions: row.descriptions,
-    headline: row.headline,
-    newsFeed: row.newsFeed,
-    cta: row.cta,
-    ctaLabel: ctaLabel(row.cta),
-    funnel: row.funnel,
-    funnelLabel: funnelLabel(row.funnel),
-    clientComment: row.clientComment,
-    used: row.used,
-    winning: row.winning,
-    metaRating: row.metaRating,
-    linkedCollections: row.linkedCollections,
-    linkedProducts: row.linkedProducts,
-    linkedCampaigns: row.linkedCampaigns,
-    linkedCopyTypes: row.linkedCopyTypes,
-    updatedLabel: relativeTime(row.updatedAt, now),
-    updatedTitle: absoluteTime(row.updatedAt),
-  };
-}
+/*
+ * `toYoutubeCopyItem` moved to `./build-items.ts` (GRATSI-MATCH, 2026-10-04): it now computes the
+ * lookup cells with `lookupRollup` from `@tas/db`, a runtime import this module must not make —
+ * the workspace is a client component and imports this file, so the database package would reach
+ * the browser bundle. This module keeps the types, the vocabularies and the pure label helpers.
+ */
 
 /**
  * The search reads everything the grid shows plus the words the row is made of: the generated

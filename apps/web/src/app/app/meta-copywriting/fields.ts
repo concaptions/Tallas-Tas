@@ -34,24 +34,25 @@ export const SEARCH_PARAM = 'q';
 export const SELECTION_PARAM = 'copy';
 
 /**
- * The list's four columns, in the one order the ticket fixes. No fifth column, ever.
- *
- * The first cell stacks two values — the auto-generated Copy # in `font-mono` and, under it, the
- * row's Headline — so the header names both rather than only the one. Splitting them would be the
- * fifth column PRD §5.11 rules out ("keep this table lean"), and leaving the second line unnamed
- * left the most-read words on the page label-less.
+ * The grid's columns are NOT listed here any more (GRATSI-MATCH, 2026-10-04). Label, order and
+ * visibility come from the column resolver per brand — the template's ten fields for an inheriting
+ * base, Gratsi's twenty-five — and the workspace joins them to its renderer registry through
+ * `gridColumnsFrom`, exactly as every other resolver-driven page does. The hand-written
+ * `COPY_COLUMNS` array this replaces drew six headers over a thirty-field base, which is the gap
+ * `docs/audits/gratsi-column-diff-2026-10-04.md` opened on.
  */
-export const COPY_COLUMNS = [
-  'Copy title / Headline',
-  'Linked Creative',
-  'Concept',
-  'Funnel',
-  'Status',
-  'Updated',
-] as const;
 
 /** The dash a null cell shows, so an unattached row is never just a gap. */
 export const EM_DASH = '—';
+
+/** How much of the Descriptions cell the grid shows before the ellipsis; the full text is its title. */
+export const PRIMARY_COPY_PREVIEW = 56;
+
+/** A grid preview of a long text: cut at `max` with an ellipsis, or returned whole when it fits. */
+export function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, Math.max(max - 1, 0)).trimEnd()}…`;
+}
 
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
@@ -63,6 +64,8 @@ export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
  */
 export interface CopyItem {
   readonly id: string;
+  /** The stored integer behind the title, for the grid's numeric sort. */
+  readonly copyNumber: number;
   /** `copyTitle(copyNumber)` — auto-generated, never typed, rendered in `font-mono`. */
   readonly title: string;
   readonly headline: string | null;
@@ -107,6 +110,26 @@ export interface CopyItem {
    * link, see `COLLECTIONS_READ_ONLY_NOTE`.
    */
   readonly collections: readonly LinkedCollection[];
+  /**
+   * The Airtable LOOKUP cells (GRATSI-MATCH, 2026-10-04), each resolved on the server by
+   * `page.tsx` through the row's links with `lookupRollup` — never stored, never editable, and
+   * `null` wherever the link points at nothing, which the grid renders as the muted em dash.
+   * `angleName` is the linked brief's angle; `productName`/`productLink` read the row's
+   * `product_id`; the three campaign strings read the rows `copywriting_campaigns` links; the two
+   * collection strings read the collections whose `copywriting_id` is this row.
+   */
+  readonly angleName: string | null;
+  readonly productName: string | null;
+  readonly productLink: string | null;
+  readonly offer: string | null;
+  readonly campaignNames: string | null;
+  readonly campaignCodes: string | null;
+  readonly collectionUrls: string | null;
+  readonly collectionProducts: string | null;
+  /** The names behind `copyTypeIds`, for the Copy Type grid cell's chips. */
+  readonly copyTypeNames: readonly string[];
+  /** The shared `created_by` audit column, surfaced as Airtable's "Created By" (annotation 3). */
+  readonly createdBy: string | null;
   readonly updatedLabel: string;
   readonly updatedTitle: string;
 }
@@ -378,7 +401,17 @@ export function matchesQuery(item: CopyItem, query: string): boolean {
     item.creativeName ?? NO_CREATIVE_LABEL,
     item.funnel ?? '',
     item.statusLabel,
+    item.angleName ?? '',
+    item.productName ?? '',
+    item.campaignCodes ?? '',
+    ...item.collections.map((collection) => collection.label),
+    ...item.copyTypeNames,
   ].some((value) => value.toLowerCase().includes(query));
+}
+
+/** The Yes/No chip a checkbox column renders: `ok` when set, muted otherwise. */
+export function booleanChip(value: boolean): { readonly label: string; readonly tone: ChipTone } {
+  return value ? { label: 'Yes', tone: 'ok' } : { label: 'No', tone: 'mute' };
 }
 
 /**

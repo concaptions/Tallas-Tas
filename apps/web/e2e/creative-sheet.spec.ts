@@ -61,6 +61,12 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       'Creative Name',
       'Status',
       "Client's Comments",
+      // Template field 17, added by the Gratsi column match (2026-10-04): the one system
+      // timestamp the parent base genuinely has, `updated_at` under Airtable's own label. The
+      // thirteen lookups are NOT here — the template's copies are dead and seed nothing
+      // (docs/decisions/overnight-dead-lookups.md); Gratsi's live 29-field order is asserted
+      // against PGlite in creative-sheet-source.test.ts.
+      'Last Modified',
       'Internal Status',
       'QA Checklist Doc',
       'Video Editor QA',

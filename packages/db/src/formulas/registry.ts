@@ -10,7 +10,12 @@ import {
   emailFlowDesignDueDate,
   smReminderTrigger,
 } from './dates';
-import { briefConceptsFromAngles, conceptPerformance, creativeNameFromCreative } from './lookups';
+import {
+  briefConceptsFromAngles,
+  conceptPerformance,
+  creativeNameFromCreative,
+  lookupRollup,
+} from './lookups';
 import { campaignOfferName, creativeSheetName } from './names';
 import { creatorCostWithFee, differenceCpa } from './numbers';
 
@@ -44,6 +49,13 @@ export const VIRTUAL_FORMULAS = {
   creatorCostWithFee,
   creatorNotifyFlag,
   differenceCpa,
+  /**
+   * EVERY Airtable lookup column of the Gratsi match (2026-10-04) names this one formula: a lookup
+   * IS one computation — the linked rows' values of one field, joined — over a per-column link that
+   * the column's seed row and its page's loader name. See `./lookups.ts` for why there is one
+   * function and not twenty.
+   */
+  lookupRollup,
   emailCampaignCopywritingDueDate,
   emailCampaignDesignDueDate,
   emailFlowCopywritingDueDate,

@@ -1,14 +1,33 @@
 /**
- * Airtable LOOKUP fields the strict Gratsi-matches-Airtable rule surfaces as read-only columns
- * (GRATSI-MATCH, 2026-10-04 — the links cluster). A lookup is not a formula in Airtable's own
- * vocabulary, but it is the same thing to this platform: a value with NO stored column behind it,
- * computed on read from rows the link layer already loaded. Each function here is the one reading
- * of one lookup, so a grid cell and a future panel cannot join or deduplicate differently.
+ * Airtable LOOKUP fields, computed on read — never stored, never writable (GRATSI-MATCH,
+ * 2026-10-04; two clusters merged). An Airtable `multipleLookupValues` field is "the values of one
+ * field across the records a link points at", displayed joined. Two shapes live here, and both are
+ * pinned by their own tests:
  *
- * The inputs are the LINKED rows' already-resolved values — names a page's own loaders carry —
- * never ids and never a database handle: these stay pure, and the caller owns the (single-pass)
- * load exactly as it does for the reverse-link columns.
+ * - `lookupRollup` — THE generic semantic: non-empty values joined in loader order, duplicates
+ *   kept, exactly as Airtable prints a multi-value lookup. Every Creative Sheet / Meta / Youtube
+ *   lookup column names this one registered formula; WHICH link and WHICH field a column reads is
+ *   the pairing of its `column_key` with its page's source loader, recorded on each seed row.
+ * - The named per-field readings below (`briefConceptsFromAngles`, `conceptPerformance`,
+ *   `creativeNameFromCreative`) — lookups whose platform reading needed its own documented rule
+ *   (deduplication, phantom-column history), so a grid cell and a future panel cannot join or
+ *   deduplicate differently.
+ *
+ * Inputs are the LINKED rows' already-resolved values — names a page's own loaders carry on its
+ * single connection pass — never ids and never a database handle. No caller pre-filters blanks.
  */
+
+/**
+ * The looked-up values of one row's link, as the cell displays them: non-empty values joined with
+ * `', '` in the order the loader resolved them, or `null` when the link points at nothing — the
+ * muted em dash case, same as every other absent value.
+ */
+export function lookupRollup(values: readonly (string | null | undefined)[]): string | null {
+  const present = values.filter(
+    (value): value is string => typeof value === 'string' && value.trim() !== '',
+  );
+  return present.length === 0 ? null : present.join(', ');
+}
 
 /** Unique, blank-dropped, order kept, joined the way Airtable prints a multi-value lookup. */
 function joinLookup(values: readonly (string | null | undefined)[]): string | null {

@@ -21,6 +21,7 @@ export {
   smReminderTrigger,
 } from './dates';
 export { creatorCostWithFee, differenceCpa } from './numbers';
+export { lookupRollup } from './lookups';
 export { campaignOfferName, creativeSheetName } from './names';
 export { briefConceptsFromAngles, conceptPerformance, creativeNameFromCreative } from './lookups';
 export {

@@ -29,26 +29,33 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/copywriting needs a session and real data',
   );
 
-  test('lists the four fixture rows in the six columns', async ({ page }) => {
+  test('lists the four fixture rows under the resolver-driven columns', async ({ page }) => {
     await page.goto(copywritingPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Meta Copywriting');
     await expect(page.locator('[data-slot="copy-row"]')).toHaveCount(4);
     await expect(page.locator('[data-slot="copy-count"]')).toContainText('4 copy rows');
 
-    // Sprint 1 field parity added Concept and Funnel to COPY_COLUMNS between Linked Creative and
-    // Status, so the ticket's four columns are six now.
+    /*
+     * The resolver's labels, in the template's order, and FOUR MORE than the hand-written array
+     * drew (GRATSI-MATCH, 2026-10-04, docs/audits/gratsi-column-diff-2026-10-04.md): demo mode is
+     * an inheriting base, so this is the template base's own full ten-field Copywriting set —
+     * `Copy #` and the reverse-link `Collection` column included, both freshly seeded. Gratsi's
+     * thirty-field order is asserted against the resolver in `copy-source.test.ts`, where the
+     * seeded database is Gratsi's.
+     */
     await expect(page.locator('[data-slot="copy-table"] thead th')).toHaveText([
-      'Copy title / Headline',
-      'Linked Creative',
-      'Concept',
-      'Funnel',
+      'Copy #',
+      'Creative',
       'Status',
-      'Updated',
+      'Collection',
+      'Product',
+      'Primary Copy',
+      'Headline',
+      'News Feed / Link Description',
+      'CTA',
+      'USED',
     ]);
-
-    // The first cell stacks the generated title and the headline, which is what its header names.
-    await expect(page.locator('[data-slot="copy-row-headline"]')).toHaveCount(4);
 
     // The title is the auto-generated Copy #, in font-mono, never an input.
     const titles = page.locator('[data-slot="copy-row-title"]');
@@ -57,13 +64,19 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       await expect(title).toHaveText(/^Copy #\d+$/);
     }
 
-    // Every status is the shared chip, never a bare string.
-    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(4);
+    // Every status is the shared chip, never a bare string. Nine chips, counted exactly: the four
+    // Status chips, the four USED Yes/No chips, and the ONE Collections chip — only the BFCM
+    // fixture collection points its `copywriting_id` at a copy row (Copy #1), so the reverse-read
+    // Collection column renders one chip and three em dashes.
+    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(9);
 
     // Three rows link to a creative; the unattached one shows the muted em dash (criterion 4).
     await expect(page.locator('[data-slot="copy-row-creative"]')).toHaveCount(3);
     await expect(page.locator('[data-slot="copy-row-unlinked"]')).toHaveCount(1);
     await expect(page.locator('[data-slot="copy-row-unlinked"]')).toHaveText('—');
+
+    // The registry covers every resolved column, so the "not drawn here" notice never renders.
+    await expect(page.locator('[data-slot="copy-missing-columns"]')).toHaveCount(0);
   });
 
   test('the sidebar links Meta Copywriting and marks it active, with no Soon chip on it', async ({
@@ -291,7 +304,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(page).toHaveURL(/\?q=rota/);
 
     await search.fill('nothing matches this at all');
-    await expect(page.locator('[data-slot="copy-table"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="copy-row"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="copy-empty"]')).toContainText('No copy matches');
 
     await page.locator('[data-slot="clear-search"]').click();

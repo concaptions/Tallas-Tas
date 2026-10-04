@@ -1266,3 +1266,111 @@ Pinned in `gratsi-links-columns.test.ts` (all fourteen labels in order, link vs 
 and the all-platform describe of `column-seed.test.ts` (whose per-table expectations now count
 the one deliberate Gratsi `custom` row rather than asserting none can exist);
 `verify-rollout` expects gratsi 14.
+## 2026-10-04 — GRATSI-MATCH `copywriting`: 25 of 30 Airtable fields displayed; five flagged, zero invented
+
+Input: `docs/audits/gratsi-column-diff-2026-10-04.md` (Meta Copywriting: Airtable 30, platform 14,
+not resolver-driven). The page is now resolver-driven (registry + `gridColumnsFrom` +
+`ColumnNotices`, like YouTube Copywriting), the template base's own ten-field set is seeded in
+full (`Copy #` and the reverse-link `Collection` column were missing from the first
+transcription), and Gratsi's child rows pin the base's exact labels and field order 1–30.
+
+**One new registered formula, `lookupRollup`** (`packages/db/src/formulas/lookups.ts`): an
+Airtable `multipleLookupValues` field IS one computation — the linked rows' values of one field,
+joined — so every lookup column of this match names this single formula rather than twenty
+identity functions; which link and which field a column reads is recorded on its seed row and
+computed in its page's source loader, never stored (`isVirtualColumn` keeps all of them out of
+every write path).
+
+**Displayed as virtual lookup columns** (computed through the row's links in `copy-source.ts` /
+`build-items.ts`): `Offer`, `Campaign (from Campaign)`, `Code (from Campaign)` through
+`copywriting_campaigns` → `campaigns_offers.discount_offer/name/code`; `Collections`,
+`Collection URL`, `Products (from Collections)` through the collections whose `copywriting_id` is
+the row (the collection owns the link; the strict Gratsi-matches-Airtable rule supersedes the
+record-page-only convention AI-43 recorded for reverse links — this one is a read-only GRID
+column now); `Link (from Product)` and `(Internal) Product` through `product_id` (the base's
+`(Internal) Product` is a residual text whose datum the 2026-10-01 register already recorded as
+"same datum as Product" — displayed anyway because Airtable genuinely has both fields, as the
+same product name under both labels); `Angle` through the linked brief's angle (the register:
+"the angle is the brief's angle_id", with the concept-inherited angle as fallback). `Created By`
+is the shared `created_by` audit column surfaced under Airtable's label (diff-audit annotation 3)
+— the stored actor id, rendered as-is.
+
+**Flagged, not fixed — the five fields the resolved set deliberately lacks** (30 − 5 = 25, the
+number `verify-rollout.ts` and `copy-source.test.ts` assert):
+
+| Airtable field | why it stays out |
+| --- | --- |
+| `Creative Reporting` (26) | residual single-line text of a converted link, 0/0 filled, excluded by the 2026-10-01 register; no storage exists and the importer (not this track's file) is where storage would have to begin |
+| `Creative Sheet` (27) | same: residual text, 0/0, register-excluded |
+| `(Internal) Creative Design` (28) | the second brief link beside `Creative`; the import collapsed both into the one `copywriting.creative_brief_id` (register + `import-mappings.ts`), so a second column would duplicate `Creative`, not reflect distinct storage |
+| `⚠️ Please Change the Status of the copy` (29) | the Airtable UI banner; stays the HIDDEN `airtable_status_banner` sentinel row per the ambiguous-field law |
+| `(Internal) Creative Design 2` (30) | residual single-line text of a converted link, 0/0, register-excluded — it "proved to be a dead text remnant" |
+
+Order values keep the Airtable positions (gaps at 25, 26, 28, 29, 30), so an un-flag later lands
+in the right place. Niagara and every other inheriting brand gain only the template's own two
+missing fields (`Copy #`, `Collection`); nothing else about the inheriting set changed.
+
+## 2026-10-04 — GRATSI-MATCH `creative_sheet_items`: all 29 Airtable fields displayed; nothing flagged
+
+Input: `docs/audits/gratsi-column-diff-2026-10-04.md` (Creative Sheet: Airtable 29, platform 14).
+Gratsi's displayed set is now the FULL base, in field order 1–29 — the one table of this match
+with zero exclusions.
+
+**The thirteen lookups are alive for Gratsi and dead only in the template.** The dead-lookup
+register (`docs/decisions/overnight-dead-lookups.md`) is the TEMPLATE's: its `Creative Name` is a
+`singleLineText`, so its twelve lookup copies are `isValid:false` and still seed NOTHING for the
+parent — every inheriting brand stays at the template's own set. In Gratsi's base `Creative Name`
+IS the brief link, so the twelve (plus `Proposed Copy`, which only Gratsi has) are seeded as
+GRATSI child-added VIRTUAL columns over `lookupRollup`, resolved per the map
+`schema/creative-sheet-items.ts` has recorded all along: `Performance`, `Elements we are
+Testing`, `Design File`, `Design Link URL`, `Platform`, `Funnel`, `Type` off the linked brief;
+`(Internal) Product`, `Angle`, `Collection` through the brief's own links (concept-inherited
+name as fallback where `listBriefs` provides one); `Concepts (from Angle)` through
+`concept_angles`; `Creative Module` through `creative_module_designs`; `Proposed Copy` the
+REVERSE read of `copywriting.creative_brief_id`, shown as the copies' generated titles. Loaded in
+`creative-sheet-source.ts` on the page's one connection, joined per row in `build-items.ts`,
+never stored.
+
+**Two system fields are display derivations of the shared audit columns** (diff-audit annotation
+3): `Created` (26) = `created_at`, Gratsi-only; `Last Modified` (27) = `updated_at`, which the
+TEMPLATE base also genuinely has (field 17, `overnight-parent-columns.md`), so the parent seed
+gains that one row and the inheriting set goes 14 → 15. That is the only inheriting-set change.
+
+Counts asserted against PGlite in `creative-sheet-source.test.ts` (Gratsi 29 ordered+labelled,
+inheriting 15, every lookup virtual) and in `verify-rollout.ts`.
+
+## 2026-10-04 — GRATSI-MATCH `youtube_copy`: 24 of 29 Airtable fields displayed; five flagged, zero invented
+
+Input: `docs/audits/gratsi-column-diff-2026-10-04.md` (Youtube Copywriting: Airtable 29, platform
+16, already resolver-driven). Gratsi child rows add the eight missing displayable fields in the
+base's own positions; the platform set every other brand inherits is untouched at 16, because
+this is one of the six tables the parent base does not have at all.
+
+**Displayed as virtual lookup columns** (the same `lookupRollup` + loader pattern as
+`copywriting`; computed in `youtube-copywriting-source.ts` / `build-items.ts`, never stored):
+`Offer` (11), `Campaign (from Campaign)` (12), `Code (from Campaign)` (13) through
+`youtube_copy_campaigns` → `campaigns_offers.discount_offer/name/code`; `Collection URL` (18)
+through `youtube_copy_collections`; `Link (from Product)` (19) through `youtube_copy_products`;
+`Products (from Collections)` (23) through each linked collection's own `product_id` — the one
+hop the list row does not carry, read off the same `listCollections` pass that feeds the picker;
+`(Internal) Product` (27) — the base's residual text whose datum the 2026-10-01 register records
+as "the product link is Product (youtube_copy_products)", displayed as the linked products'
+names. `Created By` (24) is the shared `created_by` audit column under Airtable's label
+(diff-audit annotation 3), a stored child row. `toYoutubeCopyItem` moved from `fields.ts` (a
+client-importable module) to the server-only `build-items.ts` because the lookup cells need the
+`@tas/db` runtime.
+
+**Flagged, not fixed — the five fields the resolved set deliberately lacks** (29 − 5 = 24, the
+number `verify-rollout.ts`, `column-seed.test.ts` and `youtube-copywriting-source.test.ts`
+assert):
+
+| Airtable field | why it stays out |
+| --- | --- |
+| `Creative` (17) | a lookup whose source record link the Gratsi base ITSELF has deleted — `schema/youtube-copy.ts` records it as `isValid:false` with no link to traverse, and the platform stores no youtube↔brief relation; a column here would be empty by construction or a guess |
+| `Creative Reporting` (25) | residual single-line text of a converted link, 0-filled, excluded by the 2026-10-01 register |
+| `Creative Sheet` (26) | same: residual text, register-excluded |
+| `(Internal) Creative Design` (28) | residual text; the register: "youtube_copy has no brief link because the base's field is not one" |
+| `⚠️ Please Change the Status of the copy` (29) | the Airtable UI banner; stays the HIDDEN `airtable_status_banner` sentinel row |
+
+Order values keep the Airtable positions (gaps at 17, 25, 26, 28, 29), so an un-flag later lands
+in the right place.

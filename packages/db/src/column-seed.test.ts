@@ -1180,8 +1180,12 @@ describe('the Creative Sheet column set', () => {
     );
     const onGratsi = await resolveColumns(db, await brandFor(db, 'gratsi'), 'creative_sheet_items');
 
-    expect(onNiagara).toHaveLength(14);
-    expect(onGratsi).toHaveLength(14);
+    // 15 and 29 since the Gratsi column match (2026-10-04): the parent gained its own
+    // `Last Modified` (template field 17), and Gratsi displays its full 29-field base — the
+    // thirteen Creative Name lookups are alive THERE and seeded as child-added `lookupRollup`
+    // virtuals, dead in the template only (docs/decisions/overnight-dead-lookups.md).
+    expect(onNiagara).toHaveLength(15);
+    expect(onGratsi).toHaveLength(29);
     expect(onNiagara[0]?.displayLabel).toBe('Name + Angle + Offer');
     // Gratsi words it `Name`, and the formula survives the relabel because the resolver reads it
     // from the parent row — the column has no Postgres column to fall back to.
@@ -1279,14 +1283,16 @@ describe('the all-platform tables resolve for every brand', () => {
       virtual: 1,
       gratsiCustom: 0,
     },
-    // Gratsi hides its status banner, which has no column at all, so it shows one fewer.
+    // Gratsi hides its status banner; the Gratsi column match (2026-10-04, copy cluster) adds
+    // its six link-lookups, (Internal) Product and Created By as child rows: 24 of its base's 29
+    // fields (five decision-doc-flagged). The inheriting platform set is untouched at 16.
     {
       tableKey: 'youtube_copy',
       inheriting: 16,
-      gratsi: 16,
-      gratsiOwnRows: 2,
+      gratsi: 24,
+      gratsiOwnRows: 10,
       virtual: 0,
-      gratsiCustom: 0,
+      gratsiCustom: 8,
     },
   ] as const;
 

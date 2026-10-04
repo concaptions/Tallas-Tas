@@ -197,6 +197,62 @@ const YOUTUBE_COPY_RENDERERS: ColumnRegistry<YoutubeCopyItem> = {
     sortValue: (item) => item.metaRating,
     align: 'right',
   },
+  /*
+   * The Airtable lookup columns (GRATSI-MATCH, 2026-10-04): read-only echoes of the linked rows,
+   * resolved by `build-items.ts` and seeded as Gratsi child-added `lookupRollup` virtual columns —
+   * so they resolve for Gratsi only, and the platform set the other brands inherit is unchanged.
+   * Campaign names and codes are system output of the campaign name formula, so they keep the
+   * mono face (CLAUDE.md non-negotiable 6), as does the stored `created_by` actor id.
+   */
+  offer: {
+    render: (item) => <TextCell value={item.offer} maxWidth={180} />,
+    sortValue: (item) => item.offer,
+  },
+  campaign_from_campaign: {
+    render: (item) =>
+      item.campaignNames === null ? (
+        dash(null)
+      ) : (
+        <span className="font-mono text-xs">{item.campaignNames}</span>
+      ),
+    cellTitle: (item) => item.campaignNames ?? undefined,
+    sortValue: (item) => item.campaignNames,
+    minWidth: 220,
+  },
+  code_from_campaign: {
+    render: (item) =>
+      item.campaignCodes === null ? (
+        dash(null)
+      ) : (
+        <span className="font-mono text-xs">{item.campaignCodes}</span>
+      ),
+    sortValue: (item) => item.campaignCodes,
+  },
+  collection_url: {
+    render: (item) => <TextCell value={item.collectionUrls} maxWidth={240} />,
+    sortValue: (item) => item.collectionUrls,
+  },
+  link_from_product: {
+    render: (item) => <TextCell value={item.productLinks} maxWidth={240} />,
+    sortValue: (item) => item.productLinks,
+  },
+  products_from_collections: {
+    render: (item) => <TextCell value={item.productsFromCollections} maxWidth={220} />,
+    sortValue: (item) => item.productsFromCollections,
+  },
+  internal_product: {
+    render: (item) => <TextCell value={item.internalProduct} maxWidth={200} />,
+    sortValue: (item) => item.internalProduct,
+  },
+  created_by: {
+    render: (item) =>
+      item.createdBy === null ? (
+        dash(null)
+      ) : (
+        <span className="font-mono text-xs text-text3">{item.createdBy}</span>
+      ),
+    sortValue: (item) => item.createdBy,
+  },
 };
 
 export function YoutubeCopywritingWorkspace({
