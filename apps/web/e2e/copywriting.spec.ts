@@ -64,9 +64,11 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       await expect(title).toHaveText(/^Copy #\d+$/);
     }
 
-    // Every status is the shared chip, never a bare string — and USED is the Yes/No chip, so each
-    // of the four rows carries exactly two.
-    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(8);
+    // Every status is the shared chip, never a bare string. Nine chips, counted exactly: the four
+    // Status chips, the four USED Yes/No chips, and the ONE Collections chip — only the BFCM
+    // fixture collection points its `copywriting_id` at a copy row (Copy #1), so the reverse-read
+    // Collection column renders one chip and three em dashes.
+    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(9);
 
     // Three rows link to a creative; the unattached one shows the muted em dash (criterion 4).
     await expect(page.locator('[data-slot="copy-row-creative"]')).toHaveCount(3);
