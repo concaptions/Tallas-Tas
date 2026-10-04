@@ -24,23 +24,39 @@ describe('hasSpellingIssues', () => {
 });
 
 describe('roleDashboard', () => {
-  it('returns well-formed items for every role — three per brand role, four for admin', () => {
-    const roles = [
-      'strategist',
-      'video_editor',
-      'designer',
-      'csm',
-      'media_buyer',
-      'admin',
-    ] as const;
-    for (const role of roles) {
-      const d = roleDashboard(role);
-      expect(d.items).toHaveLength(role === 'admin' ? 4 : 3);
+  /**
+   * The tile count per role, stated rather than computed: csm is TWO since action item 8 took the
+   * "Angles in library" tile out, and admin is csm's two plus the spell-check tile.
+   */
+  const TILE_COUNT = {
+    strategist: 3,
+    video_editor: 3,
+    designer: 3,
+    csm: 2,
+    media_buyer: 3,
+    admin: 3,
+  } as const;
+
+  it('returns well-formed items for every role, as many as that role is defined to have', () => {
+    for (const [role, expected] of Object.entries(TILE_COUNT)) {
+      const d = roleDashboard(role as keyof typeof TILE_COUNT);
+      expect(d.items, role).toHaveLength(expected);
       expect(d.roleLabel.length).toBeGreaterThan(0);
       for (const item of d.items) {
         expect(item.href).toMatch(/^\/app\//);
         expect(typeof item.count).toBe('number');
       }
+    }
+  });
+
+  it('carries no library tile on any role — action item 8 removed it', () => {
+    for (const role of Object.keys(TILE_COUNT) as (keyof typeof TILE_COUNT)[]) {
+      const labels = roleDashboard(role).items.map((i) => i.label);
+      expect(labels, role).not.toContain('Angles in library');
+      expect(
+        labels.some((label) => /angle/i.test(label)),
+        role,
+      ).toBe(false);
     }
   });
 
@@ -119,6 +135,9 @@ function brief(overrides: Partial<BriefListRow>): BriefListRow {
     qaDesigner: false,
     designFileUrl: null,
     performance: null,
+    // The Admin set reads this column (`hasSpellingIssues`), so the stand-in has to carry it: a
+    // partial fixture that leaves it undefined throws inside the builder rather than counting 0.
+    spellingFeedback: null,
     ...overrides,
   } as BriefListRow;
 }
@@ -144,7 +163,18 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
     expect(buyer.items.find((i) => i.label === 'Currently live')?.count).toBe(1);
 
     const csm = buildRoleDashboard('csm', data);
-    expect(csm.items.find((i) => i.label === 'Angles in library')?.count).toBe(3);
+    // Both briefs have cleared internal review, so the CSM's queue is empty and both are ready.
+    expect(csm.items.find((i) => i.label === 'Briefs in progress')?.count).toBe(0);
+    expect(csm.items.find((i) => i.label === 'Ready for client')?.count).toBe(2);
+    // The three concepts in `data` are no longer counted anywhere on the CSM's tiles — nor on the
+    // two sets built from this one: `adminItems` spreads it and `client` aliases it.
+    expect(csm.items.map((i) => i.label)).not.toContain('Angles in library');
+    expect(buildRoleDashboard('admin', data).items.map((i) => i.label)).not.toContain(
+      'Angles in library',
+    );
+    expect(buildRoleDashboard('client', data).items.map((i) => i.label)).not.toContain(
+      'Angles in library',
+    );
 
     const editor = buildRoleDashboard('video_editor', data);
     expect(editor.items.find((i) => i.label === 'Copy pending review')?.count).toBe(1);
@@ -176,6 +206,16 @@ describe('overview metric cards (TASK 6)', () => {
       brief({ internalStatus: 'static_design_in_progress', clientStatus: 'approved' }),
       brief({ internalStatus: 'ad_submitted', clientStatus: 'approved' }),
       brief({ internalStatus: 'approved', clientStatus: 'pending_for_approval' }),
+      // The three cards action item 6 added. One revision per track, so a card that counted only
+      // the video key would read 1 instead of 2; one client revision; one brief approved on BOTH
+      // tracks, which is the only thing Ads to Launch may count (the `approved`/pending brief above
+      // is internally approved and must not be in it).
+      brief({ internalStatus: 'videos_revisions', clientStatus: 'approved' }),
+      brief({ internalStatus: 'images_revisions', clientStatus: 'revisions_needed' }),
+      brief({ internalStatus: 'approved', clientStatus: 'approved' }),
+      // Sits one step PAST revisions: the editor has re-uploaded, so it is waiting on a reviewer.
+      // Internal Revisions must not count it.
+      brief({ internalStatus: 'revisions_submitted', clientStatus: 'approved' }),
     ],
     concepts: [
       { id: 'c1', approvalStatus: null },
@@ -191,7 +231,7 @@ describe('overview metric cards (TASK 6)', () => {
     ],
   };
 
-  it('admin sees all eight cards, counted with the domain keys', () => {
+  it('admin sees all eleven reference cards, counted with the domain keys', () => {
     const cards = buildOverviewMetrics('admin', data);
     expect(cards.map((c) => c.key)).toEqual([
       'concepts_pending',
@@ -202,8 +242,52 @@ describe('overview metric cards (TASK 6)', () => {
       'static_design_in_progress',
       'ad_submitted',
       'awaiting_client',
+      'internal_revisions',
+      'client_revisions',
+      'ads_to_launch',
     ]);
-    expect(cards.map((c) => c.count)).toEqual([2, 3, 1, 1, 1, 1, 1, 1]);
+    expect(cards.map((c) => c.count)).toEqual([2, 3, 1, 1, 1, 1, 1, 1, 2, 1, 1]);
+  });
+
+  it('counts both tracks of internal revisions, and never a re-upload (AI-6)', () => {
+    const only = (internalStatus: string) =>
+      buildOverviewMetrics('admin', { ...data, briefs: [brief({ internalStatus })] }).find(
+        (c) => c.key === 'internal_revisions',
+      )?.count;
+    expect(only('videos_revisions')).toBe(1);
+    expect(only('images_revisions')).toBe(1);
+    expect(only('revisions_submitted')).toBe(0);
+    expect(only('ad_submitted')).toBe(0);
+  });
+
+  it('Ads to Launch needs BOTH tracks approved, and links to exactly that pair (AI-6)', () => {
+    const cards = buildOverviewMetrics('admin', data);
+    const card = cards.find((c) => c.key === 'ads_to_launch');
+    expect(card?.count).toBe(1);
+    expect(card?.href).toBe('/app/creative-design?status=approved&client=approved&view=grid');
+
+    // Approved on one track only is not a launch candidate, on either side.
+    const halves = {
+      ...data,
+      briefs: [
+        brief({ internalStatus: 'approved', clientStatus: 'pending_for_approval' }),
+        brief({ internalStatus: 'ad_submitted', clientStatus: 'approved' }),
+      ],
+    };
+    expect(
+      buildOverviewMetrics('admin', halves).find((c) => c.key === 'ads_to_launch')?.count,
+    ).toBe(0);
+  });
+
+  it('the revisions cards link where they can actually land (AI-6)', () => {
+    const cards = buildOverviewMetrics('admin', data);
+    // One client key, so the Briefs table can be filtered to it.
+    expect(cards.find((c) => c.key === 'client_revisions')?.href).toBe(
+      '/app/creative-design?client=revisions_needed&view=grid',
+    );
+    // TWO internal keys, one per track, and `?status=` takes one: the Internal Queue board groups
+    // by internal status, so both revision columns are visible there. Never a one-track filter.
+    expect(cards.find((c) => c.key === 'internal_revisions')?.href).toBe('/app/queue/internal');
   });
 
   it('brief cards click through to the table already filtered by KEY, never a label', () => {
@@ -216,17 +300,51 @@ describe('overview metric cards (TASK 6)', () => {
     );
   });
 
-  it('scopes the set to the role: editor gets three video cards, client only the client one', () => {
+  it('scopes the set to the role: the maker sees revisions, the buyer sees launches', () => {
     expect(buildOverviewMetrics('video_editor', data).map((c) => c.key)).toEqual([
       'sent_to_video_editor',
       'video_editing_in_progress',
       'ad_submitted',
+      'internal_revisions',
+      'client_revisions',
     ]);
-    expect(buildOverviewMetrics('client', data).map((c) => c.key)).toEqual(['awaiting_client']);
+    expect(buildOverviewMetrics('designer', data).map((c) => c.key)).toEqual([
+      'sent_to_designer',
+      'static_design_in_progress',
+      'ad_submitted',
+      'internal_revisions',
+      'client_revisions',
+    ]);
+    expect(buildOverviewMetrics('media_buyer', data).map((c) => c.key)).toEqual([
+      'ad_submitted',
+      'awaiting_client',
+      'ads_to_launch',
+    ]);
   });
 
-  it('renders over the demo fixtures without throwing, eight cards for admin', () => {
-    expect(overviewMetrics('admin')).toHaveLength(8);
+  /**
+   * Non-negotiable 10: a client sees no internal data. `revisions_needed` is a member of
+   * `CLIENT_STATUS`, so the Client Revisions card is the client's OWN status and belongs to them;
+   * `internal_revisions` counts two statuses whose descriptions say the client never sees them, so
+   * it must not reach the client set however the role lists are reshuffled.
+   */
+  it('gives the client their own revisions and no internal one', () => {
+    expect(buildOverviewMetrics('client', data).map((c) => c.key)).toEqual([
+      'awaiting_client',
+      'client_revisions',
+    ]);
+  });
+
+  it('renders over the demo fixtures without throwing, eleven cards for admin', () => {
+    expect(overviewMetrics('admin')).toHaveLength(11);
+    // The counts the fixtures actually hold. `demoBriefs` has one brief approved on both tracks
+    // (the launch candidate) and NO brief in any revisions state — the same shape production is in
+    // — so both revision cards read 0. Asserted rather than skipped: a card that reads 0 over data
+    // with no revisions is correct, and a card that reads anything else over it is a miscount.
+    const byKey = new Map(overviewMetrics('admin').map((c) => [c.key, c.count]));
+    expect(byKey.get('ads_to_launch')).toBe(1);
+    expect(byKey.get('internal_revisions')).toBe(0);
+    expect(byKey.get('client_revisions')).toBe(0);
   });
 });
 
