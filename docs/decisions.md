@@ -1017,3 +1017,38 @@ exclusion register and re-affirmed here rather than silently skipped:
 Pinned in `packages/db/src/gratsi-links-columns.test.ts` (the Airtable list minus exactly these
 five names) and in the updated Angles describes of `column-seed.test.ts`; `verify-rollout`
 expects gratsi 16. Parent rows untouched — Niagara still resolves the same sixteen it did.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Creative Design resolves the live base's 42 fields; four stay flags; Due Date keeps AI-49
+
+The strict rule applied to `creative_briefs` (diff of 2026-10-04, Creative Design section).
+Gratsi resolves THIRTY-NINE columns — the base's 42 fields, at the base's own positions, minus
+the four flags below, plus `Due Date`. Display only; the parent set and every write path are
+untouched:
+
+- **Reverse links as read-only columns**: `Creative Module` (keyed `creative_module_designs`,
+  0 rows today — the importer fills it), `Creative Sheet` (`creative_sheet_items`, its `brief_id`
+  read backwards) and `Meta Copywriting` (`copywriting`, the `creative_brief_id` FK read
+  backwards, rendered as the copy rows' generated titles).
+- **Airtable's system fields display the shared columns** (diff annotation 3): `Last Modified` →
+  `updated_at`, `Created` → `created_at`. No migration.
+- **`Concepts (from Angles)` is a VIRTUAL lookup** — `briefConceptsFromAngles` in
+  `packages/db/src/formulas/lookups.ts`, computed on read through the brief's angle into
+  `concept_angles`; `storedColumns` keeps it out of every writable set.
+- **`Due Date` is NOT hidden.** The strict Gratsi-matches-Airtable rule calls it a leak (no base
+  has the field); the standing AI-49 ruling is Talal's own "columns + due date" ask. The strict
+  rule DEFERS to AI-49 here, pending a ruling that names the winner; the column moves to the end
+  of the displayed set (after the Airtable range) so the base's own order is undisturbed.
+
+**Four Airtable fields stay decision flags**, never columns:
+
+| field | why it stays a flag |
+|---|---|
+| `Created 2` | A second `createdTime` system field, 390/390 — a duplication remnant (rule 5). `Created` already displays `created_at`; a second display of the same datum would be two readings of one value. |
+| `(Internal) Collections 2` | Residual single-line text left by a converted link (rule 5); the live link is `(Internal) Collections 3` → `collection_id`. |
+| `Ads Copywriting copy` | The unread half of the duplicate copy-table link pair (overnight finding 8). Its stored side DOES NOT EXIST — `copywriting` carries one brief FK, `creative_brief_id`, and `Meta Copywriting` already reverses it — and the copywriting side belongs to the copy track. WAITING-ON-THE-COPY-TRACK: if that track lands a second stored link, the briefs-side display is one seed row away; nothing is migrated from this cluster. |
+| `Angles` | Residual single-line text (rule 5); the real link is `Angle` → `angle_id`, displayed at position 13. |
+
+Pinned in `gratsi-links-columns.test.ts` (the 42-field list minus exactly these four, plus
+`Due Date` last) and the Creative Design describes of `column-seed.test.ts`; `verify-rollout`
+expects gratsi 39. The grid data costs no new query shape: the copy and concept loaders the page
+now reads are the same demo-aware sources every other page uses, indexed once per request.

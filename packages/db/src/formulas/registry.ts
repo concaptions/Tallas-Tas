@@ -10,6 +10,7 @@ import {
   emailFlowDesignDueDate,
   smReminderTrigger,
 } from './dates';
+import { briefConceptsFromAngles, conceptPerformance, creativeNameFromCreative } from './lookups';
 import { campaignOfferName, creativeSheetName } from './names';
 import { creatorCostWithFee, differenceCpa } from './numbers';
 
@@ -35,7 +36,10 @@ import { creatorCostWithFee, differenceCpa } from './numbers';
  * already configured would have to be edited twice to add a column.
  */
 export const VIRTUAL_FORMULAS = {
+  briefConceptsFromAngles,
   campaignOfferName,
+  conceptPerformance,
+  creativeNameFromCreative,
   creativeSheetName,
   creatorCostWithFee,
   creatorNotifyFlag,

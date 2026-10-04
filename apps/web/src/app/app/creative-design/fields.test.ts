@@ -99,6 +99,8 @@ function item(overrides: Partial<BriefItem> = {}): BriefItem {
     galleryImageUrl: null,
     formSnapshot: EMPTY_SNAPSHOT,
     linkCounts: NO_BRIEF_LINKS,
+    metaCopy: [],
+    conceptsFromAngles: null,
     ...overrides,
   };
 }

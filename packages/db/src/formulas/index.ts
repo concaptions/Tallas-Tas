@@ -22,6 +22,7 @@ export {
 } from './dates';
 export { creatorCostWithFee, differenceCpa } from './numbers';
 export { campaignOfferName, creativeSheetName } from './names';
+export { briefConceptsFromAngles, conceptPerformance, creativeNameFromCreative } from './lookups';
 export {
   isVirtualFormulaName,
   VIRTUAL_FORMULAS,

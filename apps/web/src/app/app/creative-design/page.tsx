@@ -1,4 +1,6 @@
+import { briefConceptsFromAngles } from '@tas/db';
 import { getTableCapability, supportsView, type ViewType } from '@tas/domain';
+import { copyTitle } from '@tas/domain/copy';
 import { editorStageOf } from '@tas/domain/state';
 import { creativeFunnelLabel } from '@tas/domain/creatives';
 
@@ -9,13 +11,15 @@ import { loadBriefColumns, loadBriefs } from '@/lib/briefs-source';
 import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadClientAssetFolders } from '@/lib/client-assets-source';
 import { loadCollections } from '@/lib/collections-source';
+import { loadConcepts } from '@/lib/concepts-source';
+import { loadCopy } from '@/lib/copy-source';
 import { loadCreativeModules } from '@/lib/creative-modules-source';
 import { loadCreativeReports } from '@/lib/creative-reporting-source';
 import { loadCreativeSheetItems } from '@/lib/creative-sheet-source';
 import { loadProducts } from '@/lib/products-source';
 import { loadViewPreference } from '@/lib/view-preference-actions';
 import { isDemoMode } from '@/lib/demo-mode';
-import { briefPath } from '@/lib/routes';
+import { briefPath, metaCopywritingPath } from '@/lib/routes';
 
 import { BriefsWorkspace } from './briefs-workspace';
 import {
@@ -85,6 +89,8 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
     collectionRows,
     campaignRows,
     assetRows,
+    copyRows,
+    conceptRows,
   ] = await Promise.all([
     loadBriefs(),
     // The brand's own column configuration (AI-64a): the grid draws what this returns, so the page
@@ -106,6 +112,10 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
     loadCollections(),
     loadCampaigns(),
     loadAssets(),
+    // GRATSI-MATCH 2026-10-04: the copy rows whose `creative_brief_id` points here (the read-only
+    // `Meta Copywriting` grid column) and the concepts behind the `Concepts (from Angles)` lookup.
+    loadCopy(),
+    loadConcepts(),
   ]);
   const demo = isDemoMode();
 
@@ -123,6 +133,37 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
     folders: folders.rows,
     reports: reports.rows,
   });
+
+  // GRATSI-MATCH 2026-10-04 — two more single-pass inversions for the new read-only columns.
+  // `copywriting.creative_brief_id` read backwards: briefId -> the copy rows' generated titles.
+  const metaCopyByBrief = new Map<
+    string,
+    { readonly id: string; readonly label: string; readonly href?: string }[]
+  >();
+  for (const copy of copyRows.rows) {
+    if (copy.creativeBriefId === null) continue;
+    (
+      metaCopyByBrief.get(copy.creativeBriefId) ??
+      (() => {
+        const list: { readonly id: string; readonly label: string; readonly href?: string }[] = [];
+        metaCopyByBrief.set(copy.creativeBriefId, list);
+        return list;
+      })()
+    ).push({
+      id: copy.id,
+      label: copyTitle(copy.copyNumber),
+      href: `${metaCopywritingPath}?copy=${encodeURIComponent(copy.id)}`,
+    });
+  }
+  // `concept_angles` through the brief's angle: angleId -> the paired concepts' generated names.
+  const conceptNamesByAngle = new Map<string, string[]>();
+  for (const concept of conceptRows.rows) {
+    for (const angleId of concept.angleIds) {
+      const names = conceptNamesByAngle.get(angleId) ?? [];
+      names.push(concept.name);
+      conceptNamesByAngle.set(angleId, names);
+    }
+  }
 
   // `?view=` overrides the default/saved view when it names a view Briefs supports, so a table (or
   // gallery) is reachable and shareable by URL even though Kanban is the default.
@@ -187,6 +228,10 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
       galleryImageUrl: firstDesign ?? firstInspo,
       formSnapshot: formSnapshotOf(row),
       linkCounts: linkCounts.get(row.id) ?? NO_BRIEF_LINKS,
+      metaCopy: metaCopyByBrief.get(row.id) ?? [],
+      conceptsFromAngles: briefConceptsFromAngles(
+        row.angleId === null ? [] : (conceptNamesByAngle.get(row.angleId) ?? []),
+      ),
     };
   });
 

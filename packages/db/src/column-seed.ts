@@ -502,19 +502,92 @@ const CREATIVE_BRIEFS_PLATFORM = platformRows('creative_briefs', [
  *    `script_content` row and `ad_content` is hidden for Gratsi.
  *  - `Inspiration` relabels `inspiration_image`, which is the column the engine writes for it.
  */
+/**
+ * GRATSI-MATCH (2026-10-04): the live base's 42 fields at the live base's own positions. Inherited
+ * rows carry the PARENT base's field order, which is why the audit recorded "ORDER DIVERGES" —
+ * every column whose Gratsi position differs now holds a Gratsi row at that position (same label
+ * where the bases agree). Three columns need no row at all, because name and position already
+ * match: `name` (1), `design_file` (17), `design_file_url` (18).
+ *
+ * The additions, all display-only:
+ * - `creative_module_designs` (28), `creative_sheet_items` (37) and `copywriting` (39) are the
+ *   REVERSE sides of `creative_module_designs`, `creative_sheet_items.brief_id` and
+ *   `copywriting.creative_brief_id` — Airtable's `Creative Module`, `Creative Sheet` and
+ *   `Meta Copywriting` link fields, keyed by the table that points back at `creative_briefs`.
+ * - `updated_at` (29) and `created_at` (30) display the shared columns under Airtable's
+ *   `Last Modified` / `Created` system-field names (diff annotation 3 — no migration).
+ * - `concepts_from_angles` (42) is VIRTUAL — the `Concepts (from Angles)` lookup, computed by
+ *   `briefConceptsFromAngles` through the brief's angle into `concept_angles`; declared below the
+ *   list because a virtual row carries a formula the five-tuple cannot.
+ * - `due_date` (43) keeps the AI-49 platform column VISIBLE, placed after the Airtable range: the
+ *   strict rule would call it a leak, but AI-49 is Talal's own ask, so the standing ruling wins
+ *   pending a new one (docs/decisions.md, GRATSI-MATCH entry).
+ *
+ * NOT here, each a decision-doc flag (same entry): `Created 2` (34, second createdTime),
+ * `(Internal) Collections 2` (35, residual text), `Ads Copywriting copy` (38 — the duplicate
+ * copy-table link pair's unread half; its stored side does not exist and the copywriting side
+ * belongs to the copy track), `Angles` (41, residual text).
+ */
 const CREATIVE_BRIEFS_GRATSI = childRows('creative_briefs', [
+  ['type', 'Type', 2, 'relabel', 'singleSelect'],
+  ['priority', 'Priority', 3, 'relabel', 'singleSelect'],
+  ['internal_status', 'Internal Status', 4, 'relabel', 'singleSelect'],
+  ['client_status', 'Client Status', 5, 'relabel', 'singleSelect'],
+  ['performance', 'Performance', 6, 'relabel', 'singleSelect'],
+  ['assignee', 'Assignee', 7, 'relabel', 'singleCollaborator'],
   ['batch', 'Batch', 8, 'custom', 'singleSelect'],
+  ['qa_checklist_doc', 'QA Checklist Doc', 9, 'relabel', 'multipleAttachments'],
+  ['qa_video_editor', 'Video Editor QA', 10, 'relabel', 'checkbox'],
+  ['qa_designer', 'Graphic Designer QA', 11, 'relabel', 'checkbox'],
+  ['qa_strategist', 'Creative Strategist QA', 12, 'relabel', 'checkbox'],
+  ['angle_id', 'Angle', 13, 'relabel', 'multipleRecordLinks'],
+  ['concept_id', 'Concept', 14, 'relabel', 'multipleRecordLinks'],
+  ['product_id', '(Internal) Product', 15, 'relabel', 'multipleRecordLinks'],
   ['language', 'Language', 16, 'custom', 'singleSelect'],
   ['inspiration_image', 'Inspiration', 19, 'relabel', 'multipleAttachments'],
   ['brief_to_design', 'Brief to Design/Editing', 20, 'relabel', 'richText'],
   ['script_content', 'Script / Ad Content', 21, 'custom', 'richText'],
+  ['platform', 'Platform', 22, 'relabel', 'multipleSelects'],
+  ['dimensions', 'Dimensions', 23, 'relabel', 'multipleRecordLinks'],
+  ['source', 'Source', 24, 'relabel', 'singleSelect'],
+  ['funnel', 'Funnel', 25, 'relabel', 'singleSelect'],
+  ['elements_tested', 'Elements we are Testing', 26, 'relabel', 'richText'],
   ['offer', 'Offer', 27, 'custom', 'richText'],
+  ['creative_module_designs', 'Creative Module', 28, 'custom', 'multipleRecordLinks'],
+  ['updated_at', 'Last Modified', 29, 'custom', 'lastModifiedTime'],
+  ['created_at', 'Created', 30, 'custom', 'createdTime'],
+  ['click_for_ai_spell_checker', 'Click for AI Spell Checker Again', 31, 'relabel', 'checkbox'],
+  ['spelling_feedback', 'Spelling Feedback', 32, 'relabel', 'multilineText'],
   ['spelling_feedback_2', 'Spelling Feedback 2', 33, 'custom', 'multilineText'],
   ['collection_id', '(Internal) Collections 3', 36, 'relabel', 'multipleRecordLinks'],
+  ['creative_sheet_items', 'Creative Sheet', 37, 'custom', 'multipleRecordLinks'],
+  ['copywriting', 'Meta Copywriting', 39, 'custom', 'multipleRecordLinks'],
+  // The trailing space is the live field name, exactly as the parent row carries it.
+  ['script_and_brief_breakdown', 'Script & brief breakdown ', 40, 'relabel', 'multipleAttachments'],
+  ['due_date', 'Due Date', 43, 'relabel-platform', 'date'],
   ['ad_content', 'Ad Content', 22, 'hidden', 'richText'],
   ['campaign_offer_id', 'Campaigns & Offers', 25, 'hidden', 'multipleRecordLinks'],
   ['asset_id', 'Assets', 28, 'hidden', 'multipleRecordLinks'],
 ]);
+
+/**
+ * The one VIRTUAL row of the Gratsi briefs set: Airtable's `Concepts (from Angles)` lookup
+ * (field 42). `source: 'custom'` because the Gratsi base defines the field and the parent's
+ * definition does not; `formula` names the registered reading, so the gate proves it exists and
+ * `storedColumns` keeps every write path away from it.
+ */
+const CREATIVE_BRIEFS_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'creative_briefs',
+    columnKey: 'concepts_from_angles',
+    displayLabel: 'Concepts (from Angles)',
+    displayOrder: 42,
+    fieldType: 'multipleLookupValues',
+    source: 'custom',
+    isDetached: true,
+    formula: 'briefConceptsFromAngles',
+  },
+];
 
 /**
  * `Concepts` `tblRlcp1ibmS7U7HG` — 22 fields, 8 of them lookups and 1 a formula.
@@ -1474,6 +1547,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...PERSONAS_GRATSI,
       ...COPYWRITING_GRATSI,
       ...CREATIVE_BRIEFS_GRATSI,
+      ...CREATIVE_BRIEFS_GRATSI_VIRTUAL,
       ...CONCEPTS_GRATSI,
       ...ANGLES_GRATSI,
       ...CREATIVE_MODULES_GRATSI,

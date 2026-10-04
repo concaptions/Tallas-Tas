@@ -88,6 +88,8 @@ function itemOf(overrides: Partial<BriefItem> = {}): BriefItem {
       clientStatus: first.clientStatus,
     },
     linkCounts: { sheetItems: 0, modules: 0, folders: 0, reports: 0 },
+    metaCopy: [],
+    conceptsFromAngles: null,
     ...overrides,
   };
 }

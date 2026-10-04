@@ -42,7 +42,10 @@ const EXPECTED: readonly {
   { tableKey: 'creative_sheet_items', inheriting: 14, gratsi: 14, virtual: 1 },
   // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
   // platform's own `due_date`; Gratsi hides three and adds five of its own.
-  { tableKey: 'creative_briefs', inheriting: 31, gratsi: 33, virtual: 0 },
+  // GRATSI-MATCH 2026-10-04 (links cluster): plus the live base's remaining fields — three
+  // reverse links, the Last Modified/Created displays and the Concepts (from Angles) lookup —
+  // minus the four decision-register exclusions; Due Date stays per AI-49. Gratsi 39.
+  { tableKey: 'creative_briefs', inheriting: 31, gratsi: 39, virtual: 0 },
 ];
 
 async function main(): Promise<void> {

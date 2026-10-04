@@ -105,3 +105,98 @@ describe('GRATSI-MATCH · angles', () => {
     expect(resolved.every((column) => column.formula === null)).toBe(true);
   });
 });
+
+describe('GRATSI-MATCH · creative_briefs', () => {
+  /** Gratsi `Creative Design (Internal & Interface)` (`tblhU5yVNhVDwykUt`), all 42 live fields. */
+  const AIRTABLE_CREATIVE_DESIGN: readonly string[] = [
+    'Name',
+    'Type',
+    'Priority',
+    'Internal Status',
+    'Client Status',
+    'Performance',
+    'Assignee',
+    'Batch',
+    'QA Checklist Doc',
+    'Video Editor QA',
+    'Graphic Designer QA',
+    'Creative Strategist QA',
+    'Angle',
+    'Concept',
+    '(Internal) Product',
+    'Language',
+    'Design File',
+    'Design Link URL',
+    'Inspiration',
+    'Brief to Design/Editing',
+    'Script / Ad Content',
+    'Platform',
+    'Dimensions',
+    'Source',
+    'Funnel',
+    'Elements we are Testing',
+    'Offer',
+    'Creative Module',
+    'Last Modified',
+    'Created',
+    'Click for AI Spell Checker Again',
+    'Spelling Feedback',
+    'Spelling Feedback 2',
+    'Created 2',
+    '(Internal) Collections 2',
+    '(Internal) Collections 3',
+    'Creative Sheet',
+    'Ads Copywriting copy',
+    'Meta Copywriting',
+    'Script & brief breakdown ',
+    'Angles',
+    'Concepts (from Angles)',
+  ];
+
+  /*
+   * Deliberately excluded, each by name:
+   *  - `Created 2` — a second createdTime system field, a duplication remnant (rule 5; the first
+   *    one, `Created`, displays `created_at`).
+   *  - `(Internal) Collections 2` — residual single-line text left by a converted link (rule 5;
+   *    the live link is `(Internal) Collections 3` → `collection_id`).
+   *  - `Ads Copywriting copy` — the unread half of the duplicate copy-table link pair; its stored
+   *    side does not exist (`copywriting` carries ONE brief FK, `creative_brief_id`, which
+   *    `Meta Copywriting` reverses) and the copywriting side belongs to the copy track — flagged
+   *    waiting-on-the-copy-track in docs/decisions.md, never migrated from here.
+   *  - `Angles` — residual single-line text; the real link is the `Angle` field → `angle_id`
+   *    (rule 5).
+   * And one deliberate ADDITION the strict rule would call a leak: `Due Date`, kept visible by
+   * the standing AI-49 ruling (Talal asked for it), recorded in the same decisions entry.
+   */
+  const EXCLUDED = new Set([
+    'Created 2',
+    '(Internal) Collections 2',
+    'Ads Copywriting copy',
+    'Angles',
+  ]);
+
+  it('resolves the Airtable list minus the named exclusions, plus the AI-49 Due Date', async () => {
+    const resolved = await gratsiColumns('creative_briefs');
+    expect(resolved.map((column) => column.displayLabel)).toEqual([
+      ...expectedLabels(AIRTABLE_CREATIVE_DESIGN, EXCLUDED),
+      'Due Date',
+    ]);
+  });
+
+  it('keys the reverse links, system fields and the lookup to what really backs them', async () => {
+    const resolved = await gratsiColumns('creative_briefs');
+    const byLabel = new Map(resolved.map((column) => [column.displayLabel, column]));
+
+    // Reverse links: the table that carries the FK/junction back to creative_briefs.
+    expect(byLabel.get('Creative Module')?.columnKey).toBe('creative_module_designs');
+    expect(byLabel.get('Creative Sheet')?.columnKey).toBe('creative_sheet_items');
+    expect(byLabel.get('Meta Copywriting')?.columnKey).toBe('copywriting');
+    // Airtable's system fields display the shared columns — no migration (diff annotation 3).
+    expect(byLabel.get('Last Modified')?.columnKey).toBe('updated_at');
+    expect(byLabel.get('Created')?.columnKey).toBe('created_at');
+    // The lookup is virtual: formula-backed, never stored, never writable.
+    const lookup = byLabel.get('Concepts (from Angles)');
+    expect(lookup?.columnKey).toBe('concepts_from_angles');
+    expect(lookup?.formula).toBe('briefConceptsFromAngles');
+  });
+});

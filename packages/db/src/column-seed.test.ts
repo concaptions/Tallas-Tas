@@ -1331,16 +1331,39 @@ describe('the Creative Design column set', () => {
 
     // Thirty parent fields plus the platform's `due_date`.
     expect(onNiagara).toHaveLength(31);
-    // Gratsi hides three (Ad Content, Campaigns & Offers, Assets) and adds five of its own.
-    expect(onGratsi).toHaveLength(33);
+    /*
+     * GRATSI-MATCH (2026-10-04): the live base's 42 fields minus the four decision-register
+     * exclusions (`Created 2`, `(Internal) Collections 2`, `Ads Copywriting copy`, the `Angles`
+     * text remnant), plus the AI-49 `Due Date` platform column, which the standing ruling keeps
+     * visible. Three reverse links, the two system-field displays and the one virtual lookup are
+     * all Gratsi child rows; the parent set above is untouched.
+     */
+    expect(onGratsi).toHaveLength(39);
     for (const hidden of ['ad_content', 'campaign_offer_id', 'asset_id']) {
       expect(onGratsi.map((column) => column.columnKey)).not.toContain(hidden);
       expect(onNiagara.map((column) => column.columnKey)).toContain(hidden);
     }
-    for (const own of ['batch', 'language', 'script_content', 'offer', 'spelling_feedback_2']) {
+    for (const own of [
+      'batch',
+      'language',
+      'script_content',
+      'offer',
+      'spelling_feedback_2',
+      // The GRATSI-MATCH additions: reverse links, the two system-field displays, the lookup.
+      'creative_module_designs',
+      'creative_sheet_items',
+      'copywriting',
+      'updated_at',
+      'created_at',
+      'concepts_from_angles',
+    ]) {
       expect(onGratsi.map((column) => column.columnKey)).toContain(own);
       expect(onNiagara.map((column) => column.columnKey)).not.toContain(own);
     }
+    // The lookup is VIRTUAL: it carries its formula and never reaches the writable set.
+    const lookup = onGratsi.find((column) => column.columnKey === 'concepts_from_angles');
+    expect(lookup?.formula).toBe('briefConceptsFromAngles');
+    expect(storedColumns(onGratsi).some((c) => c.columnKey === 'concepts_from_angles')).toBe(false);
     // Gratsi's relabels, under Gratsi's words; the parent keeps its own.
     expect(onGratsi.find((column) => column.columnKey === 'brief_to_design')?.displayLabel).toBe(
       'Brief to Design/Editing',
