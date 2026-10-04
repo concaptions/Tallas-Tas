@@ -1011,10 +1011,17 @@ const AI_CHARACTERS_GRATSI = childRows(
 );
 
 /**
- * `(Internal) Collections` `tbl6LBNrRqa6Hh4I2` — 8 fields, 7 of which seed. The three link columns
- * are keyed by the FK that `collections` actually carries (`angle_id`, `product_id`,
- * `copywriting_id`), which is what the engine writes in pass 2; the parent audit's junction guesses
- * for fields 4 and 5 are not columns this schema has.
+ * `(Internal) Collections` `tbl6LBNrRqa6Hh4I2` — 8 fields, ALL seeded (GRATSI-MATCH collections,
+ * 2026-10-04). The link columns are keyed by the FK that `collections` actually carries
+ * (`campaign_id`, `angle_id`, `product_id`, `copywriting_id`, `creative_design_2_id`).
+ *
+ * Fields 6 and 8 were previously conflated into one row. `schema/collections.ts` is the authority
+ * for what each column stores: `creative_design_note` "mirrors Airtable's loose-text field" — the
+ * TEMPLATE's field 6 `(Internal) Creative Design` (singleLineText) — and `creative_design_2_id` is
+ * "a proper FK to briefs", the template's field 8 `(Internal) Creative Design 2`
+ * (multipleRecordLinks → Creative Sheet (Internal & Interface)); the demo fixtures populate both
+ * exactly that way. The old row keyed the note column under the field-8 label as a record link,
+ * which showed a text column as a link and left field 6 without a column.
  */
 const COLLECTIONS_PARENT = parentRows('collections', [
   ['name', 'Collection Name', 1, 'singleLineText'],
@@ -1022,18 +1029,50 @@ const COLLECTIONS_PARENT = parentRows('collections', [
   ['campaign_id', 'Campaigns & Offers', 3, 'multipleRecordLinks'],
   ['angle_id', 'Angles', 4, 'multipleRecordLinks'],
   ['product_id', '(Internal) Product', 5, 'multipleRecordLinks'],
+  ['creative_design_note', '(Internal) Creative Design', 6, 'singleLineText'],
   ['copywriting_id', 'Ads Copywriting copy', 7, 'multipleRecordLinks'],
-  ['creative_design_note', '(Internal) Creative Design 2', 8, 'multipleRecordLinks'],
+  ['creative_design_2_id', '(Internal) Creative Design 2', 8, 'multipleRecordLinks'],
 ]);
 
 /**
- * Gratsi `(Internal) Collections` — 13 fields, one relabel and nothing else. Its `Copywriting` field
- * (order 3) gets no row: the engine writes it to `collections.copywriting_id`, which field 13
- * `Ads Copywriting copy` already owns, and one column can carry one row per base. Recorded in the
- * decision doc rather than duplicated.
+ * Gratsi `(Internal) Collections` — 13 fields, orders the Gratsi base's own positions
+ * (`import-mappings.ts` keeps them in field order; the duplicate `Email Campaigns Management
+ * copy` pair collapses to one mapping entry, positions 11-12). Nine display; four are rule-5
+ * flags with NO row (decision entry "GRATSI-MATCH collections" in docs/decisions.md): `Creative
+ * Sheet` (5) and the `Email Campaigns Management copy` pair (11-12) are the exclusion register's
+ * residual texts, and `Table 17` (10) is the audit's junk-named field (annotation 4) — its email
+ * campaigns already reach the panel through `email_campaign_collections`.
+ *
+ * The same label names DIFFERENT storage in the two bases, which is why most rows are same-label
+ * detached relabels at Gratsi's own positions:
+ *
+ *  - `Copywriting` (3) links YOUTUBE Copywriting — the inverse of Youtube Copywriting ›
+ *    Collections, i.e. the `youtube_copy_collections` junction (`import-mappings.ts`
+ *    `collections.Copywriting`, gate-derived from `inverseLinkFieldId`). NOT the template's
+ *    Meta-copy link, and no new junction is needed.
+ *  - `Ads Copywriting copy` (13) IS the Meta Copywriting link, stored in
+ *    `collections.copywriting_id` — the template's field 7 column under the same label.
+ *  - `Angles` (6) links CONCEPTS despite its name (`concept_collections`); the template's
+ *    `angle_id` is hidden for Gratsi, whose base has no angle link here.
+ *  - `(Internal) Product` (7) is the register's empty text remnant; the platform's `product_id`
+ *    keeps the label so the displayed set matches, and the import never writes it for Gratsi.
+ *  - `(Internal) Creative Design` (8) is the REAL reverse link — Creative Design › (Internal)
+ *    Collections 3 into `creative_briefs.collection_id` — so it is keyed by `creative_briefs`,
+ *    the table holding the FK back (the `PRODUCTS_PARENT` rule).
+ *  - `(Internal) Creative Design 2` (9) is Gratsi's loose text, the `creative_design_note`
+ *    column; the template's `creative_design_2_id` link is hidden, its base has no such link.
  */
 const COLLECTIONS_GRATSI = childRows('collections', [
   ['name', 'Main Collection', 1, 'relabel', 'singleLineText'],
+  ['youtube_copy_collections', 'Copywriting', 3, 'custom', 'multipleRecordLinks'],
+  ['campaign_id', 'Campaigns & Offers', 4, 'relabel', 'multipleRecordLinks'],
+  ['concept_collections', 'Angles', 6, 'custom', 'multipleRecordLinks'],
+  ['product_id', '(Internal) Product', 7, 'relabel', 'multipleRecordLinks'],
+  ['creative_briefs', '(Internal) Creative Design', 8, 'custom', 'multipleRecordLinks'],
+  ['creative_design_note', '(Internal) Creative Design 2', 9, 'relabel', 'singleLineText'],
+  ['copywriting_id', 'Ads Copywriting copy', 13, 'relabel', 'multipleRecordLinks'],
+  ['angle_id', 'Angles', 4, 'hidden', 'multipleRecordLinks'],
+  ['creative_design_2_id', '(Internal) Creative Design 2', 8, 'hidden', 'multipleRecordLinks'],
 ]);
 
 /**

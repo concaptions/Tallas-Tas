@@ -45,6 +45,11 @@ const EXPECTED: readonly {
   // attached` is register-excluded); Gratsi = its 20 fields minus the `Product` lookup and
   // `Design attached` (both rule-5 flags in docs/decisions.md), with `(Internal) Product` hidden.
   { tableKey: 'campaigns_offers', inheriting: 13, gratsi: 18, virtual: 0 },
+  // GRATSI-MATCH collections (2026-10-04, WIRING cluster): absent until that run. The template's
+  // 8 fields; Gratsi = its 13 fields minus the four rule-5 flags (Creative Sheet, Table 17, the
+  // duplicate Email Campaigns Management copy pair — docs/decisions.md "GRATSI-MATCH collections"),
+  // with the template's angle_id and creative_design_2_id hidden.
+  { tableKey: 'collections', inheriting: 8, gratsi: 9, virtual: 0 },
 ];
 
 async function main(): Promise<void> {

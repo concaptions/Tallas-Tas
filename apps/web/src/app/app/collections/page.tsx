@@ -1,14 +1,14 @@
 import { loadBriefs } from '@/lib/briefs-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadCampaigns } from '@/lib/campaigns-source';
-import { loadCollections } from '@/lib/collections-source';
+import { loadCollectionColumns, loadCollections } from '@/lib/collections-source';
 import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
 import { loadCopy } from '@/lib/copy-source';
 import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
 import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
-import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
 import {
+  creativeDesign2Link,
   hostLabel,
   indexConceptsByCollection,
   indexCreativeDesignsByCollection,
@@ -48,6 +48,7 @@ interface CollectionsPageProps {
 export default async function CollectionsPage({ searchParams }: CollectionsPageProps) {
   const [
     { rows },
+    { columns, unconfigured },
     campaignRows,
     emailCampaignRows,
     youtubeCopyRows,
@@ -57,6 +58,7 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     params,
   ] = await Promise.all([
     loadCollections(),
+    loadCollectionColumns(),
     loadCampaigns(),
     loadEmailCampaigns(),
     loadYoutubeCopyWorkspace(),
@@ -72,18 +74,16 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
   const conceptsByCollection = indexConceptsByCollection(conceptRows.rows, CONCEPT_TRACK);
   const creativeDesignsByCollection = indexCreativeDesignsByCollection(briefRows.rows);
   const demo = isDemoMode();
-  const now = new Date();
 
   const items: CollectionItem[] = rows.map((collection) => ({
     collection,
     urlHost: hostLabel(collection.url),
-    updatedLabel: relativeTime(collection.updatedAt, now),
-    updatedTitle: absoluteTime(collection.updatedAt),
     emailCampaigns: emailCampaignsByCollection.get(collection.id) ?? [],
     youtubeCopy: youtubeCopyByCollection.get(collection.id) ?? [],
     concepts: conceptsByCollection.get(collection.id) ?? [],
     creativeDesigns: creativeDesignsByCollection.get(collection.id) ?? [],
     metaCopy: metaCopyLink(collection.copywritingId, copyRows.rows),
+    creativeDesign2: creativeDesign2Link(collection.creativeDesign2Id, briefRows.rows),
   }));
 
   const requested = params.collection;
@@ -94,6 +94,8 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
 
   return (
     <CollectionsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfigured}
       items={items}
       campaigns={campaigns}
       demo={demo}

@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 export interface CollectionListResult {
   readonly rows: CollectionListRow[];
@@ -47,6 +48,23 @@ async function withDb<T>(deps: CollectionSourceDeps, query: (db: Db) => Promise<
   } finally {
     await connection.close();
   }
+}
+
+const COLLECTIONS_TABLE_KEY = 'collections';
+
+/**
+ * THE ordered, labelled, visible Collections columns of the working brand, through the ONE loader
+ * every resolver-driven page shares (`lib/resolved-columns-source.ts`). Same shape as
+ * `loadClientAssetColumns` — GRATSI-MATCH collections (2026-10-04).
+ */
+export async function loadCollectionColumns(
+  deps: CollectionSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(COLLECTIONS_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 export async function loadCollections(

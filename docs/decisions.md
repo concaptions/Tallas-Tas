@@ -1007,3 +1007,40 @@ resolve" (empty on every live row), and the Gratsi import never writes `collecti
 through. If the client ever fills that remnant, the mapping note above says exactly where the
 lookup would resolve from. Gratsi displays 18 of its 20 fields, in field order; the `Updated`
 column leaves this grid as it left every other (gratsi-display-spec-2026-10-02).
+
+## 2026-10-04 — GRATSI-MATCH collections: the grid reads the resolver; four flags; two labels, two storages
+
+The Collections grid now reads its columns from `resolveColumns` (seed sections
+`COLLECTIONS_PARENT` / `COLLECTIONS_GRATSI`), closing the audit's six-column gap
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §(Internal) Collections). Storage verified first
+(`schema/collections.ts`, `import-mappings.ts`, `schema/youtube-copy.ts`): the parent seed's old
+single `(Internal) Creative Design 2` row conflated the template's fields 6 and 8 — the loose
+TEXT field 6 `(Internal) Creative Design` is `creative_design_note` ("mirrors Airtable's
+loose-text field") and the LINK field 8 `(Internal) Creative Design 2` is `creative_design_2_id`
+("a proper FK to briefs") — so the parent now seeds both, in template order.
+
+THE SAME LABEL NAMES DIFFERENT STORAGE IN THE TWO BASES, and the seed follows the verified
+import mappings rather than the label: Gratsi's `Copywriting` is the inverse of Youtube
+Copywriting › Collections (`youtube_copy_collections`, which exists — no new junction was needed
+and none was built), while Gratsi's `Ads Copywriting copy` IS the Meta Copywriting link stored in
+`collections.copywriting_id`. The WIRING brief had these two swapped and expected `Copywriting` to
+wait on a copywriting↔collections junction; `import-mappings.ts` (gate-derived from
+`inverseLinkFieldId`) and the module-parity spec's own annotations both say otherwise, so the
+column ships now, backed by the junction that already exists. If the copy track later adds a
+`copywriting_collections` junction, that work belongs to the COPYWRITING table's own `Collections`
+field and does not touch these labels. Gratsi's `Angles` links CONCEPTS (`concept_collections`),
+so the template's `angle_id` is Gratsi-hidden; `(Internal) Creative Design` is the real reverse of
+`creative_briefs.collection_id` (keyed `creative_briefs`), not a remnant — the remnant of that
+family on this table is `(Internal) Creative Design 2`, Gratsi's loose text in
+`creative_design_note`.
+
+Four Gratsi fields are rule-5 flags, NOT columns, so the strict rule is met "minus named flags":
+`Creative Sheet` and both `Email Campaigns Management copy` fields are the 2026-10-01 exclusion
+register's residual texts, and `Table 17` is the gratsi-column-diff audit's junk-named field
+(annotation 4: decision-doc it, do not invent columns) — its content already reaches the panel as
+"Email campaigns" through `email_campaign_collections`, and surfacing a grid column literally
+headed "Table 17" is withheld pending a ruling. `(Internal) Product` stays displayed: the label
+matches Gratsi's field, the backing is the platform's `product_id`, and the register records
+Gratsi's own field as empty text on every live row ("nothing to resolve"), so an empty link column
+is exactly what the base shows. Gratsi displays 9 of 13 fields, in field order; reverse links are
+display-only read-throughs; no migration ran.
