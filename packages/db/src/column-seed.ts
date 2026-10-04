@@ -1260,18 +1260,36 @@ const PRODUCTS_PLATFORM: readonly UpsertColumnDefinition[] = [
 
 /**
  * Gratsi's `(Internal) Product` — 11 fields, and it renames NOTHING (audit §10). Its `Angles`,
- * `(Internal) Creative Design` and `UGC Management` carry the parent's own names, so Gratsi inherits
- * those three and holds no row for them.
+ * `(Internal) Creative Design` and `UGC Management` carry the parent's own names; GRATSI-MATCH
+ * (2026-10-04) gives each a Gratsi row anyway, because the audit recorded "ORDER DIVERGES" — the
+ * rows re-state the parent's labels at the GRATSI base's own field positions (4, 10, 11), and the
+ * YouTube relabel moves to its live position (8).
  *
- * What it does hold: the three parent fields Gratsi's base does NOT have, hidden so the page shows
- * Gratsi only what Gratsi defines; and one relabel, because Gratsi's base spells the YouTube link
- * `Youtube Copywriting` where the platform row above calls it `YouTube Copy`.
+ * `email_campaign_products` at position 5 is the junction behind Airtable's field LITERALLY NAMED
+ * `Table 17` (the exclusion register: "email campaigns reach products through Table 17 →
+ * email_campaign_products"). The column keeps the platform's working label `Email Campaigns`
+ * rather than adopting the junk auto-name — renaming a working link column to a duplication
+ * remnant's name serves nobody; the strict rule's intent is content parity. The mismatch is
+ * flagged in docs/decisions.md (GRATSI-MATCH entry) rather than smoothed over.
+ *
+ * Hidden, never dropped — the parent fields Gratsi's base does not have, now five: the original
+ * three, plus the two the 2026-10-04 diff lists as leaks, `collection_link` (a stored platform
+ * column no Gratsi field backs) and `concepts` (the two-hop derived count; INFERRED_JUNCTIONS in
+ * the gate). Hidden rows keep the parent's own display order, so un-hiding restores the template
+ * position. The four residual fields — `(Internal) Creative Design 2`, both `Email Campaigns
+ * Management copy` duplicates and `Creative Sheet` — stay rule-5 decision flags, never columns.
  */
 const PRODUCTS_GRATSI = childRows('products', [
-  ['youtube_copy_products', 'Youtube Copywriting', 11, 'relabel-platform', 'multipleRecordLinks'],
+  ['angle_products', 'Angles', 4, 'relabel', 'multipleRecordLinks'],
+  ['email_campaign_products', 'Email Campaigns', 5, 'relabel-platform', 'multipleRecordLinks'],
+  ['youtube_copy_products', 'Youtube Copywriting', 8, 'relabel-platform', 'multipleRecordLinks'],
+  ['creative_briefs', '(Internal) Creative Design', 10, 'relabel', 'multipleRecordLinks'],
+  ['creator_products', 'UGC Management', 11, 'relabel', 'multipleRecordLinks'],
   ['collections', '(Internal) Collections', 100, 'hidden', 'multipleRecordLinks'],
   ['campaigns_offers', 'Campaigns & Offers', 101, 'hidden', 'multipleRecordLinks'],
   ['copywriting', 'Meta Copywriting', 102, 'hidden', 'multipleRecordLinks'],
+  ['collection_link', 'Collection Link', 9, 'hidden', 'url'],
+  ['concepts', 'Concepts', 12, 'hidden', 'count'],
 ]);
 
 /** `Campaigns & Offers` `tblRNaWCVa1cCIwLL` — 14 fields; the `Name` formula and 2 links skipped. */

@@ -18,7 +18,9 @@ const EXPECTED: readonly {
   readonly gratsi: number;
   readonly virtual: number;
 }[] = [
-  { tableKey: 'products', inheriting: 12, gratsi: 9, virtual: 0 },
+  // GRATSI-MATCH 2026-10-04 (links cluster): the diff's two leaks (Collection Link, Concepts) are
+  // Gratsi-hidden and the seven real fields read in the live base's order — Gratsi 7.
+  { tableKey: 'products', inheriting: 12, gratsi: 7, virtual: 0 },
   // GRATSI-MATCH 2026-10-04 (links cluster): Gratsi angles now carries the live base's 21 fields
   // minus the five decision-register exclusions — three reverse links and the two Concepts-side
   // lookups resolve as read-only columns, in Airtable order.

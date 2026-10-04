@@ -929,20 +929,30 @@ describe('the Products column set', () => {
 
     const resolved = await resolveColumns(db, await brandId(db, 'gratsi'), 'products');
 
+    /*
+     * GRATSI-MATCH (2026-10-04): seven columns, in the LIVE base's field order. `Email Campaigns`
+     * sits at the position of Airtable's `Table 17` link — that junk auto-name stays a decision
+     * flag and the junction keeps the platform's working label. `Collection Link` and `Concepts`
+     * are hidden now (the diff's two leaks): neither is a Gratsi Product field.
+     */
     expect(resolved.map((column) => column.displayLabel)).toEqual([
       'Product Name / Landing Page Name',
       'Link',
       'Angles',
-      '(Internal) Creative Design',
-      'UGC Management',
-      'Collection Link',
       'Email Campaigns',
       // Gratsi's base spells the YouTube link this way; the template calls it 'YouTube Copy'.
       'Youtube Copywriting',
-      'Concepts',
+      '(Internal) Creative Design',
+      'UGC Management',
     ]);
-    // The three parent fields Gratsi's base does not have are hidden, not relabelled away.
-    for (const key of ['collections', 'campaigns_offers', 'copywriting']) {
+    // The five parent columns Gratsi's base has no field for are hidden, not relabelled away.
+    for (const key of [
+      'collections',
+      'campaigns_offers',
+      'copywriting',
+      'collection_link',
+      'concepts',
+    ]) {
       expect(
         resolved.some((column) => column.columnKey === key),
         `Gratsi should hide ${key}, which its base has no field for`,

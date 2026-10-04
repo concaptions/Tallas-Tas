@@ -1082,3 +1082,33 @@ untouched:
 
 Pinned in `gratsi-links-columns.test.ts` (the 23-field list minus exactly these two);
 `verify-rollout` expects gratsi 21.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Products shows the seven real Gratsi fields; Table 17's junction keeps its working label
+
+The strict rule applied to `products`. Gratsi resolves SEVEN columns — the base's 11 fields minus
+the four remnants — in the base's own order; the diff's two LEAKS are hidden child rows:
+
+- **Hidden for Gratsi, kept for the parent**: `collection_link` (a stored platform column with
+  2/9 live values and no Gratsi field) and `concepts` (the two-hop derived count). Neither is an
+  `(Internal) Product` field in the Gratsi base; both stay on every inheriting brand.
+- **Order**: the five link columns gain Gratsi rows at the base's own positions (Angles 4,
+  Email Campaigns 5, Youtube Copywriting 8, (Internal) Creative Design 10, UGC Management 11);
+  labels unchanged except as below.
+
+**The `Table 17` naming decision.** Airtable's field at position 5 is literally named `Table 17`
+— an auto-name left by a table duplication — and its data IS the `email_campaign_products`
+junction the platform already renders as `Email Campaigns`. The junction DISPLAYS at Table 17's
+position but KEEPS the platform's working label: renaming a working link column to a duplication
+remnant's auto-name serves nobody, and the diff's own near-name relabel candidate
+(`Email Campaigns Management copy` ↔ `Email Campaigns`) pairs the column with a TEXT remnant,
+which would be worse. CONTENT parity is met (the junction shows at the field's position with the
+field's data); the NAME mismatch is recorded here, pending an owner ruling if `Table 17` or the
+remnant wording is ever wanted verbatim.
+
+**Four fields stay rule-5 flags**, never columns: `(Internal) Creative Design 2` (residual text,
+0/6 — the structured link is `creative_briefs.product_id`), both `Email Campaigns Management
+copy` duplicates (residual text, 0/6 each) and `Creative Sheet` (residual text, 0/6). All four
+are already in the 2026-10-02 exclusion register.
+
+Pinned in `gratsi-links-columns.test.ts` (labels AND keys, in order) and the Products describes
+of `column-seed.test.ts`; `verify-rollout` expects gratsi 7.

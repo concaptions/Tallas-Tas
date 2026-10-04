@@ -266,3 +266,57 @@ describe('GRATSI-MATCH · concepts', () => {
     expect(name?.source).toBe('platform');
   });
 });
+
+describe('GRATSI-MATCH · products', () => {
+  /*
+   * The Gratsi `(Internal) Product` table (`tblfvfJMYNBz2OYYw`), all 11 fields in live order:
+   *   1 Product Name / Landing Page Name · 2 Link · 3 (Internal) Creative Design 2 (text) ·
+   *   4 Angles · 5 Table 17 · 6+7 Email Campaigns Management copy ×2 (text) ·
+   *   8 Youtube Copywriting · 9 Creative Sheet (text) · 10 (Internal) Creative Design ·
+   *   11 UGC Management
+   *
+   * Deliberately excluded, each by name (rule 5 — duplication remnants, never columns):
+   *  - `(Internal) Creative Design 2` — residual text, 0/6; the structured link is
+   *    `(Internal) Creative Design` → `creative_briefs.product_id`.
+   *  - `Email Campaigns Management copy` (both copies) — residual text, 0/6 each.
+   *  - `Creative Sheet` — residual text, 0/6.
+   * And one KEPT-LABEL decision: Airtable's field at position 5 is literally named `Table 17`;
+   * its data IS the `email_campaign_products` junction, which renders under the platform's
+   * working label `Email Campaigns` — the junk auto-name is flagged in docs/decisions.md, not
+   * adopted. The diff's near-name relabel candidate (`Email Campaigns Management copy` ↔
+   * `Email Campaigns`) is likewise NOT taken: that name is itself a remnant.
+   *
+   * The two platform leaks the diff lists — `Collection Link`, `Concepts` — are hidden child
+   * rows now (no Gratsi Product field backs either); the parent keeps both.
+   */
+  const EXPECTED_PRODUCTS: readonly string[] = [
+    'Product Name / Landing Page Name',
+    'Link',
+    'Angles',
+    'Email Campaigns',
+    'Youtube Copywriting',
+    '(Internal) Creative Design',
+    'UGC Management',
+  ];
+
+  it('resolves the seven real fields in live order; remnants and leaks never resolve', async () => {
+    const resolved = await gratsiColumns('products');
+    expect(resolved.map((column) => column.displayLabel)).toEqual(EXPECTED_PRODUCTS);
+    for (const leaked of ['collection_link', 'concepts']) {
+      expect(resolved.map((column) => column.columnKey)).not.toContain(leaked);
+    }
+  });
+
+  it('keys every link column by the table that carries the FK back to products', async () => {
+    const resolved = await gratsiColumns('products');
+    expect(resolved.map((column) => column.columnKey)).toEqual([
+      'name',
+      'link',
+      'angle_products',
+      'email_campaign_products',
+      'youtube_copy_products',
+      'creative_briefs',
+      'creator_products',
+    ]);
+  });
+});
