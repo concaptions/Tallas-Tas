@@ -15,6 +15,8 @@ export interface AngleDraft {
   readonly name: string;
   /** At least one persona is required — an angle is a hypothesis *about somebody* (PRD §5.4). */
   readonly personaIds: readonly string[];
+  /** At least one product is required too — the hypothesis is about somebody BUYING something (AI-55). */
+  readonly productIds: readonly string[];
   readonly formats: readonly string[];
   /** Raw pasted strings. A blank row is an empty input, not a broken link. */
   readonly adInspoLinks: readonly string[];
@@ -36,7 +38,8 @@ export const ANGLE_NAME_MIN_LENGTH = 2;
  *
  * - Name is required and needs at least two characters once trimmed.
  * - At least one persona is required: an angle is a hypothesis *about somebody* (PRD §5.4).
- *   Product stays optional via its junction table, so it carries no rule.
+ * - At least one product is required too (AI-55): the somebody is buying something, and the
+ *   concept's inherited Product comes through this link — an angle without one briefs nothing.
  * - At least one format, otherwise nothing can be briefed from the angle.
  * - Every ad-inspiration entry that has any text in it must be an `http(s)` URL. Blank rows are
  *   ignored, because the panel keeps an empty input at the bottom of the list.
@@ -53,6 +56,10 @@ export function validateAngleDraft(draft: AngleDraft): AngleDraftValidation {
 
   if (draft.personaIds.length === 0) {
     fieldErrors.personaIds = 'Pick at least one persona this angle is written from.';
+  }
+
+  if (draft.productIds.length === 0) {
+    fieldErrors.productIds = 'Pick at least one product this angle sells.';
   }
 
   if (draft.formats.length === 0) {

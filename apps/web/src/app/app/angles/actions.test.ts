@@ -198,6 +198,20 @@ describe('with Clerk configured', () => {
     );
   });
 
+  it('rejects an angle with no product chosen, under the field the panel reads (AI-55)', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+
+    const result = await createAngleAction(
+      null,
+      form({ ...filled, productId: '' }, filledRepeated),
+    );
+
+    if (result.ok) {
+      throw new Error('an angle with no product was accepted');
+    }
+    expect(result.fieldErrors?.productId).toBe('Pick at least one product this angle sells.');
+  });
+
   it('rejects an angle with no format ticked', async () => {
     vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
 

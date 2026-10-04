@@ -200,7 +200,7 @@ function failureFromDraft(
 ): AngleActionFailure {
   const mapped: Partial<Record<AngleFieldName, string>> = {};
   for (const [key, message] of Object.entries(fieldErrors)) {
-    const uiKey = key === 'personaIds' ? 'personaId' : key;
+    const uiKey = key === 'personaIds' ? 'personaId' : key === 'productIds' ? 'productId' : key;
     mapped[uiKey as AngleFieldName] = message;
   }
   return {
@@ -250,6 +250,7 @@ function parse(
   const draft = validateAngleDraft({
     name: parsed.data.name,
     personaIds,
+    productIds,
     formats: parsed.data.formats,
     adInspoLinks: parsed.data.adInspoLinks,
   });

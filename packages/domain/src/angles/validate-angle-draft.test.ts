@@ -4,11 +4,13 @@ import type { AngleDraft } from './validate-angle-draft';
 import { validateAngleDraft } from './validate-angle-draft';
 
 const PERSONA_ID = '00000000-0000-4000-8000-555500000001';
+const PRODUCT_ID = '00000000-0000-4000-8000-666600000001';
 
 function draft(overrides: Partial<AngleDraft> = {}): AngleDraft {
   return {
     name: 'Sleep debt is a tax you pay in the morning',
     personaIds: [PERSONA_ID],
+    productIds: [PRODUCT_ID],
     formats: ['Static', 'Video'],
     adInspoLinks: ['https://www.facebook.com/ads/library/?id=1234567890'],
     ...overrides,
@@ -82,6 +84,7 @@ describe('validateAngleDraft', () => {
     const result = validateAngleDraft({
       name: '',
       personaIds: [],
+      productIds: [],
       formats: [],
       adInspoLinks: ['nope'],
     });
@@ -91,6 +94,29 @@ describe('validateAngleDraft', () => {
       'formats',
       'name',
       'personaIds',
+      'productIds',
     ]);
+  });
+});
+
+describe('the product rule (AI-55)', () => {
+  it('refuses an angle with no product, under its own field key', () => {
+    const result = validateAngleDraft(draft({ productIds: [] }));
+
+    expect(result.ok).toBe(false);
+    expect(result.fieldErrors.productIds).toBe('Pick at least one product this angle sells.');
+  });
+
+  it('is satisfied by one product, and says nothing about the field', () => {
+    const result = validateAngleDraft(draft());
+
+    expect(result.fieldErrors.productIds).toBeUndefined();
+  });
+
+  it('reports persona and product together when both are missing, not whichever came first', () => {
+    const result = validateAngleDraft(draft({ personaIds: [], productIds: [] }));
+
+    expect(result.fieldErrors.personaIds).toBeDefined();
+    expect(result.fieldErrors.productIds).toBeDefined();
   });
 });

@@ -280,10 +280,11 @@ export function AnglePanel({
       validateAngleDraft({
         name,
         personaIds,
+        productIds,
         formats,
         adInspoLinks: links,
       }),
-    [name, personaIds, formats, links],
+    [name, personaIds, productIds, formats, links],
   );
 
   /** A toggled set stays in the vocabulary's order, whatever order the clicks came in. */
