@@ -136,9 +136,12 @@ function syncUrl(view: ConceptView, search: string): void {
  * (CLAUDE.md non-negotiable 6 — generated output always renders in `font-mono`), and the two
  * approval tracks keep their `StatusChip`s.
  *
- * `production_status` has no entry on purpose: the column is configured on the template but this
- * grid has never drawn it (docs/decisions.md), so it comes back in `missing` and is stated on the
- * page rather than silently omitted.
+ * `production_status` has no entry on purpose, and now needs none: the column is seeded
+ * `is_hidden` on the parent (packages/db/src/column-seed.ts — Talal, 2026-09-28, "take it out"), so
+ * the resolver never returns it and nothing reaches this registry to look for. It used to resolve
+ * visible, come back in `missing` and be printed on the page by `ColumnNotices`, which put the name
+ * of the removed field on screen for every brand. Hiding a column is a DATA edit in the seed, never
+ * a special case here.
  */
 const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   name: {

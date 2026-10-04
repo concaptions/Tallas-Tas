@@ -583,19 +583,50 @@ const CONCEPTS_PLATFORM: readonly UpsertColumnDefinition[] = [
   },
 ];
 
-const CONCEPTS_PARENT = parentRows('concepts', [
-  ['batch', 'Batch', 2, 'singleSelect'],
-  ['concept_angles', 'Angles', 4, 'multipleRecordLinks'],
-  ['category', 'Category', 6, 'singleSelect'],
-  ['concept_style', 'Concept Style', 7, 'singleSelect'],
-  ['approval_status', 'Approval Status', 8, 'singleSelect'],
-  ['hook_examples', 'Hook examples', 12, 'multilineText'],
-  ['script_idea', 'Script idea', 13, 'multilineText'],
-  ['formats_to_create', 'Formats to create', 18, 'multipleSelects'],
-  ['production_status', 'Production Status', 19, 'singleSelect'],
-  ['ad_inspo_links', 'Ad Inspo', 20, 'multilineText'],
-  ['creator_concepts', 'Creator', 21, 'multipleRecordLinks'],
-]);
+/**
+ * `production_status` — the one PARENT row this seed writes hidden, and the only way to take the
+ * column out of the product without taking it out of the database.
+ *
+ * Talal, 2026-09-28: "take it out" (docs/decisions.md, "hidden, not dropped"). The form control and
+ * the grid renderer were removed then, but the `column_definitions` row stayed visible, and once the
+ * Concepts page started resolving its columns that became WORSE than leaving the column in: with no
+ * entry in `CONCEPT_RENDERERS`, the resolver hands the key back as `missing` and `ColumnNotices`
+ * prints "Configured for this brand but not drawn here: production_status" on the page, for every
+ * brand. Hiding it here is what actually removes it — the resolver drops a hidden row (rule 5 in
+ * `column-definitions.ts`), so nothing resolves it, nothing reports it missing and the notice goes
+ * away, on the signed-in path and in the `COLUMN_SEED`-derived demo fallback alike.
+ *
+ * NOT DROPPED. 73 of 106 live concepts carry a value, the importer still writes it
+ * (`airtable-import.ts`) and `concepts.production_status` round-trips through a hidden input on the
+ * detail page, so the data is intact and un-hiding this one row puts the column back at order 19
+ * where the template base has it. A brand that wants it visible again gets its own un-hidden child
+ * row; `parentRows` deliberately has no hidden path, because a hidden PARENT row is a statement
+ * about the whole product and should not be a fifth tuple element in a list of eleven.
+ */
+const CONCEPTS_PRODUCTION_STATUS: UpsertColumnDefinition = {
+  tableKey: 'concepts',
+  columnKey: 'production_status',
+  displayLabel: 'Production Status',
+  displayOrder: 19,
+  fieldType: 'singleSelect',
+  isHidden: true,
+};
+
+const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
+  ...parentRows('concepts', [
+    ['batch', 'Batch', 2, 'singleSelect'],
+    ['concept_angles', 'Angles', 4, 'multipleRecordLinks'],
+    ['category', 'Category', 6, 'singleSelect'],
+    ['concept_style', 'Concept Style', 7, 'singleSelect'],
+    ['approval_status', 'Approval Status', 8, 'singleSelect'],
+    ['hook_examples', 'Hook examples', 12, 'multilineText'],
+    ['script_idea', 'Script idea', 13, 'multilineText'],
+    ['formats_to_create', 'Formats to create', 18, 'multipleSelects'],
+    ['ad_inspo_links', 'Ad Inspo', 20, 'multilineText'],
+    ['creator_concepts', 'Creator', 21, 'multipleRecordLinks'],
+  ]),
+  CONCEPTS_PRODUCTION_STATUS,
+];
 
 /**
  * Gratsi `Concepts` — 23 fields, and SEVEN of the eight level shifts: `Type`, `Product`, `Personas`,

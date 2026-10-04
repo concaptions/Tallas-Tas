@@ -551,6 +551,44 @@ describe('platform columns on concepts', () => {
   });
 
   /**
+   * Production Status: HIDDEN, never dropped (Talal, 2026-09-28, "take it out" — docs/decisions.md).
+   *
+   * The parent row exists and carries the template base's own label and order, so un-hiding that one
+   * row puts the column back at 19; it simply must not resolve for anybody. It did resolve, on all
+   * five brands, which is what made the Concepts page print the words "production_status" in its
+   * missing-columns notice — the removed field's name on screen for every brand. There is no child
+   * row for the key anywhere, so hiding the parent is enough to hide it everywhere.
+   */
+  it('hides production_status for every brand, with the parent row kept so it can come back', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    for (const slug of ['gratsi', 'niagara-sleep-solutions', 'funky-painting']) {
+      const resolved = await resolveColumns(db, await brandIdBySlug(db, slug), 'concepts');
+      expect(
+        resolved.find((column) => column.columnKey === 'production_status'),
+        `production_status resolved on ${slug}, so the page names it in the missing-columns notice`,
+      ).toBeUndefined();
+    }
+
+    // The row is there, hidden — the column is recoverable, and the data behind it untouched.
+    const seeded = COLUMN_SEED.filter((group) => group.target.kind === 'parent')
+      .flatMap((group) => group.rows)
+      .filter((row) => row.tableKey === 'concepts' && row.columnKey === 'production_status');
+    expect(seeded).toEqual([
+      {
+        tableKey: 'concepts',
+        columnKey: 'production_status',
+        displayLabel: 'Production Status',
+        displayOrder: 19,
+        fieldType: 'singleSelect',
+        isHidden: true,
+      },
+    ]);
+  });
+
+  /**
    * A child may relabel a platform column — Gratsi's base spells the YouTube link
    * `Youtube Copywriting` where the platform row calls it `YouTube Copy` — and doing so must NOT
    * transfer ownership. `childRows`' `relabel-platform` kind exists for exactly this, and the admin's

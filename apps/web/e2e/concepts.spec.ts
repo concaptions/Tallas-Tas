@@ -75,12 +75,21 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Client Comments',
       'Collection',
     ]);
-    // Production Status is configured on the template but this grid has never drawn it
-    // (docs/decisions.md), so it is STATED rather than silently omitted.
-    await expect(page.locator('[data-slot="concept-missing-columns"]')).toContainText(
+    /*
+     * Production Status is GONE, not reported missing.
+     *
+     * This assertion used to be the other way round — it required the words "production_status" to
+     * appear in the missing-columns notice — which meant the field Talal asked to take out was
+     * printed on the page for every brand. The column is seeded `is_hidden` now
+     * (packages/db/src/column-seed.ts), so the resolver never returns it, nothing can report it
+     * missing, and no notice is drawn at all. The Postgres column and its 73 stored values are
+     * untouched; this is about what the page shows.
+     */
+    await expect(page.locator('[data-slot="concept-missing-columns"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concepts-table"]')).not.toContainText(
       'production_status',
     );
-    // Production Status is hidden from the grid on purpose (docs/decisions.md); the name is frozen.
+    // The first column is frozen, so the generated name stays on screen as the grid scrolls.
     await expect(page.locator('[data-slot="concepts-table"] thead th').first()).toHaveCSS(
       'position',
       'sticky',
