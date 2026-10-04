@@ -886,3 +886,14 @@ the resolver (AI-64a). DECISION: adopted as done under the Gratsi-base reading. 
 another platform's brief screens, that is a different item and it needs the screenshots in
 `docs/prd-assets/` first — asked as part of the consolidated questions in
 `docs/audits/action-items-stuck.md`.
+
+## 2026-10-04 — "the copy system" is read as the copywriting modules, which exist (AI-53)
+
+Four words, two readings. As a NOUN — the copywriting system — the thing exists and runs:
+`copy-types`, `copywriting`, `meta-copywriting` and `youtube-copywriting` are shipped,
+resolver-driven modules; `copy_types` and `youtube_copy` verify `ok` in `verify-rollout`; the
+brief detail renders its copy links. As a VERB — clone a reference platform's brief system "as
+is" — no decision record names such a platform and no artifact describes it, so there is nothing
+to build against. DECISION: the noun reading is adopted and the item is done with the copywriting
+modules as its evidence; the verb reading, if intended, is the same missing-artifact question as
+AI-47 and sits with Talal in `docs/audits/action-items-stuck.md`.
