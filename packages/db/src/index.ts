@@ -276,8 +276,8 @@ export type {
 export * from './schema';
 export { seed } from './seed';
 export type { SeedResult } from './seed';
-export { getActiveBrandRole, listTeam, listTeamMembers } from './team';
-export type { DashboardRole, TeamListRow, TeamMemberRow, TeamRole } from './team';
+export { getActiveBrandRole, listBrandsForActor, listTeam, listTeamMembers } from './team';
+export type { ActorBrandRow, DashboardRole, TeamListRow, TeamMemberRow, TeamRole } from './team';
 export { getThemeById, insertTheme, listThemes, updateTheme } from './themes';
 export type { ThemeInput, ThemeListRow } from './themes';
 export {

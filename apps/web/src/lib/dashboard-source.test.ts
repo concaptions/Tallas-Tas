@@ -1,16 +1,34 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { BriefListRow } from '@tas/db';
+import {
+  agencies,
+  brandAssignments,
+  brands,
+  demoBriefs,
+  demoConcepts,
+  demoCreators,
+  memberships,
+  seed,
+  users,
+  type BriefListRow,
+  type Db,
+} from '@tas/db';
+import { testDb } from '@tas/db/testing';
 
+import { toBriefRow, type BriefSourceDeps } from './briefs-source';
 import {
   buildRoleDashboard,
   hasSpellingIssues,
+  loadActorBrandPanels,
+  loadActorBrands,
+  loadBrandPanels,
   loadRoleDashboard,
   roleDashboard,
   buildOverviewMetrics,
   buildPipeline,
   overviewMetrics,
 } from './dashboard-source';
+import { AmbiguousBrandError } from './data-source';
 
 describe('hasSpellingIssues', () => {
   it('is true only for real flags, not a clean pass, blank, or null', () => {
@@ -345,6 +363,226 @@ describe('overview metric cards (TASK 6)', () => {
     expect(byKey.get('ads_to_launch')).toBe(1);
     expect(byKey.get('internal_revisions')).toBe(0);
     expect(byKey.get('client_revisions')).toBe(0);
+  });
+});
+
+/**
+ * AI-09: the cross-client Overview. Production has six live brands and a CSM assigned to four of
+ * them who was shown ONE brand's counts; these tests run the whole live path — session scope →
+ * assignments → per-brand scoped reads — on a seeded PGlite database, where only Niagara holds
+ * rows, so a count landing on the wrong brand's panel is visible as a non-zero where a zero
+ * belongs. The seeded fixtures: Callum (`user_seed_csm`) is CSM on all four brands, Dorian
+ * (`user_seed_strategist`) strategist on three, Marguerite (`user_seed_admin`) the admin with no
+ * assignment rows at all.
+ */
+describe('the cross-client panels (AI-09)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  /** A seeded live-mode database plus the deps that make the loaders read it as `clerkUserId`. */
+  async function seededLive(
+    clerkUserId: string | null,
+  ): Promise<{ db: Db; deps: BriefSourceDeps }> {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+    const db = await testDb();
+    await seed(db);
+    return { db, deps: liveDeps(db, clerkUserId) };
+  }
+
+  function liveDeps(db: Db, clerkUserId: string | null): BriefSourceDeps {
+    return {
+      demoMode: () => false,
+      connect: () => ({ db, close: () => Promise.resolve() }),
+      actorScope: () => Promise.resolve({ clerkOrgId: null, clerkUserId }),
+    };
+  }
+
+  /** The seeded user row for a Clerk id, past `noUncheckedIndexedAccess`. */
+  async function userByClerkId(db: Db, clerkUserId: string) {
+    const row = (await db.select().from(users)).find((user) => user.clerkUserId === clerkUserId);
+    if (row === undefined) throw new Error(`no seeded user ${clerkUserId}`);
+    return row;
+  }
+
+  it('loads one panel per assigned brand, each counted over ITS OWN rows', async () => {
+    const { deps } = await seededLive('user_seed_csm');
+
+    const panels = await loadActorBrandPanels('csm', deps);
+
+    // Callum's whole book, in brand-name order — never just the active brand.
+    expect(panels.map((panel) => panel.brandName)).toEqual([
+      'Funky Painting',
+      'Gratsi',
+      'Mattress Central',
+      'Niagara Sleep Solutions',
+    ]);
+    // A CSM scans the whole pipeline: all eleven cards, per brand.
+    for (const panel of panels) {
+      expect(panel.metrics).toHaveLength(11);
+    }
+    // Only Niagara is seeded with content, and its panel counts exactly the rows the single-brand
+    // Overview counts over the same data (`toBriefRow` is the same narrowing `loadBriefs` applies).
+    const niagara = panels.find((panel) => panel.brandName === 'Niagara Sleep Solutions');
+    expect(niagara?.metrics).toEqual(
+      buildOverviewMetrics('csm', {
+        briefs: demoBriefs.map(toBriefRow),
+        concepts: demoConcepts,
+        creators: demoCreators,
+      }),
+    );
+    const total = (cards: readonly { count: number }[] | undefined) =>
+      (cards ?? []).reduce((sum, card) => sum + card.count, 0);
+    expect(total(niagara?.metrics)).toBeGreaterThan(0);
+    // The empty brands read zero everywhere: nothing of Niagara's leaked across the scope.
+    for (const name of ['Funky Painting', 'Gratsi', 'Mattress Central']) {
+      const panel = panels.find((candidate) => candidate.brandName === name);
+      expect(total(panel?.metrics), name).toBe(0);
+    }
+  });
+
+  it('threads an explicit brand list through, in its order, scoped to the given role', async () => {
+    const { db, deps } = await seededLive('user_seed_csm');
+    const brandRows = await loadActorBrands(deps);
+    const gratsi = brandRows.find((brand) => brand.name === 'Gratsi');
+    const niagara = brandRows.find((brand) => brand.name === 'Niagara Sleep Solutions');
+    if (gratsi === undefined || niagara === undefined) throw new Error('seeded brands missing');
+    expect(db).toBeDefined();
+
+    const panels = await loadBrandPanels('media_buyer', [niagara, gratsi], deps);
+
+    expect(panels.map((panel) => panel.brandName)).toEqual(['Niagara Sleep Solutions', 'Gratsi']);
+    // The media buyer's three cards, not the CSM's eleven — the role travels with the list.
+    for (const panel of panels) {
+      expect(panel.metrics.map((card) => card.key)).toEqual([
+        'ad_submitted',
+        'awaiting_client',
+        'ads_to_launch',
+      ]);
+    }
+  });
+
+  it('an actor with NO assignments gets no panels: the admin keeps the single-brand Overview', async () => {
+    const { deps } = await seededLive('user_seed_admin');
+
+    expect(await loadActorBrands(deps)).toEqual([]);
+    expect(await loadActorBrandPanels('admin', deps)).toEqual([]);
+  });
+
+  it('a single-brand actor keeps the single-brand Overview too, with no per-brand re-read', async () => {
+    const { db, deps } = await seededLive('user_seed_newcomer');
+    const agencyRows = await db.select().from(agencies);
+    const agency = agencyRows[0];
+    if (agency === undefined) throw new Error('no seeded agency');
+    const dorian = await userByClerkId(db, 'user_seed_strategist');
+    const [newcomer] = await db
+      .insert(users)
+      .values({
+        clerkUserId: 'user_seed_newcomer',
+        email: 'newcomer@tasdigital.example',
+        fullName: 'Aoife Brennan',
+      })
+      .returning();
+    if (newcomer === undefined) throw new Error('newcomer insert returned no row');
+    await db
+      .insert(memberships)
+      .values({ userId: newcomer.id, agencyId: agency.id, role: 'member' });
+    const assignment = (await db.select().from(brandAssignments)).find(
+      (row) => row.userId === dorian.id,
+    );
+    if (assignment === undefined) throw new Error('no seeded assignment to copy');
+    await db
+      .insert(brandAssignments)
+      .values({ userId: newcomer.id, brandId: assignment.brandId, role: 'csm' });
+
+    expect(await loadActorBrands(deps)).toHaveLength(1);
+    expect(await loadActorBrandPanels('csm', deps)).toEqual([]);
+  });
+
+  it("never panels another agency's brand, even when an assignment row points there", async () => {
+    const { db, deps } = await seededLive('user_seed_csm');
+    const [rivalAgency] = await db
+      .insert(agencies)
+      .values({ name: 'Rival Creative', slug: 'rival-creative' })
+      .returning();
+    if (rivalAgency === undefined) throw new Error('rival agency insert returned no row');
+    const [rivalBrand] = await db
+      .insert(brands)
+      .values({ agencyId: rivalAgency.id, name: 'Aardvark Coffee', slug: 'aardvark-coffee' })
+      .returning();
+    if (rivalBrand === undefined) throw new Error('rival brand insert returned no row');
+    const callum = await userByClerkId(db, 'user_seed_csm');
+    await db
+      .insert(brandAssignments)
+      .values({ userId: callum.id, brandId: rivalBrand.id, role: 'csm' });
+
+    const names = (await loadActorBrands(deps)).map((brand) => brand.name);
+
+    expect(names).toHaveLength(4);
+    expect(names).not.toContain('Aardvark Coffee');
+  });
+
+  it('still refuses an actor in two agencies with neither selected: AmbiguousBrandError', async () => {
+    const { db, deps } = await seededLive('user_two_agencies');
+    const agencyRows = await db.select().from(agencies);
+    const agency = agencyRows[0];
+    if (agency === undefined) throw new Error('no seeded agency');
+    const [other] = await db
+      .insert(agencies)
+      .values({ name: 'Second Agency', slug: 'second-agency' })
+      .returning();
+    if (other === undefined) throw new Error('second agency insert returned no row');
+    const [torn] = await db
+      .insert(users)
+      .values({
+        clerkUserId: 'user_two_agencies',
+        email: 'torn@example.example',
+        fullName: 'Torn Between',
+      })
+      .returning();
+    if (torn === undefined) throw new Error('torn insert returned no row');
+    await db.insert(memberships).values([
+      { userId: torn.id, agencyId: agency.id, role: 'member' },
+      { userId: torn.id, agencyId: other.id, role: 'member' },
+    ]);
+
+    await expect(loadActorBrandPanels('csm', deps)).rejects.toBeInstanceOf(AmbiguousBrandError);
+  });
+
+  it('demo mode loads no cross-client panels and constructs no client', async () => {
+    const connect = vi.fn<(databaseUrl: string) => never>(() => {
+      throw new Error('the demo branch opened a database connection');
+    });
+    const deps: BriefSourceDeps = { demoMode: () => true, connect };
+
+    expect(await loadActorBrands(deps)).toEqual([]);
+    expect(await loadActorBrandPanels('csm', deps)).toEqual([]);
+    expect(
+      await loadBrandPanels(
+        'csm',
+        [
+          { id: 'brand-x', name: 'Brand X' },
+          { id: 'brand-y', name: 'Brand Y' },
+        ],
+        deps,
+      ),
+    ).toEqual([]);
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it('a live request with no signed-in user reads nothing and opens nothing', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
+    const connect = vi.fn<(databaseUrl: string) => never>(() => {
+      throw new Error('an anonymous request opened a database connection');
+    });
+    const deps: BriefSourceDeps = {
+      demoMode: () => false,
+      connect,
+      actorScope: () => Promise.resolve({ clerkOrgId: null, clerkUserId: null }),
+    };
+
+    expect(await loadActorBrandPanels('csm', deps)).toEqual([]);
+    expect(connect).not.toHaveBeenCalled();
   });
 });
 

@@ -150,6 +150,42 @@ export const listTeamMembers = listTeam;
 /** `TeamListRow` under the row-shaped name; see `listTeamMembers`. */
 export type TeamMemberRow = TeamListRow;
 
+/** A brand as the cross-client Overview names it: the id a scoped read takes, the name a card shows. */
+export interface ActorBrandRow {
+  readonly id: string;
+  readonly name: string;
+}
+
+/**
+ * The live, non-template brands the actor's `brand_assignments` rows name — the book a cross-client
+ * Overview draws one card per brand for (AI-09). `brand_assignments` is the tenancy edge itself (see
+ * the module comment above), so the actor's own rows ARE the entitlement being read; there is no
+ * brand scope to apply on top, only the soft-delete half of it, carried on every table touched.
+ *
+ * The TEMPLATE is excluded for the same reason `agencyBrands` in the app's resolver excludes it: the
+ * parent base is not a client, and a card for it would count rows that propagation copies into every
+ * child. Distinct, because one person can hold two roles on one brand (the CSM who also buys media)
+ * and the book still has that brand once. Ordered by brand name, the order `listTeam` already hands
+ * brand names out in, so the cards and the Team page never disagree about sequence.
+ */
+export async function listBrandsForActor(db: Db, clerkUserId: string): Promise<ActorBrandRow[]> {
+  return db
+    .selectDistinct({ id: brands.id, name: brands.name })
+    .from(brandAssignments)
+    .innerJoin(users, eq(users.id, brandAssignments.userId))
+    .innerJoin(brands, eq(brands.id, brandAssignments.brandId))
+    .where(
+      and(
+        eq(users.clerkUserId, clerkUserId),
+        isNull(users.deletedAt),
+        isNull(brandAssignments.deletedAt),
+        isNull(brands.deletedAt),
+        eq(brands.isTemplate, false),
+      ),
+    )
+    .orderBy(asc(brands.name));
+}
+
 /** The role the Overview dashboard is drawn for: agency Admin, or a per-brand role, or none. */
 export type DashboardRole = BrandRole | 'admin';
 

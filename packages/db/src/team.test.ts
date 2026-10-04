@@ -9,7 +9,7 @@ import {
 } from './demo-data';
 import { agencies, brandAssignments, brands, memberships, users } from './schema';
 import { seed } from './seed';
-import { listTeam, listTeamMembers, type TeamListRow } from './team';
+import { listBrandsForActor, listTeam, listTeamMembers, type TeamListRow } from './team';
 import { testDb, type PgliteDb } from './testing';
 
 /** A fresh database with every migration applied and the demo agency, brands and people seeded. */
@@ -217,5 +217,118 @@ describe('listTeam', () => {
 
     expect(listTeamMembers).toBe(listTeam);
     expect(await listTeamMembers(db, agencyId)).toEqual(demoTeam);
+  });
+});
+
+/**
+ * The cross-client Overview's base read (AI-09): the brands the actor's own `brand_assignments`
+ * rows name. Callum is the fixture that matters — CSM on all four brands and media buyer on two of
+ * them, so his book exercises the dedupe, the ordering and the four-brand shape production's CSMs
+ * are in.
+ */
+describe('listBrandsForActor', () => {
+  const CSM_CLERK_ID = 'user_seed_csm'; // Callum Ashworth: csm ×4 brands, media_buyer ×2 of them.
+
+  /** The seeded brand row by name, for the mutations the edge cases make. */
+  async function brandNamed(db: PgliteDb, name: string) {
+    const [row] = await db.select().from(brands).where(eq(brands.name, name));
+    if (row === undefined) throw new Error(`no brand named ${name}`);
+    return row;
+  }
+
+  it('returns each assigned brand ONCE, by name, never by insertion or assignment order', async () => {
+    const { db } = await seeded();
+
+    // Six assignment rows (four csm + two media_buyer), four brands; the fixtures insert Niagara
+    // first, so name order here proves the ORDER BY and the distinct at the same time.
+    expect(await listBrandsForActor(db, CSM_CLERK_ID)).toEqual([
+      expect.objectContaining({ name: 'Funky Painting' }),
+      expect.objectContaining({ name: 'Gratsi' }),
+      expect.objectContaining({ name: 'Mattress Central' }),
+      expect.objectContaining({ name: 'Niagara Sleep Solutions' }),
+    ]);
+  });
+
+  it('answers with the id and name a card needs, ids matching the brand rows', async () => {
+    const { db, childBrandId } = await seeded();
+
+    const rows = await listBrandsForActor(db, DEMO_ACTOR_ID);
+
+    expect(rows.map((row) => row.name)).toEqual([
+      'Gratsi',
+      'Mattress Central',
+      'Niagara Sleep Solutions',
+    ]);
+    expect(rows.map((row) => Object.keys(row).sort())).toEqual(rows.map(() => ['id', 'name']));
+    expect(rows.find((row) => row.name === 'Niagara Sleep Solutions')?.id).toBe(childBrandId);
+  });
+
+  it('is empty for the admin, whose agency-wide view holds no assignment rows', async () => {
+    const { db } = await seeded();
+
+    expect(await listBrandsForActor(db, DEMO_ADMIN_ACTOR_ID)).toEqual([]);
+  });
+
+  it('is empty for a Clerk id the platform has never seen', async () => {
+    const { db } = await seeded();
+
+    expect(await listBrandsForActor(db, 'user_total_stranger')).toEqual([]);
+  });
+
+  it('never lists the parent template, even when an assignment row points at it', async () => {
+    const { db } = await seeded();
+    const template = await brandNamed(db, 'Creative Hub Template');
+    const [callum] = await db.select().from(users).where(eq(users.clerkUserId, CSM_CLERK_ID));
+    if (callum === undefined) throw new Error('no seeded CSM');
+    await db
+      .insert(brandAssignments)
+      .values({ userId: callum.id, brandId: template.id, role: 'csm' });
+
+    const names = (await listBrandsForActor(db, CSM_CLERK_ID)).map((row) => row.name);
+
+    expect(names).toHaveLength(4);
+    expect(names).not.toContain('Creative Hub Template');
+  });
+
+  it('respects soft delete on the assignment, the brand and the user, each on its own', async () => {
+    const { db } = await seeded();
+    const funky = await brandNamed(db, 'Funky Painting');
+    const gratsi = await brandNamed(db, 'Gratsi');
+    const [callum] = await db.select().from(users).where(eq(users.clerkUserId, CSM_CLERK_ID));
+    if (callum === undefined) throw new Error('no seeded CSM');
+
+    // A withdrawn assignment drops exactly that brand.
+    await db
+      .update(brandAssignments)
+      .set({ deletedAt: new Date() })
+      .where(eq(brandAssignments.brandId, funky.id));
+    // An offboarded brand drops too, with its assignment rows left in place.
+    await db.update(brands).set({ deletedAt: new Date() }).where(eq(brands.id, gratsi.id));
+
+    expect((await listBrandsForActor(db, CSM_CLERK_ID)).map((row) => row.name)).toEqual([
+      'Mattress Central',
+      'Niagara Sleep Solutions',
+    ]);
+
+    // And a deactivated person has no book at all.
+    await db.update(users).set({ deletedAt: new Date() }).where(eq(users.id, callum.id));
+    expect(await listBrandsForActor(db, CSM_CLERK_ID)).toEqual([]);
+  });
+
+  it("names every assigned brand, another agency's included — the agency scope is the CALLER'S", async () => {
+    // `brand_assignments` is the entitlement edge itself, so this read follows the rows wherever
+    // they point; the app layer intersects with the actor's agency scope before using them
+    // (dashboard-source), exactly as `listTeam` takes `agencyId` for its boundary.
+    const { db } = await seeded();
+    const rival = await rivalAgency(db);
+    const [callum] = await db.select().from(users).where(eq(users.clerkUserId, CSM_CLERK_ID));
+    if (callum === undefined) throw new Error('no seeded CSM');
+    await db
+      .insert(brandAssignments)
+      .values({ userId: callum.id, brandId: rival.brandId, role: 'csm' });
+
+    expect((await listBrandsForActor(db, CSM_CLERK_ID)).map((row) => row.name)).toContain(
+      'Aardvark Coffee',
+    );
   });
 });
