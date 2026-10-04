@@ -117,6 +117,13 @@ export interface ViewField {
  * `null` list shows everything; otherwise only the listed keys. Freeze: a non-empty `frozenFields`
  * replaces the table's default; an empty one keeps it. The first column is never hidden by a view
  * that would hide every column: an empty grid has no name column to click.
+ *
+ * THIS IS THE LAST WORD ON `frozen`. The caller's own freeze (`gridColumnsFrom`'s `freezeFirst`, the
+ * table's default name column) has already been written onto the fields by the time they arrive
+ * here, so the rule the two of them make together is: the VIEWER's freeze wins when they have made
+ * one, and the table's default stands when `frozenFields` is empty. Two writers of one property is
+ * only safe while the order is fixed and stated, which is why `resolved-columns.test.ts` asserts
+ * both directions rather than leaving the precedence to whichever line was edited last.
  */
 export function applyUserView<Field extends ViewField>(
   fields: readonly Field[],
@@ -204,4 +211,42 @@ export function isViewFieldVisible(
   key: string,
 ): boolean {
   return view.visibleFields === null || view.visibleFields.includes(key);
+}
+
+/**
+ * The freeze a "freeze up to and including this column" choice means (action item 22).
+ *
+ * A freeze is a PREFIX of the columns as the viewer sees them, never a scattered set: a sticky
+ * column only reads as frozen when everything to its left is frozen too, so picking the third
+ * column freezes the first three. `keys` is therefore the view's own order — what `applyUserView`
+ * returned — not the table's declaration order.
+ *
+ * `null`, or a key the view does not show, returns an empty list, which `applyUserView` reads as
+ * "the table's own default freeze" (its name column). That is deliberate: a table always has one
+ * column worth pinning, and an empty list is the only value the stored config has ever used for it,
+ * so clearing a freeze can never leave a grid with nothing pinned at all.
+ */
+export function freezeUpTo(keys: readonly string[], key: string | null): readonly string[] {
+  if (key === null) return [];
+  const index = keys.indexOf(key);
+  return index === -1 ? [] : keys.slice(0, index + 1);
+}
+
+/**
+ * The column a freeze control shows as chosen: the last one in the view's order that is frozen, or
+ * `null` when the view carries no freeze of its own (the table's default is in force).
+ *
+ * Read from the end so a stored `frozenFields` that is NOT a clean prefix — a row written before
+ * `freezeUpTo` existed, or hand-edited — still resolves to a single sensible choice rather than
+ * refusing to render the control.
+ */
+export function frozenUpTo(
+  keys: readonly string[],
+  view: Pick<UserViewConfig, 'frozenFields'>,
+): string | null {
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const key = keys[index];
+    if (key !== undefined && view.frozenFields.includes(key)) return key;
+  }
+  return null;
 }

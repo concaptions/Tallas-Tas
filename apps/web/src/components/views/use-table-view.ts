@@ -58,6 +58,8 @@ export interface TableViewState {
   readonly setViewType: (next: ViewType) => void;
   readonly setSort: (next: UserViewSort | null) => void;
   readonly setFilter: (next: string) => void;
+  /** The frozen (sticky) columns, as a prefix of the viewer's own column order (action item 22). */
+  readonly setFrozenFields: (next: readonly string[]) => void;
   readonly toggleField: (key: string) => void;
   readonly isFieldVisible: (key: string) => boolean;
   readonly createView: (name: string) => void;
@@ -281,6 +283,13 @@ export function useTableView({
     [patch],
   );
 
+  const setFrozenFields = useCallback(
+    (next: readonly string[]) => {
+      patch({ frozenFields: [...next] });
+    },
+    [patch],
+  );
+
   const setFilter = useCallback(
     (next: string) => {
       // Typing is persisted a beat after it stops, never per keystroke.
@@ -410,6 +419,7 @@ export function useTableView({
     setViewType,
     setSort,
     setFilter,
+    setFrozenFields,
     toggleField,
     isFieldVisible,
     createView,

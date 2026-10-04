@@ -40,7 +40,12 @@ export interface GridColumnsFromResult<Row> {
 }
 
 export interface GridColumnsFromOptions {
-  /** Freeze the first resolved column — the name column on every one of these pages. */
+  /**
+   * Freeze the first resolved column — the name column on every one of these pages. This is the
+   * TABLE's default, not the last word: `applyUserView` runs after this and a viewer's own
+   * `frozenFields` replaces it (action item 22). An empty `frozenFields` means "keep the default",
+   * so the two never contend for the same state.
+   */
   readonly freezeFirst?: boolean;
   /** Width for the frozen column, matching the hand-written grids it replaces. */
   readonly frozenMinWidth?: number;

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { cycleSort, sortRows, toggleHidden } from './airtable-grid-logic';
+import {
+  cycleSort,
+  sameOffsets,
+  sortRows,
+  stickyOffsets,
+  toggleHidden,
+} from './airtable-grid-logic';
 
 describe('cycleSort', () => {
   it('starts a fresh column at ascending', () => {
@@ -51,5 +57,44 @@ describe('toggleHidden', () => {
     expect([...withName]).toEqual(['name']);
     expect(empty.size).toBe(0);
     expect(toggleHidden(withName, 'name').size).toBe(0);
+  });
+});
+
+describe('stickyOffsets', () => {
+  it('leaves a single frozen column at the left edge', () => {
+    expect(stickyOffsets([220])).toEqual([0]);
+  });
+
+  it('offsets each frozen column by the widths before it, never stacking them at 0', () => {
+    // The bug this exists for: three frozen columns all pinned at `left: 0` overlap, so the second
+    // and third are invisible under the first as soon as the grid scrolls sideways.
+    expect(stickyOffsets([220, 120, 80])).toEqual([0, 220, 340]);
+  });
+
+  it('is empty when nothing is frozen', () => {
+    expect(stickyOffsets([])).toEqual([]);
+  });
+
+  it('tolerates a zero width: an unmeasured cell shifts nothing', () => {
+    expect(stickyOffsets([200, 0, 90])).toEqual([0, 200, 200]);
+  });
+});
+
+describe('sameOffsets', () => {
+  it('is true for the same keys and the same numbers', () => {
+    expect(sameOffsets({ name: 0, batch: 220 }, { name: 0, batch: 220 })).toBe(true);
+  });
+
+  it('is false when a width changed', () => {
+    expect(sameOffsets({ name: 0, batch: 220 }, { name: 0, batch: 240 })).toBe(false);
+  });
+
+  it('is false when the frozen set changed', () => {
+    expect(sameOffsets({ name: 0 }, { name: 0, batch: 220 })).toBe(false);
+    expect(sameOffsets({ name: 0, batch: 220 }, { name: 0, theme: 220 })).toBe(false);
+  });
+
+  it('treats two empty maps as equal, so the first measure of an unfrozen grid is not a render', () => {
+    expect(sameOffsets({}, {})).toBe(true);
   });
 });
