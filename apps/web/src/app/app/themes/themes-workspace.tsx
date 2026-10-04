@@ -7,14 +7,7 @@ import type { ViewType } from '@tas/domain';
 import { getTableCapability } from '@tas/domain';
 import { Button, Input } from '@tas/ui';
 
-import {
-  KanbanBoard,
-  type KanbanItem,
-  useTableView,
-  ViewToolbar,
-  GalleryView,
-  galleryItemsFrom,
-} from '@/components/views';
+import { useTableView, ViewToolbar, GalleryView, galleryItemsFrom } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
@@ -47,7 +40,9 @@ const THEMES_CAP = getTableCapability('themes') as NonNullable<
 /**
  * The Themes library: the GLOBAL badge, the header, the two filters and the Airtable-style grid
  * (PRD §5.5). A row opens the theme's side panel (`?theme=`), which hosts the full labelled card and
- * its Archive / Restore action; Kanban groups the same rows by category.
+ * its Archive / Restore action; the Gallery shows the same rows as cards covered by their first
+ * attachment. No Kanban (action item 18): the category chip row below the header already groups the
+ * library by the field the board grouped by, in place, without leaving the grid.
  *
  * NOT FILTERED BY BRAND, and that is the page. Every other workspace narrows to the brand you are
  * standing in; this grid renders the whole platform's library, which is why the count line says
@@ -318,36 +313,6 @@ export function ThemesWorkspace({
 
   const narrowed = visible.length !== tabThemes.length;
 
-  const kanbanItems = useMemo<KanbanItem[]>(
-    () =>
-      visible.map((theme) => ({
-        id: theme.id,
-        name: theme.name,
-        groupValue: theme.category,
-      })),
-    [visible],
-  );
-
-  const kanbanColumns = useMemo(
-    () => [...new Set(kanbanItems.map((item) => item.groupValue))],
-    [kanbanItems],
-  );
-
-  const kanbanLabels = useMemo(
-    () =>
-      Object.fromEntries(
-        kanbanColumns.map((col) => [
-          col,
-          col.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()),
-        ]),
-      ),
-    [kanbanColumns],
-  );
-
-  const handleKanbanMove = useCallback(() => {
-    /* no-op: themes don't support drag reordering */
-  }, []);
-
   const open = themes.find((theme) => theme.id === selection) ?? null;
 
   // The card image is the first attachment (Sprint 7 gallery); a theme with none shows its initial.
@@ -432,7 +397,7 @@ export function ThemesWorkspace({
             supportedViews={[...THEMES_CAP.supportedViews]}
             activeView={activeView}
             onViewChange={setActiveView}
-            kanbanGroupByField="category"
+            kanbanGroupByField={null}
             views={tableView.views}
             activeViewId={tableView.activeView?.id ?? null}
             onActivateView={tableView.activateView}
@@ -487,15 +452,7 @@ export function ThemesWorkspace({
           })}
         </div>
 
-        {activeView === 'kanban' ? (
-          <KanbanBoard
-            items={kanbanItems}
-            columns={kanbanColumns}
-            columnLabels={kanbanLabels}
-            onMove={handleKanbanMove}
-            demo={demo}
-          />
-        ) : activeView === 'gallery' ? (
+        {activeView === 'gallery' ? (
           <GalleryView
             items={galleryItems}
             visibleFields={tableView.config.visibleFields}

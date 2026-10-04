@@ -6,10 +6,11 @@ import { conceptPath, conceptsPath } from '../src/lib/routes';
 /**
  * The Concepts route with no environment variables at all — the Vercel deployment as it stands.
  * The middleware lets the route through, the data source serves the in-repo fixtures, and both
- * pages are fully usable read-only: four concepts in a seven-column table, the same four grouped on
- * a board, a real detail route with a generated name that is not a field, five inherited fields
- * that are not editable, the two-track rail with the client bar shut, and every write disabled with
- * a reason.
+ * pages are fully usable read-only: four concepts in a seven-column table, the same four as gallery
+ * cards, a real detail route with a generated name that is not a field, five inherited fields that
+ * are not editable, the two-track rail with the client bar shut, and every write disabled with a
+ * reason. NO BOARD: action item 18 took Kanban off the data tables, and the old `?view=board` link
+ * now lands on the grid.
  *
  * The fixtures are `demoConcepts` in `packages/db/src/demo-data.ts`: four rows, newest edit first,
  * each in a different internal status and all four strictly before Approved — so `isClientTrackOpen`
@@ -105,44 +106,33 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(revisions).toHaveAttribute('data-tone', 'warn');
   });
 
-  test('?view=board renders the board, and the toggle writes the view into the URL', async ({
+  test('the switcher offers Grid and Gallery only, and an old ?view=board link lands on the grid', async ({
     page,
   }) => {
+    // Action item 18: Kanban left the data tables. The board is not reachable and not offered, and
+    // the link that used to open it is not a dead end — it opens the grid.
     await page.goto(`${conceptsPath}?view=board`);
 
-    // Seven columns: one per step of the video track, empties kept.
-    await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
-    await expect(page.locator('[data-slot="concepts-table"]')).toHaveCount(0);
-    await expect(page.locator('[data-slot="concept-column"]')).toHaveCount(7);
-    await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
+    await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
+    await expect(page.locator('[data-slot="concept-board"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concept-column"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concept-row"]')).toHaveCount(4);
 
-    // The same four rows, one per column, each column headed with its label and its count.
-    const submitted = page.locator('[data-slot="concept-column"][data-status="ad_submitted"]');
-    await expect(submitted.locator('[data-slot="concept-column-label"]')).toHaveText(
-      'Ad Submitted',
-    );
-    await expect(submitted.locator('[data-slot="concept-column-count"]')).toHaveText('1');
-    await expect(
-      page
-        .locator('[data-slot="concept-column"][data-status="approved"]')
-        .locator('[data-slot="concept-column-empty"]'),
-    ).toBeVisible();
-
-    // The view switch is the shared toolbar (Sprint 8): Grid / Kanban / Gallery, no pill controls.
+    // The view switch is the shared toolbar (Sprint 8): Grid / Gallery, no Kanban, no pill controls.
     const options = page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]');
-    await expect(options).toHaveText(['Grid', 'Kanban', 'Gallery']);
-    for (let index = 0; index < 3; index += 1) {
+    await expect(options).toHaveText(['Grid', 'Gallery']);
+    for (let index = 0; index < 2; index += 1) {
       expect(await options.nth(index).getAttribute('class')).not.toContain('rounded-full');
     }
 
-    // Switching back writes a clean URL (the default is not written), then the board again.
+    // Switching to the gallery and back writes the view into the URL, and the default is not written.
+    await options.filter({ hasText: 'Gallery' }).click();
+    await expect(page).toHaveURL(/\?view=gallery$/);
+    await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
+
     await options.filter({ hasText: 'Grid' }).click();
     await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
-
-    await options.filter({ hasText: 'Kanban' }).click();
-    await expect(page).toHaveURL(/\?view=board$/);
-    await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
   });
 
   test('search narrows both views, lives in ?q=, and the empty state offers a way out', async ({
@@ -169,39 +159,35 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concept-row"]')).toHaveCount(4);
     await expect(page).not.toHaveURL(/[?&]q=/);
 
-    // The same filter runs on the board, so a column's count is the count of what is in it.
-    await page.goto(`${conceptsPath}?view=board&q=green`);
+    // The same filter runs on the gallery, so the card count is the count of what matched.
+    await page.goto(`${conceptsPath}?view=gallery&q=green`);
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(1);
-    await expect(
-      page
-        .locator('[data-slot="concept-column"][data-status="video_editing_in_progress"]')
-        .locator('[data-slot="concept-column-count"]'),
-    ).toHaveText('1');
+    await expect(page.locator('[data-slot="concept-card"]')).toContainText(NOT_YOUR_AGE_NAME);
   });
 
   test('a row click lands on the concept own route, and Back restores the view', async ({
     page,
   }) => {
-    // The table's row is the same click target the board's card is.
+    // The table's row is the same click target the gallery's card is.
     await page.goto(conceptsPath);
     await page.locator(`[data-slot="concept-row"][data-concept-id="${BODY_CLOCK}"]`).click();
     await expect(page).toHaveURL(new RegExp(`${conceptPath(BODY_CLOCK)}$`));
     await page.goBack();
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
 
-    await page.goto(`${conceptsPath}?view=board`);
+    await page.goto(`${conceptsPath}?view=gallery`);
 
     await page.locator(`[data-slot="concept-card"][data-concept-id="${NOT_YOUR_AGE}"]`).click();
 
     // A real route segment, not a panel: the URL is the detail path and the list is gone.
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
     await expect(page.locator('[data-slot="concepts-table"]')).toHaveCount(0);
-    await expect(page.locator('[data-slot="concept-board"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="concept-rail"]')).toBeVisible();
 
     await page.goBack();
-    await expect(page).toHaveURL(/\?view=board$/);
-    await expect(page.locator('[data-slot="concept-board"]')).toBeVisible();
+    await expect(page).toHaveURL(/\?view=gallery$/);
+    await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
   });
 
   test('the detail page names itself, in monospace, and changes when the Batch changes', async ({
@@ -343,7 +329,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
 
     for (const path of [
       conceptsPath,
-      `${conceptsPath}?view=board`,
+      `${conceptsPath}?view=gallery`,
       conceptPath(NOT_YOUR_AGE),
       conceptPath(BODY_CLOCK),
     ]) {

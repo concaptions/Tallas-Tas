@@ -6,6 +6,7 @@ import {
   isViewFieldVisible,
   parseUserViewConfig,
   reconcileViewFields,
+  resolveViewType,
   toggleViewField,
   type UserView,
   type UserViewConfig,
@@ -134,6 +135,22 @@ export function useTableView({
 }: UseTableViewArgs): TableViewState {
   const [views, setViews] = useState<readonly UserView[]>(initialViews);
   /**
+   * A stored VIEW TYPE, read against the views this table still offers.
+   *
+   * `loadUserViews` narrows what it reads from Postgres, but two other paths reach this hook
+   * unchecked: the `?view=` of a shared link, and demo mode's `localStorage`. Item 18 took Kanban
+   * off the data tables, and a value from either path could still name it — which left the switcher
+   * on a tab that is not rendered and the page on a board that is gone. `resolveViewType` hands
+   * back the grid instead, and the stale value is overwritten the next time anything is persisted.
+   */
+  const resolve = useCallback(
+    (config: UserViewConfig): UserViewConfig => {
+      const viewType = resolveViewType(tableKey, config.viewType, defaultViewType);
+      return viewType === config.viewType ? config : { ...config, viewType };
+    },
+    [defaultViewType, tableKey],
+  );
+  /**
    * A stored config, read against the keys THIS table has now. A view holds the keys of the columns
    * it shows, and the column resolver changed that vocabulary from the module's camelCase field
    * names to Postgres column keys — so without this a view saved beforehand names nothing the table
@@ -151,7 +168,12 @@ export function useTableView({
   const [draft, setDraft] = useState<UserViewConfig>(() => {
     const active = initialViews.find((view) => view.isActive);
     const base = reconcile(active ?? defaultUserViewConfig(defaultViewType));
-    return initialViewType === null ? { ...base } : { ...base, viewType: initialViewType };
+    const requested =
+      initialViewType === null ? { ...base } : { ...base, viewType: initialViewType };
+    return {
+      ...requested,
+      viewType: resolveViewType(tableKey, requested.viewType, defaultViewType),
+    };
   });
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -168,11 +190,12 @@ export function useTableView({
     setViews(stored.views);
     const active = stored.views.find((view) => view.isActive);
     const next = active ?? stored.draft;
-    const config = initialViewType === null ? next : { ...next, viewType: initialViewType };
+    const requested = initialViewType === null ? next : { ...next, viewType: initialViewType };
+    const config = resolve({ ...requested });
     setDraft({ ...config });
     onActivate?.(config);
     // The stored state is applied once, on mount; every value named here is stable after it.
-  }, [local, tableKey, defaultViewType, initialViewType, onActivate]);
+  }, [local, tableKey, defaultViewType, initialViewType, onActivate, resolve]);
 
   const persistLocal = useCallback(
     (nextViews: readonly UserView[], nextDraft: UserViewConfig) => {
@@ -286,10 +309,11 @@ export function useTableView({
 
   const adopt = useCallback(
     (config: UserViewConfig) => {
-      setDraft(reconcile(config));
-      onActivate?.(config);
+      const resolved = resolve(reconcile(config));
+      setDraft(resolved);
+      onActivate?.(resolved);
     },
-    [onActivate, reconcile],
+    [onActivate, reconcile, resolve],
   );
 
   const activateView = useCallback(

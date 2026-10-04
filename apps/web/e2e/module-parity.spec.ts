@@ -652,7 +652,7 @@ const MODULES: readonly ModuleEntry[] = [
       { gratsi: 'Name', label: 'Angle Name' },
       // The approval track (angleStatuses), its own "Approval" section under the six groups.
       { gratsi: 'Status', label: 'Status' },
-      // gap: the `potential` column groups the Kanban view but the panel has no control for it.
+      // gap: the `potential` column is a sortable grid column but the panel has no control for it.
       { gratsi: 'Potential', label: 'Potential' },
       { gratsi: 'Description', label: 'Description' },
       // gap: the reverse of concept_angles is not listed on the panel ("Linked work" lists only

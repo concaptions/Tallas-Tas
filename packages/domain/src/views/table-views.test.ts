@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { getTableCapability, supportsView, TABLE_VIEW_CAPABILITIES } from './table-views';
+import {
+  getTableCapability,
+  resolveViewType,
+  supportsView,
+  TABLE_VIEW_CAPABILITIES,
+} from './table-views';
+
+/** The five tables action item 18 names: Kanban is a brief/creator board, never a data table. */
+const DATA_TABLES = ['products', 'personas', 'angles', 'themes', 'concepts'] as const;
 
 describe('TABLE_VIEW_CAPABILITIES', () => {
   it('every entry includes grid', () => {
@@ -55,6 +63,55 @@ describe('TABLE_VIEW_CAPABILITIES', () => {
     const cap = TABLE_VIEW_CAPABILITIES['products'];
     expect(cap).toBeDefined();
     expect(cap?.supportedViews).toEqual(['grid', 'gallery']);
+  });
+
+  it('no data table offers Kanban, and none keeps a kanbanField (action item 18)', () => {
+    for (const key of DATA_TABLES) {
+      const cap = TABLE_VIEW_CAPABILITIES[key];
+      expect(cap, key).toBeDefined();
+      expect(cap?.supportedViews, key).not.toContain('kanban');
+      // The group-by list goes with the board: a lane field nothing can render is dead data that
+      // the next person wires a board back up from.
+      expect(cap?.kanbanFields, key).toEqual([]);
+    }
+  });
+
+  it('the data tables keep the grid and the gallery — the lens went, the views did not', () => {
+    for (const key of DATA_TABLES) {
+      expect(TABLE_VIEW_CAPABILITIES[key]?.supportedViews, key).toEqual(['grid', 'gallery']);
+    }
+  });
+
+  it('briefs and creators keep Kanban: there the lanes ARE the workflow (item 29)', () => {
+    expect(TABLE_VIEW_CAPABILITIES['briefs']?.supportedViews).toContain('kanban');
+    expect(TABLE_VIEW_CAPABILITIES['creators']?.supportedViews).toContain('kanban');
+    expect(TABLE_VIEW_CAPABILITIES['creators']?.kanbanFields.length).toBeGreaterThan(0);
+  });
+});
+
+describe('resolveViewType', () => {
+  it('passes a supported view through', () => {
+    expect(resolveViewType('creators', 'kanban')).toBe('kanban');
+  });
+
+  it('falls back to the grid when a stale saved view names a dropped lens (item 18)', () => {
+    // The exact production row the audit found: one personas view saved as a Kanban.
+    expect(resolveViewType('personas', 'kanban')).toBe('grid');
+    expect(resolveViewType('concepts', 'kanban')).toBe('grid');
+    expect(resolveViewType('themes', 'kanban')).toBe('grid');
+    expect(resolveViewType('angles', 'kanban')).toBe('grid');
+  });
+
+  it("honours the caller's fallback when the table supports it", () => {
+    expect(resolveViewType('personas', 'kanban', 'gallery')).toBe('gallery');
+  });
+
+  it("falls back to the table's first view when it supports neither", () => {
+    expect(resolveViewType('products', 'timeline', 'kanban')).toBe('grid');
+  });
+
+  it('passes an unknown table through: no declared capability is not a refusal', () => {
+    expect(resolveViewType('nonexistent', 'kanban')).toBe('kanban');
   });
 });
 
