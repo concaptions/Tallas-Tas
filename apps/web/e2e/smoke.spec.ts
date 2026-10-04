@@ -44,7 +44,7 @@ test.describe('demo mode (no Clerk publishable key)', () => {
     await page.goto(appPath);
 
     // Eight cards for the demo visitor (admin scope), and the chart below them.
-    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(8);
+    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(11);
     await expect(page.locator('[data-slot="overview-pipeline"]')).toBeVisible();
 
     // The card carries the fixture count and lands on the Briefs table already filtered.

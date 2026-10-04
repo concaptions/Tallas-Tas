@@ -34,4 +34,33 @@ test.describe('the Overview in demo mode (no Clerk publishable key)', () => {
       page.locator('[data-slot="shell-sidebar"]').getByRole('link', { name: /Angles/ }),
     ).toHaveCount(1);
   });
+
+  test('the pipeline shows all eleven reference metrics, revisions and launches included (AI-6)', async ({
+    page,
+  }) => {
+    await page.goto(appPath);
+
+    // Eleven for the demo visitor, who resolves to admin and therefore scans the whole pipeline.
+    const cards = page.locator('[data-slot="overview-metric"]');
+    await expect(cards).toHaveCount(11);
+
+    // The three action item 6 added, by KEY — a label rename must not be able to satisfy this.
+    const metric = (key: string) =>
+      page.locator(`[data-slot="overview-metric"][data-metric="${key}"]`);
+    for (const key of ['internal_revisions', 'client_revisions', 'ads_to_launch']) {
+      await expect(metric(key), key).toHaveCount(1);
+    }
+
+    // Ads to Launch lands on the Briefs table filtered to BOTH approvals, and the rows it shows are
+    // the ones it counted — the same end-to-end proof the other cards get in smoke.spec.ts.
+    const launch = metric('ads_to_launch');
+    const count = Number(await launch.locator('[data-slot="overview-metric-count"]').innerText());
+    expect(count).toBeGreaterThan(0);
+    await launch.click();
+    await expect(page).toHaveURL(
+      /\/app\/creative-design\?status=approved&client=approved&view=grid$/,
+      { timeout: 45_000 },
+    );
+    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(count, { timeout: 45_000 });
+  });
 });

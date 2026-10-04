@@ -2,7 +2,12 @@ import type { BriefListRow } from '@tas/db';
 import { demoBriefs, demoConcepts, demoCopy, demoCreators } from '@tas/db';
 import type { BrandRole } from '@tas/domain';
 import { BRAND_ROLE_LABELS } from '@tas/domain';
-import { INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS } from '@tas/domain/state';
+import {
+  INTERNAL_STATIC_STATUS,
+  INTERNAL_VIDEO_STATUS,
+  type ClientStatusKey,
+  type InternalStatusKey,
+} from '@tas/domain/state';
 
 import { loadBriefs, type BriefSourceDeps } from './briefs-source';
 import { loadConcepts } from './concepts-source';
@@ -39,6 +44,26 @@ export interface DashboardData {
 function briefsIn(briefs: readonly BriefListRow[], statuses: readonly string[]): number {
   return briefs.filter((b) => statuses.includes(b.internalStatus)).length;
 }
+
+/**
+ * The statuses the cards below count on, each one ANNOTATED with the state machine's own union
+ * rather than left a bare string. A brief's two status columns arrive from the database as `string`,
+ * so a comparison against a literal cannot be type-checked at the comparison itself; naming the key
+ * here, typed, moves that check to one place — rename a key in `@tas/domain/state` and this module
+ * fails to compile instead of quietly counting zero (UI governance rule 2).
+ *
+ * `INTERNAL_REVISION_KEYS` is the pair of track-specific revision steps, one per ladder.
+ * `revisions_submitted` is deliberately NOT one of them: that step is the editor's re-upload, which
+ * is waiting on a reviewer, not on revisions, and it is shared by both ladders.
+ */
+const INTERNAL_REVISION_KEYS: readonly InternalStatusKey[] = [
+  'videos_revisions',
+  'images_revisions',
+];
+const INTERNAL_APPROVED: InternalStatusKey = 'approved';
+const CLIENT_PENDING: ClientStatusKey = 'pending_for_approval';
+const CLIENT_APPROVED: ClientStatusKey = 'approved';
+const CLIENT_REVISIONS_NEEDED: ClientStatusKey = 'revisions_needed';
 
 function strategistItems(data: DashboardData): DashboardItem[] {
   const { briefs, concepts } = data;
@@ -199,15 +224,31 @@ export interface MetricCard {
 }
 
 /**
- * The eight pipeline cards, counted with the domain's own KEYS — never a label string — and each
- * linking to the table view already filtered to what it counted (`?status=` / `?client=` on the
- * Briefs table). The two non-brief cards land on their tables unfiltered: pending is those
- * tables' resting state.
+ * The ELEVEN pipeline cards of Talal's reference dashboard, counted with the domain's own KEYS —
+ * never a label string — and each linking to the table view already filtered to what it counted
+ * (`?status=` / `?client=` on the Briefs table, which filters on both when both are given).
+ *
+ * Three of the eleven were missing until action item 6: Internal Revisions, Client Revisions and
+ * Ads to Launch. All three count data that was already stored; none introduces a new column.
+ *
+ * Three cards land on a table UNFILTERED, and each for a stated reason rather than by omission:
+ * Concepts Pending and Creators Pending because pending IS those tables' resting state, and
+ * Internal Revisions because it counts two internal statuses at once (one per track) while
+ * `?status=` takes a single key — so it opens the Internal Queue board, which groups by internal
+ * status and therefore shows both revision columns side by side. Filtering it to one track would
+ * hide the other track's revisions, which is worse than not filtering.
  */
 function allMetricCards(data: DashboardData): MetricCard[] {
   const { briefs, concepts, creators } = data;
-  const briefHref = (param: 'status' | 'client', key: string) =>
-    `${briefsPath}?${param}=${key}&view=grid`;
+  /**
+   * The Briefs table, filtered. `status` is an internal key, `client` a client key, and the table
+   * ANDs them when both are present — which is what lets Ads to Launch link to exactly the briefs
+   * it counted (internally approved AND client approved) rather than to a superset.
+   */
+  const briefHref = (filters: { readonly status?: string; readonly client?: string }) =>
+    `${briefsPath}?${Object.entries(filters)
+      .map(([param, key]) => `${param}=${key}`)
+      .join('&')}&view=grid`;
   return [
     {
       key: 'concepts_pending',
@@ -235,55 +276,102 @@ function allMetricCards(data: DashboardData): MetricCard[] {
       emoji: '📹',
       label: 'Sent to Video Editor',
       count: briefsIn(briefs, ['sent_to_video_editor']),
-      href: briefHref('status', 'sent_to_video_editor'),
+      href: briefHref({ status: 'sent_to_video_editor' }),
     },
     {
       key: 'sent_to_designer',
       emoji: '🎨',
       label: 'Sent to Designer',
       count: briefsIn(briefs, ['sent_to_designer']),
-      href: briefHref('status', 'sent_to_designer'),
+      href: briefHref({ status: 'sent_to_designer' }),
     },
     {
       key: 'video_editing_in_progress',
       emoji: '⚡',
       label: 'Videos in Progress',
       count: briefsIn(briefs, ['video_editing_in_progress']),
-      href: briefHref('status', 'video_editing_in_progress'),
+      href: briefHref({ status: 'video_editing_in_progress' }),
     },
     {
       key: 'static_design_in_progress',
       emoji: '🖌️',
       label: 'Designs in Progress',
       count: briefsIn(briefs, ['static_design_in_progress']),
-      href: briefHref('status', 'static_design_in_progress'),
+      href: briefHref({ status: 'static_design_in_progress' }),
     },
     {
       key: 'ad_submitted',
       emoji: '👀',
       label: 'Awaiting Internal Review',
       count: briefsIn(briefs, ['ad_submitted']),
-      href: briefHref('status', 'ad_submitted'),
+      href: briefHref({ status: 'ad_submitted' }),
     },
     {
       key: 'awaiting_client',
       emoji: '📨',
       label: 'Awaiting Client Review',
-      count: briefs.filter((b) => b.clientStatus === 'pending_for_approval').length,
-      href: briefHref('client', 'pending_for_approval'),
+      count: briefs.filter((b) => b.clientStatus === CLIENT_PENDING).length,
+      href: briefHref({ client: CLIENT_PENDING }),
+    },
+    {
+      key: 'internal_revisions',
+      emoji: '🔁',
+      label: 'Internal Revisions',
+      count: briefsIn(briefs, INTERNAL_REVISION_KEYS),
+      href: internalQueuePath,
+    },
+    {
+      key: 'client_revisions',
+      emoji: '📝',
+      label: 'Client Revisions',
+      count: briefs.filter((b) => b.clientStatus === CLIENT_REVISIONS_NEEDED).length,
+      href: briefHref({ client: CLIENT_REVISIONS_NEEDED }),
+    },
+    {
+      key: 'ads_to_launch',
+      emoji: '🚀',
+      label: 'Ads to Launch',
+      count: briefs.filter(
+        (b) => b.internalStatus === INTERNAL_APPROVED && b.clientStatus === CLIENT_APPROVED,
+      ).length,
+      href: briefHref({ status: INTERNAL_APPROVED, client: CLIENT_APPROVED }),
     },
   ];
 }
 
-/** Which of the eight cards each role scans for. Admin, CSM and strategist run the whole pipeline. */
+/**
+ * Which of the eleven cards each role scans for. Admin, CSM and strategist run the whole pipeline.
+ *
+ * The three cards action item 6 added are routed by WHOSE DESK the work lands on, not by which
+ * table they read. Both revision cards reach the editor and the designer, because a brief sent back
+ * — by a reviewer or by the client — comes back to whoever made it. `ads_to_launch` is the media
+ * buyer's own queue; it was already their role tile, and this is the same count as a card.
+ *
+ * `client_revisions` is the only one of the three a CLIENT may see, and it is safe BY DEFINITION:
+ * `revisions_needed` is a member of `CLIENT_STATUS`, so it is the client's own status rather than
+ * internal data (non-negotiable 10). `internal_revisions` counts two statuses whose descriptions
+ * say "Client never sees this state", so it reaches no client-facing set.
+ */
 const CARD_KEYS_BY_ROLE: Record<BrandRole | 'admin', readonly string[] | 'all'> = {
   admin: 'all',
   csm: 'all',
   strategist: 'all',
-  video_editor: ['sent_to_video_editor', 'video_editing_in_progress', 'ad_submitted'],
-  designer: ['sent_to_designer', 'static_design_in_progress', 'ad_submitted'],
-  media_buyer: ['ad_submitted', 'awaiting_client'],
-  client: ['awaiting_client'],
+  video_editor: [
+    'sent_to_video_editor',
+    'video_editing_in_progress',
+    'ad_submitted',
+    'internal_revisions',
+    'client_revisions',
+  ],
+  designer: [
+    'sent_to_designer',
+    'static_design_in_progress',
+    'ad_submitted',
+    'internal_revisions',
+    'client_revisions',
+  ],
+  media_buyer: ['ad_submitted', 'awaiting_client', 'ads_to_launch'],
+  client: ['awaiting_client', 'client_revisions'],
 };
 
 /** The role's cards over whichever data it is handed — pure, demo or live. */
