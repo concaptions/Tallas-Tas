@@ -862,3 +862,15 @@ Two compatibility edges, both deliberate:
   production holds one personas row saved as a Kanban. `resolveViewType` in
   `packages/domain/src/views/table-views.ts` now narrows every path into `useTableView`, so a stale
   value degrades to the grid instead of leaving the switcher on a tab that is not rendered.
+
+## 2026-10-04 — the "unneeded tables" review ran, and no table is dropped (AI-04)
+
+The item asked for unneeded tables to be dropped. The review happened and the evidence says the
+empties are not disuse: every zero-row content table in production (`campaigns_offers`,
+`competitive_research`, `copy_types`, `creative_reporting`, `email_campaigns`, `email_flows`,
+`youtube_copy`, `ai_characters`, `sm_campaign_feed_tasks`, …) mirrors a table that is also empty in
+Gratsi's own Airtable base — the rollout report records that seven migrated tables hold no data yet
+— and each has a shipped, resolver-driven module in front of it. Zero rows reflects a client who
+has not filled the module in, not a table nobody needs. DECISION: nothing is dropped, no migration
+is written; the next brand's import decides which modules fill. Revisit only if Talal names a
+specific table.
