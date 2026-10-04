@@ -75,6 +75,19 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
 
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
 
+    // AI-48. The pipeline sits above the view switcher: four buckets — the editor board's three
+    // stages plus the briefs that have left it — and they add up to the list underneath.
+    const buckets = page.locator('[data-slot="brief-pipeline-stage"]');
+    await expect(buckets).toHaveCount(4);
+    await expect(buckets.locator('[data-slot="status-chip"]')).toHaveText([
+      'Incoming',
+      'Under Editing',
+      'Under Review',
+      'Off the board',
+    ]);
+    const counts = await page.locator('[data-slot="brief-pipeline-count"]').allInnerTexts();
+    expect(counts.reduce((sum, text) => sum + Number(text), 0)).toBe(BRIEF_COUNT);
+
     // The generated name is monospace, because it is system output and not a typed field.
     const name = page.locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="brief-row-name"]`);
     await expect(name).toHaveText(BODY_CLOCK_NAME);

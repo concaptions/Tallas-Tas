@@ -44,6 +44,8 @@ import {
 
 import { startBriefAction, updateBriefAction } from './actions';
 import { BriefPanel } from './brief-panel';
+import { BriefPipelineSummary } from './brief-pipeline';
+import { buildBriefPipeline } from './pipeline';
 import {
   EM_DASH,
   NEW_BRIEF_SOON_HINT,
@@ -333,6 +335,10 @@ export function BriefsWorkspace({
 
   const narrowed = visible.length !== items.length;
 
+  // AI-48. Counted from the briefs already on the page, so the summary costs no query and tracks
+  // the search: narrow the list and the four buckets narrow with it.
+  const pipeline = useMemo(() => buildBriefPipeline(visible.map((item) => item.row)), [visible]);
+
   const panelItem = items.find((item) => item.id === panelId) ?? null;
 
   const handleKanbanMove = useCallback(
@@ -537,6 +543,8 @@ export function BriefsWorkspace({
           — one record per creative asset, named for you.
         </p>
       </header>
+
+      <BriefPipelineSummary pipeline={pipeline} />
 
       <section aria-labelledby="briefs-heading" className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
