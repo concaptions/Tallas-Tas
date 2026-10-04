@@ -80,7 +80,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     const buckets = page.locator('[data-slot="brief-pipeline-stage"]');
     await expect(buckets).toHaveCount(4);
     await expect(buckets.locator('[data-slot="status-chip"]')).toHaveText([
-      'Incoming',
+      'Sent to Editor/Designer',
       'Under Editing',
       'Under Review',
       'Off the board',
