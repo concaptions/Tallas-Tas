@@ -35,6 +35,25 @@ export interface ConceptDraft {
 
 export type ConceptDraftField = keyof ConceptDraft;
 
+/**
+ * The fields a concept cannot be saved without — the ones the UI marks "Required".
+ *
+ * Stated here, beside the rules, because the alternative is a second list in the form. The form had
+ * no list at all and marked nothing, so a strategist found out which fields were mandatory by
+ * pressing Save; a hand-written list in the page would instead have drifted from these rules, and
+ * the way it drifts is silent: Category is required below and no one had ever called it required in
+ * the UI. `validate-concept-draft.test.ts` pins this array against the function itself, so a rule
+ * added or dropped without updating it fails.
+ *
+ * `adInspoLinks` is absent: every entry must be a URL, but having none is fine.
+ */
+export const REQUIRED_CONCEPT_FIELDS: readonly ConceptDraftField[] = [
+  'batch',
+  'angleIds',
+  'themeIds',
+  'category',
+];
+
 export interface ConceptDraftValidation {
   readonly ok: boolean;
   /** Field → the one message to render under it. Empty when `ok`. */

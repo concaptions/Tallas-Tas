@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isHttpUrl } from '@tas/domain/angles';
 import {
+  REQUIRED_CONCEPT_FIELDS,
   inheritedFromAngle,
   validateConceptDraft,
   type InheritedAngle,
@@ -350,6 +351,19 @@ export function ConceptDetail({
     return state !== null && !state.ok ? state.fieldErrors?.[field] : undefined;
   };
 
+  /**
+   * Whether a field is marked Required or Optional, read from `REQUIRED_CONCEPT_FIELDS` — the same
+   * set `validateConceptDraft` rejects a draft for, which is the only list that may drive a marker
+   * (action item 37). A hand-written list here would have marked Batch, Angle and Theme and left
+   * Category unmarked, which is exactly the state the page was in: the server required four fields
+   * and the page named none of them until Save was pressed.
+   *
+   * Every field the form writes gets one of the two words, so "unmarked" never has to be read as
+   * "probably optional". The Brief's prose and the two statuses genuinely are optional.
+   */
+  const requirementOf = (field: ConceptFieldName): boolean =>
+    (REQUIRED_CONCEPT_FIELDS as readonly string[]).includes(field);
+
   const blocked = demo || !validation.ok;
   const blockedHint = demo
     ? DEMO_WRITE_HINT
@@ -415,8 +429,12 @@ export function ConceptDetail({
     const error = fieldError(field);
 
     return (
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+      <div className="flex min-w-0 flex-col gap-1.5" data-slot={`concept-field-${field}`}>
+        <Label
+          htmlFor={id}
+          required={requirementOf(field)}
+          className="text-[11px] tracking-wide text-text3 uppercase"
+        >
           {label}
         </Label>
         <Select
@@ -429,6 +447,10 @@ export function ConceptDetail({
             className="w-full"
             aria-label={label}
             aria-invalid={error !== undefined}
+            // On the CONTROL, not on the `<label>`: the trigger carries `role="combobox"`, which
+            // supports `aria-required`; a `<label>` has no role that does, so the attribute there
+            // would be ignored by assistive technology and flagged by an audit.
+            aria-required={requirementOf(field) ? true : undefined}
             data-slot={`concept-${field}`}
           >
             <SelectValue placeholder={NOT_SET} />
@@ -453,8 +475,12 @@ export function ConceptDetail({
     const error = fieldError(field);
 
     return (
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={id} className="text-[11px] tracking-wide text-text3 uppercase">
+      <div className="flex flex-col gap-1.5" data-slot={`concept-field-${field}`}>
+        <Label
+          htmlFor={id}
+          required={requirementOf(field)}
+          className="text-[11px] tracking-wide text-text3 uppercase"
+        >
           {label}
         </Label>
         <p className="text-xs text-text3">{hint}</p>
@@ -547,6 +573,7 @@ export function ConceptDetail({
                 onChange={setAngleIds}
                 inputName="angleId"
                 label={NAME_PART_LABELS.angleName}
+                required={requirementOf('angleIds')}
                 demo={demo}
                 error={fieldError('angleIds')}
                 slot="concept-angleIds"
@@ -661,13 +688,14 @@ export function ConceptDetail({
               onChange={setCreatorIds}
               inputName="creatorId"
               label="Creator"
+              required={false}
               demo={demo}
               slot="concept-creatorIds"
               empty="No creator assigned yet. Assign one here or from the creator's panel."
             />
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] tracking-wide text-text3 uppercase">
+              <Label required={false} className="text-[11px] tracking-wide text-text3 uppercase">
                 Formats to create (production)
               </Label>
               <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
@@ -705,7 +733,7 @@ export function ConceptDetail({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] tracking-wide text-text3 uppercase">
+              <Label required={false} className="text-[11px] tracking-wide text-text3 uppercase">
                 Formats to create
               </Label>
               {/*
@@ -777,7 +805,9 @@ export function ConceptDetail({
             )}
 
             <div className="flex flex-col gap-2" data-slot="concept-ad-inspo">
-              <Label className="text-[11px] tracking-wide text-text3 uppercase">Ad Inspo</Label>
+              <Label required={false} className="text-[11px] tracking-wide text-text3 uppercase">
+                Ad Inspo
+              </Label>
               {links.map((url, index) => (
                 <div key={`row-${String(index)}`} className="flex items-center gap-2">
                   <Input

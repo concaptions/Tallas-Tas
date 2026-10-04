@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { demoAngles, demoCreators, demoThemes, type ConceptInput, type Db } from '@tas/db';
+import { REQUIRED_CONCEPT_FIELDS } from '@tas/domain/concepts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createConceptAction } from '../actions';
@@ -182,5 +183,52 @@ describe('the Concept form against the action that reads it', () => {
     // Keyed under what the form asks `fieldError` for, so the message lands under the control.
     expect(result.fieldErrors?.themeIds).toBe('Pick at least one theme this angle is paired with.');
     expect(result.fieldErrors?.angleIds).toBeUndefined();
+  });
+});
+
+/**
+ * Which fields the form MARKS, against the set the save path rejects a draft for (action item 37).
+ *
+ * Both halves in one place, because the failure mode is a disagreement: a hand-written list in the
+ * page marked Batch, Angle and Theme and left Category unmarked, while the validator required all
+ * four. Reading `REQUIRED_CONCEPT_FIELDS` is what makes that impossible, and this is what proves
+ * the page reads it.
+ */
+describe('the Concept form’s required markers', () => {
+  it('marks every field the save path requires', () => {
+    const markup = filledForm();
+    // The Angle is a LinkField and labels itself, so its wrapper is the link's own slot; the other
+    // three are `renderSelect` wrappers. Either way the marker must be inside the field.
+    const slotOf = (field: string): string =>
+      field === 'angleIds' ? 'concept-angleIds' : `concept-field-${field}`;
+
+    for (const field of REQUIRED_CONCEPT_FIELDS) {
+      const marker = new RegExp(
+        `data-slot="${slotOf(field)}"[\\s\\S]*?data-slot="label-requirement" data-required="(true|false)"[^>]*>([^<]*)<`,
+      ).exec(markup);
+      expect(marker, `${field} is required but the form draws no marker for it`).not.toBeNull();
+      expect(marker?.[1], `${field} is marked Optional but the save path requires it`).toBe('true');
+      expect(marker?.[2]).toBe('Required');
+    }
+  });
+
+  it('says "Optional" on a field with no rule, rather than leaving it to be guessed', () => {
+    const markup = filledForm();
+
+    const brief = /data-slot="concept-field-hookExamples"[\s\S]*?>(Required|Optional)</.exec(
+      markup,
+    );
+    expect(brief?.[1]).toBe('Optional');
+  });
+
+  it('never draws an asterisk, which would need a legend the panels have nowhere to put', () => {
+    const markup = filledForm();
+    const markers = markup.match(/data-slot="label-requirement"[^>]*>[^<]*</g) ?? [];
+
+    expect(markers.length).toBeGreaterThan(0);
+    for (const marker of markers) {
+      expect(marker).not.toContain('*');
+      expect(marker).toMatch(/>(Required|Optional)</);
+    }
   });
 });

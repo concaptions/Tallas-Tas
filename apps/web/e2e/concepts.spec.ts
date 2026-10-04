@@ -251,6 +251,40 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('input[name="angleIds"]')).toHaveCount(0);
   });
 
+  /**
+   * Which fields are mandatory, said on the form instead of discovered by pressing Save.
+   *
+   * The marker comes from `Label`'s `required` prop in `@tas/ui`, and which fields carry it comes
+   * from `REQUIRED_CONCEPT_FIELDS` in `@tas/domain/concepts` — the same set the Server Action
+   * rejects a draft for. Asserting the pairing's three AND Category here is the point: Category was
+   * required by the validator and had never been called required anywhere in the UI, so a page that
+   * marked a hand-written list would have marked three of the four.
+   */
+  test('the form says which fields are required, and says it for the set the save path enforces', async ({
+    page,
+  }) => {
+    await page.goto(conceptPath(NOT_YOUR_AGE));
+
+    for (const field of ['batch', 'themeIds', 'category']) {
+      await expect(
+        page.locator(`[data-slot="concept-field-${field}"] [data-slot="label-requirement"]`),
+        `${field} is required by validateConceptDraft but the form does not say so`,
+      ).toHaveText('Required');
+    }
+    // The Angle is a LinkField, which draws its own label through the same primitive.
+    await expect(
+      page.locator('[data-slot="concept-angleIds"] [data-slot="label-requirement"]'),
+    ).toHaveText('Required');
+
+    // The Brief's own fields are optional, and say so rather than saying nothing.
+    await expect(
+      page.locator('[data-slot="concept-field-hookExamples"] [data-slot="label-requirement"]'),
+    ).toHaveText('Optional');
+
+    // The word, never an asterisk: these labels sit in panels with no legend to explain one.
+    await expect(page.locator('[data-slot="label-requirement"]').first()).not.toContainText('*');
+  });
+
   test('the five inherited fields are read-only text, each labelled from Angle', async ({
     page,
   }) => {
