@@ -20,8 +20,10 @@ const EXPECTED: readonly {
 }[] = [
   { tableKey: 'products', inheriting: 12, gratsi: 9, virtual: 0 },
   { tableKey: 'angles', inheriting: 16, gratsi: 11, virtual: 0 },
-  { tableKey: 'concepts', inheriting: 22, gratsi: 20, virtual: 0 },
-  { tableKey: 'creators', inheriting: 36, gratsi: 34, virtual: 0 },
+  // AI-34: production_status is HIDDEN by the resolver on both bases (never dropped — 73 live values).
+  { tableKey: 'concepts', inheriting: 21, gratsi: 19, virtual: 0 },
+  // AI-41: Gratsi's dead second Concepts link (concept_ids) is retired; 'Concept to film' remains.
+  { tableKey: 'creators', inheriting: 36, gratsi: 33, virtual: 0 },
   { tableKey: 'personas', inheriting: 15, gratsi: 7, virtual: 0 },
   { tableKey: 'copy_types', inheriting: 4, gratsi: 4, virtual: 0 },
   { tableKey: 'creative_reporting', inheriting: 13, gratsi: 13, virtual: 1 },

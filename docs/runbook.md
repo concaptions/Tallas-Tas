@@ -164,6 +164,11 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   builds redact server error messages from the browser), and no route may render "Niagara Sleep
   Solutions" sample data. With no Clerk key at all, the same build must still serve the demo fixtures
   read-only.
+- AI-27 production import: ready but NOT applied (2026-10-04 overnight run) — the live base moved
+  (Concepts 106→102) so junction sync would cross the baseline guarantee; see
+  docs/audits/overnight-items-report.md for the two stop signals and the exact apply command.
+- Per-CSM overview shell (AI-06/09): signed-in multi-brand render needs a real session; logic is
+  PGlite-tested. Check /app as the 4-brand CSM after deploy.
 
 ## Local dev gotchas
 
