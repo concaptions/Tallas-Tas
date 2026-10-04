@@ -224,6 +224,24 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
   });
 
+  /**
+   * The three parts of the name are the three the save path rejects a concept without, so what the
+   * pairing POSTS has to be what the action reads. It was not: the Theme posted `themeIds` (its
+   * field key) while the action read `themeId`, and every save of a filled form was refused. Demo
+   * mode cannot press Save, but it renders the same controls, so the names are assertable here.
+   */
+  test('the pairing posts the three names the save path reads', async ({ page }) => {
+    await page.goto(conceptPath(NOT_YOUR_AGE));
+
+    const pairing = page.locator('[data-slot="concept-pairing"]');
+    for (const name of ['batch', 'angleId', 'themeId']) {
+      await expect(pairing.locator(`input[name="${name}"]`)).toHaveCount(1);
+    }
+    // The plural is a field KEY, never a posted name: nothing on the server reads it.
+    await expect(page.locator('input[name="themeIds"]')).toHaveCount(0);
+    await expect(page.locator('input[name="angleIds"]')).toHaveCount(0);
+  });
+
   test('the five inherited fields are read-only text, each labelled from Angle', async ({
     page,
   }) => {

@@ -247,8 +247,13 @@ describe('with Clerk configured', () => {
     if (noAngle.ok || noTheme.ok) {
       throw new Error('half a pairing was accepted');
     }
-    expect(noAngle.fieldErrors?.angleId).toBe('Pick at least one angle this concept is built on.');
-    expect(noTheme.fieldErrors?.themeId).toBe('Pick at least one theme this angle is paired with.');
+    // Keyed by the DRAFT's field names, which are the ones the detail page asks `fieldError` for.
+    // They were asserted here under the posted input names (`angleId`, `themeId`) instead, and that
+    // is the shape the page could never read: the message existed and never reached the control.
+    expect(noAngle.fieldErrors?.angleIds).toBe('Pick at least one angle this concept is built on.');
+    expect(noTheme.fieldErrors?.themeIds).toBe(
+      'Pick at least one theme this angle is paired with.',
+    );
   });
 
   it('rejects a category outside the vocabulary', async () => {
