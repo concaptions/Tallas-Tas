@@ -49,4 +49,22 @@ describe('TopBar', () => {
 
     expect(mounts(tree, OrgSwitcher)).toBe(false);
   });
+
+  /**
+   * AI-13: the bar is a primary brand surface — the gradient utility, never a hex — and it pins
+   * dark tokens on itself so its children stay light-on-dark over the saturated purple in BOTH
+   * themes. Dropping either half regresses a different thing: the class loses the gradient, the
+   * attribute loses light-mode legibility.
+   */
+  it('paints the brand gradient and pins dark tokens for legibility in both themes (AI-13)', () => {
+    const header = [...elements(TopBar({ brands: SCOPE, actor: DEMO_ACTOR, demo: true }))].find(
+      (element) => element.props['data-slot'] === 'shell-top-bar',
+    );
+    if (header === undefined) throw new Error('no shell-top-bar element');
+
+    const className = header.props.className as string;
+    expect(className).toContain('bg-brand-gradient');
+    expect(className).not.toContain('bg-surface');
+    expect(header.props['data-theme']).toBe('dark');
+  });
 });

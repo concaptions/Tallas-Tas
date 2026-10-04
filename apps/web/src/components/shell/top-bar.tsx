@@ -15,16 +15,28 @@ export interface TopBarProps {
   demo: boolean;
 }
 
-/** Product name, brand scope, then the theme toggle and the account menu. 56px tall, sticky. */
+/**
+ * Product name, brand scope, then the theme toggle and the account menu. 56px tall, sticky.
+ *
+ * The surface is the signature purple gradient (`bg-brand-gradient`, the one utility tokens.css
+ * names for `--accent-gradient`) — the "primary brand surfaces (top bar, primary CTA)" its spec
+ * comment in globals.css promises (AI-13). The gradient is saturated purple in BOTH palettes, so
+ * the bar pins `data-theme="dark"` on itself: the token layer re-themes any container (the same
+ * mechanism the /design-system palette columns use), which keeps every child — product name,
+ * switcher, toggle, menu — on light-on-dark tokens over the gradient in light mode too, with no
+ * child restyled and no hex anywhere. Dropdowns are Radix portals rendered outside this subtree,
+ * so the menus themselves keep following the page theme.
+ */
 export function TopBar({ brands, actor, demo }: TopBarProps) {
   return (
     <header
       data-slot="shell-top-bar"
-      className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-surface px-3 sm:gap-3 sm:px-4"
+      data-theme="dark"
+      className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-brand-gradient px-3 sm:gap-3 sm:px-4"
     >
       <Link
         href={appPath}
-        className="shrink-0 text-sm font-semibold tracking-tight text-text hover:text-accent"
+        className="shrink-0 text-sm font-semibold tracking-tight text-text hover:opacity-80"
       >
         <span className="sm:hidden">TAS</span>
         <span className="hidden sm:inline">TAS Creative Platform</span>

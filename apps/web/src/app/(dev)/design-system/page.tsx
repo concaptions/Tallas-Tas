@@ -205,6 +205,9 @@ const PALETTE = [
   'accent',
   'accent-line',
   'accent-soft',
+  // The signature purple gradient (AI-13): an image token, rendered on the primary brand surfaces
+  // — the top bar and the default Button — through the `.bg-brand-gradient` utility.
+  'accent-gradient',
   'ok',
   'warn',
   'bad',
@@ -330,7 +333,9 @@ function PaletteColumn({ theme }: { theme: 'dark' | 'light' }) {
           <li key={token} className="flex items-center gap-3">
             <span
               className="size-7 shrink-0 rounded-input border border-line2"
-              style={{ backgroundColor: `var(--${token})` }}
+              // The `background` shorthand, not `backgroundColor`: `--accent-gradient` is an
+              // image, and the shorthand renders colour tokens and image tokens alike.
+              style={{ background: `var(--${token})` }}
             />
             <span className="font-mono text-[11px] text-text2">--{token}</span>
           </li>
