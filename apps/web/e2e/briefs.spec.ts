@@ -87,6 +87,10 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(standalone).toHaveText('Standalone');
     await expect(standalone).toHaveAttribute('data-tone', 'mute');
 
+    // AI-52. The name is a real anchor, so the row can be cmd-clicked, middle-clicked or copied —
+    // which a `router.push` cannot be. The href is the detail route itself, not a fragment.
+    await expect(name).toHaveAttribute('href', briefPath(BODY_CLOCK));
+
     // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill. Read
     // out of the internal-status COLUMN rather than as the row's last chip, so a reordered or
     // relabelled column set cannot quietly move this assertion onto a different field.
@@ -173,7 +177,11 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     // cost the config header describes, where the URL does change, just later than the 15s default
     // expect budget. Only this assertion waits longer; nothing about it is relaxed.
     await card.click();
-    await page.locator('[data-slot="brief-panel-open-full"]').click();
+    // AI-52. The footer control is a link, not a button that pushes, so it can be opened in a new
+    // tab. The click below still navigates in this one.
+    const openFull = page.locator('[data-slot="brief-panel-open-full"]');
+    await expect(openFull).toHaveAttribute('href', briefPath(BODY_CLOCK));
+    await openFull.click();
     await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`), { timeout: 45_000 });
   });
 

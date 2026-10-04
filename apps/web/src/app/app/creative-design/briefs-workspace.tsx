@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Button,
@@ -172,9 +173,24 @@ export const BRIEF_RENDERERS: ColumnRegistry<BriefItem> = {
   name: {
     render: (item) => (
       <span className="flex items-center gap-2">
-        <span data-slot="brief-row-name" className="font-mono text-xs text-text">
+        {/*
+          A REAL ANCHOR (AI-52), so a row can be cmd-clicked, middle-clicked or copied; the row's own
+          click still navigates in the same tab. Both propagations stop here, so one activation is
+          one navigation rather than the anchor and the row's handler both firing.
+        */}
+        <Link
+          href={item.href}
+          data-slot="brief-row-name"
+          className="font-mono text-xs text-text hover:underline"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.stopPropagation();
+          }}
+        >
           {item.name}
-        </span>
+        </Link>
         {item.stage === null ? null : (
           <StatusChip tone={item.stage.tone} label={item.stage.label} />
         )}
@@ -639,9 +655,7 @@ export function BriefsWorkspace({
         )}
       </section>
 
-      {panelItem === null ? null : (
-        <BriefPanel item={panelItem} onClose={closePanel} onOpenFull={open} />
-      )}
+      {panelItem === null ? null : <BriefPanel item={panelItem} onClose={closePanel} />}
     </div>
   );
 }
