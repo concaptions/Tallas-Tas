@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 export interface CreativeDimensionListResult {
   readonly rows: CreativeDimensionListRow[];
@@ -50,6 +51,23 @@ async function withDb<T>(
   } finally {
     await connection.close();
   }
+}
+
+const CREATIVE_DIMENSIONS_TABLE_KEY = 'creative_dimensions';
+
+/**
+ * THE ordered, labelled, visible Creative Dimensions columns of the working brand, through the ONE
+ * loader every resolver-driven page shares (`lib/resolved-columns-source.ts`). Same shape as
+ * `loadClientAssetColumns` — GRATSI-MATCH creative_dimensions (2026-10-04).
+ */
+export async function loadCreativeDimensionColumns(
+  deps: CreativeDimensionSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(CREATIVE_DIMENSIONS_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 export async function loadCreativeDimensions(

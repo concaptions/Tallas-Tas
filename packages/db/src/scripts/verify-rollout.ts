@@ -50,6 +50,9 @@ const EXPECTED: readonly {
   // duplicate Email Campaigns Management copy pair — docs/decisions.md "GRATSI-MATCH collections"),
   // with the template's angle_id and creative_design_2_id hidden.
   { tableKey: 'collections', inheriting: 8, gratsi: 9, virtual: 0 },
+  // GRATSI-MATCH creative_dimensions (2026-10-04, WIRING cluster): absent until that run.
+  // Identical in both bases — four fields, no flags, Gratsi holds no rows and inherits all four.
+  { tableKey: 'creative_dimensions', inheriting: 4, gratsi: 4, virtual: 0 },
 ];
 
 async function main(): Promise<void> {

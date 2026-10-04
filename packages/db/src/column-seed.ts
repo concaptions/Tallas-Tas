@@ -1239,11 +1239,26 @@ const CAMPAIGNS_OFFERS_GRATSI = childRows('campaigns_offers', [
   ['product_id', '(Internal) Product', 13, 'hidden', 'multipleRecordLinks'],
 ]);
 
-/** `(Internal) Creative Dimensions` `tblli0Y76yJvG56zK` — identical in both bases; 1 reverse link. */
+/**
+ * `(Internal) Creative Dimensions` `tblli0Y76yJvG56zK` — 4 fields, identical in both bases, ALL
+ * seeded (GRATSI-MATCH creative_dimensions, 2026-10-04); Gratsi holds no rows and inherits.
+ *
+ * Field 4 `(Internal) Creative Design` is the REVERSE of the briefs' `Dimensions` link, which the
+ * engine stores on the OTHER side as placement names in the `creative_briefs.dimensions` jsonb
+ * (`import-mappings.ts` `creativeDimensions.(Internal) Creative Design`: "written from Creative
+ * Design › Dimensions into creative_briefs.dimensions (by placement name)"). No junction exists
+ * and no FK points back here, so the table-shaped key the other reverse links use would fail the
+ * gate; the key is instead `creative_design_id`, the uuid column `schema/creative-dimensions.ts`
+ * RESERVED for exactly this brief link ("a Creative Design link (FK to briefs stored as uuid)") —
+ * the same shape as `creative_reporting.brief_id`, a real stored column no Airtable field writes.
+ * The page resolves the display through both ends: the briefs whose `dimensions` carry this row's
+ * name, plus the brief the stored uuid points at. Display-only; nothing new is stored.
+ */
 const CREATIVE_DIMENSIONS_PARENT = parentRows('creative_dimensions', [
   ['name', 'Name', 1, 'singleLineText'],
   ['dimensions', 'Dimensions', 2, 'singleLineText'],
   ['link_description', 'Link Description', 3, 'singleSelect'],
+  ['creative_design_id', '(Internal) Creative Design', 4, 'multipleRecordLinks'],
 ]);
 
 /**

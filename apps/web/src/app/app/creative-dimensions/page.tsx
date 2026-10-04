@@ -1,25 +1,29 @@
-import { loadCreativeDimensions } from '@/lib/creative-dimensions-source';
+import { loadBriefs } from '@/lib/briefs-source';
+import {
+  loadCreativeDimensionColumns,
+  loadCreativeDimensions,
+} from '@/lib/creative-dimensions-source';
 import { isDemoMode } from '@/lib/demo-mode';
-import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
 import {
   CreativeDimensionsWorkspace,
   type CreativeDimensionItem,
 } from './creative-dimensions-workspace';
+import { linkedDesignsForDimension } from './fields';
 
 /**
  * Creative Dimensions: the size/format specs (e.g. "IG Story / Reel" at "1080x1920") that a
  * creative design is exported to.
  *
  * A server component, shaped exactly like the Products and Personas pages. The rows come from
- * `loadCreativeDimensions()`, which is the in-repo fixtures in demo mode and the brand-scoped query
- * otherwise; the page does not know which and does not branch on it. Both pieces of table state are
- * query parameters — `?dimension=` for the open panel and `?q=` for the filter — so a refresh
- * restores the view and either one is shareable as a link. It renders into the shell's `<main>` and
- * owns no frame, padding or background of its own.
- *
- * The relative timestamp is formatted here, once, with a single `now`: a client that formatted it
- * itself would produce a different string from the server's and break hydration.
+ * `loadCreativeDimensions()`, which is the in-repo fixtures in demo mode and the brand-scoped
+ * query otherwise; the page does not know which and does not branch on it. The column set comes
+ * from `loadCreativeDimensionColumns()` — the resolver — and the `(Internal) Creative Design`
+ * reverse link is resolved HERE, in one pass over the briefs the demo-aware `loadBriefs()`
+ * already returns: the briefs whose `dimensions` placement names carry the row's name, plus the
+ * brief the stored `creative_design_id` points at. Never a per-row query. Both pieces of table
+ * state are query parameters — `?dimension=` for the open panel and `?q=` for the filter — so a
+ * refresh restores the view and either one is shareable as a link.
  */
 interface CreativeDimensionsPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -28,14 +32,17 @@ interface CreativeDimensionsPageProps {
 export default async function CreativeDimensionsPage({
   searchParams,
 }: CreativeDimensionsPageProps) {
-  const [{ rows }, params] = await Promise.all([loadCreativeDimensions(), searchParams]);
+  const [{ rows }, { columns, unconfigured }, briefRows, params] = await Promise.all([
+    loadCreativeDimensions(),
+    loadCreativeDimensionColumns(),
+    loadBriefs(),
+    searchParams,
+  ]);
   const demo = isDemoMode();
-  const now = new Date();
 
   const items: CreativeDimensionItem[] = rows.map((dimension) => ({
     dimension,
-    updatedLabel: relativeTime(dimension.updatedAt, now),
-    updatedTitle: absoluteTime(dimension.updatedAt),
+    linkedDesigns: linkedDesignsForDimension(dimension, briefRows.rows),
   }));
 
   const requested = params.dimension;
@@ -46,6 +53,8 @@ export default async function CreativeDimensionsPage({
 
   return (
     <CreativeDimensionsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfigured}
       items={items}
       demo={demo}
       initialSelection={selection}

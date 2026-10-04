@@ -1044,3 +1044,24 @@ matches Gratsi's field, the backing is the platform's `product_id`, and the regi
 Gratsi's own field as empty text on every live row ("nothing to resolve"), so an empty link column
 is exactly what the base shows. Gratsi displays 9 of 13 fields, in field order; reverse links are
 display-only read-throughs; no migration ran.
+
+## 2026-10-04 — GRATSI-MATCH creative_dimensions: the grid reads the resolver; the reverse link is keyed by the reserved uuid column
+
+The Creative Dimensions grid now reads its columns from `resolveColumns`
+(`CREATIVE_DIMENSIONS_PARENT`), closing the audit's one-column gap
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §(Internal) Creative Dimensions). The table is
+identical in both bases, so Gratsi holds no child rows and inherits all four fields.
+
+`(Internal) Creative Design` (field 4) is the REVERSE of the briefs' `Dimensions` link, and its
+storage is asymmetric: the engine writes the far side as placement NAMES into
+`creative_briefs.dimensions` (`import-mappings.ts`), no junction exists, and no FK points back at
+`creative_dimensions` — so the table-shaped key the other reverse links use would fail the
+column-seed gate ("a junction OF ITS OWN TABLE"). The column is keyed by `creative_design_id`
+instead, the uuid column `schema/creative-dimensions.ts` reserved for exactly this brief link,
+the same shape as `creative_reporting.brief_id` (a real stored column no Airtable field writes).
+The cell resolves through BOTH ends at read time — briefs whose `dimensions` carry the row's
+name, plus the brief the stored uuid points at, deduped (`linkedDesignsForDimension`) — and the
+demo fixtures exercise the stored end, so the demo page keeps rendering. Display-only; the
+WIRING brief's suggestion of a `creative_briefs`-shaped key would have needed a new gate
+exemption in `column-seed.test.ts`, which is outside this cluster's files, and the reserved
+column says the same thing without one. No migration ran.
