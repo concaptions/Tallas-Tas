@@ -576,15 +576,15 @@ describe('platform columns on concepts', () => {
       const column = resolved.find((candidate) => candidate.columnKey === key);
       // Talal ruling 2026-10-04 (AI-33): internal_status is the ONE platform column Gratsi hides
       // — its base has Status and nothing else. Every other brand keeps it.
-      if (key === 'internal_status') {
-        expect(column, 'internal_status must not resolve for Gratsi (AI-33)').toBeUndefined();
+      if (key === 'internal_status' || key === 'client_status') {
+        expect(column, `${key} must not resolve for Gratsi (AI-33 + follow-up)`).toBeUndefined();
         continue;
       }
       expect(column, `Gratsi lost the platform column ${key}`).toBeDefined();
       expect(column?.source, `${key} stopped being the platform's on Gratsi`).toBe('platform');
     }
-    // The two Gratsi holds no visible row for arrive by inheritance, from the template.
-    for (const inherited of ['name', 'client_status']) {
+    // The one Gratsi holds no visible row for arrives by inheritance, from the template.
+    for (const inherited of ['name']) {
       expect(
         resolved.find((column) => column.columnKey === inherited)?.inheritedFrom,
         `${inherited} should be read from the template, not from a Gratsi row`,
@@ -594,13 +594,13 @@ describe('platform columns on concepts', () => {
     const decription = resolved.find((column) => column.columnKey === 'description');
     expect(decription?.displayLabel).toBe('Decription');
     expect(decription?.inheritedFrom).toBeNull();
-    // Of the two tracks only the client-facing one reaches Gratsi: AI-33 hides Internal Status
-    // there (its base has Status alone), while Client Status — the gate the client interface
-    // reads — stays on every brand.
+    // NEITHER platform track reaches Gratsi's displayed set: AI-33 hid Internal Status and the
+    // follow-up ruling hid Client Status — Gratsi's base has Status alone. The client GATE is
+    // untouched: it reads concepts.client_status from the database, never the displayed set.
     const statuses = resolved
       .filter((column) => column.columnKey.endsWith('_status') && column.source === 'platform')
       .map((column) => column.displayLabel);
-    expect(statuses).toEqual(['Client Status']);
+    expect(statuses).toEqual([]);
   });
 
   /**
@@ -1415,6 +1415,25 @@ describe('AI-33 · Internal Status is hidden for Gratsi alone', () => {
       'concepts',
     );
     expect(niagara.find((column) => column.columnKey === 'internal_status')).toBeDefined();
+  });
+
+  it('hides client_status for Gratsi the same way (the follow-up ruling), keeping it for Niagara', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const gratsi = await resolveColumns(db, await brandIdBySlug(db, 'gratsi'), 'concepts');
+    expect(
+      gratsi.find((column) => column.columnKey === 'client_status'),
+      'client_status resolved for Gratsi, whose base has no such field',
+    ).toBeUndefined();
+
+    const niagara = await resolveColumns(
+      db,
+      await brandIdBySlug(db, 'niagara-sleep-solutions'),
+      'concepts',
+    );
+    expect(niagara.find((column) => column.columnKey === 'client_status')).toBeDefined();
   });
 
   it('seeds the hide as a Gratsi child row and leaves the platform row alone', () => {

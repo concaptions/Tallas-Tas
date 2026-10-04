@@ -675,6 +675,9 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   // Talal ruling 2026-10-04 (AI-33): Gratsi's base has Status, never Internal Status — the
   // platform column stays on the parent and every inheriting brand; only Gratsi hides it.
   ['internal_status', 'Internal Status', 22, 'hidden', 'singleSelect'],
+  // Follow-up ruling 2026-10-04: client_status has no Gratsi field either. Hidden the same way —
+  // the client interface and every writer read the DB column, never the displayed set.
+  ['client_status', 'Client Status', 23, 'hidden', 'singleSelect'],
 ]);
 
 /** `Angles` `tbl4UFSFcynlS2Pkn` — 11 fields; 3 reverse links and 1 two-hop lookup skipped. */

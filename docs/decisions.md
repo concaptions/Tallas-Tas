@@ -972,3 +972,14 @@ The item's premise — that these were platform leftovers to remove — was wron
 own fields, resolve from Gratsi's own rows (orders 24–25) and render through the angle grid's
 LinkCell renderers. ALREADY-CORRECT; pinned in `column-seed.test.ts` (AI-44 describe) so a future
 cleanup cannot un-match the live base. Nothing removed anywhere.
+
+## 2026-10-04 — client_status follows AI-33: hidden from Gratsi's displayed Concepts set
+
+The follow-up to AI-33, ruled the same day: `Client Status` has no field in the Gratsi base
+either, so per the strict Gratsi-matches-Airtable rule it leaves GRATSI'S displayed Concepts set —
+one more `hidden` child row in `CONCEPTS_GRATSI`. VERIFIED BEFORE SHIPPING, as the ruling
+required: the client-facing interface reads `concepts.client_status` from the database
+(`clientConcepts` selects the column directly; the portal's approve/revise actions write it;
+nothing in `apps/web/src/app/client` or `client-data-source.ts` touches `resolveColumns`), so the
+client gate is untouched by what the team's grid displays. Only the Gratsi team grid loses the
+display chip. The Postgres column, every writer, Niagara's view and the platform row all stay.
