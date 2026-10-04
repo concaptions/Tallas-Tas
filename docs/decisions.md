@@ -1027,3 +1027,32 @@ number `verify-rollout.ts` and `copy-source.test.ts` assert):
 Order values keep the Airtable positions (gaps at 25, 26, 28, 29, 30), so an un-flag later lands
 in the right place. Niagara and every other inheriting brand gain only the template's own two
 missing fields (`Copy #`, `Collection`); nothing else about the inheriting set changed.
+
+## 2026-10-04 — GRATSI-MATCH `creative_sheet_items`: all 29 Airtable fields displayed; nothing flagged
+
+Input: `docs/audits/gratsi-column-diff-2026-10-04.md` (Creative Sheet: Airtable 29, platform 14).
+Gratsi's displayed set is now the FULL base, in field order 1–29 — the one table of this match
+with zero exclusions.
+
+**The thirteen lookups are alive for Gratsi and dead only in the template.** The dead-lookup
+register (`docs/decisions/overnight-dead-lookups.md`) is the TEMPLATE's: its `Creative Name` is a
+`singleLineText`, so its twelve lookup copies are `isValid:false` and still seed NOTHING for the
+parent — every inheriting brand stays at the template's own set. In Gratsi's base `Creative Name`
+IS the brief link, so the twelve (plus `Proposed Copy`, which only Gratsi has) are seeded as
+GRATSI child-added VIRTUAL columns over `lookupRollup`, resolved per the map
+`schema/creative-sheet-items.ts` has recorded all along: `Performance`, `Elements we are
+Testing`, `Design File`, `Design Link URL`, `Platform`, `Funnel`, `Type` off the linked brief;
+`(Internal) Product`, `Angle`, `Collection` through the brief's own links (concept-inherited
+name as fallback where `listBriefs` provides one); `Concepts (from Angle)` through
+`concept_angles`; `Creative Module` through `creative_module_designs`; `Proposed Copy` the
+REVERSE read of `copywriting.creative_brief_id`, shown as the copies' generated titles. Loaded in
+`creative-sheet-source.ts` on the page's one connection, joined per row in `build-items.ts`,
+never stored.
+
+**Two system fields are display derivations of the shared audit columns** (diff-audit annotation
+3): `Created` (26) = `created_at`, Gratsi-only; `Last Modified` (27) = `updated_at`, which the
+TEMPLATE base also genuinely has (field 17, `overnight-parent-columns.md`), so the parent seed
+gains that one row and the inheriting set goes 14 → 15. That is the only inheriting-set change.
+
+Counts asserted against PGlite in `creative-sheet-source.test.ts` (Gratsi 29 ordered+labelled,
+inheriting 15, every lookup virtual) and in `verify-rollout.ts`.

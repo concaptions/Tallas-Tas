@@ -42,7 +42,11 @@ const EXPECTED: readonly {
   { tableKey: 'creative_modules', inheriting: 4, gratsi: 4, virtual: 0 },
   { tableKey: 'client_asset_folders', inheriting: 4, gratsi: 4, virtual: 0 },
   // The name is virtual on both bases: Gratsi relabels it and the formula is read from the parent.
-  { tableKey: 'creative_sheet_items', inheriting: 14, gratsi: 14, virtual: 1 },
+  // GRATSI-MATCH creative_sheet_items (2026-10-04): the parent gains its own `Last Modified`
+  // (template field 17) = 15; Gratsi displays its FULL 29-field base — the thirteen Creative Name
+  // lookups are alive there and seeded as child-added lookupRollup virtuals, dead in the template
+  // only (docs/decisions/overnight-dead-lookups.md), plus Created/Last Modified.
+  { tableKey: 'creative_sheet_items', inheriting: 15, gratsi: 29, virtual: 1 },
   // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
   // platform's own `due_date`; Gratsi hides three and adds five of its own.
   { tableKey: 'creative_briefs', inheriting: 31, gratsi: 33, virtual: 0 },

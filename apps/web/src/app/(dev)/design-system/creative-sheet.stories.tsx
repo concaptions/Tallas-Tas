@@ -8,6 +8,7 @@ import {
   QaTicks,
   Tick,
   type SheetItemView,
+  type SheetLookups,
 } from '@/app/app/creative-sheet/creative-sheet-workspace';
 import {
   INTERNAL_STATUS_OPTIONS,
@@ -68,6 +69,23 @@ function sampleRow(
   };
 }
 
+/** A row with no brief resolves every lookup to nothing — the em dash, the ordinary case. */
+const NO_LOOKUPS: SheetLookups = {
+  performance: null,
+  internalProduct: null,
+  angle: null,
+  conceptsFromAngle: null,
+  elementsWeAreTesting: null,
+  designFiles: [],
+  designLinkUrl: null,
+  collection: null,
+  platform: null,
+  funnel: null,
+  type: null,
+  proposedCopy: null,
+  creativeModule: null,
+};
+
 const SAMPLE_ROWS: readonly SheetItemView[] = [
   {
     item: sampleRow({
@@ -80,6 +98,26 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
       qaDesigner: true,
       qaStrategist: true,
     }),
+    // The thirteen Creative Name lookups, as `buildSheetItems` resolves them for a linked brief
+    // (GRATSI-MATCH, 2026-10-04): read-only echoes, the Proposed Copy titles in the mono face.
+    lookups: {
+      ...NO_LOOKUPS,
+      performance: 'Winning',
+      internalProduct: 'Night Reset Bundle',
+      angle: 'Your Body Clock Is Not Broken',
+      conceptsFromAngle: 'B1-Your Body Clock Is Not Broken-Sleep Science',
+      elementsWeAreTesting: 'Hook: circadian framing',
+      designFiles: ['r2://design/tv1-b1-v2.mp4'],
+      designLinkUrl: 'https://drive.example.test/tv1-b1-v2',
+      collection: 'BFCM 2026 Collection',
+      platform: 'Meta, TikTok',
+      funnel: 'TOF',
+      type: 'Video',
+      proposedCopy: 'Copy #1, Copy #3',
+      creativeModule: 'Problem/Solution',
+    },
+    createdLabel: '12d ago',
+    createdTitle: '19 Sep 2026, 10:00',
     updatedLabel: '2h ago',
     updatedTitle: '1 Oct 2026, 09:30',
   },
@@ -90,6 +128,9 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
       name: 'October-',
       internalStatus: 'sent_to_designer',
     }),
+    lookups: NO_LOOKUPS,
+    createdLabel: '4h ago',
+    createdTitle: '1 Oct 2026, 07:05',
     updatedLabel: '4h ago',
     updatedTitle: '1 Oct 2026, 07:05',
   },
@@ -105,6 +146,15 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
       qaDesigner: true,
       qaStrategist: true,
     }),
+    lookups: {
+      ...NO_LOOKUPS,
+      performance: 'High Potential to Iterate',
+      internalProduct: 'Night Reset Bundle',
+      funnel: 'BOF',
+      type: 'Static',
+    },
+    createdLabel: '2w ago',
+    createdTitle: '15 Sep 2026, 08:00',
     updatedLabel: '3d ago',
     updatedTitle: '28 Sep 2026, 16:40',
   },

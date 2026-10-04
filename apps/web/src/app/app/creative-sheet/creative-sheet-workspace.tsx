@@ -52,8 +52,34 @@ import {
  * board grouped by Internal Status or Status. A card dropped in another column is one write through
  * `moveCreativeSheetItemAction`; in demo mode the board ignores the drop.
  */
+/**
+ * The thirteen `Creative Name` lookup cells (GRATSI-MATCH, 2026-10-04), each resolved on the
+ * server by `build-items.ts` through the sheet row's brief link with `lookupRollup` — never
+ * stored, never editable, and null (or empty, for the attachments) wherever the link points at
+ * nothing, which the grid renders as the muted em dash.
+ */
+export interface SheetLookups {
+  readonly performance: string | null;
+  readonly internalProduct: string | null;
+  readonly angle: string | null;
+  readonly conceptsFromAngle: string | null;
+  readonly elementsWeAreTesting: string | null;
+  readonly designFiles: readonly string[];
+  readonly designLinkUrl: string | null;
+  readonly collection: string | null;
+  readonly platform: string | null;
+  readonly funnel: string | null;
+  readonly type: string | null;
+  readonly proposedCopy: string | null;
+  readonly creativeModule: string | null;
+}
+
 export interface SheetItemView {
   readonly item: CreativeSheetItemListRow;
+  readonly lookups: SheetLookups;
+  /** `created_at` / `updated_at` as Airtable's `Created` / `Last Modified` display columns. */
+  readonly createdLabel: string;
+  readonly createdTitle: string;
   readonly updatedLabel: string;
   readonly updatedTitle: string;
 }
@@ -207,6 +233,88 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   spelling_feedback: {
     render: ({ item }) => <TextCell value={item.spellingFeedback} maxWidth={280} />,
     cellTitle: ({ item }) => item.spellingFeedback ?? undefined,
+  },
+  /*
+   * The thirteen Creative Name lookups (GRATSI-MATCH, 2026-10-04): read-only echoes of the linked
+   * brief, resolved by `build-items.ts` and seeded as `lookupRollup` virtual columns — Gratsi's
+   * base has every one alive; the template's twelve copies are dead and resolve for no inheriting
+   * brand (docs/decisions/overnight-dead-lookups.md). `Proposed Copy` is the linked Meta copies'
+   * generated titles, so it keeps the mono face (CLAUDE.md non-negotiable 6), as does the
+   * attachment count cell's noun pattern from `qa_checklist_doc`.
+   */
+  performance: {
+    render: ({ lookups }) => <TextCell value={lookups.performance} maxWidth={200} />,
+    sortValue: ({ lookups }) => lookups.performance,
+  },
+  internal_product: {
+    render: ({ lookups }) => <TextCell value={lookups.internalProduct} maxWidth={200} />,
+    sortValue: ({ lookups }) => lookups.internalProduct,
+  },
+  angle: {
+    render: ({ lookups }) => <TextCell value={lookups.angle} maxWidth={220} />,
+    sortValue: ({ lookups }) => lookups.angle,
+  },
+  concepts_from_angle: {
+    render: ({ lookups }) => <TextCell value={lookups.conceptsFromAngle} maxWidth={240} />,
+    sortValue: ({ lookups }) => lookups.conceptsFromAngle,
+  },
+  elements_we_are_testing: {
+    render: ({ lookups }) => <TextCell value={lookups.elementsWeAreTesting} maxWidth={240} />,
+    sortValue: ({ lookups }) => lookups.elementsWeAreTesting,
+  },
+  design_file: {
+    render: ({ lookups }) => <CountCell count={lookups.designFiles.length} noun="file" />,
+    sortValue: ({ lookups }) => lookups.designFiles.length,
+  },
+  design_link_url: {
+    render: ({ lookups }) => <TextCell value={lookups.designLinkUrl} maxWidth={240} />,
+    sortValue: ({ lookups }) => lookups.designLinkUrl,
+  },
+  collection: {
+    render: ({ lookups }) => <TextCell value={lookups.collection} maxWidth={200} />,
+    sortValue: ({ lookups }) => lookups.collection,
+  },
+  platform: {
+    render: ({ lookups }) => <TextCell value={lookups.platform} maxWidth={180} />,
+    sortValue: ({ lookups }) => lookups.platform,
+  },
+  funnel: {
+    render: ({ lookups }) => <TextCell value={lookups.funnel} maxWidth={120} />,
+    sortValue: ({ lookups }) => lookups.funnel,
+  },
+  type: {
+    render: ({ lookups }) => <TextCell value={lookups.type} maxWidth={120} />,
+    sortValue: ({ lookups }) => lookups.type,
+  },
+  proposed_copy: {
+    render: ({ lookups }) =>
+      lookups.proposedCopy === null ? (
+        <span className="text-text4">{EM_DASH}</span>
+      ) : (
+        <span className="font-mono text-xs">{lookups.proposedCopy}</span>
+      ),
+    sortValue: ({ lookups }) => lookups.proposedCopy,
+  },
+  creative_module: {
+    render: ({ lookups }) => <TextCell value={lookups.creativeModule} maxWidth={200} />,
+    sortValue: ({ lookups }) => lookups.creativeModule,
+  },
+  /* Airtable's `Created` / `Last Modified` system fields: the shared audit timestamps, displayed. */
+  created_at: {
+    render: (view) => (
+      <span className="text-xs whitespace-nowrap text-text3" title={view.createdTitle}>
+        {view.createdLabel}
+      </span>
+    ),
+    sortValue: ({ item }) => item.createdAt.getTime(),
+  },
+  updated_at: {
+    render: (view) => (
+      <span className="text-xs whitespace-nowrap text-text3" title={view.updatedTitle}>
+        {view.updatedLabel}
+      </span>
+    ),
+    sortValue: ({ item }) => item.updatedAt.getTime(),
   },
 };
 

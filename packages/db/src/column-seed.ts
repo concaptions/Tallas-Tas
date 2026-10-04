@@ -910,6 +910,11 @@ const CREATIVE_SHEET_ITEMS_PARENT = parentRows('creative_sheet_items', [
   ['brief_id', 'Creative Name', 2, 'singleLineText'],
   ['status', 'Status', 9, 'singleSelect'],
   ['client_comments', "Client's Comments", 10, 'multilineText'],
+  // Field 17 of the template's own table (`docs/audits/overnight-parent-columns.md` §DONT USE
+  // Creative Sheet): the one system timestamp both bases carry, `baseColumns()`'s `updated_at`
+  // surfaced under Airtable's label. Added by the Gratsi column match (2026-10-04) — the first
+  // transcription skipped every system field, but the base genuinely has this one as a field.
+  ['updated_at', 'Last Modified', 17, 'lastModifiedTime'],
 ]);
 
 /**
@@ -964,17 +969,88 @@ const CREATIVE_SHEET_ITEMS_PLATFORM = platformRows('creative_sheet_items', [
 ]);
 
 /**
- * Gratsi `Creative Sheet` — 29 fields, 16 derived: the table is almost entirely lookups through
- * `Creative Name`. `creative_sheet_items` holds ZERO rows in production for every brand against 377
- * live Airtable records, so this is the least-exercised column map in the seed; flagged, not
- * smoothed over.
+ * Gratsi `Creative Sheet` — ALL 29 fields, in the base's own field order 1–29 (GRATSI-MATCH,
+ * 2026-10-04, `docs/audits/gratsi-column-diff-2026-10-04.md`; field table in
+ * `docs/audits/gratsi-columns-2026-10-02.md` §7). Nothing is flagged on this table: the thirteen
+ * lookups through `Creative Name` are ALIVE in Gratsi's base — its `Creative Name` is a real link
+ * where the TEMPLATE's is a `singleLineText`, which is exactly why the template's twelve copies
+ * are `isValid:false` and seed nothing for the parent
+ * (`docs/decisions/overnight-dead-lookups.md`; diff-audit annotation 2). So the twelve are
+ * CHILD-ADDED VIRTUAL rows here — Gratsi has the field, the parent's definition does not — plus
+ * `Proposed Copy` (21), which only Gratsi's base has at all. Each resolves through the sheet
+ * row's brief link in `creative-sheet-source.ts` / `build-items.ts`, per the resolution map the
+ * schema records (`schema/creative-sheet-items.ts`): the brief's own fields one hop away,
+ * `Concepts (from Angle)` and `Creative Module` two hops, `Proposed Copy` the Meta copy rows
+ * whose `creative_brief_id` is the brief.
+ *
+ * `Created` (26) is Gratsi-only (`created_at` under Airtable's label); `Last Modified` (27)
+ * relabels nothing — the label is the parent's — but detaches to Gratsi's position, as do the
+ * inherited `Status` (template 9 → 11) and `Client's Comments` (10 → 16) and every platform row
+ * (seeded at 18–27, after the template's range; Gratsi's own positions are 10–15 and 28–29 —
+ * `Used`, `Denied/revisions needed` and `Winning` already sit at 23–25 on both and carry no row).
+ *
+ * `creative_sheet_items` held ZERO platform rows against 377 live Airtable records when this map
+ * was first transcribed; still the least-exercised column map in the seed, flagged, not smoothed
+ * over.
  */
-const CREATIVE_SHEET_ITEMS_GRATSI = childRows('creative_sheet_items', [
-  // Gratsi words the primary field `Name` where the parent calls it `Name + Angle + Offer`. A
-  // relabel only: the resolver reads `formula` from the parent row, so the column stays computed
-  // however a child words it — a child cannot make a virtual column stored.
-  ['name', 'Name', 1, 'relabel', 'formula'],
-]);
+const CREATIVE_SHEET_ITEMS_GRATSI = [
+  ...childRows('creative_sheet_items', [
+    // Gratsi words the primary field `Name` where the parent calls it `Name + Angle + Offer`. A
+    // relabel only: the resolver reads `formula` from the parent row, so the column stays computed
+    // however a child words it — a child cannot make a virtual column stored.
+    ['name', 'Name', 1, 'relabel', 'formula'],
+    ['internal_status', 'Internal Status', 10, 'relabel-platform', 'singleSelect'],
+    ['status', 'Status', 11, 'relabel', 'singleSelect'],
+    ['qa_checklist_doc', 'QA Checklist Doc', 12, 'relabel-platform', 'multipleAttachments'],
+    ['qa_video_editor', 'Video Editor QA', 13, 'relabel-platform', 'checkbox'],
+    ['qa_designer', 'Graphic Designer QA', 14, 'relabel-platform', 'checkbox'],
+    ['qa_strategist', 'Creative Strategist QA', 15, 'relabel-platform', 'checkbox'],
+    ['client_comments', "Client's Comments", 16, 'relabel', 'multilineText'],
+    ['created_at', 'Created', 26, 'custom', 'createdTime'],
+    ['updated_at', 'Last Modified', 27, 'relabel', 'lastModifiedTime'],
+    [
+      'spell_check_requested',
+      'Click for AI Spell Checker Again',
+      28,
+      'relabel-platform',
+      'checkbox',
+    ],
+    ['spelling_feedback', 'Spelling Feedback', 29, 'relabel-platform', 'multilineText'],
+  ]),
+  ...virtualChildRows('creative_sheet_items', [
+    ['performance', 'Performance (from Creative Name)', 3, 'multipleLookupValues', 'lookupRollup'],
+    [
+      'internal_product',
+      '(Internal) Product (from Creative Name)',
+      4,
+      'multipleLookupValues',
+      'lookupRollup',
+    ],
+    ['angle', 'Angle (from Creative Name)', 5, 'multipleLookupValues', 'lookupRollup'],
+    [
+      'concepts_from_angle',
+      'Concepts (from Angle) (from Creative Name)',
+      6,
+      'multipleLookupValues',
+      'lookupRollup',
+    ],
+    [
+      'elements_we_are_testing',
+      'Elements we are Testing',
+      7,
+      'multipleLookupValues',
+      'lookupRollup',
+    ],
+    ['design_file', 'Design File (from Creative Name)', 8, 'multipleLookupValues', 'lookupRollup'],
+    ['design_link_url', 'Design Link URL', 9, 'multipleLookupValues', 'lookupRollup'],
+    ['collection', 'Collection', 17, 'multipleLookupValues', 'lookupRollup'],
+    ['platform', 'Platform', 18, 'multipleLookupValues', 'lookupRollup'],
+    ['funnel', 'Funnel', 19, 'multipleLookupValues', 'lookupRollup'],
+    ['type', 'Type', 20, 'multipleLookupValues', 'lookupRollup'],
+    ['proposed_copy', 'Proposed Copy', 21, 'multipleLookupValues', 'lookupRollup'],
+    ['creative_module', 'Creative Module', 22, 'multipleLookupValues', 'lookupRollup'],
+  ]),
+] as const satisfies readonly UpsertColumnDefinition[];
 
 /**
  * `UGC Management` `tblRsVqiqUaZRcQYd` — 32 fields, 31 of which seed.
