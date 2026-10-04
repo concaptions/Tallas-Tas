@@ -139,7 +139,9 @@ both need the same artifact.
 
 ## 6. The thirteen Talal questions, consolidated (overnight run, 2026-10-04)
 
-Every blocked-on-Talal item's question in one place. The evidence behind each sits in the item's
+Every blocked-on-Talal item's question in one place. ANSWERED 2026-10-04 and applied (commits
+c90a031, 6bc57a9, 14b75d7, 48a0ac2 — rulings recorded in docs/decisions.md): questions 2 (AI-33),
+3 (AI-39), 4 (AI-43) and 5 (AI-44). Nine remain open. The evidence behind each sits in the item's
 section of `action-items-full-status.md`; these stay open as questions, never failures.
 
 1. **AI-02 — roles beyond Member/Admin:** the six brand roles exist in code and five are assigned to
