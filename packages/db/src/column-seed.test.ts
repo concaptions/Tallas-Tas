@@ -574,11 +574,17 @@ describe('platform columns on concepts', () => {
 
     for (const key of PLATFORM) {
       const column = resolved.find((candidate) => candidate.columnKey === key);
+      // Talal ruling 2026-10-04 (AI-33): internal_status is the ONE platform column Gratsi hides
+      // — its base has Status and nothing else. Every other brand keeps it.
+      if (key === 'internal_status') {
+        expect(column, 'internal_status must not resolve for Gratsi (AI-33)').toBeUndefined();
+        continue;
+      }
       expect(column, `Gratsi lost the platform column ${key}`).toBeDefined();
       expect(column?.source, `${key} stopped being the platform's on Gratsi`).toBe('platform');
     }
-    // The three Gratsi holds no row for arrive by inheritance, from the template.
-    for (const inherited of ['name', 'internal_status', 'client_status']) {
+    // The two Gratsi holds no visible row for arrive by inheritance, from the template.
+    for (const inherited of ['name', 'client_status']) {
       expect(
         resolved.find((column) => column.columnKey === inherited)?.inheritedFrom,
         `${inherited} should be read from the template, not from a Gratsi row`,
@@ -588,11 +594,13 @@ describe('platform columns on concepts', () => {
     const decription = resolved.find((column) => column.columnKey === 'description');
     expect(decription?.displayLabel).toBe('Decription');
     expect(decription?.inheritedFrom).toBeNull();
-    // Both tracks, and in that order: Internal is the team's, Client is the client-facing one.
+    // Of the two tracks only the client-facing one reaches Gratsi: AI-33 hides Internal Status
+    // there (its base has Status alone), while Client Status — the gate the client interface
+    // reads — stays on every brand.
     const statuses = resolved
       .filter((column) => column.columnKey.endsWith('_status') && column.source === 'platform')
       .map((column) => column.displayLabel);
-    expect(statuses).toEqual(['Internal Status', 'Client Status']);
+    expect(statuses).toEqual(['Client Status']);
   });
 
   /**
@@ -1367,5 +1375,59 @@ describe('the Creative Design column set', () => {
     ]) {
       expect(keys.has(drawn), `the Creative Design grid draws ${drawn}`).toBe(true);
     }
+  });
+});
+
+/**
+ * Talal's 2026-10-04 ruling on AI-33, pinned against the live base's shape: Gratsi Concepts has a
+ * `Status` field and no `Internal Status`, so Gratsi displays `approval_status` under the label
+ * "Status" and hides the platform's `internal_status` — while every brand that inherits the parent
+ * set keeps it. The hide is a child row; the platform row and the Postgres column stay untouched.
+ */
+describe('AI-33 · Internal Status is hidden for Gratsi alone', () => {
+  async function brandIdBySlug(
+    db: Awaited<ReturnType<typeof testDb>>,
+    slug: string,
+  ): Promise<string> {
+    const [row] = await db.select({ id: brands.id }).from(brands).where(eq(brands.slug, slug));
+    if (row === undefined) throw new Error(`the seed has no ${slug} brand`);
+    return row.id;
+  }
+
+  it('resolves no internal_status for Gratsi, but keeps it for an inheriting brand', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+
+    const gratsi = await resolveColumns(db, await brandIdBySlug(db, 'gratsi'), 'concepts');
+    expect(
+      gratsi.find((column) => column.columnKey === 'internal_status'),
+      'internal_status resolved for Gratsi, whose base has no such field',
+    ).toBeUndefined();
+    expect(
+      gratsi.find((column) => column.columnKey === 'approval_status')?.displayLabel,
+      "Gratsi's own Status stands in its place",
+    ).toBe('Status');
+
+    const niagara = await resolveColumns(
+      db,
+      await brandIdBySlug(db, 'niagara-sleep-solutions'),
+      'concepts',
+    );
+    expect(niagara.find((column) => column.columnKey === 'internal_status')).toBeDefined();
+  });
+
+  it('seeds the hide as a Gratsi child row and leaves the platform row alone', () => {
+    const hidden = COLUMN_SEED.filter((group) => group.target.kind !== 'parent')
+      .flatMap((group) => group.rows)
+      .filter((row) => row.tableKey === 'concepts' && row.columnKey === 'internal_status');
+    expect(hidden).toHaveLength(1);
+    expect(hidden[0]?.isHidden).toBe(true);
+
+    const platform = COLUMN_SEED.filter((group) => group.target.kind === 'parent')
+      .flatMap((group) => group.rows)
+      .filter((row) => row.tableKey === 'concepts' && row.columnKey === 'internal_status');
+    expect(platform).toHaveLength(1);
+    expect(platform[0]?.isHidden ?? false).toBe(false);
   });
 });

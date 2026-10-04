@@ -936,3 +936,11 @@ an empty card.
 NOT DONE by this entry: card line ORDER. `UserViewConfig.fieldOrder` exists and `applyUserView`
 applies it, but nothing writes it, and production's one saved view has `field_order = []`. "Customise
 the card" is satisfied for the cover and for which lines show; reordering them is a separate ticket.
+
+## 2026-10-04 — Talal ruling AI-33: Gratsi hides Internal Status; Status is its one internal track label
+
+Verified against the live Gratsi base before acting: Concepts carries `Status` (singleSelect) and
+no `Internal Status` field. The platform's `internal_status` column therefore leaves GRATSI'S
+displayed set only — a `hidden` child row in `CONCEPTS_GRATSI` — while the platform row, every
+inheriting brand's view and the Postgres column all stay exactly as they were. Gratsi's own
+`approval_status` row keeps rendering under its Airtable label "Status". Nothing dropped.

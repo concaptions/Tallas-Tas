@@ -672,6 +672,9 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   ['formats_to_create', 'Formats to create', 18, 'hidden', 'multipleSelects'],
   ['ad_inspo_links', 'Ad Inspo', 20, 'hidden', 'multilineText'],
   ['creator_concepts', 'Creator', 21, 'hidden', 'multipleRecordLinks'],
+  // Talal ruling 2026-10-04 (AI-33): Gratsi's base has Status, never Internal Status — the
+  // platform column stays on the parent and every inheriting brand; only Gratsi hides it.
+  ['internal_status', 'Internal Status', 22, 'hidden', 'singleSelect'],
 ]);
 
 /** `Angles` `tbl4UFSFcynlS2Pkn` — 11 fields; 3 reverse links and 1 two-hop lookup skipped. */
