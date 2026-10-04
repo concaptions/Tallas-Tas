@@ -201,6 +201,13 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
      * and the GENERATED NAME — in the grid row and in the panel, a real <Link> per AI-52 — is what
      * navigates to the full page. Back from the route still restores the view it was left from.
      */
+    // Warm the dynamic detail route first: `next dev` compiles a route the first time it is
+    // REQUESTED (playwright.config.ts documents the hazard), and this test times two client-side
+    // Link navigations into it. One up-front visit keeps those assertions about the CONTRACT —
+    // the link navigates — rather than about compile contention between parallel workers.
+    await page.goto(conceptPath(BODY_CLOCK));
+    await expect(page.locator('[data-slot="concept-rail"]')).toBeVisible();
+
     await page.goto(conceptsPath);
     await page.locator(`[data-slot="concept-row"][data-concept-id="${BODY_CLOCK}"]`).click();
 
