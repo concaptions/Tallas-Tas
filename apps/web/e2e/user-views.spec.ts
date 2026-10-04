@@ -383,6 +383,68 @@ test.describe('per-user views in demo mode (no Clerk publishable key)', () => {
     ).toHaveCount(0);
   });
 
+  test('a field filter narrows the rows and survives a reload; grouping draws counted headers and clears back to flat', async ({
+    page,
+  }) => {
+    // AI-32: conditions beyond the one search string. The filter is part of the viewer's view —
+    // persisted like a hidden field — and the grouping is a grid reading with one counted header
+    // per value of the chosen column.
+    await page.goto(ugcPath);
+    const rows = page.locator('[data-slot="creator-row"]');
+    await expect(rows).toHaveCount(5);
+
+    // Add: Gender is Female. The dialog is the same menu-to-dialog step the Views menu takes.
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-filter"]').click();
+    await page.locator('[data-slot="filter-add"]').click();
+    await page.locator('[data-slot="filter-field"]').selectOption('gender');
+    await page.locator('[data-slot="filter-op"]').selectOption('is');
+    await page.locator('[data-slot="filter-value"]').fill('Female');
+    await page.locator('[data-slot="filter-save"]').click();
+
+    // The row set narrows, the control says it is live, and the count line follows.
+    await expect(rows).toHaveCount(2);
+    await expect(page.locator('[data-slot="grid-filter"]')).toHaveText('Filter (1)');
+    await expect(page.locator('[data-slot="ugc-count"]')).toContainText('2 of');
+
+    // It persisted into this viewer's active view, and a reload reads it back.
+    await expect(page.locator('[data-slot="views-menu"]')).toHaveText('My view');
+    await page.reload();
+    await expect(rows).toHaveCount(2);
+    await expect(page.locator('[data-slot="grid-filter"]')).toHaveText('Filter (1)');
+
+    // One click removes the one condition, and the whole roster is back.
+    await page.locator('[data-slot="grid-filter"]').click();
+    await page.locator('[data-slot="filter-clear"]').click();
+    await page.keyboard.press('Escape');
+    await expect(rows).toHaveCount(5);
+
+    // Group by Gender: one header per value, counted, in first-appearance order — and the data
+    // rows all still render underneath their headers.
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page.locator('[data-slot="grid-group-option"][data-field="gender"]').click();
+    await page.keyboard.press('Escape');
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    await expect(headers).toHaveCount(3);
+    await expect(
+      page.locator(
+        '[data-slot="grid-group-header"][data-group="Female"] [data-slot="group-count"]',
+      ),
+    ).toHaveText('2');
+    await expect(
+      page.locator(
+        '[data-slot="grid-group-header"][data-group="Non-binary"] [data-slot="group-count"]',
+      ),
+    ).toHaveText('1');
+    await expect(rows).toHaveCount(5);
+
+    // "None" hands the flat grid back.
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page.locator('[data-slot="grid-group-option"][data-field="__none__"]').click();
+    await page.keyboard.press('Escape');
+    await expect(headers).toHaveCount(0);
+    await expect(rows).toHaveCount(5);
+  });
+
   test('the Freeze control is a Grid control: the Gallery does not offer one', async ({ page }) => {
     await page.goto(conceptsPath);
     await expect(

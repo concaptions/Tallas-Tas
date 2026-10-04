@@ -24,6 +24,7 @@ import {
   type ListChip,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -337,12 +338,23 @@ export function ConceptsWorkspace({
     [items, query],
   );
 
-  const narrowed = visible.length !== items.length;
+  /**
+   * The view's field conditions applied once, here, so the grid, the gallery and the list all
+   * read the SAME narrowed row set (AI-32): `visible` already passed the search (and the tab's
+   * own narrowing where the page has one), the grid sorts afterwards. With no conditions this is
+   * the same array back.
+   */
+  const filtered = useMemo(
+    () => applyFilters(visible, tableView.config.filters, grid.columns),
+    [visible, grid, tableView.config.filters],
+  );
+
+  const narrowed = filtered.length !== items.length;
 
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
-        visible,
+        filtered,
         grid.columns,
         (item) => ({
           id: item.id,
@@ -351,18 +363,18 @@ export function ConceptsWorkspace({
         }),
         { fieldOrder: tableView.config.fieldOrder },
       ),
-    [visible, grid, tableView.config.fieldOrder],
+    [filtered, grid, tableView.config.fieldOrder],
   );
 
   /** The list rows wear the concept's INTERNAL status, the same chip the grid column shows. */
   const listChips = useMemo(() => {
     const chips: Record<string, ListChip> = {};
-    for (const item of visible)
+    for (const item of filtered)
       chips[item.id] = { label: item.status.label, tone: item.status.tone };
     return chips;
-  }, [visible]);
+  }, [filtered]);
 
-  const openConcept = visible.find((item) => item.id === selection) ?? null;
+  const openConcept = filtered.find((item) => item.id === selection) ?? null;
 
   const newConcept = (
     <Button
@@ -389,7 +401,7 @@ export function ConceptsWorkspace({
         <p className="text-sm text-text2">
           <span data-slot="concept-count">
             {narrowed
-              ? filteredConceptCountLabel(visible.length, items.length)
+              ? filteredConceptCountLabel(filtered.length, items.length)
               : conceptCountLabel(items.length)}
           </span>{' '}
           — one angle paired with one theme, named for you.
@@ -431,6 +443,8 @@ export function ConceptsWorkspace({
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
               onMoveField={tableView.moveField}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
               error={tableView.error}
             />
           </div>
@@ -443,7 +457,7 @@ export function ConceptsWorkspace({
           registryName="CONCEPT_RENDERERS in concepts-workspace.tsx"
         />
 
-        {visible.length === 0 ? (
+        {filtered.length === 0 ? (
           <div
             data-slot="concepts-empty"
             className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface px-4 py-10 text-center"
@@ -480,7 +494,7 @@ export function ConceptsWorkspace({
             selectedId={selection}
             cardSlot="concept-card"
             onItemClick={(item) => {
-              const target = visible.find((candidate) => candidate.id === item.id);
+              const target = filtered.find((candidate) => candidate.id === item.id);
               if (target !== undefined) open(target);
             }}
           />
@@ -493,7 +507,7 @@ export function ConceptsWorkspace({
             chips={listChips}
             monoNames
             onItemClick={(item) => {
-              const target = visible.find((candidate) => candidate.id === item.id);
+              const target = filtered.find((candidate) => candidate.id === item.id);
               if (target !== undefined) open(target);
             }}
           />
@@ -503,7 +517,7 @@ export function ConceptsWorkspace({
             view={tableView.config}
             onSortChange={tableView.setSort}
             columns={grid.columns}
-            rows={visible}
+            rows={filtered}
             rowId={(item) => item.id}
             rowLabel={(item) => item.name}
             rowAttributes={(item) => ({ 'data-concept-id': item.id })}

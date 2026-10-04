@@ -28,6 +28,7 @@ import {
 } from '@/components/views';
 import { ColumnNotices } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -431,14 +432,25 @@ export function UgcWorkspace({
     [partnerships, query],
   );
 
+  /**
+   * The view's field conditions applied once, here, so the grid, the board, the gallery and the
+   * list all read the SAME narrowed row set (AI-32): `visibleCreators` already passed the search,
+   * the grid sorts afterwards. With no conditions this is the same array back. The Partnership
+   * Ads tab is a different dataset and deliberately not touched by a creators-table lens.
+   */
+  const filteredCreators = useMemo(
+    () => applyFilters(visibleCreators, tableView.config.filters, grid.columns),
+    [visibleCreators, grid, tableView.config.filters],
+  );
+
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
-    return visibleCreators.map((creator) => ({
+    return filteredCreators.map((creator) => ({
       id: creator.id,
       name: creator.name,
       groupValue: creator.internalCreatorStatus,
       subtitle: identityLine(creator) || undefined,
     }));
-  }, [visibleCreators]);
+  }, [filteredCreators]);
 
   const kanbanColumns = useMemo(() => {
     const seen = new Set<string>();
@@ -459,12 +471,12 @@ export function UgcWorkspace({
   /** The list rows wear the creator's INTERNAL status — the same track the board groups by. */
   const listChips = useMemo(() => {
     const chips: Record<string, ListChip> = {};
-    for (const creator of visibleCreators) {
+    for (const creator of filteredCreators) {
       const entry = creatorTracks(creator).find((candidate) => candidate.key === 'internal');
       if (entry !== undefined) chips[creator.id] = { label: entry.statusLabel, tone: entry.tone };
     }
     return chips;
-  }, [visibleCreators]);
+  }, [filteredCreators]);
 
   /**
    * The cover columns a viewer may pick between here (action item 16): the two media columns the
@@ -484,7 +496,7 @@ export function UgcWorkspace({
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
-        visibleCreators,
+        filteredCreators,
         grid.columns,
         (creator) => ({
           id: creator.id,
@@ -501,7 +513,7 @@ export function UgcWorkspace({
           fieldOrder: tableView.config.fieldOrder,
         },
       ),
-    [visibleCreators, grid.columns, tableView.config.coverField, tableView.config.fieldOrder],
+    [filteredCreators, grid.columns, tableView.config.coverField, tableView.config.fieldOrder],
   );
 
   const handleKanbanMove = useCallback(() => {
@@ -509,10 +521,16 @@ export function UgcWorkspace({
   }, []);
 
   const narrowed = query !== '';
+  /**
+   * The creators tab is narrowed by the search OR by the view's field filters (AI-32): the count
+   * line and the empty state must tell the truth about either. The Partnership Ads tab only has
+   * the search — a creators-table lens does not reach it — so it keeps the query test alone.
+   */
+  const creatorsNarrowed = narrowed || filteredCreators.length !== creators.length;
   const count =
     tab === 'creators'
-      ? narrowed
-        ? filteredCountLabel(visibleCreators.length, creatorCountLabel(creators.length))
+      ? creatorsNarrowed
+        ? filteredCountLabel(filteredCreators.length, creatorCountLabel(creators.length))
         : creatorCountLabel(creators.length)
       : narrowed
         ? filteredCountLabel(visiblePartnerships.length, partnershipCountLabel(partnerships.length))
@@ -528,13 +546,13 @@ export function UgcWorkspace({
     </DisabledWrite>
   );
 
-  const emptyPanel = (slot: string, note: string) => (
+  const emptyPanel = (slot: string, note: string, isNarrowed: boolean) => (
     <div
       data-slot={slot}
       className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface px-4 py-10 text-center"
     >
-      <p className="text-sm text-text2">{narrowed ? NO_MATCH_NOTE : note}</p>
-      {narrowed ? (
+      <p className="text-sm text-text2">{isNarrowed ? NO_MATCH_NOTE : note}</p>
+      {isNarrowed ? (
         <Button
           type="button"
           variant="outline"
@@ -611,6 +629,8 @@ export function UgcWorkspace({
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
               onMoveField={tableView.moveField}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
               coverFields={coverFields}
               onCoverChange={tableView.setCoverField}
               error={tableView.error}
@@ -622,8 +642,8 @@ export function UgcWorkspace({
             missing={grid.missing}
             registryName="CREATOR_RENDERERS in ugc-workspace.tsx"
           />
-          {visibleCreators.length === 0 ? (
-            emptyPanel('creators-empty', NO_CREATORS_NOTE)
+          {filteredCreators.length === 0 ? (
+            emptyPanel('creators-empty', NO_CREATORS_NOTE, creatorsNarrowed)
           ) : activeView === 'kanban' ? (
             <KanbanBoard
               items={kanbanItems}
@@ -659,7 +679,7 @@ export function UgcWorkspace({
               view={tableView.config}
               onSortChange={tableView.setSort}
               columns={grid.columns}
-              rows={visibleCreators}
+              rows={filteredCreators}
               rowId={(creator) => creator.id}
               rowLabel={(creator) => creator.name}
               rowAttributes={(creator) => ({ 'data-creator-id': creator.id })}
@@ -675,7 +695,7 @@ export function UgcWorkspace({
 
         <TabsContent value="partnerships" className="flex min-w-0 flex-col gap-4">
           {visiblePartnerships.length === 0 ? (
-            emptyPanel('partnerships-empty', NO_PARTNERSHIPS_NOTE)
+            emptyPanel('partnerships-empty', NO_PARTNERSHIPS_NOTE, narrowed)
           ) : (
             <PartnershipTable rows={visiblePartnerships} />
           )}

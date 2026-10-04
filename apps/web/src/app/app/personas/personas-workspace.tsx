@@ -15,6 +15,7 @@ import {
   galleryItemsFrom,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -256,10 +257,20 @@ export function PersonasWorkspace({
   const open = openItem?.persona ?? null;
   const creating = selection === NEW_PERSONA;
 
+  /**
+   * The view's field conditions applied once, here, so the grid, the gallery and the list all
+   * read the SAME narrowed row set (AI-32): `visible` already passed the search, the grid sorts
+   * afterwards. With no conditions this is `visible` itself, same array.
+   */
+  const filtered = useMemo(
+    () => applyFilters(visible, tableView.config.filters, grid.columns),
+    [visible, grid, tableView.config.filters],
+  );
+
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
-        visible,
+        filtered,
         grid.columns,
         (item) => ({
           id: item.persona.id,
@@ -268,7 +279,7 @@ export function PersonasWorkspace({
         }),
         { fieldOrder: tableView.config.fieldOrder },
       ),
-    [visible, grid, tableView.config.fieldOrder],
+    [filtered, grid, tableView.config.fieldOrder],
   );
 
   return (
@@ -289,9 +300,9 @@ export function PersonasWorkspace({
         </div>
         <p className="text-sm text-text2">
           <span data-slot="persona-count">
-            {visible.length === items.length
+            {filtered.length === items.length
               ? `${String(items.length)} ${items.length === 1 ? 'persona' : 'personas'}`
-              : `${String(visible.length)} of ${String(items.length)} personas`}
+              : `${String(filtered.length)} of ${String(items.length)} personas`}
           </span>{' '}
           — the research every angle is written from.
         </p>
@@ -332,6 +343,8 @@ export function PersonasWorkspace({
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
               onMoveField={tableView.moveField}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
               error={tableView.error}
             />
           </div>
@@ -371,7 +384,7 @@ export function PersonasWorkspace({
             view={tableView.config}
             onSortChange={tableView.setSort}
             columns={grid.columns}
-            rows={visible}
+            rows={filtered}
             rowId={(item) => item.persona.id}
             rowLabel={(item) => item.persona.name}
             rowAttributes={(item) => ({ 'data-persona-id': item.persona.id })}

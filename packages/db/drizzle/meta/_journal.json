@@ -337,6 +337,13 @@
       "idx": 47,
       "tag": "0047_view-cover-field",
       "when": 1791399600000
+    },
+    {
+      "version": "7",
+      "breakpoints": true,
+      "idx": 48,
+      "tag": "0048_view-filters-grouping",
+      "when": 1791486000000
     }
   ]
 }

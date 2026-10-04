@@ -148,6 +148,7 @@ import { EditorBoardStory, EditorStageChipsStory } from './editor-board.stories'
 import {
   FieldsArrangeStory,
   FieldsMenuStory,
+  FilterGroupStory,
   GalleryInitialTileStory,
   ListViewStory,
   ViewsMenuStory,
@@ -1029,6 +1030,12 @@ export default function DesignSystemPage() {
               cover popover — which media column covers a gallery card (action item 16)
             </h3>
             <CoverMenuStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              filters and grouping — conditions narrow the rows, group headers count them (AI-32)
+            </h3>
+            <FilterGroupStory />
           </div>
         </div>
       </Section>

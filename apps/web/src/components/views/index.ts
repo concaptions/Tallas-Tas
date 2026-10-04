@@ -4,7 +4,9 @@ export { GalleryView, initialTone, type GalleryField, type GalleryItem } from '.
 export { ListView, type ListChip } from './list-view';
 export { CoverMenu } from './cover-menu';
 export { FieldsMenu, type FieldOption } from './fields-menu';
+export { FilterMenu } from './filter-menu';
 export { FreezeMenu } from './freeze-menu';
+export { GroupMenu } from './group-menu';
 export {
   coverFieldOptions,
   galleryItemsFrom,

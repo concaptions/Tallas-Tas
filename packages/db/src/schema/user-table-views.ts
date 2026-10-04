@@ -29,6 +29,15 @@ export const userTableViews = pgTable(
     // item 16). Nullable rather than defaulted to '': "no choice recorded" and "this column" are
     // different states, and an empty string is not a column key.
     coverField: text('cover_field'),
+    // The view's field conditions (AI-32), ANDed; '[]' NOT NULL because "no conditions" is a
+    // total answer. The shape is narrowed on read by parseUserViewConfig, never trusted raw.
+    filters: jsonb('filters')
+      .$type<{ field: string; op: string; value: string }[]>()
+      .notNull()
+      .default([]),
+    // The column the grid groups under, or NULL for the flat reading (AI-32). A scalar, so text —
+    // the same shape cover_field uses — never jsonb quoting around a bare string.
+    groupBy: text('group_by'),
     isActive: boolean('is_active').notNull().default(false),
   },
   (table) => [index('user_table_views_user_table_idx').on(table.userId, table.tableKey)],

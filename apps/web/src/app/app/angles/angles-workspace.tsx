@@ -20,6 +20,7 @@ import {
   galleryItemsFrom,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -342,10 +343,20 @@ export function AnglesWorkspace({
   const openConcepts = linkedTo(conceptsByAngle, open);
   const openCreativeDesigns = linkedTo(creativeDesignsByAngle, open);
 
+  /**
+   * The view's field conditions applied once, here, so the grid, the gallery and the list all
+   * read the SAME narrowed row set (AI-32): `visible` already passed the search, the grid sorts
+   * afterwards. With no conditions this is `visible` itself, same array.
+   */
+  const filtered = useMemo(
+    () => applyFilters(visible, tableView.config.filters, grid.columns),
+    [visible, grid, tableView.config.filters],
+  );
+
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
-        visible,
+        filtered,
         grid.columns,
         (item) => ({
           id: item.angle.id,
@@ -354,7 +365,7 @@ export function AnglesWorkspace({
         }),
         { fieldOrder: tableView.config.fieldOrder },
       ),
-    [visible, grid, tableView.config.fieldOrder],
+    [filtered, grid, tableView.config.fieldOrder],
   );
 
   const newAngle = (
@@ -383,9 +394,9 @@ export function AnglesWorkspace({
         </div>
         <p className="text-sm text-text2">
           <span data-slot="angle-count">
-            {visible.length === items.length
+            {filtered.length === items.length
               ? `${String(items.length)} ${items.length === 1 ? 'angle' : 'angles'}`
-              : `${String(visible.length)} of ${String(items.length)} angles`}
+              : `${String(filtered.length)} of ${String(items.length)} angles`}
           </span>{' '}
           — the hypothesis each concept is built from.
         </p>
@@ -415,6 +426,8 @@ export function AnglesWorkspace({
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
               onMoveField={tableView.moveField}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
               error={tableView.error}
             />
           </div>
@@ -467,7 +480,7 @@ export function AnglesWorkspace({
             view={tableView.config}
             onSortChange={tableView.setSort}
             columns={grid.columns}
-            rows={visible}
+            rows={filtered}
             rowId={(item) => item.angle.id}
             rowLabel={(item) => item.angle.name}
             rowAttributes={(item) => ({ 'data-angle-id': item.angle.id })}

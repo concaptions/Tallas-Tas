@@ -6,10 +6,22 @@ import {
   defaultUserViewConfig,
   moveViewField,
   type UserView,
+  type UserViewFilter,
+  type UserViewSort,
   type ViewType,
 } from '@tas/domain';
 
-import { FieldsMenu, GalleryView, ListView, ViewsMenu, ViewToolbar } from '@/components/views';
+import {
+  FieldsMenu,
+  FilterMenu,
+  GalleryView,
+  GroupMenu,
+  ListView,
+  ViewsMenu,
+  ViewToolbar,
+} from '@/components/views';
+import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 
 /**
  * The per-user view controls (Sprint 7, VIEWS-01; UI governance rule 4): the toolbar that sits
@@ -257,5 +269,85 @@ export function ListViewStory() {
         /* story */
       }}
     />
+  );
+}
+
+/**
+ * Filters and grouping (AI-32; UI governance rule 4): the Filter popover holds the view's field
+ * conditions (ANDed, one click removes one, "Add filter…" opens the dialog), the Group popover
+ * picks the column whose values head the grid's rows, and the grid below is the real
+ * `AirtableGrid` doing both at once — so this story is the live proof that a condition narrows
+ * the rows and a grouping draws one counted header per value, composed with click-to-sort.
+ */
+interface FilterStoryRow {
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+  readonly owner: string | null;
+}
+
+const FILTER_STORY_ROWS: readonly FilterStoryRow[] = [
+  { id: 'f1', name: 'Sleep Mask — Hero', status: 'Approved', owner: 'Mia' },
+  { id: 'f2', name: 'Weighted Blanket', status: 'Testing', owner: 'Jon' },
+  { id: 'f3', name: 'Magnesium Drink', status: 'Approved', owner: null },
+  { id: 'f4', name: 'Cooling Pillow', status: 'Draft', owner: 'Ada' },
+];
+
+const FILTER_STORY_COLUMNS: readonly GridColumn<FilterStoryRow>[] = [
+  {
+    key: 'name',
+    header: 'Name',
+    frozen: true,
+    minWidth: 200,
+    sortValue: (row) => row.name,
+    render: (row) => <span className="font-medium">{row.name}</span>,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    sortValue: (row) => row.status,
+    render: (row) => <span className="text-text2">{row.status}</span>,
+  },
+  {
+    key: 'owner',
+    header: 'Owner',
+    sortValue: (row) => row.owner,
+    render: (row) => <span className="text-text2">{row.owner ?? '—'}</span>,
+  },
+];
+
+export function FilterGroupStory() {
+  const [filters, setFilters] = useState<readonly UserViewFilter[]>([
+    { field: 'status', op: 'is_not', value: 'Draft' },
+  ]);
+  const [groupBy, setGroupBy] = useState<string | null>('status');
+  const [sort, setSort] = useState<UserViewSort | null>(null);
+  const fields = FILTER_STORY_COLUMNS.map((column) => ({
+    key: column.key,
+    label: column.header,
+  }));
+  const rows = applyFilters(FILTER_STORY_ROWS, filters, FILTER_STORY_COLUMNS);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterMenu fields={fields} filters={filters} onFiltersChange={setFilters} />
+        <GroupMenu fields={fields} groupBy={groupBy} onGroupChange={setGroupBy} />
+        <p className="text-sm text-text2">
+          <span className="font-mono text-text3">
+            {String(rows.length)}/{String(FILTER_STORY_ROWS.length)}
+          </span>{' '}
+          rows pass
+        </p>
+      </div>
+      <AirtableGrid
+        tableKey="story-filters"
+        columns={FILTER_STORY_COLUMNS}
+        rows={rows}
+        rowId={(row) => row.id}
+        view={{ ...defaultUserViewConfig('grid'), filters, groupBy, sort }}
+        onSortChange={setSort}
+      />
+    </div>
   );
 }

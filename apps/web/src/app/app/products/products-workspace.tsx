@@ -30,6 +30,7 @@ import {
 } from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import { CountCell, TextCell } from '@/components/views/grid-cells';
 
 import { EM_DASH, type CreatorOption, type LinkedRecord } from './fields';
@@ -292,10 +293,21 @@ export function ProductsWorkspace({
     [items, query],
   );
 
+  /**
+   * The view's field conditions applied once, here, so the grid, the gallery and the list all
+   * read the SAME narrowed row set (AI-32) — conditions narrow the rows, not one drawing of
+   * them. Composition with the search is this line's position: `visible` already passed the
+   * search, the grid sorts afterwards. With no conditions this is `visible` itself, same array.
+   */
+  const filtered = useMemo(
+    () => applyFilters(visible, tableView.config.filters, grid.columns),
+    [visible, grid, tableView.config.filters],
+  );
+
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
-        visible,
+        filtered,
         grid.columns,
         (item) => ({
           id: item.product.id,
@@ -304,7 +316,7 @@ export function ProductsWorkspace({
         }),
         { fieldOrder: tableView.config.fieldOrder },
       ),
-    [visible, grid, tableView.config.fieldOrder],
+    [filtered, grid, tableView.config.fieldOrder],
   );
 
   const openItem = items.find((item) => item.product.id === selection) ?? null;
@@ -359,9 +371,9 @@ export function ProductsWorkspace({
         </div>
         <p className="text-sm text-text2">
           <span data-slot="product-count">
-            {visible.length === items.length
+            {filtered.length === items.length
               ? `${String(items.length)} ${items.length === 1 ? 'product' : 'products'}`
-              : `${String(visible.length)} of ${String(items.length)} products`}
+              : `${String(filtered.length)} of ${String(items.length)} products`}
           </span>{' '}
           — the landing pages every angle is written against.
         </p>
@@ -391,6 +403,8 @@ export function ProductsWorkspace({
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
               onMoveField={tableView.moveField}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
               error={tableView.error}
             />
           </div>
@@ -440,7 +454,7 @@ export function ProductsWorkspace({
             view={tableView.config}
             onSortChange={tableView.setSort}
             columns={grid.columns}
-            rows={visible}
+            rows={filtered}
             rowId={(item) => item.product.id}
             rowLabel={(item) => item.product.name}
             rowAttributes={(item) => ({ 'data-product-id': item.product.id })}

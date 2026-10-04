@@ -117,6 +117,8 @@ describe('parseUserViewConfig', () => {
       sort: { key: 'name', direction: 'desc' },
       filter: '',
       coverField: null,
+      filters: [],
+      groupBy: null,
     });
     expect(parseUserViewConfig({ viewType: 'bogus', sort: { key: 'x' } }).viewType).toBe('grid');
     expect(parseUserViewConfig({ viewType: 'bogus' }).sort).toBeNull();
@@ -124,6 +126,42 @@ describe('parseUserViewConfig', () => {
     // 'list' is a real view type (AI-17): a saved list view survives the parse rather than
     // degrading to the fallback the way an unknown word does.
     expect(parseUserViewConfig({ viewType: 'list' }).viewType).toBe('list');
+  });
+
+  it('parses a view stored BEFORE filters and grouping existed to the defaults, unchanged', () => {
+    // AI-32's compatibility promise: a row with no `filters` and no `groupBy` at all — every view
+    // saved before the columns existed — describes a view with no conditions and the flat reading.
+    const parsed = parseUserViewConfig({ viewType: 'grid', visibleFields: ['name'] });
+    expect(parsed.filters).toEqual([]);
+    expect(parsed.groupBy).toBeNull();
+    expect(defaultUserViewConfig().filters).toEqual([]);
+    expect(defaultUserViewConfig().groupBy).toBeNull();
+  });
+
+  it('keeps well-formed filter entries, drops malformed ones, and narrows groupBy', () => {
+    const parsed = parseUserViewConfig({
+      filters: [
+        { field: 'gender', op: 'is', value: 'Female' },
+        { field: 'notes', op: 'empty', value: 'ignored — empty takes no value' },
+        { field: '', op: 'is', value: 'no field' },
+        { field: 'age', op: 'between', value: 'unknown op' },
+        { field: 'age', op: 'is', value: 42 },
+        'not even an object',
+        null,
+      ],
+      groupBy: 'status',
+    });
+    expect(parsed.filters).toEqual([
+      { field: 'gender', op: 'is', value: 'Female' },
+      // The dead value is normalised to '' so two stored spellings of the same condition compare
+      // equal, and a non-string value reads as '' rather than crashing the page.
+      { field: 'notes', op: 'empty', value: '' },
+      { field: 'age', op: 'is', value: '' },
+    ]);
+    expect(parsed.groupBy).toBe('status');
+    expect(parseUserViewConfig({ filters: 'bogus', groupBy: '' }).filters).toEqual([]);
+    expect(parseUserViewConfig({ groupBy: '' }).groupBy).toBeNull();
+    expect(parseUserViewConfig({ groupBy: 7 }).groupBy).toBeNull();
   });
 
   it('keeps a stored cover column and reads an empty string as the page default', () => {

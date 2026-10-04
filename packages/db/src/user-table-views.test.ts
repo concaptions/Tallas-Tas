@@ -91,6 +91,23 @@ describe('user table views', () => {
       (await updateUserTableViewConfig(db, ALICE, view.id, { coverField: null }))?.coverField,
     ).toBeNull();
 
+    // Filters and grouping (AI-32): a new view has none and reads flat; a stored condition list
+    // and a grouping column round-trip; clearing writes '[]' and NULL back, never a tombstone.
+    expect(view.filters).toEqual([]);
+    expect(view.groupBy).toBeNull();
+    const filtered = await updateUserTableViewConfig(db, ALICE, view.id, {
+      filters: [{ field: 'name', op: 'contains', value: 'sleep' }],
+      groupBy: 'status',
+    });
+    expect(filtered?.filters).toEqual([{ field: 'name', op: 'contains', value: 'sleep' }]);
+    expect(filtered?.groupBy).toBe('status');
+    const cleared = await updateUserTableViewConfig(db, ALICE, view.id, {
+      filters: [],
+      groupBy: null,
+    });
+    expect(cleared?.filters).toEqual([]);
+    expect(cleared?.groupBy).toBeNull();
+
     expect(await deleteUserTableView(db, ALICE, view.id)).toBe(true);
     expect(await listUserTableViews(db, ALICE, 'products')).toEqual([]);
     expect(await getUserTableView(db, ALICE, view.id)).toBeNull();

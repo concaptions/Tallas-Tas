@@ -11,6 +11,7 @@ import {
   toggleViewField,
   type UserView,
   type UserViewConfig,
+  type UserViewFilter,
   type UserViewSort,
   type ViewType,
 } from '@tas/domain';
@@ -65,6 +66,10 @@ export interface TableViewState {
   readonly setCoverField: (next: string | null) => void;
   /** Moves one field a step in the viewer's own order — grid columns and card lines together. */
   readonly moveField: (key: string, direction: 'up' | 'down') => void;
+  /** The view's field conditions (AI-32), replacing the whole list each time. */
+  readonly setFilters: (next: readonly UserViewFilter[]) => void;
+  /** The grid's grouping column, or null for the flat reading (AI-32). */
+  readonly setGroupBy: (next: string | null) => void;
   readonly toggleField: (key: string) => void;
   readonly isFieldVisible: (key: string) => boolean;
   readonly createView: (name: string) => void;
@@ -333,6 +338,20 @@ export function useTableView({
     [draft, fieldKeys, patch],
   );
 
+  const setFilters = useCallback(
+    (next: readonly UserViewFilter[]) => {
+      patch({ filters: [...next] });
+    },
+    [patch],
+  );
+
+  const setGroupBy = useCallback(
+    (next: string | null) => {
+      patch({ groupBy: next });
+    },
+    [patch],
+  );
+
   const isFieldVisible = useCallback((key: string) => isViewFieldVisible(draft, key), [draft]);
 
   const adopt = useCallback(
@@ -441,6 +460,8 @@ export function useTableView({
     setFrozenFields,
     setCoverField,
     moveField,
+    setFilters,
+    setGroupBy,
     toggleField,
     isFieldVisible,
     createView,

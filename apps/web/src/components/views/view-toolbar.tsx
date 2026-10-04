@@ -7,12 +7,15 @@ import {
   frozenUpTo,
   type UserView,
   type UserViewConfig,
+  type UserViewFilter,
   type ViewType,
 } from '@tas/domain';
 
 import { CoverMenu } from './cover-menu';
 import { FieldsMenu, type FieldOption } from './fields-menu';
+import { FilterMenu } from './filter-menu';
 import { FreezeMenu } from './freeze-menu';
+import { GroupMenu } from './group-menu';
 import { ViewSwitcher } from './view-switcher';
 import { ViewsMenu } from './views-menu';
 
@@ -52,6 +55,14 @@ interface ViewToolbarProps {
    */
   readonly coverFields?: readonly FieldOption[];
   readonly onCoverChange?: (coverField: string | null) => void;
+  /**
+   * The view's field conditions (AI-32). Given, the Filter popover renders wherever rows render —
+   * Grid, Gallery and List alike, because the conditions narrow the ROWS, not one drawing of
+   * them. Field options are the page's resolved columns, the same list the Fields popover reads.
+   */
+  readonly onFiltersChange?: (filters: readonly UserViewFilter[]) => void;
+  /** The grid's grouping column (AI-32). Given, the Grid carries the Group popover. */
+  readonly onGroupChange?: (groupBy: string | null) => void;
   readonly error?: string | null;
 }
 
@@ -82,6 +93,8 @@ export function ViewToolbar({
   onFreezeChange,
   coverFields = [],
   onCoverChange,
+  onFiltersChange,
+  onGroupChange,
   error = null,
 }: ViewToolbarProps) {
   // The freeze is a prefix of the columns AS THE VIEWER SEES THEM, so the active view's order and
@@ -130,6 +143,22 @@ export function ViewToolbar({
           isVisible={isFieldVisible}
           onToggle={onToggleField}
           onMoveField={onMoveField}
+        />
+      ) : null}
+      {(activeView === 'grid' || activeView === 'gallery' || activeView === 'list') &&
+      viewConfig !== undefined &&
+      onFiltersChange !== undefined ? (
+        <FilterMenu
+          fields={arrangedFields}
+          filters={viewConfig.filters}
+          onFiltersChange={onFiltersChange}
+        />
+      ) : null}
+      {activeView === 'grid' && viewConfig !== undefined && onGroupChange !== undefined ? (
+        <GroupMenu
+          fields={arrangedFields}
+          groupBy={viewConfig.groupBy}
+          onGroupChange={onGroupChange}
         />
       ) : null}
       {activeView === 'gallery' && viewConfig !== undefined && onCoverChange !== undefined ? (

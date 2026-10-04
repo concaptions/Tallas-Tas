@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyFilters,
   cycleSort,
+  EMPTY_GROUP_LABEL,
+  groupRows,
   sameOffsets,
   sortRows,
   stickyOffsets,
   toggleHidden,
+  type FilterableColumn,
+  type RowFilter,
 } from './airtable-grid-logic';
 
 describe('cycleSort', () => {
@@ -96,5 +101,160 @@ describe('sameOffsets', () => {
 
   it('treats two empty maps as equal, so the first measure of an unfrozen grid is not a render', () => {
     expect(sameOffsets({}, {})).toBe(true);
+  });
+});
+
+/**
+ * The field conditions and the grouping of AI-32, pinned operator by operator. The fixture rows
+ * are creators in miniature: a string column with a sortValue, a numeric column, a column whose
+ * text lives in cellTitle only, and a column the grid cannot read at all.
+ */
+interface FilterRow {
+  readonly name: string;
+  readonly status: string | null;
+  readonly cost: number | null;
+  readonly link: string | null;
+}
+
+const FILTER_ROWS: readonly FilterRow[] = [
+  { name: 'Danielle', status: 'Approved', cost: 630, link: 'https://a.example/one' },
+  { name: 'Marcus', status: 'approved', cost: null, link: null },
+  { name: 'Priya', status: 'Filming', cost: 540, link: 'https://b.example/two' },
+  { name: 'Tomás', status: null, cost: 0, link: 'https://a.example/three' },
+];
+
+const FILTER_COLUMNS: readonly FilterableColumn<FilterRow>[] = [
+  { key: 'name', sortValue: (row) => row.name },
+  { key: 'status', sortValue: (row) => row.status },
+  { key: 'cost', sortValue: (row) => row.cost },
+  { key: 'link', cellTitle: (row) => row.link ?? undefined },
+  { key: 'unreadable' },
+];
+
+const names = (rows: readonly FilterRow[]): string[] => rows.map((row) => row.name);
+
+describe('applyFilters', () => {
+  const one = (filter: RowFilter) => applyFilters(FILTER_ROWS, [filter], FILTER_COLUMNS);
+
+  it('is / is_not compare the whole value, case-insensitively', () => {
+    expect(names(one({ field: 'status', op: 'is', value: 'approved' }))).toEqual([
+      'Danielle',
+      'Marcus',
+    ]);
+    expect(names(one({ field: 'status', op: 'is_not', value: 'Approved' }))).toEqual([
+      'Priya',
+      'Tomás',
+    ]);
+  });
+
+  it('contains is a substring match over the readable text, numbers included', () => {
+    expect(names(one({ field: 'name', op: 'contains', value: 'ani' }))).toEqual(['Danielle']);
+    expect(names(one({ field: 'cost', op: 'contains', value: '0' }))).toEqual([
+      'Danielle',
+      'Priya',
+      'Tomás',
+    ]);
+  });
+
+  it('empty / not_empty read a null as empty and a zero as a value', () => {
+    expect(names(one({ field: 'status', op: 'empty', value: '' }))).toEqual(['Tomás']);
+    // Marcus has cost null — empty. Tomás has cost 0, which IS a stored number, not an absence.
+    expect(names(one({ field: 'cost', op: 'empty', value: '' }))).toEqual(['Marcus']);
+    expect(names(one({ field: 'cost', op: 'not_empty', value: '' }))).toEqual([
+      'Danielle',
+      'Priya',
+      'Tomás',
+    ]);
+  });
+
+  it('reads a column whose text lives in cellTitle, not sortValue', () => {
+    expect(names(one({ field: 'link', op: 'contains', value: 'a.example' }))).toEqual([
+      'Danielle',
+      'Tomás',
+    ]);
+    expect(names(one({ field: 'link', op: 'empty', value: '' }))).toEqual(['Marcus']);
+  });
+
+  it('ANDs several conditions: every one must hold', () => {
+    expect(
+      names(
+        applyFilters(
+          FILTER_ROWS,
+          [
+            { field: 'status', op: 'is', value: 'approved' },
+            { field: 'cost', op: 'not_empty', value: '' },
+          ],
+          FILTER_COLUMNS,
+        ),
+      ),
+    ).toEqual(['Danielle']);
+  });
+
+  it('ignores a condition on a column the table does not carry, or cannot read', () => {
+    // The adversarial edge the QA brief names: a stored filter on a column this brand does not
+    // resolve. Degrade to the default (the condition drops out), never to nothing (a blank grid).
+    expect(names(one({ field: 'ghost', op: 'is', value: 'x' }))).toEqual(names(FILTER_ROWS));
+    expect(names(one({ field: 'unreadable', op: 'not_empty', value: '' }))).toEqual(
+      names(FILTER_ROWS),
+    );
+    // A dead condition beside a live one: only the live one bites.
+    expect(
+      names(
+        applyFilters(
+          FILTER_ROWS,
+          [
+            { field: 'ghost', op: 'is', value: 'x' },
+            { field: 'status', op: 'is', value: 'filming' },
+          ],
+          FILTER_COLUMNS,
+        ),
+      ),
+    ).toEqual(['Priya']);
+  });
+
+  it('hands the same array back for the empty condition list, and copes with no rows', () => {
+    expect(applyFilters(FILTER_ROWS, [], FILTER_COLUMNS)).toBe(FILTER_ROWS);
+    expect(applyFilters([], [{ field: 'status', op: 'is', value: 'x' }], FILTER_COLUMNS)).toEqual(
+      [],
+    );
+  });
+});
+
+describe('groupRows', () => {
+  it('buckets rows under the column values in first-appearance order, counted by length', () => {
+    const groups = groupRows(FILTER_ROWS, 'status', FILTER_COLUMNS);
+    expect(groups?.map((group) => group.label)).toEqual(['Approved', 'Filming', EMPTY_GROUP_LABEL]);
+    expect(groups?.map((group) => group.rows.length)).toEqual([2, 1, 1]);
+    // Case-folded into one bucket under the first spelling seen, as applyFilters compares.
+    expect(names(groups?.[0]?.rows ?? [])).toEqual(['Danielle', 'Marcus']);
+  });
+
+  it('labels the empty-celled bucket in words, never as a blank header', () => {
+    const groups = groupRows(FILTER_ROWS, 'status', FILTER_COLUMNS);
+    const empty = groups?.find((group) => group.value === '');
+    expect(empty?.label).toBe(EMPTY_GROUP_LABEL);
+    expect(names(empty?.rows ?? [])).toEqual(['Tomás']);
+  });
+
+  it('groups by an entirely empty-valued column into the one Empty bucket', () => {
+    // The QA brief's edge: grouping by a column no row has filled in. One honest bucket, every
+    // row in it, rather than a crash or a bucket per row.
+    const rows: readonly FilterRow[] = [
+      { name: 'A', status: null, cost: null, link: null },
+      { name: 'B', status: '   ', cost: null, link: null },
+    ];
+    const groups = groupRows(rows, 'status', FILTER_COLUMNS);
+    expect(groups?.length).toBe(1);
+    expect(groups?.[0]?.label).toBe(EMPTY_GROUP_LABEL);
+    expect(names(groups?.[0]?.rows ?? [])).toEqual(['A', 'B']);
+  });
+
+  it('returns null — render flat — for a column the table does not carry or cannot read', () => {
+    expect(groupRows(FILTER_ROWS, 'ghost', FILTER_COLUMNS)).toBeNull();
+    expect(groupRows(FILTER_ROWS, 'unreadable', FILTER_COLUMNS)).toBeNull();
+  });
+
+  it('groups nothing into nothing', () => {
+    expect(groupRows([], 'status', FILTER_COLUMNS)).toEqual([]);
   });
 });
