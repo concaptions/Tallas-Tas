@@ -149,6 +149,19 @@ junction, as `schema/column-definitions.ts` prescribes), relabelled "Concept to 
 Gratsi's `Concepts` is a separate child-added row keyed `concept_ids`. Two fields, two rows, nothing
 merged.
 
+**Amended 2026-10-04 (AI-41):** two fields, two rows, nothing merged — and the second row is
+`hidden-custom`, not `custom`. The rule above is about not GUESSING one field into another column,
+and it still holds; what it did not settle is whether the second row should also be *shown*. It
+should not. `UGC Management › Concepts` is empty on all 70 live rows, the importer skips it
+(`import-mappings.ts`, `handler: 'skip'`) and the exclusion register in `docs/decisions.md` lists
+it, so nothing writes `creators.concept_ids` and the UGC grid has no renderer for the key. A visible
+row therefore resolved into `gridColumnsFrom`'s `missing` set and the Gratsi UGC page printed
+"Configured for this brand but not drawn here: concept_ids" — a notice about a column, where a
+column should have been. Hidden is what the AMBIGUOUS rule prescribes for exactly this shape of
+field (`is_hidden = true`, `source = 'custom'`), it keeps the row so the Airtable field stays
+remembered, and un-hiding it is a one-click Column Admin edit the day the field carries data.
+Retiring the row altogether is still open and belongs to the owner, not to a builder.
+
 ### 2.9 `Creative Name` on `creative_sheet_items` — contested type, agreed column
 
 The field is `multipleRecordLinks` in Gratsi and `singleLineText` in the parent, and the parent audit

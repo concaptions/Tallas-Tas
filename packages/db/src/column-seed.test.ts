@@ -331,6 +331,51 @@ describe('the column seed, checked against the real schema', () => {
     expect(resolved.find((column) => column.columnKey === 'name')?.inheritedFrom).not.toBeNull();
   });
 
+  /**
+   * The Gratsi `UGC Management` base has TWO links to Concepts: `Concept to film`, which the
+   * importer reads into the `creator_concepts` junction, and a second field named `Concepts`, empty
+   * on all 70 live rows, which the importer skips (`import-mappings.ts` `handler: 'skip'`). Keyed
+   * `concept_ids`, nothing could draw it — the UGC grid's renderer registry has no entry for that
+   * key — so the resolved column came back in `missing` and the page told a Gratsi strategist
+   * "Configured for this brand but not drawn here: concept_ids" instead of showing her a column.
+   * Hidden is the answer, not dropped: the row stays in `column_definitions` so the Airtable field
+   * is remembered and an admin can un-hide it the day it carries data, and the real link keeps its
+   * own label and position.
+   */
+  it('remembers Gratsi second, empty Concepts link without resolving it', async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+    const [gratsi] = await db
+      .select({ id: brands.id })
+      .from(brands)
+      .where(eq(brands.slug, 'gratsi'));
+    if (gratsi === undefined) throw new Error('the seed has no gratsi brand');
+
+    const resolved = await resolveColumns(db, gratsi.id, 'creators');
+
+    expect(resolved.map((column) => column.columnKey)).not.toContain('concept_ids');
+    // The link the importer really writes is untouched, under Gratsi label, at its own position.
+    const real = resolved.find((column) => column.columnKey === 'creator_concepts');
+    expect(real?.displayLabel).toBe('Concept to film');
+    expect(real?.displayOrder).toBe(7);
+
+    // Configured, and still the child own column: remembered rather than retired.
+    const [row] = await db
+      .select()
+      .from(columnDefinitions)
+      .where(
+        and(
+          eq(columnDefinitions.brandId, gratsi.id),
+          eq(columnDefinitions.tableKey, 'creators'),
+          eq(columnDefinitions.columnKey, 'concept_ids'),
+        ),
+      );
+    expect(row?.displayLabel).toBe('Concepts');
+    expect(row?.isHidden).toBe(true);
+    expect(row?.source).toBe('custom');
+  });
+
   it('gives a brand that departs nowhere the parent set verbatim', async () => {
     const db = await testDb();
     await seed(db);
