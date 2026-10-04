@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
+import { NO_WORKSPACE_NOTE, NO_WORKSPACE_TITLE, canSeeInternalWorkspace } from '@tas/domain';
 import type { ReactNode } from 'react';
 
 import { DemoBanner } from '@/components/shell/demo-banner';
@@ -26,6 +27,25 @@ import { viewerRole } from '@/lib/viewer-role';
  * what actually closes a hidden route is the `sectionGuard` in each section's own segment layout,
  * since a sidebar that merely omits a link leaves the URL working.
  */
+/**
+ * What `/app` shows somebody it is not for (AI-65). NO SHELL AROUND IT: no top bar, so no brand
+ * list, no switcher, no section rail. A client who follows an internal link must not learn the
+ * agency's brand roster from the refusal (CLAUDE.md non-negotiable 10).
+ */
+function NoWorkspace() {
+  return (
+    <div
+      data-slot="no-workspace"
+      className="flex min-h-screen items-center justify-center bg-bg px-4 py-6"
+    >
+      <section className="flex max-w-prose flex-col gap-2 rounded-card border border-line bg-surface2 p-6">
+        <p className="text-sm font-medium text-text">{NO_WORKSPACE_TITLE}</p>
+        <p className="text-sm text-text3">{NO_WORKSPACE_NOTE}</p>
+      </section>
+    </div>
+  );
+}
+
 export default async function AppShellLayout({ children }: Readonly<{ children: ReactNode }>) {
   const demo = isDemoMode();
   // Second line of defence behind the middleware, and it covers every page under /app. Guarded:
@@ -49,6 +69,15 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
     currentActor(),
     viewerRole(),
   ]);
+
+  // `/app` IS THE TEAM'S PRODUCT, AND THIS IS THE ONE CHECK THAT SAYS SO (AI-65). PRD §11 gives a
+  // client "their own brand's interface only" — not a narrower `/app`, none of it — so the refusal
+  // belongs in the shell every route under here already passes through rather than in 47 pages.
+  // `children` is withheld, so the page's own function is never invoked and none of its queries run;
+  // the reads above already happened, and nothing from them is rendered.
+  if (!canSeeInternalWorkspace(role)) {
+    return <NoWorkspace />;
+  }
 
   return (
     <div data-slot="app-shell" className="flex min-h-screen flex-col overflow-x-hidden bg-bg">
