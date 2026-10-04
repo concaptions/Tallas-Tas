@@ -289,7 +289,7 @@ describe('the column seed, checked against the real schema', () => {
     }
   });
 
-  it('hides Gratsi five angle columns the level shift moved to Concepts, and shows eleven', async () => {
+  it('resolves Gratsi angles as the live base reads, sixteen columns in Airtable order', async () => {
     const db = await testDb();
     await seed(db);
     await seedColumnDefinitions(db);
@@ -302,32 +302,45 @@ describe('the column seed, checked against the real schema', () => {
     const resolved = await resolveColumns(db, gratsi.id, 'angles');
 
     /*
-     * The same eleven columns as before the Angles rollout — nothing dropped — in a new ORDER. The
-     * nine app-owned columns used to be seeded as Gratsi-only `custom` rows carrying Gratsi's own
-     * field positions (2, 3, 10, 11, 13-17), which is what put Status second. They are platform rows
-     * on the parent now, because every brand has them and the parent base defines a field for none
-     * of them, so they sort after the parent's Airtable fields (1-8) at 20-28. The parent's own
-     * fields keep their Airtable positions; where a platform column sits is configuration, and any
-     * brand can move it in Column Admin.
+     * GRATSI-MATCH (2026-10-04): the Gratsi base's own 21 fields in its own order, minus the five
+     * the decision register excludes — `Creators` (dead link, 0/43, no stored inverse anywhere) and
+     * the four residual text remnants `(Internal) Creative Design`, `Creative Sheet`,
+     * `UGC Management copy`, `Concepts copy` (rule 5: flagged in docs/decisions.md, never invented
+     * as columns). The three reverse links resolve as read-only grid columns keyed by the table
+     * that points back at angles (diff annotation 6), and the two Concepts-side lookups resolve as
+     * the junctions under Airtable's own lookup names.
      */
     expect(resolved.map((column) => column.displayLabel)).toEqual([
       'Name',
-      'Description',
       'Status',
       'Potential',
+      'Description',
+      'Concepts',
+      'Product (from Angles)',
+      'Personas (from Angles)',
+      '(Internal) Creative Modules',
       'Formats to create',
-      'Ad Inspo',
+      'Client Notes',
       'Brief',
       'Exact Script',
+      'Ad Inspo',
       'Winning',
       'Internal Notes',
-      'Client Notes',
+      '(Internal) Creative Design 2',
     ]);
+    // The reverse links are keyed by the junction/FK table that points back at angles.
+    expect(resolved.find((c) => c.displayLabel === 'Concepts')?.columnKey).toBe('concept_angles');
+    expect(resolved.find((c) => c.displayLabel === '(Internal) Creative Modules')?.columnKey).toBe(
+      'creative_module_angles',
+    );
+    expect(resolved.find((c) => c.displayLabel === '(Internal) Creative Design 2')?.columnKey).toBe(
+      'creative_briefs',
+    );
     // Gratsi keeps these on Concepts, so its Angles table has no field for them. Hidden, not gone.
-    for (const hidden of ['type', 'angle_products', 'angle_personas', 'pain_points', 'usp']) {
+    for (const hidden of ['type', 'pain_points', 'usp']) {
       expect(resolved.map((column) => column.columnKey)).not.toContain(hidden);
     }
-    // `Name` and `Description` are the parent's rows, read through, under the parent's labels.
+    // `Name` is the parent's row, read through, under the parent's label.
     expect(resolved.find((column) => column.columnKey === 'name')?.inheritedFrom).not.toBeNull();
   });
 
@@ -583,13 +596,12 @@ describe('platform columns on concepts', () => {
       expect(column, `Gratsi lost the platform column ${key}`).toBeDefined();
       expect(column?.source, `${key} stopped being the platform's on Gratsi`).toBe('platform');
     }
-    // The one Gratsi holds no visible row for arrives by inheritance, from the template.
-    for (const inherited of ['name']) {
-      expect(
-        resolved.find((column) => column.columnKey === inherited)?.inheritedFrom,
-        `${inherited} should be read from the template, not from a Gratsi row`,
-      ).not.toBeNull();
-    }
+    // GRATSI-MATCH 2026-10-04: `name` now reads from Gratsi's OWN relabel row — the base's primary
+    // field is `Name`, not the template's `Concept Name` — and stays the platform's through it.
+    const name = resolved.find((column) => column.columnKey === 'name');
+    expect(name?.displayLabel).toBe('Name');
+    expect(name?.inheritedFrom).toBeNull();
+    expect(name?.source).toBe('platform');
     // The eight Gratsi DOES hold rows for keep Gratsi's own wording, from its own rows.
     const decription = resolved.find((column) => column.columnKey === 'description');
     expect(decription?.displayLabel).toBe('Decription');
@@ -917,20 +929,30 @@ describe('the Products column set', () => {
 
     const resolved = await resolveColumns(db, await brandId(db, 'gratsi'), 'products');
 
+    /*
+     * GRATSI-MATCH (2026-10-04): seven columns, in the LIVE base's field order. `Email Campaigns`
+     * sits at the position of Airtable's `Table 17` link — that junk auto-name stays a decision
+     * flag and the junction keeps the platform's working label. `Collection Link` and `Concepts`
+     * are hidden now (the diff's two leaks): neither is a Gratsi Product field.
+     */
     expect(resolved.map((column) => column.displayLabel)).toEqual([
       'Product Name / Landing Page Name',
       'Link',
       'Angles',
-      '(Internal) Creative Design',
-      'UGC Management',
-      'Collection Link',
       'Email Campaigns',
       // Gratsi's base spells the YouTube link this way; the template calls it 'YouTube Copy'.
       'Youtube Copywriting',
-      'Concepts',
+      '(Internal) Creative Design',
+      'UGC Management',
     ]);
-    // The three parent fields Gratsi's base does not have are hidden, not relabelled away.
-    for (const key of ['collections', 'campaigns_offers', 'copywriting']) {
+    // The five parent columns Gratsi's base has no field for are hidden, not relabelled away.
+    for (const key of [
+      'collections',
+      'campaigns_offers',
+      'copywriting',
+      'collection_link',
+      'concepts',
+    ]) {
       expect(
         resolved.some((column) => column.columnKey === key),
         `Gratsi should hide ${key}, which its base has no field for`,
@@ -997,33 +1019,35 @@ describe("re-seeding retires the seed's own stale rows", () => {
     await seedColumnDefinitions(db, 'script:seed-columns');
     const brandId = await gratsiId(db);
 
-    // A row the seed USED to write on a table it still covers — exactly the Angles case.
+    // A row the seed USED to write on a table it still covers — exactly the Angles case. `name`
+    // is a column the Gratsi group deliberately holds NO row for (it inherits the parent's), so a
+    // stale seed-written Gratsi row of it is precisely what reconciliation must remove.
+    // (`potential` no longer works as the fixture: GRATSI-MATCH 2026-10-04 seeds a Gratsi row for
+    // it at the live base's own position.)
     await upsertColumnDefinition(
       db,
       brandId,
       {
         tableKey: 'angles',
-        columnKey: 'potential',
-        displayLabel: 'Stale Potential',
-        displayOrder: 3,
+        columnKey: 'name',
+        displayLabel: 'Stale Name',
+        displayOrder: 1,
       },
       'script:seed-columns',
     );
     expect(
-      (await resolveColumns(db, brandId, 'angles')).find(
-        (c) => c.displayLabel === 'Stale Potential',
-      ),
+      (await resolveColumns(db, brandId, 'angles')).find((c) => c.displayLabel === 'Stale Name'),
     ).toBeDefined();
 
     const results = await seedColumnDefinitions(db, 'script:seed-columns');
 
-    expect(results.flatMap((row) => row.retired)).toContain('angles.potential');
+    expect(results.flatMap((row) => row.retired)).toContain('angles.name');
     const resolved = await resolveColumns(db, brandId, 'angles');
-    expect(resolved.find((column) => column.displayLabel === 'Stale Potential')).toBeUndefined();
-    // The column is still THERE — it falls back to the parent's platform row, which is the point.
-    const potential = resolved.find((column) => column.columnKey === 'potential');
-    expect(potential?.displayLabel).toBe('Potential');
-    expect(potential?.source).toBe('platform');
+    expect(resolved.find((column) => column.displayLabel === 'Stale Name')).toBeUndefined();
+    // The column is still THERE — it falls back to the parent's own row, which is the point.
+    const name = resolved.find((column) => column.columnKey === 'name');
+    expect(name?.displayLabel).toBe('Name');
+    expect(name?.source).toBe('parent');
   });
 
   /** The line that makes reconciliation safe: Column Admin's whole purpose is per-brand edits. */
@@ -1036,15 +1060,15 @@ describe("re-seeding retires the seed's own stale rows", () => {
     await upsertColumnDefinition(
       db,
       brandId,
-      { tableKey: 'angles', columnKey: 'potential', displayLabel: 'Upside', displayOrder: 3 },
+      { tableKey: 'angles', columnKey: 'name', displayLabel: 'Upside', displayOrder: 1 },
       'user_admin_123',
     );
 
     const results = await seedColumnDefinitions(db, 'script:seed-columns');
 
-    expect(results.flatMap((row) => row.retired)).not.toContain('angles.potential');
+    expect(results.flatMap((row) => row.retired)).not.toContain('angles.name');
     expect(
-      (await resolveColumns(db, brandId, 'angles')).find((c) => c.columnKey === 'potential')
+      (await resolveColumns(db, brandId, 'angles')).find((c) => c.columnKey === 'name')
         ?.displayLabel,
     ).toBe('Upside');
   });
@@ -1212,18 +1236,63 @@ describe('the Creative Sheet column set', () => {
 
 describe('the all-platform tables resolve for every brand', () => {
   const EXPECTED = [
-    { tableKey: 'copy_types', inheriting: 4, gratsi: 4, gratsiOwnRows: 2, virtual: 0 },
-    { tableKey: 'creative_reporting', inheriting: 13, gratsi: 13, gratsiOwnRows: 0, virtual: 1 },
-    { tableKey: 'email_campaigns', inheriting: 17, gratsi: 17, gratsiOwnRows: 0, virtual: 2 },
-    { tableKey: 'email_flows', inheriting: 13, gratsi: 13, gratsiOwnRows: 0, virtual: 2 },
-    { tableKey: 'sm_campaign_feed_tasks', inheriting: 6, gratsi: 6, gratsiOwnRows: 0, virtual: 1 },
+    {
+      tableKey: 'copy_types',
+      inheriting: 4,
+      gratsi: 4,
+      gratsiOwnRows: 2,
+      virtual: 0,
+      gratsiCustom: 0,
+    },
+    // GRATSI-MATCH 2026-10-04: Gratsi relabels the first two columns to its own wording and adds
+    // the `Creative Name (from Creative)` lookup as a VIRTUAL custom row (field 14) — the one
+    // Gratsi base field the platform set does not carry, so `custom` is the truthful source.
+    {
+      tableKey: 'creative_reporting',
+      inheriting: 13,
+      gratsi: 14,
+      gratsiOwnRows: 3,
+      virtual: 1,
+      gratsiCustom: 1,
+    },
+    {
+      tableKey: 'email_campaigns',
+      inheriting: 17,
+      gratsi: 17,
+      gratsiOwnRows: 0,
+      virtual: 2,
+      gratsiCustom: 0,
+    },
+    {
+      tableKey: 'email_flows',
+      inheriting: 13,
+      gratsi: 13,
+      gratsiOwnRows: 0,
+      virtual: 2,
+      gratsiCustom: 0,
+    },
+    {
+      tableKey: 'sm_campaign_feed_tasks',
+      inheriting: 6,
+      gratsi: 6,
+      gratsiOwnRows: 0,
+      virtual: 1,
+      gratsiCustom: 0,
+    },
     // Gratsi hides its status banner, which has no column at all, so it shows one fewer.
-    { tableKey: 'youtube_copy', inheriting: 16, gratsi: 16, gratsiOwnRows: 2, virtual: 0 },
+    {
+      tableKey: 'youtube_copy',
+      inheriting: 16,
+      gratsi: 16,
+      gratsiOwnRows: 2,
+      virtual: 0,
+      gratsiCustom: 0,
+    },
   ] as const;
 
   it.each(EXPECTED)(
     '$tableKey: an inheriting brand gets $inheriting columns and Gratsi gets $gratsi',
-    async ({ tableKey, inheriting, gratsi, gratsiOwnRows, virtual }) => {
+    async ({ tableKey, inheriting, gratsi, gratsiOwnRows, virtual, gratsiCustom }) => {
       const db = await testDb();
       await seed(db);
       await seedColumnDefinitions(db);
@@ -1246,9 +1315,11 @@ describe('the all-platform tables resolve for every brand', () => {
       ).toHaveLength(inheriting);
       expect(onGratsi).toHaveLength(gratsi);
 
-      // Every column of these tables is the platform's: the parent base has no such table.
+      // Every column of these tables is the platform's: the parent base has no such table. The
+      // one exception a GRATSI-ONLY field makes is counted, never silently admitted: a child-added
+      // row carries `custom` because no platform row exists for it to relabel.
       expect(onNiagara.filter((column) => column.source !== 'platform')).toEqual([]);
-      expect(onGratsi.filter((column) => column.source !== 'platform')).toEqual([]);
+      expect(onGratsi.filter((column) => column.source !== 'platform')).toHaveLength(gratsiCustom);
 
       // Virtual columns carry their formula and no stored column backs them.
       expect(onNiagara.filter((column) => column.formula !== null)).toHaveLength(virtual);
@@ -1316,16 +1387,39 @@ describe('the Creative Design column set', () => {
 
     // Thirty parent fields plus the platform's `due_date`.
     expect(onNiagara).toHaveLength(31);
-    // Gratsi hides three (Ad Content, Campaigns & Offers, Assets) and adds five of its own.
-    expect(onGratsi).toHaveLength(33);
+    /*
+     * GRATSI-MATCH (2026-10-04): the live base's 42 fields minus the four decision-register
+     * exclusions (`Created 2`, `(Internal) Collections 2`, `Ads Copywriting copy`, the `Angles`
+     * text remnant), plus the AI-49 `Due Date` platform column, which the standing ruling keeps
+     * visible. Three reverse links, the two system-field displays and the one virtual lookup are
+     * all Gratsi child rows; the parent set above is untouched.
+     */
+    expect(onGratsi).toHaveLength(39);
     for (const hidden of ['ad_content', 'campaign_offer_id', 'asset_id']) {
       expect(onGratsi.map((column) => column.columnKey)).not.toContain(hidden);
       expect(onNiagara.map((column) => column.columnKey)).toContain(hidden);
     }
-    for (const own of ['batch', 'language', 'script_content', 'offer', 'spelling_feedback_2']) {
+    for (const own of [
+      'batch',
+      'language',
+      'script_content',
+      'offer',
+      'spelling_feedback_2',
+      // The GRATSI-MATCH additions: reverse links, the two system-field displays, the lookup.
+      'creative_module_designs',
+      'creative_sheet_items',
+      'copywriting',
+      'updated_at',
+      'created_at',
+      'concepts_from_angles',
+    ]) {
       expect(onGratsi.map((column) => column.columnKey)).toContain(own);
       expect(onNiagara.map((column) => column.columnKey)).not.toContain(own);
     }
+    // The lookup is VIRTUAL: it carries its formula and never reaches the writable set.
+    const lookup = onGratsi.find((column) => column.columnKey === 'concepts_from_angles');
+    expect(lookup?.formula).toBe('briefConceptsFromAngles');
+    expect(storedColumns(onGratsi).some((c) => c.columnKey === 'concepts_from_angles')).toBe(false);
     // Gratsi's relabels, under Gratsi's words; the parent keeps its own.
     expect(onGratsi.find((column) => column.columnKey === 'brief_to_design')?.displayLabel).toBe(
       'Brief to Design/Editing',

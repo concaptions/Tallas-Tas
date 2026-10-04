@@ -202,6 +202,27 @@ export interface ConceptItem {
   readonly collectionName: string | null;
   readonly creatorCount: number;
   readonly adInspoCount: number;
+  /**
+   * GRATSI-MATCH 2026-10-04 — the base's three linked-record columns, resolved to names on the
+   * server: `UGC Management` (the `creator_concepts` junction, as creator names),
+   * `Campaigns & Offers` (`campaign_concepts`, as the campaigns' generated names) and
+   * `(Internal) Creative Design` (`creative_briefs.concept_id` read backwards, as §7 names).
+   */
+  readonly creators: readonly ConceptLinkedRecord[];
+  readonly campaigns: readonly ConceptLinkedRecord[];
+  readonly creativeDesigns: readonly ConceptLinkedRecord[];
+  /**
+   * Airtable's `Performance` lookup — the unique performances of the concept's briefs, computed
+   * on the server by `conceptPerformance`. Virtual: nothing stores it.
+   */
+  readonly performance: string | null;
+}
+
+/** One linked record a concept column renders read-only: plain data across the prop boundary. */
+export interface ConceptLinkedRecord {
+  readonly id: string;
+  readonly label: string;
+  readonly href?: string;
 }
 
 /**
@@ -232,6 +253,10 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   | 'collectionName'
   | 'creatorCount'
   | 'adInspoCount'
+  | 'creators'
+  | 'campaigns'
+  | 'creativeDesigns'
+  | 'performance'
 > = {
   clientStatus: { key: 'pending_for_approval', label: 'Pending for Approval', tone: 'info' },
   approvalStatusLabel: null,
@@ -247,6 +272,10 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   collectionName: null,
   creatorCount: 0,
   adInspoCount: 0,
+  creators: [],
+  campaigns: [],
+  creativeDesigns: [],
+  performance: null,
 };
 
 /**

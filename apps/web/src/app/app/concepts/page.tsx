@@ -1,7 +1,12 @@
+import { conceptPerformance } from '@tas/db';
+
+import { loadBriefs } from '@/lib/briefs-source';
+import { loadCampaigns } from '@/lib/campaigns-source';
 import { CONCEPT_TRACK, loadConceptColumns, loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUgc } from '@/lib/ugc-source';
 import { loadUserViews } from '@/lib/user-view-actions';
-import { conceptPath } from '@/lib/routes';
+import { briefPath, conceptPath, ugcPath } from '@/lib/routes';
 
 import {
   conceptApprovalStatusLabel,
@@ -14,6 +19,7 @@ import {
   conceptViewFromParam,
   internalStatusView,
   type ConceptItem,
+  type ConceptLinkedRecord,
 } from './fields';
 import { ConceptsWorkspace } from './concepts-workspace';
 
@@ -47,13 +53,42 @@ interface ConceptsPageProps {
 }
 
 export default async function ConceptsPage({ searchParams }: ConceptsPageProps) {
-  const [{ rows }, { columns, unconfigured: unconfiguredColumns }, params] = await Promise.all([
+  const [
+    { rows },
+    { columns, unconfigured: unconfiguredColumns },
+    params,
+    ugc,
+    campaignRows,
+    briefRows,
+  ] = await Promise.all([
     loadConcepts(),
     loadConceptColumns(),
     searchParams,
+    // GRATSI-MATCH 2026-10-04: the three tables behind the base's linked-record columns and its
+    // Performance lookup — each read through its own demo-aware loader, indexed once below.
+    loadUgc(),
+    loadCampaigns(),
+    loadBriefs(),
   ]);
   const demo = isDemoMode();
   const userViews = await loadUserViews('concepts');
+
+  // One map per linked table, built once, rather than a `find` per row per column.
+  const creatorNames = new Map(ugc.creators.map((creator) => [creator.id, creator.name]));
+  const campaignNames = new Map(campaignRows.rows.map((campaign) => [campaign.id, campaign.name]));
+  // `creative_briefs.concept_id` read backwards: conceptId -> §7 names, and the briefs'
+  // performances the `conceptPerformance` lookup reads.
+  const briefsByConcept = new Map<string, ConceptLinkedRecord[]>();
+  const briefPerformancesByConcept = new Map<string, (string | null)[]>();
+  for (const brief of briefRows.rows) {
+    if (brief.conceptId === null) continue;
+    const linked = briefsByConcept.get(brief.conceptId) ?? [];
+    linked.push({ id: brief.id, label: brief.name, href: briefPath(brief.id) });
+    briefsByConcept.set(brief.conceptId, linked);
+    const performances = briefPerformancesByConcept.get(brief.conceptId) ?? [];
+    performances.push(brief.performance);
+    briefPerformancesByConcept.set(brief.conceptId, performances);
+  }
 
   const items: ConceptItem[] = rows.map((row) => ({
     id: row.id,
@@ -80,6 +115,18 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     collectionName: row.collectionName,
     creatorCount: row.creatorIds.length,
     adInspoCount: row.adInspoLinks.length,
+    creators: row.creatorIds.flatMap((id) => {
+      const label = creatorNames.get(id);
+      return label === undefined
+        ? []
+        : [{ id, label, href: `${ugcPath}?creator=${encodeURIComponent(id)}` }];
+    }),
+    campaigns: row.campaignIds.flatMap((id) => {
+      const label = campaignNames.get(id);
+      return label === undefined ? [] : [{ id, label }];
+    }),
+    creativeDesigns: briefsByConcept.get(row.id) ?? [],
+    performance: conceptPerformance(briefPerformancesByConcept.get(row.id) ?? []),
   }));
 
   const requested = params.view;

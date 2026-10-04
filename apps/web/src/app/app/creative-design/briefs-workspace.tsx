@@ -35,6 +35,7 @@ import {
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import { BoolCell, CountCell, DateCell, LinkCell, TextCell } from '@/components/views/grid-cells';
+import { linkedRecordsRenderer } from '@/components/views/linked-records-cell';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -252,6 +253,34 @@ export const BRIEF_RENDERERS: ColumnRegistry<BriefItem> = {
   due_date: {
     render: (item) => <DateCell value={item.row.dueDate} />,
     sortValue: (item) => item.row.dueDate?.toISOString() ?? null,
+  },
+  // ── GRATSI-MATCH 2026-10-04: the live base's remaining fields, all read-only ──────────────────
+  // Reverse links. The two counts read the same `linkCounts` the panel's one-line read uses; the
+  // copy column carries the linked rows' generated titles through the shared linked-records cell.
+  creative_module_designs: {
+    render: (item) => <CountCell count={item.linkCounts.modules} noun="module" />,
+    sortValue: (item) => item.linkCounts.modules,
+  },
+  creative_sheet_items: {
+    render: (item) => <CountCell count={item.linkCounts.sheetItems} noun="sheet row" />,
+    sortValue: (item) => item.linkCounts.sheetItems,
+  },
+  copywriting: linkedRecordsRenderer((item: BriefItem) => item.metaCopy, { mono: true }),
+  // Airtable's `Last Modified` / `Created` system fields are the shared columns, displayed.
+  updated_at: {
+    render: (item) => <DateCell value={item.row.updatedAt} />,
+    sortValue: (item) => item.row.updatedAt.toISOString(),
+  },
+  created_at: {
+    render: (item) => <DateCell value={item.row.createdAt} />,
+    sortValue: (item) => item.row.createdAt.toISOString(),
+  },
+  // The `Concepts (from Angles)` lookup, VIRTUAL — the server computed the finished string with
+  // `briefConceptsFromAngles`; generated concept names render in the mono face.
+  concepts_from_angles: {
+    render: (item) => <TextCell value={item.conceptsFromAngles} mono />,
+    sortValue: (item) => item.conceptsFromAngles,
+    cellTitle: (item) => item.conceptsFromAngles ?? undefined,
   },
 };
 

@@ -502,19 +502,92 @@ const CREATIVE_BRIEFS_PLATFORM = platformRows('creative_briefs', [
  *    `script_content` row and `ad_content` is hidden for Gratsi.
  *  - `Inspiration` relabels `inspiration_image`, which is the column the engine writes for it.
  */
+/**
+ * GRATSI-MATCH (2026-10-04): the live base's 42 fields at the live base's own positions. Inherited
+ * rows carry the PARENT base's field order, which is why the audit recorded "ORDER DIVERGES" —
+ * every column whose Gratsi position differs now holds a Gratsi row at that position (same label
+ * where the bases agree). Three columns need no row at all, because name and position already
+ * match: `name` (1), `design_file` (17), `design_file_url` (18).
+ *
+ * The additions, all display-only:
+ * - `creative_module_designs` (28), `creative_sheet_items` (37) and `copywriting` (39) are the
+ *   REVERSE sides of `creative_module_designs`, `creative_sheet_items.brief_id` and
+ *   `copywriting.creative_brief_id` — Airtable's `Creative Module`, `Creative Sheet` and
+ *   `Meta Copywriting` link fields, keyed by the table that points back at `creative_briefs`.
+ * - `updated_at` (29) and `created_at` (30) display the shared columns under Airtable's
+ *   `Last Modified` / `Created` system-field names (diff annotation 3 — no migration).
+ * - `concepts_from_angles` (42) is VIRTUAL — the `Concepts (from Angles)` lookup, computed by
+ *   `briefConceptsFromAngles` through the brief's angle into `concept_angles`; declared below the
+ *   list because a virtual row carries a formula the five-tuple cannot.
+ * - `due_date` (43) keeps the AI-49 platform column VISIBLE, placed after the Airtable range: the
+ *   strict rule would call it a leak, but AI-49 is Talal's own ask, so the standing ruling wins
+ *   pending a new one (docs/decisions.md, GRATSI-MATCH entry).
+ *
+ * NOT here, each a decision-doc flag (same entry): `Created 2` (34, second createdTime),
+ * `(Internal) Collections 2` (35, residual text), `Ads Copywriting copy` (38 — the duplicate
+ * copy-table link pair's unread half; its stored side does not exist and the copywriting side
+ * belongs to the copy track), `Angles` (41, residual text).
+ */
 const CREATIVE_BRIEFS_GRATSI = childRows('creative_briefs', [
+  ['type', 'Type', 2, 'relabel', 'singleSelect'],
+  ['priority', 'Priority', 3, 'relabel', 'singleSelect'],
+  ['internal_status', 'Internal Status', 4, 'relabel', 'singleSelect'],
+  ['client_status', 'Client Status', 5, 'relabel', 'singleSelect'],
+  ['performance', 'Performance', 6, 'relabel', 'singleSelect'],
+  ['assignee', 'Assignee', 7, 'relabel', 'singleCollaborator'],
   ['batch', 'Batch', 8, 'custom', 'singleSelect'],
+  ['qa_checklist_doc', 'QA Checklist Doc', 9, 'relabel', 'multipleAttachments'],
+  ['qa_video_editor', 'Video Editor QA', 10, 'relabel', 'checkbox'],
+  ['qa_designer', 'Graphic Designer QA', 11, 'relabel', 'checkbox'],
+  ['qa_strategist', 'Creative Strategist QA', 12, 'relabel', 'checkbox'],
+  ['angle_id', 'Angle', 13, 'relabel', 'multipleRecordLinks'],
+  ['concept_id', 'Concept', 14, 'relabel', 'multipleRecordLinks'],
+  ['product_id', '(Internal) Product', 15, 'relabel', 'multipleRecordLinks'],
   ['language', 'Language', 16, 'custom', 'singleSelect'],
   ['inspiration_image', 'Inspiration', 19, 'relabel', 'multipleAttachments'],
   ['brief_to_design', 'Brief to Design/Editing', 20, 'relabel', 'richText'],
   ['script_content', 'Script / Ad Content', 21, 'custom', 'richText'],
+  ['platform', 'Platform', 22, 'relabel', 'multipleSelects'],
+  ['dimensions', 'Dimensions', 23, 'relabel', 'multipleRecordLinks'],
+  ['source', 'Source', 24, 'relabel', 'singleSelect'],
+  ['funnel', 'Funnel', 25, 'relabel', 'singleSelect'],
+  ['elements_tested', 'Elements we are Testing', 26, 'relabel', 'richText'],
   ['offer', 'Offer', 27, 'custom', 'richText'],
+  ['creative_module_designs', 'Creative Module', 28, 'custom', 'multipleRecordLinks'],
+  ['updated_at', 'Last Modified', 29, 'custom', 'lastModifiedTime'],
+  ['created_at', 'Created', 30, 'custom', 'createdTime'],
+  ['click_for_ai_spell_checker', 'Click for AI Spell Checker Again', 31, 'relabel', 'checkbox'],
+  ['spelling_feedback', 'Spelling Feedback', 32, 'relabel', 'multilineText'],
   ['spelling_feedback_2', 'Spelling Feedback 2', 33, 'custom', 'multilineText'],
   ['collection_id', '(Internal) Collections 3', 36, 'relabel', 'multipleRecordLinks'],
+  ['creative_sheet_items', 'Creative Sheet', 37, 'custom', 'multipleRecordLinks'],
+  ['copywriting', 'Meta Copywriting', 39, 'custom', 'multipleRecordLinks'],
+  // The trailing space is the live field name, exactly as the parent row carries it.
+  ['script_and_brief_breakdown', 'Script & brief breakdown ', 40, 'relabel', 'multipleAttachments'],
+  ['due_date', 'Due Date', 43, 'relabel-platform', 'date'],
   ['ad_content', 'Ad Content', 22, 'hidden', 'richText'],
   ['campaign_offer_id', 'Campaigns & Offers', 25, 'hidden', 'multipleRecordLinks'],
   ['asset_id', 'Assets', 28, 'hidden', 'multipleRecordLinks'],
 ]);
+
+/**
+ * The one VIRTUAL row of the Gratsi briefs set: Airtable's `Concepts (from Angles)` lookup
+ * (field 42). `source: 'custom'` because the Gratsi base defines the field and the parent's
+ * definition does not; `formula` names the registered reading, so the gate proves it exists and
+ * `storedColumns` keeps every write path away from it.
+ */
+const CREATIVE_BRIEFS_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'creative_briefs',
+    columnKey: 'concepts_from_angles',
+    displayLabel: 'Concepts (from Angles)',
+    displayOrder: 42,
+    fieldType: 'multipleLookupValues',
+    source: 'custom',
+    isDetached: true,
+    formula: 'briefConceptsFromAngles',
+  },
+];
 
 /**
  * `Concepts` `tblRlcp1ibmS7U7HG` — 22 fields, 8 of them lookups and 1 a formula.
@@ -655,6 +728,10 @@ const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
  * decision, not a column one.
  */
 const CONCEPTS_GRATSI = childRows('concepts', [
+  // GRATSI-MATCH 2026-10-04: the base's own primary-field wording. The platform row says
+  // 'Concept Name'; Gratsi's base says `Name` (diff relabel candidate) — a child relabel only,
+  // so the template and every inheriting brand keep the platform's wording.
+  ['name', 'Name', 1, 'relabel-platform', 'generated'],
   ['concept_themes', 'Theme', 3, 'relabel-platform', 'multipleSelects'],
   ['concept_angles', 'Angle', 4, 'relabel', 'multipleRecordLinks'],
   ['concept_style', 'Style', 6, 'relabel', 'singleSelect'],
@@ -669,9 +746,17 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   ['usp', 'USP', 17, 'relabel-platform', 'richText'],
   ['hook_examples', 'Hooks', 18, 'relabel', 'richText'],
   ['client_comments', "Client's Comments", 19, 'relabel-platform', 'multilineText'],
+  // GRATSI-MATCH 2026-10-04: the base's `UGC Management` link IS the `creator_concepts` junction
+  // (parent wording: `Creator`), previously hidden for Gratsi — visible again under Airtable's
+  // own name, at Airtable's own position, read-only junction display as before.
+  ['creator_concepts', 'UGC Management', 20, 'relabel', 'multipleRecordLinks'],
+  // And the two reverse links the base shows that the platform stores on the other side:
+  // `campaign_concepts` (the Campaigns & Offers field that links concepts, importer-written) and
+  // `creative_briefs.concept_id` read backwards (diff annotation 6 — display, no storage).
+  ['campaign_concepts', 'Campaigns & Offers', 21, 'custom', 'multipleRecordLinks'],
+  ['creative_briefs', '(Internal) Creative Design', 22, 'custom', 'multipleRecordLinks'],
   ['formats_to_create', 'Formats to create', 18, 'hidden', 'multipleSelects'],
   ['ad_inspo_links', 'Ad Inspo', 20, 'hidden', 'multilineText'],
-  ['creator_concepts', 'Creator', 21, 'hidden', 'multipleRecordLinks'],
   // Talal ruling 2026-10-04 (AI-33): Gratsi's base has Status, never Internal Status — the
   // platform column stays on the parent and every inheriting brand; only Gratsi hides it.
   ['internal_status', 'Internal Status', 22, 'hidden', 'singleSelect'],
@@ -679,6 +764,27 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   // the client interface and every writer read the DB column, never the displayed set.
   ['client_status', 'Client Status', 23, 'hidden', 'singleSelect'],
 ]);
+
+/**
+ * The one VIRTUAL row of the Gratsi concepts set (GRATSI-MATCH 2026-10-04): Airtable's
+ * `Performance` on Concepts is a LOOKUP of its briefs' Performance through the
+ * `(Internal) Creative Design` link — `concepts` has NO performance column and the importer
+ * writes performance only on briefs (`import-mappings.ts` documents a phantom
+ * `concepts.performance`; the live meta says `multipleLookupValues`). Computed on read by
+ * `conceptPerformance`, never stored, kept out of every writable set by `storedColumns`.
+ */
+const CONCEPTS_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'concepts',
+    columnKey: 'performance',
+    displayLabel: 'Performance',
+    displayOrder: 9,
+    fieldType: 'multipleLookupValues',
+    source: 'custom',
+    isDetached: true,
+    formula: 'conceptPerformance',
+  },
+];
 
 /** `Angles` `tbl4UFSFcynlS2Pkn` — 11 fields; 3 reverse links and 1 two-hop lookup skipped. */
 const ANGLES_PARENT = parentRows('angles', [
@@ -730,22 +836,52 @@ const ANGLES_PLATFORM: readonly UpsertColumnDefinition[] = [
 }));
 
 /**
- * Gratsi `Angles` — 21 fields. The five hidden rows are the level shift seen from this side: Gratsi
- * keeps `Type`, `Product`, `Personas`, `Pain Points` and `USP` on Concepts, so its Angles table has
- * no field for them. Hiding is per base and never a drop — `angle_personas` holds 78 Gratsi rows and
- * `angle_products` 57, inferred from the Concepts side, and every other brand still shows them.
+ * Gratsi `Angles` — 21 fields, now matched field for field against the live base (GRATSI-MATCH,
+ * 2026-10-04; positions from `docs/audits/overnight-gratsi-columns.md` §3, verified against the
+ * 2026-10-04 live diff). Three hidden rows remain the level shift seen from this side: Gratsi keeps
+ * `Type`, `Pain Points` and `USP` on Concepts, so its Angles table has no field for them. Hiding is
+ * per base and never a drop.
  *
- * The nine columns that used to be listed here as `custom` are now platform rows on the parent
- * (above), so Gratsi INHERITS seven of them and holds a row only for the two its base words
- * differently: `Brief` for `brief_url` and `Exact Script` for `exact_script_url`. Those two are
- * `relabel-platform`, because relabelling a column does not transfer ownership of it.
+ * THREE KINDS OF ROW, and why each exists:
+ *
+ * - RELABELS AT GRATSI'S OWN POSITIONS. The audit recorded "ORDER DIVERGES" because inherited rows
+ *   carry the PARENT base's field order; these rows re-state the same column (same label where the
+ *   bases agree) at the Gratsi base's own position, so the resolved sequence reads as the live base
+ *   does. `Product (from Angles)` and `Personas (from Angles)` were previously HIDDEN here: the
+ *   Gratsi base has no stored Product/Personas field on Angles, but it DOES display both as lookups
+ *   through Concepts (fields 7–8), and the platform's `angle_products` / `angle_personas` junctions
+ *   are exactly that data — so they resolve visibly under Airtable's own lookup names.
+ *
+ * - REVERSE LINKS AS READ-ONLY GRID COLUMNS (`concept_angles`, `creative_module_angles`,
+ *   `creative_briefs`). Airtable shows `Concepts`, `(Internal) Creative Modules` and
+ *   `(Internal) Creative Design 2` as link fields; their stored side lives on the other table
+ *   (`concept_angles`, `creative_module_angles`, `creative_briefs.angle_id`), so each is keyed by
+ *   the table that points back at `angles` — the same shape as the Products reverse links — and the
+ *   page renders the linked names read-only. Display work, no storage (2026-10-04 diff,
+ *   annotation 6; extends AI-43's record-page display to the grid, removing nothing).
+ *
+ * - NO ROW AT ALL for the five fields the decision register excludes: `Creators` (a dead link to
+ *   UGC Management with no stored inverse anywhere — empty on all 43 live rows, importer `skip`),
+ *   and the four residual text remnants `(Internal) Creative Design`, `Creative Sheet`,
+ *   `UGC Management copy`, `Concepts copy` (rule 5: decision-doc lines, never invented columns).
  */
 const ANGLES_GRATSI = childRows('angles', [
-  ['brief_url', 'Brief', 24, 'relabel-platform', 'url'],
-  ['exact_script_url', 'Exact Script', 25, 'relabel-platform', 'url'],
+  ['status', 'Status', 2, 'relabel-platform', 'singleSelect'],
+  ['potential', 'Potential', 3, 'relabel-platform', 'singleSelect'],
+  ['description', 'Description', 4, 'relabel', 'multilineText'],
+  ['concept_angles', 'Concepts', 6, 'custom', 'multipleRecordLinks'],
+  ['angle_products', 'Product (from Angles)', 7, 'relabel', 'multipleRecordLinks'],
+  ['angle_personas', 'Personas (from Angles)', 8, 'relabel', 'multipleRecordLinks'],
+  ['creative_module_angles', '(Internal) Creative Modules', 9, 'custom', 'multipleRecordLinks'],
+  ['formats', 'Formats to create', 10, 'relabel-platform', 'multipleSelects'],
+  ['client_notes', 'Client Notes', 11, 'relabel-platform', 'multilineText'],
+  ['brief_url', 'Brief', 13, 'relabel-platform', 'url'],
+  ['exact_script_url', 'Exact Script', 14, 'relabel-platform', 'url'],
+  ['ad_inspo_links', 'Ad Inspo', 15, 'relabel-platform', 'multilineText'],
+  ['winning', 'Winning', 16, 'relabel-platform', 'checkbox'],
+  ['internal_notes', 'Internal Notes', 17, 'relabel-platform', 'multilineText'],
+  ['creative_briefs', '(Internal) Creative Design 2', 19, 'custom', 'multipleRecordLinks'],
   ['type', 'Type', 2, 'hidden', 'multipleSelects'],
-  ['angle_products', 'Product', 3, 'hidden', 'multipleRecordLinks'],
-  ['angle_personas', 'Personas', 5, 'hidden', 'multipleRecordLinks'],
   ['pain_points', 'Pain Points', 7, 'hidden', 'multilineText'],
   ['usp', 'USP', 8, 'hidden', 'multilineText'],
 ]);
@@ -960,20 +1096,73 @@ const CREATORS_PLATFORM: readonly UpsertColumnDefinition[] = [
 }));
 
 const CREATORS_GRATSI = childRows('creators', [
+  // GRATSI-MATCH 2026-10-04: the audit recorded "ORDER DIVERGES" because inherited rows carry the
+  // PARENT base's field order; every column whose Gratsi position differs now holds a Gratsi row
+  // at the live base's own position (audit §8), labels unchanged except the four real relabels.
+  ['client_status', 'Status', 2, 'relabel', 'singleSelect'],
   ['creator_concepts', 'Concept to film', 7, 'relabel', 'multipleRecordLinks'],
+  ['creator_products', 'Products', 8, 'relabel', 'multipleRecordLinks'],
+  ['budget_per_60s', 'Budget per 60sec video', 9, 'relabel', 'currency'],
+  ['partnership_activity', 'Partnership Activity', 10, 'relabel', 'singleSelect'],
   ['video_intro_url', "Creator's video Intro", 11, 'relabel', 'multipleAttachments'],
+  ['profile_pic_url', "Creator's Profile Pic", 12, 'relabel', 'multipleAttachments'],
+  ['facebook_profile_url', 'Facebook Profile for Partnership', 13, 'relabel', 'richText'],
+  ['platform', 'Platform', 14, 'relabel', 'singleSelect'],
+  ['client_note', "(Client's) Note or Comments", 15, 'relabel', 'multilineText'],
   ['internal_brief', 'Additional Note - TAS Team', 16, 'relabel', 'richText'],
   ['creator_cost', "Creator's cost (USD) - Internal", 17, 'relabel-platform', 'currency'],
+  ['raw_assets_url', 'Raw assets', 18, 'relabel', 'url'],
+  ['shipping_location', 'Shipping Location', 19, 'relabel', 'multilineText'],
+  // The trailing space is the live field name, as the parent row carries it.
+  ['tracking_number', 'Tracking Number ', 20, 'relabel', 'singleLineText'],
+  ['creator_link', 'Creator Link', 21, 'relabel', 'url'],
   ['internal_creator_status', 'Creator Status', 22, 'relabel', 'singleSelect'],
   ['cost_usd', 'Paid by TAS', 23, 'relabel-platform', 'currency'],
   ['payment_date', 'Payment Date', 24, 'relabel-platform', 'date'],
   ['concept_ids', 'Concepts', 25, 'hidden-custom', 'multipleRecordLinks'],
   ['creator_info_request', 'Creator Info Request', 26, 'relabel-platform', 'richText'],
+  ['partnership_activated_at', 'Date of Partnership Activation', 28, 'relabel', 'date'],
   ['slack_notified', 'Slack Notified ', 30, 'relabel-platform', 'checkbox'],
+  ['partnership_period_days', 'Partnership Time Period (days)', 31, 'relabel', 'number'],
+  ['continue_working_with', 'Continue Working With?', 32, 'relabel', 'singleSelect'],
+  ['extension_days', 'Extension Time Period', 33, 'relabel', 'singleSelect'],
+  ['partnership_price_per_30_days', 'Partnership Price per 30 days', 34, 'relabel', 'currency'],
+  ['partnership_notes', 'Notes for Partnership ads', 35, 'relabel', 'multilineText'],
+  ['instagram_username', 'Instagram Username', 36, 'relabel', 'singleLineText'],
   ['deadline', '(Internal) Deadline for the request', 2, 'hidden', 'date'],
   ['for_partnership_ads', 'For Partnership Ads?', 11, 'hidden', 'singleSelect'],
   ['internal_assets_status', 'Internal Assets Status', 14, 'hidden', 'singleSelect'],
 ]);
+
+/**
+ * The two VIRTUAL rows of the Gratsi UGC set (GRATSI-MATCH 2026-10-04): the base's two FORMULA
+ * fields, computed at read time by the registered functions and never stored — `Notify Flag` is
+ * wall-clock and takes the request's `now`, so a cached copy cannot exist by construction. Both
+ * are `custom` (the parent base's copy of `Creator's cost (USD)` is a stored currency the audits
+ * assert no column for, and it has no Notify Flag at all) and both sit at the live positions.
+ */
+const CREATORS_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'creators',
+    columnKey: 'creator_cost_with_fee',
+    displayLabel: "Creator's cost (USD)",
+    displayOrder: 27,
+    fieldType: 'formula',
+    source: 'custom',
+    isDetached: true,
+    formula: 'creatorCostWithFee',
+  },
+  {
+    tableKey: 'creators',
+    columnKey: 'notify_flag',
+    displayLabel: 'Notify Flag',
+    displayOrder: 29,
+    fieldType: 'formula',
+    source: 'custom',
+    isDetached: true,
+    formula: 'creatorNotifyFlag',
+  },
+];
 
 /**
  * `AI Characters / Personas` `tblgfe8A7nmce6lzn` — 12 fields, all stored, all paired by content with
@@ -1163,18 +1352,36 @@ const PRODUCTS_PLATFORM: readonly UpsertColumnDefinition[] = [
 
 /**
  * Gratsi's `(Internal) Product` — 11 fields, and it renames NOTHING (audit §10). Its `Angles`,
- * `(Internal) Creative Design` and `UGC Management` carry the parent's own names, so Gratsi inherits
- * those three and holds no row for them.
+ * `(Internal) Creative Design` and `UGC Management` carry the parent's own names; GRATSI-MATCH
+ * (2026-10-04) gives each a Gratsi row anyway, because the audit recorded "ORDER DIVERGES" — the
+ * rows re-state the parent's labels at the GRATSI base's own field positions (4, 10, 11), and the
+ * YouTube relabel moves to its live position (8).
  *
- * What it does hold: the three parent fields Gratsi's base does NOT have, hidden so the page shows
- * Gratsi only what Gratsi defines; and one relabel, because Gratsi's base spells the YouTube link
- * `Youtube Copywriting` where the platform row above calls it `YouTube Copy`.
+ * `email_campaign_products` at position 5 is the junction behind Airtable's field LITERALLY NAMED
+ * `Table 17` (the exclusion register: "email campaigns reach products through Table 17 →
+ * email_campaign_products"). The column keeps the platform's working label `Email Campaigns`
+ * rather than adopting the junk auto-name — renaming a working link column to a duplication
+ * remnant's name serves nobody; the strict rule's intent is content parity. The mismatch is
+ * flagged in docs/decisions.md (GRATSI-MATCH entry) rather than smoothed over.
+ *
+ * Hidden, never dropped — the parent fields Gratsi's base does not have, now five: the original
+ * three, plus the two the 2026-10-04 diff lists as leaks, `collection_link` (a stored platform
+ * column no Gratsi field backs) and `concepts` (the two-hop derived count; INFERRED_JUNCTIONS in
+ * the gate). Hidden rows keep the parent's own display order, so un-hiding restores the template
+ * position. The four residual fields — `(Internal) Creative Design 2`, both `Email Campaigns
+ * Management copy` duplicates and `Creative Sheet` — stay rule-5 decision flags, never columns.
  */
 const PRODUCTS_GRATSI = childRows('products', [
-  ['youtube_copy_products', 'Youtube Copywriting', 11, 'relabel-platform', 'multipleRecordLinks'],
+  ['angle_products', 'Angles', 4, 'relabel', 'multipleRecordLinks'],
+  ['email_campaign_products', 'Email Campaigns', 5, 'relabel-platform', 'multipleRecordLinks'],
+  ['youtube_copy_products', 'Youtube Copywriting', 8, 'relabel-platform', 'multipleRecordLinks'],
+  ['creative_briefs', '(Internal) Creative Design', 10, 'relabel', 'multipleRecordLinks'],
+  ['creator_products', 'UGC Management', 11, 'relabel', 'multipleRecordLinks'],
   ['collections', '(Internal) Collections', 100, 'hidden', 'multipleRecordLinks'],
   ['campaigns_offers', 'Campaigns & Offers', 101, 'hidden', 'multipleRecordLinks'],
   ['copywriting', 'Meta Copywriting', 102, 'hidden', 'multipleRecordLinks'],
+  ['collection_link', 'Collection Link', 9, 'hidden', 'url'],
+  ['concepts', 'Concepts', 12, 'hidden', 'count'],
 ]);
 
 /**
@@ -1477,15 +1684,37 @@ const COPY_TYPES_GRATSI = childRows('copy_types', [
 ]);
 
 /**
- * Gratsi `Creative Reporting` `tblgW4bwDSSeqihlr` — 14 fields; 3 derived, `Difference CPA` a formula, now a virtual column. Gratsi words every column exactly as the platform set does, so it holds NO rows at all and inherits all thirteen.
+ * Gratsi `Creative Reporting` `tblgW4bwDSSeqihlr` — 14 fields; 3 derived, `Difference CPA` a formula, now a virtual column.
  *
- * Its rows are now the PARENT's, since the parent base has no such table and the platform set above
- * was derived from this base's own field names and order. What is left here is only what Gratsi
- * genuinely words differently; the rest are retired by the reconciling seed, which soft-deletes rows
- * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
- * duplicates that would win over the parent for no reason.
+ * GRATSI-MATCH (2026-10-04): the base's own first field is `Creative Name` — the formula that
+ * passes the `Creative Name (from Creative)` lookup through — so Gratsi relabels the platform's
+ * `Creative` (`brief_id`) row to the base's wording at position 1 and moves `Name + Angle +
+ * Offer` to its live position 2; both stay the platform's columns. The lookup itself (field 14)
+ * is the VIRTUAL row below. Every other label and position already matches the platform set.
  */
-const CREATIVE_REPORTING_GRATSI = childRows('creative_reporting', []);
+const CREATIVE_REPORTING_GRATSI = childRows('creative_reporting', [
+  ['brief_id', 'Creative Name', 1, 'relabel-platform', 'multipleRecordLinks'],
+  ['name_angle_offer', 'Name + Angle + Offer', 2, 'relabel-platform', 'singleLineText'],
+]);
+
+/**
+ * The one VIRTUAL row of the Gratsi reporting set: `Creative Name (from Creative)` (field 14), a
+ * lookup of the linked brief's §7 name through `brief_id`, computed by `creativeNameFromCreative`
+ * — the bare passthrough the base's own `Creative Name` formula wraps. Never stored; the row the
+ * grid reads already carries `briefName`.
+ */
+const CREATIVE_REPORTING_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'creative_reporting',
+    columnKey: 'creative_name_from_creative',
+    displayLabel: 'Creative Name (from Creative)',
+    displayOrder: 14,
+    fieldType: 'multipleLookupValues',
+    source: 'custom',
+    isDetached: true,
+    formula: 'creativeNameFromCreative',
+  },
+];
 
 /**
  * The seed, grouped by base: one group per base, so the two naming worlds stay visibly apart.
@@ -1534,11 +1763,14 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...PERSONAS_GRATSI,
       ...COPYWRITING_GRATSI,
       ...CREATIVE_BRIEFS_GRATSI,
+      ...CREATIVE_BRIEFS_GRATSI_VIRTUAL,
       ...CONCEPTS_GRATSI,
+      ...CONCEPTS_GRATSI_VIRTUAL,
       ...ANGLES_GRATSI,
       ...CREATIVE_MODULES_GRATSI,
       ...CREATIVE_SHEET_ITEMS_GRATSI,
       ...CREATORS_GRATSI,
+      ...CREATORS_GRATSI_VIRTUAL,
       ...AI_CHARACTERS_GRATSI,
       ...COLLECTIONS_GRATSI,
       ...PRODUCTS_GRATSI,
@@ -1549,6 +1781,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...SM_CAMPAIGN_FEED_GRATSI,
       ...COPY_TYPES_GRATSI,
       ...CREATIVE_REPORTING_GRATSI,
+      ...CREATIVE_REPORTING_GRATSI_VIRTUAL,
     ],
   },
 ];

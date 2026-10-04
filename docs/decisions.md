@@ -1096,3 +1096,173 @@ which would break the non-negotiable before it fixed a display diff. So this is 
 DELIBERATE EXCEPTION, not per-brand hidden and not silently conformed: the two extra displays
 stay until the owner rules either that Themes may join the resolver under a sanctioned global
 mechanism or that `category` / `referenceLinks` leave the page. No code changed with this entry.
+## 2026-10-04 — GRATSI-MATCH, links cluster: Angles reads as the live base reads; five fields stay flags
+
+The strict Gratsi-matches-Airtable rule applied to `angles` (input:
+`docs/audits/gratsi-column-diff-2026-10-04.md`, Angles section and annotation 6). Gratsi now
+resolves SIXTEEN columns, the live base's own 21 fields in the live base's own order minus the
+five below. What changed is display only:
+
+- **Reverse links become read-only GRID columns** — `Concepts` (keyed `concept_angles`),
+  `(Internal) Creative Modules` (`creative_module_angles`) and `(Internal) Creative Design 2`
+  (`creative_briefs`, the `angle_id` FK read backwards). Nothing stored, nothing editable: the
+  grid renders the linked record names through the one shared `LinkedRecordsCell`, from the same
+  three page inversions the panel's "Linked work" section already loads. This EXTENDS AI-43 —
+  which confirmed the record-page display at a time when the platform convention kept reverse
+  links off grids — to the grid, per annotation 6 of the diff; both displays now exist and
+  nothing was removed.
+- **The two Concepts-side lookups surface under Airtable's own names** — the previously hidden
+  `angle_products` / `angle_personas` child rows flip to visible relabels `Product (from Angles)`
+  and `Personas (from Angles)`: the junctions ARE that lookup's data, read-only as before.
+
+**Five Airtable fields are deliberately NOT columns**, each already ruled by the 2026-10-02
+exclusion register and re-affirmed here rather than silently skipped:
+
+| field | why it stays a flag |
+|---|---|
+| `Creators` | Link to UGC Management with NO stored inverse anywhere (`import-mappings.ts` angles › Creators: `skip`, empty on all 43 live rows). Building it would need new storage, which this display-only pass may not add; it stays excluded until an owner asks for the junction. |
+| `(Internal) Creative Design` | Residual text left by a converted link; 1/43, a stale snapshot of the live `(Internal) Creative Design 2` link (rule 5). |
+| `Creative Sheet` | Residual text, 0/43 (rule 5). |
+| `UGC Management copy` | Residual text, 0/43 (rule 5). |
+| `Concepts copy` | Residual text; the live `Concepts` link carries the same pairs (rule 5). |
+
+Pinned in `packages/db/src/gratsi-links-columns.test.ts` (the Airtable list minus exactly these
+five names) and in the updated Angles describes of `column-seed.test.ts`; `verify-rollout`
+expects gratsi 16. Parent rows untouched — Niagara still resolves the same sixteen it did.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Creative Design resolves the live base's 42 fields; four stay flags; Due Date keeps AI-49
+
+The strict rule applied to `creative_briefs` (diff of 2026-10-04, Creative Design section).
+Gratsi resolves THIRTY-NINE columns — the base's 42 fields, at the base's own positions, minus
+the four flags below, plus `Due Date`. Display only; the parent set and every write path are
+untouched:
+
+- **Reverse links as read-only columns**: `Creative Module` (keyed `creative_module_designs`,
+  0 rows today — the importer fills it), `Creative Sheet` (`creative_sheet_items`, its `brief_id`
+  read backwards) and `Meta Copywriting` (`copywriting`, the `creative_brief_id` FK read
+  backwards, rendered as the copy rows' generated titles).
+- **Airtable's system fields display the shared columns** (diff annotation 3): `Last Modified` →
+  `updated_at`, `Created` → `created_at`. No migration.
+- **`Concepts (from Angles)` is a VIRTUAL lookup** — `briefConceptsFromAngles` in
+  `packages/db/src/formulas/lookups.ts`, computed on read through the brief's angle into
+  `concept_angles`; `storedColumns` keeps it out of every writable set.
+- **`Due Date` is NOT hidden.** The strict Gratsi-matches-Airtable rule calls it a leak (no base
+  has the field); the standing AI-49 ruling is Talal's own "columns + due date" ask. The strict
+  rule DEFERS to AI-49 here, pending a ruling that names the winner; the column moves to the end
+  of the displayed set (after the Airtable range) so the base's own order is undisturbed.
+
+**Four Airtable fields stay decision flags**, never columns:
+
+| field | why it stays a flag |
+|---|---|
+| `Created 2` | A second `createdTime` system field, 390/390 — a duplication remnant (rule 5). `Created` already displays `created_at`; a second display of the same datum would be two readings of one value. |
+| `(Internal) Collections 2` | Residual single-line text left by a converted link (rule 5); the live link is `(Internal) Collections 3` → `collection_id`. |
+| `Ads Copywriting copy` | The unread half of the duplicate copy-table link pair (overnight finding 8). Its stored side DOES NOT EXIST — `copywriting` carries one brief FK, `creative_brief_id`, and `Meta Copywriting` already reverses it — and the copywriting side belongs to the copy track. WAITING-ON-THE-COPY-TRACK: if that track lands a second stored link, the briefs-side display is one seed row away; nothing is migrated from this cluster. |
+| `Angles` | Residual single-line text (rule 5); the real link is `Angle` → `angle_id`, displayed at position 13. |
+
+Pinned in `gratsi-links-columns.test.ts` (the 42-field list minus exactly these four, plus
+`Due Date` last) and the Creative Design describes of `column-seed.test.ts`; `verify-rollout`
+expects gratsi 39. The grid data costs no new query shape: the copy and concept loaders the page
+now reads are the same demo-aware sources every other page uses, indexed once per request.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Concepts resolves 21 of the base's 23; Production Status defers to AI-34
+
+The strict rule applied to `concepts`. Gratsi resolves TWENTY-ONE columns — the base's 23 minus
+the two below — in the base's own order. Display only; parent set, importer and client gate
+untouched:
+
+- **`Name`** — the base's own primary-field wording, a Gratsi relabel of the platform's
+  `Concept Name` row (the template and every inheriting brand keep the platform's label).
+- **`UGC Management`** — the `creator_concepts` junction, previously a hidden Gratsi row labelled
+  `Creator`, now visible under Airtable's own name at Airtable's own position (20), the same
+  read-only junction display the grid already drew.
+- **`Campaigns & Offers`** (keyed `campaign_concepts`) and **`(Internal) Creative Design`**
+  (keyed `creative_briefs`, the `concept_id` FK read backwards) — reverse links as read-only
+  name columns (diff annotation 6).
+- **`Performance` is a VIRTUAL lookup** — `conceptPerformance` over the concept's briefs'
+  performances. The earlier audits called Concepts.Performance unmapped and `import-mappings.ts`
+  documents a PHANTOM `concepts.performance` column (no such Postgres column exists; the engine
+  writes performance only on briefs). The 2026-10-04 live meta shows the field alive, type
+  lookup, so it displays through the brief link and stores nothing.
+
+**Two fields stay out, by name:**
+
+| field | why |
+|---|---|
+| `Production Status` | RULING CONFLICT. AI-34 ("take it out", 2026-09-28) hid it everywhere with its 73 live values kept; the strict rule would resurface it for Gratsi. The standing ruling WINS pending a ruling that names the winner — not resurfaced. |
+| `UGC Management copy` | Residual single-line text left by a converted link (rule 5); the live link resolves through `creator_concepts`. |
+
+Pinned in `gratsi-links-columns.test.ts` (the 23-field list minus exactly these two);
+`verify-rollout` expects gratsi 21.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Products shows the seven real Gratsi fields; Table 17's junction keeps its working label
+
+The strict rule applied to `products`. Gratsi resolves SEVEN columns — the base's 11 fields minus
+the four remnants — in the base's own order; the diff's two LEAKS are hidden child rows:
+
+- **Hidden for Gratsi, kept for the parent**: `collection_link` (a stored platform column with
+  2/9 live values and no Gratsi field) and `concepts` (the two-hop derived count). Neither is an
+  `(Internal) Product` field in the Gratsi base; both stay on every inheriting brand.
+- **Order**: the five link columns gain Gratsi rows at the base's own positions (Angles 4,
+  Email Campaigns 5, Youtube Copywriting 8, (Internal) Creative Design 10, UGC Management 11);
+  labels unchanged except as below.
+
+**The `Table 17` naming decision.** Airtable's field at position 5 is literally named `Table 17`
+— an auto-name left by a table duplication — and its data IS the `email_campaign_products`
+junction the platform already renders as `Email Campaigns`. The junction DISPLAYS at Table 17's
+position but KEEPS the platform's working label: renaming a working link column to a duplication
+remnant's auto-name serves nobody, and the diff's own near-name relabel candidate
+(`Email Campaigns Management copy` ↔ `Email Campaigns`) pairs the column with a TEXT remnant,
+which would be worse. CONTENT parity is met (the junction shows at the field's position with the
+field's data); the NAME mismatch is recorded here, pending an owner ruling if `Table 17` or the
+remnant wording is ever wanted verbatim.
+
+**Four fields stay rule-5 flags**, never columns: `(Internal) Creative Design 2` (residual text,
+0/6 — the structured link is `creative_briefs.product_id`), both `Email Campaigns Management
+copy` duplicates (residual text, 0/6 each) and `Creative Sheet` (residual text, 0/6). All four
+are already in the 2026-10-02 exclusion register.
+
+Pinned in `gratsi-links-columns.test.ts` (labels AND keys, in order) and the Products describes
+of `column-seed.test.ts`; `verify-rollout` expects gratsi 7.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: UGC Management computes its two formulas; the dead Concepts link defers to AI-41
+
+The strict rule applied to `creators`. Gratsi resolves THIRTY-FIVE columns — the base's 36 minus
+the AI-41 flag — in the base's own order:
+
+- **`Creator's cost (USD)`** (position 27) and **`Notify Flag`** (29) are VIRTUAL columns over
+  the already-registered formulas `creatorCostWithFee` (Fiverr ×1.055 / Insense ×1.10 over the
+  stored internal figure) and `creatorNotifyFlag` (≥ 25 days since partnership activation).
+  Computed per request on the server with the one `now` `loadUgc` already returns; the
+  wall-clock one cannot be cached because nothing stores it — `storedColumns` keeps both out of
+  every writable set, and the stored internal figure keeps its own separate column (17).
+- **Order**: nineteen inherited columns gain Gratsi rows at the live base's positions (the audit
+  recorded "ORDER DIVERGES"); labels unchanged.
+
+**One field stays out, by name:** `Concepts` (position 25) — RULING CONFLICT. AI-41 kept the
+dead second link to Concepts as a hidden `concept_ids` row (0/70 live rows, importer `skip`);
+the strict rule would re-add it beside the real `Concept to film` junction. The standing ruling
+WINS pending a ruling that names the winner; the hidden row stays exactly as AI-41 left it.
+
+Pinned in `gratsi-links-columns.test.ts` (the 36-field list minus exactly `Concepts`, plus the
+virtual/stored cost split); `verify-rollout` expects gratsi 35.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Creative Reporting resolves all fourteen fields
+
+The strict rule applied to `creative_reporting`, the last table of the links cluster and the
+only one with nothing excluded. Gratsi resolves FOURTEEN columns, the base's own 14 in the
+base's own order:
+
+- **`Creative Name`** — the base's first field is a formula that passes the
+  `Creative Name (from Creative)` lookup through, i.e. the linked brief's §7 name. The platform's
+  `Creative` link column (`brief_id`) already renders exactly that name, so it takes the base's
+  wording at position 1 (a `relabel-platform` row; the template keeps `Creative`), and
+  `Name + Angle + Offer` moves to its live position 2.
+- **`Creative Name (from Creative)`** (14) is a VIRTUAL lookup — `creativeNameFromCreative`, the
+  bare passthrough reading, over the `briefName` the report row already carries through
+  `brief_id`. Nothing stored, nothing writable; the `difference_cpa` precedent, followed exactly.
+
+Pinned in `gratsi-links-columns.test.ts` (all fourteen labels in order, link vs lookup backing)
+and the all-platform describe of `column-seed.test.ts` (whose per-table expectations now count
+the one deliberate Gratsi `custom` row rather than asserting none can exist);
+`verify-rollout` expects gratsi 14.

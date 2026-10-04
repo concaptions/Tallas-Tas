@@ -367,6 +367,22 @@ export interface BriefItem {
   readonly formSnapshot: BriefFormSnapshot;
   /** How many rows of each counterpart table point at this brief — the panel's one-line read. */
   readonly linkCounts: BriefLinkCounts;
+  /**
+   * The Meta Copywriting rows whose `creative_brief_id` is this brief (GRATSI-MATCH 2026-10-04):
+   * the reverse side of the copy table's `Creative` link, as generated Copy # titles, for the
+   * read-only `Meta Copywriting` grid column. Indexed once on the server from the copy loader.
+   */
+  readonly metaCopy: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly href?: string;
+  }[];
+  /**
+   * Airtable's `Concepts (from Angles)` lookup, computed on the server by
+   * `briefConceptsFromAngles` over the concepts paired with the brief's angle. Virtual — nothing
+   * stores it — so the item carries the finished string the cell prints.
+   */
+  readonly conceptsFromAngles: string | null;
 }
 
 // ── Two-way links (module parity, phase 2) ──────────────────────────────────────────────────────
