@@ -33,6 +33,7 @@ import {
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
+import { linkedRecordsRenderer } from '@/components/views/linked-records-cell';
 
 import { ConceptPanel } from './concept-panel';
 import {
@@ -232,9 +233,20 @@ const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
     render: (item) => <TextCell value={item.collectionName} />,
     sortValue: (item) => item.collectionName,
   },
-  creator_concepts: {
-    render: (item) => <CountCell count={item.creatorCount} noun="creator" />,
-    sortValue: (item) => item.creatorCount,
+  // GRATSI-MATCH 2026-10-04: the base's `UGC Management` link is this junction, so the cell reads
+  // as Airtable does — the linked creators' NAMES, through the one shared linked-records cell.
+  creator_concepts: linkedRecordsRenderer((item: ConceptItem) => item.creators),
+  // The two reverse links the base shows (diff annotation 6), read-only: the campaigns that link
+  // this concept and the briefs whose `concept_id` is this concept. Generated names in mono.
+  campaign_concepts: linkedRecordsRenderer((item: ConceptItem) => item.campaigns, { mono: true }),
+  creative_briefs: linkedRecordsRenderer((item: ConceptItem) => item.creativeDesigns, {
+    mono: true,
+  }),
+  // Airtable's `Performance` lookup, VIRTUAL — the server computed the finished string with
+  // `conceptPerformance` over the briefs' performances; nothing stores it.
+  performance: {
+    render: (item) => <TextCell value={item.performance} />,
+    sortValue: (item) => item.performance,
   },
   ad_inspo_links: {
     render: (item) => <CountCell count={item.adInspoCount} noun="link" />,

@@ -1052,3 +1052,33 @@ Pinned in `gratsi-links-columns.test.ts` (the 42-field list minus exactly these 
 `Due Date` last) and the Creative Design describes of `column-seed.test.ts`; `verify-rollout`
 expects gratsi 39. The grid data costs no new query shape: the copy and concept loaders the page
 now reads are the same demo-aware sources every other page uses, indexed once per request.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Concepts resolves 21 of the base's 23; Production Status defers to AI-34
+
+The strict rule applied to `concepts`. Gratsi resolves TWENTY-ONE columns — the base's 23 minus
+the two below — in the base's own order. Display only; parent set, importer and client gate
+untouched:
+
+- **`Name`** — the base's own primary-field wording, a Gratsi relabel of the platform's
+  `Concept Name` row (the template and every inheriting brand keep the platform's label).
+- **`UGC Management`** — the `creator_concepts` junction, previously a hidden Gratsi row labelled
+  `Creator`, now visible under Airtable's own name at Airtable's own position (20), the same
+  read-only junction display the grid already drew.
+- **`Campaigns & Offers`** (keyed `campaign_concepts`) and **`(Internal) Creative Design`**
+  (keyed `creative_briefs`, the `concept_id` FK read backwards) — reverse links as read-only
+  name columns (diff annotation 6).
+- **`Performance` is a VIRTUAL lookup** — `conceptPerformance` over the concept's briefs'
+  performances. The earlier audits called Concepts.Performance unmapped and `import-mappings.ts`
+  documents a PHANTOM `concepts.performance` column (no such Postgres column exists; the engine
+  writes performance only on briefs). The 2026-10-04 live meta shows the field alive, type
+  lookup, so it displays through the brief link and stores nothing.
+
+**Two fields stay out, by name:**
+
+| field | why |
+|---|---|
+| `Production Status` | RULING CONFLICT. AI-34 ("take it out", 2026-09-28) hid it everywhere with its 73 live values kept; the strict rule would resurface it for Gratsi. The standing ruling WINS pending a ruling that names the winner — not resurfaced. |
+| `UGC Management copy` | Residual single-line text left by a converted link (rule 5); the live link resolves through `creator_concepts`. |
+
+Pinned in `gratsi-links-columns.test.ts` (the 23-field list minus exactly these two);
+`verify-rollout` expects gratsi 21.

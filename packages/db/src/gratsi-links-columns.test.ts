@@ -200,3 +200,69 @@ describe('GRATSI-MATCH · creative_briefs', () => {
     expect(lookup?.formula).toBe('briefConceptsFromAngles');
   });
 });
+
+describe('GRATSI-MATCH · concepts', () => {
+  /** The Gratsi `Concepts` table (`tbl4UFSFcynlS2Pkn`), all 23 fields in live field order. */
+  const AIRTABLE_CONCEPTS: readonly string[] = [
+    'Name',
+    'Batch',
+    'Theme',
+    'Angle',
+    'Category',
+    'Style',
+    'Production Status',
+    'Type',
+    'Performance',
+    'Product',
+    'Personas',
+    'Status',
+    'Decription',
+    'Script',
+    'Collection',
+    'Pain Points',
+    'USP',
+    'Hooks',
+    "Client's Comments",
+    'UGC Management',
+    'Campaigns & Offers',
+    '(Internal) Creative Design',
+    'UGC Management copy',
+  ];
+
+  /*
+   * Deliberately excluded, each by name:
+   *  - `Production Status` — RULING CONFLICT. Talal's 2026-09-28 "take it out" (AI-34) hid the
+   *    column everywhere, 73 live values kept; the strict Gratsi-matches-Airtable rule would
+   *    resurface it. The standing ruling wins pending a new one (docs/decisions.md, GRATSI-MATCH
+   *    entry) — NOT resurfaced here.
+   *  - `UGC Management copy` — residual single-line text left by a converted link (rule 5); the
+   *    live `UGC Management` link resolves through `creator_concepts`.
+   */
+  const EXCLUDED = new Set(['Production Status', 'UGC Management copy']);
+
+  it('resolves exactly the Airtable list minus the named exclusions, in Airtable order', async () => {
+    const resolved = await gratsiColumns('concepts');
+    expect(resolved.map((column) => column.displayLabel)).toEqual(
+      expectedLabels(AIRTABLE_CONCEPTS, EXCLUDED),
+    );
+  });
+
+  it('keys the links and the lookup to what really backs them, display-only', async () => {
+    const resolved = await gratsiColumns('concepts');
+    const byLabel = new Map(resolved.map((column) => [column.displayLabel, column]));
+
+    // The base's `UGC Management` IS the creator_concepts junction, relabelled back to visible.
+    expect(byLabel.get('UGC Management')?.columnKey).toBe('creator_concepts');
+    // Reverse links (diff annotation 6): campaign_concepts and creative_briefs.concept_id.
+    expect(byLabel.get('Campaigns & Offers')?.columnKey).toBe('campaign_concepts');
+    expect(byLabel.get('(Internal) Creative Design')?.columnKey).toBe('creative_briefs');
+    // Performance is the VIRTUAL lookup through the briefs — concepts stores no such column.
+    const performance = byLabel.get('Performance');
+    expect(performance?.columnKey).toBe('performance');
+    expect(performance?.formula).toBe('conceptPerformance');
+    // The primary field reads under the base's own word, still the platform's own column.
+    const name = byLabel.get('Name');
+    expect(name?.columnKey).toBe('name');
+    expect(name?.source).toBe('platform');
+  });
+});

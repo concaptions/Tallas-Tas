@@ -596,13 +596,12 @@ describe('platform columns on concepts', () => {
       expect(column, `Gratsi lost the platform column ${key}`).toBeDefined();
       expect(column?.source, `${key} stopped being the platform's on Gratsi`).toBe('platform');
     }
-    // The one Gratsi holds no visible row for arrives by inheritance, from the template.
-    for (const inherited of ['name']) {
-      expect(
-        resolved.find((column) => column.columnKey === inherited)?.inheritedFrom,
-        `${inherited} should be read from the template, not from a Gratsi row`,
-      ).not.toBeNull();
-    }
+    // GRATSI-MATCH 2026-10-04: `name` now reads from Gratsi's OWN relabel row — the base's primary
+    // field is `Name`, not the template's `Concept Name` — and stays the platform's through it.
+    const name = resolved.find((column) => column.columnKey === 'name');
+    expect(name?.displayLabel).toBe('Name');
+    expect(name?.inheritedFrom).toBeNull();
+    expect(name?.source).toBe('platform');
     // The eight Gratsi DOES hold rows for keep Gratsi's own wording, from its own rows.
     const decription = resolved.find((column) => column.columnKey === 'description');
     expect(decription?.displayLabel).toBe('Decription');

@@ -26,7 +26,9 @@ const EXPECTED: readonly {
   // AI-34: production_status is HIDDEN by the resolver on both bases (never dropped — 73 live values).
   // AI-33 (Talal, 2026-10-04) + the client_status follow-up: both platform tracks are
   // Gratsi-hidden — Gratsi's base has Status only. The client gate reads the DB column.
-  { tableKey: 'concepts', inheriting: 21, gratsi: 17, virtual: 0 },
+  // GRATSI-MATCH 2026-10-04 (links cluster): plus UGC Management (creator_concepts un-hidden),
+  // Campaigns & Offers, (Internal) Creative Design and the virtual Performance lookup — Gratsi 21.
+  { tableKey: 'concepts', inheriting: 21, gratsi: 21, virtual: 0 },
   // AI-41: Gratsi's dead second Concepts link (concept_ids) is retired; 'Concept to film' remains.
   { tableKey: 'creators', inheriting: 36, gratsi: 33, virtual: 0 },
   { tableKey: 'personas', inheriting: 15, gratsi: 7, virtual: 0 },

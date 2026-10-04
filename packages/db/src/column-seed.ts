@@ -728,6 +728,10 @@ const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
  * decision, not a column one.
  */
 const CONCEPTS_GRATSI = childRows('concepts', [
+  // GRATSI-MATCH 2026-10-04: the base's own primary-field wording. The platform row says
+  // 'Concept Name'; Gratsi's base says `Name` (diff relabel candidate) — a child relabel only,
+  // so the template and every inheriting brand keep the platform's wording.
+  ['name', 'Name', 1, 'relabel-platform', 'generated'],
   ['concept_themes', 'Theme', 3, 'relabel-platform', 'multipleSelects'],
   ['concept_angles', 'Angle', 4, 'relabel', 'multipleRecordLinks'],
   ['concept_style', 'Style', 6, 'relabel', 'singleSelect'],
@@ -742,9 +746,17 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   ['usp', 'USP', 17, 'relabel-platform', 'richText'],
   ['hook_examples', 'Hooks', 18, 'relabel', 'richText'],
   ['client_comments', "Client's Comments", 19, 'relabel-platform', 'multilineText'],
+  // GRATSI-MATCH 2026-10-04: the base's `UGC Management` link IS the `creator_concepts` junction
+  // (parent wording: `Creator`), previously hidden for Gratsi — visible again under Airtable's
+  // own name, at Airtable's own position, read-only junction display as before.
+  ['creator_concepts', 'UGC Management', 20, 'relabel', 'multipleRecordLinks'],
+  // And the two reverse links the base shows that the platform stores on the other side:
+  // `campaign_concepts` (the Campaigns & Offers field that links concepts, importer-written) and
+  // `creative_briefs.concept_id` read backwards (diff annotation 6 — display, no storage).
+  ['campaign_concepts', 'Campaigns & Offers', 21, 'custom', 'multipleRecordLinks'],
+  ['creative_briefs', '(Internal) Creative Design', 22, 'custom', 'multipleRecordLinks'],
   ['formats_to_create', 'Formats to create', 18, 'hidden', 'multipleSelects'],
   ['ad_inspo_links', 'Ad Inspo', 20, 'hidden', 'multilineText'],
-  ['creator_concepts', 'Creator', 21, 'hidden', 'multipleRecordLinks'],
   // Talal ruling 2026-10-04 (AI-33): Gratsi's base has Status, never Internal Status — the
   // platform column stays on the parent and every inheriting brand; only Gratsi hides it.
   ['internal_status', 'Internal Status', 22, 'hidden', 'singleSelect'],
@@ -752,6 +764,27 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   // the client interface and every writer read the DB column, never the displayed set.
   ['client_status', 'Client Status', 23, 'hidden', 'singleSelect'],
 ]);
+
+/**
+ * The one VIRTUAL row of the Gratsi concepts set (GRATSI-MATCH 2026-10-04): Airtable's
+ * `Performance` on Concepts is a LOOKUP of its briefs' Performance through the
+ * `(Internal) Creative Design` link — `concepts` has NO performance column and the importer
+ * writes performance only on briefs (`import-mappings.ts` documents a phantom
+ * `concepts.performance`; the live meta says `multipleLookupValues`). Computed on read by
+ * `conceptPerformance`, never stored, kept out of every writable set by `storedColumns`.
+ */
+const CONCEPTS_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'concepts',
+    columnKey: 'performance',
+    displayLabel: 'Performance',
+    displayOrder: 9,
+    fieldType: 'multipleLookupValues',
+    source: 'custom',
+    isDetached: true,
+    formula: 'conceptPerformance',
+  },
+];
 
 /** `Angles` `tbl4UFSFcynlS2Pkn` — 11 fields; 3 reverse links and 1 two-hop lookup skipped. */
 const ANGLES_PARENT = parentRows('angles', [
@@ -1549,6 +1582,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CREATIVE_BRIEFS_GRATSI,
       ...CREATIVE_BRIEFS_GRATSI_VIRTUAL,
       ...CONCEPTS_GRATSI,
+      ...CONCEPTS_GRATSI_VIRTUAL,
       ...ANGLES_GRATSI,
       ...CREATIVE_MODULES_GRATSI,
       ...CREATIVE_SHEET_ITEMS_GRATSI,
