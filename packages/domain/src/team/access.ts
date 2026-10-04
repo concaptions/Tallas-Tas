@@ -135,3 +135,230 @@ export const DEMO_PROPAGATION_ACCESS_NOTE =
 export const PROPAGATION_NOT_ADMIN_NOTE =
   'Only an agency Admin can review promotion requests. Ask your Admin to approve or reject this ' +
   'change.';
+
+/* ------------------------------------------------------------------------------------------------
+ * WHICH SECTIONS A ROLE MAY OPEN (AI-57 / AI-65, PRD §11 with §9, §12 and §13)
+ * ---------------------------------------------------------------------------------------------- */
+
+/**
+ * The role a viewer holds for the brand they are looking at: an agency `admin`, or one of the six
+ * per-brand roles. Structurally identical to `@tas/db`'s `DashboardRole`, declared here because
+ * this package may not import the database layer and because the rule below is the reason the type
+ * exists at all — the Overview's cards and the sidebar's sections are two readings of one answer.
+ *
+ * `null` is "we could not resolve one". It is a real case: a signed-in person with no
+ * `brand_assignments` row on the active brand. It is treated as the narrowest role there is, not
+ * the widest — see `canSeeNavSection`.
+ */
+export type ViewerRole = AgencyRole | BrandRole;
+
+/**
+ * Every section of the product, keyed the way `apps/web/src/components/shell/nav.ts` keys them.
+ *
+ * Listed here, in `packages/domain`, and not derived from the nav module, because the direction of
+ * the dependency decides who owns the rule: the sidebar asks the domain what a role may see, the
+ * domain never asks a React component. A section added to the nav without a line here fails the
+ * nav test that cross-checks the two lists (`nav.test.ts`), which is the reminder to make the
+ * access decision rather than inherit one.
+ */
+export const NAV_SECTION_KEYS = [
+  'overview',
+  'products',
+  'collections',
+  'personas',
+  'angles',
+  'themes',
+  'concepts',
+  'creative-modules',
+  'ai-characters',
+  'competitive-research',
+  'briefs',
+  'creative-sheet',
+  'ugc',
+  'client-assets',
+  'assets',
+  'upload-links',
+  'copywriting',
+  'youtube-copywriting',
+  'campaigns',
+  'email-campaigns',
+  'email-flows',
+  'sm-campaign-feed',
+  'performance',
+  'creative-reporting',
+  'ad-spy',
+  'creator-ranking',
+  'copy-types',
+  'creative-dimensions',
+  'internal-queue',
+  'client-queue',
+  'team',
+  'interface-config',
+  'notifications',
+  'propagation',
+  'column-admin',
+  'onboarding-forms',
+  'onboard',
+  'design-system',
+] as const;
+
+export type NavSectionKey = (typeof NAV_SECTION_KEYS)[number];
+
+/**
+ * The sections an agency Admin keeps to themselves. PRD §11 row 1 gives the Admin "Everything, all
+ * brands"; these five are the ones where "everything" is the whole POINT of the page, so nobody
+ * else belongs on them:
+ *
+ * - `propagation` and `column-admin` — CLAUDE.md non-negotiable 2: a child's change can only
+ *   *request* promotion, and approving one writes the parent template that every brand inherits.
+ * - `interface-config` — PRD §10's per-brand page and field switches, which decide what a client
+ *   sees.
+ * - `onboard` / `onboarding-forms` — PRD §3 brand onboarding, which is where the team assignment
+ *   that routes every notification (§12) is set.
+ *
+ * `propagation`, `column-admin` and `interface-config` ALREADY refuse a non-admin at the route:
+ * all three pages call `canSeePropagationPage` before they render a row. Listing them here is what
+ * stops the sidebar offering a link to a page that is going to say no — the nav and the route now
+ * give the same answer instead of disagreeing.
+ */
+const ADMIN_ONLY_SECTIONS: readonly NavSectionKey[] = [
+  'propagation',
+  'column-admin',
+  'interface-config',
+  'onboarding-forms',
+  'onboard',
+];
+
+/**
+ * What a Video Editor or a Designer sees. PRD §11 scopes them to "only the brands assigned to
+ * them" and says nothing about modules, so the module list is read off the two sections that
+ * describe their actual job:
+ *
+ * - §9's internal track is theirs from "Sent to Designer / Sent to Video Editor" to "Ad Submitted",
+ *   and §12's first trigger is "Brief assigned to an editor/designer → DM the assignee". That is
+ *   `briefs` (Creative Design) and `creative-sheet`, which §5.10 names as the same artefact
+ *   ("Creative Briefs (which is called in our Airtable: Creative Sheet)").
+ * - §8 is the delivery standard they deliver against — variations and dimension sets — so
+ *   `creative-dimensions` is the lookup they produce from, and `assets` / `client-assets` are the
+ *   material they produce with. `upload-links` is how a finished file comes back in.
+ * - §13 wants a dashboard "per team member, as of what their assigned, and pending tasks", so
+ *   `overview` stays.
+ * - `notifications` stays because CLAUDE.md non-negotiable 7 makes email a PER-USER toggle: the
+ *   person who gets the DMs is the only one who can set their own preference.
+ *
+ * Everything else is somebody else's desk: strategy (§5.4-5.7), copy (§5.11), campaigns, reporting
+ * (§13's media-buyer formula), the approval queues (§9's reviewer half) and the settings pages.
+ */
+const EDITOR_SECTIONS: readonly NavSectionKey[] = [
+  'overview',
+  'briefs',
+  'creative-sheet',
+  'client-assets',
+  'assets',
+  'upload-links',
+  'creative-dimensions',
+  'notifications',
+];
+
+/**
+ * Who may open a section.
+ *
+ * ONE TABLE, SIX ROLES, DENY BY DEFAULT. A role missing from this record cannot compile (it is
+ * keyed `Record<ViewerRole, ...>` over both tuples), and an unresolved role is not in it at all, so
+ * it falls through to nothing — see `canSeeNavSection`.
+ *
+ * - `admin` — every section. PRD §11: "Everything, all brands".
+ * - `csm`, `strategist`, `media_buyer` — every section except the Admin's five. §11 scopes these
+ *   three by BRAND, not by module: a CSM "works across the whole client base", a strategist and a
+ *   media buyer see "the brands assigned to them". Narrowing their modules would be a product
+ *   decision the PRD does not make, so this keeps the breadth they have today and nothing more.
+ * - `video_editor`, `designer` — `EDITOR_SECTIONS`. §11 pairs the two roles on one row
+ *   ("Video Editor / Designer"), so they get one list.
+ * - `client` — NOTHING. §11: "Their own brand's interface only", and CLAUDE.md non-negotiable 10:
+ *   clients see zero internal data. The client's product is `/client/<brand>`, a different route
+ *   tree with its own layout; no part of `/app` is theirs, which is why this entry is empty rather
+ *   than short.
+ * - `member` — NOTHING. It is the Clerk organisation default for anybody in the TAS org who is not
+ *   an admin, which is to say "we know you are staff, we do not yet know your job". The PRD has no
+ *   such product role: §11 decides by the brand assignment. Somebody whose assignment has not been
+ *   made yet gets the empty list and an Admin fixes it on the Team page — the one direction of
+ *   error that cannot leak a brand's data.
+ */
+const SECTIONS_BY_ROLE: Readonly<Record<ViewerRole, readonly NavSectionKey[]>> = {
+  admin: NAV_SECTION_KEYS,
+  member: [],
+  csm: NAV_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
+  strategist: NAV_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
+  media_buyer: NAV_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
+  video_editor: EDITOR_SECTIONS,
+  designer: EDITOR_SECTIONS,
+  client: [],
+};
+
+/**
+ * Whether `role` may open the section `key` names.
+ *
+ * DENY BY DEFAULT, in both arguments. An unresolved role (`null`/`undefined`, the signed-in person
+ * with no assignment on this brand) gets nothing, and a section key that is not in
+ * `NAV_SECTION_KEYS` gets nothing either — so a page that guards itself with a misspelled key
+ * closes rather than opens. This is the opposite of `loadActiveRole`'s `?? 'admin'` fallback, which
+ * is a DISPLAY default for the Overview's tiles; a fallback that widens access is not a guard.
+ */
+export function canSeeNavSection(
+  role: ViewerRole | null | undefined,
+  key: string,
+): key is NavSectionKey {
+  // Widened to `string[]` on purpose: `key` arrives as a plain string from a route guard, and the
+  // point of the predicate is to decide whether it is one of the keys, not to assume it already is.
+  return (navSectionsForRole(role) as readonly string[]).includes(key);
+}
+
+/**
+ * Every section `role` may open, in `NAV_SECTION_KEYS` order. Empty for a client, for a member with
+ * no assignment, and for an unresolved role. The single implementation both this and
+ * `canSeeNavSection` read, so the sidebar's list and a route's answer can never drift apart.
+ */
+export function navSectionsForRole(role: ViewerRole | null | undefined): readonly NavSectionKey[] {
+  if (role === undefined || role === null) {
+    return [];
+  }
+  return SECTIONS_BY_ROLE[role];
+}
+
+/**
+ * Whether `role` belongs in the internal workspace at all (AI-65).
+ *
+ * `/app` is the TAS team's product; `/client/<brand>` is the client's. PRD §11 gives a `client`
+ * "their own brand's interface only" and CLAUDE.md non-negotiable 10 says clients see zero internal
+ * data — not a narrower `/app`, none of it. The same answer covers a `member` whose brand
+ * assignment has not been made yet, and anyone the role resolver could not place.
+ *
+ * Derived from the table rather than written as `role !== 'client'`, so it cannot disagree with it:
+ * a role with no sections has nowhere to land, and the shell refuses once instead of every section
+ * refusing separately.
+ */
+export function canSeeInternalWorkspace(role: ViewerRole | null | undefined): boolean {
+  return navSectionsForRole(role).length > 0;
+}
+
+/**
+ * What a refused page says: the rule, and who to ask, in the shape the two existing refusals
+ * (`PROPAGATION_NOT_ADMIN_NOTE`, `TEAM_ACCESS_NOTE`) already use. It never names the sections the
+ * reader cannot see — a refusal that lists the product is a leak with good manners.
+ */
+export const SECTION_NOT_PERMITTED_TITLE = 'This section is not part of your role.';
+
+export const SECTION_NOT_PERMITTED_NOTE =
+  'Your role does not include this section. Ask your Client Success Manager or an Admin if you ' +
+  'need access to it.';
+
+/**
+ * What the shell says to somebody who has no business under `/app` at all. It points at the client
+ * product by name rather than listing what is here, because naming the modules to a client is the
+ * leak non-negotiable 10 forbids.
+ */
+export const NO_WORKSPACE_TITLE = 'This workspace is for the TAS team.';
+
+export const NO_WORKSPACE_NOTE =
+  'Your account does not have access to the internal workspace. If you are a client, your brand ' +
+  'interface is the place to review and approve work; ask your Client Success Manager for the link.';

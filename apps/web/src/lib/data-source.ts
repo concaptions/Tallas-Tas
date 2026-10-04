@@ -523,6 +523,25 @@ export async function loadOverview(deps: DataSourceDeps = {}): Promise<Overview>
  * `admin`, so no one gets a blank Overview.
  */
 export async function loadActiveRole(deps: DataSourceDeps = {}): Promise<DashboardRole> {
+  return (await loadViewerRole(deps)) ?? 'admin';
+}
+
+/**
+ * The same answer as `loadActiveRole`, WITHOUT the widening fallback (AI-57).
+ *
+ * ONE QUERY, TWO READINGS. `loadActiveRole` above exists to pick which tiles the Overview draws, so
+ * "we could not tell" becoming `admin` there is a display default: the worst outcome is a tile too
+ * many. The sidebar filter and the per-section route guards ask the same question for a different
+ * purpose, and for them `?? 'admin'` would hand the whole product to anybody the resolver failed on
+ * — a fallback that widens access is not a guard. So the resolution lives here once and returns
+ * `null` honestly; `loadActiveRole` is the one caller that chooses to widen it, in one visible place.
+ *
+ * FIXTURE/DEMO MODE IS `admin`, not null: there is no identity provider to ask, every mutation is
+ * refused and the data is in-repo fixtures, so narrowing the shell would hide the product without
+ * protecting anything. The guards say the same thing their Team and Propagation siblings already do
+ * — the check runs against a stand-in actor rather than being skipped.
+ */
+export async function loadViewerRole(deps: DataSourceDeps = {}): Promise<DashboardRole | null> {
   if (inFixtureMode(deps)) {
     return 'admin';
   }
@@ -532,9 +551,9 @@ export async function loadActiveRole(deps: DataSourceDeps = {}): Promise<Dashboa
       (deps.actorScope ?? clerkActorScope)(),
     ]);
     if (brandId === null || scope.clerkUserId === null) {
-      return 'admin';
+      return null;
     }
-    return (await getActiveBrandRole(db, brandId, scope.clerkUserId)) ?? 'admin';
+    return await getActiveBrandRole(db, brandId, scope.clerkUserId);
   });
 }
 

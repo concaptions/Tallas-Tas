@@ -40,6 +40,8 @@ import {
 
 import { columnAdminPath } from '@/app/app/column-admin/fields';
 
+import { canSeeNavSection, type ViewerRole } from '@tas/domain';
+
 import type { IconName } from './icons';
 
 /**
@@ -311,8 +313,29 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
 ];
 
-/** Every section, flattened, in sidebar order. */
+/** Every section, flattened, in sidebar order. The whole catalogue, before any role filter. */
 export const NAV_SECTIONS: readonly NavSection[] = NAV_GROUPS.flatMap((group) => group.sections);
+
+/**
+ * `NAV_GROUPS` narrowed to what one role may open (AI-57).
+ *
+ * `NAV_GROUPS` above stays the full catalogue — it is the product's section list and the thing the
+ * nav test asserts — and the filter is a separate, pure read of it. The decision itself is NOT
+ * here: `canSeeNavSection` lives in `@tas/domain`, so the sidebar, the route guards and the Overview
+ * all answer from one table rather than three agreeing lists (CLAUDE.md: components never contain
+ * business logic).
+ *
+ * A group whose every section is filtered out is dropped, so no role sees an empty heading.
+ *
+ * THIS IS NOT A SECURITY CONTROL. Hiding a link does not close a route. The guard that does is
+ * `sectionGuard` in `./section-guard`, applied per section as a segment layout (AI-65).
+ */
+export function navGroupsForRole(role: ViewerRole | null | undefined): readonly NavGroup[] {
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    sections: group.sections.filter((section) => canSeeNavSection(role, section.key)),
+  })).filter((group) => group.sections.length > 0);
+}
 
 /**
  * The active section is the one whose `href` is the longest prefix of `pathname`, so `/app/personas`
