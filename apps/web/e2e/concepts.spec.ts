@@ -177,7 +177,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
 
     await page.goto(`${conceptsPath}?view=gallery`);
 
-    await page.locator(`[data-slot="concept-card"][data-concept-id="${NOT_YOUR_AGE}"]`).click();
+    await page.locator(`[data-slot="concept-card"][data-gallery-id="${NOT_YOUR_AGE}"]`).click();
 
     // A real route segment, not a panel: the URL is the detail path and the list is gone.
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
