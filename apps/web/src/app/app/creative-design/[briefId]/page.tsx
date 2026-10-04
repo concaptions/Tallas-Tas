@@ -13,10 +13,11 @@ import { loadCreativeModules } from '@/lib/creative-modules-source';
 import { loadCreativeReports } from '@/lib/creative-reporting-source';
 import { loadCreativeSheetItems } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadPersonas } from '@/lib/personas-source';
 import { loadProducts } from '@/lib/products-source';
 import { conceptPath } from '@/lib/routes';
 
-import { briefLinkedRecords, dueDateInputValue } from '../fields';
+import { briefLinkedRecords, briefPersonaName, dueDateInputValue } from '../fields';
 import { BriefDetail, type BriefConceptCard, type BriefValues } from './brief-detail';
 
 /**
@@ -51,6 +52,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
     modules,
     folders,
     reports,
+    personaRows,
   ] = await Promise.all([
     loadBriefById(briefId),
     loadConcepts(),
@@ -68,6 +70,8 @@ export default async function BriefPage({ params }: BriefPageProps) {
     loadCreativeModules(),
     loadClientAssetFolders(),
     loadCreativeReports(),
+    // The persona names behind the angle's `angle_personas` links (AI-54, PRD §5.10).
+    loadPersonas(),
   ]);
   if (brief === null) {
     notFound();
@@ -97,6 +101,23 @@ export default async function BriefPage({ params }: BriefPageProps) {
     brief.productId === null
       ? null
       : (productRows.rows.find((row) => row.id === brief.productId)?.name ?? null);
+
+  /*
+   * The PERSONA the brief inherits (AI-54). A brief has no persona column and neither has a concept:
+   * the persona hangs off the ANGLE. So this follows the SAME angle the facts list names one row
+   * above it — the brief's own `angle_id` first, then, for a brief that carries none, the angle the
+   * concept resolved, which `withInherited` hands over as a name and not an id, so the name is the
+   * only handle there is. The join itself is the domain's `inheritedFromAngle`, reached through
+   * `briefPersonaName`; nothing here decides what "inherited" means.
+   */
+  const factAngle =
+    angleRows.rows.find((row) => row.id === brief.angleId) ??
+    angleRows.rows.find((row) => brief.angleName !== null && row.name === brief.angleName) ??
+    null;
+  const personaName = briefPersonaName(
+    factAngle,
+    new Map(personaRows.rows.map((row) => [row.id, row.name])),
+  );
 
   // TABLE 7 parity (TASK 8): the linked collection's and asset's names, and the Meta Copywriting
   // rows whose creative_brief_id points here — all resolved on the server, views precomputed.
@@ -184,6 +205,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
       conceptOptions={conceptOptions}
       angleName={angleName}
       productName={productName}
+      personaName={personaName}
       collectionName={collectionName}
       assetName={assetName}
       copyLinks={copyLinks}

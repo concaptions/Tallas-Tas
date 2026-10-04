@@ -42,7 +42,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/briefs needs a session and real data',
   );
 
-  test('lists the seven fixtures in six columns, with the standalone chip in the concept cell', async ({
+  test('lists the seven fixtures under the resolved columns, with the standalone chip in the concept cell', async ({
     page,
   }) => {
     await page.goto(`${briefsPath}?view=grid`);
@@ -50,16 +50,43 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Design');
     await expect(page.locator('[data-slot="brief-count"]')).toHaveText(briefsLabel(BRIEF_COUNT));
 
-    await expect(page.locator('[data-slot="briefs-table"] thead th')).toHaveText([
-      'Name',
-      'Concept',
-      'Type',
-      'Priority',
-      'Assignee',
-      'Internal Status',
-    ]);
+    // AI-64a: the headers are `column_definitions` rows now, not a six-string tuple in the page, so
+    // a column is addressed by its KEY and its label is whatever the resolver returned. The
+    // thirty-one are the parent master set — thirty Airtable fields plus the platform's Due Date.
+    const headers = page.locator('[data-slot="briefs-table"] thead th');
+    await expect(headers).toHaveCount(31);
+    for (const key of [
+      'name',
+      'concept_id',
+      'type',
+      'priority',
+      'assignee',
+      'internal_status',
+      'due_date',
+    ]) {
+      await expect(
+        page.locator(`[data-slot="briefs-table"] thead th[data-column="${key}"]`),
+      ).toHaveCount(1);
+    }
+    // The label comes from the seed row, which is the point of the migration (AI-49).
+    await expect(
+      page.locator('[data-slot="briefs-table"] thead th[data-column="due_date"]'),
+    ).toHaveText('Due Date');
 
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
+
+    // AI-48. The pipeline sits above the view switcher: four buckets — the editor board's three
+    // stages plus the briefs that have left it — and they add up to the list underneath.
+    const buckets = page.locator('[data-slot="brief-pipeline-stage"]');
+    await expect(buckets).toHaveCount(4);
+    await expect(buckets.locator('[data-slot="status-chip"]')).toHaveText([
+      'Incoming',
+      'Under Editing',
+      'Under Review',
+      'Off the board',
+    ]);
+    const counts = await page.locator('[data-slot="brief-pipeline-count"]').allInnerTexts();
+    expect(counts.reduce((sum, text) => sum + Number(text), 0)).toBe(BRIEF_COUNT);
 
     // The generated name is monospace, because it is system output and not a typed field.
     const name = page.locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="brief-row-name"]`);
@@ -73,12 +100,25 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(standalone).toHaveText('Standalone');
     await expect(standalone).toHaveAttribute('data-tone', 'mute');
 
-    // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill.
-    const approved = page
-      .locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="status-chip"]`)
-      .last();
+    // AI-52. The name is a real anchor, so the row can be cmd-clicked, middle-clicked or copied —
+    // which a `router.push` cannot be. The href is the detail route itself, not a fragment.
+    await expect(name).toHaveAttribute('href', briefPath(BODY_CLOCK));
+
+    // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill. Read
+    // out of the internal-status COLUMN rather than as the row's last chip, so a reordered or
+    // relabelled column set cannot quietly move this assertion onto a different field.
+    const approved = page.locator(
+      `[data-brief-id="${BODY_CLOCK}"] td[data-column="internal_status"] [data-slot="status-chip"]`,
+    );
     await expect(approved).toHaveText('Approved');
     await expect(approved).toHaveAttribute('data-tone', 'ok');
+
+    // AI-49: the row carries the editor stage it sits at. This fixture is Approved, which is OFF
+    // the editor board, so it carries no stage at all rather than a made-up one.
+    await expect(page.locator(`[data-brief-id="${BODY_CLOCK}"]`)).not.toHaveAttribute(
+      'data-stage',
+      /.+/,
+    );
 
     // "New brief" is a write: disabled, and it explains itself.
     const newBrief = page.locator('[data-slot="new-brief"]');
@@ -150,7 +190,11 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     // cost the config header describes, where the URL does change, just later than the 15s default
     // expect budget. Only this assertion waits longer; nothing about it is relaxed.
     await card.click();
-    await page.locator('[data-slot="brief-panel-open-full"]').click();
+    // AI-52. The footer control is a link, not a button that pushes, so it can be opened in a new
+    // tab. The click below still navigates in this one.
+    const openFull = page.locator('[data-slot="brief-panel-open-full"]');
+    await expect(openFull).toHaveAttribute('href', briefPath(BODY_CLOCK));
+    await openFull.click();
     await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`), { timeout: 45_000 });
   });
 

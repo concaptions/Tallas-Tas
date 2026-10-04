@@ -12,16 +12,22 @@ import {
   type CreativeDimensionEntry,
 } from '@tas/domain/creatives';
 import type { InspoLinkKind } from '@tas/domain/angles';
+import { inheritedFromAngle } from '@tas/domain/concepts';
 import {
   CLIENT_STATUS,
   chipTone,
+  editorStageLabel,
+  editorStageOf,
+  editorStageTone,
   internalStatusFor,
   internalTransitionsFor,
   type ChipTone,
   type CreativeTrack,
+  type EditorStageKey,
   type InternalStatusKey,
 } from '@tas/domain/state';
 import type {
+  BriefListRow,
   ClientAssetFolderListRow,
   CreativeModuleListRow,
   CreativeReportListRow,
@@ -90,15 +96,76 @@ export const STANDALONE_NOTE =
 /** The URL parameter the search lives in, the same `?q=` every other list page uses. */
 export const SEARCH_PARAM = 'q';
 
-/** The list's six columns, in the one order the ticket fixes. */
-export const BRIEF_COLUMNS = [
-  'Name',
-  'Concept',
-  'Type',
-  'Priority',
-  'Assignee',
-  'Internal Status',
-] as const;
+/*
+ * The grid's columns are NOT a list in this file any more (AI-64a). `BRIEF_COLUMNS` was a six-string
+ * tuple here, which made the label, the order and which fields exist at all code facts — no relabel,
+ * no hiding, and the fields Gratsi's base carries simply absent. The page reads
+ * `resolveColumns(db, brandId, 'creative_briefs')` through `loadBriefColumns()` and draws each
+ * resolved column through `BRIEF_RENDERERS` in `briefs-workspace.tsx`.
+ */
+
+/** The name of one row linked by a foreign key, or `null` when the link is absent or no longer live. */
+export function linkedName(id: string | null, names: ReadonlyMap<string, string>): string | null {
+  return id === null ? null : (names.get(id) ?? null);
+}
+
+/**
+ * The PERSONA a brief inherits (AI-54, PRD §5.10: "Concept (link) → auto-fills Batch, Angle,
+ * Persona, Product").
+ *
+ * A brief has no persona column, and never should: the persona hangs off the ANGLE, so the chain is
+ * brief → angle → personas, and the one place that chain is resolved is
+ * `inheritedFromAngle` in `@tas/domain/concepts` — the same function the concept detail reads its
+ * five inherited fields from. This is only the adapter: it turns the angle row the facts list is
+ * already naming into that function's structural input and returns the `personaName` entry.
+ *
+ * EVERY persona of the angle, comma-joined, not the first of several — `angle_personas` is a
+ * junction, and `inheritedFromAngle` already joins the list when it is given one. That matters here
+ * because the fact sits beside Angle and Product, which carry the opposite, honestly-documented
+ * caveat (the concept's FIRST angle and that angle's FIRST product).
+ */
+export interface BriefPersonaAngle {
+  readonly personaIds: readonly string[];
+  /** The angle's first persona, already resolved — the fallback when no id maps to a name. */
+  readonly personaName: string | null;
+}
+
+export function briefPersonaName(
+  angle: BriefPersonaAngle | null,
+  personaNames: ReadonlyMap<string, string>,
+): string | null {
+  if (angle === null) {
+    return null;
+  }
+  const [persona] = inheritedFromAngle({
+    description: null,
+    painPoints: null,
+    usp: null,
+    personaName: angle.personaName,
+    productName: null,
+    personaNames: angle.personaIds
+      .map((id) => personaNames.get(id) ?? '')
+      .filter((name) => name !== ''),
+  }).filter((field) => field.key === 'personaName');
+  return persona?.value ?? null;
+}
+
+/**
+ * The editor-board stage this brief sits at, with its label and tone — `null` once it has left the
+ * board. The stage is a VIEW of `internal_status` and never a second column, so `EDITOR_STAGES` in
+ * `@tas/domain/state` owns the three words and their tones and the Kanban stripe, the detail chip
+ * and the grid's primary cell all read them from here rather than each choosing a colour.
+ */
+export interface BriefStageView {
+  readonly key: EditorStageKey;
+  readonly label: string;
+  readonly tone: ChipTone;
+}
+
+export function briefStageView(internalStatus: string): BriefStageView | null {
+  const key = editorStageOf(internalStatus);
+  return key === null ? null : { key, label: editorStageLabel(key), tone: editorStageTone(key) };
+}
 
 /** One status, ready to render: the stored key, its label and the chip tone it carries. */
 export interface BriefStatusView {
@@ -269,6 +336,24 @@ export interface BriefItem {
   readonly status: BriefStatusView;
   /** The client-facing track, for the board sidebar's quick read (P2B-3). */
   readonly clientStatus: BriefClientStatusView;
+  /** The Performance grade as its chip, or null for a brief that has not run. */
+  readonly performance: BriefPerformanceView | null;
+  /** The editor-board stage, which colours the grid's primary cell; null once off the board. */
+  readonly stage: BriefStageView | null;
+  /**
+   * The stored row itself, so a resolved column can be DRAWN rather than dropped. Most of the
+   * thirty-six columns `creative_briefs` resolves to are plain stored fields with no view to
+   * precompute, and re-listing each one here would be a second copy of the schema for the next
+   * migration to outdate. The same shape Personas and Copy Types take (`{ persona }`,
+   * `{ copyType }`); `@tas/db` is a TYPE-only import here, so no driver reaches the browser.
+   */
+  readonly row: BriefListRow;
+  /** The names behind the brief's own foreign keys, resolved on the server; null when absent. */
+  readonly angleName: string | null;
+  readonly productName: string | null;
+  readonly collectionName: string | null;
+  readonly campaignOfferName: string | null;
+  readonly assetName: string | null;
   /** Funnel and Source as the sidebar shows them; Source is stored display-ready ("TAS"/"Client"). */
   readonly funnelLabel: string;
   readonly sourceLabel: string;
@@ -553,6 +638,7 @@ export const BRIEF_HEADINGS = {
   concept: 'Concept',
   batch: 'Batch',
   angle: 'Angle',
+  persona: 'Persona',
   product: 'Product',
   performance: 'Performance',
   assignee: 'Assignee',

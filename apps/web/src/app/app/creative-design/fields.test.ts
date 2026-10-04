@@ -10,7 +10,6 @@ import { creativeNameForConcept, dimensionsFor } from '@tas/domain/creatives';
 import { describe, expect, it } from 'vitest';
 
 import {
-  BRIEF_COLUMNS,
   BRIEF_HEADINGS,
   BRIEF_LINK_SECTIONS,
   BRIEF_QA_CHECKS,
@@ -24,9 +23,12 @@ import {
   clientStatusView,
   cpaVsTargetLabel,
   filteredBriefCountLabel,
+  briefPersonaName,
+  briefStageView,
   indexBriefLinkCounts,
   internalStatusView,
   linkCountLabel,
+  linkedName,
   matchesQuery,
   nextInternalStatus,
   performanceView,
@@ -63,6 +65,14 @@ const EMPTY_SNAPSHOT = {
   clientStatus: 'pending_for_approval',
 } as const;
 
+/** The first fixture, used as the stored row behind the view fields a test overrides by hand. */
+const [firstFixture] = demoBriefs;
+if (firstFixture === undefined) {
+  throw new Error('the demo brief fixtures are empty');
+}
+/** Bound once, narrowed: the hoisted `item()` below cannot see the guard above. */
+const FIXTURE_ROW = firstFixture;
+
 function item(overrides: Partial<BriefItem> = {}): BriefItem {
   return {
     id: 'brief-1',
@@ -74,6 +84,14 @@ function item(overrides: Partial<BriefItem> = {}): BriefItem {
     assignee: 'Dorian Vance',
     status: internalStatusView('video', 'approved'),
     clientStatus: clientStatusView('pending_for_approval'),
+    performance: null,
+    stage: briefStageView('approved'),
+    row: FIXTURE_ROW,
+    angleName: null,
+    productName: null,
+    collectionName: null,
+    campaignOfferName: null,
+    assetName: null,
     funnelLabel: 'TOF',
     sourceLabel: 'TAS',
     href: '/app/briefs/brief-1',
@@ -99,16 +117,101 @@ const NINETY_MINUTES_CAROUSEL = '77777777-7777-4777-8777-000000000006';
 const BUNDLE_STANDALONE = '77777777-7777-4777-8777-000000000005';
 const BODY_CLOCK_LAUNCHED = '77777777-7777-4777-8777-000000000007';
 
-describe('BRIEF_COLUMNS', () => {
-  it('is the ticket order, exactly', () => {
-    expect([...BRIEF_COLUMNS]).toEqual([
-      'Name',
-      'Concept',
-      'Type',
-      'Priority',
-      'Assignee',
-      'Internal Status',
-    ]);
+/**
+ * The six-string `BRIEF_COLUMNS` tuple this file used to assert exhaustively ("is the ticket order,
+ * exactly") is GONE: the grid's columns are `column_definitions` rows now (AI-64a), so a label, an
+ * order or a hidden column is a data edit and a code assertion about them would be a lie. What is
+ * still code — and so still worth pinning — is the stage view the primary cell colours itself with
+ * and the link-name resolution the server does before the grid sees a row. The "every resolved
+ * column has a renderer" gate lives beside the registry, in `briefs-workspace.test.tsx`.
+ */
+describe('briefStageView', () => {
+  it('reads the label and the tone from EDITOR_STAGES, never from this file', () => {
+    expect(briefStageView('sent_to_video_editor')).toEqual({
+      key: 'incoming',
+      label: 'Incoming',
+      tone: 'info',
+    });
+    expect(briefStageView('static_design_in_progress')).toEqual({
+      key: 'under_editing',
+      label: 'Under Editing',
+      tone: 'warn',
+    });
+    expect(briefStageView('ad_submitted')).toEqual({
+      key: 'under_review',
+      label: 'Under Review',
+      tone: 'accent',
+    });
+  });
+
+  it('puts revisions back under Editing, where the editor holds the work again', () => {
+    expect(briefStageView('videos_revisions')?.key).toBe('under_editing');
+    expect(briefStageView('images_revisions')?.key).toBe('under_editing');
+    expect(briefStageView('revisions_submitted')?.key).toBe('under_review');
+  });
+
+  it('is null once the brief has left the editor board, so the cell shows no stage at all', () => {
+    expect(briefStageView('approved')).toBeNull();
+    expect(briefStageView('launched')).toBeNull();
+    // Not a member of either linear ladder on purpose, so it is off the board too.
+    expect(briefStageView('on_hold')).toBeNull();
+  });
+
+  it('is null for a status this build does not know, rather than guessing a stage', () => {
+    expect(briefStageView('')).toBeNull();
+    expect(briefStageView('sent_to_nobody')).toBeNull();
+  });
+});
+
+describe('briefPersonaName', () => {
+  const names = new Map([
+    ['persona-1', 'Night-shift nurse'],
+    ['persona-2', 'New parent'],
+  ]);
+
+  it('lists EVERY persona of the angle, in the angle’s own order', () => {
+    expect(
+      briefPersonaName(
+        { personaIds: ['persona-1', 'persona-2'], personaName: 'Night-shift nurse' },
+        names,
+      ),
+    ).toBe('Night-shift nurse, New parent');
+  });
+
+  it('is null when there is no angle to follow — the standalone case, never an error', () => {
+    expect(briefPersonaName(null, names)).toBeNull();
+  });
+
+  it('is null for an angle that links no persona, so the fact shows the em dash', () => {
+    expect(briefPersonaName({ personaIds: [], personaName: null }, names)).toBeNull();
+  });
+
+  it('falls back to the resolved first persona when no id maps to a name', () => {
+    expect(
+      briefPersonaName({ personaIds: ['persona-9'], personaName: 'Night-shift nurse' }, names),
+    ).toBe('Night-shift nurse');
+  });
+
+  it('drops a link whose persona is another brand’s or soft-deleted rather than naming a blank', () => {
+    expect(
+      briefPersonaName({ personaIds: ['persona-9', 'persona-2'], personaName: null }, names),
+    ).toBe('New parent');
+  });
+});
+
+describe('linkedName', () => {
+  const names = new Map([['product-1', 'Weighted Blanket']]);
+
+  it('names the linked row', () => {
+    expect(linkedName('product-1', names)).toBe('Weighted Blanket');
+  });
+
+  it('is null for an absent link — the ordinary standalone case, never an error', () => {
+    expect(linkedName(null, names)).toBeNull();
+  });
+
+  it('is null for a link whose row is another brand\u2019s or soft-deleted, so nothing is invented', () => {
+    expect(linkedName('product-9', names)).toBeNull();
   });
 });
 

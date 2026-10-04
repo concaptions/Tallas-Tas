@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import Link from 'next/link';
 import { Button, StatusChip } from '@tas/ui';
 
 import { EM_DASH, STANDALONE_CONCEPT_SLUG, linkCountLabel, type BriefItem } from './fields';
@@ -21,7 +22,6 @@ import { EM_DASH, STANDALONE_CONCEPT_SLUG, linkCountLabel, type BriefItem } from
 interface BriefPanelProps {
   readonly item: BriefItem;
   readonly onClose: () => void;
-  readonly onOpenFull: (item: BriefItem) => void;
 }
 
 /** One label/value row. A value the brief has not set reads as an em dash, never a blank. */
@@ -34,7 +34,7 @@ function Row({ label, children }: { readonly label: string; readonly children: R
   );
 }
 
-export function BriefPanel({ item, onClose, onOpenFull }: BriefPanelProps) {
+export function BriefPanel({ item, onClose }: BriefPanelProps) {
   const panelRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -109,16 +109,17 @@ export function BriefPanel({ item, onClose, onOpenFull }: BriefPanelProps) {
       </div>
 
       <footer className="border-t border-line px-4 py-3">
-        <Button
-          type="button"
-          size="sm"
-          className="w-full"
-          onClick={() => {
-            onOpenFull(item);
-          }}
-          data-slot="brief-panel-open-full"
-        >
-          Open full page
+        {/*
+          A REAL LINK, not a button that calls `router.push` (AI-52). Opening the full page is a
+          navigation, and a programmatic push cannot be cmd-clicked, middle-clicked, opened in a new
+          tab or copied — which is exactly what someone triaging a column wants to do with it.
+          `asChild` hands the one Button primitive's styling to the anchor, so no second button
+          style is introduced and the existing `data-slot` stays on the element that is clicked.
+        */}
+        <Button asChild size="sm" className="w-full">
+          <Link href={item.href} data-slot="brief-panel-open-full">
+            Open full page
+          </Link>
         </Button>
       </footer>
     </aside>

@@ -474,6 +474,21 @@ const CREATIVE_BRIEFS_PARENT = parentRows('creative_briefs', [
 ]);
 
 /**
+ * PLATFORM COLUMNS on `creative_briefs`, for the reason `CONCEPTS_PLATFORM` gives: a resolver-driven
+ * page renders exactly what the resolver returns, so a column this platform owns and no Airtable
+ * base defines DISAPPEARS unless it is seeded.
+ *
+ * `due_date` is the one such column the grid draws, and it is the platform's — neither base has a
+ * Due Date field (both field lists are transcribed above and carry none); it arrived with migration
+ * `0043_brief-due-date.sql`. Seeded on the PARENT so every brand inherits one definition, ordered 40
+ * past the parent's Airtable range (1-35) and Gratsi's highest (36) the way the Concepts and Angles
+ * platform blocks are, so no base's own field order shifts.
+ */
+const CREATIVE_BRIEFS_PLATFORM = platformRows('creative_briefs', [
+  ['due_date', 'Due Date', 40, 'date'],
+]);
+
+/**
  * Gratsi `Creative Design (Internal & Interface)` — 42 fields, the strongest pairing in the base:
  * 25 inherit on an identical name.
  *
@@ -1389,6 +1404,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...PERSONAS_PARENT,
       ...COPYWRITING_PARENT,
       ...CREATIVE_BRIEFS_PARENT,
+      ...CREATIVE_BRIEFS_PLATFORM,
       ...CONCEPTS_PARENT,
       ...CONCEPTS_PLATFORM,
       ...ANGLES_PARENT,

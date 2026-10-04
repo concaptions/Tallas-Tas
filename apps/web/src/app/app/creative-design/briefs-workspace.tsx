@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState, useTransition, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Button,
@@ -9,12 +10,6 @@ import {
   DisabledWrite,
   Input,
   StatusChip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from '@tas/ui';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import {
@@ -31,17 +26,27 @@ import {
 import { creativeTrack } from '@tas/domain/creatives';
 
 import {
+  ColumnNotices,
   ViewSwitcher,
   KanbanBoard,
   GalleryView,
   type KanbanItem,
   type GalleryItem,
 } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import { BoolCell, CountCell, DateCell, LinkCell, TextCell } from '@/components/views/grid-cells';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ColumnRenderer,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import { startBriefAction, updateBriefAction } from './actions';
 import { BriefPanel } from './brief-panel';
+import { BriefPipelineSummary } from './brief-pipeline';
+import { buildBriefPipeline } from './pipeline';
 import {
-  BRIEF_COLUMNS,
   EM_DASH,
   NEW_BRIEF_SOON_HINT,
   NO_BRIEFS_NOTE,
@@ -55,12 +60,200 @@ import {
 } from './fields';
 
 interface BriefsWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from the shared resolver loader. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly BriefItem[];
   readonly demo: boolean;
   readonly initialSearch: string;
   readonly initialView: ViewType;
   readonly initialKanbanField: string | null;
 }
+
+/** How many attachments a jsonb attachment column holds; the cell shows the count, never a URL. */
+function attachmentCount(files: readonly string[] | null): number {
+  return files?.length ?? 0;
+}
+
+/**
+ * The plain stored columns, each as the function that READS it off the row: a column whose cell is
+ * one line of text needs nothing more, so the twenty are declared as reads, not written out twenty
+ * times below.
+ */
+const BRIEF_TEXT_COLUMNS: Readonly<Record<string, (item: BriefItem) => string | null>> = {
+  source: (item) => item.sourceLabel,
+  funnel: (item) => item.funnelLabel,
+  type: (item) => item.typeLabel,
+  angle_id: (item) => item.angleName,
+  product_id: (item) => item.productName,
+  collection_id: (item) => item.collectionName,
+  campaign_offer_id: (item) => item.campaignOfferName,
+  asset_id: (item) => item.assetName,
+  assignee: (item) => item.assignee,
+  batch: (item) => item.row.batch,
+  language: (item) => item.row.language,
+  elements_tested: (item) => item.row.elementsTested,
+  brief_to_design: (item) => item.row.briefToDesign,
+  script_content: (item) => item.row.scriptContent,
+  ad_content: (item) => item.row.adContent,
+  offer: (item) => item.row.offer,
+  spelling_feedback: (item) => item.row.spellingFeedback,
+  spelling_feedback_2: (item) => item.row.spellingFeedback2,
+  platform: (item) => (item.row.platform.length === 0 ? null : item.row.platform.join(', ')),
+  dimensions: (item) => (item.row.dimensions.length === 0 ? null : item.row.dimensions.join(', ')),
+};
+
+/** The three QA ticks plus the spell-check trigger: checkbox columns, drawn as a tick or the dash. */
+const BRIEF_BOOL_COLUMNS: Readonly<Record<string, (item: BriefItem) => boolean>> = {
+  qa_video_editor: (item) => item.row.qaVideoEditor,
+  qa_designer: (item) => item.row.qaDesigner,
+  qa_strategist: (item) => item.row.qaStrategist,
+  click_for_ai_spell_checker: (item) => item.row.clickForAiSpellChecker,
+};
+
+/** The attachment columns, counted. A file list in a grid cell is a count, never thirty URLs. */
+const BRIEF_FILE_COLUMNS: Readonly<
+  Record<string, { readonly read: (item: BriefItem) => number; readonly noun: string }>
+> = {
+  qa_checklist_doc: { read: (item) => attachmentCount(item.row.qaChecklistDoc), noun: 'doc' },
+  design_file: { read: (item) => attachmentCount(item.row.designFile), noun: 'file' },
+  inspiration_image: { read: (item) => attachmentCount(item.row.inspirationImage), noun: 'image' },
+  script_and_brief_breakdown: {
+    read: (item) => attachmentCount(item.row.scriptAndBriefBreakdown),
+    noun: 'file',
+  },
+};
+
+/** One entry of the registry, as a TUPLE, so `Object.fromEntries` keeps the renderer's type. */
+type BriefRendererEntry = readonly [string, ColumnRenderer<BriefItem>];
+
+function textRenderer(read: (item: BriefItem) => string | null): ColumnRenderer<BriefItem> {
+  return {
+    render: (item) => <TextCell value={read(item)} />,
+    sortValue: read,
+    cellTitle: (item) => read(item) ?? undefined,
+  };
+}
+
+/**
+ * THE Creative Design renderer registry, keyed by the resolver's `column_key` — a Postgres column of
+ * `creative_briefs`, or the foreign key that carries a link. It replaces the six-string
+ * `BRIEF_COLUMNS` tuple (AI-64a): no header text and no ordering here, only how a cell is drawn, and
+ * every tone comes from `@tas/domain/state` through `internalStatusView`, `clientStatusView` and
+ * `briefStageView`, so not one colour is chosen in this file.
+ */
+export const BRIEF_RENDERERS: ColumnRegistry<BriefItem> = {
+  ...Object.fromEntries(
+    Object.entries(BRIEF_TEXT_COLUMNS).map(([key, read]): BriefRendererEntry => [
+      key,
+      textRenderer(read),
+    ]),
+  ),
+  ...Object.fromEntries(
+    Object.entries(BRIEF_BOOL_COLUMNS).map(([key, read]): BriefRendererEntry => [
+      key,
+      {
+        render: (item) => <BoolCell value={read(item)} />,
+        sortValue: (item) => (read(item) ? 1 : 0),
+        align: 'center',
+      },
+    ]),
+  ),
+  ...Object.fromEntries(
+    Object.entries(BRIEF_FILE_COLUMNS).map(([key, { read, noun }]): BriefRendererEntry => [
+      key,
+      {
+        render: (item) => <CountCell count={read(item)} noun={noun} />,
+        sortValue: read,
+      },
+    ]),
+  ),
+  // The generated §7 name, in `font-mono` because it is system output, beside the EDITOR STAGE the
+  // brief sits at (AI-49). The stage rides the primary cell rather than the `<tr>`, which the shared
+  // grid owns, and a tone belongs in a `StatusChip`; the row also carries `data-stage`.
+  name: {
+    render: (item) => (
+      <span className="flex items-center gap-2">
+        {/*
+          A REAL ANCHOR (AI-52), so a row can be cmd-clicked, middle-clicked or copied; the row's own
+          click still navigates in the same tab. Both propagations stop here, so one activation is
+          one navigation rather than the anchor and the row's handler both firing.
+        */}
+        <Link
+          href={item.href}
+          data-slot="brief-row-name"
+          className="font-mono text-xs text-text hover:underline"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.stopPropagation();
+          }}
+        >
+          {item.name}
+        </Link>
+        {item.stage === null ? null : (
+          <StatusChip tone={item.stage.tone} label={item.stage.label} />
+        )}
+      </span>
+    ),
+    sortValue: (item) => item.name,
+    cellTitle: (item) => item.name,
+  },
+  concept_id: {
+    render: (item) =>
+      item.conceptName ?? (
+        <span data-slot="brief-standalone">
+          <StatusChip tone="mute" label={STANDALONE_CONCEPT_SLUG} />
+        </span>
+      ),
+    sortValue: (item) => item.conceptName,
+    cellTitle: (item) => item.conceptName ?? STANDALONE_CONCEPT_SLUG,
+    minWidth: 220,
+  },
+  priority: {
+    render: (item) =>
+      item.priority === null ? (
+        <span className="text-text4">{EM_DASH}</span>
+      ) : (
+        <span className="flex items-center gap-1.5">
+          <StatusChip tone={item.priority.tone} label={item.priority.label} />
+          {item.priority.sla === null ? null : (
+            <span className="font-mono text-[11px] text-text3">{item.priority.sla}</span>
+          )}
+        </span>
+      ),
+    sortValue: (item) => item.priority?.label ?? null,
+  },
+  performance: {
+    render: (item) =>
+      item.performance === null ? (
+        <span className="text-text4">{EM_DASH}</span>
+      ) : (
+        <StatusChip tone={item.performance.tone} label={item.performance.label} />
+      ),
+    sortValue: (item) => item.performance?.label ?? null,
+  },
+  internal_status: {
+    render: (item) => <StatusChip tone={item.status.tone} label={item.status.label} />,
+    sortValue: (item) => item.status.label,
+  },
+  client_status: {
+    render: (item) => <StatusChip tone={item.clientStatus.tone} label={item.clientStatus.label} />,
+    sortValue: (item) => item.clientStatus.label,
+  },
+  design_file_url: {
+    render: (item) => <LinkCell value={item.row.designFileUrl} />,
+    sortValue: (item) => item.row.designFileUrl,
+  },
+  // AI-49. `creative_briefs.due_date` (migration 0043) has rendered on the detail page since; this
+  // is the grid's reading of it, through the one shared date cell.
+  due_date: {
+    render: (item) => <DateCell value={item.row.dueDate} />,
+    sortValue: (item) => item.row.dueDate?.toISOString() ?? null,
+  },
+};
 
 function syncUrl(search: string): void {
   const url = new URL(window.location.href);
@@ -72,17 +265,31 @@ function syncUrl(search: string): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
-const BRIEFS_CAP = getTableCapability('briefs') as NonNullable<
+/**
+ * The ROUTE's view key — `briefs`, not the `creative_briefs` that `column_definitions` uses. The
+ * saved view, the switcher and the grid's remembered hidden columns are keyed by the route, the
+ * column configuration by the table; `loadBriefColumns` owns that other string.
+ */
+const TABLE_KEY = 'briefs';
+
+const BRIEFS_CAP = getTableCapability(TABLE_KEY) as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
 
 export function BriefsWorkspace({
+  columns,
+  unconfiguredColumns = false,
   items,
   demo,
   initialSearch,
   initialView,
   initialKanbanField,
 }: BriefsWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () => gridColumnsFrom(columns, BRIEF_RENDERERS, { freezeFirst: true, frozenMinWidth: 260 }),
+    [columns],
+  );
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
   const [activeView, setActiveView] = useState<ViewType>(initialView);
@@ -120,13 +327,6 @@ export function BriefsWorkspace({
     setPanelId(null);
   }, []);
 
-  const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, item: BriefItem) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      open(item);
-    }
-  };
-
   const query = search.trim().toLowerCase();
   const visible = useMemo(
     () => (query === '' ? items : items.filter((item) => matchesQuery(item, query))),
@@ -134,6 +334,10 @@ export function BriefsWorkspace({
   );
 
   const narrowed = visible.length !== items.length;
+
+  // AI-48. Counted from the briefs already on the page, so the summary costs no query and tracks
+  // the search: narrow the list and the four buckets narrow with it.
+  const pipeline = useMemo(() => buildBriefPipeline(visible.map((item) => item.row)), [visible]);
 
   const panelItem = items.find((item) => item.id === panelId) ?? null;
 
@@ -340,6 +544,8 @@ export function BriefsWorkspace({
         </p>
       </header>
 
+      <BriefPipelineSummary pipeline={pipeline} />
+
       <section aria-labelledby="briefs-heading" className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -347,7 +553,7 @@ export function BriefsWorkspace({
               Pipeline
             </h2>
             <ViewSwitcher
-              tableKey="briefs"
+              tableKey={TABLE_KEY}
               supportedViews={[...BRIEFS_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
@@ -430,79 +636,34 @@ export function BriefsWorkspace({
         ) : activeView === 'gallery' ? (
           <GalleryView items={galleryItems} />
         ) : (
-          <div className="overflow-x-auto rounded-card border border-line bg-surface">
-            <Table data-slot="briefs-table">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  {BRIEF_COLUMNS.map((column) => (
-                    <TableHead key={column} className="px-3">
-                      {column}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    data-slot="brief-row"
-                    data-brief-id={item.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={item.name}
-                    onClick={() => {
-                      open(item);
-                    }}
-                    onKeyDown={(event) => {
-                      onRowKey(event, item);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <TableCell
-                      data-slot="brief-row-name"
-                      className="px-3 py-1.5 font-mono text-xs whitespace-normal text-text"
-                    >
-                      {item.name}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-normal text-text2">
-                      {item.conceptName ?? (
-                        <span data-slot="brief-standalone">
-                          <StatusChip tone="mute" label={STANDALONE_CONCEPT_SLUG} />
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text2">{item.typeLabel}</TableCell>
-                    <TableCell className="px-3 py-1.5">
-                      {item.priority === null ? (
-                        <span className="text-text4">{EM_DASH}</span>
-                      ) : (
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <StatusChip tone={item.priority.tone} label={item.priority.label} />
-                          {item.priority.sla === null ? null : (
-                            <span className="font-mono text-[11px] text-text3">
-                              {item.priority.sla}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 whitespace-normal text-text2">
-                      {item.assignee ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5">
-                      <StatusChip tone={item.status.tone} label={item.status.label} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            <ColumnNotices
+              slotPrefix="brief"
+              unconfigured={unconfiguredColumns}
+              missing={grid.missing}
+              registryName="BRIEF_RENDERERS in briefs-workspace.tsx"
+            />
+            <AirtableGrid
+              tableKey={TABLE_KEY}
+              columns={grid.columns}
+              rows={visible}
+              rowId={(item) => item.id}
+              rowLabel={(item) => item.name}
+              rowAttributes={(item) => ({
+                'data-brief-id': item.id,
+                // The editor-board stage, so the row is addressable by the stage it sits at and the
+                // Kanban stripe, the detail chip and this row cannot disagree about which that is.
+                'data-stage': item.stage?.key,
+              })}
+              onRowClick={open}
+              tableSlot="briefs-table"
+              rowSlot="brief-row"
+            />
+          </>
         )}
       </section>
 
-      {panelItem === null ? null : (
-        <BriefPanel item={panelItem} onClose={closePanel} onOpenFull={open} />
-      )}
+      {panelItem === null ? null : <BriefPanel item={panelItem} onClose={closePanel} />}
     </div>
   );
 }

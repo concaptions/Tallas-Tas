@@ -19,6 +19,7 @@ import { serverEnv } from '@tas/env';
 
 import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED } from './demo-mode';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 import { requestConnection } from '@/lib/request-db';
 
 /**
@@ -205,6 +206,24 @@ async function withDb<T>(deps: BriefSourceDeps, query: (db: Db) => Promise<T>): 
   } finally {
     await connection.close();
   }
+}
+
+/**
+ * The `column_definitions.table_key` Creative Design resolves under: the POSTGRES table name, not
+ * the route's `briefs` view key, which keys the saved views instead. Stated once, here.
+ */
+const CREATIVE_BRIEFS_TABLE_KEY = 'creative_briefs';
+
+/**
+ * THE ordered, labelled, visible columns of the working brand, through the ONE loader every
+ * resolver-driven page shares (`lib/resolved-columns-source.ts`).
+ */
+export async function loadBriefColumns(deps: BriefSourceDeps = {}): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(CREATIVE_BRIEFS_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 /**
