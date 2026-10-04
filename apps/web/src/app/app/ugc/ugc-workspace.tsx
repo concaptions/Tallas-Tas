@@ -136,7 +136,7 @@ function trackRenderer(trackKey: 'internal' | 'client' | 'assets') {
  * This replaces the hand-written `CREATOR_COLUMNS` array — the widest on the platform at 33 columns.
  * No header string and no ordering live here: labels, order and visibility arrive as data from
  * `column_definitions`, and this says only how a cell is DRAWN. The frozen name cell keeps its
- * avatar (the profile picture, or initials on `bg-surface3` when there is none — never a broken
+ * avatar (the profile picture, or initials on `bg-surface3` when there is none OR the URL is dead —
  * image), the three status tracks keep their `data-track` hooks, and costs stay `MoneyCell`.
  *
  * Costs and payments are INTERNAL figures (CLAUDE.md non-negotiable 10). This grid is the team
@@ -146,29 +146,46 @@ function trackRenderer(trackKey: 'internal' | 'client' | 'assets') {
  * `profile_pic_url` (it renders inside the name cell), `deadline`, `for_partnership_ads` and
  * `client_note`. They come back in `missing` and are stated on the page.
  */
+/**
+ * The avatar, surviving a dead URL (AI-26). `null` is not the only way to have no picture: 27 of
+ * production's 31 stored profile pictures are airtableusercontent links that answer 410 Gone, so a
+ * failed load flips to the same initials tile a missing URL gets. The grid's "never a broken
+ * image" promise holds for the data that exists, not only for the data that is absent.
+ */
+function CreatorAvatar({ creator }: { readonly creator: CreatorCardRow }) {
+  const [failed, setFailed] = useState(false);
+  if (creator.profilePicUrl === null || failed) {
+    return (
+      <span
+        data-slot="creator-avatar"
+        data-fallback="initials"
+        aria-hidden="true"
+        className="flex size-7 shrink-0 items-center justify-center rounded-card border border-line bg-surface3 font-mono text-[10px] text-text3"
+      >
+        {creatorInitials(creator.name)}
+      </span>
+    );
+  }
+  return (
+    <img
+      data-slot="creator-avatar"
+      src={creator.profilePicUrl}
+      alt=""
+      width={28}
+      height={28}
+      className="size-7 shrink-0 rounded-card border border-line bg-surface3 object-cover"
+      onError={() => {
+        setFailed(true);
+      }}
+    />
+  );
+}
+
 const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
   name: {
     render: (creator) => (
       <span className="flex items-center gap-2">
-        {creator.profilePicUrl === null ? (
-          <span
-            data-slot="creator-avatar"
-            data-fallback="initials"
-            aria-hidden="true"
-            className="flex size-7 shrink-0 items-center justify-center rounded-card border border-line bg-surface3 font-mono text-[10px] text-text3"
-          >
-            {creatorInitials(creator.name)}
-          </span>
-        ) : (
-          <img
-            data-slot="creator-avatar"
-            src={creator.profilePicUrl}
-            alt=""
-            width={28}
-            height={28}
-            className="size-7 shrink-0 rounded-card border border-line bg-surface3 object-cover"
-          />
-        )}
+        <CreatorAvatar creator={creator} />
         <span className="font-medium" data-slot="creator-name">
           {creator.name}
         </span>

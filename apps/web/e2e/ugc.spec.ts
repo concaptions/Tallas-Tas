@@ -159,6 +159,28 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     expect(loaded).toBe(true);
   });
 
+  /**
+   * AI-26: a STORED url that no longer loads gets the same initials tile as no url at all. In
+   * production 27 of 31 profile pictures are airtableusercontent links answering 410 Gone, so
+   * `null` is not the only way to have no picture. The demo fixtures' data-URI avatars cannot be
+   * made to fail by the network, so the test fires the element's own error event — exactly what a
+   * 410 delivers — and the row must flip to initials instead of keeping a broken image.
+   */
+  test('a dead picture URL flips to initials too, never a broken image', async ({ page }) => {
+    await page.goto(ugcPath);
+
+    const row = page.locator('[data-slot="creator-row"]').first();
+    const img = row.locator('img[data-slot="creator-avatar"]');
+    await expect(img).toHaveCount(1);
+
+    await img.evaluate((element) => element.dispatchEvent(new Event('error')));
+
+    const avatar = row.locator('[data-slot="creator-avatar"]');
+    await expect(avatar).toHaveAttribute('data-fallback', 'initials');
+    await expect(row.locator('img[data-slot="creator-avatar"]')).toHaveCount(0);
+    await expect(row.locator('[data-slot="creator-name"]')).not.toBeEmpty();
+  });
+
   test('the Partnership Ads tab writes ?tab=, survives a reload, and counts down', async ({
     page,
   }) => {
