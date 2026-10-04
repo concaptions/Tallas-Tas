@@ -1236,18 +1236,63 @@ describe('the Creative Sheet column set', () => {
 
 describe('the all-platform tables resolve for every brand', () => {
   const EXPECTED = [
-    { tableKey: 'copy_types', inheriting: 4, gratsi: 4, gratsiOwnRows: 2, virtual: 0 },
-    { tableKey: 'creative_reporting', inheriting: 13, gratsi: 13, gratsiOwnRows: 0, virtual: 1 },
-    { tableKey: 'email_campaigns', inheriting: 17, gratsi: 17, gratsiOwnRows: 0, virtual: 2 },
-    { tableKey: 'email_flows', inheriting: 13, gratsi: 13, gratsiOwnRows: 0, virtual: 2 },
-    { tableKey: 'sm_campaign_feed_tasks', inheriting: 6, gratsi: 6, gratsiOwnRows: 0, virtual: 1 },
+    {
+      tableKey: 'copy_types',
+      inheriting: 4,
+      gratsi: 4,
+      gratsiOwnRows: 2,
+      virtual: 0,
+      gratsiCustom: 0,
+    },
+    // GRATSI-MATCH 2026-10-04: Gratsi relabels the first two columns to its own wording and adds
+    // the `Creative Name (from Creative)` lookup as a VIRTUAL custom row (field 14) — the one
+    // Gratsi base field the platform set does not carry, so `custom` is the truthful source.
+    {
+      tableKey: 'creative_reporting',
+      inheriting: 13,
+      gratsi: 14,
+      gratsiOwnRows: 3,
+      virtual: 1,
+      gratsiCustom: 1,
+    },
+    {
+      tableKey: 'email_campaigns',
+      inheriting: 17,
+      gratsi: 17,
+      gratsiOwnRows: 0,
+      virtual: 2,
+      gratsiCustom: 0,
+    },
+    {
+      tableKey: 'email_flows',
+      inheriting: 13,
+      gratsi: 13,
+      gratsiOwnRows: 0,
+      virtual: 2,
+      gratsiCustom: 0,
+    },
+    {
+      tableKey: 'sm_campaign_feed_tasks',
+      inheriting: 6,
+      gratsi: 6,
+      gratsiOwnRows: 0,
+      virtual: 1,
+      gratsiCustom: 0,
+    },
     // Gratsi hides its status banner, which has no column at all, so it shows one fewer.
-    { tableKey: 'youtube_copy', inheriting: 16, gratsi: 16, gratsiOwnRows: 2, virtual: 0 },
+    {
+      tableKey: 'youtube_copy',
+      inheriting: 16,
+      gratsi: 16,
+      gratsiOwnRows: 2,
+      virtual: 0,
+      gratsiCustom: 0,
+    },
   ] as const;
 
   it.each(EXPECTED)(
     '$tableKey: an inheriting brand gets $inheriting columns and Gratsi gets $gratsi',
-    async ({ tableKey, inheriting, gratsi, gratsiOwnRows, virtual }) => {
+    async ({ tableKey, inheriting, gratsi, gratsiOwnRows, virtual, gratsiCustom }) => {
       const db = await testDb();
       await seed(db);
       await seedColumnDefinitions(db);
@@ -1270,9 +1315,11 @@ describe('the all-platform tables resolve for every brand', () => {
       ).toHaveLength(inheriting);
       expect(onGratsi).toHaveLength(gratsi);
 
-      // Every column of these tables is the platform's: the parent base has no such table.
+      // Every column of these tables is the platform's: the parent base has no such table. The
+      // one exception a GRATSI-ONLY field makes is counted, never silently admitted: a child-added
+      // row carries `custom` because no platform row exists for it to relabel.
       expect(onNiagara.filter((column) => column.source !== 'platform')).toEqual([]);
-      expect(onGratsi.filter((column) => column.source !== 'platform')).toEqual([]);
+      expect(onGratsi.filter((column) => column.source !== 'platform')).toHaveLength(gratsiCustom);
 
       // Virtual columns carry their formula and no stored column backs them.
       expect(onNiagara.filter((column) => column.formula !== null)).toHaveLength(virtual);

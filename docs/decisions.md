@@ -1134,3 +1134,23 @@ WINS pending a ruling that names the winner; the hidden row stays exactly as AI-
 
 Pinned in `gratsi-links-columns.test.ts` (the 36-field list minus exactly `Concepts`, plus the
 virtual/stored cost split); `verify-rollout` expects gratsi 35.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Creative Reporting resolves all fourteen fields
+
+The strict rule applied to `creative_reporting`, the last table of the links cluster and the
+only one with nothing excluded. Gratsi resolves FOURTEEN columns, the base's own 14 in the
+base's own order:
+
+- **`Creative Name`** — the base's first field is a formula that passes the
+  `Creative Name (from Creative)` lookup through, i.e. the linked brief's §7 name. The platform's
+  `Creative` link column (`brief_id`) already renders exactly that name, so it takes the base's
+  wording at position 1 (a `relabel-platform` row; the template keeps `Creative`), and
+  `Name + Angle + Offer` moves to its live position 2.
+- **`Creative Name (from Creative)`** (14) is a VIRTUAL lookup — `creativeNameFromCreative`, the
+  bare passthrough reading, over the `briefName` the report row already carries through
+  `brief_id`. Nothing stored, nothing writable; the `difference_cpa` precedent, followed exactly.
+
+Pinned in `gratsi-links-columns.test.ts` (all fourteen labels in order, link vs lookup backing)
+and the all-platform describe of `column-seed.test.ts` (whose per-table expectations now count
+the one deliberate Gratsi `custom` row rather than asserting none can exist);
+`verify-rollout` expects gratsi 14.

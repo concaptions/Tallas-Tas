@@ -96,6 +96,14 @@ const CREATIVE_REPORT_RENDERERS: ColumnRegistry<CreativeReportItem> = {
     render: (item) => <MetricCell label={item.row.briefName} />,
     sortValue: (item) => item.row.briefName,
   },
+  // GRATSI-MATCH 2026-10-04: the base's `Creative Name (from Creative)` lookup, VIRTUAL — the
+  // linked brief's §7 name, which the row already carries; `creativeNameFromCreative` is the one
+  // reading of it and the cell prints the same `briefName` the Creative link column shows.
+  creative_name_from_creative: {
+    render: (item) => <MetricCell label={item.row.briefName} />,
+    sortValue: (item) => item.row.briefName,
+    cellTitle: (item) => item.row.briefName ?? undefined,
+  },
   notes: { render: (item) => <TextCell value={item.row.notes} /> },
   ad_design: {
     render: (item) => <CountCell count={item.row.adDesign?.length ?? 0} noun="file" />,

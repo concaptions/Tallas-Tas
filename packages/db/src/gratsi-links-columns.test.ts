@@ -393,3 +393,48 @@ describe('GRATSI-MATCH · creators (UGC Management)', () => {
     expect(byLabel.get("Creator's cost (USD) - Internal")?.formula).toBeNull();
   });
 });
+
+describe('GRATSI-MATCH · creative_reporting', () => {
+  /**
+   * The Gratsi `Creative Reporting` table (`tblgW4bwDSSeqihlr`), all 14 fields in live order.
+   * Nothing is excluded on this table: every field resolves.
+   */
+  const AIRTABLE_REPORTING: readonly string[] = [
+    'Creative Name',
+    'Name + Angle + Offer',
+    'Notes',
+    'Ad Design',
+    'Ad Link',
+    'CTR',
+    'Thumb-Stop Rate',
+    'Results',
+    'CPA',
+    'Target CPA',
+    'Difference CPA',
+    'ROAS',
+    'Target ROAS',
+    'Creative Name (from Creative)',
+  ];
+
+  it('resolves all fourteen fields, in Airtable order, nothing excluded', async () => {
+    const resolved = await gratsiColumns('creative_reporting');
+    expect(resolved.map((column) => column.displayLabel)).toEqual(AIRTABLE_REPORTING);
+  });
+
+  it('reads Creative Name off the brief link and the lookup off the formula, never storage', async () => {
+    const resolved = await gratsiColumns('creative_reporting');
+    const byLabel = new Map(resolved.map((column) => [column.displayLabel, column]));
+
+    // The base's `Creative Name` formula is a passthrough of the `Creative` link, so the link
+    // column itself carries the base's wording — a relabel, still the platform's column.
+    const creativeName = byLabel.get('Creative Name');
+    expect(creativeName?.columnKey).toBe('brief_id');
+    expect(creativeName?.source).toBe('platform');
+    // The lookup it passes through is the VIRTUAL row, formula-backed, never writable.
+    const lookup = byLabel.get('Creative Name (from Creative)');
+    expect(lookup?.columnKey).toBe('creative_name_from_creative');
+    expect(lookup?.formula).toBe('creativeNameFromCreative');
+    // Difference CPA stays the inherited virtual column it already was.
+    expect(byLabel.get('Difference CPA')?.formula).toBe('differenceCpa');
+  });
+});

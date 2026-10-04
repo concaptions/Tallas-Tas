@@ -1594,15 +1594,37 @@ const COPY_TYPES_GRATSI = childRows('copy_types', [
 ]);
 
 /**
- * Gratsi `Creative Reporting` `tblgW4bwDSSeqihlr` — 14 fields; 3 derived, `Difference CPA` a formula, now a virtual column. Gratsi words every column exactly as the platform set does, so it holds NO rows at all and inherits all thirteen.
+ * Gratsi `Creative Reporting` `tblgW4bwDSSeqihlr` — 14 fields; 3 derived, `Difference CPA` a formula, now a virtual column.
  *
- * Its rows are now the PARENT's, since the parent base has no such table and the platform set above
- * was derived from this base's own field names and order. What is left here is only what Gratsi
- * genuinely words differently; the rest are retired by the reconciling seed, which soft-deletes rows
- * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
- * duplicates that would win over the parent for no reason.
+ * GRATSI-MATCH (2026-10-04): the base's own first field is `Creative Name` — the formula that
+ * passes the `Creative Name (from Creative)` lookup through — so Gratsi relabels the platform's
+ * `Creative` (`brief_id`) row to the base's wording at position 1 and moves `Name + Angle +
+ * Offer` to its live position 2; both stay the platform's columns. The lookup itself (field 14)
+ * is the VIRTUAL row below. Every other label and position already matches the platform set.
  */
-const CREATIVE_REPORTING_GRATSI = childRows('creative_reporting', []);
+const CREATIVE_REPORTING_GRATSI = childRows('creative_reporting', [
+  ['brief_id', 'Creative Name', 1, 'relabel-platform', 'multipleRecordLinks'],
+  ['name_angle_offer', 'Name + Angle + Offer', 2, 'relabel-platform', 'singleLineText'],
+]);
+
+/**
+ * The one VIRTUAL row of the Gratsi reporting set: `Creative Name (from Creative)` (field 14), a
+ * lookup of the linked brief's §7 name through `brief_id`, computed by `creativeNameFromCreative`
+ * — the bare passthrough the base's own `Creative Name` formula wraps. Never stored; the row the
+ * grid reads already carries `briefName`.
+ */
+const CREATIVE_REPORTING_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
+  {
+    tableKey: 'creative_reporting',
+    columnKey: 'creative_name_from_creative',
+    displayLabel: 'Creative Name (from Creative)',
+    displayOrder: 14,
+    fieldType: 'multipleLookupValues',
+    source: 'custom',
+    isDetached: true,
+    formula: 'creativeNameFromCreative',
+  },
+];
 
 /**
  * The seed, grouped by base: one group per base, so the two naming worlds stay visibly apart.
@@ -1669,6 +1691,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...SM_CAMPAIGN_FEED_GRATSI,
       ...COPY_TYPES_GRATSI,
       ...CREATIVE_REPORTING_GRATSI,
+      ...CREATIVE_REPORTING_GRATSI_VIRTUAL,
     ],
   },
 ];

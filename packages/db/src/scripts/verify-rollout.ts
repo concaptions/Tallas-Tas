@@ -37,7 +37,9 @@ const EXPECTED: readonly {
   { tableKey: 'creators', inheriting: 36, gratsi: 35, virtual: 0 },
   { tableKey: 'personas', inheriting: 15, gratsi: 7, virtual: 0 },
   { tableKey: 'copy_types', inheriting: 4, gratsi: 4, virtual: 0 },
-  { tableKey: 'creative_reporting', inheriting: 13, gratsi: 13, virtual: 1 },
+  // GRATSI-MATCH 2026-10-04 (links cluster): Gratsi words the first two columns as its base does
+  // and adds the Creative Name (from Creative) lookup as a virtual custom row — Gratsi 14.
+  { tableKey: 'creative_reporting', inheriting: 13, gratsi: 14, virtual: 1 },
   { tableKey: 'email_campaigns', inheriting: 17, gratsi: 17, virtual: 2 },
   { tableKey: 'email_flows', inheriting: 13, gratsi: 13, virtual: 2 },
   { tableKey: 'sm_campaign_feed_tasks', inheriting: 6, gratsi: 6, virtual: 1 },
