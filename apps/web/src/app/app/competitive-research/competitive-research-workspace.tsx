@@ -1,23 +1,19 @@
 'use client';
 
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompetitiveResearchListRow } from '@tas/db';
+import { Button, Input, PropagationBadge, StatusChip } from '@tas/ui';
+
+import { ColumnNotices } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
 import {
-  Button,
-  Input,
-  PropagationBadge,
-  StatusChip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@tas/ui';
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
 
 import {
-  COMPETITIVE_RESEARCH_COLUMNS,
   countLabel,
   EM_DASH,
   EMPTY_NO_MATCH_HINT,
@@ -29,26 +25,28 @@ import {
 import { CompetitiveResearchPanel, NEW_COMPETITIVE_RESEARCH } from './competitive-research-panel';
 
 /**
- * The Competitive Research table, its header actions and its side panel.
+ * The Competitive Research grid, its header actions and its side panel. GRATSI-MATCH
+ * competitive_research (2026-10-04): the grid reads its column set from the resolver — the table
+ * is identical in both bases (seven stored fields, no flags), so every brand resolves Name, Type,
+ * Website, Insta, FB Page, Meta Ads Library and Analysis, under per-brand labels and order the
+ * moment a brand configures any.
  *
  * The panel is NOT a modal: it is fixed to the right edge, the table stays visible and clickable
- * beside it, and there is no backdrop. The open entry lives in the `?entry=` query parameter, written
- * with the History API so opening a row is instant and a refresh still reopens it.
- *
- * The filter is URL-backed the same way, in `?q=`: the two pieces of table state behave alike, a
- * refresh keeps the rows you had narrowed to, and "here are the direct competitors" is a link you
- * can send. The search box is also the way the empty state is reached: filtering to nothing says so
- * in words and offers to clear the filter, so the table area is never a blank rectangle.
+ * beside it, and there is no backdrop. The open entry lives in the `?entry=` query parameter,
+ * written with the History API so opening a row is instant and a refresh still reopens it; the
+ * filter is URL-backed the same way, in `?q=`.
  */
 export interface CompetitiveResearchItem {
   readonly entry: CompetitiveResearchListRow;
   /** The website host, computed on the server; the full URL is the cell's `title`. */
   readonly websiteHost: string | null;
-  readonly updatedLabel: string;
-  readonly updatedTitle: string;
 }
 
 interface CompetitiveResearchWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadCompetitiveResearchColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly CompetitiveResearchItem[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
@@ -70,12 +68,89 @@ function syncUrl(key: 'entry' | 'q', value: string | null): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 
+/** The em-dash every empty cell renders, so blank never means "forgot to draw". */
+function emptyCell() {
+  return <span className="text-text4">{EM_DASH}</span>;
+}
+
+/** A long-text cell, truncated with the full value as the tooltip. */
+function longTextCell(value: string | null) {
+  return value === null || value === '' ? (
+    emptyCell()
+  ) : (
+    <span className="block max-w-[24rem] truncate text-text2">{value}</span>
+  );
+}
+
+/**
+ * THE Competitive Research renderer registry, keyed by the resolver's `column_key`. Seven entries
+ * — the full set either base can resolve — so the "Configured but not drawn here" notice never
+ * fires.
+ */
+const COMPETITIVE_RESEARCH_RENDERERS: ColumnRegistry<CompetitiveResearchItem> = {
+  name: {
+    render: (item) => (
+      <span className="flex items-center gap-1.5 font-medium">
+        {item.entry.name}
+        <PropagationBadge
+          templateRowId={item.entry.templateRowId}
+          overriddenFields={item.entry.overriddenFields}
+        />
+      </span>
+    ),
+    sortValue: (item) => item.entry.name,
+  },
+  type: {
+    render: (item) =>
+      item.entry.type === null ? (
+        emptyCell()
+      ) : (
+        <StatusChip tone={typeTone(item.entry.type)} label={item.entry.type} />
+      ),
+    sortValue: (item) => item.entry.type,
+  },
+  website: {
+    render: (item) => (item.websiteHost === null ? emptyCell() : <span>{item.websiteHost}</span>),
+    sortValue: (item) => item.websiteHost,
+    cellTitle: (item) => item.entry.website ?? undefined,
+  },
+  instagram: {
+    render: (item) => item.entry.instagram ?? emptyCell(),
+    sortValue: (item) => item.entry.instagram,
+  },
+  facebook_page: {
+    render: (item) => longTextCell(item.entry.facebookPage),
+    cellTitle: (item) => item.entry.facebookPage ?? undefined,
+  },
+  meta_ads_library: {
+    render: (item) => longTextCell(item.entry.metaAdsLibrary),
+    cellTitle: (item) => item.entry.metaAdsLibrary ?? undefined,
+    minWidth: 220,
+  },
+  analysis: {
+    render: (item) => longTextCell(item.entry.analysis),
+    cellTitle: (item) => item.entry.analysis ?? undefined,
+    minWidth: 220,
+  },
+};
+
 export function CompetitiveResearchWorkspace({
+  columns,
+  unconfiguredColumns = false,
   items,
   demo,
   initialSelection,
   initialSearch,
 }: CompetitiveResearchWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, COMPETITIVE_RESEARCH_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 200,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -101,13 +176,6 @@ export function CompetitiveResearchWorkspace({
     },
     [router, select],
   );
-
-  const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, id: string) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      select(id);
-    }
-  };
 
   const term = search.trim();
   const query = term.toLowerCase();
@@ -163,108 +231,62 @@ export function CompetitiveResearchWorkspace({
           />
         </div>
 
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
-          <Table data-slot="competitive-research-table">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                {COMPETITIVE_RESEARCH_COLUMNS.map((column) => (
-                  <TableHead key={column.key} className="px-3">
-                    {column.label}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={COMPETITIVE_RESEARCH_COLUMNS.length} className="px-3 py-10">
-                    <div
-                      data-slot="competitive-research-empty"
-                      className="flex flex-col items-center gap-3 text-center"
-                    >
-                      <p className="text-sm text-text2">
-                        {items.length === 0
-                          ? EMPTY_NO_ROWS
-                          : `${EMPTY_NO_MATCH_PREFIX} “${term}”. ${EMPTY_NO_MATCH_HINT}`}
-                      </p>
-                      {items.length === 0 ? (
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            select(NEW_COMPETITIVE_RESEARCH);
-                          }}
-                          data-slot="empty-new-competitive-research"
-                        >
-                          New competitor
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            filter('');
-                          }}
-                          data-slot="clear-search"
-                        >
-                          Clear search
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+        <ColumnNotices
+          slotPrefix="competitive-research"
+          unconfigured={unconfiguredColumns}
+          missing={grid.missing}
+          registryName="COMPETITIVE_RESEARCH_RENDERERS in competitive-research-workspace.tsx"
+        />
+
+        <AirtableGrid
+          tableKey="competitive-research"
+          columns={grid.columns}
+          rows={visible}
+          rowId={(item) => item.entry.id}
+          rowLabel={(item) => item.entry.name}
+          rowAttributes={(item) => ({ 'data-competitive-research-id': item.entry.id })}
+          selectedId={selection}
+          onRowClick={(item) => {
+            select(item.entry.id);
+          }}
+          tableSlot="competitive-research-table"
+          rowSlot="competitive-research-row"
+          empty={
+            <div
+              data-slot="competitive-research-empty"
+              className="flex flex-col items-center gap-3 text-center"
+            >
+              <p className="text-sm text-text2">
+                {items.length === 0
+                  ? EMPTY_NO_ROWS
+                  : `${EMPTY_NO_MATCH_PREFIX} “${term}”. ${EMPTY_NO_MATCH_HINT}`}
+              </p>
+              {items.length === 0 ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    select(NEW_COMPETITIVE_RESEARCH);
+                  }}
+                  data-slot="empty-new-competitive-research"
+                >
+                  New competitor
+                </Button>
               ) : (
-                visible.map(({ entry, websiteHost, updatedLabel, updatedTitle }) => (
-                  <TableRow
-                    key={entry.id}
-                    data-slot="competitive-research-row"
-                    data-competitive-research-id={entry.id}
-                    data-state={entry.id === selection ? 'selected' : undefined}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={entry.name}
-                    onClick={() => {
-                      select(entry.id);
-                    }}
-                    onKeyDown={(event) => {
-                      onRowKey(event, entry.id);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="px-3 py-1.5 font-medium whitespace-normal text-text">
-                      <span className="flex items-center gap-1.5">
-                        {entry.name}
-                        <PropagationBadge
-                          templateRowId={entry.templateRowId}
-                          overriddenFields={entry.overriddenFields}
-                        />
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5">
-                      {entry.type === null ? (
-                        <span className="text-text4">{EM_DASH}</span>
-                      ) : (
-                        <StatusChip tone={typeTone(entry.type)} label={entry.type} />
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className="px-3 py-1.5 text-text2"
-                      title={entry.website ?? undefined}
-                    >
-                      {websiteHost ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text2">
-                      {entry.instagram ?? <span className="text-text4">{EM_DASH}</span>}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 text-text3" title={updatedTitle}>
-                      {updatedLabel}
-                    </TableCell>
-                  </TableRow>
-                ))
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    filter('');
+                  }}
+                  data-slot="clear-search"
+                >
+                  Clear search
+                </Button>
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+          }
+        />
       </section>
 
       {creating || open !== null ? (

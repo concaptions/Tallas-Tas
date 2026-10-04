@@ -53,6 +53,9 @@ const EXPECTED: readonly {
   // GRATSI-MATCH creative_dimensions (2026-10-04, WIRING cluster): absent until that run.
   // Identical in both bases — four fields, no flags, Gratsi holds no rows and inherits all four.
   { tableKey: 'creative_dimensions', inheriting: 4, gratsi: 4, virtual: 0 },
+  // GRATSI-MATCH competitive_research (2026-10-04, WIRING cluster): absent until that run.
+  // Identical in both bases — seven stored fields, no flags, Gratsi holds no rows.
+  { tableKey: 'competitive_research', inheriting: 7, gratsi: 7, virtual: 0 },
 ];
 
 async function main(): Promise<void> {

@@ -10,6 +10,7 @@ import { serverEnv } from '@tas/env';
 import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
 import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
+import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
 
 export interface CompetitiveResearchListResult {
   readonly rows: CompetitiveResearchListRow[];
@@ -50,6 +51,23 @@ async function withDb<T>(
   } finally {
     await connection.close();
   }
+}
+
+const COMPETITIVE_RESEARCH_TABLE_KEY = 'competitive_research';
+
+/**
+ * THE ordered, labelled, visible Competitive Research columns of the working brand, through the
+ * ONE loader every resolver-driven page shares (`lib/resolved-columns-source.ts`). Same shape as
+ * `loadClientAssetColumns` — GRATSI-MATCH competitive_research (2026-10-04).
+ */
+export async function loadCompetitiveResearchColumns(
+  deps: CompetitiveResearchSourceDeps = {},
+): Promise<ResolvedColumnsResult> {
+  return loadResolvedColumns(COMPETITIVE_RESEARCH_TABLE_KEY, {
+    ...deps,
+    demoMode: () => inDemoMode(deps),
+    withDb: (query) => withDb(deps, query),
+  });
 }
 
 export async function loadCompetitiveResearch(

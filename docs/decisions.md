@@ -1065,3 +1065,16 @@ demo fixtures exercise the stored end, so the demo page keeps rendering. Display
 WIRING brief's suggestion of a `creative_briefs`-shaped key would have needed a new gate
 exemption in `column-seed.test.ts`, which is outside this cluster's files, and the reserved
 column says the same thing without one. No migration ran.
+
+## 2026-10-04 — GRATSI-MATCH competitive_research: the grid reads the resolver; no flags
+
+The Competitive Research grid now reads its columns from `resolveColumns`
+(`COMPETITIVE_RESEARCH_PARENT`, unchanged — the seed already carried all seven fields). The table
+is identical in both bases and the audit scored it 7 = 7
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §Competitive research), so this is the pure wire:
+no seed change, no flags, no Gratsi rows. The conversion is still a display change twice over —
+the three stored fields the hardcoded grid never drew (`FB Page`, `Meta Ads Library`, `Analysis`)
+now render, which is exactly the configurability the seed comment promised, and the platform-only
+`Updated` column leaves this grid as it left every other
+(docs/decisions/gratsi-display-spec-2026-10-02.md). Panel, actions and search untouched; no
+migration ran.
