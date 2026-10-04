@@ -256,7 +256,16 @@ export function useTableView({
     const requested = initialViewType === null ? next : { ...next, viewType: initialViewType };
     const config = resolve({ ...requested });
     updateDraft({ ...config });
-    onActivate?.(config);
+    /**
+     * `onActivate` hands the page the view's remembered SEARCH — but only a real activated view
+     * carries one worth adopting. The bare draft is just "what you last had", and every
+     * workspace already keeps the live search in the URL (`?q=`), so re-adopting the draft's
+     * search here could only ever do harm: a shared link's explicit `?q=green` was being wiped
+     * by a stored empty draft whenever the 500ms search debounce had managed to fire before the
+     * previous page went away — a latent, timing-shaped flake the concepts search e2e caught.
+     * The draft's view TYPE, fields and order still apply through `updateDraft` above.
+     */
+    if (active !== undefined) onActivate?.(config);
     // The stored state is applied once, on mount; every value named here is stable after it.
   }, [
     local,
