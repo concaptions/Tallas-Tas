@@ -83,6 +83,13 @@ Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PA
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- GRATSI-MATCH links cluster (2026-10-04) · apply the reconciled column seed to production so
+  Gratsi's six grids (angles, creative_briefs, concepts, products, creators, creative_reporting)
+  resolve the live base's own sets: `pnpm --filter @tas/db seed-columns -- --apply`, then
+  `pnpm --filter @tas/db verify-rollout` and read `gratsi 16/39/21/7/35/14` as `ok` for those six
+  rows (the script's EXPECTED carries the counts). No migration is involved — column_definitions
+  rows only; verified on PGlite by `gratsi-links-columns.test.ts` and `column-seed.test.ts`. The
+  write touches prod and needs the usual approval.
 - Sprints 7–10 (2026-10-01) · apply migrations `0040_user-table-views`, `0041_creator-showcase-videos`,
   `0042_activity-log` and `0043_brief-due-date` to production before deploying:
   `pnpm --filter @tas/db migrate-prod -- --dry-run` then `pnpm --filter @tas/db migrate-prod -- --apply`.
