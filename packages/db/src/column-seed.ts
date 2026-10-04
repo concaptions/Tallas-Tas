@@ -1138,8 +1138,25 @@ const PRODUCTS_GRATSI = childRows('products', [
   ['copywriting', 'Meta Copywriting', 102, 'hidden', 'multipleRecordLinks'],
 ]);
 
-/** `Campaigns & Offers` `tblRNaWCVa1cCIwLL` — 14 fields; the `Name` formula and 2 links skipped. */
+/**
+ * `Campaigns & Offers` `tblRNaWCVa1cCIwLL` — 14 fields, 13 seeded (GRATSI-MATCH campaigns_offers,
+ * 2026-10-04).
+ *
+ * `Name` (field 1) is an Airtable formula, but unlike the Concepts case it IS a stored column:
+ * the importer materialises `CONCATENATE({Holiday},'-',{Discount Offer},'-',{Code})` into
+ * `campaigns_offers.name` (`import-mappings.ts` `campaignsOffers.Name`, handler `formula`), the
+ * arrangement `schema/campaigns.ts` documents under CLAUDE.md non-negotiable 6. So it seeds as the
+ * parent's own column with no virtual formula; `fieldType` keeps the Airtable type as every other
+ * row does. `Collections` (field 12) is the reverse of `collections.campaign_id`, so it is keyed by
+ * the table that holds the foreign key back to this one — the `PRODUCTS_PARENT` rule.
+ *
+ * The one field with NO row is `Design attached` (field 14): loose reference text with no typed
+ * home (`schema/campaigns.ts`), excluded by the 2026-10-01 "Airtable field exclusion register" in
+ * `docs/decisions.md` ("Campaigns & Offers › Design attached — loose single-line text with no
+ * target"). Rule 5: decision-doc it, never guess it into a column.
+ */
 const CAMPAIGNS_OFFERS_PARENT = parentRows('campaigns_offers', [
+  ['name', 'Name', 1, 'formula'],
   ['holiday', 'Holiday', 2, 'singleLineText'],
   ['official_date', 'Official Date', 3, 'date'],
   ['country', 'Country', 4, 'singleLineText'],
@@ -1150,17 +1167,36 @@ const CAMPAIGNS_OFFERS_PARENT = parentRows('campaigns_offers', [
   ['ads_end_date', 'Ads End Date', 9, 'date'],
   ['discount_offer', 'Discount Offer', 10, 'singleLineText'],
   ['code', 'Code', 11, 'singleLineText'],
+  ['collections', 'Collections', 12, 'multipleRecordLinks'],
   ['product_id', '(Internal) Product', 13, 'multipleRecordLinks'],
 ]);
 
 /**
- * Gratsi `Campaigns & Offers` — 20 fields, 0 live records. Its field LABELLED `Angles` links the
- * CONCEPTS table, which is why its key is the `campaign_concepts` junction and not an angle one.
+ * Gratsi `Campaigns & Offers` — 20 fields, 0 live records; orders are the Gratsi base's own field
+ * positions (`import-mappings.ts` keeps them in field order). Its field LABELLED `Angles` links the
+ * CONCEPTS table (`schema/campaign-links.ts` documents the swap), which is why its key is the
+ * `campaign_concepts` junction and not an angle one. The four reverse links the strict
+ * Gratsi-matches rule adds (GRATSI-MATCH campaigns_offers, 2026-10-04) are each keyed by the
+ * junction that carries the foreign key back to this table, exactly as `import-mappings.ts` names
+ * them: `COPY` ← Youtube Copywriting › Campaign Code, `Email Campaigns` ← Email Campaigns
+ * Management › Campaigns & Offers, `Email Campaigns Management copy` ← Email FLOWS Management ›
+ * Campaigns & Offers (the flows side, despite the label), and `Ads Copywriting copy` ← Meta
+ * Copywriting › Campaign Code.
+ *
+ * Two Gratsi fields stay rule-5 flags with NO row (decision entry "GRATSI-MATCH campaigns_offers"
+ * in docs/decisions.md): `Product` (field 14), a lookup through Collections whose underlying
+ * collections field is the register-excluded `(Internal) Collections › (Internal) Product` text
+ * remnant — empty on every live row, so there is nothing to resolve the lookup through; and
+ * `Design attached` (field 17), the register's "loose single-line text with no target".
  */
 const CAMPAIGNS_OFFERS_GRATSI = childRows('campaigns_offers', [
   ['promotional_ideas', 'Promotional Ideas', 6, 'custom', 'richText'],
   ['confirmed_by_client', 'Interested', 7, 'relabel', 'checkbox'],
+  ['youtube_copy_campaigns', 'COPY', 15, 'custom', 'multipleRecordLinks'],
   ['campaign_concepts', 'Angles', 16, 'custom', 'multipleRecordLinks'],
+  ['email_campaign_campaigns', 'Email Campaigns', 18, 'custom', 'multipleRecordLinks'],
+  ['email_flow_campaigns', 'Email Campaigns Management copy', 19, 'custom', 'multipleRecordLinks'],
+  ['copywriting_campaigns', 'Ads Copywriting copy', 20, 'custom', 'multipleRecordLinks'],
   ['product_id', '(Internal) Product', 13, 'hidden', 'multipleRecordLinks'],
 ]);
 

@@ -983,3 +983,27 @@ required: the client-facing interface reads `concepts.client_status` from the da
 nothing in `apps/web/src/app/client` or `client-data-source.ts` touches `resolveColumns`), so the
 client gate is untouched by what the team's grid displays. Only the Gratsi team grid loses the
 display chip. The Postgres column, every writer, Niagara's view and the platform row all stay.
+
+## 2026-10-04 — GRATSI-MATCH campaigns_offers: the grid reads the resolver; two fields stay flagged
+
+The Campaigns & Offers grid now reads its columns from `resolveColumns` (seed sections
+`CAMPAIGNS_OFFERS_PARENT` / `CAMPAIGNS_OFFERS_GRATSI`), closing the audit's eight-column gap
+(`docs/audits/gratsi-column-diff-2026-10-04.md` §Campaigns & Offers). Storage was verified against
+`schema/campaigns.ts`, `schema/campaign-links.ts` and `import-mappings.ts` before any seed row was
+written: `Name` is the MATERIALISED Airtable formula in `campaigns_offers.name` (stored, not
+virtual); `Collections` is the reverse of `collections.campaign_id`; `COPY` is
+`youtube_copy_campaigns`; `Angles` is `campaign_concepts` and links CONCEPTS despite its name;
+`Email Campaigns` is `email_campaign_campaigns`; `Email Campaigns Management copy` is
+`email_flow_campaigns` (the FLOWS side); `Ads Copywriting copy` is `copywriting_campaigns`. All
+reverse links are display-only read-throughs — nothing new is stored and no migration ran.
+
+Two Gratsi fields are rule-5 flags, NOT columns, so the strict Gratsi-matches rule is met "minus
+named flags": `Design attached` (field 17) is the 2026-10-01 exclusion register's "Campaigns &
+Offers › Design attached — loose single-line text with no target"; `Product` (field 14) is a
+lookup through `Collections` whose underlying collections field is the register's "(Internal)
+Collections › (Internal) Product — single-line text where the platform has product_id; nothing to
+resolve" (empty on every live row), and the Gratsi import never writes `collections.product_id`
+(`DRIZZLE_COLUMNS_WITHOUT_AIRTABLE_SOURCE.collections`), so there is nothing to resolve the lookup
+through. If the client ever fills that remnant, the mapping note above says exactly where the
+lookup would resolve from. Gratsi displays 18 of its 20 fields, in field order; the `Updated`
+column leaves this grid as it left every other (gratsi-display-spec-2026-10-02).

@@ -1,12 +1,11 @@
 import type { ViewType } from '@tas/domain';
 
-import { loadCampaigns } from '@/lib/campaigns-source';
+import { loadCampaignColumns, loadCampaigns } from '@/lib/campaigns-source';
 import { loadCollections } from '@/lib/collections-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
 import { loadEmailFlows } from '@/lib/email-flows-source';
 import { loadProducts } from '@/lib/products-source';
-import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 
 import type { LinkOption } from './campaigns-panel';
@@ -34,6 +33,7 @@ interface CampaignsPageProps {
 export default async function CampaignsPage({ searchParams }: CampaignsPageProps) {
   const [
     { rows },
+    { columns, unconfigured },
     productRows,
     collectionRows,
     emailCampaignRows,
@@ -44,6 +44,7 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     params,
   ] = await Promise.all([
     loadCampaigns(),
+    loadCampaignColumns(),
     loadProducts(),
     loadCollections(),
     loadEmailCampaigns(),
@@ -54,28 +55,24 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     searchParams,
   ]);
   const demo = isDemoMode();
-  const now = new Date();
-
-  const items: CampaignItem[] = rows.map((campaign) => ({
-    campaign,
-    updatedLabel: relativeTime(campaign.updatedAt, now),
-    updatedTitle: absoluteTime(campaign.updatedAt),
-  }));
 
   const products: LinkOption[] = productRows.rows.map(({ id, name }) => ({ id, name }));
+  const productNames = new Map(productRows.rows.map(({ id, name }) => [id, name]));
 
   // The campaigns side of Collections ↔ Campaigns (TASK 5): `collections.campaign_id` read the
-  // other way round, so the panel can NAME the collections running on a campaign.
+  // other way round, so the GRID's `Collections` column and the panel can NAME the collections
+  // running on a campaign. One pass over rows already loaded — never a per-campaign query.
   const collectionNames: Record<string, string[]> = {};
   for (const collection of collectionRows.rows) {
     if (collection.campaignId === null) continue;
     (collectionNames[collection.campaignId] ??= []).push(collection.name);
   }
 
-  // The campaign side of three more links (module parity, phase 2), each owned by the other
-  // module's panel and read back here through its junction: `email_campaign_campaigns`,
-  // `email_flow_campaigns` and `youtube_copy_campaigns`. The sources are demo-aware, so the
-  // fixtures' id arrays invert exactly as the database rows do.
+  // The campaign side of the junction links (module parity, phase 2; GRATSI-MATCH campaigns_offers
+  // makes them grid columns too): `email_campaign_campaigns`, `email_flow_campaigns`,
+  // `youtube_copy_campaigns`, `copywriting_campaigns` and `campaign_concepts`, each read from the
+  // far side's own id arrays. The sources are demo-aware, so the fixtures invert exactly as the
+  // database rows do.
   const emailCampaignLinks = indexByCampaign(
     emailCampaignRows.rows,
     (row) => row.campaignOfferIds,
@@ -91,8 +88,6 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     (row) => row.linkedCampaigns.map((campaign) => campaign.id),
     youtubeCopyLink,
   );
-  // Meta copy ("Campaign Code", copywriting_campaigns) and Concepts (the field named "Angles",
-  // campaign_concepts) — both read from the far side's own id arrays.
   const metaCopyLinks = indexByCampaign(
     copyWorkspace.rows,
     (row) => row.campaignIds,
@@ -109,6 +104,18 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
     (row) => ({ id: row.id, label: row.name, href: conceptPath(row.id) }),
   );
 
+  const items: CampaignItem[] = rows.map((campaign) => ({
+    campaign,
+    productName:
+      campaign.productId === null ? null : (productNames.get(campaign.productId) ?? null),
+    collections: collectionNames[campaign.id] ?? [],
+    emailCampaigns: emailCampaignLinks[campaign.id] ?? [],
+    emailFlows: emailFlowLinks[campaign.id] ?? [],
+    youtubeCopy: youtubeCopyLinks[campaign.id] ?? [],
+    metaCopy: metaCopyLinks[campaign.id] ?? [],
+    concepts: conceptLinks[campaign.id] ?? [],
+  }));
+
   const requested = params.campaign;
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
 
@@ -123,14 +130,10 @@ export default async function CampaignsPage({ searchParams }: CampaignsPageProps
 
   return (
     <CampaignsWorkspace
+      columns={columns}
+      unconfiguredColumns={unconfigured}
       items={items}
       products={products}
-      collectionNames={collectionNames}
-      emailCampaignLinks={emailCampaignLinks}
-      emailFlowLinks={emailFlowLinks}
-      youtubeCopyLinks={youtubeCopyLinks}
-      metaCopyLinks={metaCopyLinks}
-      conceptLinks={conceptLinks}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

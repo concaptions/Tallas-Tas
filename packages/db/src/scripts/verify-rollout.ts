@@ -40,6 +40,11 @@ const EXPECTED: readonly {
   // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
   // platform's own `due_date`; Gratsi hides three and adds five of its own.
   { tableKey: 'creative_briefs', inheriting: 31, gratsi: 33, virtual: 0 },
+  // GRATSI-MATCH campaigns_offers (2026-10-04, WIRING cluster): absent from this script until that
+  // run, because the page was not resolver-driven. 13 of the template's 14 fields (`Design
+  // attached` is register-excluded); Gratsi = its 20 fields minus the `Product` lookup and
+  // `Design attached` (both rule-5 flags in docs/decisions.md), with `(Internal) Product` hidden.
+  { tableKey: 'campaigns_offers', inheriting: 13, gratsi: 18, virtual: 0 },
 ];
 
 async function main(): Promise<void> {
