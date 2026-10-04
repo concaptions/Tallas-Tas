@@ -20,6 +20,7 @@ const BODY_CLOCK = '66666666-6666-4666-8666-000000000001';
 const NOT_YOUR_AGE = '66666666-6666-4666-8666-000000000002';
 
 const NOT_YOUR_AGE_NAME = 'B2-It Is Not Just Your Age-Green Screen';
+const BODY_CLOCK_NAME = 'B1-Your Body Clock Is Not Broken-Problem/Solution';
 
 test.describe('concepts in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -115,11 +116,12 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(revisions).toHaveAttribute('data-tone', 'warn');
   });
 
-  test('the switcher offers Grid and Gallery only, and an old ?view=board link lands on the grid', async ({
+  test('the switcher offers Grid, Gallery and List, and an old ?view=board link lands on the grid', async ({
     page,
   }) => {
     // Action item 18: Kanban left the data tables. The board is not reachable and not offered, and
-    // the link that used to open it is not a dead end — it opens the grid.
+    // the link that used to open it is not a dead end — it opens the grid. AI-17 adds the List: the
+    // same rows as compact single-column rows, each wearing its internal status chip.
     await page.goto(`${conceptsPath}?view=board`);
 
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
@@ -127,12 +129,26 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concept-column"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="concept-row"]')).toHaveCount(4);
 
-    // The view switch is the shared toolbar (Sprint 8): Grid / Gallery, no Kanban, no pill controls.
+    // The view switch is the shared toolbar (Sprint 8): no Kanban, no pill controls.
     const options = page.locator('[data-slot="view-toolbar"] [data-slot="tabs-trigger"]');
-    await expect(options).toHaveText(['Grid', 'Gallery']);
-    for (let index = 0; index < 2; index += 1) {
+    await expect(options).toHaveText(['Grid', 'Gallery', 'List']);
+    for (let index = 0; index < 3; index += 1) {
       expect(await options.nth(index).getAttribute('class')).not.toContain('rounded-full');
     }
+
+    // The List (AI-17): one compact row per record, the generated name in font-mono, up to two
+    // labelled values, and the internal status as the one StatusChip primitive.
+    await options.filter({ hasText: 'List' }).click();
+    const listRows = page.locator('[data-slot="concept-list-row"]');
+    await expect(listRows).toHaveCount(4);
+    await expect(listRows.first().locator('[data-slot="list-name"]')).toHaveCSS(
+      'font-family',
+      /mono/i,
+    );
+    await expect(listRows.first().locator('[data-slot="list-field"]')).toHaveCount(2);
+    await expect(
+      page.locator('[data-slot="concept-list-row"] [data-slot="status-chip"]'),
+    ).toHaveCount(4);
 
     // Switching to the gallery and back writes the view into the URL, and the default is not written.
     await options.filter({ hasText: 'Gallery' }).click();
@@ -174,26 +190,76 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concept-card"]')).toContainText(NOT_YOUR_AGE_NAME);
   });
 
-  test('a row click lands on the concept own route, and Back restores the view', async ({
+  test('a row click opens the panel, the concept NAME is the link to the route, and Back restores the view', async ({
     page,
   }) => {
-    // The table's row is the same click target the gallery's card is.
+    /*
+     * REQUIREMENT CHANGE (AI-17, the operator's ruling for the VIEWS-2 overnight run). This test
+     * used to assert the OPPOSITE contract — "a row click lands on the concept own route, and Back
+     * restores the view" — and that contract is superseded, not broken: a row click now opens the
+     * side panel (the shipped brief-panel pattern), so the list, the search and the view stay put,
+     * and the GENERATED NAME — in the grid row and in the panel, a real <Link> per AI-52 — is what
+     * navigates to the full page. Back from the route still restores the view it was left from.
+     */
+    // Warm the dynamic detail route first: `next dev` compiles a route the first time it is
+    // REQUESTED (playwright.config.ts documents the hazard), and this test times two client-side
+    // Link navigations into it. One up-front visit keeps those assertions about the CONTRACT —
+    // the link navigates — rather than about compile contention between parallel workers.
+    await page.goto(conceptPath(BODY_CLOCK));
+    await expect(page.locator('[data-slot="concept-rail"]')).toBeVisible();
+
     await page.goto(conceptsPath);
     await page.locator(`[data-slot="concept-row"][data-concept-id="${BODY_CLOCK}"]`).click();
+
+    // The panel opens with the concept's facts; the grid and the URL stay exactly where they were.
+    const panel = page.locator('[data-slot="concept-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
+    await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
+
+    // The facts: the generated name (font-mono, and a real link), the name parts, the linked
+    // product, and the two approval tracks as StatusChips (CLAUDE.md non-negotiable 4).
+    const panelName = panel.locator('[data-slot="concept-panel-name"]');
+    await expect(panelName).toHaveText(BODY_CLOCK_NAME);
+    await expect(panelName).toHaveCSS('font-family', /mono/i);
+    await expect(panelName).toHaveAttribute('href', conceptPath(BODY_CLOCK));
+    await expect(panel).toContainText('Your Body Clock Is Not Broken');
+    await expect(panel).toContainText('Problem/Solution');
+    const chips = panel.locator('[data-slot="status-chip"]');
+    await expect(chips).toHaveCount(2);
+    await expect(chips.first()).toHaveText('Videos Revisions');
+
+    // A click on another row SWITCHES the panel to that concept rather than closing it.
+    await page.locator(`[data-slot="concept-row"][data-concept-id="${NOT_YOUR_AGE}"]`).click();
+    await expect(panelName).toHaveText(NOT_YOUR_AGE_NAME);
+
+    // Escape closes it, and nothing has navigated.
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
+
+    // The NAME in the grid row is a real <Link> (AI-52): an href a reader can cmd-click, and a
+    // plain click follows it to the full page. Back restores the grid.
+    const rowName = page.locator(
+      `[data-concept-id="${BODY_CLOCK}"] [data-slot="concept-row-name"]`,
+    );
+    await expect(rowName).toHaveAttribute('href', conceptPath(BODY_CLOCK));
+    await rowName.click();
     await expect(page).toHaveURL(new RegExp(`${conceptPath(BODY_CLOCK)}$`));
+    await expect(page.locator('[data-slot="concept-rail"]')).toBeVisible();
     await page.goBack();
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
 
+    // The gallery card opens the same panel, and the panel's name navigates from there; Back
+    // restores the gallery with its ?view= intact.
     await page.goto(`${conceptsPath}?view=gallery`);
-
     await page.locator(`[data-slot="concept-card"][data-gallery-id="${NOT_YOUR_AGE}"]`).click();
-
-    // A real route segment, not a panel: the URL is the detail path and the list is gone.
+    await expect(panel).toBeVisible();
+    await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
+    await expect(panelName).toHaveAttribute('href', conceptPath(NOT_YOUR_AGE));
+    await panelName.click();
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
-    await expect(page.locator('[data-slot="concepts-table"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(0);
-    await expect(page.locator('[data-slot="concept-rail"]')).toBeVisible();
-
     await page.goBack();
     await expect(page).toHaveURL(/\?view=gallery$/);
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);

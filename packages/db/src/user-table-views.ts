@@ -20,6 +20,9 @@ export interface UserTableViewConfigInput {
   readonly frozenFields?: string[];
   readonly sort?: { key: string; direction: 'asc' | 'desc' } | null;
   readonly filter?: string;
+  readonly coverField?: string | null;
+  readonly filters?: { field: string; op: string; value: string }[];
+  readonly groupBy?: string | null;
 }
 
 /** The user's live views of one table, oldest first so a tab strip keeps a stable order. */
@@ -96,6 +99,9 @@ export async function createUserTableView(
       frozenFields: config.frozenFields ?? [],
       sort: config.sort ?? null,
       filter: config.filter ?? '',
+      coverField: config.coverField ?? null,
+      filters: config.filters ?? [],
+      groupBy: config.groupBy ?? null,
       isActive: true,
       createdBy: userId,
       updatedBy: userId,

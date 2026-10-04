@@ -15,6 +15,25 @@ export interface UserViewSort {
   readonly direction: SortDirection;
 }
 
+/**
+ * The five ways one field filter reads a cell (AI-32). `is` and `is_not` compare the whole value,
+ * case-insensitively; `contains` is a substring; `empty` and `not_empty` ignore `value` entirely.
+ * The list exists as a VALUE so `parseUserViewConfig` narrows a stored op against it and the
+ * Filter dialog builds its options from it — neither re-types the vocabulary.
+ */
+export const USER_VIEW_FILTER_OPS = ['is', 'is_not', 'contains', 'empty', 'not_empty'] as const;
+
+export type UserViewFilterOp = (typeof USER_VIEW_FILTER_OPS)[number];
+
+/** One field condition of a view (AI-32). Conditions are ANDed: every one must pass. */
+export interface UserViewFilter {
+  /** The resolver column key the condition reads. */
+  readonly field: string;
+  readonly op: UserViewFilterOp;
+  /** The text compared against; meaningless (and kept `''`) for `empty` / `not_empty`. */
+  readonly value: string;
+}
+
 export interface UserViewConfig {
   readonly viewType: ViewType;
   /** The field keys shown; `null` means every field (a new view hides nothing). */
@@ -24,8 +43,21 @@ export interface UserViewConfig {
   /** The frozen (sticky) field keys; empty means the table's own default (its name column). */
   readonly frozenFields: readonly string[];
   readonly sort: UserViewSort | null;
-  /** The search query the view opens with. */
+  /**
+   * The search query the view opens with. NOT the field filters: this is the one free-text box
+   * above the table, kept under its original name for every row already stored.
+   */
   readonly filter: string;
+  /**
+   * Which media column covers a gallery card, or `null` for the page's own default cover (action
+   * item 16, "customise the card"). A RESOLVER column key, chosen from the table's declared
+   * `galleryFields`, so a cover is always a column the brand actually resolves.
+   */
+  readonly coverField: string | null;
+  /** The view's field conditions (AI-32), ANDed together; empty means no condition. */
+  readonly filters: readonly UserViewFilter[];
+  /** The column the grid groups its rows under, or `null` for the flat reading (AI-32). */
+  readonly groupBy: string | null;
 }
 
 export interface UserView extends UserViewConfig {
@@ -66,6 +98,9 @@ export function defaultUserViewConfig(viewType: ViewType = 'grid'): UserViewConf
     frozenFields: [],
     sort: null,
     filter: '',
+    coverField: null,
+    filters: [],
+    groupBy: null,
   };
 }
 
@@ -90,7 +125,8 @@ export function parseUserViewConfig(
       viewType === 'grid' ||
       viewType === 'kanban' ||
       viewType === 'gallery' ||
-      viewType === 'timeline'
+      viewType === 'timeline' ||
+      viewType === 'list'
         ? viewType
         : fallbackViewType,
     visibleFields:
@@ -101,6 +137,35 @@ export function parseUserViewConfig(
     frozenFields: strings(value.frozenFields),
     sort: sortValue,
     filter: typeof value.filter === 'string' ? value.filter : '',
+    // A stored cover is narrowed to "the page's default" unless it is a non-empty string. `''` is
+    // not a column key, and reading it as one would ask the gallery for a cover that cannot exist.
+    coverField:
+      typeof value.coverField === 'string' && value.coverField !== '' ? value.coverField : null,
+    // The field conditions (AI-32), entry by entry: a row stored before the column existed has no
+    // `filters` at all and MUST parse to the empty list — the view it describes had no conditions.
+    // Within a stored list, an entry whose shape this build does not speak is dropped rather than
+    // guessed at, and a kept `empty`/`not_empty` normalises its dead `value` to ''.
+    filters: !Array.isArray(value.filters)
+      ? []
+      : value.filters.flatMap((entry: unknown): UserViewFilter[] => {
+          if (typeof entry !== 'object' || entry === null) return [];
+          const record: Record<string, unknown> = { ...entry };
+          const { field, op, value: filterValue } = record;
+          const isOp = (candidate: unknown): candidate is UserViewFilterOp =>
+            typeof candidate === 'string' &&
+            (USER_VIEW_FILTER_OPS as readonly string[]).includes(candidate);
+          if (typeof field !== 'string' || field === '' || !isOp(op)) return [];
+          const needsValue = op !== 'empty' && op !== 'not_empty';
+          return [
+            {
+              field,
+              op,
+              value: needsValue && typeof filterValue === 'string' ? filterValue : '',
+            },
+          ];
+        }),
+    // The grouping column (AI-32): a non-empty string or the flat default. '' is not a column key.
+    groupBy: typeof value.groupBy === 'string' && value.groupBy !== '' ? value.groupBy : null,
   };
 }
 
@@ -211,6 +276,42 @@ export function isViewFieldVisible(
   key: string,
 ): boolean {
   return view.visibleFields === null || view.visibleFields.includes(key);
+}
+
+/**
+ * The next `fieldOrder` after moving one field a step up or down (action item 16, the second half
+ * of "customise the card": the lines REORDER, on the grid and on the gallery with one control).
+ *
+ * The move happens in the EFFECTIVE order — the one `applyUserView` renders: the stored
+ * `fieldOrder` first, every remaining key in the table's own order after it — because that is the
+ * order the viewer is looking at when they say "up". The result is the FULL permutation, not a
+ * delta: a partial stored order plus "swap two of them" has no stable meaning once the table's own
+ * order changes underneath, whereas a complete list keeps every position the viewer has seen.
+ * A column added to the table later is not in the list and so appends after it, which is the same
+ * contract `applyUserView` already documents.
+ *
+ * A key the table does not have, and a move off either end, return the stored order unchanged —
+ * the control disables those buttons, but a stored view is also reachable from an older client.
+ */
+export function moveViewField(
+  allKeys: readonly string[],
+  view: Pick<UserViewConfig, 'fieldOrder'>,
+  key: string,
+  direction: 'up' | 'down',
+): readonly string[] {
+  const ordered = applyUserView(
+    allKeys.map((entry) => ({ key: entry })),
+    { visibleFields: null, fieldOrder: view.fieldOrder, frozenFields: [] },
+  ).map((field) => field.key);
+  const index = ordered.indexOf(key);
+  const target = direction === 'up' ? index - 1 : index + 1;
+  const moved = ordered[index];
+  const other = ordered[target];
+  if (index === -1 || moved === undefined || other === undefined) return view.fieldOrder;
+  const next = [...ordered];
+  next[index] = other;
+  next[target] = moved;
+  return next;
 }
 
 /**

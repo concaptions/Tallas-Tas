@@ -42,6 +42,7 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
       'Grid',
       'Kanban',
       'Gallery',
+      'List',
     ]);
 
     const rows = page.locator('[data-slot="creator-row"]');

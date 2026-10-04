@@ -63,7 +63,16 @@ interface GalleryCardProps {
 }
 
 function GalleryCard({ item, visibleFields, onClick, selected, slot }: GalleryCardProps) {
-  const [imgError, setImgError] = useState(false);
+  /**
+   * WHICH url failed, not WHETHER one failed. The cover is a choice now (action item 16), so one
+   * card renders different URLs over its life: pick the Video Intro, watch it fail to decode, pick
+   * "Page default" back — and a boolean set by that failure would still be true, leaving the card
+   * on its initials while holding a profile picture that loads fine. Keying the error by the URL it
+   * belongs to gives every newly chosen cover its own chance and still never retries the one that
+   * actually failed.
+   */
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const imgError = item.imageUrl !== null && failedUrl === item.imageUrl;
   const fields = (item.fields ?? []).filter(
     (field) => visibleFields === null || visibleFields.includes(field.key),
   );
@@ -104,7 +113,7 @@ function GalleryCard({ item, visibleFields, onClick, selected, slot }: GalleryCa
                 muted
                 preload="metadata"
                 onError={() => {
-                  setImgError(true);
+                  setFailedUrl(item.imageUrl);
                 }}
               />
               <div className="absolute inset-0 flex items-center justify-center">
@@ -126,7 +135,7 @@ function GalleryCard({ item, visibleFields, onClick, selected, slot }: GalleryCa
               alt={item.name}
               className="h-full w-full object-cover"
               onError={() => {
-                setImgError(true);
+                setFailedUrl(item.imageUrl);
               }}
             />
           )

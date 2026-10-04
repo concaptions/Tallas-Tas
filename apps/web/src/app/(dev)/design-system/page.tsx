@@ -147,11 +147,16 @@ import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
 import { LinkFieldDemoStory, LinkFieldStory } from './link-field.stories';
 import { EditorBoardStory, EditorStageChipsStory } from './editor-board.stories';
 import {
+  FieldsArrangeStory,
   FieldsMenuStory,
+  FilterGroupStory,
   GalleryInitialTileStory,
+  ListViewStory,
   ViewsMenuStory,
   ViewToolbarStory,
 } from './user-views.stories';
+import { CoverMenuStory } from './view-cover.stories';
+import { FreezeMenuStory, FrozenColumnsGridStory } from './view-freeze.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
 import {
   ConfigToggleStory,
@@ -993,12 +998,50 @@ export default function DesignSystemPage() {
               </h3>
               <FieldsMenuStory />
             </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+                arrange fields — up/down per field, every button a tab stop (action item 16)
+              </h3>
+              <FieldsArrangeStory />
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
               gallery — initial tile when a record has no picture; hidden field lines stay hidden
             </h3>
             <GalleryInitialTileStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              list — one compact row per record: name, two labelled values, status chip (AI-17)
+            </h3>
+            <ListViewStory />
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <div className="flex flex-col gap-2">
+              <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+                freeze popover — pin up to and including a column (action item 22)
+              </h3>
+              <FreezeMenuStory />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              frozen columns — each at its own left offset, never stacked at zero
+            </h3>
+            <FrozenColumnsGridStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              cover popover — which media column covers a gallery card (action item 16)
+            </h3>
+            <CoverMenuStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              filters and grouping — conditions narrow the rows, group headers count them (AI-32)
+            </h3>
+            <FilterGroupStory />
           </div>
         </div>
       </Section>

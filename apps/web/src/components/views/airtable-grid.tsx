@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,6 +15,7 @@ import { cn } from '@tas/ui';
 
 import {
   cycleSort,
+  groupRows,
   readHiddenColumns,
   sameOffsets,
   sortRows,
@@ -132,6 +134,20 @@ export function AirtableGrid<Row>({
     return sortRows(rows, column.sortValue, sort.direction);
   }, [rows, sort, columns]);
 
+  /**
+   * The grid's row groups (AI-32), or null for the flat reading. Grouping runs over the FULL
+   * column list, not the visible one, so a viewer can group under a column they have hidden —
+   * the heading carries the value, which is exactly why hiding the column is reasonable. A
+   * `group_by` naming a column this grid does not carry or cannot read comes back null from
+   * `groupRows`: the stale lens degrades to the flat grid, never to one giant bucket. The rows
+   * arrive sorted, so a sort on the grouping column also orders the groups.
+   */
+  const groups = useMemo(() => {
+    const groupBy = view?.groupBy ?? null;
+    if (groupBy === null) return null;
+    return groupRows(sortedRows, groupBy, columns);
+  }, [columns, sortedRows, view]);
+
   const onHeaderClick = useCallback(
     (key: string) => {
       const next = cycleSort(sort, key);
@@ -198,6 +214,62 @@ export function AirtableGrid<Row>({
     },
     [tableKey],
   );
+
+  /** One data row, used by the flat reading and by every group alike. */
+  const renderRow = (row: Row): ReactNode => {
+    const id = rowId(row);
+    const clickable = onRowClick !== undefined;
+    const activate = clickable
+      ? () => {
+          onRowClick(row);
+        }
+      : undefined;
+    return (
+      <tr
+        key={id}
+        data-slot={rowSlot}
+        data-state={id === selectedId ? 'selected' : undefined}
+        {...rowAttributes?.(row)}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        aria-label={rowLabel ? rowLabel(row) : clickable ? id : undefined}
+        onClick={activate}
+        onKeyDown={
+          clickable
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  activate?.();
+                }
+              }
+            : undefined
+        }
+        className={cn(
+          'border-b border-line/60 last:border-b-0 data-[state=selected]:bg-accent-soft',
+          clickable && 'cursor-pointer hover:bg-surface3',
+        )}
+      >
+        {visibleColumns.map((column) => (
+          <td
+            key={column.key}
+            data-column={column.key}
+            title={column.cellTitle?.(row)}
+            style={{
+              left: column.frozen === true ? (frozenLefts[column.key] ?? 0) : undefined,
+            }}
+            className={cn(
+              'px-3 py-1.5 whitespace-nowrap text-text2',
+              column.align === 'right' && 'text-right',
+              column.align === 'center' && 'text-center',
+              column.frozen && 'sticky z-10 border-r border-line bg-surface text-text',
+            )}
+          >
+            {column.render(row)}
+          </td>
+        ))}
+      </tr>
+    );
+  };
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -276,61 +348,30 @@ export function AirtableGrid<Row>({
                   {empty ?? '✨ Nothing here yet.'}
                 </td>
               </tr>
-            ) : (
-              sortedRows.map((row) => {
-                const id = rowId(row);
-                const clickable = onRowClick !== undefined;
-                const activate = clickable
-                  ? () => {
-                      onRowClick(row);
-                    }
-                  : undefined;
-                return (
+            ) : groups !== null ? (
+              groups.map((group) => (
+                <Fragment key={`group-${group.value}`}>
+                  {/* One header row per group (AI-32): the value and its count. The inner div is
+                      sticky-left so the heading stays readable while the grid scrolls sideways. */}
                   <tr
-                    key={id}
-                    data-slot={rowSlot}
-                    data-state={id === selectedId ? 'selected' : undefined}
-                    {...rowAttributes?.(row)}
-                    role={clickable ? 'button' : undefined}
-                    tabIndex={clickable ? 0 : undefined}
-                    aria-label={rowLabel ? rowLabel(row) : clickable ? id : undefined}
-                    onClick={activate}
-                    onKeyDown={
-                      clickable
-                        ? (event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              activate?.();
-                            }
-                          }
-                        : undefined
-                    }
-                    className={cn(
-                      'border-b border-line/60 last:border-b-0 data-[state=selected]:bg-accent-soft',
-                      clickable && 'cursor-pointer hover:bg-surface3',
-                    )}
+                    data-slot="grid-group-header"
+                    data-group={group.value}
+                    className="border-b border-line bg-surface2"
                   >
-                    {visibleColumns.map((column) => (
-                      <td
-                        key={column.key}
-                        data-column={column.key}
-                        title={column.cellTitle?.(row)}
-                        style={{
-                          left: column.frozen === true ? (frozenLefts[column.key] ?? 0) : undefined,
-                        }}
-                        className={cn(
-                          'px-3 py-1.5 whitespace-nowrap text-text2',
-                          column.align === 'right' && 'text-right',
-                          column.align === 'center' && 'text-center',
-                          column.frozen && 'sticky z-10 border-r border-line bg-surface text-text',
-                        )}
-                      >
-                        {column.render(row)}
-                      </td>
-                    ))}
+                    <td colSpan={visibleColumns.length} className="p-0">
+                      <div className="sticky left-0 flex w-fit max-w-full items-baseline gap-2 px-3 py-1.5">
+                        <span className="text-xs font-medium text-text2">{group.label}</span>
+                        <span className="font-mono text-[10px] text-text3" data-slot="group-count">
+                          {group.rows.length}
+                        </span>
+                      </div>
+                    </td>
                   </tr>
-                );
-              })
+                  {group.rows.map((row) => renderRow(row))}
+                </Fragment>
+              ))
+            ) : (
+              sortedRows.map((row) => renderRow(row))
             )}
           </tbody>
         </table>

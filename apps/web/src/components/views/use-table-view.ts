@@ -4,12 +4,14 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import {
   defaultUserViewConfig,
   isViewFieldVisible,
+  moveViewField,
   parseUserViewConfig,
   reconcileViewFields,
   resolveViewType,
   toggleViewField,
   type UserView,
   type UserViewConfig,
+  type UserViewFilter,
   type UserViewSort,
   type ViewType,
 } from '@tas/domain';
@@ -60,6 +62,14 @@ export interface TableViewState {
   readonly setFilter: (next: string) => void;
   /** The frozen (sticky) columns, as a prefix of the viewer's own column order (action item 22). */
   readonly setFrozenFields: (next: readonly string[]) => void;
+  /** The media column that covers a gallery card, or null for the page's default (action item 16). */
+  readonly setCoverField: (next: string | null) => void;
+  /** Moves one field a step in the viewer's own order — grid columns and card lines together. */
+  readonly moveField: (key: string, direction: 'up' | 'down') => void;
+  /** The view's field conditions (AI-32), replacing the whole list each time. */
+  readonly setFilters: (next: readonly UserViewFilter[]) => void;
+  /** The grid's grouping column, or null for the flat reading (AI-32). */
+  readonly setGroupBy: (next: string | null) => void;
   readonly toggleField: (key: string) => void;
   readonly isFieldVisible: (key: string) => boolean;
   readonly createView: (name: string) => void;
@@ -184,24 +194,95 @@ export function useTableView({
 
   const activeView = views.find((view) => view.isActive) ?? null;
 
+  /**
+   * THE CURRENT state, readable from any event handler. React replays a click that landed during
+   * hydration, and it schedules the re-render AFTER an effect's setState — so a handler can run
+   * against the closures of an OLDER render. The Cover e2e caught `setViewType` doing exactly
+   * that after a reload: the storage-read effect had already applied "My view" (gallery + cover),
+   * the replayed tab click then rebuilt the draft from the stale default config (cover gone) and
+   * persisted the stale EMPTY view list over the visitor's store. Every mutator therefore reads
+   * through these refs, which `updateViews` / `updateDraft` write through at set time: a stale
+   * closure can still run, but it runs against the current values.
+   */
+  const viewsRef = useRef<readonly UserView[]>(views);
+  const draftRef = useRef<UserViewConfig>(draft);
+
+  const updateViews = useCallback(
+    (next: readonly UserView[] | ((current: readonly UserView[]) => readonly UserView[])) => {
+      if (typeof next !== 'function') {
+        // A plain value updates the ref EAGERLY, so a second mutator in the same tick already
+        // reads it — the same synchronous contract `updateDraft` keeps.
+        viewsRef.current = next;
+        setViews(next);
+        return;
+      }
+      setViews((current) => {
+        const value = next(current);
+        // A ref write inside an updater is safe here: it is idempotent, so StrictMode's double
+        // invocation observes nothing, and it is exactly what keeps the ref current when the
+        // transition callbacks reconcile against `current` rather than a snapshot.
+        viewsRef.current = value;
+        return value;
+      });
+    },
+    [],
+  );
+
+  const updateDraft = useCallback((next: UserViewConfig) => {
+    draftRef.current = next;
+    setDraft(next);
+  }, []);
+
+  /**
+   * Whether demo mode's stored state has been READ this mount. Writes are gated on it: a click
+   * that lands in the gap between hydration and the read effect below would otherwise persist
+   * the empty initial state over the visitor's stored views — wiping "My view" moments before
+   * the effect would have loaded it. The Cover e2e caught exactly that, flaking with the CPU:
+   * the effect usually wins the race, and under five parallel workers it sometimes does not.
+   * A pre-read interaction is applied optimistically but NOT persisted; the read then lands the
+   * stored state the same way fresh server data would, and every later change persists normally.
+   */
+  const localLoaded = useRef(false);
+
   // Demo mode: the browser is the store. Read it once after mount so hydration stays clean.
   useEffect(() => {
     if (!local) return;
     const stored = readStored(tableKey, defaultViewType);
+    localLoaded.current = true;
     if (stored === null) return;
-    setViews(stored.views);
+    updateViews(stored.views);
     const active = stored.views.find((view) => view.isActive);
     const next = active ?? stored.draft;
     const requested = initialViewType === null ? next : { ...next, viewType: initialViewType };
     const config = resolve({ ...requested });
-    setDraft({ ...config });
-    onActivate?.(config);
+    updateDraft({ ...config });
+    /**
+     * `onActivate` hands the page the view's remembered SEARCH — but only a real activated view
+     * carries one worth adopting. The bare draft is just "what you last had", and every
+     * workspace already keeps the live search in the URL (`?q=`), so re-adopting the draft's
+     * search here could only ever do harm: a shared link's explicit `?q=green` was being wiped
+     * by a stored empty draft whenever the 500ms search debounce had managed to fire before the
+     * previous page went away — a latent, timing-shaped flake the concepts search e2e caught.
+     * The draft's view TYPE, fields and order still apply through `updateDraft` above.
+     */
+    if (active !== undefined) onActivate?.(config);
     // The stored state is applied once, on mount; every value named here is stable after it.
-  }, [local, tableKey, defaultViewType, initialViewType, onActivate, resolve]);
+  }, [
+    local,
+    tableKey,
+    defaultViewType,
+    initialViewType,
+    onActivate,
+    resolve,
+    updateDraft,
+    updateViews,
+  ]);
 
   const persistLocal = useCallback(
     (nextViews: readonly UserView[], nextDraft: UserViewConfig) => {
-      if (local) writeStored(tableKey, { views: nextViews, draft: nextDraft });
+      if (local && localLoaded.current) {
+        writeStored(tableKey, { views: nextViews, draft: nextDraft });
+      }
     },
     [local, tableKey],
   );
@@ -209,9 +290,11 @@ export function useTableView({
   /** Applies a partial config to the active view (creating one when none is active) and persists it. */
   const patch = useCallback(
     (change: Partial<UserViewConfig>) => {
-      const nextDraft = { ...draft, ...change };
-      setDraft(nextDraft);
-      if (activeView === null) {
+      const nextDraft = { ...draftRef.current, ...change };
+      updateDraft(nextDraft);
+      const currentViews = viewsRef.current;
+      const active = currentViews.find((view) => view.isActive) ?? null;
+      if (active === null) {
         // Nothing to persist into yet: create the viewer's first view from the current lens.
         const created: UserView = {
           id: localId(),
@@ -219,8 +302,8 @@ export function useTableView({
           isActive: true,
           ...nextDraft,
         };
-        const nextViews = [...views, created];
-        setViews(nextViews);
+        const nextViews = [...currentViews, created];
+        updateViews(nextViews);
         persistLocal(nextViews, nextDraft);
         if (!local) {
           startTransition(async () => {
@@ -231,7 +314,7 @@ export function useTableView({
             });
             if (result.ok && result.view !== null) {
               const saved = result.view;
-              setViews((current) =>
+              updateViews((current) =>
                 current.map((view) =>
                   view.id === created.id ? { ...saved, isActive: true } : view,
                 ),
@@ -243,37 +326,37 @@ export function useTableView({
         }
         return;
       }
-      const nextViews = views.map((view) =>
-        view.id === activeView.id ? { ...view, ...nextDraft } : view,
+      const nextViews = currentViews.map((view) =>
+        view.id === active.id ? { ...view, ...nextDraft } : view,
       );
-      setViews(nextViews);
+      updateViews(nextViews);
       persistLocal(nextViews, nextDraft);
       if (!local) {
         startTransition(async () => {
           const result = await updateUserViewConfigAction({
             tableKey,
-            id: activeView.id,
+            id: active.id,
             config: change,
           });
           if (!result.ok) setError(result.error);
         });
       }
     },
-    [activeView, draft, local, persistLocal, tableKey, views],
+    [local, persistLocal, tableKey, updateDraft, updateViews],
   );
 
   const setViewType = useCallback(
     (next: ViewType) => {
       // The view type is remembered on the active view only; with none, it is just the draft.
-      if (activeView === null) {
-        const nextDraft = { ...draft, viewType: next };
-        setDraft(nextDraft);
-        persistLocal(views, nextDraft);
+      if (viewsRef.current.find((view) => view.isActive) === undefined) {
+        const nextDraft = { ...draftRef.current, viewType: next };
+        updateDraft(nextDraft);
+        persistLocal(viewsRef.current, nextDraft);
         return;
       }
       patch({ viewType: next });
     },
-    [activeView, draft, patch, persistLocal, views],
+    [patch, persistLocal, updateDraft],
   );
 
   const setSort = useCallback(
@@ -290,28 +373,58 @@ export function useTableView({
     [patch],
   );
 
+  const setCoverField = useCallback(
+    (next: string | null) => {
+      patch({ coverField: next });
+    },
+    [patch],
+  );
+
   const setFilter = useCallback(
     (next: string) => {
       // Typing is persisted a beat after it stops, never per keystroke.
-      const nextDraft = { ...draft, filter: next };
-      setDraft(nextDraft);
+      const nextDraft = { ...draftRef.current, filter: next };
+      updateDraft(nextDraft);
       if (filterTimer.current !== null) window.clearTimeout(filterTimer.current);
       filterTimer.current = window.setTimeout(() => {
-        if (activeView === null) {
-          persistLocal(views, nextDraft);
+        // Read again WHEN THE TIMER FIRES: half a second has passed, and the active view or the
+        // rest of the draft may have moved under the debounce.
+        if (viewsRef.current.find((view) => view.isActive) === undefined) {
+          persistLocal(viewsRef.current, draftRef.current);
           return;
         }
         patch({ filter: next });
       }, 500);
     },
-    [activeView, draft, patch, persistLocal, views],
+    [patch, persistLocal, updateDraft],
   );
 
   const toggleField = useCallback(
     (key: string) => {
-      patch({ visibleFields: toggleViewField(draft, key, fieldKeys) });
+      patch({ visibleFields: toggleViewField(draftRef.current, key, fieldKeys) });
     },
-    [draft, fieldKeys, patch],
+    [fieldKeys, patch],
+  );
+
+  const moveField = useCallback(
+    (key: string, direction: 'up' | 'down') => {
+      patch({ fieldOrder: moveViewField(fieldKeys, draftRef.current, key, direction) });
+    },
+    [fieldKeys, patch],
+  );
+
+  const setFilters = useCallback(
+    (next: readonly UserViewFilter[]) => {
+      patch({ filters: [...next] });
+    },
+    [patch],
+  );
+
+  const setGroupBy = useCallback(
+    (next: string | null) => {
+      patch({ groupBy: next });
+    },
+    [patch],
   );
 
   const isFieldVisible = useCallback((key: string) => isViewFieldVisible(draft, key), [draft]);
@@ -319,17 +432,18 @@ export function useTableView({
   const adopt = useCallback(
     (config: UserViewConfig) => {
       const resolved = resolve(reconcile(config));
-      setDraft(resolved);
+      updateDraft(resolved);
       onActivate?.(resolved);
     },
-    [onActivate, reconcile, resolve],
+    [onActivate, reconcile, resolve, updateDraft],
   );
 
   const activateView = useCallback(
     (id: string | null) => {
-      const target = id === null ? null : (views.find((view) => view.id === id) ?? null);
-      const nextViews = views.map((view) => ({ ...view, isActive: view.id === id }));
-      setViews(nextViews);
+      const currentViews = viewsRef.current;
+      const target = id === null ? null : (currentViews.find((view) => view.id === id) ?? null);
+      const nextViews = currentViews.map((view) => ({ ...view, isActive: view.id === id }));
+      updateViews(nextViews);
       const nextConfig = target ?? defaultUserViewConfig(defaultViewType);
       adopt(nextConfig);
       persistLocal(nextViews, nextConfig);
@@ -340,7 +454,7 @@ export function useTableView({
         });
       }
     },
-    [adopt, defaultViewType, local, persistLocal, tableKey, views],
+    [adopt, defaultViewType, local, persistLocal, tableKey, updateViews],
   );
 
   const createView = useCallback(
@@ -351,16 +465,24 @@ export function useTableView({
         return;
       }
       setError(null);
-      const created: UserView = { id: localId(), name: trimmed, isActive: true, ...draft };
-      const nextViews = [...views.map((view) => ({ ...view, isActive: false })), created];
-      setViews(nextViews);
-      persistLocal(nextViews, draft);
+      const currentDraft = draftRef.current;
+      const created: UserView = { id: localId(), name: trimmed, isActive: true, ...currentDraft };
+      const nextViews = [
+        ...viewsRef.current.map((view) => ({ ...view, isActive: false })),
+        created,
+      ];
+      updateViews(nextViews);
+      persistLocal(nextViews, currentDraft);
       if (!local) {
         startTransition(async () => {
-          const result = await createUserViewAction({ tableKey, name: trimmed, config: draft });
+          const result = await createUserViewAction({
+            tableKey,
+            name: trimmed,
+            config: currentDraft,
+          });
           if (result.ok && result.view !== null) {
             const saved = result.view;
-            setViews((current) =>
+            updateViews((current) =>
               current.map((view) => (view.id === created.id ? { ...saved, isActive: true } : view)),
             );
           } else if (!result.ok) {
@@ -369,7 +491,7 @@ export function useTableView({
         });
       }
     },
-    [draft, local, persistLocal, tableKey, views],
+    [local, persistLocal, tableKey, updateViews],
   );
 
   const renameView = useCallback(
@@ -380,9 +502,11 @@ export function useTableView({
         return;
       }
       setError(null);
-      const nextViews = views.map((view) => (view.id === id ? { ...view, name: trimmed } : view));
-      setViews(nextViews);
-      persistLocal(nextViews, draft);
+      const nextViews = viewsRef.current.map((view) =>
+        view.id === id ? { ...view, name: trimmed } : view,
+      );
+      updateViews(nextViews);
+      persistLocal(nextViews, draftRef.current);
       if (!local) {
         startTransition(async () => {
           const result = await renameUserViewAction({ tableKey, id, name: trimmed });
@@ -390,15 +514,15 @@ export function useTableView({
         });
       }
     },
-    [draft, local, persistLocal, tableKey, views],
+    [local, persistLocal, tableKey, updateViews],
   );
 
   const deleteView = useCallback(
     (id: string) => {
-      const wasActive = activeView?.id === id;
-      const nextViews = views.filter((view) => view.id !== id);
-      setViews(nextViews);
-      const nextConfig = wasActive ? defaultUserViewConfig(defaultViewType) : draft;
+      const wasActive = viewsRef.current.find((view) => view.isActive)?.id === id;
+      const nextViews = viewsRef.current.filter((view) => view.id !== id);
+      updateViews(nextViews);
+      const nextConfig = wasActive ? defaultUserViewConfig(defaultViewType) : draftRef.current;
       if (wasActive) adopt(nextConfig);
       persistLocal(nextViews, nextConfig);
       if (!local) {
@@ -408,7 +532,7 @@ export function useTableView({
         });
       }
     },
-    [activeView, adopt, defaultViewType, draft, local, persistLocal, tableKey, views],
+    [adopt, defaultViewType, local, persistLocal, tableKey, updateViews],
   );
 
   return {
@@ -420,6 +544,10 @@ export function useTableView({
     setSort,
     setFilter,
     setFrozenFields,
+    setCoverField,
+    moveField,
+    setFilters,
+    setGroupBy,
     toggleField,
     isFieldVisible,
     createView,

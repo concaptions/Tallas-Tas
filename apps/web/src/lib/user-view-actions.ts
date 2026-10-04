@@ -46,6 +46,9 @@ interface ViewRow {
   readonly frozenFields: string[];
   readonly sort: { key: string; direction: 'asc' | 'desc' } | null;
   readonly filter: string;
+  readonly coverField: string | null;
+  readonly filters: { field: string; op: string; value: string }[];
+  readonly groupBy: string | null;
   readonly isActive: boolean;
 }
 
@@ -118,6 +121,9 @@ function configInput(
     frozenFields?: string[];
     sort?: { key: string; direction: 'asc' | 'desc' } | null;
     filter?: string;
+    coverField?: string | null;
+    filters?: { field: string; op: string; value: string }[];
+    groupBy?: string | null;
   } = {};
   if (config.viewType !== undefined) {
     input.viewType = supportsView(tableKey, parsed.viewType) ? parsed.viewType : 'grid';
@@ -129,6 +135,11 @@ function configInput(
   if (config.frozenFields !== undefined) input.frozenFields = [...parsed.frozenFields];
   if (config.sort !== undefined) input.sort = parsed.sort;
   if (config.filter !== undefined) input.filter = parsed.filter;
+  if (config.coverField !== undefined) input.coverField = parsed.coverField;
+  // The field conditions and the grouping column (AI-32), both already narrowed by the domain
+  // parser above: a malformed entry was dropped there, so nothing unspoken reaches the write.
+  if (config.filters !== undefined) input.filters = parsed.filters.map((entry) => ({ ...entry }));
+  if (config.groupBy !== undefined) input.groupBy = parsed.groupBy;
   return input;
 }
 

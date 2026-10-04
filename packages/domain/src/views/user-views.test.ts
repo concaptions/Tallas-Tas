@@ -6,6 +6,7 @@ import {
   freezeUpTo,
   frozenUpTo,
   isViewFieldVisible,
+  moveViewField,
   reconcileViewFields,
   parseUserViewConfig,
   toggleViewField,
@@ -106,6 +107,7 @@ describe('parseUserViewConfig', () => {
         frozenFields: undefined,
         sort: { key: 'name', direction: 'desc' },
         filter: 42,
+        coverField: 7,
       }),
     ).toEqual({
       viewType: 'gallery',
@@ -114,10 +116,63 @@ describe('parseUserViewConfig', () => {
       frozenFields: [],
       sort: { key: 'name', direction: 'desc' },
       filter: '',
+      coverField: null,
+      filters: [],
+      groupBy: null,
     });
     expect(parseUserViewConfig({ viewType: 'bogus', sort: { key: 'x' } }).viewType).toBe('grid');
     expect(parseUserViewConfig({ viewType: 'bogus' }).sort).toBeNull();
     expect(parseUserViewConfig({}).visibleFields).toBeNull();
+    // 'list' is a real view type (AI-17): a saved list view survives the parse rather than
+    // degrading to the fallback the way an unknown word does.
+    expect(parseUserViewConfig({ viewType: 'list' }).viewType).toBe('list');
+  });
+
+  it('parses a view stored BEFORE filters and grouping existed to the defaults, unchanged', () => {
+    // AI-32's compatibility promise: a row with no `filters` and no `groupBy` at all — every view
+    // saved before the columns existed — describes a view with no conditions and the flat reading.
+    const parsed = parseUserViewConfig({ viewType: 'grid', visibleFields: ['name'] });
+    expect(parsed.filters).toEqual([]);
+    expect(parsed.groupBy).toBeNull();
+    expect(defaultUserViewConfig().filters).toEqual([]);
+    expect(defaultUserViewConfig().groupBy).toBeNull();
+  });
+
+  it('keeps well-formed filter entries, drops malformed ones, and narrows groupBy', () => {
+    const parsed = parseUserViewConfig({
+      filters: [
+        { field: 'gender', op: 'is', value: 'Female' },
+        { field: 'notes', op: 'empty', value: 'ignored — empty takes no value' },
+        { field: '', op: 'is', value: 'no field' },
+        { field: 'age', op: 'between', value: 'unknown op' },
+        { field: 'age', op: 'is', value: 42 },
+        'not even an object',
+        null,
+      ],
+      groupBy: 'status',
+    });
+    expect(parsed.filters).toEqual([
+      { field: 'gender', op: 'is', value: 'Female' },
+      // The dead value is normalised to '' so two stored spellings of the same condition compare
+      // equal, and a non-string value reads as '' rather than crashing the page.
+      { field: 'notes', op: 'empty', value: '' },
+      { field: 'age', op: 'is', value: '' },
+    ]);
+    expect(parsed.groupBy).toBe('status');
+    expect(parseUserViewConfig({ filters: 'bogus', groupBy: '' }).filters).toEqual([]);
+    expect(parseUserViewConfig({ groupBy: '' }).groupBy).toBeNull();
+    expect(parseUserViewConfig({ groupBy: 7 }).groupBy).toBeNull();
+  });
+
+  it('keeps a stored cover column and reads an empty string as the page default', () => {
+    // Action item 16. A row written before the cover existed has no `cover_field` at all, and must
+    // read as "the page's own cover" — never as a cover key of `''`, which no column has.
+    expect(parseUserViewConfig({ coverField: 'video_intro_url' }).coverField).toBe(
+      'video_intro_url',
+    );
+    expect(parseUserViewConfig({ coverField: '' }).coverField).toBeNull();
+    expect(parseUserViewConfig({}).coverField).toBeNull();
+    expect(defaultUserViewConfig().coverField).toBeNull();
   });
 });
 
@@ -215,6 +270,67 @@ describe('reconcileViewFields', () => {
     expect(reconcileViewFields(null, PERSONA_KEYS)).toBeNull();
     expect(reconcileViewFields(['core_desires', 'coreDesires'], PERSONA_KEYS)).toEqual([
       'core_desires',
+    ]);
+  });
+});
+
+/**
+ * The reorder control (action item 16, second half): one field a step up or down, moved in the
+ * order the viewer SEES — stored keys first, the table's own order after — and written back as the
+ * full permutation so every position survives the table's own order changing underneath.
+ */
+describe('moveViewField', () => {
+  const KEYS = ['name', 'status', 'notes', 'updated'] as const;
+
+  it('moves a field down one step in the table order when nothing was stored yet', () => {
+    expect(moveViewField(KEYS, { fieldOrder: [] }, 'status', 'down')).toEqual([
+      'name',
+      'notes',
+      'status',
+      'updated',
+    ]);
+  });
+
+  it('moves in the EFFECTIVE order a partial stored order creates, and completes it', () => {
+    // Stored ['notes']: the viewer sees notes, name, status, updated. Moving `status` up swaps it
+    // with `name`, and the result lists all four — a delta over a partial order has no stable
+    // meaning once the table's own order changes underneath.
+    expect(moveViewField(KEYS, { fieldOrder: ['notes'] }, 'status', 'up')).toEqual([
+      'notes',
+      'status',
+      'name',
+      'updated',
+    ]);
+  });
+
+  it('is a no-op at either end and for a key the table does not have', () => {
+    const view = { fieldOrder: ['notes'] } as const;
+    expect(moveViewField(KEYS, view, 'notes', 'up')).toBe(view.fieldOrder);
+    expect(moveViewField(KEYS, view, 'updated', 'down')).toBe(view.fieldOrder);
+    expect(moveViewField(KEYS, view, 'gone', 'up')).toBe(view.fieldOrder);
+  });
+
+  it('drops stored keys the table no longer has, exactly as applyUserView renders them', () => {
+    // A view saved before a column was removed: the ghost key must not survive into the new
+    // permutation, or the next reorder would be made against an order nobody can see.
+    expect(moveViewField(KEYS, { fieldOrder: ['gone', 'updated'] }, 'name', 'down')).toEqual([
+      'updated',
+      'status',
+      'name',
+      'notes',
+    ]);
+  });
+
+  it('agrees with applyUserView about what the viewer was looking at', () => {
+    const stored = { fieldOrder: ['updated', 'status'] } as const;
+    const seen = applyUserView(
+      KEYS.map((key) => ({ key })),
+      { ...stored, visibleFields: null, frozenFields: [] },
+    ).map((field) => field.key);
+    expect(moveViewField(KEYS, stored, 'updated', 'down')).toEqual([
+      seen[1],
+      seen[0],
+      ...seen.slice(2),
     ]);
   });
 });

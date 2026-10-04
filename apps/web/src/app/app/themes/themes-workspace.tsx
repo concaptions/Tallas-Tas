@@ -7,8 +7,15 @@ import type { ViewType } from '@tas/domain';
 import { getTableCapability } from '@tas/domain';
 import { Button, Input } from '@tas/ui';
 
-import { useTableView, ViewToolbar, GalleryView, galleryItemsFrom } from '@/components/views';
+import {
+  useTableView,
+  ViewToolbar,
+  GalleryView,
+  galleryItemsFrom,
+  ListView,
+} from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipCell, CountCell, TextCell } from '@/components/views/grid-cells';
@@ -311,20 +318,36 @@ export function ThemesWorkspace({
     [tabThemes, category, query],
   );
 
-  const narrowed = visible.length !== tabThemes.length;
+  /**
+   * The view's field conditions applied once, here, so the grid, the gallery and the list all
+   * read the SAME narrowed row set (AI-32): `visible` already passed the search (and the tab's
+   * own narrowing where the page has one), the grid sorts afterwards. With no conditions this is
+   * the same array back.
+   */
+  const filtered = useMemo(
+    () => applyFilters(visible, tableView.config.filters, THEME_COLUMNS),
+    [visible, tableView.config.filters],
+  );
+
+  const narrowed = filtered.length !== tabThemes.length;
 
   const open = themes.find((theme) => theme.id === selection) ?? null;
 
   // The card image is the first attachment (Sprint 7 gallery); a theme with none shows its initial.
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, THEME_COLUMNS, (theme) => ({
-        id: theme.id,
-        name: theme.name,
-        imageUrl: theme.attachments?.[0] ?? null,
-        subtitle: themeCategoryLabel(theme.category),
-      })),
-    [visible],
+      galleryItemsFrom(
+        filtered,
+        THEME_COLUMNS,
+        (theme) => ({
+          id: theme.id,
+          name: theme.name,
+          imageUrl: theme.attachments?.[0] ?? null,
+          subtitle: themeCategoryLabel(theme.category),
+        }),
+        { fieldOrder: tableView.config.fieldOrder },
+      ),
+    [filtered, tableView.config.fieldOrder],
   );
 
   return (
@@ -340,7 +363,7 @@ export function ThemesWorkspace({
         <p className="text-sm text-text2">
           <span data-slot="theme-count">
             {narrowed
-              ? filteredCountLabel(visible.length, tabThemes.length)
+              ? filteredCountLabel(filtered.length, tabThemes.length)
               : libraryCountLabel(tabThemes.length)}
           </span>{' '}
           — the creative vehicle a concept is built in, shared by every brand.
@@ -409,6 +432,9 @@ export function ThemesWorkspace({
             onToggleField={tableView.toggleField}
             viewConfig={tableView.config}
             onFreezeChange={tableView.setFrozenFields}
+            onMoveField={tableView.moveField}
+            onFiltersChange={tableView.setFilters}
+            onGroupChange={tableView.setGroupBy}
             error={tableView.error}
           />
           <Input
@@ -464,13 +490,23 @@ export function ThemesWorkspace({
               select(item.id);
             }}
           />
+        ) : activeView === 'list' ? (
+          <ListView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            rowSlot="theme-list-row"
+            onItemClick={(item) => {
+              select(item.id);
+            }}
+          />
         ) : (
           <AirtableGrid
             tableKey="themes"
             view={tableView.config}
             onSortChange={tableView.setSort}
             columns={THEME_COLUMNS}
-            rows={visible}
+            rows={filtered}
             rowId={(theme) => theme.id}
             rowLabel={(theme) => theme.name}
             rowAttributes={(theme) => ({

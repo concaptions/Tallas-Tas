@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import {
@@ -17,10 +18,13 @@ import {
   ColumnNotices,
   GalleryView,
   galleryItemsFrom,
+  ListView,
   useTableView,
   ViewToolbar,
+  type ListChip,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -30,6 +34,7 @@ import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
 
+import { ConceptPanel } from './concept-panel';
 import {
   EM_DASH,
   NEW_CONCEPT,
@@ -70,10 +75,12 @@ import {
  * search — a different sentence from the brand that has no concepts at all, because those are
  * different problems with different ways out (`NO_MATCH_NOTE` and `NO_CONCEPTS_NOTE`).
  *
- * A row and a card are the same thing: a click on either navigates to `/app/concepts/<id>`, a real
- * route segment, so the list is gone and Back restores it with the `?view=` it had. This is
- * deliberately NOT a side panel — a concept carries a brief, an inherited block and an approval
- * rail, which is a page's worth of material.
+ * A row, a card and a list row are the same thing: a click on any of them opens the side panel
+ * (AI-17, the operator's ruling — the shipped brief-panel pattern), so the list, the search and
+ * the view stay exactly where they were. The generated NAME — in the grid row and in the panel —
+ * is the real `<Link>` to `/app/concepts/<id>` (AI-52): editing a concept is still a page's worth
+ * of material (the pairing, the inherited block, the approval rail), it is just one deliberate
+ * navigation away instead of the price of a glance.
  */
 interface ConceptsWorkspaceProps {
   readonly items: readonly ConceptItem[];
@@ -100,11 +107,6 @@ const CONCEPTS_CAP = getTableCapability('concepts') as NonNullable<
  * instead of 404ing. It now lands on the grid, and the first thing that syncs the URL — a search, a
  * view switch — drops the stale parameter (action item 18).
  */
-const VIEW_TYPE_OF: Record<ConceptView, ViewType> = {
-  table: 'grid',
-  board: 'grid',
-  gallery: 'gallery',
-};
 function conceptViewOf(viewType: ViewType): ConceptView {
   return viewType === 'gallery' ? 'gallery' : 'table';
 }
@@ -149,9 +151,21 @@ function syncUrl(view: ConceptView, search: string): void {
 const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   name: {
     render: (item) => (
-      <span data-slot="concept-row-name" className="font-mono text-xs">
+      /*
+       * A REAL LINK (AI-52): the generated name is the way to the concept's own page, so it can be
+       * cmd-clicked, middle-clicked and copied. A plain click follows it too — the stopPropagation
+       * only keeps the ROW's click (which opens the panel) from firing underneath the navigation.
+       */
+      <Link
+        href={item.href}
+        data-slot="concept-row-name"
+        className="font-mono text-xs hover:underline"
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+      >
         {item.name}
-      </span>
+      </Link>
     ),
     sortValue: (item) => item.name,
   },
@@ -250,6 +264,7 @@ export function ConceptsWorkspace({
   );
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
+  const [selection, setSelection] = useState<string | null>(null);
   const viewRef = useRef<ConceptView>(initialView);
 
   const filter = useCallback((next: string) => {
@@ -270,7 +285,12 @@ export function ConceptsWorkspace({
     userId: userViews.userId,
     initialViews: userViews.views,
     defaultViewType: 'grid',
-    initialViewType: VIEW_TYPE_OF[initialView],
+    // Only an EXPLICIT `?view=gallery` overrides the saved view's own type. `table` is both the
+    // default and the word the server narrows every absent or stale value to, so passing it
+    // through as an override would pin a saved Gallery or List view back to the grid on every
+    // plain load of the page — the hook reserves the override for a view someone actually asked
+    // for in the URL.
+    initialViewType: initialView === 'gallery' ? 'gallery' : null,
     fieldKeys,
     onActivate: adoptView,
   });
@@ -299,12 +319,14 @@ export function ConceptsWorkspace({
     onSearch('');
   }, [onSearch]);
 
-  const open = useCallback(
-    (item: ConceptItem) => {
-      router.push(item.href);
-    },
-    [router],
-  );
+  /** A click on a row, card or list row opens the panel; only the NAME link navigates. */
+  const open = useCallback((item: ConceptItem) => {
+    setSelection(item.id);
+  }, []);
+
+  const closePanel = useCallback(() => {
+    setSelection(null);
+  }, []);
 
   const create = useCallback(() => {
     router.push(conceptPath(NEW_CONCEPT));
@@ -316,17 +338,43 @@ export function ConceptsWorkspace({
     [items, query],
   );
 
-  const narrowed = visible.length !== items.length;
+  /**
+   * The view's field conditions applied once, here, so the grid, the gallery and the list all
+   * read the SAME narrowed row set (AI-32): `visible` already passed the search (and the tab's
+   * own narrowing where the page has one), the grid sorts afterwards. With no conditions this is
+   * the same array back.
+   */
+  const filtered = useMemo(
+    () => applyFilters(visible, tableView.config.filters, grid.columns),
+    [visible, grid, tableView.config.filters],
+  );
+
+  const narrowed = filtered.length !== items.length;
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, grid.columns, (item) => ({
-        id: item.id,
-        name: item.name,
-        subtitle: item.themeName ?? undefined,
-      })),
-    [visible],
+      galleryItemsFrom(
+        filtered,
+        grid.columns,
+        (item) => ({
+          id: item.id,
+          name: item.name,
+          subtitle: item.themeName ?? undefined,
+        }),
+        { fieldOrder: tableView.config.fieldOrder },
+      ),
+    [filtered, grid, tableView.config.fieldOrder],
   );
+
+  /** The list rows wear the concept's INTERNAL status, the same chip the grid column shows. */
+  const listChips = useMemo(() => {
+    const chips: Record<string, ListChip> = {};
+    for (const item of filtered)
+      chips[item.id] = { label: item.status.label, tone: item.status.tone };
+    return chips;
+  }, [filtered]);
+
+  const openConcept = filtered.find((item) => item.id === selection) ?? null;
 
   const newConcept = (
     <Button
@@ -353,7 +401,7 @@ export function ConceptsWorkspace({
         <p className="text-sm text-text2">
           <span data-slot="concept-count">
             {narrowed
-              ? filteredConceptCountLabel(visible.length, items.length)
+              ? filteredConceptCountLabel(filtered.length, items.length)
               : conceptCountLabel(items.length)}
           </span>{' '}
           — one angle paired with one theme, named for you.
@@ -394,6 +442,9 @@ export function ConceptsWorkspace({
               onToggleField={tableView.toggleField}
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
+              onMoveField={tableView.moveField}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
               error={tableView.error}
             />
           </div>
@@ -406,7 +457,7 @@ export function ConceptsWorkspace({
           registryName="CONCEPT_RENDERERS in concepts-workspace.tsx"
         />
 
-        {visible.length === 0 ? (
+        {filtered.length === 0 ? (
           <div
             data-slot="concepts-empty"
             className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface px-4 py-10 text-center"
@@ -436,13 +487,27 @@ export function ConceptsWorkspace({
               </DisabledWrite>
             )}
           </div>
-        ) : view === 'gallery' ? (
+        ) : activeView === 'gallery' ? (
           <GalleryView
             items={galleryItems}
             visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
             cardSlot="concept-card"
             onItemClick={(item) => {
-              const target = visible.find((candidate) => candidate.id === item.id);
+              const target = filtered.find((candidate) => candidate.id === item.id);
+              if (target !== undefined) open(target);
+            }}
+          />
+        ) : activeView === 'list' ? (
+          <ListView
+            items={galleryItems}
+            visibleFields={tableView.config.visibleFields}
+            selectedId={selection}
+            rowSlot="concept-list-row"
+            chips={listChips}
+            monoNames
+            onItemClick={(item) => {
+              const target = filtered.find((candidate) => candidate.id === item.id);
               if (target !== undefined) open(target);
             }}
           />
@@ -452,10 +517,11 @@ export function ConceptsWorkspace({
             view={tableView.config}
             onSortChange={tableView.setSort}
             columns={grid.columns}
-            rows={visible}
+            rows={filtered}
             rowId={(item) => item.id}
             rowLabel={(item) => item.name}
             rowAttributes={(item) => ({ 'data-concept-id': item.id })}
+            selectedId={selection}
             onRowClick={(item) => {
               open(item);
             }}
@@ -464,6 +530,8 @@ export function ConceptsWorkspace({
           />
         )}
       </section>
+
+      {openConcept === null ? null : <ConceptPanel item={openConcept} onClose={closePanel} />}
     </div>
   );
 }
