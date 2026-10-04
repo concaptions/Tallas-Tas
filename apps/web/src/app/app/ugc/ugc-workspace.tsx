@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Button,
@@ -158,6 +158,16 @@ function trackRenderer(trackKey: 'internal' | 'client' | 'assets') {
  */
 function CreatorAvatar({ creator }: { readonly creator: CreatorCardRow }) {
   const [failed, setFailed] = useState(false);
+  const image = useRef<HTMLImageElement | null>(null);
+  // A URL that died BEFORE hydration never fires onError at React: the browser fetched it while
+  // the HTML was still streaming, so by the time handlers attach the error is history. The mount
+  // check reads what the element already knows — complete with no pixels is a failed load.
+  useEffect(() => {
+    const node = image.current;
+    if (node !== null && node.complete && node.naturalWidth === 0) {
+      setFailed(true);
+    }
+  }, []);
   if (creator.profilePicUrl === null || failed) {
     return (
       <span
@@ -172,6 +182,7 @@ function CreatorAvatar({ creator }: { readonly creator: CreatorCardRow }) {
   }
   return (
     <img
+      ref={image}
       data-slot="creator-avatar"
       src={creator.profilePicUrl}
       alt=""

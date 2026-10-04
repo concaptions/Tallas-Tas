@@ -174,10 +174,13 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     const img = row.locator('img[data-slot="creator-avatar"]');
     await expect(img).toHaveCount(1);
 
-    await img.evaluate((element) => element.dispatchEvent(new Event('error')));
-
     const avatar = row.locator('[data-slot="creator-avatar"]');
-    await expect(avatar).toHaveAttribute('data-fallback', 'initials');
+    // Re-fire until hydration is listening: an error dispatched before React attaches its
+    // handlers is simply lost, which is also why the component double-checks on mount.
+    await expect(async () => {
+      await img.evaluate((element) => element.dispatchEvent(new Event('error')));
+      await expect(avatar).toHaveAttribute('data-fallback', 'initials', { timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
     await expect(row.locator('img[data-slot="creator-avatar"]')).toHaveCount(0);
     await expect(row.locator('[data-slot="creator-name"]')).not.toBeEmpty();
   });
