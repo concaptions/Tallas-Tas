@@ -8,7 +8,8 @@ import {
 import { COPY_STATUS, copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 import { StatusChip } from '@tas/ui';
 
-import { copyNumberLabel, toYoutubeCopyItem } from '@/app/app/youtube-copywriting/fields';
+import { buildYoutubeCopyItems } from '@/app/app/youtube-copywriting/build-items';
+import { copyNumberLabel } from '@/app/app/youtube-copywriting/fields';
 import { YoutubeCopywritingWorkspace } from '@/app/app/youtube-copywriting/youtube-copywriting-workspace';
 import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
@@ -19,8 +20,9 @@ import { parentColumnsFor } from '@/lib/resolved-columns-source';
  * the grid renders them.
  *
  * A server module, like `role-dashboard.stories.tsx`: it reads the fixtures from `@tas/db` and hands
- * the client workspace plain items built by the route's own `toYoutubeCopyItem`, with one fixed
- * `now` so the relative timestamps on this page never change between renders.
+ * the client workspace plain items built by the route's own `buildYoutubeCopyItems` — lookup cells
+ * included (GRATSI-MATCH, 2026-10-04) — with one fixed `now` so the relative timestamps on this
+ * page never change between renders.
  */
 const STORY_NOW = new Date('2026-09-18T09:00:00.000Z');
 
@@ -29,7 +31,11 @@ export function YoutubeCopyGridStory() {
   return (
     <YoutubeCopywritingWorkspace
       columns={parentColumnsFor('youtube_copy')}
-      items={demoYoutubeCopy.map((row) => toYoutubeCopyItem(row, STORY_NOW))}
+      items={buildYoutubeCopyItems(
+        demoYoutubeCopy,
+        demoCollections.map(({ id, productName }) => ({ id, productName })),
+        STORY_NOW,
+      )}
       collections={demoCollections.map(({ id, name }) => ({ id, name }))}
       products={demoProducts.map(({ id, name }) => ({ id, name }))}
       campaigns={demoCampaigns.map(({ id, name, code }) => ({ id, name, code }))}

@@ -1221,8 +1221,11 @@ describe('the all-platform tables resolve for every brand', () => {
     { tableKey: 'email_campaigns', inheriting: 17, gratsi: 17, gratsiOwnRows: 0, virtual: 2 },
     { tableKey: 'email_flows', inheriting: 13, gratsi: 13, gratsiOwnRows: 0, virtual: 2 },
     { tableKey: 'sm_campaign_feed_tasks', inheriting: 6, gratsi: 6, gratsiOwnRows: 0, virtual: 1 },
-    // Gratsi hides its status banner, which has no column at all, so it shows one fewer.
-    { tableKey: 'youtube_copy', inheriting: 16, gratsi: 16, gratsiOwnRows: 2, virtual: 0 },
+    // Gratsi hides its status banner, and since the Gratsi column match (2026-10-04) adds its
+    // six link-lookups, (Internal) Product and Created By as child rows: 24 of its base's 29
+    // fields (five decision-doc-flagged), 10 of them Gratsi's own rows (2 relabels, created_by,
+    // 7 lookupRollup virtuals). The inheriting platform set is untouched at 16.
+    { tableKey: 'youtube_copy', inheriting: 16, gratsi: 24, gratsiOwnRows: 10, virtual: 0 },
   ] as const;
 
   it.each(EXPECTED)(
@@ -1250,9 +1253,13 @@ describe('the all-platform tables resolve for every brand', () => {
       ).toHaveLength(inheriting);
       expect(onGratsi).toHaveLength(gratsi);
 
-      // Every column of these tables is the platform's: the parent base has no such table.
+      // Every column of these tables is the platform's or a child's own: the parent BASE has no
+      // such table, so no row may ever claim `parent` — on either base. Gratsi's own additions
+      // (the GRATSI-MATCH lookups and Created By on youtube_copy) are rightly `custom`.
       expect(onNiagara.filter((column) => column.source !== 'platform')).toEqual([]);
-      expect(onGratsi.filter((column) => column.source !== 'platform')).toEqual([]);
+      expect(
+        onGratsi.filter((column) => column.source !== 'platform' && column.source !== 'custom'),
+      ).toEqual([]);
 
       // Virtual columns carry their formula and no stored column backs them.
       expect(onNiagara.filter((column) => column.formula !== null)).toHaveLength(virtual);

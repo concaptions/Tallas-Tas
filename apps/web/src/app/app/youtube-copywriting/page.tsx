@@ -3,7 +3,8 @@ import { supportsView, type ViewType } from '@tas/domain';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadYoutubeCopyColumns, loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 
-import { SEARCH_PARAM, SELECTION_PARAM, toYoutubeCopyItem } from './fields';
+import { buildYoutubeCopyItems } from './build-items';
+import { SEARCH_PARAM, SELECTION_PARAM } from './fields';
 import { YoutubeCopywritingWorkspace } from './youtube-copywriting-workspace';
 
 /**
@@ -14,10 +15,11 @@ import { YoutubeCopywritingWorkspace } from './youtube-copywriting-workspace';
  * come from `loadYoutubeCopyWorkspace()`, which is the in-repo fixtures in demo mode and the
  * brand-scoped queries otherwise; the page does not know which and does not branch on it.
  *
- * EVERYTHING IS RESOLVED HERE, ONCE. `toYoutubeCopyItem` turns each row into plain data: the
+ * EVERYTHING IS RESOLVED HERE, ONCE. `buildYoutubeCopyItems` turns each row into plain data: the
  * generated Copy # title, the status label and tone from `@tas/domain/state`, the CTA and funnel
- * labels from the schema vocabularies, and both timestamp strings with a single `now` (a client
- * that formatted them itself would disagree with the server and break hydration). The client
+ * labels from the schema vocabularies, every Airtable LOOKUP cell through `lookupRollup`
+ * (GRATSI-MATCH, 2026-10-04), and both timestamp strings with a single `now` (a client that
+ * formatted them itself would disagree with the server and break hydration). The client
  * components below receive plain data and never import the database driver.
  *
  * The open row lives in `?youtube-copy=`, the search in `?q=` and the view in `?view=`, so each is
@@ -33,14 +35,13 @@ export default async function YoutubeCopywritingPage({
   searchParams,
 }: YoutubeCopywritingPageProps) {
   const [
-    { rows, collections, products, campaigns, copyTypes },
+    { rows, collections, collectionProducts, products, campaigns, copyTypes },
     { columns, unconfigured: unconfiguredColumns },
     params,
   ] = await Promise.all([loadYoutubeCopyWorkspace(), loadYoutubeCopyColumns(), searchParams]);
   const demo = isDemoMode();
-  const now = new Date();
 
-  const items = rows.map((row) => toYoutubeCopyItem(row, now));
+  const items = buildYoutubeCopyItems(rows, collectionProducts, new Date());
 
   const requested = params[SELECTION_PARAM];
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;

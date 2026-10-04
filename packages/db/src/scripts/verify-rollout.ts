@@ -32,7 +32,10 @@ const EXPECTED: readonly {
   { tableKey: 'email_campaigns', inheriting: 17, gratsi: 17, virtual: 2 },
   { tableKey: 'email_flows', inheriting: 13, gratsi: 13, virtual: 2 },
   { tableKey: 'sm_campaign_feed_tasks', inheriting: 6, gratsi: 6, virtual: 1 },
-  { tableKey: 'youtube_copy', inheriting: 16, gratsi: 16, virtual: 0 },
+  // GRATSI-MATCH youtube_copy (2026-10-04, docs/audits/gratsi-column-diff-2026-10-04.md): Gratsi
+  // adds its six link-lookups, (Internal) Product and Created By as child rows = 24 of the base's
+  // 29 (five decision-doc-flagged); the platform set other brands inherit stays 16.
+  { tableKey: 'youtube_copy', inheriting: 16, gratsi: 24, virtual: 0 },
   // GRATSI-MATCH copywriting (2026-10-04, docs/audits/gratsi-column-diff-2026-10-04.md): the
   // template's full 10-field set (Copy # and the reverse-link Collection column were missing), and
   // Gratsi's 30-field base minus the five decision-doc-flagged fields = 25, in Airtable's order.

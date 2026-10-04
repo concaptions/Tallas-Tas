@@ -51,9 +51,20 @@ export interface CampaignOption extends LinkOption {
   readonly code: string | null;
 }
 
+/**
+ * One collection reduced to the `Products (from Collections)` lookup (GRATSI-MATCH, 2026-10-04):
+ * the one hop the list row does not carry — each linked collection's own product name, read off
+ * the same `listCollections` pass that feeds the picker and joined per row in `build-items.ts`.
+ */
+export interface CollectionProductName {
+  readonly id: string;
+  readonly productName: string | null;
+}
+
 export interface YoutubeCopyWorkspaceResult {
   readonly rows: YoutubeCopyListRow[];
   readonly collections: LinkOption[];
+  readonly collectionProducts: readonly CollectionProductName[];
   readonly products: LinkOption[];
   readonly campaigns: CampaignOption[];
   readonly copyTypes: LinkOption[];
@@ -111,6 +122,13 @@ function toCampaignOption(row: {
   return { id: row.id, name: row.name, code: row.code };
 }
 
+function toCollectionProduct(row: {
+  readonly id: string;
+  readonly productName: string | null;
+}): CollectionProductName {
+  return { id: row.id, productName: row.productName };
+}
+
 const YOUTUBE_COPY_TABLE_KEY = 'youtube_copy';
 
 /**
@@ -139,6 +157,7 @@ export async function loadYoutubeCopyWorkspace(
     return {
       rows: demoYoutubeCopy,
       collections: demoCollections.map(toOption),
+      collectionProducts: demoCollections.map(toCollectionProduct),
       products: demoProducts.map(toOption),
       campaigns: demoCampaigns.map(toCampaignOption),
       copyTypes: demoCopyTypes.map(toOption),
@@ -151,6 +170,7 @@ export async function loadYoutubeCopyWorkspace(
       return {
         rows: [],
         collections: [],
+        collectionProducts: [],
         products: [],
         campaigns: [],
         copyTypes: [],
@@ -167,6 +187,7 @@ export async function loadYoutubeCopyWorkspace(
     return {
       rows,
       collections: collections.map(toOption),
+      collectionProducts: collections.map(toCollectionProduct),
       products: products.map(toOption),
       campaigns: campaigns.map(toCampaignOption),
       copyTypes: copyTypes.map(toOption),

@@ -1056,3 +1056,39 @@ gains that one row and the inheriting set goes 14 → 15. That is the only inher
 
 Counts asserted against PGlite in `creative-sheet-source.test.ts` (Gratsi 29 ordered+labelled,
 inheriting 15, every lookup virtual) and in `verify-rollout.ts`.
+
+## 2026-10-04 — GRATSI-MATCH `youtube_copy`: 24 of 29 Airtable fields displayed; five flagged, zero invented
+
+Input: `docs/audits/gratsi-column-diff-2026-10-04.md` (Youtube Copywriting: Airtable 29, platform
+16, already resolver-driven). Gratsi child rows add the eight missing displayable fields in the
+base's own positions; the platform set every other brand inherits is untouched at 16, because
+this is one of the six tables the parent base does not have at all.
+
+**Displayed as virtual lookup columns** (the same `lookupRollup` + loader pattern as
+`copywriting`; computed in `youtube-copywriting-source.ts` / `build-items.ts`, never stored):
+`Offer` (11), `Campaign (from Campaign)` (12), `Code (from Campaign)` (13) through
+`youtube_copy_campaigns` → `campaigns_offers.discount_offer/name/code`; `Collection URL` (18)
+through `youtube_copy_collections`; `Link (from Product)` (19) through `youtube_copy_products`;
+`Products (from Collections)` (23) through each linked collection's own `product_id` — the one
+hop the list row does not carry, read off the same `listCollections` pass that feeds the picker;
+`(Internal) Product` (27) — the base's residual text whose datum the 2026-10-01 register records
+as "the product link is Product (youtube_copy_products)", displayed as the linked products'
+names. `Created By` (24) is the shared `created_by` audit column under Airtable's label
+(diff-audit annotation 3), a stored child row. `toYoutubeCopyItem` moved from `fields.ts` (a
+client-importable module) to the server-only `build-items.ts` because the lookup cells need the
+`@tas/db` runtime.
+
+**Flagged, not fixed — the five fields the resolved set deliberately lacks** (29 − 5 = 24, the
+number `verify-rollout.ts`, `column-seed.test.ts` and `youtube-copywriting-source.test.ts`
+assert):
+
+| Airtable field | why it stays out |
+| --- | --- |
+| `Creative` (17) | a lookup whose source record link the Gratsi base ITSELF has deleted — `schema/youtube-copy.ts` records it as `isValid:false` with no link to traverse, and the platform stores no youtube↔brief relation; a column here would be empty by construction or a guess |
+| `Creative Reporting` (25) | residual single-line text of a converted link, 0-filled, excluded by the 2026-10-01 register |
+| `Creative Sheet` (26) | same: residual text, register-excluded |
+| `(Internal) Creative Design` (28) | residual text; the register: "youtube_copy has no brief link because the base's field is not one" |
+| `⚠️ Please Change the Status of the copy` (29) | the Airtable UI banner; stays the HIDDEN `airtable_status_banner` sentinel row |
+
+Order values keep the Airtable positions (gaps at 17, 25, 26, 28, 29), so an un-flag later lands
+in the right place.

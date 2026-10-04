@@ -1397,17 +1397,59 @@ const CLIENT_ASSET_FOLDERS_PARENT = parentRows('client_asset_folders', [
  * the seed itself wrote and no longer lists, so Gratsi inherits identical labels instead of carrying
  * duplicates that would win over the parent for no reason.
  */
-const YOUTUBE_COPY_GRATSI = childRows('youtube_copy', [
-  ['descriptions', 'Descriptions (90 caractères max)', 6, 'relabel-platform', 'richText'],
-  ['used', 'USED', 20, 'relabel-platform', 'checkbox'],
-  [
-    UNMAPPED_COLUMN_KEY,
-    '⚠️ Please Change the Status of the copy',
-    29,
-    'hidden-custom',
-    'singleSelect',
-  ],
-]);
+/**
+ * …plus the GRATSI-MATCH additions (2026-10-04, `docs/audits/gratsi-column-diff-2026-10-04.md`):
+ * the six lookups through the row's own links (`Offer` 11 / `Campaign (from Campaign)` 12 /
+ * `Code (from Campaign)` 13 via `youtube_copy_campaigns` → `campaigns_offers`; `Collection URL`
+ * 18 via `youtube_copy_collections`; `Link (from Product)` 19 via `youtube_copy_products`;
+ * `Products (from Collections)` 23 via each linked collection's own product), `(Internal)
+ * Product` 27 (the base's residual text whose datum the 2026-10-01 register records as the
+ * `Product` junction — displayed as the linked products' names), and `Created By` 24 (the shared
+ * `created_by` audit column under Airtable's label, diff-audit annotation 3). All GRATSI
+ * child-added rows, so the platform set the other brands inherit is untouched.
+ *
+ * Four fields stay out by decision beside the banner (docs/decisions.md, 2026-10-04): `Creative`
+ * (17) — a lookup whose source link the base itself has deleted (`schema/youtube-copy.ts`:
+ * isValid:false, nothing to traverse); `Creative Reporting` (25), `Creative Sheet` (26) and
+ * `(Internal) Creative Design` (28) — residual texts of converted links, 0-filled,
+ * register-excluded ("youtube_copy has no brief link because the base's field is not one").
+ * 29 − 5 = 24, the count `verify-rollout.ts` and `youtube-copywriting-source.test.ts` assert.
+ */
+const YOUTUBE_COPY_GRATSI = [
+  ...childRows('youtube_copy', [
+    ['descriptions', 'Descriptions (90 caractères max)', 6, 'relabel-platform', 'richText'],
+    ['used', 'USED', 20, 'relabel-platform', 'checkbox'],
+    ['created_by', 'Created By', 24, 'custom', 'createdBy'],
+    [
+      UNMAPPED_COLUMN_KEY,
+      '⚠️ Please Change the Status of the copy',
+      29,
+      'hidden-custom',
+      'singleSelect',
+    ],
+  ]),
+  ...virtualChildRows('youtube_copy', [
+    ['offer', 'Offer', 11, 'multipleLookupValues', 'lookupRollup'],
+    [
+      'campaign_from_campaign',
+      'Campaign (from Campaign)',
+      12,
+      'multipleLookupValues',
+      'lookupRollup',
+    ],
+    ['code_from_campaign', 'Code (from Campaign)', 13, 'multipleLookupValues', 'lookupRollup'],
+    ['collection_url', 'Collection URL', 18, 'multipleLookupValues', 'lookupRollup'],
+    ['link_from_product', 'Link (from Product)', 19, 'multipleLookupValues', 'lookupRollup'],
+    [
+      'products_from_collections',
+      'Products (from Collections)',
+      23,
+      'multipleLookupValues',
+      'lookupRollup',
+    ],
+    ['internal_product', '(Internal) Product', 27, 'singleLineText', 'lookupRollup'],
+  ]),
+] as const satisfies readonly UpsertColumnDefinition[];
 
 /**
  * Gratsi `Email Campaigns Management` `tblABjVpwRpYtY7de` — 17 fields; the two formula due dates are virtual columns now. Every label matches the platform set, so Gratsi holds NO rows and inherits all seventeen.
