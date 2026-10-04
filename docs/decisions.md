@@ -952,3 +952,15 @@ The resolver already said the same — Gratsi's own `script_idea` relabel row re
 the template's "Script idea" wording reaches only the brands that inherit it — so this ruling
 lands as ALREADY-CORRECT with a pin (`column-seed.test.ts`, AI-39 describe) and no behaviour
 change. The Postgres column keeps its 92 live scripts untouched.
+
+## 2026-10-04 — Talal ruling AI-43: linked Concepts stay on the Angle record, shown, two-way
+
+Verified against the live Gratsi base: Angles carries a `Concepts` field (multipleRecordLinks) —
+the reverse side of Concepts→Angle, one `concept_angles` junction. The ruling is SHOW, not remove,
+and the platform already does: the Angle panel renders the linked concepts list (each row the
+concept's generated name linking to its page, with its status chip — `angles.spec.ts`, the
+linked-work assertions, 9/9 green today) beside the editable picker, and the link is two-way by
+construction (`links.test.ts` proves a write from either side reads back from the other, 6/6).
+Reverse links render on the record page, never as grid columns — the same convention every other
+reverse link on the platform follows — so Gratsi's grid set is untouched. ALREADY-CORRECT, both
+displays kept; the earlier instinct to remove one of the two was wrong and nothing is removed.
