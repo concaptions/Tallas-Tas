@@ -100,8 +100,29 @@ async function main(): Promise<void> {
     const gratsi = await brandId('gratsi');
 
     for (const row of EXPECTED) {
-      const onNiagara = await resolveColumns(db, niagara, row.tableKey);
-      const onGratsi = await resolveColumns(db, gratsi, row.tableKey);
+      // Each table reads on a FRESH connection, retried up to three times. The wire to the
+      // database intermittently corrupts pg's framing mid-stream (ERR_OUT_OF_RANGE in pg-protocol
+      // at a random table, a different garbage offset every run — observed 2026-10-04; every
+      // assertion that completes is green, so this is transport, not data). A verification script
+      // must distinguish "the check failed" from "the wire hiccuped": transient transport errors
+      // are retried on a new connection, and only an exhausted retry counts as a failure.
+      let onNiagara: Awaited<ReturnType<typeof resolveColumns>> | null = null;
+      let onGratsi: Awaited<ReturnType<typeof resolveColumns>> | null = null;
+      for (let attempt = 1; attempt <= 3 && onGratsi === null; attempt += 1) {
+        const tableDb = createAutoDb(url);
+        try {
+          onNiagara = await resolveColumns(tableDb, niagara, row.tableKey);
+          onGratsi = await resolveColumns(tableDb, gratsi, row.tableKey);
+        } catch (error) {
+          if (attempt === 3) throw error;
+          console.log(
+            `  retry ${String(attempt)}/3 ${row.tableKey}: ${error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error)}`,
+          );
+        } finally {
+          await tableDb.$client.end().catch(() => undefined);
+        }
+      }
+      if (onNiagara === null || onGratsi === null) throw new Error(`${row.tableKey}: unreachable`);
       const virt = virtualColumns(onNiagara);
       const ok =
         onNiagara.length === row.inheriting &&
