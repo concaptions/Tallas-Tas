@@ -225,6 +225,42 @@ export function isViewFieldVisible(
 }
 
 /**
+ * The next `fieldOrder` after moving one field a step up or down (action item 16, the second half
+ * of "customise the card": the lines REORDER, on the grid and on the gallery with one control).
+ *
+ * The move happens in the EFFECTIVE order — the one `applyUserView` renders: the stored
+ * `fieldOrder` first, every remaining key in the table's own order after it — because that is the
+ * order the viewer is looking at when they say "up". The result is the FULL permutation, not a
+ * delta: a partial stored order plus "swap two of them" has no stable meaning once the table's own
+ * order changes underneath, whereas a complete list keeps every position the viewer has seen.
+ * A column added to the table later is not in the list and so appends after it, which is the same
+ * contract `applyUserView` already documents.
+ *
+ * A key the table does not have, and a move off either end, return the stored order unchanged —
+ * the control disables those buttons, but a stored view is also reachable from an older client.
+ */
+export function moveViewField(
+  allKeys: readonly string[],
+  view: Pick<UserViewConfig, 'fieldOrder'>,
+  key: string,
+  direction: 'up' | 'down',
+): readonly string[] {
+  const ordered = applyUserView(
+    allKeys.map((entry) => ({ key: entry })),
+    { visibleFields: null, fieldOrder: view.fieldOrder, frozenFields: [] },
+  ).map((field) => field.key);
+  const index = ordered.indexOf(key);
+  const target = direction === 'up' ? index - 1 : index + 1;
+  const moved = ordered[index];
+  const other = ordered[target];
+  if (index === -1 || moved === undefined || other === undefined) return view.fieldOrder;
+  const next = [...ordered];
+  next[index] = other;
+  next[target] = moved;
+  return next;
+}
+
+/**
  * The freeze a "freeze up to and including this column" choice means (action item 22).
  *
  * A freeze is a PREFIX of the columns as the viewer sees them, never a scattered set: a sticky

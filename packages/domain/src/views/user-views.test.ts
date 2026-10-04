@@ -6,6 +6,7 @@ import {
   freezeUpTo,
   frozenUpTo,
   isViewFieldVisible,
+  moveViewField,
   reconcileViewFields,
   parseUserViewConfig,
   toggleViewField,
@@ -228,6 +229,67 @@ describe('reconcileViewFields', () => {
     expect(reconcileViewFields(null, PERSONA_KEYS)).toBeNull();
     expect(reconcileViewFields(['core_desires', 'coreDesires'], PERSONA_KEYS)).toEqual([
       'core_desires',
+    ]);
+  });
+});
+
+/**
+ * The reorder control (action item 16, second half): one field a step up or down, moved in the
+ * order the viewer SEES — stored keys first, the table's own order after — and written back as the
+ * full permutation so every position survives the table's own order changing underneath.
+ */
+describe('moveViewField', () => {
+  const KEYS = ['name', 'status', 'notes', 'updated'] as const;
+
+  it('moves a field down one step in the table order when nothing was stored yet', () => {
+    expect(moveViewField(KEYS, { fieldOrder: [] }, 'status', 'down')).toEqual([
+      'name',
+      'notes',
+      'status',
+      'updated',
+    ]);
+  });
+
+  it('moves in the EFFECTIVE order a partial stored order creates, and completes it', () => {
+    // Stored ['notes']: the viewer sees notes, name, status, updated. Moving `status` up swaps it
+    // with `name`, and the result lists all four — a delta over a partial order has no stable
+    // meaning once the table's own order changes underneath.
+    expect(moveViewField(KEYS, { fieldOrder: ['notes'] }, 'status', 'up')).toEqual([
+      'notes',
+      'status',
+      'name',
+      'updated',
+    ]);
+  });
+
+  it('is a no-op at either end and for a key the table does not have', () => {
+    const view = { fieldOrder: ['notes'] } as const;
+    expect(moveViewField(KEYS, view, 'notes', 'up')).toBe(view.fieldOrder);
+    expect(moveViewField(KEYS, view, 'updated', 'down')).toBe(view.fieldOrder);
+    expect(moveViewField(KEYS, view, 'gone', 'up')).toBe(view.fieldOrder);
+  });
+
+  it('drops stored keys the table no longer has, exactly as applyUserView renders them', () => {
+    // A view saved before a column was removed: the ghost key must not survive into the new
+    // permutation, or the next reorder would be made against an order nobody can see.
+    expect(moveViewField(KEYS, { fieldOrder: ['gone', 'updated'] }, 'name', 'down')).toEqual([
+      'updated',
+      'status',
+      'name',
+      'notes',
+    ]);
+  });
+
+  it('agrees with applyUserView about what the viewer was looking at', () => {
+    const stored = { fieldOrder: ['updated', 'status'] } as const;
+    const seen = applyUserView(
+      KEYS.map((key) => ({ key })),
+      { ...stored, visibleFields: null, frozenFields: [] },
+    ).map((field) => field.key);
+    expect(moveViewField(KEYS, stored, 'updated', 'down')).toEqual([
+      seen[1],
+      seen[0],
+      ...seen.slice(2),
     ]);
   });
 });

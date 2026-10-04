@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { defaultUserViewConfig, type UserView, type ViewType } from '@tas/domain';
+import {
+  applyUserView,
+  defaultUserViewConfig,
+  moveViewField,
+  type UserView,
+  type ViewType,
+} from '@tas/domain';
 
 import { FieldsMenu, GalleryView, ViewsMenu, ViewToolbar } from '@/components/views';
 
@@ -108,6 +114,45 @@ export function FieldsMenuStory() {
         /* story */
       }}
     />
+  );
+}
+
+/**
+ * The arrange dialog behind "Arrange fields…" (action item 16, the reorder half of "customise the
+ * card"): per-field Up/Down buttons, every one an ordinary tab stop, each press reported through
+ * `onMoveField` and the rows re-sorting live. The order preview underneath renders the same
+ * `applyUserView` the grid and the gallery lines read, so the story shows the one rule all three
+ * follow: listed keys first, the rest in table order.
+ */
+export function FieldsArrangeStory() {
+  const [fieldOrder, setFieldOrder] = useState<readonly string[]>([]);
+  const ordered = applyUserView(FIELDS, { visibleFields: null, fieldOrder, frozenFields: [] });
+  return (
+    <div className="flex flex-col gap-2">
+      <FieldsMenu
+        fields={ordered}
+        isVisible={() => true}
+        onToggle={() => {
+          /* story */
+        }}
+        onMoveField={(key, direction) => {
+          setFieldOrder(
+            moveViewField(
+              FIELDS.map((field) => field.key),
+              { fieldOrder },
+              key,
+              direction,
+            ),
+          );
+        }}
+      />
+      <p className="text-sm text-text2">
+        Order:{' '}
+        <span className="font-mono text-text3">
+          {ordered.map((field) => field.key).join(' · ')}
+        </span>
+      </p>
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import {
   defaultUserViewConfig,
   isViewFieldVisible,
+  moveViewField,
   parseUserViewConfig,
   reconcileViewFields,
   resolveViewType,
@@ -62,6 +63,8 @@ export interface TableViewState {
   readonly setFrozenFields: (next: readonly string[]) => void;
   /** The media column that covers a gallery card, or null for the page's default (action item 16). */
   readonly setCoverField: (next: string | null) => void;
+  /** Moves one field a step in the viewer's own order — grid columns and card lines together. */
+  readonly moveField: (key: string, direction: 'up' | 'down') => void;
   readonly toggleField: (key: string) => void;
   readonly isFieldVisible: (key: string) => boolean;
   readonly createView: (name: string) => void;
@@ -323,6 +326,13 @@ export function useTableView({
     [draft, fieldKeys, patch],
   );
 
+  const moveField = useCallback(
+    (key: string, direction: 'up' | 'down') => {
+      patch({ fieldOrder: moveViewField(fieldKeys, draft, key, direction) });
+    },
+    [draft, fieldKeys, patch],
+  );
+
   const isFieldVisible = useCallback((key: string) => isViewFieldVisible(draft, key), [draft]);
 
   const adopt = useCallback(
@@ -430,6 +440,7 @@ export function useTableView({
     setFilter,
     setFrozenFields,
     setCoverField,
+    moveField,
     toggleField,
     isFieldVisible,
     createView,

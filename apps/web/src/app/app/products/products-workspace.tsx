@@ -293,12 +293,17 @@ export function ProductsWorkspace({
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, grid.columns, (item) => ({
-        id: item.product.id,
-        name: item.product.name,
-        subtitle: item.linkHost,
-      })),
-    [visible, grid],
+      galleryItemsFrom(
+        visible,
+        grid.columns,
+        (item) => ({
+          id: item.product.id,
+          name: item.product.name,
+          subtitle: item.linkHost,
+        }),
+        { fieldOrder: tableView.config.fieldOrder },
+      ),
+    [visible, grid, tableView.config.fieldOrder],
   );
 
   const openItem = items.find((item) => item.product.id === selection) ?? null;
@@ -384,6 +389,7 @@ export function ProductsWorkspace({
               onToggleField={tableView.toggleField}
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
+              onMoveField={tableView.moveField}
               error={tableView.error}
             />
           </div>

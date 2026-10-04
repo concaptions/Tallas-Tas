@@ -146,6 +146,7 @@ import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
 import { LinkFieldDemoStory, LinkFieldStory } from './link-field.stories';
 import { EditorBoardStory, EditorStageChipsStory } from './editor-board.stories';
 import {
+  FieldsArrangeStory,
   FieldsMenuStory,
   GalleryInitialTileStory,
   ViewsMenuStory,
@@ -988,6 +989,12 @@ export default function DesignSystemPage() {
                 fields popover
               </h3>
               <FieldsMenuStory />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+                arrange fields — up/down per field, every button a tab stop (action item 16)
+              </h3>
+              <FieldsArrangeStory />
             </div>
           </div>
           <div className="flex flex-col gap-2">

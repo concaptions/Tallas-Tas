@@ -32,6 +32,12 @@ interface ViewToolbarProps {
   readonly isFieldVisible: (key: string) => boolean;
   readonly onToggleField: (key: string) => void;
   /**
+   * Moves one field a step in the viewer's order (action item 16, the reorder half of "customise
+   * the card"). Given, the Fields popover carries "Arrange fields…"; the grid's columns and the
+   * gallery's card lines follow the same stored `fieldOrder`, so one control reorders both.
+   */
+  readonly onMoveField?: (key: string, direction: 'up' | 'down') => void;
+  /**
    * The viewer's active config. Given together with `onFreezeChange`, the Grid also carries the
    * Freeze popover (action item 22); the config is what tells it the viewer's column order and
    * their current freeze. A table not wired for it yet simply shows no Freeze control.
@@ -71,6 +77,7 @@ export function ViewToolbar({
   fields,
   isFieldVisible,
   onToggleField,
+  onMoveField,
   viewConfig,
   onFreezeChange,
   coverFields = [],
@@ -85,6 +92,19 @@ export function ViewToolbar({
     [fields, viewConfig],
   );
   const orderedKeys = useMemo(() => orderedFields.map((field) => field.key), [orderedFields]);
+  // The Fields popover lists EVERY field in the viewer's order — hidden ones keep their place, so
+  // re-showing a column puts it back where the viewer left it, not at the end of the table.
+  const arrangedFields = useMemo(
+    () =>
+      viewConfig === undefined
+        ? fields
+        : applyUserView(fields, {
+            visibleFields: null,
+            fieldOrder: viewConfig.fieldOrder,
+            frozenFields: [],
+          }),
+    [fields, viewConfig],
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2" data-slot="view-toolbar">
@@ -105,7 +125,12 @@ export function ViewToolbar({
         error={error}
       />
       {activeView === 'grid' || activeView === 'gallery' ? (
-        <FieldsMenu fields={fields} isVisible={isFieldVisible} onToggle={onToggleField} />
+        <FieldsMenu
+          fields={arrangedFields}
+          isVisible={isFieldVisible}
+          onToggle={onToggleField}
+          onMoveField={onMoveField}
+        />
       ) : null}
       {activeView === 'gallery' && viewConfig !== undefined && onCoverChange !== undefined ? (
         <CoverMenu

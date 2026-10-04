@@ -1,4 +1,4 @@
-import type { GalleryFieldOption } from '@tas/domain';
+import { applyUserView, type GalleryFieldOption } from '@tas/domain';
 
 import type { GridColumn } from './airtable-grid';
 import { initialTone, type GalleryItem } from './gallery-view';
@@ -29,6 +29,12 @@ export interface GalleryIdentity {
 export interface GalleryItemsOptions {
   /** The viewer's chosen cover column, or null for the page's own `imageUrl`. */
   readonly coverField?: string | null;
+  /**
+   * The viewer's `fieldOrder` (action item 16, the reorder half): the card's labelled lines come
+   * out in this order, listed keys first and every other column in the table's own order after —
+   * the same rule `applyUserView` applies to the grid, so one control reorders both.
+   */
+  readonly fieldOrder?: readonly string[];
 }
 
 /**
@@ -75,6 +81,12 @@ export function galleryItemsFrom<Row>(
   options: GalleryItemsOptions = {},
 ): GalleryItem[] {
   const coverField = options.coverField ?? null;
+  const fieldOrder = options.fieldOrder ?? [];
+  const lineColumns = columns.filter((column) => column.key !== 'name');
+  const orderedColumns =
+    fieldOrder.length === 0
+      ? lineColumns
+      : applyUserView(lineColumns, { visibleFields: null, fieldOrder, frozenFields: [] });
   return rows.map((row) => {
     const who = identity(row);
     const chosen = coverField === null ? undefined : who.covers?.[coverField];
@@ -89,9 +101,11 @@ export function galleryItemsFrom<Row>(
       subtitle: who.subtitle,
       initial: who.name.trim().charAt(0).toUpperCase() || '?',
       initialTone: initialTone(who.name),
-      fields: columns
-        .filter((column) => column.key !== 'name')
-        .map((column) => ({ key: column.key, label: column.header, value: column.render(row) })),
+      fields: orderedColumns.map((column) => ({
+        key: column.key,
+        label: column.header,
+        value: column.render(row),
+      })),
     };
   });
 }

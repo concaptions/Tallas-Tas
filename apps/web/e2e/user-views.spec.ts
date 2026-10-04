@@ -294,6 +294,48 @@ test.describe('per-user views in demo mode (no Clerk publishable key)', () => {
     ).toHaveCount(0);
   });
 
+  test('Arrange fields reorders the grid columns and the gallery lines, and the order survives a reload', async ({
+    page,
+  }) => {
+    // Action item 16, the second half of "customise the card": `fieldOrder` existed end to end —
+    // UserViewConfig, applyUserView, the jsonb column — but no control could ever write it.
+    await page.goto(productsPath);
+    const cells = page.locator('[data-slot="products-table"] thead th');
+    const second = await cells.nth(1).getAttribute('data-column');
+    const third = await cells.nth(2).getAttribute('data-column');
+    expect(second).not.toBeNull();
+    expect(third).not.toBeNull();
+
+    // Fields → Arrange fields…, move the third column up one step. The dialog is ordinary focus
+    // territory: every Move button a tab stop, which is the reason reorder is not nested inside
+    // the Radix menu (a menu owns Tab and the arrows for itself).
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-fields"]').click();
+    await page.locator('[data-slot="fields-arrange"]').click();
+    await page.locator(`[data-slot="field-move-up"][data-field="${third ?? ''}"]`).click();
+    await page.locator('[data-slot="fields-arrange-done"]').click();
+
+    // The grid follows at once: the moved column renders second, the old second renders third.
+    await expect(cells.nth(1)).toHaveAttribute('data-column', third ?? '');
+    await expect(cells.nth(2)).toHaveAttribute('data-column', second ?? '');
+
+    // It persisted into this viewer's active view, and a reload reads it back.
+    await expect(page.locator('[data-slot="views-menu"]')).toHaveText('My view');
+    await page.reload();
+    await expect(cells.nth(1)).toHaveAttribute('data-column', third ?? '');
+    await expect(cells.nth(2)).toHaveAttribute('data-column', second ?? '');
+
+    // The gallery's card lines read the SAME stored order: the moved column is the first line
+    // under the card name (the name itself is never a line).
+    await switchView(page, 'Gallery');
+    await expect(
+      page
+        .locator('[data-slot="product-card"]')
+        .first()
+        .locator('[data-slot="gallery-field"]')
+        .first(),
+    ).toHaveAttribute('data-field', third ?? '');
+  });
+
   test('the Freeze control is a Grid control: the Gallery does not offer one', async ({ page }) => {
     await page.goto(conceptsPath);
     await expect(

@@ -254,12 +254,17 @@ export function PersonasWorkspace({
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, grid.columns, (item) => ({
-        id: item.persona.id,
-        name: item.persona.name,
-        subtitle: item.persona.productName ?? undefined,
-      })),
-    [visible, grid],
+      galleryItemsFrom(
+        visible,
+        grid.columns,
+        (item) => ({
+          id: item.persona.id,
+          name: item.persona.name,
+          subtitle: item.persona.productName ?? undefined,
+        }),
+        { fieldOrder: tableView.config.fieldOrder },
+      ),
+    [visible, grid, tableView.config.fieldOrder],
   );
 
   return (
@@ -322,6 +327,7 @@ export function PersonasWorkspace({
               onToggleField={tableView.toggleField}
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
+              onMoveField={tableView.moveField}
               error={tableView.error}
             />
           </div>

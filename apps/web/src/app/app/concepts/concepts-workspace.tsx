@@ -320,12 +320,17 @@ export function ConceptsWorkspace({
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, grid.columns, (item) => ({
-        id: item.id,
-        name: item.name,
-        subtitle: item.themeName ?? undefined,
-      })),
-    [visible],
+      galleryItemsFrom(
+        visible,
+        grid.columns,
+        (item) => ({
+          id: item.id,
+          name: item.name,
+          subtitle: item.themeName ?? undefined,
+        }),
+        { fieldOrder: tableView.config.fieldOrder },
+      ),
+    [visible, grid, tableView.config.fieldOrder],
   );
 
   const newConcept = (
@@ -394,6 +399,7 @@ export function ConceptsWorkspace({
               onToggleField={tableView.toggleField}
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
+              onMoveField={tableView.moveField}
               error={tableView.error}
             />
           </div>

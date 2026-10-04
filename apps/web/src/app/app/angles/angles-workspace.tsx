@@ -340,12 +340,17 @@ export function AnglesWorkspace({
 
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, grid.columns, (item) => ({
-        id: item.angle.id,
-        name: item.angle.name,
-        subtitle: item.angle.personaName ?? undefined,
-      })),
-    [visible, grid],
+      galleryItemsFrom(
+        visible,
+        grid.columns,
+        (item) => ({
+          id: item.angle.id,
+          name: item.angle.name,
+          subtitle: item.angle.personaName ?? undefined,
+        }),
+        { fieldOrder: tableView.config.fieldOrder },
+      ),
+    [visible, grid, tableView.config.fieldOrder],
   );
 
   const newAngle = (
@@ -405,6 +410,7 @@ export function AnglesWorkspace({
               onToggleField={tableView.toggleField}
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
+              onMoveField={tableView.moveField}
               error={tableView.error}
             />
           </div>

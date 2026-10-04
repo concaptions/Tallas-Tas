@@ -484,9 +484,12 @@ export function UgcWorkspace({
             video_intro_url: { url: creator.videoIntroUrl, mediaType: 'video' },
           },
         }),
-        { coverField: tableView.config.coverField },
+        {
+          coverField: tableView.config.coverField,
+          fieldOrder: tableView.config.fieldOrder,
+        },
       ),
-    [visibleCreators, grid.columns, tableView.config.coverField],
+    [visibleCreators, grid.columns, tableView.config.coverField, tableView.config.fieldOrder],
   );
 
   const handleKanbanMove = useCallback(() => {
@@ -595,6 +598,7 @@ export function UgcWorkspace({
               onToggleField={tableView.toggleField}
               viewConfig={tableView.config}
               onFreezeChange={tableView.setFrozenFields}
+              onMoveField={tableView.moveField}
               coverFields={coverFields}
               onCoverChange={tableView.setCoverField}
               error={tableView.error}

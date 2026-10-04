@@ -318,13 +318,18 @@ export function ThemesWorkspace({
   // The card image is the first attachment (Sprint 7 gallery); a theme with none shows its initial.
   const galleryItems = useMemo(
     () =>
-      galleryItemsFrom(visible, THEME_COLUMNS, (theme) => ({
-        id: theme.id,
-        name: theme.name,
-        imageUrl: theme.attachments?.[0] ?? null,
-        subtitle: themeCategoryLabel(theme.category),
-      })),
-    [visible],
+      galleryItemsFrom(
+        visible,
+        THEME_COLUMNS,
+        (theme) => ({
+          id: theme.id,
+          name: theme.name,
+          imageUrl: theme.attachments?.[0] ?? null,
+          subtitle: themeCategoryLabel(theme.category),
+        }),
+        { fieldOrder: tableView.config.fieldOrder },
+      ),
+    [visible, tableView.config.fieldOrder],
   );
 
   return (
@@ -409,6 +414,7 @@ export function ThemesWorkspace({
             onToggleField={tableView.toggleField}
             viewConfig={tableView.config}
             onFreezeChange={tableView.setFrozenFields}
+            onMoveField={tableView.moveField}
             error={tableView.error}
           />
           <Input

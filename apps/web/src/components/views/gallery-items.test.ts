@@ -127,3 +127,55 @@ describe('galleryItemsFrom cover selection', () => {
     expect(items[0]?.fields?.map((field) => field.key)).toEqual(['gender']);
   });
 });
+
+/**
+ * The reorder half of action item 16: the card's labelled lines follow the viewer's `fieldOrder`
+ * under the same rule the grid applies — listed keys first, every other column in the table's own
+ * order after, unknown keys dropped — so one Arrange control moves a grid column and a card line
+ * together.
+ */
+describe('galleryItemsFrom card-line order', () => {
+  const WIDE: readonly GridColumn<Creator>[] = [
+    ...COLUMNS,
+    { key: 'platform', header: 'Platform', render: () => 'Insense' },
+    { key: 'ethnicity', header: 'Ethnicity', render: () => '—' },
+  ];
+
+  it('keeps the table order when the view stores none', () => {
+    const items = galleryItemsFrom(ROWS, WIDE, identity);
+    expect(items[0]?.fields?.map((field) => field.key)).toEqual([
+      'gender',
+      'platform',
+      'ethnicity',
+    ]);
+  });
+
+  it('puts the listed keys first and the rest after, in table order', () => {
+    const items = galleryItemsFrom(ROWS, WIDE, identity, {
+      fieldOrder: ['ethnicity', 'gender'],
+    });
+    expect(items[0]?.fields?.map((field) => field.key)).toEqual([
+      'ethnicity',
+      'gender',
+      'platform',
+    ]);
+  });
+
+  it('drops a stored key the table no longer has instead of inventing a line', () => {
+    const items = galleryItemsFrom(ROWS, WIDE, identity, { fieldOrder: ['gone', 'platform'] });
+    expect(items[0]?.fields?.map((field) => field.key)).toEqual([
+      'platform',
+      'gender',
+      'ethnicity',
+    ]);
+  });
+
+  it('never surfaces the name column as a line, even when the order names it', () => {
+    const items = galleryItemsFrom(ROWS, WIDE, identity, { fieldOrder: ['name', 'platform'] });
+    expect(items[0]?.fields?.map((field) => field.key)).toEqual([
+      'platform',
+      'gender',
+      'ethnicity',
+    ]);
+  });
+});
