@@ -399,6 +399,17 @@ export function ConceptDetail({
     value: string,
     set: (next: string) => void,
     locked: boolean,
+    /**
+     * The name the hidden input POSTS under, when it differs from the field key.
+     *
+     * The two are not the same thing. `field` keys the error, the label's `htmlFor` and the test
+     * hook; the posted name has to be whatever `fieldsOf` in the action reads. They coincide for
+     * every field but the Theme, whose key is the draft's `themeIds` (plural — the validator and
+     * this page both message under it) while the action reads the single `themeId`. Defaulting to
+     * `field` and naming the exception is why the two can no longer drift apart in silence: they
+     * drifted once, and a fully filled form was rejected on every save.
+     */
+    inputName: string = field,
   ) => {
     const id = `concept-field-${field}`;
     const error = fieldError(field);
@@ -431,7 +442,7 @@ export function ConceptDetail({
           </SelectContent>
         </Select>
         {/* The stored value, including "nothing chosen": an empty string, which the action reads as NULL. */}
-        <input type="hidden" name={field} value={value} />
+        <input type="hidden" name={inputName} value={value} />
         {error === undefined ? null : <p className="text-xs text-bad">{error}</p>}
       </div>
     );
@@ -548,6 +559,10 @@ export function ConceptDetail({
                 themeId,
                 setThemeId,
                 false,
+                // The action reads ONE theme id under the singular name (V0, like the angle's
+                // `inputName="angleId"` above); the key stays plural because that is what the
+                // domain validator messages under and what this page asks `fieldError` for.
+                'themeId',
               )}
             </div>
           </section>

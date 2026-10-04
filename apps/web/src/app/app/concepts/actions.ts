@@ -275,20 +275,21 @@ function failureFrom(error: z.ZodError): ConceptActionFailure {
 }
 
 /**
- * The domain's messages, mapped to the form field names the UI uses. The domain validator keys
- * errors under `angleIds`/`themeIds` (the draft's array fields), but the form's hidden inputs are
- * named `angleId`/`themeId` (single-select, V0), so the UI's `fieldError('angleId')` needs the
- * error under that key.
+ * The domain's messages, under the keys the detail page shows them by.
+ *
+ * `ConceptDraftField` is a subset of `ConceptFieldName`, so this is a widening and not a mapping.
+ * It used to remap `angleIds`→`angleId` and `themeIds`→`themeId` on the theory that a message is
+ * keyed by the POSTED input name. It is not: the page asks `fieldError('angleIds')` and
+ * `fieldError('themeIds')` — the draft's own keys, the same ones its client-side gate uses — so the
+ * remap filed both messages under keys nothing reads and the two pairing fields showed only the
+ * generic banner. A posted name and an error key are different things (`concept-detail.tsx` names
+ * the one exception where they differ), and zod can produce no error for either field: both are
+ * nullable transforms with no refinement, so nothing else arrives under the singular names.
  */
 function failureFromDraft(
   fieldErrors: Readonly<Partial<Record<ConceptDraftField, string>>>,
 ): ConceptActionFailure {
-  const mapped: Partial<Record<ConceptFieldName, string>> = {};
-  for (const [key, message] of Object.entries(fieldErrors)) {
-    const uiKey = key === 'angleIds' ? 'angleId' : key === 'themeIds' ? 'themeId' : key;
-    mapped[uiKey as ConceptFieldName] = message;
-  }
-  return { ok: false, error: NEEDS_ATTENTION, fieldErrors: mapped };
+  return { ok: false, error: NEEDS_ATTENTION, fieldErrors };
 }
 
 /**
