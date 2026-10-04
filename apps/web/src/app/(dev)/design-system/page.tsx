@@ -144,6 +144,7 @@ import {
 } from './youtube-copywriting.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
 import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
+import { LinkedRecordsCellStory } from './linked-records.stories';
 import { LinkFieldDemoStory, LinkFieldStory } from './link-field.stories';
 import { EditorBoardStory, EditorStageChipsStory } from './editor-board.stories';
 import {
@@ -924,6 +925,12 @@ export default function DesignSystemPage() {
               cell primitives — what every grid column composes
             </h3>
             <GridCellsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              linked records — a reverse link as a read-only grid column
+            </h3>
+            <LinkedRecordsCellStory />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">

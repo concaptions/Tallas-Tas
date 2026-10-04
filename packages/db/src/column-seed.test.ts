@@ -289,7 +289,7 @@ describe('the column seed, checked against the real schema', () => {
     }
   });
 
-  it('hides Gratsi five angle columns the level shift moved to Concepts, and shows eleven', async () => {
+  it('resolves Gratsi angles as the live base reads, sixteen columns in Airtable order', async () => {
     const db = await testDb();
     await seed(db);
     await seedColumnDefinitions(db);
@@ -302,32 +302,45 @@ describe('the column seed, checked against the real schema', () => {
     const resolved = await resolveColumns(db, gratsi.id, 'angles');
 
     /*
-     * The same eleven columns as before the Angles rollout — nothing dropped — in a new ORDER. The
-     * nine app-owned columns used to be seeded as Gratsi-only `custom` rows carrying Gratsi's own
-     * field positions (2, 3, 10, 11, 13-17), which is what put Status second. They are platform rows
-     * on the parent now, because every brand has them and the parent base defines a field for none
-     * of them, so they sort after the parent's Airtable fields (1-8) at 20-28. The parent's own
-     * fields keep their Airtable positions; where a platform column sits is configuration, and any
-     * brand can move it in Column Admin.
+     * GRATSI-MATCH (2026-10-04): the Gratsi base's own 21 fields in its own order, minus the five
+     * the decision register excludes — `Creators` (dead link, 0/43, no stored inverse anywhere) and
+     * the four residual text remnants `(Internal) Creative Design`, `Creative Sheet`,
+     * `UGC Management copy`, `Concepts copy` (rule 5: flagged in docs/decisions.md, never invented
+     * as columns). The three reverse links resolve as read-only grid columns keyed by the table
+     * that points back at angles (diff annotation 6), and the two Concepts-side lookups resolve as
+     * the junctions under Airtable's own lookup names.
      */
     expect(resolved.map((column) => column.displayLabel)).toEqual([
       'Name',
-      'Description',
       'Status',
       'Potential',
+      'Description',
+      'Concepts',
+      'Product (from Angles)',
+      'Personas (from Angles)',
+      '(Internal) Creative Modules',
       'Formats to create',
-      'Ad Inspo',
+      'Client Notes',
       'Brief',
       'Exact Script',
+      'Ad Inspo',
       'Winning',
       'Internal Notes',
-      'Client Notes',
+      '(Internal) Creative Design 2',
     ]);
+    // The reverse links are keyed by the junction/FK table that points back at angles.
+    expect(resolved.find((c) => c.displayLabel === 'Concepts')?.columnKey).toBe('concept_angles');
+    expect(resolved.find((c) => c.displayLabel === '(Internal) Creative Modules')?.columnKey).toBe(
+      'creative_module_angles',
+    );
+    expect(resolved.find((c) => c.displayLabel === '(Internal) Creative Design 2')?.columnKey).toBe(
+      'creative_briefs',
+    );
     // Gratsi keeps these on Concepts, so its Angles table has no field for them. Hidden, not gone.
-    for (const hidden of ['type', 'angle_products', 'angle_personas', 'pain_points', 'usp']) {
+    for (const hidden of ['type', 'pain_points', 'usp']) {
       expect(resolved.map((column) => column.columnKey)).not.toContain(hidden);
     }
-    // `Name` and `Description` are the parent's rows, read through, under the parent's labels.
+    // `Name` is the parent's row, read through, under the parent's label.
     expect(resolved.find((column) => column.columnKey === 'name')?.inheritedFrom).not.toBeNull();
   });
 
@@ -997,33 +1010,35 @@ describe("re-seeding retires the seed's own stale rows", () => {
     await seedColumnDefinitions(db, 'script:seed-columns');
     const brandId = await gratsiId(db);
 
-    // A row the seed USED to write on a table it still covers — exactly the Angles case.
+    // A row the seed USED to write on a table it still covers — exactly the Angles case. `name`
+    // is a column the Gratsi group deliberately holds NO row for (it inherits the parent's), so a
+    // stale seed-written Gratsi row of it is precisely what reconciliation must remove.
+    // (`potential` no longer works as the fixture: GRATSI-MATCH 2026-10-04 seeds a Gratsi row for
+    // it at the live base's own position.)
     await upsertColumnDefinition(
       db,
       brandId,
       {
         tableKey: 'angles',
-        columnKey: 'potential',
-        displayLabel: 'Stale Potential',
-        displayOrder: 3,
+        columnKey: 'name',
+        displayLabel: 'Stale Name',
+        displayOrder: 1,
       },
       'script:seed-columns',
     );
     expect(
-      (await resolveColumns(db, brandId, 'angles')).find(
-        (c) => c.displayLabel === 'Stale Potential',
-      ),
+      (await resolveColumns(db, brandId, 'angles')).find((c) => c.displayLabel === 'Stale Name'),
     ).toBeDefined();
 
     const results = await seedColumnDefinitions(db, 'script:seed-columns');
 
-    expect(results.flatMap((row) => row.retired)).toContain('angles.potential');
+    expect(results.flatMap((row) => row.retired)).toContain('angles.name');
     const resolved = await resolveColumns(db, brandId, 'angles');
-    expect(resolved.find((column) => column.displayLabel === 'Stale Potential')).toBeUndefined();
-    // The column is still THERE — it falls back to the parent's platform row, which is the point.
-    const potential = resolved.find((column) => column.columnKey === 'potential');
-    expect(potential?.displayLabel).toBe('Potential');
-    expect(potential?.source).toBe('platform');
+    expect(resolved.find((column) => column.displayLabel === 'Stale Name')).toBeUndefined();
+    // The column is still THERE — it falls back to the parent's own row, which is the point.
+    const name = resolved.find((column) => column.columnKey === 'name');
+    expect(name?.displayLabel).toBe('Name');
+    expect(name?.source).toBe('parent');
   });
 
   /** The line that makes reconciliation safe: Column Admin's whole purpose is per-brand edits. */
@@ -1036,15 +1051,15 @@ describe("re-seeding retires the seed's own stale rows", () => {
     await upsertColumnDefinition(
       db,
       brandId,
-      { tableKey: 'angles', columnKey: 'potential', displayLabel: 'Upside', displayOrder: 3 },
+      { tableKey: 'angles', columnKey: 'name', displayLabel: 'Upside', displayOrder: 1 },
       'user_admin_123',
     );
 
     const results = await seedColumnDefinitions(db, 'script:seed-columns');
 
-    expect(results.flatMap((row) => row.retired)).not.toContain('angles.potential');
+    expect(results.flatMap((row) => row.retired)).not.toContain('angles.name');
     expect(
-      (await resolveColumns(db, brandId, 'angles')).find((c) => c.columnKey === 'potential')
+      (await resolveColumns(db, brandId, 'angles')).find((c) => c.columnKey === 'name')
         ?.displayLabel,
     ).toBe('Upside');
   });

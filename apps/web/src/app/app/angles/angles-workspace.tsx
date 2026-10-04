@@ -26,6 +26,7 @@ import {
   type ColumnRegistry,
   type ResolvedColumnView,
 } from '@/components/views/resolved-columns';
+import { linkedRecordsRenderer } from '@/components/views/linked-records-cell';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import {
@@ -264,10 +265,36 @@ export function AnglesWorkspace({
   columns,
   unconfiguredColumns = false,
 }: AnglesWorkspaceProps) {
+  /**
+   * The three REVERSE-LINK columns Gratsi's base shows on the grid (GRATSI-MATCH 2026-10-04,
+   * diff annotation 6): `Concepts` (concept_angles), `(Internal) Creative Modules`
+   * (creative_module_angles) and `(Internal) Creative Design 2` (creative_briefs.angle_id). They
+   * are built here rather than in `ANGLE_RENDERERS` because their data is the page's three
+   * inversions, which arrive as props — the same indexes the panel's "Linked work" section reads,
+   * loaded once per page, so the grid costs no extra query. Read-only by construction: the shared
+   * cell renders names, and no form control exists for any of the three keys.
+   */
+  const registry = useMemo<ColumnRegistry<AngleItem>>(
+    () => ({
+      ...ANGLE_RENDERERS,
+      concept_angles: linkedRecordsRenderer(
+        (item: AngleItem) => conceptsByAngle[item.angle.id] ?? NO_RECORDS,
+        { mono: true },
+      ),
+      creative_module_angles: linkedRecordsRenderer(
+        (item: AngleItem) => creativeModulesByAngle[item.angle.id] ?? NO_RECORDS,
+      ),
+      creative_briefs: linkedRecordsRenderer(
+        (item: AngleItem) => creativeDesignsByAngle[item.angle.id] ?? NO_RECORDS,
+        { mono: true },
+      ),
+    }),
+    [conceptsByAngle, creativeModulesByAngle, creativeDesignsByAngle],
+  );
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
   const grid = useMemo(
-    () => gridColumnsFrom(columns, ANGLE_RENDERERS, { freezeFirst: true, frozenMinWidth: 220 }),
-    [columns],
+    () => gridColumnsFrom(columns, registry, { freezeFirst: true, frozenMinWidth: 220 }),
+    [columns, registry],
   );
   /** Every column key the Fields popover can toggle, and its label, in resolved order (VIEWS-01). */
   const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);

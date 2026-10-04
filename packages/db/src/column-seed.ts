@@ -730,22 +730,52 @@ const ANGLES_PLATFORM: readonly UpsertColumnDefinition[] = [
 }));
 
 /**
- * Gratsi `Angles` — 21 fields. The five hidden rows are the level shift seen from this side: Gratsi
- * keeps `Type`, `Product`, `Personas`, `Pain Points` and `USP` on Concepts, so its Angles table has
- * no field for them. Hiding is per base and never a drop — `angle_personas` holds 78 Gratsi rows and
- * `angle_products` 57, inferred from the Concepts side, and every other brand still shows them.
+ * Gratsi `Angles` — 21 fields, now matched field for field against the live base (GRATSI-MATCH,
+ * 2026-10-04; positions from `docs/audits/overnight-gratsi-columns.md` §3, verified against the
+ * 2026-10-04 live diff). Three hidden rows remain the level shift seen from this side: Gratsi keeps
+ * `Type`, `Pain Points` and `USP` on Concepts, so its Angles table has no field for them. Hiding is
+ * per base and never a drop.
  *
- * The nine columns that used to be listed here as `custom` are now platform rows on the parent
- * (above), so Gratsi INHERITS seven of them and holds a row only for the two its base words
- * differently: `Brief` for `brief_url` and `Exact Script` for `exact_script_url`. Those two are
- * `relabel-platform`, because relabelling a column does not transfer ownership of it.
+ * THREE KINDS OF ROW, and why each exists:
+ *
+ * - RELABELS AT GRATSI'S OWN POSITIONS. The audit recorded "ORDER DIVERGES" because inherited rows
+ *   carry the PARENT base's field order; these rows re-state the same column (same label where the
+ *   bases agree) at the Gratsi base's own position, so the resolved sequence reads as the live base
+ *   does. `Product (from Angles)` and `Personas (from Angles)` were previously HIDDEN here: the
+ *   Gratsi base has no stored Product/Personas field on Angles, but it DOES display both as lookups
+ *   through Concepts (fields 7–8), and the platform's `angle_products` / `angle_personas` junctions
+ *   are exactly that data — so they resolve visibly under Airtable's own lookup names.
+ *
+ * - REVERSE LINKS AS READ-ONLY GRID COLUMNS (`concept_angles`, `creative_module_angles`,
+ *   `creative_briefs`). Airtable shows `Concepts`, `(Internal) Creative Modules` and
+ *   `(Internal) Creative Design 2` as link fields; their stored side lives on the other table
+ *   (`concept_angles`, `creative_module_angles`, `creative_briefs.angle_id`), so each is keyed by
+ *   the table that points back at `angles` — the same shape as the Products reverse links — and the
+ *   page renders the linked names read-only. Display work, no storage (2026-10-04 diff,
+ *   annotation 6; extends AI-43's record-page display to the grid, removing nothing).
+ *
+ * - NO ROW AT ALL for the five fields the decision register excludes: `Creators` (a dead link to
+ *   UGC Management with no stored inverse anywhere — empty on all 43 live rows, importer `skip`),
+ *   and the four residual text remnants `(Internal) Creative Design`, `Creative Sheet`,
+ *   `UGC Management copy`, `Concepts copy` (rule 5: decision-doc lines, never invented columns).
  */
 const ANGLES_GRATSI = childRows('angles', [
-  ['brief_url', 'Brief', 24, 'relabel-platform', 'url'],
-  ['exact_script_url', 'Exact Script', 25, 'relabel-platform', 'url'],
+  ['status', 'Status', 2, 'relabel-platform', 'singleSelect'],
+  ['potential', 'Potential', 3, 'relabel-platform', 'singleSelect'],
+  ['description', 'Description', 4, 'relabel', 'multilineText'],
+  ['concept_angles', 'Concepts', 6, 'custom', 'multipleRecordLinks'],
+  ['angle_products', 'Product (from Angles)', 7, 'relabel', 'multipleRecordLinks'],
+  ['angle_personas', 'Personas (from Angles)', 8, 'relabel', 'multipleRecordLinks'],
+  ['creative_module_angles', '(Internal) Creative Modules', 9, 'custom', 'multipleRecordLinks'],
+  ['formats', 'Formats to create', 10, 'relabel-platform', 'multipleSelects'],
+  ['client_notes', 'Client Notes', 11, 'relabel-platform', 'multilineText'],
+  ['brief_url', 'Brief', 13, 'relabel-platform', 'url'],
+  ['exact_script_url', 'Exact Script', 14, 'relabel-platform', 'url'],
+  ['ad_inspo_links', 'Ad Inspo', 15, 'relabel-platform', 'multilineText'],
+  ['winning', 'Winning', 16, 'relabel-platform', 'checkbox'],
+  ['internal_notes', 'Internal Notes', 17, 'relabel-platform', 'multilineText'],
+  ['creative_briefs', '(Internal) Creative Design 2', 19, 'custom', 'multipleRecordLinks'],
   ['type', 'Type', 2, 'hidden', 'multipleSelects'],
-  ['angle_products', 'Product', 3, 'hidden', 'multipleRecordLinks'],
-  ['angle_personas', 'Personas', 5, 'hidden', 'multipleRecordLinks'],
   ['pain_points', 'Pain Points', 7, 'hidden', 'multilineText'],
   ['usp', 'USP', 8, 'hidden', 'multilineText'],
 ]);

@@ -983,3 +983,37 @@ required: the client-facing interface reads `concepts.client_status` from the da
 nothing in `apps/web/src/app/client` or `client-data-source.ts` touches `resolveColumns`), so the
 client gate is untouched by what the team's grid displays. Only the Gratsi team grid loses the
 display chip. The Postgres column, every writer, Niagara's view and the platform row all stay.
+
+## 2026-10-04 — GRATSI-MATCH, links cluster: Angles reads as the live base reads; five fields stay flags
+
+The strict Gratsi-matches-Airtable rule applied to `angles` (input:
+`docs/audits/gratsi-column-diff-2026-10-04.md`, Angles section and annotation 6). Gratsi now
+resolves SIXTEEN columns, the live base's own 21 fields in the live base's own order minus the
+five below. What changed is display only:
+
+- **Reverse links become read-only GRID columns** — `Concepts` (keyed `concept_angles`),
+  `(Internal) Creative Modules` (`creative_module_angles`) and `(Internal) Creative Design 2`
+  (`creative_briefs`, the `angle_id` FK read backwards). Nothing stored, nothing editable: the
+  grid renders the linked record names through the one shared `LinkedRecordsCell`, from the same
+  three page inversions the panel's "Linked work" section already loads. This EXTENDS AI-43 —
+  which confirmed the record-page display at a time when the platform convention kept reverse
+  links off grids — to the grid, per annotation 6 of the diff; both displays now exist and
+  nothing was removed.
+- **The two Concepts-side lookups surface under Airtable's own names** — the previously hidden
+  `angle_products` / `angle_personas` child rows flip to visible relabels `Product (from Angles)`
+  and `Personas (from Angles)`: the junctions ARE that lookup's data, read-only as before.
+
+**Five Airtable fields are deliberately NOT columns**, each already ruled by the 2026-10-02
+exclusion register and re-affirmed here rather than silently skipped:
+
+| field | why it stays a flag |
+|---|---|
+| `Creators` | Link to UGC Management with NO stored inverse anywhere (`import-mappings.ts` angles › Creators: `skip`, empty on all 43 live rows). Building it would need new storage, which this display-only pass may not add; it stays excluded until an owner asks for the junction. |
+| `(Internal) Creative Design` | Residual text left by a converted link; 1/43, a stale snapshot of the live `(Internal) Creative Design 2` link (rule 5). |
+| `Creative Sheet` | Residual text, 0/43 (rule 5). |
+| `UGC Management copy` | Residual text, 0/43 (rule 5). |
+| `Concepts copy` | Residual text; the live `Concepts` link carries the same pairs (rule 5). |
+
+Pinned in `packages/db/src/gratsi-links-columns.test.ts` (the Airtable list minus exactly these
+five names) and in the updated Angles describes of `column-seed.test.ts`; `verify-rollout`
+expects gratsi 16. Parent rows untouched — Niagara still resolves the same sixteen it did.

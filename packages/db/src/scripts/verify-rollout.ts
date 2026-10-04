@@ -19,7 +19,10 @@ const EXPECTED: readonly {
   readonly virtual: number;
 }[] = [
   { tableKey: 'products', inheriting: 12, gratsi: 9, virtual: 0 },
-  { tableKey: 'angles', inheriting: 16, gratsi: 11, virtual: 0 },
+  // GRATSI-MATCH 2026-10-04 (links cluster): Gratsi angles now carries the live base's 21 fields
+  // minus the five decision-register exclusions — three reverse links and the two Concepts-side
+  // lookups resolve as read-only columns, in Airtable order.
+  { tableKey: 'angles', inheriting: 16, gratsi: 16, virtual: 0 },
   // AI-34: production_status is HIDDEN by the resolver on both bases (never dropped — 73 live values).
   // AI-33 (Talal, 2026-10-04) + the client_status follow-up: both platform tracks are
   // Gratsi-hidden — Gratsi's base has Status only. The client gate reads the DB column.
