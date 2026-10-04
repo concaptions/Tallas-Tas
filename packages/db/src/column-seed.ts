@@ -402,36 +402,145 @@ function childRows(
  */
 export const UNMAPPED_COLUMN_KEY = 'airtable_status_banner';
 
-/** `Copywriting` `tblZpBYPTcZcmQ1Kf` — 11 fields; 1 formula and 2 reverse/counter fields skipped. */
-const COPYWRITING_PARENT = parentRows('copywriting', [
-  ['creative_brief_id', 'Creative', 2, 'multipleRecordLinks'],
-  ['status', 'Status', 3, 'singleSelect'],
-  ['product_id', 'Product', 5, 'multipleRecordLinks'],
-  ['primary_copy', 'Primary Copy', 6, 'richText'],
-  ['headline', 'Headline', 7, 'multilineText'],
-  ['link_description', 'News Feed / Link Description', 8, 'multilineText'],
-  ['cta', 'CTA', 9, 'singleSelect'],
-  ['used', 'USED', 10, 'checkbox'],
-]);
+/**
+ * A child-added VIRTUAL column: Gratsi has the field, the parent's definition does not, and no
+ * Postgres column backs it — an Airtable lookup, surfaced as a read-only grid column computed by
+ * the named formula at read time (GRATSI-MATCH, `docs/audits/gratsi-column-diff-2026-10-04.md`).
+ * `childRows` cannot write these because its tuple has no formula slot, and widening that tuple
+ * for every stored row to say `undefined` would blur the one distinction the gate checks: a row
+ * with `formula` is virtual and must NOT name a real column; a row without one must.
+ */
+function virtualChildRows(
+  tableKey: string,
+  columns: readonly (readonly [
+    columnKey: string,
+    displayLabel: string,
+    displayOrder: number,
+    fieldType: string,
+    formula: string,
+  ])[],
+): readonly UpsertColumnDefinition[] {
+  return columns.map(([columnKey, displayLabel, displayOrder, fieldType, formula]) => ({
+    tableKey,
+    columnKey,
+    displayLabel,
+    displayOrder,
+    isDetached: true,
+    source: 'custom' as const,
+    fieldType,
+    formula,
+  }));
+}
 
-/** Gratsi `Meta Copywriting` — 30 fields: 7 inherit, 2 relabel, 6 added, 14 derived, 1 ambiguous. */
-const COPYWRITING_GRATSI = childRows('copywriting', [
-  ['primary_copy', 'Descriptions', 6, 'relabel', 'richText'],
-  ['link_description', 'News Feed', 8, 'relabel', 'singleLineText'],
-  ['copywriting_campaigns', 'Campaign Code', 10, 'custom', 'multipleRecordLinks'],
-  ['funnel', 'Funnel', 14, 'custom', 'singleSelect'],
-  ['copywriting_copy_types', 'Copy Type', 15, 'custom', 'multipleRecordLinks'],
-  ['client_comment', "Client's Comment", 16, 'custom', 'multilineText'],
-  ['winning', 'Winning', 21, 'custom', 'checkbox'],
-  ['meta_rating', 'Meta Rating', 22, 'custom', 'rating'],
-  [
-    UNMAPPED_COLUMN_KEY,
-    '⚠️ Please Change the Status of the copy',
-    29,
-    'hidden-custom',
-    'singleLineText',
-  ],
-]);
+/**
+ * `Copywriting` `tblZpBYPTcZcmQ1Kf` — all 11 template fields except `Autonumber` (field 11, the
+ * Airtable-internal counter the `Copy #` formula consumes; the platform's `copy_number` IS that
+ * datum, so a second column for it would be two readings of one value).
+ *
+ * Two rows the first transcription skipped, added by the Gratsi column match (2026-10-04,
+ * `docs/audits/gratsi-column-diff-2026-10-04.md`) because the TEMPLATE base genuinely has both:
+ *
+ * - `Copy #` (field 1): Airtable computes `" Copy " & {Autonumber} & " - " & {Creative}`; the
+ *   platform stores the integer in `copy_number` and the page renders the generated title from it
+ *   (CLAUDE.md non-negotiable 6), so the row is STORED here — keyed by the real column, no
+ *   `formula` — and `fieldType` keeps the template's own `formula` type as the display fact.
+ * - `Collection` (field 4): a real link field of the template base whose STORED side is
+ *   `collections.copywriting_id` (`docs/audits/overnight-parent-columns.md` §Copywriting, field 4),
+ *   so on this side it is display only: a VIRTUAL column over `lookupRollup`, the linked
+ *   collections' names resolved by the page's loader and never stored or written.
+ */
+const COPYWRITING_PARENT = [
+  ...parentRows('copywriting', [
+    ['copy_number', 'Copy #', 1, 'formula'],
+    ['creative_brief_id', 'Creative', 2, 'multipleRecordLinks'],
+    ['status', 'Status', 3, 'singleSelect'],
+  ]),
+  {
+    tableKey: 'copywriting',
+    columnKey: 'collections',
+    displayLabel: 'Collection',
+    displayOrder: 4,
+    fieldType: 'multipleRecordLinks',
+    formula: 'lookupRollup',
+  },
+  ...parentRows('copywriting', [
+    ['product_id', 'Product', 5, 'multipleRecordLinks'],
+    ['primary_copy', 'Primary Copy', 6, 'richText'],
+    ['headline', 'Headline', 7, 'multilineText'],
+    ['link_description', 'News Feed / Link Description', 8, 'multilineText'],
+    ['cta', 'CTA', 9, 'singleSelect'],
+    ['used', 'USED', 10, 'checkbox'],
+  ]),
+] as const satisfies readonly UpsertColumnDefinition[];
+
+/**
+ * Gratsi `Meta Copywriting` — 30 fields, the full Airtable set minus five flagged ones
+ * (GRATSI-MATCH, `docs/audits/gratsi-column-diff-2026-10-04.md`; flags in `docs/decisions.md`,
+ * 2026-10-04): `Creative Reporting` (26), `Creative Sheet` (27) and `(Internal) Creative Design 2`
+ * (30) are residual texts of converted links, empty on every live row and excluded at import;
+ * `(Internal) Creative Design` (28) is the second brief link the import collapsed into the one
+ * `creative_brief_id`; the ⚠️ banner (29) stays the hidden sentinel row below. Display order IS the
+ * Gratsi base's field position, so the resolved grid follows Airtable's order exactly — which is
+ * why the inherited columns that sit elsewhere in the template (`Creative` 2→17, `Status` 3→2,
+ * `Collection(s)` 4→3, `Product` 5→4, `USED` 10→20) each carry a relabel row here: the detach is
+ * the reorder.
+ *
+ * The six lookups (`Offer` 11, `Campaign (from Campaign)` 12, `Code (from Campaign)` 13,
+ * `Collection URL` 18, `Link (from Product)` 19, `Products (from Collections)` 23) and the two
+ * derivations over links the platform stores (`Angle` 5 — the linked brief's angle, where the
+ * base's own field is a dead text remnant whose datum decisions.md records as "the brief's
+ * angle_id"; `(Internal) Product` 27 — the same product `product_id` already shows under
+ * `Product`, kept because Airtable genuinely has both fields) are VIRTUAL `lookupRollup` columns:
+ * read through the row's links by `copy-source.ts`, never stored. `Created By` (24) is the shared
+ * `created_by` audit column surfaced under Airtable's label (diff audit, annotation 3).
+ */
+const COPYWRITING_GRATSI = [
+  ...childRows('copywriting', [
+    ['status', 'Status', 2, 'relabel', 'singleSelect'],
+    ['collections', 'Collections', 3, 'relabel', 'multipleRecordLinks'],
+    ['product_id', 'Product', 4, 'relabel', 'multipleRecordLinks'],
+    ['primary_copy', 'Descriptions', 6, 'relabel', 'richText'],
+    ['link_description', 'News Feed', 8, 'relabel', 'singleLineText'],
+    ['copywriting_campaigns', 'Campaign Code', 10, 'custom', 'multipleRecordLinks'],
+    ['funnel', 'Funnel', 14, 'custom', 'singleSelect'],
+    ['copywriting_copy_types', 'Copy Type', 15, 'custom', 'multipleRecordLinks'],
+    ['client_comment', "Client's Comment", 16, 'custom', 'multilineText'],
+    ['creative_brief_id', 'Creative', 17, 'relabel', 'multipleRecordLinks'],
+    ['used', 'USED', 20, 'relabel', 'checkbox'],
+    ['winning', 'Winning', 21, 'custom', 'checkbox'],
+    ['meta_rating', 'Meta Rating', 22, 'custom', 'rating'],
+    ['created_by', 'Created By', 24, 'custom', 'createdBy'],
+    [
+      UNMAPPED_COLUMN_KEY,
+      '⚠️ Please Change the Status of the copy',
+      29,
+      'hidden-custom',
+      'singleLineText',
+    ],
+  ]),
+  ...virtualChildRows('copywriting', [
+    ['angle', 'Angle', 5, 'singleLineText', 'lookupRollup'],
+    ['offer', 'Offer', 11, 'multipleLookupValues', 'lookupRollup'],
+    [
+      'campaign_from_campaign',
+      'Campaign (from Campaign)',
+      12,
+      'multipleLookupValues',
+      'lookupRollup',
+    ],
+    ['code_from_campaign', 'Code (from Campaign)', 13, 'multipleLookupValues', 'lookupRollup'],
+    ['collection_url', 'Collection URL', 18, 'multipleLookupValues', 'lookupRollup'],
+    ['link_from_product', 'Link (from Product)', 19, 'multipleLookupValues', 'lookupRollup'],
+    [
+      'products_from_collections',
+      'Products (from Collections)',
+      23,
+      'multipleLookupValues',
+      'lookupRollup',
+    ],
+    ['internal_product', '(Internal) Product', 27, 'singleLineText', 'lookupRollup'],
+  ]),
+] as const satisfies readonly UpsertColumnDefinition[];
 
 /**
  * `Creative Sheet (Internal & Interface)` `tblhU5yVNhVDwykUt` — 35 fields. `Inspiration` (field 19,

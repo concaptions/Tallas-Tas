@@ -1,5 +1,5 @@
 import { demoCollections } from '@tas/db';
-import { COPY_CTAS, COPY_FIELD_LABELS, COPY_LIMITS } from '@tas/domain/copy';
+import { COPY_CTAS, COPY_LIMITS } from '@tas/domain/copy';
 import { COPY_STATUS, copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
@@ -8,7 +8,6 @@ import { collectionsPath } from '@/lib/routes';
 import {
   CAMPAIGNS_READ_ONLY_NOTE,
   COLLECTIONS_READ_ONLY_NOTE,
-  COPY_COLUMNS,
   COPY_FIELDS,
   COPY_HEADINGS,
   COUNTER_TONE_CLASS,
@@ -31,6 +30,7 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
   const status = 'approved';
   return {
     id: '88888888-8888-4888-8888-000000000001',
+    copyNumber: 1,
     title: 'Copy #1',
     headline: 'Your Rota Is Broken. You Are Not.',
     primaryCopy: 'Six years of night shifts and he still could not sleep at noon.',
@@ -53,6 +53,16 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     copyTypeIds: ['c0b7a1d3-0013-4013-8013-000000000001'],
     campaigns: [],
     collections: [],
+    angleName: null,
+    productName: null,
+    productLink: null,
+    offer: null,
+    campaignNames: null,
+    campaignCodes: null,
+    collectionUrls: null,
+    collectionProducts: null,
+    copyTypeNames: ['Problem / Agitate / Solve'],
+    createdBy: 'seed',
     updatedLabel: 'yesterday',
     updatedTitle: '2026-09-16 11:20',
     ...overrides,
@@ -155,22 +165,22 @@ describe('collectionsByCopy', () => {
   });
 });
 
-describe('COPY_COLUMNS', () => {
-  it('is exactly the six columns of the table, in order', () => {
-    expect(COPY_COLUMNS).toEqual([
-      'Copy title / Headline',
-      'Linked Creative',
-      'Concept',
-      'Funnel',
-      'Status',
-      'Updated',
-    ]);
+describe('matchesQuery over the lookup cells (GRATSI-MATCH, 2026-10-04)', () => {
+  it('finds a row by its resolved angle, product or campaign code', () => {
+    const row = item({
+      angleName: 'Your Body Clock Is Not Broken',
+      productName: 'Reset Bundle',
+      campaignCodes: 'BFCM26',
+    });
+
+    expect(matchesQuery(row, 'body clock')).toBe(true);
+    expect(matchesQuery(row, 'reset bundle')).toBe(true);
+    expect(matchesQuery(row, 'bfcm26')).toBe(true);
+    expect(matchesQuery(row, 'no such thing anywhere')).toBe(false);
   });
 
-  it('names both values the first cell stacks', () => {
-    expect(COPY_COLUMNS).toHaveLength(6);
-    expect(COPY_COLUMNS[0]).toContain('Copy title');
-    expect(COPY_COLUMNS[0]).toContain(COPY_FIELD_LABELS.headline);
+  it('a null lookup cell matches nothing rather than throwing', () => {
+    expect(matchesQuery(item(), 'bfcm26')).toBe(false);
   });
 });
 

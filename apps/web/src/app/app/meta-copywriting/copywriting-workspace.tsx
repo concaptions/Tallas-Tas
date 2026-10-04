@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { copyFunnelLabel } from '@tas/domain/copy';
@@ -12,27 +12,31 @@ import {
   DisabledWrite,
   Input,
   StatusChip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from '@tas/ui';
 
-import { ViewSwitcher, KanbanBoard, type KanbanItem } from '@/components/views';
+import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
+import { AirtableGrid } from '@/components/views/airtable-grid';
+import { ChipListCell, TextCell } from '@/components/views/grid-cells';
+import {
+  gridColumnsFrom,
+  type ColumnRegistry,
+  type ResolvedColumnView,
+} from '@/components/views/resolved-columns';
+
 import { CopyPanel } from './copy-panel';
 import {
-  COPY_COLUMNS,
   EM_DASH,
   NEW_COPY_SOON_HINT,
   NO_COPY_NOTE,
   NO_MATCH_NOTE,
+  PRIMARY_COPY_PREVIEW,
   SEARCH_PARAM,
   SELECTION_PARAM,
+  booleanChip,
   copyCountLabel,
   filteredCopyCountLabel,
   matchesQuery,
+  truncate,
   type ConceptChoice,
   type CopyItem,
   type CopyTypeChoice,
@@ -40,26 +44,25 @@ import {
 } from './fields';
 
 /**
- * The Copywriting table and its side panel (PRD §5.11, ticket criteria 1–4).
- *
- * The house pattern, mirrored from Personas: four columns, a click or Enter opens the row in a
- * panel fixed to the right edge, and the open row lives in `?copy=` written through the History API
- * so opening is instant and a refresh reopens it. The search lives in `?q=`, the same key every
- * other list page uses, so a narrowed list is a link someone can send.
+ * The Meta Copywriting grid, its kanban and its side panel (PRD §5.11) — RESOLVER-DRIVEN since the
+ * Gratsi column match (2026-10-04, `docs/audits/gratsi-column-diff-2026-10-04.md`): label, order
+ * and visibility come from the brand's resolved column set, rendering from the registry below, and
+ * the two are joined by the ONE `gridColumnsFrom` adapter, exactly as on YouTube Copywriting. The
+ * hand-written six-header `<Table>` this replaces drew 6 of the Gratsi base's 30 fields.
  *
  * NOTHING IS RE-LABELLED HERE. `page.tsx` resolved the generated title, every status label and chip
- * tone, the linked creative's name and both timestamp strings through the domain before this
+ * tone, the linked names and every lookup string through the domain and `lookupRollup` before this
  * component saw a row; this file renders what it is handed and never compares a status to a literal.
- *
- * The first cell carries both values its header names: the generated Copy # in `font-mono`, and the
- * row's Headline under it — the words anyone actually scans for — with the muted em dash standing in
- * when a row has none, exactly as the Linked Creative cell does.
  *
  * The Linked Creative cell is the one cell with a second interaction in it: it links to the brief's
  * own page, so the click is stopped from also opening the panel. An unattached row renders the
  * muted em dash instead — the ordinary case, not a broken one.
  */
 interface CopywritingWorkspaceProps {
+  /** The brand's ordered, labelled, visible columns, from `loadCopyColumns`. */
+  readonly columns: readonly ResolvedColumnView[];
+  /** True when `columns` is the parent master-set fallback because the brand resolved none. */
+  readonly unconfiguredColumns?: boolean;
   readonly items: readonly CopyItem[];
   readonly creatives: readonly CreativeChoice[];
   readonly concepts: readonly ConceptChoice[];
@@ -96,7 +99,182 @@ function capitalize(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
 
+function dash(value: string | null) {
+  return value === null || value === '' ? <span className="text-text4">{EM_DASH}</span> : value;
+}
+
+/**
+ * THE Meta Copywriting renderer registry, keyed by the resolver's `column_key` — every key of the
+ * template's ten-field master set AND of Gratsi's twenty-five (the virtual `lookupRollup` columns
+ * included), so `ColumnNotices` never has a "not drawn here" to report on either base.
+ *
+ * `copy_number` is the generated Copy # title and keeps its `copy-row-title` hook and `font-mono`
+ * (CLAUDE.md non-negotiable 6 — generated output always renders in the mono face), as do the
+ * campaign names and codes, which are system output of the campaign name formula.
+ */
+const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
+  copy_number: {
+    render: (item) => (
+      <span data-slot="copy-row-title" className="font-mono text-xs font-medium whitespace-nowrap">
+        {item.title}
+      </span>
+    ),
+    sortValue: (item) => item.copyNumber,
+  },
+  creative_brief_id: {
+    render: (item) =>
+      item.creativeName === null || item.creativeHref === null ? (
+        <span data-slot="copy-row-unlinked" className="text-text3">
+          {EM_DASH}
+        </span>
+      ) : (
+        <Link
+          href={item.creativeHref}
+          data-slot="copy-row-creative"
+          onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+            event.stopPropagation();
+          }}
+          className="inline-flex rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2 hover:border-accent-line hover:text-accent"
+        >
+          {item.creativeName}
+        </Link>
+      ),
+    sortValue: (item) => item.creativeName,
+    minWidth: 220,
+  },
+  status: {
+    render: (item) => <StatusChip tone={item.statusTone} label={item.statusLabel} />,
+    sortValue: (item) => item.statusLabel,
+  },
+  collections: {
+    render: (item) => (
+      <ChipListCell
+        chips={item.collections.map((entry) => ({ label: entry.label, tone: 'info' }))}
+      />
+    ),
+    sortValue: (item) => item.collections.length,
+  },
+  product_id: {
+    render: (item) => <TextCell value={item.productName} maxWidth={200} />,
+    sortValue: (item) => item.productName,
+  },
+  angle: {
+    render: (item) => <TextCell value={item.angleName} maxWidth={220} />,
+    sortValue: (item) => item.angleName,
+  },
+  primary_copy: {
+    render: (item) =>
+      item.primaryCopy === null ? dash(null) : truncate(item.primaryCopy, PRIMARY_COPY_PREVIEW),
+    cellTitle: (item) => item.primaryCopy ?? undefined,
+    minWidth: 260,
+  },
+  headline: {
+    render: (item) => dash(item.headline),
+    sortValue: (item) => item.headline,
+    minWidth: 220,
+  },
+  link_description: {
+    render: (item) => <TextCell value={item.linkDescription} maxWidth={240} />,
+    sortValue: (item) => item.linkDescription,
+  },
+  cta: {
+    render: (item) => dash(item.cta),
+    sortValue: (item) => item.cta,
+  },
+  copywriting_campaigns: {
+    render: (item) => (
+      <ChipListCell
+        chips={item.campaigns.map((entry) => ({ label: entry.label, tone: 'accent' }))}
+      />
+    ),
+    sortValue: (item) => item.campaigns.length,
+  },
+  offer: {
+    render: (item) => <TextCell value={item.offer} maxWidth={180} />,
+    sortValue: (item) => item.offer,
+  },
+  campaign_from_campaign: {
+    render: (item) =>
+      item.campaignNames === null ? (
+        dash(null)
+      ) : (
+        <span className="font-mono text-xs">{item.campaignNames}</span>
+      ),
+    cellTitle: (item) => item.campaignNames ?? undefined,
+    sortValue: (item) => item.campaignNames,
+    minWidth: 220,
+  },
+  code_from_campaign: {
+    render: (item) =>
+      item.campaignCodes === null ? (
+        dash(null)
+      ) : (
+        <span className="font-mono text-xs">{item.campaignCodes}</span>
+      ),
+    sortValue: (item) => item.campaignCodes,
+  },
+  funnel: {
+    render: (item) => dash(copyFunnelLabel(item.funnel)),
+    sortValue: (item) => item.funnel,
+  },
+  copywriting_copy_types: {
+    render: (item) => (
+      <ChipListCell chips={item.copyTypeNames.map((name) => ({ label: name, tone: 'info' }))} />
+    ),
+    sortValue: (item) => item.copyTypeNames.length,
+  },
+  client_comment: {
+    render: (item) => <TextCell value={item.clientComment} maxWidth={260} />,
+    sortValue: (item) => item.clientComment,
+  },
+  collection_url: {
+    render: (item) => <TextCell value={item.collectionUrls} maxWidth={240} />,
+    sortValue: (item) => item.collectionUrls,
+  },
+  link_from_product: {
+    render: (item) => <TextCell value={item.productLink} maxWidth={240} />,
+    sortValue: (item) => item.productLink,
+  },
+  used: {
+    render: (item) => <StatusChip {...booleanChip(item.used)} />,
+    sortValue: (item) => (item.used ? 1 : 0),
+  },
+  winning: {
+    render: (item) => <StatusChip {...booleanChip(item.winning)} />,
+    sortValue: (item) => (item.winning ? 1 : 0),
+  },
+  meta_rating: {
+    render: (item) =>
+      item.metaRating === null ? (
+        dash(null)
+      ) : (
+        <span className="font-mono text-xs">{String(item.metaRating)}</span>
+      ),
+    sortValue: (item) => item.metaRating,
+    align: 'right',
+  },
+  products_from_collections: {
+    render: (item) => <TextCell value={item.collectionProducts} maxWidth={220} />,
+    sortValue: (item) => item.collectionProducts,
+  },
+  created_by: {
+    render: (item) =>
+      item.createdBy === null ? (
+        dash(null)
+      ) : (
+        <span className="font-mono text-xs text-text3">{item.createdBy}</span>
+      ),
+    sortValue: (item) => item.createdBy,
+  },
+  internal_product: {
+    render: (item) => <TextCell value={item.productName} maxWidth={200} />,
+    sortValue: (item) => item.productName,
+  },
+};
+
 export function CopywritingWorkspace({
+  columns,
+  unconfiguredColumns = false,
   items,
   creatives,
   concepts,
@@ -106,6 +284,15 @@ export function CopywritingWorkspace({
   initialSearch,
   initialView,
 }: CopywritingWorkspaceProps) {
+  // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
+  const grid = useMemo(
+    () =>
+      gridColumnsFrom(columns, COPY_RENDERERS, {
+        freezeFirst: true,
+        frozenMinWidth: 120,
+      }),
+    [columns],
+  );
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
@@ -138,13 +325,6 @@ export function CopywritingWorkspace({
   const saved = useCallback(() => {
     router.refresh();
   }, [router]);
-
-  const onRowKey = (event: KeyboardEvent<HTMLTableRowElement>, id: string) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      select(id);
-    }
-  };
 
   const query = search.trim().toLowerCase();
   const visible = useMemo(
@@ -215,7 +395,7 @@ export function CopywritingWorkspace({
 
       <section aria-labelledby="copywriting-heading" className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h2 id="copywriting-heading" className="text-sm font-medium text-text2">
               Library
             </h2>
@@ -225,6 +405,12 @@ export function CopywritingWorkspace({
               activeView={activeView}
               onViewChange={setActiveView}
               kanbanGroupByField="status"
+            />
+            <ColumnNotices
+              slotPrefix="copy"
+              unconfigured={unconfiguredColumns}
+              missing={grid.missing}
+              registryName="COPY_RENDERERS in copywriting-workspace.tsx"
             />
           </div>
           <Input
@@ -240,27 +426,7 @@ export function CopywritingWorkspace({
           />
         </div>
 
-        {visible.length === 0 ? (
-          <div
-            data-slot="copy-empty"
-            className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface px-4 py-10 text-center"
-          >
-            <p className="text-sm text-text2">{narrowed ? NO_MATCH_NOTE : NO_COPY_NOTE}</p>
-            {narrowed ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={clearSearch}
-                data-slot="clear-search"
-              >
-                Clear search
-              </Button>
-            ) : (
-              newCopy('empty-new-copy')
-            )}
-          </div>
-        ) : activeView === 'kanban' ? (
+        {activeView === 'kanban' ? (
           <KanbanBoard
             items={kanbanItems}
             columns={kanbanColumns}
@@ -269,93 +435,38 @@ export function CopywritingWorkspace({
             demo={demo}
           />
         ) : (
-          <div className="overflow-x-auto rounded-card border border-line bg-surface">
-            <Table data-slot="copy-table">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  {COPY_COLUMNS.map((column) => (
-                    <TableHead key={column} className="px-3">
-                      {column}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    data-slot="copy-row"
-                    data-copy-id={item.id}
-                    data-state={item.id === selection ? 'selected' : undefined}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={item.title}
-                    onClick={() => {
-                      select(item.id);
-                    }}
-                    onKeyDown={(event) => {
-                      onRowKey(event, item.id);
-                    }}
-                    className="cursor-pointer"
+          <AirtableGrid
+            tableKey="copywriting"
+            columns={grid.columns}
+            rows={visible}
+            rowId={(item) => item.id}
+            rowLabel={(item) => item.title}
+            rowAttributes={(item) => ({ 'data-copy-id': item.id })}
+            selectedId={selection}
+            onRowClick={(item) => {
+              select(item.id);
+            }}
+            tableSlot="copy-table"
+            rowSlot="copy-row"
+            empty={
+              <div data-slot="copy-empty" className="flex flex-col items-center gap-3 text-center">
+                <p className="text-sm text-text2">{narrowed ? NO_MATCH_NOTE : NO_COPY_NOTE}</p>
+                {narrowed ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSearch}
+                    data-slot="clear-search"
                   >
-                    <TableCell className="px-3 py-1.5 align-top">
-                      <span
-                        data-slot="copy-row-title"
-                        className="font-mono text-xs whitespace-nowrap text-text"
-                      >
-                        {item.title}
-                      </span>
-                      <span
-                        data-slot="copy-row-headline"
-                        className="mt-0.5 block text-xs whitespace-normal text-text3"
-                      >
-                        {item.headline ?? EM_DASH}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 align-top whitespace-normal">
-                      {item.creativeName === null || item.creativeHref === null ? (
-                        <span data-slot="copy-row-unlinked" className="text-text3">
-                          {EM_DASH}
-                        </span>
-                      ) : (
-                        <Link
-                          href={item.creativeHref}
-                          data-slot="copy-row-creative"
-                          onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                            event.stopPropagation();
-                          }}
-                          className="inline-flex rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2 hover:border-accent-line hover:text-accent"
-                        >
-                          {item.creativeName}
-                        </Link>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 align-top whitespace-normal">
-                      {item.conceptName === null ? (
-                        <span className="text-text3">{EM_DASH}</span>
-                      ) : (
-                        <span className="inline-flex rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2">
-                          {item.conceptName}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 align-top whitespace-nowrap text-text3">
-                      {copyFunnelLabel(item.funnel)}
-                    </TableCell>
-                    <TableCell className="px-3 py-1.5 align-top">
-                      <StatusChip tone={item.statusTone} label={item.statusLabel} />
-                    </TableCell>
-                    <TableCell
-                      className="px-3 py-1.5 align-top whitespace-nowrap text-text3"
-                      title={item.updatedTitle}
-                    >
-                      {item.updatedLabel}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    Clear search
+                  </Button>
+                ) : (
+                  newCopy('empty-new-copy')
+                )}
+              </div>
+            }
+          />
         )}
       </section>
 

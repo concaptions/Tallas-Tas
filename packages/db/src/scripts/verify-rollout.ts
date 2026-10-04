@@ -33,6 +33,12 @@ const EXPECTED: readonly {
   { tableKey: 'email_flows', inheriting: 13, gratsi: 13, virtual: 2 },
   { tableKey: 'sm_campaign_feed_tasks', inheriting: 6, gratsi: 6, virtual: 1 },
   { tableKey: 'youtube_copy', inheriting: 16, gratsi: 16, virtual: 0 },
+  // GRATSI-MATCH copywriting (2026-10-04, docs/audits/gratsi-column-diff-2026-10-04.md): the
+  // template's full 10-field set (Copy # and the reverse-link Collection column were missing), and
+  // Gratsi's 30-field base minus the five decision-doc-flagged fields = 25, in Airtable's order.
+  // The one virtual on the inheriting set is `collections` (lookupRollup) — the reverse side of
+  // `collections.copywriting_id`.
+  { tableKey: 'copywriting', inheriting: 10, gratsi: 25, virtual: 1 },
   { tableKey: 'creative_modules', inheriting: 4, gratsi: 4, virtual: 0 },
   { tableKey: 'client_asset_folders', inheriting: 4, gratsi: 4, virtual: 0 },
   // The name is virtual on both bases: Gratsi relabels it and the formula is read from the parent.

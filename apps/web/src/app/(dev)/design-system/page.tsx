@@ -100,6 +100,7 @@ import {
   CopyCounterStory,
   CopyLinkedCreativeStory,
   CopyStatusChipsStory,
+  CopywritingGridStory,
 } from './copywriting.stories';
 import { CsmCardsStory } from './csm-cards.stories';
 import { RoleDashboardAdminStory, RoleDashboardMediaBuyerStory } from './role-dashboard.stories';
@@ -1085,10 +1086,17 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section
-        title="Copywriting: status chips, the linked-creative cell and the character counter"
-        note="The three shapes /app/copywriting introduces. Mounted from the route's own modules, never re-drawn here."
+        title="Copywriting: the resolver-driven grid, status chips, the linked-creative cell and the character counter"
+        note="The shapes /app/meta-copywriting introduces. Mounted from the route's own modules, never re-drawn here."
       >
         <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              the workspace — columns from the resolver, cells from COPY_RENDERERS, lookups from
+              lookupRollup (GRATSI-MATCH 2026-10-04)
+            </h3>
+            <CopywritingGridStory />
+          </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
               copy status — the five PRD §5.11 states, toned by copyStatusTone

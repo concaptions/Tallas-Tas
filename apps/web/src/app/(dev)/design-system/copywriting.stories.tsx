@@ -1,26 +1,77 @@
-'use client';
-
 import Link from 'next/link';
+import {
+  demoBriefs,
+  demoCampaigns,
+  demoCollections,
+  demoCopy,
+  demoCopyTypes,
+  demoProducts,
+} from '@tas/db';
 import { StatusChip } from '@tas/ui';
 import { COPY_LIMITS } from '@tas/domain/copy';
 import { COPY_STATUS, copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
+import { buildCopyItems } from '@/app/app/meta-copywriting/build-items';
+import { CopywritingWorkspace } from '@/app/app/meta-copywriting/copywriting-workspace';
 import {
   COUNTER_TONE_CLASS,
   EM_DASH,
   counterLabel,
   counterTone,
 } from '@/app/app/meta-copywriting/fields';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
- * The three shapes the Copywriting route introduces (CLAUDE.md UI governance rule 4): the five copy
+ * The shapes the Meta Copywriting route introduces (CLAUDE.md UI governance rule 4): the whole
+ * resolver-driven workspace as the product mounts it (GRATSI-MATCH, 2026-10-04), the five copy
  * status chips, the linked-creative cell in both of its states, and the live character counter at
  * each of its three tones.
  *
- * Nothing is re-implemented here. The chips are `StatusChip` toned by `copyStatusTone`, the counter
- * is the route's own `counterTone` / `counterLabel` over `@tas/domain/copy`'s limits, and the cell
- * markup is the table's. A tone shown here is the tone the page shows.
+ * Nothing is re-implemented here. The grid's items come from the route's own `buildCopyItems`
+ * over the fixtures, its columns from `parentColumnsFor` — the identical fallback demo mode
+ * serves — the chips are `StatusChip` toned by `copyStatusTone`, and the counter is the route's
+ * own `counterTone` / `counterLabel` over `@tas/domain/copy`'s limits. A tone shown here is the
+ * tone the page shows.
  */
+const STORY_NOW = new Date('2026-09-18T09:00:00.000Z');
+
+/** The identical workspace `/app/meta-copywriting` renders, in demo mode over the fixtures. */
+export function CopywritingGridStory() {
+  const items = buildCopyItems(
+    {
+      rows: demoCopy,
+      campaigns: demoCampaigns.map(({ id, name, code, discountOffer }) => ({
+        id,
+        name,
+        code,
+        discountOffer,
+      })),
+      collections: demoCollections.map(({ id, name, url, productName, copywritingId }) => ({
+        id,
+        name,
+        url,
+        productName,
+        copywritingId,
+      })),
+      products: demoProducts.map(({ id, name, link }) => ({ id, name, link })),
+      briefLookups: demoBriefs.map(({ id, angleName }) => ({ id, angleName })),
+      copyTypes: demoCopyTypes,
+    },
+    STORY_NOW,
+  );
+  return (
+    <CopywritingWorkspace
+      columns={parentColumnsFor('copywriting')}
+      items={items}
+      creatives={demoBriefs.map(({ id, name }) => ({ id, name }))}
+      concepts={[]}
+      copyTypes={demoCopyTypes.map(({ id, name }) => ({ id, name }))}
+      demo
+      initialSelection={null}
+      initialSearch=""
+    />
+  );
+}
 
 /** The five PRD §5.11 states, each as the table renders it — never `chipTone(label)`. */
 export function CopyStatusChipsStory() {

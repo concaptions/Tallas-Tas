@@ -983,3 +983,47 @@ required: the client-facing interface reads `concepts.client_status` from the da
 nothing in `apps/web/src/app/client` or `client-data-source.ts` touches `resolveColumns`), so the
 client gate is untouched by what the team's grid displays. Only the Gratsi team grid loses the
 display chip. The Postgres column, every writer, Niagara's view and the platform row all stay.
+
+## 2026-10-04 — GRATSI-MATCH `copywriting`: 25 of 30 Airtable fields displayed; five flagged, zero invented
+
+Input: `docs/audits/gratsi-column-diff-2026-10-04.md` (Meta Copywriting: Airtable 30, platform 14,
+not resolver-driven). The page is now resolver-driven (registry + `gridColumnsFrom` +
+`ColumnNotices`, like YouTube Copywriting), the template base's own ten-field set is seeded in
+full (`Copy #` and the reverse-link `Collection` column were missing from the first
+transcription), and Gratsi's child rows pin the base's exact labels and field order 1–30.
+
+**One new registered formula, `lookupRollup`** (`packages/db/src/formulas/lookups.ts`): an
+Airtable `multipleLookupValues` field IS one computation — the linked rows' values of one field,
+joined — so every lookup column of this match names this single formula rather than twenty
+identity functions; which link and which field a column reads is recorded on its seed row and
+computed in its page's source loader, never stored (`isVirtualColumn` keeps all of them out of
+every write path).
+
+**Displayed as virtual lookup columns** (computed through the row's links in `copy-source.ts` /
+`build-items.ts`): `Offer`, `Campaign (from Campaign)`, `Code (from Campaign)` through
+`copywriting_campaigns` → `campaigns_offers.discount_offer/name/code`; `Collections`,
+`Collection URL`, `Products (from Collections)` through the collections whose `copywriting_id` is
+the row (the collection owns the link; the strict Gratsi-matches-Airtable rule supersedes the
+record-page-only convention AI-43 recorded for reverse links — this one is a read-only GRID
+column now); `Link (from Product)` and `(Internal) Product` through `product_id` (the base's
+`(Internal) Product` is a residual text whose datum the 2026-10-01 register already recorded as
+"same datum as Product" — displayed anyway because Airtable genuinely has both fields, as the
+same product name under both labels); `Angle` through the linked brief's angle (the register:
+"the angle is the brief's angle_id", with the concept-inherited angle as fallback). `Created By`
+is the shared `created_by` audit column surfaced under Airtable's label (diff-audit annotation 3)
+— the stored actor id, rendered as-is.
+
+**Flagged, not fixed — the five fields the resolved set deliberately lacks** (30 − 5 = 25, the
+number `verify-rollout.ts` and `copy-source.test.ts` assert):
+
+| Airtable field | why it stays out |
+| --- | --- |
+| `Creative Reporting` (26) | residual single-line text of a converted link, 0/0 filled, excluded by the 2026-10-01 register; no storage exists and the importer (not this track's file) is where storage would have to begin |
+| `Creative Sheet` (27) | same: residual text, 0/0, register-excluded |
+| `(Internal) Creative Design` (28) | the second brief link beside `Creative`; the import collapsed both into the one `copywriting.creative_brief_id` (register + `import-mappings.ts`), so a second column would duplicate `Creative`, not reflect distinct storage |
+| `⚠️ Please Change the Status of the copy` (29) | the Airtable UI banner; stays the HIDDEN `airtable_status_banner` sentinel row per the ambiguous-field law |
+| `(Internal) Creative Design 2` (30) | residual single-line text of a converted link, 0/0, register-excluded — it "proved to be a dead text remnant" |
+
+Order values keep the Airtable positions (gaps at 25, 26, 28, 29, 30), so an un-flag later lands
+in the right place. Niagara and every other inheriting brand gain only the template's own two
+missing fields (`Copy #`, `Collection`); nothing else about the inheriting set changed.
