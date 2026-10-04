@@ -9,7 +9,7 @@
 export type LinkTable = 'concept' | 'angle' | 'creator' | 'product' | 'persona';
 
 export type LinkJunction =
-  'concept_angles' | 'creator_concepts' | 'angle_products' | 'angle_personas';
+  'concept_angles' | 'creator_concepts' | 'creator_products' | 'angle_products' | 'angle_personas';
 
 export interface LinkKindEntry {
   readonly kind: LinkKind;
@@ -27,6 +27,8 @@ export const LINK_KINDS = [
   'angle-concepts',
   'concept-creators',
   'creator-concepts',
+  'creator-products',
+  'product-creators',
   'angle-products',
   'product-angles',
   'angle-personas',
@@ -63,6 +65,26 @@ export const LINK_REGISTRY: Readonly<Record<LinkKind, LinkKindEntry>> = {
     source: 'creator',
     target: 'concept',
     label: 'Concepts',
+  },
+  /**
+   * `creator_products` — the product a creator is booked for (PRD §5.1 / §5.6). It was the odd one
+   * out: the creator panel wrote it through a row of toggle buttons of its own and the product panel
+   * said "Link one from the creator's panel", so the same junction had one editable end and one
+   * sentence pointing at it. It is the same control on both sides now.
+   */
+  'creator-products': {
+    kind: 'creator-products',
+    junction: 'creator_products',
+    source: 'creator',
+    target: 'product',
+    label: 'Products',
+  },
+  'product-creators': {
+    kind: 'product-creators',
+    junction: 'creator_products',
+    source: 'product',
+    target: 'creator',
+    label: 'Creators',
   },
   'angle-products': {
     kind: 'angle-products',

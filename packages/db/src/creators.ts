@@ -47,9 +47,10 @@ export type CreatorInput = Omit<NewCreator, ManagedColumn>;
  * satisfies `CreatorListRow[]`, so a page reads demo fixtures and database rows through ONE type.
  *
  * `conceptIds`/`productIds` are read from the `creator_concepts`/`creator_products` junction
- * tables, which is where the UGC panel's save writes them (`syncCreatorConcepts`). The identically
- * named jsonb columns on `creators` are a legacy shape nothing writes; overriding them here is what
- * makes a saved link survive a reload.
+ * tables, which is where both of the UGC panel's link fields and its Save write them
+ * (`syncLinksInBrand`, the brand-checked write the product and concept panels use for the same
+ * rows). The identically named jsonb columns on `creators` are a legacy shape nothing writes;
+ * overriding them here is what makes a saved link survive a reload.
  */
 export type CreatorListRow = Creator;
 

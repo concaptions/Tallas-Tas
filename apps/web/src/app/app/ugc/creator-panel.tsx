@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useActionState, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -125,12 +125,6 @@ export function CreatorPanel({
   useEffect(() => {
     if (state !== null && state.ok) onSaved(state.id);
   }, [state, onSaved]);
-
-  const toggleProduct = useCallback((id: string) => {
-    setSelectedProductIds((prev) =>
-      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
-    );
-  }, []);
 
   const stats = useMemo(() => collabStats(collabs), [collabs]);
   const internalChoices = useMemo(
@@ -601,34 +595,22 @@ export function CreatorPanel({
               <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
                 Linked Products
               </h3>
-              {products.length === 0 ? (
-                <p className="text-sm text-text3">No products in this brand yet.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2" data-slot="product-picker">
-                  {products.map((product) => {
-                    const on = selectedProductIds.includes(product.id);
-                    return (
-                      <button
-                        key={product.id}
-                        type="button"
-                        disabled={demo}
-                        aria-pressed={on}
-                        data-slot="product-toggle"
-                        onClick={() => {
-                          toggleProduct(product.id);
-                        }}
-                        className={
-                          on
-                            ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase disabled:cursor-not-allowed'
-                            : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase hover:border-line2 hover:text-text2 disabled:cursor-not-allowed'
-                        }
-                      >
-                        {product.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              {/* The same LinkField the product panel mounts for its creators: one
+                  `creator_products` row per pair, written on the spot, so the product's panel shows
+                  this creator on its next render. A row of toggle buttons stood here and wrote the
+                  junction on Save only, which is why the product side could not edit it at all. The
+                  hidden `productIds` inputs above still mirror the selection for the Save. */}
+              <LinkField
+                link="creator-products"
+                sourceId={creator.id}
+                options={products}
+                selectedIds={selectedProductIds}
+                onChange={setSelectedProductIds}
+                label="Linked Products"
+                demo={demo}
+                slot="creator-products"
+                empty="No product booked yet. Link one here or from the product's page."
+              />
             </section>
 
             <section className="flex flex-col gap-3" data-slot="showcase-videos-section">

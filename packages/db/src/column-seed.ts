@@ -900,7 +900,14 @@ const CREATORS_PARENT = parentRows('creators', [
  * `Creator Status` → `internal_creator_status` is the relabel the mapping doc gets backwards; the
  * engine's comment says why ("the tracks were SWAPPED in the first import"). Gratsi's own `Concepts`
  * field is a second, jsonb-backed link (`creators.concept_ids`) alongside the `creator_concepts`
- * junction, so both get a row and neither is guessed into the other.
+ * junction, so both get a row and neither is guessed into the other — but the second one is
+ * `hidden-custom`, not `custom`: the field is empty on all 70 live rows and the importer skips it
+ * (`scripts/import-mappings.ts` `handler: 'skip'`, exclusion register `docs/decisions.md`
+ * "UGC Management › Concepts"), so nothing writes `creators.concept_ids` and the UGC grid has no
+ * renderer that could draw it. A visible row made the page report a column it cannot draw
+ * ("not drawn here: concept_ids") instead of showing one. Hidden is the law's own answer for a field
+ * like this — *"an AMBIGUOUS field becomes a HIDDEN child-added row"* — and it keeps the row, so the
+ * Airtable field stays remembered and an admin can un-hide it the day it carries data.
  */
 /**
  * Creators' PLATFORM columns: five internal money-and-process fields the UGC grid draws for every
@@ -939,7 +946,7 @@ const CREATORS_GRATSI = childRows('creators', [
   ['internal_creator_status', 'Creator Status', 22, 'relabel', 'singleSelect'],
   ['cost_usd', 'Paid by TAS', 23, 'relabel-platform', 'currency'],
   ['payment_date', 'Payment Date', 24, 'relabel-platform', 'date'],
-  ['concept_ids', 'Concepts', 25, 'custom', 'multipleRecordLinks'],
+  ['concept_ids', 'Concepts', 25, 'hidden-custom', 'multipleRecordLinks'],
   ['creator_info_request', 'Creator Info Request', 26, 'relabel-platform', 'richText'],
   ['slack_notified', 'Slack Notified ', 30, 'relabel-platform', 'checkbox'],
   ['deadline', '(Internal) Deadline for the request', 2, 'hidden', 'date'],

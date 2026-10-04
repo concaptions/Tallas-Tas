@@ -8,7 +8,7 @@ import {
   getCreatorById,
   getPersonaById,
   getProductById,
-  syncLinks,
+  syncLinksInBrand,
   type Db,
   type LinkTable,
 } from '@tas/db';
@@ -22,8 +22,13 @@ import { withBrandScope } from './ugc-source';
  * The one write behind every `LinkField` (Sprint 9, LINK-01). It takes a link kind, the record the
  * field sits on and the chosen ids, proves the source record is in the actor's brand (the junction
  * tables carry no `brand_id`, so the scoped getter is the tenancy check), writes the junction
- * through `syncLinks`, and revalidates BOTH sides' pages so the other record reads the link on its
- * next render. Nothing is copied onto either record.
+ * through `syncLinksInBrand`, and revalidates BOTH sides' pages so the other record reads the link
+ * on its next render. Nothing is copied onto either record.
+ *
+ * BOTH halves of the write are brand-checked: `ownsSource` for the record the field sits on, and
+ * `syncLinksInBrand` for the submitted ids, which arrive as a plain array in a request body and
+ * used to reach the junction unexamined. `targetIds` is where that matters most, because the
+ * registry grows: every junction added to it would otherwise widen the same hole.
  */
 export interface SetLinksInput {
   readonly link: string;
@@ -82,8 +87,9 @@ export async function setLinksAction(input: SetLinksInput): Promise<SetLinksResu
   try {
     const written = await withBrandScope(async (db, brandId) => {
       if (!(await ownsSource(db, brandId, entry.source, input.sourceId))) return null;
-      return syncLinks(
+      return syncLinksInBrand(
         db,
+        brandId,
         { junction: entry.junction, source: entry.source, target: entry.target },
         input.sourceId,
         input.targetIds,

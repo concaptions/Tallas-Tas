@@ -3,15 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { listAngles } from './angles';
 import { listConcepts } from './concepts';
 import { listCreators } from './creators';
-import { listLinkedIds, syncLinks, type LinkSpec } from './links';
+import { listLinkedIds, syncLinks, syncLinksInBrand, type LinkSpec } from './links';
 import { listPersonas } from './personas';
-import { listProducts } from './products';
+import { insertProduct, listProducts } from './products';
 import { seed } from './seed';
 import { testDb } from './testing';
 
 async function seeded() {
   const db = await testDb();
-  const { childBrand } = await seed(db);
+  const { childBrand, rosterBrands } = await seed(db);
   const brandId = childBrand.id;
   const [concepts, angles, creators, products, personas] = await Promise.all([
     listConcepts(db, brandId),
@@ -20,7 +20,7 @@ async function seeded() {
     listProducts(db, brandId),
     listPersonas(db, brandId),
   ]);
-  return { db, brandId, concepts, angles, creators, products, personas };
+  return { db, brandId, rosterBrands, concepts, angles, creators, products, personas };
 }
 
 const CONCEPT_CREATORS: LinkSpec = {
@@ -39,6 +39,16 @@ const ANGLE_PRODUCTS: LinkSpec = { junction: 'angle_products', source: 'angle', 
 const PRODUCT_ANGLES: LinkSpec = { junction: 'angle_products', source: 'product', target: 'angle' };
 const ANGLE_PERSONAS: LinkSpec = { junction: 'angle_personas', source: 'angle', target: 'persona' };
 const PERSONA_ANGLES: LinkSpec = { junction: 'angle_personas', source: 'persona', target: 'angle' };
+const CREATOR_PRODUCTS: LinkSpec = {
+  junction: 'creator_products',
+  source: 'creator',
+  target: 'product',
+};
+const PRODUCT_CREATORS: LinkSpec = {
+  junction: 'creator_products',
+  source: 'product',
+  target: 'creator',
+};
 
 describe('two-way links (one junction, both sides)', () => {
   it('a creator linked from the concept side is read back from the creator side', async () => {
@@ -90,6 +100,61 @@ describe('two-way links (one junction, both sides)', () => {
     const [row] = (await listAngles(db, angle.brandId)).filter((entry) => entry.id === angle.id);
     expect(row?.productIds).toContain(product.id);
     expect(row?.personaIds).toContain(persona.id);
+  });
+
+  /**
+   * `creator_products` is the junction the UGC panel used to own alone: it wrote the rows from a row
+   * of toggle buttons of its own and the product panel only listed them, telling the user to go to
+   * the other panel. Both ends go through one spec now, so a product booked from the creator and a
+   * creator booked from the product are the same row.
+   */
+  it('a product booked from the creator side is read back from the product side, and the reverse', async () => {
+    const { db, creators, products } = await seeded();
+    const [firstCreator, secondCreator] = creators;
+    const [firstProduct, secondProduct] = products;
+    if (!firstCreator || !secondCreator || !firstProduct || !secondProduct) {
+      throw new Error('fixtures missing');
+    }
+
+    await syncLinks(db, CREATOR_PRODUCTS, firstCreator.id, [firstProduct.id]);
+    expect(await listLinkedIds(db, PRODUCT_CREATORS, firstProduct.id)).toContain(firstCreator.id);
+
+    // Written from the PRODUCT side, the creator reads it back — and replacing that side's set
+    // leaves the other creator's own booking alone.
+    await syncLinks(db, PRODUCT_CREATORS, secondProduct.id, [secondCreator.id]);
+    expect(await listLinkedIds(db, CREATOR_PRODUCTS, secondCreator.id)).toEqual([secondProduct.id]);
+    expect(await listLinkedIds(db, CREATOR_PRODUCTS, firstCreator.id)).toEqual([firstProduct.id]);
+  });
+
+  /**
+   * The tenancy half the action could not do for itself. `ownsSource` proves the record the field
+   * sits on belongs to the brand, but the submitted ids arrive as a plain array in a request body
+   * and used to reach the junction unexamined — and a junction row carries no `brand_id` that would
+   * catch it afterwards. A stranger's id is dropped, the brand's own are kept, and the other
+   * brand's rows are left exactly as they were.
+   */
+  it('drops a target id from another brand and keeps the brand own', async () => {
+    const { db, brandId, rosterBrands, creators, products } = await seeded();
+    const creator = creators[0];
+    const mine = products[0];
+    const other = rosterBrands[0];
+    if (!creator || !mine || !other) throw new Error('fixtures missing');
+
+    const stranger = await insertProduct(
+      db,
+      other.id,
+      { name: 'Another brand product', link: 'https://elsewhere.example/p' },
+      'user_test',
+    );
+
+    const written = await syncLinksInBrand(db, brandId, CREATOR_PRODUCTS, creator.id, [
+      mine.id,
+      stranger.id,
+    ]);
+
+    expect(written).toEqual([mine.id]);
+    expect(await listLinkedIds(db, CREATOR_PRODUCTS, creator.id)).toEqual([mine.id]);
+    expect(await listLinkedIds(db, PRODUCT_CREATORS, stranger.id)).toEqual([]);
   });
 
   it('an empty list clears the side without touching the other pairs of the target', async () => {

@@ -810,3 +810,29 @@ The split it should have been, and the shape any follow-up should take:
 
 Consequence: the next column-admin ticket is read-only-or-write-only, not both, and this entry is
 the precedent that a waiver is written down with its split rather than claimed in a commit message.
+
+## 2026-10-04 — the second `UGC Management › Concepts` link is hidden, not dropped (AI-41)
+
+Two of our own records disagreed about Gratsi's second, empty link to Concepts. The exclusion
+register above lists `UGC Management › Concepts | link | 0/70` as a field the importer deliberately
+ignores; `docs/decisions/overnight-ambiguous-fields.md` §2.8 seeded it as a visible Gratsi column of
+its own ("two fields, two rows, nothing merged"). Both were defensible in isolation, and together
+they produced a notice where a column should have been: `concept_ids` resolved for Gratsi, the UGC
+grid's `CREATOR_RENDERERS` has no entry for the key, so `gridColumnsFrom` returned it in `missing`
+and the page printed "Configured for this brand but not drawn here: concept_ids".
+
+**Decision.** The register wins on *visibility*, §2.8 wins on *identity*. The row stays — keyed
+`concept_ids`, labelled "Concepts", at Gratsi's own order 25 — and becomes `hidden-custom`, which is
+the vocabulary the AMBIGUOUS rule already defines for a child-added field nothing writes
+(`is_hidden = true`, `source = 'custom'`). One line of `packages/db/src/column-seed.ts`; no code
+path, no renderer and no junction changes, and `creator_concepts` / "Concept to film" — the link the
+importer really writes, 87 rows in production — is untouched at order 7.
+
+**Why not retire it.** Dropping the row would forget an Airtable field that exists in the live base,
+and un-hiding is a one-click Column Admin edit the day it carries data. Retiring it is the owner's
+call, not a builder's, and the question is on the list for Talal.
+
+**Consequence.** Re-running `seed-columns --apply` against production flips that one Gratsi row's
+`is_hidden` to true; `check-columns --table creators` should then resolve 33 columns for Gratsi
+instead of 34, with `creator_concepts` still at order 7. The seed change is committed; the
+production write is not done and needs the usual approval.

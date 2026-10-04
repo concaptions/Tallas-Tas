@@ -5,8 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import {
   insertAsset,
   isR2Available,
-  syncCreatorConcepts,
-  syncCreatorProducts,
+  syncLinksInBrand,
   updateCreator,
   uploadToR2,
   type CreatorInput,
@@ -216,8 +215,26 @@ export async function updateCreatorAction(
     const saved = await withBrandScope(async (db, brandId) => {
       const row = await updateCreator(db, brandId, id, patch, actor);
       if (row === null) return null;
-      await syncCreatorConcepts(db, row.id, conceptIds);
-      await syncCreatorProducts(db, row.id, productIds);
+      /*
+       * The SAME brand-checked write the two LinkFields on this panel use, rather than the bare
+       * junction syncs: the ids arrive here as hidden inputs, so this path has to filter them
+       * against the brand's own rows too, and one write path means the Save and the field can never
+       * disagree about what a selection means.
+       */
+      await syncLinksInBrand(
+        db,
+        brandId,
+        { junction: 'creator_concepts', source: 'creator', target: 'concept' },
+        row.id,
+        conceptIds,
+      );
+      await syncLinksInBrand(
+        db,
+        brandId,
+        { junction: 'creator_products', source: 'creator', target: 'product' },
+        row.id,
+        productIds,
+      );
       return row;
     });
     if (saved === null) {

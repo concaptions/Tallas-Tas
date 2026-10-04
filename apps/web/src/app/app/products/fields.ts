@@ -224,10 +224,42 @@ export function creatorLinks(productId: string, rows: readonly CreatorListRow[])
     .map((row) => ({
       id: row.id,
       label: row.name,
-      href: `${ugcPath}?${CREATOR_PARAM}=${encodeURIComponent(row.id)}`,
-      chip: {
-        label: creatorInternalStatusLabel(row.internalCreatorStatus),
-        tone: creatorInternalStatusTone(row.internalCreatorStatus),
-      },
+      href: creatorHref(row.id),
+      chip: creatorChip(row),
     }));
+}
+
+/** Where a creator lives: the UGC page with its panel open on that row. */
+function creatorHref(id: string): string {
+  return `${ugcPath}?${CREATOR_PARAM}=${encodeURIComponent(id)}`;
+}
+
+function creatorChip(row: CreatorListRow): { label: string; tone: ChipTone } {
+  return {
+    label: creatorInternalStatusLabel(row.internalCreatorStatus),
+    tone: creatorInternalStatusTone(row.internalCreatorStatus),
+  };
+}
+
+/** One creator as the Creators link field offers it: the name, its route and its own status. */
+export interface CreatorOption {
+  readonly id: string;
+  readonly name: string;
+  readonly href: string;
+  readonly chip: { readonly label: string; readonly tone: ChipTone };
+}
+
+/**
+ * EVERY creator of the brand, as the Creators link field's options — a picker has to offer the ones
+ * this product has NOT booked yet, which `creatorLinks` by definition leaves out. Each option
+ * carries the same route and the same internal-track chip, so a booked creator reads in the field
+ * exactly as it read in the read-only list the field replaced.
+ */
+export function creatorOptions(rows: readonly CreatorListRow[]): CreatorOption[] {
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    href: creatorHref(row.id),
+    chip: creatorChip(row),
+  }));
 }

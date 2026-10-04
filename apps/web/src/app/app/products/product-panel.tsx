@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { ProductListRow } from '@tas/db';
 import { Button, disabledWriteClassName, DisabledWrite, Input, Label, StatusChip } from '@tas/ui';
 
-import { LinkField } from '@/components/links/link-field';
+import { LinkField, type LinkOption } from '@/components/links/link-field';
 
 import { createProductAction, updateProductAction, type ProductActionResult } from './actions';
 import {
@@ -35,7 +35,7 @@ export const NO_YOUTUBE_COPY_NOTE =
  */
 export const NO_CREATIVE_DESIGNS_NOTE = 'No creative design is briefed on this product yet.';
 export const NO_CREATORS_NOTE =
-  'No creator is booked for this product yet. Link one from the creator’s panel.';
+  'No creator is booked for this product yet. Link one here or from the creator’s panel.';
 
 interface ProductPanelProps {
   readonly product: ProductListRow | null;
@@ -47,6 +47,11 @@ interface ProductPanelProps {
   readonly creativeDesigns: readonly LinkedRecord[];
   /** The creators booked for the product through `creator_products`, built the same way. */
   readonly creators: readonly LinkedRecord[];
+  /**
+   * Every creator of the brand, as the Creators link field's options — each carrying its own route
+   * and status chip, so the field reads exactly as the read-only list it replaced.
+   */
+  readonly creatorOptions?: readonly LinkOption[];
   /** The brand's angles and the ids linked to this product, for the two-way Linked angles field. */
   readonly angleOptions?: readonly { readonly id: string; readonly name: string }[];
   readonly angleIds?: readonly string[];
@@ -121,12 +126,13 @@ function valueOf(product: ProductListRow | null, name: ProductFieldName): string
  * point of a panel. It is fixed to the right edge at 60% of the viewport, full width under 900px,
  * and it closes on Escape or on its close button.
  *
- * All three PRD §5.1 fields are editable in place; the form posts to the Server Actions. Everything
- * under "Linked work" is read-only: the concepts count is derived from `concepts.angleId` →
- * `angles.productId`, the email campaigns, YouTube copy and creators are the other side of their
- * junctions, and the creative designs are the briefs whose `product_id` is this product — all
- * edited from those modules' own panels, so none of it is something a strategist types here. In
- * demo mode the fields are read-only and the footer says so instead of saving.
+ * All three PRD §5.1 fields are editable in place; the form posts to the Server Actions. Under
+ * "Linked work", the two LINK-01 fields — Linked angles and Creators — are editable from here and
+ * from the other record's panel, because one junction read from either side is the same rows. The
+ * rest is read-only: the concepts count is derived from `concepts.angleId` → `angles.productId`,
+ * the email campaigns and YouTube copy are the other side of junctions their own modules own, and
+ * the creative designs are the briefs whose `product_id` is this product. In demo mode every field
+ * is read-only and the footer says so instead of saving.
  */
 export function ProductPanel({
   product,
@@ -134,6 +140,7 @@ export function ProductPanel({
   youtubeCopy,
   creativeDesigns,
   creators,
+  creatorOptions = [],
   demo,
   onClose,
   onSaved,
@@ -303,15 +310,21 @@ export function ProductPanel({
                     mono
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[11px] tracking-wide text-text3 uppercase">Creators</span>
-                  <LinkedRecordList
-                    records={creators}
-                    empty={NO_CREATORS_NOTE}
-                    slot="product-creators"
-                    rowSlot="product-creator"
-                  />
-                </div>
+                {/* The same LinkField the creator panel mounts for its products (LINK-01): one
+                    `creator_products` row per pair. It was a read-only list here and a row of toggle
+                    buttons there, so the junction had one editable end and a sentence pointing at
+                    it. Each option keeps the creator's route and internal-status chip, which is what
+                    the list showed. */}
+                <LinkField
+                  link="product-creators"
+                  sourceId={product.id}
+                  options={creatorOptions}
+                  selectedIds={creators.map((creator) => creator.id)}
+                  label="Creators"
+                  demo={demo}
+                  slot="product-creators"
+                  empty={NO_CREATORS_NOTE}
+                />
               </section>
             )}
           </div>

@@ -2,7 +2,19 @@ import { eq } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
-import { anglePersonas, angleProducts, conceptAngles, creatorConcepts } from './schema';
+import {
+  anglePersonas,
+  angleProducts,
+  angles,
+  conceptAngles,
+  concepts,
+  creatorConcepts,
+  creatorProducts,
+  creators,
+  personas,
+  products,
+} from './schema';
+import { withBrand } from './tenancy';
 
 /**
  * Two-way link writes (Sprint 9, LINK-01). One function for every link: it takes the junction and
@@ -16,7 +28,7 @@ import { anglePersonas, angleProducts, conceptAngles, creatorConcepts } from './
 export type LinkTable = 'concept' | 'angle' | 'creator' | 'product' | 'persona';
 
 export type LinkJunction =
-  'concept_angles' | 'creator_concepts' | 'angle_products' | 'angle_personas';
+  'concept_angles' | 'creator_concepts' | 'creator_products' | 'angle_products' | 'angle_personas';
 
 /** One direction of one junction: the table the source id is on, and the table the ids are on. */
 export interface LinkSpec {
@@ -49,6 +61,13 @@ const JUNCTIONS: Readonly<Record<LinkJunction, Junction>> = {
     sides: {
       creator: { column: creatorConcepts.creatorId, key: 'creatorId' },
       concept: { column: creatorConcepts.conceptId, key: 'conceptId' },
+    },
+  },
+  creator_products: {
+    table: creatorProducts,
+    sides: {
+      creator: { column: creatorProducts.creatorId, key: 'creatorId' },
+      product: { column: creatorProducts.productId, key: 'productId' },
     },
   },
   angle_products: {
@@ -100,10 +119,39 @@ export async function listLinkedIds(db: Db, spec: LinkSpec, sourceId: string): P
   return rows.map((row) => String(row.id));
 }
 
+/** The ids of a brand's own LIVE rows of one link side's table. */
+function idsOf(rows: readonly { id: string }[]): ReadonlySet<string> {
+  return new Set(rows.map((row) => row.id));
+}
+
+/**
+ * Every id the brand really owns on one side of a link. The switch is exhaustive over `LinkTable`
+ * with no `default`, so widening that union is a compile error here — a new link side cannot be
+ * registered without saying which brand-scoped table proves its ids.
+ */
+async function liveIds(db: Db, brandId: string, table: LinkTable): Promise<ReadonlySet<string>> {
+  const scope = withBrand(db, brandId);
+  switch (table) {
+    case 'concept':
+      return idsOf(await scope.select(concepts));
+    case 'angle':
+      return idsOf(await scope.select(angles));
+    case 'creator':
+      return idsOf(await scope.select(creators));
+    case 'product':
+      return idsOf(await scope.select(products));
+    case 'persona':
+      return idsOf(await scope.select(personas));
+  }
+}
+
 /**
  * Replaces the links of `sourceId` on the spec's side with `targetIds`: delete that side's rows, insert
  * the new pairs. Returns the ids as written (normalised). Idempotent: writing the same list twice
  * leaves one row per pair.
+ *
+ * It does NOT check the ids against a brand — junction tables carry no `brand_id` and this function
+ * cannot see one. A caller that takes ids from a form uses `syncLinksInBrand`.
  */
 export async function syncLinks(
   db: Db,
@@ -120,4 +168,31 @@ export async function syncLinks(
       .values(ids.map((id: string) => ({ [source.key]: sourceId, [target.key]: id })));
   }
   return ids;
+}
+
+/**
+ * The write path a Server Action uses: every submitted id is checked against the brand's LIVE rows
+ * of the TARGET table first, so a link can never point a concept at another brand's creator or a
+ * product at another brand's angle. The action already proves the SOURCE row is the brand's own (the
+ * scoped getter behind `ownsSource`), which left the submitted ids — a plain array in a request body
+ * — as the unchecked half: the junction has no `brand_id` of its own to catch them.
+ *
+ * An id that does not resolve is DROPPED, never stored and never an error, exactly as
+ * `syncYoutubeCopyLinks` treats one: the control only ever offers the brand's own rows, so a
+ * stranger's id did not come from the form.
+ */
+export async function syncLinksInBrand(
+  db: Db,
+  brandId: string,
+  spec: LinkSpec,
+  sourceId: string,
+  targetIds: readonly string[],
+): Promise<readonly string[]> {
+  const live = await liveIds(db, brandId, spec.target);
+  return syncLinks(
+    db,
+    spec,
+    sourceId,
+    normalise(targetIds).filter((id) => live.has(id)),
+  );
 }
