@@ -1431,3 +1431,37 @@ describe('AI-33 · Internal Status is hidden for Gratsi alone', () => {
     expect(platform[0]?.isHidden ?? false).toBe(false);
   });
 });
+
+/**
+ * Talal's 2026-10-04 ruling on AI-39, pinned: Gratsi Concepts has `Script` (richText) and no
+ * `Script Idea`. The platform stores the prose in `script_idea` either way; what the ruling
+ * governs is the DISPLAYED set, and Gratsi's own relabel row already said "Script". This pin
+ * keeps anybody from resurfacing the template's wording on Gratsi.
+ */
+describe('AI-39 · Gratsi shows Script, never Script Idea', () => {
+  it("resolves script_idea once for Gratsi, under Gratsi's own label", async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+    const [gratsi] = await db
+      .select({ id: brands.id })
+      .from(brands)
+      .where(eq(brands.slug, 'gratsi'));
+    if (gratsi === undefined) throw new Error('the seed has no gratsi brand');
+
+    const resolved = await resolveColumns(db, gratsi.id, 'concepts');
+    const scripts = resolved.filter((column) => column.columnKey === 'script_idea');
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0]?.displayLabel).toBe('Script');
+    expect(
+      scripts[0]?.inheritedFrom,
+      "the label is Gratsi's own row, not the template's",
+    ).toBeNull();
+    expect(
+      resolved.find(
+        (column) => column.displayLabel === 'Script Idea' || column.displayLabel === 'Script idea',
+      ),
+      "the template's wording must not reach Gratsi",
+    ).toBeUndefined();
+  });
+});

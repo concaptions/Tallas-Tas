@@ -944,3 +944,11 @@ no `Internal Status` field. The platform's `internal_status` column therefore le
 displayed set only — a `hidden` child row in `CONCEPTS_GRATSI` — while the platform row, every
 inheriting brand's view and the Postgres column all stay exactly as they were. Gratsi's own
 `approval_status` row keeps rendering under its Airtable label "Status". Nothing dropped.
+
+## 2026-10-04 — Talal ruling AI-39: Gratsi's Concepts shows Script; Script Idea is the template's wording
+
+Verified against the live Gratsi base: Concepts carries `Script` (richText) and no `Script Idea`.
+The resolver already said the same — Gratsi's own `script_idea` relabel row renders "Script" and
+the template's "Script idea" wording reaches only the brands that inherit it — so this ruling
+lands as ALREADY-CORRECT with a pin (`column-seed.test.ts`, AI-39 describe) and no behaviour
+change. The Postgres column keeps its 92 live scripts untouched.
