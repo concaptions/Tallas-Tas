@@ -734,6 +734,9 @@ const MODULES: readonly ModuleEntry[] = [
     path: conceptsPath,
     heading: 'Concepts',
     rowSlot: 'concept-row',
+    // The row itself opens the quick-look panel (AI-17); the generated name is the Link to the
+    // detail route, so the parity walk clicks that — the stored-field labels live on the detail.
+    clickSlot: 'concept-row-name',
     opens: { detailMarker: 'concept-name-preview' },
     fields: [
       // Batch-Angle-Theme, generated (CLAUDE.md non-negotiable 6): the NamePreview heading.
