@@ -964,3 +964,11 @@ construction (`links.test.ts` proves a write from either side reads back from th
 Reverse links render on the record page, never as grid columns — the same convention every other
 reverse link on the platform follows — so Gratsi's grid set is untouched. ALREADY-CORRECT, both
 displays kept; the earlier instinct to remove one of the two was wrong and nothing is removed.
+
+## 2026-10-04 — Talal ruling AI-44: the Angle URL fields are real Gratsi fields and they stay
+
+Verified against the live Gratsi base: Angles carries both `Brief` (url) and `Exact Script` (url).
+The item's premise — that these were platform leftovers to remove — was wrong; they are Gratsi's
+own fields, resolve from Gratsi's own rows (orders 24–25) and render through the angle grid's
+LinkCell renderers. ALREADY-CORRECT; pinned in `column-seed.test.ts` (AI-44 describe) so a future
+cleanup cannot un-match the live base. Nothing removed anywhere.

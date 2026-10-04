@@ -1465,3 +1465,33 @@ describe('AI-39 · Gratsi shows Script, never Script Idea', () => {
     ).toBeUndefined();
   });
 });
+
+/**
+ * Talal's 2026-10-04 ruling on AI-44, pinned: Gratsi Angles REALLY has `Brief` (url) and
+ * `Exact Script` (url) — the item's premise ("remove the URL fields") was wrong, so they STAY.
+ * Both are Gratsi's own relabel-platform rows; removing either would un-match the live base.
+ */
+describe('AI-44 · Brief and Exact Script stay in Gratsi angle set', () => {
+  it("resolves both URL columns for Gratsi, from Gratsi's own rows, as url fields", async () => {
+    const db = await testDb();
+    await seed(db);
+    await seedColumnDefinitions(db);
+    const [gratsi] = await db
+      .select({ id: brands.id })
+      .from(brands)
+      .where(eq(brands.slug, 'gratsi'));
+    if (gratsi === undefined) throw new Error('the seed has no gratsi brand');
+
+    const resolved = await resolveColumns(db, gratsi.id, 'angles');
+    for (const [key, label] of [
+      ['brief_url', 'Brief'],
+      ['exact_script_url', 'Exact Script'],
+    ] as const) {
+      const column = resolved.find((candidate) => candidate.columnKey === key);
+      expect(column, `${key} must stay in Gratsi's angle set (AI-44)`).toBeDefined();
+      expect(column?.displayLabel).toBe(label);
+      expect(column?.fieldType).toBe('url');
+      expect(column?.inheritedFrom, `${key} is Gratsi's own row`).toBeNull();
+    }
+  });
+});
