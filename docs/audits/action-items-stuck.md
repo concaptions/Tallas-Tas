@@ -136,3 +136,49 @@ both need the same artifact.
 - **AI-55's product rule.** The persona half is done and tested; the product half needs
   `productIds` threaded into `validateAngleDraft`, whose doc comment currently states the opposite
   policy. Held because the Linking track owns `angles/actions.ts` this run.
+
+## 6. The thirteen Talal questions, consolidated (overnight run, 2026-10-04)
+
+Every blocked-on-Talal item's question in one place. The evidence behind each sits in the item's
+section of `action-items-full-status.md`; these stay open as questions, never failures.
+
+1. **AI-02 — roles beyond Member/Admin:** the six brand roles exist in code and five are assigned to
+   real users in production; which roles should exist beyond Member/Admin, and with what access?
+   (Engineering gap when it unblocks: role-aware nav + a gate on every module page, not just the
+   four admin pages.)
+2. **AI-33 — Internal Status on Concepts, keep or remove:** neither live base has the field on
+   Concepts and 103 of 106 prod concepts never left the default. If it goes: (a) what does the
+   Concepts board group by instead (or does Concepts lose its board, as item 18 also asks), and
+   (b) drop the NOT NULL column or hide it like Production Status?
+3. **AI-39 — Script Idea, keep or remove:** 92 of 106 live concepts carry a script, so removal
+   destroys real content; the rename problem is already solved per-brand by the resolver. If
+   "remove" stands, confirm it means HIDE (template + Gratsi rows), never a column drop.
+4. **AI-43 — Linked Concepts on the Angle:** the panel shows concepts twice (editable picker +
+   read-only list). Pick one: (a) keep only the picker, (b) keep only the list, (c) remove both.
+   The concept↔angle data itself stays either way (115 prod rows; naming depends on it).
+5. **AI-44 — Angle Brief URL / Exact Script URL:** the fields DO exist in Airtable (Gratsi `Brief`
+   and `Exact Script`), absent only from the template. (a) keep, (b) hide on Gratsi only (two-row
+   config flip, reversible), or (c) genuinely remove (destructive migration + six code sites)?
+6. **AI-60 — client progress bar:** a pipeline showing internal stages collides with
+   non-negotiables 4 and 10. (a) two-step bar over the client track only, (b) coarse bar with
+   internal stages collapsed into one unnamed step, or (c) drop it? 286 briefs are client-visible
+   today, so this ships to real data immediately.
+7. **AI-61 — Meta API:** no code path exists from UI to API (zero callers, dead button). Wire it
+   now? If yes: approve the Inngest job it requires (new hosted service against the 500 USD/year
+   ceiling), and supply a read-only Meta token (none exists here; write scopes are forbidden).
+8. **AI-62 — manual ad↔concept linking:** should the raw-UUID "Concept ID" box become a searchable
+   concept picker, also on the create form? Related tenancy hole (uuid from another brand is
+   accepted) — may that be fixed now, independent of the Meta decision?
+9. **AI-63 — ad uploader (~$60/month):** ~720 USD/year alone exceeds the 500 USD/year TOTAL
+   ceiling. Raise the ceiling or drop the item?
+10. **AI-66 — role views:** for each of video_editor, designer, strategist: which modules may they
+    see, and which route do they land on after sign-in? And must hidden routes be genuinely blocked
+    by role, or only hidden from the sidebar (URL-reachable)?
+11. **AI-67 — remaining Airtable bases:** which base is next, and in what order? Each needs its
+    per-table field-alias list, and every import must stay dependency-closed (slicing cost 111
+    junction rows once).
+12. **AI-68 — mood boards / library / tracking / publishing:** which of the four first? For mood
+    boards, which PRD §15 parts are in scope? The library cannot be exercised until R2 credentials
+    exist.
+13. **AI-69 — the green light:** what exactly counts as it, and what does it gate — do 57/59/64/65
+    wait on it? May it be recorded as a dated sign-off line in docs/decisions.md so it is checkable?
