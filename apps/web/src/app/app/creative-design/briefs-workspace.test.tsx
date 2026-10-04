@@ -148,7 +148,7 @@ describe('BRIEF_RENDERERS', () => {
 
     expect(markup).toContain('data-slot="status-chip"');
     expect(markup).toContain('data-tone="info"');
-    expect(markup).toContain('Incoming');
+    expect(markup).toContain('Sent to Editor/Designer');
     // The generated §7 name stays monospace, because it is system output and not a typed field.
     expect(markup).toContain('data-slot="brief-row-name"');
     expect(markup).toContain('font-mono');

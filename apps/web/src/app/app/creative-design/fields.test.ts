@@ -129,7 +129,7 @@ describe('briefStageView', () => {
   it('reads the label and the tone from EDITOR_STAGES, never from this file', () => {
     expect(briefStageView('sent_to_video_editor')).toEqual({
       key: 'incoming',
-      label: 'Incoming',
+      label: 'Sent to Editor/Designer',
       tone: 'info',
     });
     expect(briefStageView('static_design_in_progress')).toEqual({
