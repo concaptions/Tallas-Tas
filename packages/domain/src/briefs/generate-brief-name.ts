@@ -53,6 +53,47 @@ function text(value: string | null | undefined): string | null {
 }
 
 /**
+ * Funnel → three-letter abbreviation (Oct 6 fix, Agent 3 flagged edge #2). The CREATIVE_FUNNELS
+ * vocabulary stores full names (`"Top of Funnel"`, `"Retargeting"`, `"All Funnels"`), so without
+ * this map the name read `"TAS-Retargeting-V001-..."` instead of the paste's intended
+ * `"TAS-RTG-V001-..."`. Idempotent: already-abbreviated values pass through, so a form that
+ * stored `"RTG"` directly keeps writing it.
+ *
+ * Lookup is case-insensitive — the Funnel select is bound to the stored key, but a hand-typed
+ * value in a preview or a legacy form submission is matched too.
+ *
+ * Unknown funnel: the first three characters uppercased. `"Awareness"` → `"AWA"`; `"Prospecting"`
+ * → `"PRO"`. The formula never carries the full word, so a vocabulary change elsewhere cannot
+ * silently blow up the printed name's shape.
+ */
+const FUNNEL_ABBREVIATIONS: Readonly<Record<string, string>> = {
+  'top of funnel': 'TOF',
+  tof: 'TOF',
+  'middle of funnel': 'MOF',
+  'mid funnel': 'MOF',
+  mof: 'MOF',
+  'bottom of funnel': 'BOF',
+  bof: 'BOF',
+  retargeting: 'RTG',
+  rtg: 'RTG',
+  'all funnels': 'ALL',
+  all: 'ALL',
+};
+
+/**
+ * The funnel segment, as the brief name writes it. See `FUNNEL_ABBREVIATIONS` for the mapping
+ * contract — the fallback is the first three characters uppercased, so the output always matches
+ * the three-letter head the rest of the formula expects.
+ */
+export function funnelAbbreviation(funnel: string): string {
+  const trimmed = funnel.trim();
+  if (trimmed === '') return '';
+  const known = FUNNEL_ABBREVIATIONS[trimmed.toLowerCase()];
+  if (known !== undefined) return known;
+  return trimmed.slice(0, 3).toUpperCase();
+}
+
+/**
  * The first letter of `creativeType`, uppercased: `Video → V`, `Static → S`, `Carousel → C`,
  * `Motion Image → M`. One letter is enough because the vocabulary is four, and the name formula
  * trades verbosity for the compact `V001` head the paste's examples show. An empty type contributes
@@ -81,7 +122,9 @@ function number3(value: number): string {
  */
 export function generateBriefName(args: GenerateBriefNameArgs): string {
   const source = text(args.source) ?? BRIEF_NAME_DEFAULT_SOURCE;
-  const funnel = text(args.funnel) ?? '';
+  // Agent 3's shipped segment emitted the raw stored key — a real retargeting brief read as
+  // `TAS-Retargeting-V001-...`, not the paste's `TAS-RTG-V001-...` (Oct 6 fix).
+  const funnel = funnelAbbreviation(text(args.funnel) ?? '');
   const initial = typeInitial(args.creativeType);
   const padded = number3(args.number);
   const concept = text(args.concept);
