@@ -91,6 +91,7 @@ export function buildCopyItems(sources: CopyItemSources, now: Date): CopyItem[] 
         row.creativeBriefId === null
           ? null
           : lookupRollup([briefAngleById.get(row.creativeBriefId)]),
+      productId: row.productId,
       productName: lookupRollup([product?.name]),
       productLink: lookupRollup([product?.link]),
       offer: lookupRollup(linkedCampaigns.map((campaign) => campaign.discountOffer)),

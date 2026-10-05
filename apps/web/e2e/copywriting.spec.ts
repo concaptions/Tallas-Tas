@@ -314,6 +314,22 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="copy-collection-chip"]')).toHaveCount(0);
   });
 
+  test('the Linked Product single-select renders on every row (Oct 5)', async ({ page }) => {
+    // No fixture copy row carries a product id, so the control always reads "No product" and the
+    // chip-link does not render; the Select itself is on screen as a disabled combobox and the
+    // hidden submit input mirrors the empty value.
+    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    const select = panel.locator('[data-slot="copy-product-select"]');
+    await expect(select).toHaveRole('combobox');
+    await expect(select).toContainText('No product');
+    await expect(select).toBeDisabled();
+    await expect(panel.locator('[data-slot="copy-product-chip"]')).toHaveCount(0);
+    await expect(panel.locator('input[name="productId"]')).toHaveAttribute('type', 'hidden');
+    await expect(panel.locator('input[name="productId"]')).toHaveValue('');
+  });
+
   test('the panel is read-only and the save is disabled with the reason on hover', async ({
     page,
   }) => {

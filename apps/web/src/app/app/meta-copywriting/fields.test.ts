@@ -55,6 +55,7 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     collections: [],
     linkedCollectionId: null,
     angleName: null,
+    productId: null,
     productName: null,
     productLink: null,
     offer: null,

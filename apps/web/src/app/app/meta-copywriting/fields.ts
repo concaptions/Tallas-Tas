@@ -125,8 +125,12 @@ export interface CopyItem {
    * `angleName` is the linked brief's angle; `productName`/`productLink` read the row's
    * `product_id`; the three campaign strings read the rows `copywriting_campaigns` links; the two
    * collection strings read the collections whose `copywriting_id` is this row.
+   *
+   * `productId` is the Oct 5 Linked Product control's own value — the stored FK — so the panel
+   * can pre-fill its select. It is NOT a lookup rollup; it is the row's own column.
    */
   readonly angleName: string | null;
+  readonly productId: string | null;
   readonly productName: string | null;
   readonly productLink: string | null;
   readonly offer: string | null;
@@ -238,6 +242,19 @@ export interface CreativeChoice {
   readonly id: string;
   readonly name: string;
 }
+
+/**
+ * One option of the panel's Linked Product `<select>` (Oct 5 Linked Product control): a brand
+ * product's id and hand-typed name. The FK (`copywriting.product_id`) is a column on this row, so
+ * the setter writes it directly through `updateCopy`.
+ */
+export interface ProductChoice {
+  readonly id: string;
+  readonly name: string;
+}
+
+export const NO_PRODUCT_VALUE = 'none';
+export const NO_PRODUCT_LABEL = 'No product';
 
 /**
  * The value the "No creative" option carries. A `Select` item cannot hold the empty string, and a

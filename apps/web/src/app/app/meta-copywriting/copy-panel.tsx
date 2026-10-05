@@ -18,7 +18,7 @@ import {
 } from '@tas/ui';
 import { validateCopyDraft, type CopyDraft } from '@tas/domain/copy';
 
-import { briefPath, collectionsPath } from '@/lib/routes';
+import { briefPath, collectionsPath, productsPath } from '@/lib/routes';
 
 import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './actions';
 import {
@@ -43,6 +43,8 @@ import {
   NO_CREATIVE_VALUE,
   NO_FUNNEL_LABEL,
   NO_FUNNEL_VALUE,
+  NO_PRODUCT_LABEL,
+  NO_PRODUCT_VALUE,
   STATUS_OPTIONS,
   COLLECTION_SELECTION_PARAM,
   counterLabel,
@@ -53,6 +55,7 @@ import {
   type CopyItem,
   type CopyTypeChoice,
   type CreativeChoice,
+  type ProductChoice,
 } from './fields';
 
 /**
@@ -101,6 +104,8 @@ interface CopyPanelProps {
   readonly concepts: readonly ConceptChoice[];
   /** The brand's live collections, for the Linked Collection single-select. Empty on a brand with none. */
   readonly collections: readonly CollectionChoice[];
+  /** The brand's products, for the Oct 5 Linked Product single-select. Empty on a brand with none. */
+  readonly products: readonly ProductChoice[];
   readonly copyTypes: readonly CopyTypeChoice[];
   readonly demo: boolean;
   readonly onClose: () => void;
@@ -160,6 +165,7 @@ export function CopyPanel({
   creatives,
   concepts,
   collections,
+  products,
   copyTypes,
   demo,
   onClose,
@@ -177,6 +183,7 @@ export function CopyPanel({
   const [linkedCollectionId, setLinkedCollectionId] = useState<string | null>(
     item.linkedCollectionId,
   );
+  const [productId, setProductId] = useState<string | null>(item.productId);
 
   const validation = useMemo(() => validateCopyDraft(draft), [draft]);
 
@@ -210,13 +217,16 @@ export function CopyPanel({
 
   /**
    * A message under a field: the save's own error first, then the draft's own rule. The validation
-   * tracks only the domain's `CopyDraft` fields; the cross-table link fields (`collectionId`) are
-   * only in the server-returned error map, so the fallback is only consulted for a draft field.
+   * tracks only the domain's `CopyDraft` fields; the cross-table link fields (`collectionId`,
+   * `productId`) are only in the server-returned error map, so the fallback is only consulted for
+   * a draft field.
    */
   const errorFor = (name: CopyFieldName): string | undefined => {
     const fromState = state !== null && !state.ok ? state.fieldErrors?.[name] : undefined;
     if (fromState !== undefined) return fromState;
-    return name === 'collectionId' ? undefined : validation.fieldErrors[name];
+    return name === 'collectionId' || name === 'productId'
+      ? undefined
+      : validation.fieldErrors[name];
   };
 
   const renderCopyField = (field: CopyField) => {
@@ -462,6 +472,67 @@ export function CopyPanel({
                   value={draft.conceptId ?? ''}
                   data-slot="copy-concept-value"
                 />
+              </div>
+
+              {/*
+               * The Linked Product control (Oct 5): a single-select over the brand's products that
+               * writes `copywriting.product_id` directly through `updateCopy` (the FK is on this
+               * row, so no cross-table setter is needed, unlike Linked Collection). The chip under
+               * the select opens the product's panel on the Products page, same shape as the
+               * Linked Creative chip above.
+               */}
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="copy-field-productId"
+                  className="text-[11px] tracking-wide text-text3 uppercase"
+                >
+                  Linked Product
+                </Label>
+                <Select
+                  value={productId ?? NO_PRODUCT_VALUE}
+                  onValueChange={(next) => {
+                    setProductId(next === NO_PRODUCT_VALUE ? null : next);
+                  }}
+                  disabled={demo}
+                >
+                  <SelectTrigger
+                    id="copy-field-productId"
+                    className="w-full"
+                    aria-label="Linked Product"
+                    data-slot="copy-product-select"
+                  >
+                    <SelectValue placeholder={NO_PRODUCT_LABEL} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_PRODUCT_VALUE}>{NO_PRODUCT_LABEL}</SelectItem>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input
+                  type="hidden"
+                  name="productId"
+                  value={productId ?? ''}
+                  data-slot="copy-product-value"
+                />
+                {productId === null ? null : (
+                  <Link
+                    href={`${productsPath}?product=${encodeURIComponent(productId)}`}
+                    data-slot="copy-product-chip"
+                    data-product-id={productId}
+                    className="inline-flex self-start rounded-input border border-line bg-surface2 px-1.5 py-0.5 text-[11px] text-text2 hover:border-accent-line hover:text-accent"
+                  >
+                    Open {products.find((product) => product.id === productId)?.name ?? productId}
+                  </Link>
+                )}
+                {errorFor('productId') === undefined ? null : (
+                  <p data-slot="copy-error" className="text-xs text-bad">
+                    {errorFor('productId')}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5">

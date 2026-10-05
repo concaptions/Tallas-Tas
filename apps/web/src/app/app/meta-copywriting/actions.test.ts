@@ -40,10 +40,14 @@ interface Seam {
   briefResolves: boolean;
   /** Whether the submitted collection resolves INSIDE the scope (Oct 5 Linked Collection). */
   collectionResolves: boolean;
+  /** Whether the submitted product resolves INSIDE the scope (Oct 5 Linked Product). */
+  productResolves: boolean;
   /** Every `syncCopywritingCopyTypesInBrand` call, so a test can assert it ran once or never. */
   synced: SyncedCopyTypes[];
   /** Every `setCollectionCopywritingLinkInBrand` call. */
   collectionLinks: LinkedCollection[];
+  /** Every `updateCopy` patch, so a test can assert that `productId` reached the setter. */
+  updates: { readonly productId?: string | null }[];
 }
 
 /** Values the mocked seams read at call time, so a test can move the ground under one action. */
@@ -52,8 +56,10 @@ const seam = vi.hoisted<Seam>(() => ({
   stored: null,
   briefResolves: true,
   collectionResolves: true,
+  productResolves: true,
   synced: [],
   collectionLinks: [],
+  updates: [],
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -76,8 +82,17 @@ vi.mock('@tas/db', async (importOriginal) => ({
     Promise.resolve(seam.briefResolves ? { id } : null),
   getCollectionById: (_db: Db, _brandId: string, id: string): Promise<{ id: string } | null> =>
     Promise.resolve(seam.collectionResolves ? { id } : null),
-  updateCopy: (_db: Db, _brandId: string, id: string): Promise<{ id: string }> =>
-    Promise.resolve({ id }),
+  getProductById: (_db: Db, _brandId: string, id: string): Promise<{ id: string } | null> =>
+    Promise.resolve(seam.productResolves ? { id } : null),
+  updateCopy: (
+    _db: Db,
+    _brandId: string,
+    id: string,
+    patch: { productId?: string | null },
+  ): Promise<{ id: string }> => {
+    seam.updates.push({ productId: patch.productId });
+    return Promise.resolve({ id });
+  },
   syncCopywritingCopyTypesInBrand: (
     _db: Db,
     brandId: string,
@@ -172,8 +187,10 @@ afterEach(() => {
   seam.actor = 'user_2TESTACTOR';
   seam.briefResolves = true;
   seam.collectionResolves = true;
+  seam.productResolves = true;
   seam.synced = [];
   seam.collectionLinks = [];
+  seam.updates = [];
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -466,5 +483,54 @@ describe('with Clerk configured · the Linked Collection control', () => {
     }
     expect(result.fieldErrors?.collectionId).toBe('That collection is no longer available.');
     expect(seam.collectionLinks).toEqual([]);
+  });
+});
+
+/** The Oct 5 Linked Product single-select. Writes `copywriting.product_id` directly through
+ * `updateCopy`; the action resolves the submitted id in the scope first. */
+const PRODUCT_BLANKET = 'aa112233-4455-4667-8899-000000000001';
+
+describe('with Clerk configured · the Linked Product control', () => {
+  it('leaves the row-side FK alone when the form never carried the control', async () => {
+    live();
+
+    const result = await updateCopyAction(null, form(filled));
+
+    expect(saved(result, 'a save without the product control was refused').id).toBe(STORED.id);
+    const [first] = seam.updates;
+    expect(first?.productId).toBe(STORED.productId);
+  });
+
+  it('writes the picked product id to copywriting.product_id', async () => {
+    live();
+
+    const result = await updateCopyAction(null, form({ ...filled, productId: PRODUCT_BLANKET }));
+
+    expect(saved(result, 'a save with a picked product was refused').id).toBe(STORED.id);
+    const [first] = seam.updates;
+    expect(first?.productId).toBe(PRODUCT_BLANKET);
+  });
+
+  it('clears copywriting.product_id when the "No product" option was submitted', async () => {
+    live();
+
+    const result = await updateCopyAction(null, form({ ...filled, productId: '' }));
+
+    expect(saved(result, 'a save that cleared the product was refused').id).toBe(STORED.id);
+    const [first] = seam.updates;
+    expect(first?.productId).toBeNull();
+  });
+
+  it('refuses a product that does not resolve in the scope', async () => {
+    live();
+    seam.productResolves = false;
+
+    const result = await updateCopyAction(null, form({ ...filled, productId: PRODUCT_BLANKET }));
+
+    if (result.ok) {
+      throw new Error("another brand's product was accepted");
+    }
+    expect(result.fieldErrors?.productId).toBe('That product is no longer available.');
+    expect(seam.updates).toEqual([]);
   });
 });

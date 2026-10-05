@@ -78,6 +78,10 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
         id: collection.id,
         name: collection.name,
       }))}
+      products={workspace.products.map((product) => ({
+        id: product.id,
+        name: product.name,
+      }))}
       copyTypes={copyTypeResult.rows.map((copyType) => ({
         id: copyType.id,
         name: copyType.name,
