@@ -31,6 +31,10 @@ interface Seam {
   inserted: ConceptInput[];
   /** Every `updateConcept` call's `{ id, patch }`, in order. */
   updated: { id: string; patch: Partial<ConceptInput> }[];
+  /** Each `listBriefsByConceptId` call's response, used only by the cascade tests. */
+  briefsByConceptId: Record<string, readonly { id: string; briefNumber: number | null }[]>;
+  /** Every `renameBrief` call's `{ id, name }`, in order (cascade cases). */
+  renames: { id: string; name: string }[];
 }
 
 const seam = vi.hoisted<Seam>(() => ({
@@ -38,6 +42,8 @@ const seam = vi.hoisted<Seam>(() => ({
   failWrites: false,
   inserted: [],
   updated: [],
+  briefsByConceptId: {},
+  renames: [],
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -89,8 +95,31 @@ vi.mock('@tas/db', async (importOriginal) => {
     syncConceptAngles: (): Promise<void> => Promise.resolve(),
     syncConceptThemes: (): Promise<void> => Promise.resolve(),
     syncConceptCreators: (): Promise<void> => Promise.resolve(),
-    listBriefsByConceptId: (): ReturnType<typeof actual.listBriefsByConceptId> =>
-      Promise.resolve([]),
+    listBriefsByConceptId: (
+      _db: Db,
+      _brandId: string,
+      conceptId: string,
+    ): ReturnType<typeof actual.listBriefsByConceptId> => {
+      const stubs = seam.briefsByConceptId[conceptId] ?? [];
+      return Promise.resolve(
+        stubs.map((row) => ({
+          id: row.id,
+          briefNumber: row.briefNumber,
+          // Enough of a shape for the cascade to feed PRD §7 — real fields come from fixtures
+          // in other tests; the cascade only reads briefNumber + the handful of §7 inputs.
+          source: 'TAS',
+          funnel: 'TOF',
+          type: 'Video',
+          sequence: 1,
+          version: 1,
+        })) as unknown as Awaited<ReturnType<typeof actual.listBriefsByConceptId>>,
+      );
+    },
+    renameBrief: (_db: Db, _brandId: string, id: string, name: string): Promise<void> => {
+      write();
+      seam.renames.push({ id, name });
+      return Promise.resolve();
+    },
   };
 });
 
@@ -176,6 +205,8 @@ afterEach(() => {
   seam.failWrites = false;
   seam.inserted = [];
   seam.updated = [];
+  seam.briefsByConceptId = {};
+  seam.renames = [];
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -471,5 +502,33 @@ describe('with Clerk configured', () => {
     const result = await createConceptAction(null, form(filled, filledRepeated));
 
     expect(result).toEqual({ ok: false, error: 'The concept could not be saved. Try again.' });
+  });
+});
+
+/**
+ * Oct 6 (Agent 3 flagged edge #1): a concept rename cascaded through PRD §7's formula into every
+ * linked brief's name — fine while every brief was named by §7, dangerous now that Oct 5 briefs
+ * carry their own `generateBriefName`-produced name AND a non-null `briefNumber`. The guard in
+ * `updateConceptAction` filters `briefs.filter((brief) => brief.briefNumber === null)` before
+ * calling `renameBrief`, so an Oct 5-named brief keeps its printed name.
+ */
+describe('updateConceptAction · the concept-rename cascade is guarded (Oct 6)', () => {
+  it('renames only the legacy briefs linked to the concept; Oct 5 briefs (brief_number set) stay', async () => {
+    live();
+    // Rename the concept by shifting its batch — the formula reads batch, angle, theme, so a new
+    // batch produces a new name, which is the only trigger for the cascade.
+    seam.briefsByConceptId[firstConcept.id] = [
+      { id: 'legacy-brief', briefNumber: null },
+      { id: 'oct5-brief', briefNumber: 7 },
+    ];
+
+    const result = await updateConceptAction(
+      null,
+      form({ ...filled, batch: 'B9', id: firstConcept.id }, filledRepeated),
+    );
+
+    expect(result).toMatchObject({ ok: true });
+    // Only the legacy brief is renamed; the Oct 5-numbered one is skipped by the guard.
+    expect(seam.renames.map((r) => r.id)).toEqual(['legacy-brief']);
   });
 });

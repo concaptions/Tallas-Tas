@@ -645,23 +645,30 @@ export async function updateConceptAction(
         syncConceptCreators(db, id, parsed.creatorIds),
       ]);
 
-      // Cascade: when the concept name changed, recompute every brief that carries it.
+      // Cascade: when the concept name changed, recompute every brief that carries it. GUARDED
+      // against the Oct 5 auto-naming (Agent 3): a brief with a non-null `briefNumber` was named
+      // by `generateBriefName` and MUST NOT be rewritten here — PRD §7's output would overwrite
+      // "TAS-TOF-V001-..." with the legacy "FUNNEL-FORMAT-NUMBER-..." shape, destroying the
+      // print the file-system already carries. Legacy briefs (`briefNumber === null`) still
+      // cascade: nothing else prints their name and the §7 recompute keeps them consistent.
       if (name !== current.name) {
         const conceptRow = { name, batch: parsed.values.batch };
         const briefs = await listBriefsByConceptId(db, brandId, id);
         await Promise.all(
-          briefs.map((brief) => {
-            const newName = creativeNameForConcept(conceptRow, {
-              source: brief.source,
-              funnel: brief.funnel,
-              format: brief.type,
-              number: brief.sequence,
-              version: brief.version,
-              batch: parsed.values.batch,
-              product: null,
-            });
-            return renameBrief(db, brandId, brief.id, newName, actor);
-          }),
+          briefs
+            .filter((brief) => brief.briefNumber === null)
+            .map((brief) => {
+              const newName = creativeNameForConcept(conceptRow, {
+                source: brief.source,
+                funnel: brief.funnel,
+                format: brief.type,
+                number: brief.sequence,
+                version: brief.version,
+                batch: parsed.values.batch,
+                product: null,
+              });
+              return renameBrief(db, brandId, brief.id, newName, actor);
+            }),
         );
       }
 
