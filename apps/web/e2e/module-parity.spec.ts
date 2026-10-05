@@ -136,7 +136,9 @@ interface ModuleEntry {
  */
 const MODULES: readonly ModuleEntry[] = [
   {
-    label: 'Meta Copywriting',
+    // Oct 5 Talal sync (commit 105be26): the template sidebar label dropped the "Meta" prefix.
+    // The page's own h1 still reads "Meta Copywriting" (that heading is the module name).
+    label: 'Copywriting',
     path: metaCopywritingPath,
     heading: 'Meta Copywriting',
     rowSlot: 'copy-row',
