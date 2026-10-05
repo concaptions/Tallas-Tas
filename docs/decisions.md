@@ -1391,3 +1391,40 @@ in the right place.
    the em dash. Exact Airtable fidelity chosen over omission.
 5. **Creative Design › Ads Copywriting copy — SHOWN fidelity-empty**, same mechanism
    (`ads_copywriting_copy` virtual); its stored side still does not exist.
+
+## 2026-10-05 — Template brand nav visibility (Oct 5 Talal sync)
+
+**Decision:** Talal directed that a set of table-tabs be hidden from the template brand's sidebar
+nav. This is a NAV VISIBILITY change on the template brand only. It is NOT a schema deletion, NOT
+a route removal, NOT a code removal.
+
+**What stays untouched:**
+
+- Every Drizzle table definition
+- Every route and page component
+- Every seed and column_definitions row
+- All Gratsi imported data (397 creative_briefs rows, 35 Creative Modules records, etc.)
+- The standing rule "Gratsi matches Gratsi Airtable exactly" (verified 20/20 as of commit
+  2955a4d)
+
+**What changes:**
+
+- The template brand's sidebar hides these tabs: Creative Modules, AI Characters, Competitive
+  Research, Creative Design, Client Assets, Upload Links, YouTube Copywriting, Campaigns and
+  Offers, Email Campaigns, Email Flows, SM Campaign Feed, Performance, Creative Reporting, Ads
+  by Creator Ranking, Copy Types, Creative Dimensions. ("Meta Copywriting" is the regular
+  Copywriting tab in this codebase — only its label changes, not its visibility.)
+- Child brands (Gratsi, etc.) that have data in those tables continue showing them.
+- The "Copywriting" tab label drops the "Meta" prefix on the template brand.
+- Asset Library becomes the single asset tab label on the template brand, with a type filter.
+
+**What is NOT in this sprint:**
+
+- Client interface configuration system (dynamic tab show/hide, custom pages, propagation) —
+  separate sprint.
+- Migration of additional client bases — separate meetings with Talal per-client.
+
+**Context:** Creative Design and Creative Sheet are TWO DIFFERENT tables (`creative_briefs` =
+"Creative Design (Internal & Interface)", 43 fields, 397 rows; `creative_sheet_items` =
+"Creative Sheet", 29 fields, 0 rows). Creative Modules is its own table (`tblzS73a9JrJGiV2J`,
+35 records), distinct from Themes.
