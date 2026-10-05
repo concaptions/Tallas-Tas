@@ -157,6 +157,28 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(page).not.toHaveURL(/\?copy=/);
   });
 
+  test('the Oct 5 client-status badge + dropdown mount in the copy panel', async ({ page }) => {
+    await page.goto(copywritingPath);
+
+    const firstRow = page.locator('[data-slot="copy-row"]').first();
+    await firstRow.locator('[data-slot="copy-row-title"]').click();
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    await expect(panel).toBeVisible();
+
+    const section = panel.locator('[data-slot="copy-client-status"]');
+    await expect(section).toBeVisible();
+    await expect(section.locator('[data-slot="status-chip"]').first()).toBeVisible();
+
+    const dropdown = section.locator('[data-slot="client-status-dropdown"]');
+    await expect(dropdown).toHaveAttribute('data-table-key', 'copywriting');
+
+    // COPY_STATUS has `disapproved` AND `revisions_needed`. The Textarea is hidden until the
+    // chosen key is a note-required branch; the first copy row opens on `approved`, so it is
+    // not shown.
+    await expect(section.locator('textarea[name="client_status_note"]')).toHaveCount(0);
+  });
+
   test('the Linked Creative chip goes to the brief instead of opening the panel', async ({
     page,
   }) => {
