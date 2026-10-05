@@ -1,4 +1,5 @@
 import {
+  CREATIVE_DIMENSIONS,
   CREATIVE_NAME_SEPARATOR,
   CREATIVE_VERSIONS,
   STANDALONE_CONCEPT_SLUG,
@@ -746,6 +747,15 @@ export function inspirationSourceLabel(kind: InspoLinkKind): string {
 export const VERSION_OPTIONS: readonly { key: string; label: string }[] = CREATIVE_VERSIONS.map(
   (version) => ({ key: String(version), label: creativeVersionLabel(version) }),
 );
+
+/**
+ * The Dimensions multi-select's options, in `CREATIVE_DIMENSIONS` order (PRD §8). Rendered as a
+ * dropdown checklist so the detail page can CHANGE which ratios a brief ships in, where before the
+ * grid was read-only and the hidden inputs were pinned to the stored array. A direct re-export of
+ * the domain tuple so no component chooses a label, a pixel size or an order of its own.
+ */
+export const BRIEF_DIMENSION_OPTIONS: ReadonlyArray<(typeof CREATIVE_DIMENSIONS)[number]> =
+  CREATIVE_DIMENSIONS;
 
 /**
  * The ratios a brief delivers in: its own stored array when it has one, and PRD §8's defaults for

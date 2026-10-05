@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { loadAllAngleProducts, loadAllConceptAngles } from './junction-queries';
@@ -190,6 +190,41 @@ export async function listBriefsByConceptId(
   conceptId: string,
 ): Promise<CreativeBrief[]> {
   return withBrand(db, brandId).select(creativeBriefs, eq(creativeBriefs.conceptId, conceptId));
+}
+
+/**
+ * Allocates the next per-brand `brief_number` for the Oct 5 auto-naming formula (Agent 3). Takes
+ * an advisory transaction lock keyed on the brand first — the lock is released when the
+ * surrounding transaction commits or rolls back — so two concurrent creators cannot read the
+ * same `MAX`. A plain `SELECT MAX(brief_number) FOR UPDATE` does NOT lock the gap new rows would
+ * fill, which is why the lock is explicit rather than a row-level clause.
+ *
+ * Returns 1 when the brand has no numbered briefs yet (`sequence`-named rows carry NULL here,
+ * which is honest: they were named by the PRD §7 formula and keep that history).
+ *
+ * MUST be called inside `db.transaction(async (tx) => ...)` with the SAME `tx` passed as `db`.
+ * Called outside a transaction, the advisory lock is session-scoped and would leak; the function
+ * body cannot enforce this, so the caller does — `createBriefAction` always wraps.
+ */
+export async function allocateBriefNumber(db: Db, brandId: string): Promise<number> {
+  await db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${brandId}))`);
+  // Deliberately NO `deleted_at IS NULL` here: a soft-deleted brief's number was already printed
+  // on a file somewhere, so the counter never reuses it — the same honest-gaps rule
+  // `nextSequence` in `@tas/domain/creatives` applies to the per-funnel-and-format sequence.
+  const result = await db.execute(
+    sql`SELECT COALESCE(MAX(${creativeBriefs.briefNumber}), 0) + 1 AS next
+        FROM ${creativeBriefs}
+        WHERE ${creativeBriefs.brandId} = ${brandId}`,
+  );
+  // `db.execute` returns the driver's native result; `node-postgres` and the Neon serverless
+  // driver both expose `.rows`. Drizzle types the return as `unknown`, so the shape is coerced
+  // once here. The `COALESCE(MAX(int))` arithmetic may come back as a string (`numeric` cast on
+  // some drivers); `Number()` is explicit about that. A bad value clamps to 1 rather than naming
+  // a brief '0' or NaN.
+  const rows = (result as { rows?: readonly { next: unknown }[] }).rows ?? [];
+  const first = rows[0];
+  const value = first === undefined ? 1 : Number(first.next);
+  return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
 /**

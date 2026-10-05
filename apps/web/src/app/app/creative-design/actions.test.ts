@@ -205,6 +205,25 @@ describe('with Clerk configured', () => {
     expect(result.fieldErrors?.dimensions).toBe('That is not one of the delivery ratios.');
   });
 
+  /**
+   * The Dimensions dropdown bug-fix (Oct 2026 sprint, Agent 3): the detail page now writes the
+   * `dimensions` hidden inputs from React state driven by a `DropdownMenuCheckboxItem` checklist,
+   * so a save carries whichever ratios the user has ticked rather than the stored array verbatim.
+   * This test proves that a single-ratio submission (one legal ratio ticked, two unticked) passes
+   * validation — the only way to reach the "could not be saved" message is to reach the Clerk
+   * mock's throw, which is downstream of `briefSchema`. If the Dimensions wiring regresses to a
+   * schema that cannot accept a shortened array, this test fails with a fieldError on `dimensions`.
+   */
+  it('accepts an update that ticks only one ratio, so the dropdown-edited array is saveable', async () => {
+    configured();
+    const data = form({ ...filled, id: 'a-brief' });
+    data.append('dimensions', '1:1');
+
+    const result = await updateBriefAction(null, data);
+
+    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+  });
+
   it('refuses a client move while the internal track is not Approved', async () => {
     configured();
 

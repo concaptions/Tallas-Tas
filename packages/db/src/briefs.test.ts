@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  allocateBriefNumber,
   getBriefById,
   insertBrief,
   listBriefs,
@@ -653,5 +654,63 @@ describe('brief queries', () => {
     expectTypeOf<BriefInput>().toHaveProperty('dimensions');
     expectTypeOf<BriefInput>().toHaveProperty('internalStatus');
     expectTypeOf<BriefInput>().toHaveProperty('clientStatus');
+  });
+});
+
+/**
+ * The Oct 5 brand-wide counter the new-brief name formula reads (Agent 3). PGlite is a single
+ * connection, so the advisory lock inside `allocateBriefNumber` is a no-op — these tests therefore
+ * cover correctness (what number comes out) rather than concurrency (what two creators would see at
+ * once); the lock's job is proven by the SQL itself, not by this suite.
+ */
+describe('allocateBriefNumber', () => {
+  async function insertNumbered(
+    db: PgliteDb,
+    brandId: string,
+    briefNumber: number,
+    nameSuffix: string,
+  ): Promise<void> {
+    await insertBrief(
+      db,
+      brandId,
+      { name: `TAS-TOF-V${String(briefNumber).padStart(3, '0')}-${nameSuffix}`, briefNumber },
+      'user_test',
+    );
+  }
+
+  it('starts at 1 for a brand with no numbered briefs', async () => {
+    const db = await testDb();
+    const { childBrand } = await seed(db);
+
+    // The seeded demo briefs carry `brief_number = NULL`, so the first numbered create is 1.
+    expect(await allocateBriefNumber(db, childBrand.id)).toBe(1);
+  });
+
+  it('returns MAX(brief_number) + 1, with soft-deleted rows excluded', async () => {
+    const db = await testDb();
+    const { childBrand } = await seed(db);
+
+    await insertNumbered(db, childBrand.id, 1, 'One');
+    await insertNumbered(db, childBrand.id, 2, 'Two');
+    expect(await allocateBriefNumber(db, childBrand.id)).toBe(3);
+
+    // Soft-deleting the highest-numbered brief preserves the gap: the counter never reuses a
+    // number a brief was once printed with.
+    await withBrand(db, childBrand.id).softDelete(
+      creativeBriefs,
+      eq(creativeBriefs.briefNumber, 2),
+    );
+    expect(await allocateBriefNumber(db, childBrand.id)).toBe(3);
+  });
+
+  it('is per-brand: the template brand and the child brand count separately', async () => {
+    const db = await testDb();
+    const { childBrand, templateBrand } = await seed(db);
+
+    await insertNumbered(db, childBrand.id, 1, 'ChildOne');
+    await insertNumbered(db, childBrand.id, 2, 'ChildTwo');
+
+    expect(await allocateBriefNumber(db, childBrand.id)).toBe(3);
+    expect(await allocateBriefNumber(db, templateBrand.id)).toBe(1);
   });
 });

@@ -16,6 +16,12 @@ import {
   DEMO_WRITE_HINT,
   disabledWriteClassName,
   DisabledWrite,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   Label,
   Select,
   SelectContent,
@@ -40,6 +46,7 @@ import { briefsPath, copywritingPath } from '@/lib/routes';
 import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '../actions';
 import { runSpellCheckAction, type SpellCheckActionResult } from '../spell-check-action';
 import {
+  BRIEF_DIMENSION_OPTIONS,
   BRIEF_HEADINGS,
   BRIEF_LINK_SECTIONS,
   BRIEF_PROSE_FIELDS,
@@ -325,6 +332,22 @@ export function BriefDetail({
   const [conceptChoice, setConceptChoice] = useState(brief.conceptId ?? STANDALONE_VALUE);
   const [version, setVersion] = useState(String(brief.version));
   const [performanceChoice, setPerformanceChoice] = useState(brief.performance ?? NOT_GRADED_VALUE);
+  /**
+   * The Dimensions multi-select (bug: the field showed its values read-only, with no control to
+   * change them — the row's stored array could not be edited from this page). Seeded from the
+   * stored array when the brief carries one, or from PRD §8's defaults for the type when it does
+   * not — the same reading `briefDimensions` gives the grid, so an untouched save does not blank
+   * a brief that has never been explicitly edited. The hidden inputs below are rendered from this
+   * state, so what the form submits is always what the dropdown shows.
+   */
+  const [dimensionKeys, setDimensionKeys] = useState<readonly string[]>(() =>
+    briefDimensions(brief.dimensions, brief.type).map((entry) => entry.key),
+  );
+  const toggleDimension = (key: string) => {
+    setDimensionKeys((prev) =>
+      prev.includes(key) ? prev.filter((entry) => entry !== key) : [...prev, key],
+    );
+  };
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -364,7 +387,7 @@ export function BriefDetail({
   const legacyPerformance = unlistedPerformance(brief.performance);
   const keepsLegacyPerformance =
     legacyPerformance !== null && performanceChoice === legacyPerformance.key;
-  const dimensions = briefDimensions(brief.dimensions, brief.type);
+  const dimensions = briefDimensions(dimensionKeys, brief.type);
   const next = nextInternalStatus(track, internal);
   const stage = editorStageOf(internal);
 
@@ -480,8 +503,8 @@ export function BriefDetail({
           {brief.inspoLinks.map((url, index) => (
             <input key={`link-${String(index)}`} type="hidden" name="inspoLinks" value={url} />
           ))}
-          {dimensions.map((entry) => (
-            <input key={entry.key} type="hidden" name="dimensions" value={entry.key} />
+          {dimensionKeys.map((key) => (
+            <input key={key} type="hidden" name="dimensions" value={key} />
           ))}
           <input type="hidden" name="angleId" value={brief.angleId ?? ''} />
           <input type="hidden" name="productId" value={brief.productId ?? ''} />
@@ -698,6 +721,58 @@ export function BriefDetail({
                 {BRIEF_HEADINGS.dimensions}
               </span>
               <DimensionsGrid entries={dimensions} />
+              {/*
+                The Dimensions dropdown (bug-fix): the grid shows the current selection, and this
+                control CHANGES it. One `DropdownMenuCheckboxItem` per ratio — the same pattern the
+                link field uses — so a click toggles the ratio in state and the hidden inputs above
+                re-render with it, which is what makes a save of the form carry the new array.
+                `onSelect` is prevented so the menu stays open across multiple ticks, exactly as the
+                link field does. The whole control is disabled in demo mode with the usual reason.
+              */}
+              <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={demo}
+                      data-slot="brief-dimensions-trigger"
+                      className={disabledWriteClassName}
+                    >
+                      {dimensionKeys.length === 0
+                        ? 'Choose dimensions'
+                        : `${String(dimensionKeys.length)} selected`}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuLabel>{BRIEF_HEADINGS.dimensions}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {BRIEF_DIMENSION_OPTIONS.map((option) => (
+                      <DropdownMenuCheckboxItem
+                        key={option.key}
+                        checked={dimensionKeys.includes(option.key)}
+                        onCheckedChange={() => {
+                          toggleDimension(option.key);
+                        }}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                        }}
+                        data-slot="brief-dimension-option"
+                        data-dimension={option.key}
+                      >
+                        <span className="font-mono text-xs">
+                          {option.label}
+                          <span className="pl-2 text-text3">{option.pixels}</span>
+                        </span>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </DisabledWrite>
+              {fieldError('dimensions') === undefined ? null : (
+                <p className="text-xs text-bad">{fieldError('dimensions')}</p>
+              )}
             </div>
 
             {fact(BRIEF_HEADINGS.language, brief.language, 'brief-language')}
