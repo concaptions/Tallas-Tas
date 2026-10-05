@@ -9,15 +9,12 @@ import {
   updateCreatorClientStatus,
   type Db,
 } from '@tas/db';
-import {
-  CLIENT_STATUS,
-  COPY_STATUS,
-  CREATOR_STATUS,
-  type ClientStatusKey,
-  type CopyStatusKey,
-  type CreatorStatusKey,
-} from '@tas/domain/state';
 
+import {
+  clientStatusRequiresNote,
+  clientStatusVocabulary,
+  type ClientStatusTableKey,
+} from './client-status-vocabulary';
 import { withBrandScope } from './concepts-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from './demo-mode';
 import {
@@ -45,10 +42,12 @@ import {
  * `concepts.client_status_note`, `creative_briefs.client_status_note` (both added by migration
  * 0050), `creators.client_note` (PRD §5.8), and `copywriting.client_comment` (PRD §5.11). The
  * writers map `note` onto the right column for each table so the caller never has to know.
+ *
+ * EVERY EXPORT IN THIS FILE IS AN ASYNC FUNCTION. Next.js refuses to compile a `'use server'`
+ * file that exports anything else, so the synchronous helpers (`clientStatusRequiresNote`,
+ * `narrowClientStatusKey`, `ClientStatusTableKey`, …) live in
+ * `./client-status-vocabulary.ts` and are imported here.
  */
-
-/** Which table the record lives in. Each one has its own vocabulary and its own writer. */
-export type ClientStatusTableKey = 'concepts' | 'creative_briefs' | 'creators' | 'copywriting';
 
 export interface UpdateClientStatusArgs {
   readonly tableKey: ClientStatusTableKey;
@@ -79,30 +78,6 @@ const NO_BRAND = 'This workspace has no brand yet.';
 const BAD_STATUS = 'That is not a status on this track.';
 const BAD_TABLE = 'That table does not carry a client-status track.';
 const SAVE_FAILED = 'The status could not be saved. Try again.';
-
-/** The vocabulary each table's status key is checked against. */
-const VOCABULARY: Record<ClientStatusTableKey, readonly string[]> = {
-  concepts: CLIENT_STATUS.map((entry) => entry.key),
-  creative_briefs: CLIENT_STATUS.map((entry) => entry.key),
-  creators: CREATOR_STATUS.map((entry) => entry.key),
-  copywriting: COPY_STATUS.map((entry) => entry.key),
-};
-
-/**
- * The statuses whose decision must carry a reason. `revisions_needed` (every table) and
- * `disapproved` (creators + copywriting; not a member of CLIENT_STATUS, so concepts/briefs
- * cannot ever reach it): the dropdown shows the Textarea only here, and the server rejects a
- * blank one. Everywhere else the note is optional and may be null.
- */
-const NOTE_REQUIRED: readonly string[] = ['revisions_needed', 'disapproved'];
-
-/** `true` if the chosen key for this table is one of the note-required branches. */
-export function clientStatusRequiresNote(tableKey: ClientStatusTableKey, status: string): boolean {
-  if (!NOTE_REQUIRED.includes(status)) {
-    return false;
-  }
-  return VOCABULARY[tableKey].includes(status);
-}
 
 /**
  * The one writer map. Internal: `updateClientStatus` resolves `tableKey` here, hands it the row
@@ -147,28 +122,6 @@ function isKnownTable(tableKey: string): tableKey is ClientStatusTableKey {
 }
 
 /**
- * Narrows a submitted key to the right track's typed key, for the symmetry with the two-track
- * approval control. Returns null when the key is not in the vocabulary.
- */
-export function narrowClientStatusKey(
-  tableKey: ClientStatusTableKey,
-  value: string,
-): ClientStatusKey | CreatorStatusKey | CopyStatusKey | null {
-  if (!VOCABULARY[tableKey].includes(value)) {
-    return null;
-  }
-  switch (tableKey) {
-    case 'concepts':
-    case 'creative_briefs':
-      return value as ClientStatusKey;
-    case 'creators':
-      return value as CreatorStatusKey;
-    case 'copywriting':
-      return value as CopyStatusKey;
-  }
-}
-
-/**
  * The one entry point. See the file header for the full shape.
  */
 export async function updateClientStatus(
@@ -187,7 +140,7 @@ export async function updateClientStatus(
     return { ok: false, error: UNKNOWN_RECORD };
   }
 
-  if (!VOCABULARY[tableKey].includes(newStatus)) {
+  if (!clientStatusVocabulary(tableKey).includes(newStatus)) {
     return { ok: false, error: BAD_STATUS };
   }
 

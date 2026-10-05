@@ -15,12 +15,11 @@ import {
 } from '@tas/ui';
 import { CLIENT_STATUS, COPY_STATUS, CREATOR_STATUS, type StatusEntry } from '@tas/domain/state';
 
+import { updateClientStatus, type UpdateClientStatusResult } from '@/lib/client-status-actions';
 import {
   clientStatusRequiresNote,
-  updateClientStatus,
   type ClientStatusTableKey,
-  type UpdateClientStatusResult,
-} from '@/lib/client-status-actions';
+} from '@/lib/client-status-vocabulary';
 
 /**
  * The one client-status dropdown the four tables share (Oct 5 Talal sync, Agent 5).
