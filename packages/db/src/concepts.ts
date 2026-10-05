@@ -282,3 +282,36 @@ export async function updateConcept(
     .returning();
   return row ?? null;
 }
+
+/**
+ * Moves one concept's CLIENT-STATUS track in one write (Oct 5 Talal sync). Separate from
+ * `updateConcept` because it is a single-purpose shared writer the `updateClientStatus` action
+ * dispatches to for every table carrying a client-status column, and because it must set
+ * `client_status_updated_at` to the SAME `now` the row's `updatedAt` is bumped to — writing both
+ * through `.update(..., { ... })` is the simplest way to keep them in step. Returns the fresh row
+ * or null when the id belongs to another brand or to a soft-deleted row.
+ */
+export async function updateConceptClientStatus(
+  db: Db,
+  brandId: string,
+  id: string,
+  status: string,
+  note: string | null,
+  actorId: string,
+): Promise<Concept | null> {
+  const now = new Date();
+  const [row] = await withBrand(db, brandId)
+    .update(
+      concepts,
+      {
+        clientStatus: status,
+        clientStatusUpdatedAt: now,
+        clientStatusNote: note,
+        updatedBy: actorId,
+        updatedAt: now,
+      },
+      eq(concepts.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

@@ -144,6 +144,7 @@ import {
   YoutubeCopyStatusChipsStory,
 } from './youtube-copywriting.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
+import { ClientStatusBadgesStory, ClientStatusDropdownDemoStory } from './client-status.stories';
 import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
 import { LinkedRecordsCellStory } from './linked-records.stories';
 import { LinkFieldDemoStory, LinkFieldStory } from './link-field.stories';
@@ -1471,6 +1472,27 @@ export default function DesignSystemPage() {
               read, so there is nothing to edit and nothing a save could write
             </h3>
             <ColumnAdminVirtualStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Client-status badge and dropdown"
+        note="The shared primitives for the Oct 5 client-status workflow (Agent 5). The badge draws from one of three vocabularies (CLIENT_STATUS for concepts and briefs, CREATOR_STATUS for creators, COPY_STATUS for copywriting), each with its own tone function. The dropdown shows the reason Textarea only for revisions_needed / disapproved — the keys that are also the Save gate."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              badges — every vocabulary, every value
+            </h3>
+            <ClientStatusBadgesStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              dropdown — demo mode across the four tables; Save disabled, Textarea on
+              revisions_needed / disapproved only
+            </h3>
+            <ClientStatusDropdownDemoStory />
           </div>
         </div>
       </Section>

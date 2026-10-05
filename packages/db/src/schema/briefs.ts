@@ -120,6 +120,17 @@ export const creativeBriefs = pgTable(
     offer: text('offer'),
     internalStatus: text('internal_status').notNull().default(BRIEF_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(BRIEF_CLIENT_STATUS_DEFAULT),
+    /**
+     * When the client-status track last moved (Oct 5 Talal sync). Nullable: see the matching
+     * column on `concepts` for the shape, and `apps/web/src/lib/client-status-actions.ts` for
+     * the single writer that sets it.
+     */
+    clientStatusUpdatedAt: timestamp('client_status_updated_at', { withTimezone: true }),
+    /**
+     * The short reason the strategist typed when they moved the client-status track (Oct 5 Talal
+     * sync). Nullable: only `revisions_needed` requires one, so most rows carry NULL here.
+     */
+    clientStatusNote: text('client_status_note'),
     // The media buyer's launch queue (PRD §9: client Approved "moves to the media buyer queue").
     // `launched_at` is set when client_status moves to `launched`; it is a real timestamp rather than
     // a reading of `updated_at`, which any later edit would bump — the "Recently Launched" window

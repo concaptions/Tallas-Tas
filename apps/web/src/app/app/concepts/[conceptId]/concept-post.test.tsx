@@ -98,6 +98,7 @@ function filledForm(): string {
         approvalStatus: null,
         productionStatus: 'done',
         formatsToCreate: [],
+        clientStatusNote: null,
       }}
       creatives={[]}
       campaigns={[]}

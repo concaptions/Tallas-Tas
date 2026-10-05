@@ -7,6 +7,7 @@ import {
   insertBrief,
   listBriefs,
   updateBrief,
+  updateBriefClientStatus,
   type BriefInput,
   type BriefListRow,
 } from './briefs';
@@ -712,5 +713,46 @@ describe('allocateBriefNumber', () => {
 
     expect(await allocateBriefNumber(db, childBrand.id)).toBe(3);
     expect(await allocateBriefNumber(db, templateBrand.id)).toBe(1);
+  });
+});
+
+describe('updateBriefClientStatus — the shared Oct 5 client-status writer', () => {
+  it('writes the key, the timestamp and the note in one update', async () => {
+    const { db, brandId } = await seeded();
+
+    const [existing] = await listBriefs(db, brandId);
+    if (existing === undefined) throw new Error('seeded briefs are empty');
+
+    const before = new Date();
+    const saved = await updateBriefClientStatus(
+      db,
+      brandId,
+      existing.id,
+      'revisions_needed',
+      'The ending text is cut off on 9:16.',
+      'user_test',
+    );
+    if (saved === null) throw new Error('updateBriefClientStatus returned null');
+
+    expect(saved.clientStatus).toBe('revisions_needed');
+    expect(saved.clientStatusNote).toBe('The ending text is cut off on 9:16.');
+    expect(saved.clientStatusUpdatedAt).not.toBeNull();
+    expect(saved.clientStatusUpdatedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+  });
+
+  it('refuses an id from another brand (scope guard)', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const [existing] = await listBriefs(db, brandId);
+    if (existing === undefined) throw new Error('seeded briefs are empty');
+
+    const saved = await updateBriefClientStatus(
+      db,
+      otherBrandId,
+      existing.id,
+      'approved',
+      null,
+      'user_test',
+    );
+    expect(saved).toBeNull();
   });
 });

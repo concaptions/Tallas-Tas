@@ -18,6 +18,7 @@ import type {
 } from '@tas/domain/state';
 import {
   Button,
+  ClientStatusBadge,
   DEMO_WRITE_HINT,
   disabledWriteClassName,
   DisabledWrite,
@@ -32,6 +33,9 @@ import {
   Textarea,
   TwoTrackApproval,
 } from '@tas/ui';
+import { CLIENT_STATUS, chipTone } from '@tas/domain/state';
+
+import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
 
 import { collectionsPath, conceptPath, conceptsPath } from '@/lib/routes';
 
@@ -102,6 +106,11 @@ export interface ConceptFormValues {
   readonly approvalStatus: string | null;
   readonly productionStatus: string | null;
   readonly formatsToCreate: readonly string[];
+  /**
+   * The short reason the strategist typed on the last `revisions_needed` move (Oct 5 Talal
+   * sync). Null everywhere else: the dropdown opens with it as its default context.
+   */
+  readonly clientStatusNote: string | null;
 }
 
 /** One creative built on this concept, precomputed on the server (no state machine in here). */
@@ -871,6 +880,36 @@ export function ConceptDetail({
         <aside data-slot="concept-rail" className="flex min-w-0 flex-col gap-3">
           <h2 className="text-sm font-medium text-text2">Approval</h2>
           <TwoTrackApproval track={track} internal={internal} client={client} clientOnly={false} />
+
+          {/*
+            The Oct 5 client-status workflow (Agent 5): the badge and the dropdown live in the
+            DETAIL VIEW, not the grid, so a Gratsi hide (AI-33 follow-up, which hides
+            `client_status` from Gratsi's displayed Concepts set only) does not hide the control
+            — the record page is rendered regardless of grid-column resolution, and this is where
+            the strategist drives the status + reason.
+          */}
+          {concept === null ? null : (
+            <section
+              className="flex flex-col gap-2 border-t border-line pt-3"
+              data-slot="concept-client-status"
+            >
+              <h2 className="text-sm font-medium text-text2">Client status workflow</h2>
+              <ClientStatusBadge
+                vocabulary={CLIENT_STATUS}
+                value={client}
+                toneFor={(value) =>
+                  chipTone(CLIENT_STATUS.find((entry) => entry.key === value)?.label ?? '')
+                }
+              />
+              <ClientStatusDropdown
+                tableKey="concepts"
+                recordId={concept.id}
+                currentStatus={client}
+                currentNote={concept.clientStatusNote ?? null}
+                disabled={demo}
+              />
+            </section>
+          )}
 
           {concept === null ? null : (
             <section className="flex flex-col gap-2 pt-2" data-slot="concept-creatives">

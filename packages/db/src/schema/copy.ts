@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
@@ -78,6 +78,17 @@ export const copywriting = pgTable(
     spellingFeedback: text('spelling_feedback'),
     status: text('status').notNull().default(COPY_STATUS_DEFAULT),
     clientComment: text('client_comment'),
+    /**
+     * When the (single, client-facing) `status` track last moved (Oct 5 Talal sync). Nullable: a
+     * row that was never stepped out of `pending_for_client_review` has no recorded move-moment.
+     *
+     * Named `status_updated_at`, not `client_status_updated_at`, because copy has ONE track that
+     * is already client-facing (COPY_STATUS; `copy-status.ts` documents it at length) — the column
+     * is `status`, not `client_status`, and the timestamp names the column it describes rather
+     * than a hypothetical parallel column. The shared `updateClientStatus` writer sets this
+     * alongside `client_comment` (the existing note column).
+     */
+    statusUpdatedAt: timestamp('status_updated_at', { withTimezone: true }),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
