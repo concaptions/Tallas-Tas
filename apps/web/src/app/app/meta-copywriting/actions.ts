@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
   getBriefById,
+  getCollectionById,
   getCopyById,
+  getProductById,
+  setCollectionCopywritingLinkInBrand,
   syncCopywritingCopyTypesInBrand,
   updateCopy,
   type CopyInput,
@@ -71,8 +74,14 @@ import { copywritingPath } from '@/lib/routes';
  * `copywriting_campaigns` has no writer in `@tas/db`, so no campaign key is read here.
  */
 
-/** The fields the panel can show a message under: the domain's draft fields, one vocabulary. */
-export type CopyFieldName = CopyDraftField;
+/**
+ * The fields the panel can show a message under. The domain's draft fields PLUS the cross-table
+ * link fields the panel submits alongside — `collectionId` writes `collections.copywriting_id` on
+ * the other side (Oct 5 ruling in `docs/decisions.md`), `productId` is a column on this row that
+ * the Oct 5 Linked Product control writes directly — so a refused pick needs a target to render
+ * its error on.
+ */
+export type CopyFieldName = CopyDraftField | 'collectionId' | 'productId';
 
 export interface CopyActionSuccess {
   readonly ok: true;
@@ -135,10 +144,17 @@ const optionalInt = z
 /**
  * Shape only. Every rule is `validateCopyDraft`'s. `copyNumber` is absent on purpose -- it is
  * generated, never submitted -- and so is `clientComment`, which the client writes, not us.
+ *
+ * `collectionId` is the Oct 5 Linked Collection control, documented in `docs/decisions.md`: it
+ * writes the OWNER-SIDE FK on `collections.copywriting_id`, not a column on this row. It carries
+ * the shape "unchanged" / "cleared" / "pick this collection" exactly as every other key here:
+ * absent is "leave the link alone", empty is "unlink", and a resolvable id is a reassignment.
  */
 const copySchema = z.object({
   creativeBriefId: optionalText,
   conceptId: optionalText,
+  collectionId: optionalText,
+  productId: optionalText,
   primaryCopy: optionalText,
   headline: optionalText,
   linkDescription: optionalText,
@@ -166,6 +182,8 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
   for (const key of [
     'creativeBriefId',
     'conceptId',
+    'collectionId',
+    'productId',
     'primaryCopy',
     'headline',
     'linkDescription',
@@ -209,12 +227,18 @@ function parse(formData: FormData): { values: CopyFormValues } | CopyActionFailu
   return parsed.success ? { values: parsed.data } : failureFrom(parsed.error);
 }
 
-/** The extra detail fields that bypass `CopyDraft` validation but still travel with the save. */
+/**
+ * The extra detail fields that bypass `CopyDraft` validation but still travel with the save.
+ * `productId` is a stored FK (Oct 5 Linked Product control) with the same "unchanged / null / id"
+ * semantics as every other key — it is not part of `CopyDraft` because the domain's validator has
+ * no rule about it, but the column exists on this row and the setter writes it directly.
+ */
 interface DetailFields {
   readonly funnel: string | null;
   readonly used: boolean;
   readonly winning: boolean;
   readonly metaRating: number | null;
+  readonly productId: string | null;
 }
 
 interface DraftWithDetails {
@@ -250,6 +274,7 @@ function draftFrom(values: CopyFormValues, current: CopyListRow | null): DraftWi
     used: keep(values.used, current?.used ?? false),
     winning: keep(values.winning, current?.winning ?? false),
     metaRating: keep(values.metaRating, current?.metaRating ?? null),
+    productId: keep(values.productId, current?.productId ?? null),
   };
 
   return { draft, details };
@@ -284,6 +309,7 @@ function check(draft: CopyDraft, details: DetailFields): CheckedCopy | CopyActio
     values: {
       creativeBriefId: draft.creativeBriefId,
       conceptId: draft.conceptId,
+      productId: details.productId,
       primaryCopy: draft.primaryCopy,
       headline: draft.headline,
       linkDescription: draft.linkDescription,
@@ -319,6 +345,45 @@ async function creativeRefusal(
   const brief = await getBriefById(db, brandId, creativeBriefId);
   return brief === null
     ? fieldFailure({ creativeBriefId: 'That creative is no longer available.' })
+    : null;
+}
+
+/**
+ * The submitted collection, resolved in the scope — same refusal pattern as `creativeRefusal`. The
+ * Linked Collection control writes `collections.copywriting_id` on the OTHER side (owner-side FK),
+ * and a cross-brand id resolves to nothing, so a bad pick is refused with the field error rather
+ * than silently cleared.
+ */
+async function collectionRefusal(
+  db: Db,
+  brandId: string,
+  collectionId: string | null,
+): Promise<CopyActionFailure | null> {
+  if (collectionId === null) {
+    return null;
+  }
+  const collection = await getCollectionById(db, brandId, collectionId);
+  return collection === null
+    ? fieldFailure({ collectionId: 'That collection is no longer available.' })
+    : null;
+}
+
+/**
+ * The submitted product, resolved in the scope — same refusal pattern as `creativeRefusal`. The
+ * Oct 5 Linked Product control writes `copywriting.product_id` directly on this row (same side).
+ * A product id belonging to another brand resolves to nothing and is refused rather than written.
+ */
+async function productRefusal(
+  db: Db,
+  brandId: string,
+  productId: string | null,
+): Promise<CopyActionFailure | null> {
+  if (productId === null) {
+    return null;
+  }
+  const product = await getProductById(db, brandId, productId);
+  return product === null
+    ? fieldFailure({ productId: 'That product is no longer available.' })
     : null;
 }
 
@@ -376,12 +441,35 @@ export async function updateCopyAction(
         return refusal;
       }
 
+      // The Linked Product control (Oct 5): the FK is on this row, so a resolvable id goes into
+      // `checked.values.productId` through `details.productId` and `updateCopy` writes it. A
+      // cross-brand id never resolves and the refusal reports under its own field.
+      if (values.productId !== undefined) {
+        const productFailure = await productRefusal(db, brandId, details.productId);
+        if (productFailure !== null) {
+          return productFailure;
+        }
+      }
+
+      // `collectionId` is optional and crosses tables: absent is "leave the link alone", empty is
+      // "unlink", an id resolves against the brand and is rejected if it is foreign.
+      const collectionId = values.collectionId === undefined ? undefined : values.collectionId;
+      if (collectionId !== undefined) {
+        const refusal = await collectionRefusal(db, brandId, collectionId);
+        if (refusal !== null) {
+          return refusal;
+        }
+      }
+
       const saved = await updateCopy(db, brandId, id, checked.values, actor);
       if (saved === null) {
         return { ok: false as const, error: 'That copy is no longer available.' };
       }
       if (values.copyTypeIds !== undefined) {
         await syncCopywritingCopyTypesInBrand(db, brandId, saved.id, values.copyTypeIds);
+      }
+      if (collectionId !== undefined) {
+        await setCollectionCopywritingLinkInBrand(db, brandId, saved.id, collectionId, actor);
       }
       return success(saved.id, checked.validation);
     });

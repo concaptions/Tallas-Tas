@@ -20,6 +20,8 @@ import { collectionsPath, copywritingPath, propagationPath } from '../src/lib/ro
  */
 const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
 const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
+/** The unattached copy fixture — PRD §5.11's nullable `creative_brief_id` case. */
+const COPY_BUNDLE_UNATTACHED_ID = '88888888-8888-4888-8888-000000000004';
 /** The collection fixture whose `copywriting_id` is Copy #1. */
 const BFCM_COLLECTION_ID = '11223344-1122-4334-8556-000000000001';
 
@@ -198,6 +200,24 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(panel.locator('input[type="text"][name="creativeBriefId"]')).toHaveCount(0);
   });
 
+  test('the Linked Creative chip under the select opens the brief detail', async ({ page }) => {
+    // Copy #1 is tied to the night-shift video brief; the panel renders a chip-link beside the
+    // select so the reader can jump to that brief without opening the drop-down.
+    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    const chip = panel.locator('[data-slot="copy-creative-chip"]');
+    await expect(chip).toBeVisible();
+    await expect(chip).toContainText('Open ');
+    await expect(chip).toHaveAttribute('href', /\/app\/creative-design\//);
+
+    // The unattached copy row has nothing to point at (`creative_brief_id` null), so no chip
+    // renders at all — only the "No creative" option in the select.
+    await page.goto(`${copywritingPath}?copy=${COPY_BUNDLE_UNATTACHED_ID}`);
+    await expect(page.locator('[data-slot="copy-panel"]')).toBeVisible();
+    await expect(page.locator('[data-slot="copy-creative-chip"]')).toHaveCount(0);
+  });
+
   test('the panel carries the Copy Types picker with the fixture tag pressed, and the read-only campaigns and collections lists', async ({
     page,
   }) => {
@@ -267,6 +287,49 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(collections.locator('[data-slot="copy-collection-link"]')).toHaveCount(0);
   });
 
+  test('the Linked Collection single-select pre-fills from the owner-side FK (Oct 5)', async ({
+    page,
+  }) => {
+    // Copy #1 is pointed at by the BFCM collection (`collections.copywriting_id`), so the Linked
+    // Collection control pre-fills with its name AND renders the chip-link.
+    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    const select = panel.locator('[data-slot="copy-collection-select"]');
+    await expect(select).toHaveRole('combobox');
+    await expect(select).toContainText('BFCM 2026 Collection');
+
+    const chip = panel.locator('[data-slot="copy-collection-chip"]');
+    await expect(chip).toContainText('Open BFCM 2026 Collection');
+    await expect(chip).toHaveAttribute(
+      'href',
+      `${collectionsPath}?collection=${BFCM_COLLECTION_ID}`,
+    );
+
+    // Copy #2 has no collection pointing at it, so the control falls back to "No collection".
+    await page.goto(`${copywritingPath}?copy=${COPY_NOT_YOUR_AGE_ID}`);
+    await expect(page.locator('[data-slot="copy-collection-select"]')).toContainText(
+      'No collection',
+    );
+    await expect(page.locator('[data-slot="copy-collection-chip"]')).toHaveCount(0);
+  });
+
+  test('the Linked Product single-select renders on every row (Oct 5)', async ({ page }) => {
+    // No fixture copy row carries a product id, so the control always reads "No product" and the
+    // chip-link does not render; the Select itself is on screen as a disabled combobox and the
+    // hidden submit input mirrors the empty value.
+    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    const select = panel.locator('[data-slot="copy-product-select"]');
+    await expect(select).toHaveRole('combobox');
+    await expect(select).toContainText('No product');
+    await expect(select).toBeDisabled();
+    await expect(panel.locator('[data-slot="copy-product-chip"]')).toHaveCount(0);
+    await expect(panel.locator('input[name="productId"]')).toHaveAttribute('type', 'hidden');
+    await expect(panel.locator('input[name="productId"]')).toHaveValue('');
+  });
+
   test('the panel is read-only and the save is disabled with the reason on hover', async ({
     page,
   }) => {
@@ -288,6 +351,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     );
     await expect(panel.locator('#copy-field-headline')).toHaveAttribute('readonly', '');
     await expect(panel.locator('[data-slot="copy-creative-select"]')).toBeDisabled();
+    await expect(panel.locator('[data-slot="copy-collection-select"]')).toBeDisabled();
     await expect(panel.locator('[data-slot="copy-status-select"]')).toBeDisabled();
 
     // The New copy button is a write too, so it is disabled everywhere it appears.

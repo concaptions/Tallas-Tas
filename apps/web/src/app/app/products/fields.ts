@@ -1,4 +1,10 @@
-import type { CreatorListRow, EmailCampaignListRow, YoutubeCopyListRow } from '@tas/db';
+import type {
+  CopyListRow,
+  CreatorListRow,
+  EmailCampaignListRow,
+  YoutubeCopyListRow,
+} from '@tas/db';
+import { copyTitle } from '@tas/domain/copy';
 import {
   copyStatusLabel,
   copyStatusTone,
@@ -9,7 +15,13 @@ import {
   type InternalStatusKey,
 } from '@tas/domain/state';
 
-import { briefPath, emailCampaignsPath, ugcPath, youtubeCopywritingPath } from '@/lib/routes';
+import {
+  briefPath,
+  copywritingPath,
+  emailCampaignsPath,
+  ugcPath,
+  youtubeCopywritingPath,
+} from '@/lib/routes';
 
 import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
 import { statusView as emailCampaignStatusView } from '../email-campaigns/fields';
@@ -262,4 +274,28 @@ export function creatorOptions(rows: readonly CreatorListRow[]): CreatorOption[]
     href: creatorHref(row.id),
     chip: creatorChip(row),
   }));
+}
+
+/**
+ * The Meta copywriting written for this product — the reverse of `copywriting.product_id`
+ * (Oct 5 Linked Product control). In the rows' order (newest edit first, as `listCopy` returns).
+ * The label is the generated "Copy #N" title (CLAUDE.md non-negotiable 6; the panel renders it in
+ * `font-mono`), the link reaches the Meta Copywriting page with that row's panel open, and the
+ * chip is `COPY_STATUS` toned by `@tas/domain/state`. A row with no product is simply absent.
+ *
+ * Per AI-43: this is a RECORD-PAGE section on the Products detail, never a grid column. The
+ * products page resolves it per product; a product nothing points at reads the empty-state line.
+ */
+export function metaCopywritingLinks(
+  productId: string,
+  rows: readonly CopyListRow[],
+): LinkedRecord[] {
+  return rows
+    .filter((row) => row.productId === productId)
+    .map((row) => ({
+      id: row.id,
+      label: copyTitle(row.copyNumber),
+      href: `${copywritingPath}?copy=${encodeURIComponent(row.id)}`,
+      chip: { label: copyStatusLabel(row.status), tone: copyStatusTone(row.status) },
+    }));
 }

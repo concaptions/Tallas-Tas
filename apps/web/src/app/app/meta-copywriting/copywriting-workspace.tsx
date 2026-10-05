@@ -37,10 +37,12 @@ import {
   filteredCopyCountLabel,
   matchesQuery,
   truncate,
+  type CollectionChoice,
   type ConceptChoice,
   type CopyItem,
   type CopyTypeChoice,
   type CreativeChoice,
+  type ProductChoice,
 } from './fields';
 
 /**
@@ -66,6 +68,10 @@ interface CopywritingWorkspaceProps {
   readonly items: readonly CopyItem[];
   readonly creatives: readonly CreativeChoice[];
   readonly concepts: readonly ConceptChoice[];
+  /** The brand's collections, for the panel's Linked Collection single-select (Oct 5). */
+  readonly collections: readonly CollectionChoice[];
+  /** The brand's products, for the panel's Linked Product single-select (Oct 5). */
+  readonly products: readonly ProductChoice[];
   /** The brand's copy types, for the panel's picker; the page resolved them, this file never does. */
   readonly copyTypes: readonly CopyTypeChoice[];
   readonly demo: boolean;
@@ -278,6 +284,8 @@ export function CopywritingWorkspace({
   items,
   creatives,
   concepts,
+  collections,
+  products,
   copyTypes,
   demo,
   initialSelection,
@@ -476,6 +484,8 @@ export function CopywritingWorkspace({
           item={open}
           creatives={creatives}
           concepts={concepts}
+          collections={collections}
+          products={products}
           copyTypes={copyTypes}
           demo={demo}
           onClose={close}

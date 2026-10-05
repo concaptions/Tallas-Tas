@@ -213,6 +213,13 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
       ),
     ).toHaveCount(0);
 
+    // Related Copywriting (Oct 5): the reverse of `copywriting.product_id`. No fixture copy row
+    // carries a product id, so the section renders its own empty sentence rather than a blank, and
+    // is read-only here — the Linked Product control that writes the FK lives on the copy panel.
+    await expect(panel.locator('[data-slot="product-meta-copywriting"]')).toContainText(
+      'No Meta copywriting names this product yet',
+    );
+
     // The bundle is named by one of each, and matches on the junction id, not on a name.
     await page.goto(`${productsPath}?product=22222222-2222-4222-8222-000000000003`);
     await expect(page.locator('[data-slot="product-email-campaign"]')).toHaveCount(1);

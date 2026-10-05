@@ -2,6 +2,7 @@ import { PRODUCT_CSV_COLUMNS } from '@tas/db';
 
 import { loadAngles } from '@/lib/angles-source';
 import { loadBriefs } from '@/lib/briefs-source';
+import { loadCopy } from '@/lib/copy-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
@@ -16,6 +17,7 @@ import {
   creatorOptions,
   emailCampaignLinks,
   hostLabel,
+  metaCopywritingLinks,
   youtubeCopyLinks,
 } from './fields';
 import { ProductsWorkspace, type ProductItem } from './products-workspace';
@@ -60,6 +62,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     { rows: briefRows },
     { rows: creatorRows },
     { rows: angleRows },
+    { rows: copyRows },
     params,
   ] = await Promise.all([
     loadProducts(),
@@ -69,6 +72,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     loadBriefs(),
     loadCreators(),
     loadAngles(),
+    loadCopy(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -85,6 +89,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     youtubeCopy: youtubeCopyLinks(product.id, youtubeCopyRows),
     creativeDesigns: creativeDesignLinks(product.id, briefRows),
     creators: creatorLinks(product.id, creatorRows),
+    // The Meta copywriting written for this product — the reverse of `copywriting.product_id`
+    // (Oct 5 Linked Product control). Section on the product detail only, never a grid column.
+    metaCopywriting: metaCopywritingLinks(product.id, copyRows),
     // The angle side of `angle_products`, read from the angle rows' own ids (LINK-01).
     angleIds: angleRows
       .filter((angle) => angle.productIds.includes(product.id))

@@ -64,6 +64,12 @@ export interface ProductItem {
   readonly creativeDesigns: readonly LinkedRecord[];
   /** The creators booked for this product through `creator_products`, indexed the same way. */
   readonly creators: readonly LinkedRecord[];
+  /**
+   * The Meta copywriting written for this product — the reverse of `copywriting.product_id`
+   * (Oct 5 Linked Product control). Shown on the detail panel only, never as a grid column
+   * (AI-43).
+   */
+  readonly metaCopywriting: readonly LinkedRecord[];
   /** The angles linked through `angle_products`, by id, for the panel's two-way field. */
   readonly angleIds: readonly string[];
 }
@@ -511,6 +517,7 @@ export function ProductsWorkspace({
           youtubeCopy={openItem?.youtubeCopy ?? []}
           creativeDesigns={openItem?.creativeDesigns ?? []}
           creators={openItem?.creators ?? []}
+          metaCopywriting={openItem?.metaCopywriting ?? []}
           creatorOptions={creatorOptions}
           angleOptions={angleOptions}
           angleIds={openItem?.angleIds ?? []}

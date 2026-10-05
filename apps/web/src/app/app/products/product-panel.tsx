@@ -36,6 +36,9 @@ export const NO_YOUTUBE_COPY_NOTE =
 export const NO_CREATIVE_DESIGNS_NOTE = 'No creative design is briefed on this product yet.';
 export const NO_CREATORS_NOTE =
   'No creator is booked for this product yet. Link one here or from the creator’s panel.';
+/** What the Related Copywriting list says when no copy row names this product (Oct 5). */
+export const NO_META_COPYWRITING_NOTE =
+  'No Meta copywriting names this product yet. Link one from the copy’s Linked Product control.';
 
 interface ProductPanelProps {
   readonly product: ProductListRow | null;
@@ -47,6 +50,12 @@ interface ProductPanelProps {
   readonly creativeDesigns: readonly LinkedRecord[];
   /** The creators booked for the product through `creator_products`, built the same way. */
   readonly creators: readonly LinkedRecord[];
+  /**
+   * The Meta copywriting written for this product — the reverse of `copywriting.product_id` (Oct 5
+   * Linked Product control). RECORD-PAGE section (AI-43), never a grid column; a row with no
+   * product is simply absent.
+   */
+  readonly metaCopywriting?: readonly LinkedRecord[];
   /**
    * Every creator of the brand, as the Creators link field's options — each carrying its own route
    * and status chip, so the field reads exactly as the read-only list it replaced.
@@ -140,6 +149,7 @@ export function ProductPanel({
   youtubeCopy,
   creativeDesigns,
   creators,
+  metaCopywriting = [],
   creatorOptions = [],
   demo,
   onClose,
@@ -325,6 +335,23 @@ export function ProductPanel({
                   slot="product-creators"
                   empty={NO_CREATORS_NOTE}
                 />
+                {/*
+                 * Related Copywriting (Oct 5): a RECORD-PAGE section (AI-43), reading the reverse
+                 * of `copywriting.product_id`. The copy side owns the FK and the chip-link opens
+                 * the Meta Copywriting page with that row's panel open; editing happens there.
+                 */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">
+                    Related Copywriting
+                  </span>
+                  <LinkedRecordList
+                    records={metaCopywriting}
+                    empty={NO_META_COPYWRITING_NOTE}
+                    slot="product-meta-copywriting"
+                    rowSlot="product-meta-copywriting-row"
+                    mono
+                  />
+                </div>
               </section>
             )}
           </div>
