@@ -330,6 +330,23 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     );
   });
 
+  test('the Oct 5 client-status badge and dropdown mount in the brief detail view', async ({
+    page,
+  }) => {
+    await page.goto(briefPath(BODY_CLOCK));
+
+    const section = page.locator('[data-slot="brief-client-status"]');
+    await expect(section).toBeVisible();
+    await expect(section.locator('[data-slot="status-chip"]').first()).toBeVisible();
+
+    const dropdown = section.locator('[data-slot="client-status-dropdown"]');
+    await expect(dropdown).toHaveAttribute('data-table-key', 'creative_briefs');
+
+    // The reason Textarea is only shown when the chosen key is a note-required branch
+    // (revisions_needed). The brief starts on pending_for_approval, so it is hidden.
+    await expect(section.locator('textarea[name="client_status_note"]')).toHaveCount(0);
+  });
+
   // Module parity, phase 2: the four tables that point at a brief are read back the other way on
   // its rail. The fixtures' link arrays are what render here, through the same demo-aware loaders.
   test('the rail lists every record that points at this creative, each linking to its own page', async ({

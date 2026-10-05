@@ -196,6 +196,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
     qaVideoEditor: brief.qaVideoEditor,
     qaDesigner: brief.qaDesigner,
     qaStrategist: brief.qaStrategist,
+    clientStatusNote: brief.clientStatusNote,
   };
 
   return (
