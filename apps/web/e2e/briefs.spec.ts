@@ -120,13 +120,11 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       /.+/,
     );
 
-    // "New brief" is a write: disabled, and it explains itself.
+    // "New brief" opens the Oct 5 auto-naming dialog (Agent 3). The trigger is enabled even in
+    // demo mode so the live preview is reachable — only the submit at the bottom of the dialog is
+    // blocked. The dialog's own test below pins the preview behaviour and the disabled submit.
     const newBrief = page.locator('[data-slot="new-brief"]');
-    await expect(newBrief).toBeDisabled();
-    await expect(page.locator('[data-slot="disabled-write"]').first()).toHaveAttribute(
-      'title',
-      /.+/,
-    );
+    await expect(newBrief).toBeEnabled();
   });
 
   test('the search narrows the list into ?q= and the empty state offers a way out', async ({
@@ -427,6 +425,45 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     // Each disabled write carries its explanation on the enabled wrapper around it.
     const wrapper = page.locator('[data-slot="brief-save"]').locator('xpath=..');
     await expect(wrapper).toHaveAttribute('title', 'Sign in required to save changes');
+  });
+
+  test('the New brief dialog previews the Oct 5 auto-naming formula live and offers a manual override', async ({
+    page,
+  }) => {
+    await page.goto(briefsPath);
+
+    // The trigger is enabled and opens the dialog — the inert placeholder is gone.
+    const trigger = page.locator('[data-slot="new-brief"]');
+    await expect(trigger).toBeEnabled();
+    await trigger.click();
+
+    const dialog = page.locator('[data-slot="new-brief-dialog"]');
+    await expect(dialog).toBeVisible();
+
+    // The initial preview reads from the default source, the first funnel and the first type —
+    // first=TOF, type=Video → V001 head, Standalone (no concept, no batch).
+    const preview = dialog.locator('[data-slot="new-brief-preview"]');
+    await expect(preview).toHaveText('TAS-TOF-V001');
+
+    // Typing a batch extends the name live, no round trip.
+    await dialog.locator('[data-slot="new-brief-batch"]').fill('Batch 1');
+    await expect(preview).toHaveText('TAS-TOF-V001-Batch 1');
+
+    // Switching Type to Static changes the head's initial letter — the formula's one letter rule.
+    await dialog.locator('[data-slot="new-brief-type"]').click();
+    await page.getByRole('option', { name: 'Static' }).click();
+    await expect(preview).toHaveText('TAS-TOF-S001-Batch 1');
+
+    // Flipping the manual-override Switch unlocks the Name field and the preview tracks it instead.
+    const nameField = dialog.locator('[data-slot="new-brief-name"]');
+    await expect(nameField).toHaveAttribute('readonly', '');
+    await dialog.locator('[data-slot="new-brief-name-mode"]').click();
+    await expect(nameField).not.toHaveAttribute('readonly', '');
+    await nameField.fill('Custom override name');
+    await expect(preview).toHaveText('Custom override name');
+
+    // The Submit button exists but is inert in demo mode — the write-side e2e is on the live shelf.
+    await expect(dialog.locator('[data-slot="new-brief-submit"]')).toBeDisabled();
   });
 
   test('reads down to 390px with no horizontal scroll', async ({ page }) => {

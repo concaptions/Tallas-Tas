@@ -129,11 +129,22 @@ export const creativeBriefs = pgTable(
     launchPriority: integer('launch_priority'),
     performance: text('performance').$type<CreativePerformance>(),
     legacyAirtableId: text('legacy_airtable_id'),
+    /**
+     * The brand-wide creation counter the Oct 5 brief auto-naming formula reads (Agent 3). Nullable
+     * because rows written before this column existed were named by the PRD §7 formula and carry
+     * `sequence` (per funnel+type), not this counter: the two coexist, and only the new CREATE path
+     * allocates a `brief_number`. The write path takes `MAX(brief_number)+1 WHERE brand_id = ...`
+     * in the same transaction, so two concurrent creates cannot share a number.
+     */
+    briefNumber: integer('brief_number'),
   },
   (table) => [
     index('creative_briefs_brand_id_idx').on(table.brandId),
     index('creative_briefs_concept_id_idx').on(table.conceptId),
     index('creative_briefs_template_row_id_idx').on(table.templateRowId),
+    // The Oct 5 brief-naming formula allocates `MAX(brief_number)+1 WHERE brand_id = ...` in one
+    // transaction; this composite keeps that read cheap on a brand with many creatives.
+    index('creative_briefs_brand_brief_number_idx').on(table.brandId, table.briefNumber),
   ],
 );
 

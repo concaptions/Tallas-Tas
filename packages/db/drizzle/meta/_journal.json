@@ -344,6 +344,13 @@
       "idx": 48,
       "tag": "0048_view-filters-grouping",
       "when": 1791486000000
+    },
+    {
+      "version": "7",
+      "breakpoints": true,
+      "idx": 49,
+      "tag": "0049_brief-number",
+      "when": 1791572400000
     }
   ]
 }

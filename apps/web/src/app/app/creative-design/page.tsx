@@ -250,11 +250,17 @@ export default async function BriefsPage({ searchParams }: BriefsPageProps) {
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
 
+  // The New brief dialog's Concept select (Oct 5 Agent 3). Server-resolved from the same
+  // `loadConcepts` call that reads the grid's inherited pairs, so the dropdown and the inherited
+  // block never show different concepts.
+  const conceptOptions = conceptRows.rows.map((row) => ({ id: row.id, name: row.name }));
+
   return (
     <BriefsWorkspace
       columns={columns}
       unconfiguredColumns={unconfiguredColumns}
       items={visibleItems}
+      conceptOptions={conceptOptions}
       demo={demo}
       initialSearch={initialSearch}
       initialView={initialView}

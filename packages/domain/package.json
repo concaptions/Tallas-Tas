@@ -13,6 +13,7 @@
     "./themes": "./src/themes/index.ts",
     "./concepts": "./src/concepts/index.ts",
     "./creatives": "./src/creatives/index.ts",
+    "./briefs": "./src/briefs/index.ts",
     "./copy": "./src/copy/index.ts",
     "./creators": "./src/creators/index.ts",
     "./team": "./src/team/index.ts",

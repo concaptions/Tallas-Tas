@@ -43,6 +43,7 @@ export { restoreBrief, snapshotBrief } from './briefs-e2e';
 export type { BriefSnapshot } from './briefs-e2e';
 export type { AngleInput, AngleListRow } from './angles';
 export {
+  allocateBriefNumber,
   getBriefById,
   insertBrief,
   listBriefs,

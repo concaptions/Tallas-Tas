@@ -3,14 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Button,
-  DEMO_WRITE_HINT,
-  disabledWriteClassName,
-  DisabledWrite,
-  Input,
-  StatusChip,
-} from '@tas/ui';
+import { Button, DEMO_WRITE_HINT, Input, StatusChip } from '@tas/ui';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   canStartBrief,
@@ -46,10 +39,10 @@ import {
 import { startBriefAction, updateBriefAction } from './actions';
 import { BriefPanel } from './brief-panel';
 import { BriefPipelineSummary } from './brief-pipeline';
+import { NewBriefDialog } from './new-brief-dialog';
 import { buildBriefPipeline } from './pipeline';
 import {
   EM_DASH,
-  NEW_BRIEF_SOON_HINT,
   NO_BRIEFS_NOTE,
   NO_MATCH_NOTE,
   SEARCH_PARAM,
@@ -66,6 +59,12 @@ interface BriefsWorkspaceProps {
   /** True when `columns` is the parent master-set fallback because the brand resolved none. */
   readonly unconfiguredColumns?: boolean;
   readonly items: readonly BriefItem[];
+  /**
+   * Every concept of the brand, for the New brief dialog's Concept select (Oct 5 Agent 3). The
+   * page resolves it from the same `loadConcepts` call that reads the grid's inherited pairs, so
+   * the dropdown and the inherited block cannot show different concepts.
+   */
+  readonly conceptOptions: readonly { readonly id: string; readonly name: string }[];
   readonly demo: boolean;
   readonly initialSearch: string;
   readonly initialView: ViewType;
@@ -312,6 +311,7 @@ export function BriefsWorkspace({
   columns,
   unconfiguredColumns = false,
   items,
+  conceptOptions,
   demo,
   initialSearch,
   initialView,
@@ -548,13 +548,10 @@ export function BriefsWorkspace({
       }));
   }, [visible]);
 
-  const newBrief = (slot: string) => (
-    <DisabledWrite active hint={demo ? DEMO_WRITE_HINT : NEW_BRIEF_SOON_HINT}>
-      <Button size="sm" disabled className={disabledWriteClassName} data-slot={slot}>
-        New brief
-      </Button>
-    </DisabledWrite>
-  );
+  // The New brief trigger opens the Oct 5 auto-naming dialog (Agent 3). Even in demo mode the
+  // dialog is useful — the preview is the whole point of the ticket's demo acceptance — so this is
+  // no longer the inert `DisabledWrite` placeholder it was while the create form was pending.
+  const newBrief = () => <NewBriefDialog demo={demo} conceptOptions={conceptOptions} />;
 
   const kanbanFieldOptions = BRIEFS_CAP.kanbanFields;
 
@@ -564,7 +561,7 @@ export function BriefsWorkspace({
         <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Creative Design</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Design</h1>
-          {newBrief('new-brief')}
+          {newBrief()}
         </div>
         <p className="text-sm text-text2">
           <span data-slot="brief-count">
@@ -640,7 +637,7 @@ export function BriefsWorkspace({
                 Clear search
               </Button>
             ) : (
-              newBrief('empty-new-brief')
+              newBrief()
             )}
           </div>
         ) : activeView === 'kanban' ? (

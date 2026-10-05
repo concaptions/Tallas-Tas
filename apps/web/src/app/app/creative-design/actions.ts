@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
+  allocateBriefNumber,
   BRIEF_CLIENT_STATUS_DEFAULT,
   getBriefById,
   getConceptById,
@@ -13,8 +14,8 @@ import {
   type BriefInput,
 } from '@tas/db';
 import { creativePerformances, type CreativePerformance } from '@tas/db/schema';
+import { generateBriefName } from '@tas/domain/briefs';
 import {
-  creativeNameForConcept,
   creativeTrack,
   dimensionsFor,
   isCreativeDimension,
@@ -57,21 +58,23 @@ import { briefPath, briefsPath } from '@/lib/routes';
  * 2. parse the submitted `FormData` with zod, which owns the *shape*: which keys exist, that a
  *    funnel, type, priority, version and dimension are members of the `@tas/domain/creatives`
  *    vocabularies, and that an empty text field is stored as NULL rather than as an empty string;
- * 3. go through the domain functions for everything that is a rule — `creativeNameForConcept` for
- *    the name, `nextSequence` for the §7 number, `dimensionsFor` for the §8 defaults,
- *    `creativeTrack` for which ladder the brief is graded on, and `isClientTrackOpen` /
- *    `canTransition*` for the two-track gate. No rule is restated here;
+ * 3. go through the domain functions for everything that is a rule — `generateBriefName` for the
+ *    Oct 5 CREATE name, `allocateBriefNumber` for the brand-wide counter it reads, `nextSequence`
+ *    for the row's own `sequence`, `dimensionsFor` for the §8 defaults, `creativeTrack` for which
+ *    ladder the brief is graded on, and `isClientTrackOpen` / `canTransition*` for the two-track
+ *    gate. No rule is restated here;
  * 4. write through the scoped `@tas/db` functions, which put `brand_id` on every statement;
  * 5. revalidate both routes and return a typed result. None of them ever throws to the client.
  *
- * THE NAME IS NEVER SUBMITTED. `creative_briefs.name` is the auto-generated PRD §7 string and must
- * not be typed by anyone (CLAUDE.md non-negotiable 4), so no action reads a `name` field. Every
- * write RE-COMPUTES it with `creativeNameForConcept` from `@tas/domain/creatives`, out of the
- * concept row it just read from the database rather than out of anything the form claimed that
- * concept was called. That is what makes a stored name unable to drift from its parts: rename the
- * concept and the next save of the brief renames the brief, and a tampered submission cannot invent
- * a name at all. `toggleQaAction` is the one write that does not recompute — a QA tick is not a
- * segment of the name, so it deliberately leaves the stored string exactly as it found it.
+ * THE NAME IS WRITTEN ONCE, AT CREATE. The Oct 5 formula (`generateBriefName`) composes
+ * `Source-Funnel-TypeInitial-Number-Concept-Batch` from the submitted parts and the brand-wide
+ * `brief_number` the create action allocates in one transaction. The CREATE action also offers a
+ * manual-override: when the form posts `nameMode: 'manual'` plus a non-empty `nameOverride`, that
+ * string is stored verbatim instead. UPDATE does NOT touch `name`: a brief keeps the name it was
+ * printed with, so a later field edit cannot drift the string from the file sitting in a drive
+ * somewhere. The cascade in `concepts/actions.ts` still uses the legacy §7 formula to rewrite
+ * briefs whose concept was renamed; new briefs named by the Oct 5 formula will be rewritten in §7
+ * when their concept is renamed, and that reconciliation is deferred to a follow-up ticket.
  *
  * THE STANDALONE CASE IS ORDINARY, NOT DEGRADED. `conceptId` may be null (PRD §8, CLAUDE.md
  * non-negotiable 5). A standalone brief supplies its own `batch` — there is no concept to copy one
@@ -264,6 +267,22 @@ const briefSchema = z.object({
   dimensions: z.array(dimension),
   internalStatus: status,
   clientStatus: status,
+  // Oct 5 brief auto-naming (Agent 3). `nameMode` says whether the CREATE path generates the
+  // name with `generateBriefName` or takes the user-supplied `nameOverride` verbatim — the
+  // manual-override toggle the paste calls for. Both are optional: a form that submits neither
+  // falls into the default "auto" branch and the generator writes the name. `nameOverride` is
+  // trimmed and never writes an empty string; UPDATE ignores both.
+  nameMode: z
+    .string()
+    .trim()
+    .transform((value) => (value === '' ? 'auto' : value))
+    .refine((value): value is 'auto' | 'manual' => value === 'auto' || value === 'manual', {
+      message: 'That is not one of the two name modes.',
+    })
+    .optional(),
+  nameOverride: text.optional(),
+  // Source segment of the new formula; empty defaults to "TAS" inside the generator.
+  source: text.optional(),
 });
 
 type BriefFormValues = z.infer<typeof briefSchema>;
@@ -310,6 +329,11 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     dimensions: many('dimensions'),
     internalStatus: single('internalStatus'),
     clientStatus: single('clientStatus'),
+    // Absent means "auto" / no override — never the empty string, which would mean
+    // "clear the name" to a human but is just unset to the schema.
+    nameMode: optional('nameMode'),
+    nameOverride: optional('nameOverride'),
+    source: optional('source'),
   };
 }
 
@@ -444,9 +468,9 @@ interface ParentConcept {
 
 /**
  * The columns a brief write stores, given the parent concept (or `null`), the §7 number and the two
- * statuses. The name is built here and nowhere else, and the batch and the product suffix follow
- * from whether there is a concept: a linked brief copies its concept's batch and takes no product
- * suffix, a standalone brief supplies its own batch and may carry one.
+ * statuses. Omits `name`, which the two call sites fill in differently: CREATE generates the Oct 5
+ * name through `generateBriefName`, UPDATE does not touch it. A standalone brief supplies its own
+ * batch and may carry a product suffix; a linked brief copies the concept's batch.
  */
 function toInput(
   values: BriefFormValues,
@@ -454,22 +478,10 @@ function toInput(
   sequence: number,
   internal: InternalStatusKey,
   client: ClientStatusKey,
-  source: string | null,
-): BriefInput {
+): Omit<BriefInput, 'name'> {
   const batch = concept?.batch ?? values.batch;
-  const product = concept === null ? values.product : null;
-  const name = creativeNameForConcept(concept, {
-    source,
-    funnel: values.funnel,
-    format: values.type,
-    number: sequence,
-    version: values.version,
-    batch,
-    product,
-  });
 
   return {
-    name,
     conceptId: values.conceptId,
     batch,
     funnel: values.funnel,
@@ -560,9 +572,35 @@ export async function createBriefAction(
         return fieldFailure({ conceptId: 'That concept is no longer available.' });
       }
 
+      // The Oct 5 formula allocates the brand-wide `brief_number` inside a transaction, so a
+      // concurrent create cannot read the same `MAX`. The §7 per-funnel-and-format `sequence`
+      // still exists on the row, kept consistent for the legacy formula and the Kanban drag.
       const sequence = nextSequence(await listBriefs(db, brandId), values.funnel, values.type);
-      const input = toInput(values, concept, sequence, internal, client, 'TAS');
-      const created = await insertBrief(db, brandId, input, actor);
+      const base = toInput(values, concept, sequence, internal, client);
+
+      const created = await db.transaction(async (tx) => {
+        const briefNumber = await allocateBriefNumber(tx, brandId);
+        // Manual-override toggle: when `nameMode === 'manual'` AND the user typed a non-empty
+        // name, that string is stored verbatim. Any other combination — auto, missing override,
+        // override blanked back out — falls through to the Oct 5 formula.
+        const override =
+          values.nameMode === 'manual' &&
+          typeof values.nameOverride === 'string' &&
+          values.nameOverride !== ''
+            ? values.nameOverride
+            : null;
+        const name =
+          override ??
+          generateBriefName({
+            source: values.source ?? null,
+            funnel: values.funnel,
+            creativeType: values.type,
+            number: briefNumber,
+            concept: concept?.name ?? null,
+            batch: base.batch,
+          });
+        return insertBrief(tx, brandId, { ...base, name, briefNumber }, actor);
+      });
       return { ok: true as const, id: created.id, name: created.name, savedAt: Date.now() };
     });
 
@@ -675,7 +713,10 @@ export async function updateBriefAction(
         return clientRefusal;
       }
 
-      const input = toInput(values, concept, current.sequence, internal, client, current.source);
+      // The paste's rule for the Oct 5 formula: UPDATE never overwrites `name`. `toInput`
+      // returns `Omit<BriefInput, 'name'>`, so the patch below carries every other field but
+      // leaves the stored string exactly as it was.
+      const input = toInput(values, concept, current.sequence, internal, client);
       const saved = await updateBrief(db, brandId, id, input, actor);
       if (saved === null) {
         return { ok: false as const, error: 'That brief is no longer available.' };
