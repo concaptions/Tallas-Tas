@@ -6,7 +6,7 @@ import { cn, SoonChip } from '@tas/ui';
 import type { ViewerRole } from '@tas/domain';
 
 import { Icon } from './icons';
-import { activeSectionKey, navGroupsForRole } from './nav';
+import { activeSectionKey, navGroupsForView } from './nav';
 
 /**
  * The product's left rail. Below `md` it collapses to a 56px icon rail (labels hidden, the whole
@@ -23,12 +23,18 @@ import { activeSectionKey, navGroupsForRole } from './nav';
  */
 export interface SidebarProps {
   readonly role: ViewerRole | null;
+  /**
+   * Whether the active brand is the TAS template parent. The sidebar hides a configured set of
+   * sections on the template only (Oct 5 Talal sync — nav visibility, not deletion): child
+   * brands render the role filter alone. Defaults false so demo mode and tests behave as before.
+   */
+  readonly isTemplate?: boolean;
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, isTemplate = false }: SidebarProps) {
   const pathname = usePathname();
   const active = activeSectionKey(pathname);
-  const groups = navGroupsForRole(role);
+  const groups = navGroupsForView(role, isTemplate);
 
   return (
     <nav

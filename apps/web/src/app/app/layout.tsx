@@ -84,7 +84,7 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
       <TopBar brands={brands} actor={actor} demo={demo} />
       {demo ? <DemoBanner /> : null}
       <div className="flex flex-1 items-stretch">
-        <Sidebar role={role} />
+        <Sidebar role={role} isTemplate={brands.active?.isTemplate ?? false} />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {/* Full-width content (P2D, client feedback Sep 28): tables stretch to fill wide screens
               instead of sitting inside a narrow centred column. */}

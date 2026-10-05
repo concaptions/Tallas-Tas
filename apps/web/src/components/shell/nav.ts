@@ -338,6 +338,56 @@ export function navGroupsForRole(role: ViewerRole | null | undefined): readonly 
 }
 
 /**
+ * Section keys the template brand's sidebar hides (Talal, 2026-10-05 — docs/decisions.md). The
+ * table rows, routes, seeds and child-brand visibility are UNTOUCHED by this; the template brand
+ * only shows what the TAS team authors on the TAS template itself, and the tables these keys name
+ * are either client-only data (Email Campaigns, Email Flows, SM Campaign Feed, Creative Reporting,
+ * Creative Modules, Ads by Creator Ranking, …) or waiting on their own sprint (Performance,
+ * Upload Links). `briefs` = "Creative Design (Internal & Interface)" lives on the client bases
+ * where its 397 Gratsi rows are — hidden here, visible on Gratsi.
+ *
+ * Keys match `NavSection.key`, so a child-brand filter can be added later without changing shape.
+ * NOT a security control, same as the role filter above.
+ */
+export const TEMPLATE_HIDDEN_SECTION_KEYS: ReadonlySet<string> = new Set([
+  'creative-modules',
+  'ai-characters',
+  'competitive-research',
+  'briefs',
+  'client-assets',
+  'upload-links',
+  'youtube-copywriting',
+  'campaigns',
+  'email-campaigns',
+  'email-flows',
+  'sm-campaign-feed',
+  'performance',
+  'creative-reporting',
+  'creator-ranking',
+  'copy-types',
+  'creative-dimensions',
+]);
+
+/**
+ * `navGroupsForRole` plus the template-brand hide. When `isTemplate` is true, section keys in
+ * `TEMPLATE_HIDDEN_SECTION_KEYS` drop out; every child brand (Gratsi, Niagara, …) is unaffected
+ * and reads the role filter alone.
+ */
+export function navGroupsForView(
+  role: ViewerRole | null | undefined,
+  isTemplate: boolean,
+): readonly NavGroup[] {
+  return navGroupsForRole(role)
+    .map((group) => ({
+      ...group,
+      sections: isTemplate
+        ? group.sections.filter((section) => !TEMPLATE_HIDDEN_SECTION_KEYS.has(section.key))
+        : group.sections,
+    }))
+    .filter((group) => group.sections.length > 0);
+}
+
+/**
  * The active section is the one whose `href` is the longest prefix of `pathname`, so `/app/personas`
  * lights Personas and not Overview even though both are prefixes of it.
  */

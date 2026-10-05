@@ -6,6 +6,8 @@ import {
   NAV_SECTIONS,
   activeSectionKey,
   navGroupsForRole,
+  navGroupsForView,
+  TEMPLATE_HIDDEN_SECTION_KEYS,
   pendingSections,
 } from './nav';
 
@@ -255,5 +257,80 @@ describe('navGroupsForRole', () => {
     navGroupsForRole('video_editor');
     navGroupsForRole('client');
     expect(JSON.stringify(NAV_GROUPS)).toBe(before);
+  });
+});
+
+describe('navGroupsForView · the template brand hides a set of sections (Oct 5 Talal sync)', () => {
+  const KEYS = TEMPLATE_HIDDEN_SECTION_KEYS;
+
+  it('names the sixteen keys the decision covers, no more and no fewer', () => {
+    expect([...KEYS].sort()).toEqual(
+      [
+        'ai-characters',
+        'briefs',
+        'campaigns',
+        'client-assets',
+        'competitive-research',
+        'copy-types',
+        'creative-dimensions',
+        'creative-modules',
+        'creative-reporting',
+        'creator-ranking',
+        'email-campaigns',
+        'email-flows',
+        'performance',
+        'sm-campaign-feed',
+        'upload-links',
+        'youtube-copywriting',
+      ].sort(),
+    );
+  });
+
+  it('every hidden key resolves to a real section (no typo stays silent)', () => {
+    const all = new Set(NAV_SECTIONS.map((section) => section.key));
+    for (const key of KEYS) {
+      expect(all.has(key), key).toBe(true);
+    }
+  });
+
+  it("does not touch the regular 'copywriting' tab — only its label is renamed", () => {
+    expect(KEYS.has('copywriting')).toBe(false);
+  });
+
+  it('on the template brand, every hidden key is dropped from an admin view', () => {
+    const groups = navGroupsForView('admin', true);
+    const seen = new Set(groups.flatMap((group) => group.sections.map((section) => section.key)));
+    for (const key of KEYS) {
+      expect(seen.has(key), `template admin still sees ${key}`).toBe(false);
+    }
+    // And every other admin section is still there — the hide is additive to the role filter.
+    for (const section of NAV_SECTIONS) {
+      if (KEYS.has(section.key)) continue;
+      expect(seen.has(section.key), `template admin lost ${section.key}`).toBe(true);
+    }
+  });
+
+  it('on a CHILD brand, nothing is hidden — Gratsi, Niagara and demo see the role view unchanged', () => {
+    expect(navGroupsForView('admin', false)).toEqual(navGroupsForRole('admin'));
+    for (const role of ['csm', 'strategist', 'video_editor', 'designer', 'media_buyer'] as const) {
+      expect(navGroupsForView(role, false)).toEqual(navGroupsForRole(role));
+    }
+  });
+
+  it('an empty group vanishes on the template too — the Settings/Lookups group loses creative-dimensions and copy-types', () => {
+    const groups = navGroupsForView('admin', true);
+    // The `lookups` group holds Copy Types, Creative Modules, Creative Dimensions, AI Characters,
+    // Competitive Research — every one of them hidden by the Oct 5 decision — so the group itself
+    // drops out of an admin's view on the template, same shape the role filter uses.
+    expect(groups.some((group) => group.key === 'lookups')).toBe(false);
+  });
+
+  it('leaves TEMPLATE_HIDDEN_SECTION_KEYS and NAV_GROUPS untouched — reads, never mutations', () => {
+    const beforeKeys = [...KEYS].sort().join(',');
+    const beforeGroups = JSON.stringify(NAV_GROUPS);
+    navGroupsForView('admin', true);
+    navGroupsForView('video_editor', false);
+    expect([...KEYS].sort().join(',')).toBe(beforeKeys);
+    expect(JSON.stringify(NAV_GROUPS)).toBe(beforeGroups);
   });
 });
