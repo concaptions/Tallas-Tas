@@ -18,6 +18,8 @@ import {
 } from '@tas/ui';
 import { validateCopyDraft, type CopyDraft } from '@tas/domain/copy';
 
+import { briefPath } from '@/lib/routes';
+
 import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './actions';
 import {
   CAMPAIGNS_READ_ONLY_NOTE,
@@ -280,6 +282,10 @@ export function CopyPanel({
 
   const creativeValue = draft.creativeBriefId ?? NO_CREATIVE_VALUE;
   const conceptValue = draft.conceptId ?? NO_CONCEPT_VALUE;
+  const selectedCreative =
+    draft.creativeBriefId === null
+      ? null
+      : (creatives.find((creative) => creative.id === draft.creativeBriefId) ?? null);
   const savedWarnings = state !== null && state.ok ? Object.keys(state.warnings).length : 0;
 
   return (
@@ -376,6 +382,23 @@ export function CopyPanel({
                   value={draft.creativeBriefId ?? ''}
                   data-slot="copy-creative-value"
                 />
+                {/*
+                 * The linked brief, as a chip-link that opens the detail page: the task's
+                 * "click-the-chip-to-navigate" behaviour for a single-value FK. The select handles
+                 * picking; the chip is how a reader gets from the copy to the creative without
+                 * leaving the drop-down open. Null means no creative is linked — the chip would
+                 * have nothing to point at, so the row renders nothing instead of a dead link.
+                 */}
+                {selectedCreative === null ? null : (
+                  <Link
+                    href={briefPath(selectedCreative.id)}
+                    data-slot="copy-creative-chip"
+                    data-brief-id={selectedCreative.id}
+                    className="inline-flex self-start rounded-input border border-line bg-surface2 px-1.5 py-0.5 font-mono text-[11px] text-text2 hover:border-accent-line hover:text-accent"
+                  >
+                    Open {selectedCreative.name}
+                  </Link>
+                )}
                 <p className="text-xs text-text3">
                   The creative this copy runs against. A copy row can exist without one.
                 </p>

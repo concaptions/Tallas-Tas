@@ -20,6 +20,8 @@ import { collectionsPath, copywritingPath, propagationPath } from '../src/lib/ro
  */
 const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
 const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
+/** The unattached copy fixture — PRD §5.11's nullable `creative_brief_id` case. */
+const COPY_BUNDLE_UNATTACHED_ID = '88888888-8888-4888-8888-000000000004';
 /** The collection fixture whose `copywriting_id` is Copy #1. */
 const BFCM_COLLECTION_ID = '11223344-1122-4334-8556-000000000001';
 
@@ -196,6 +198,24 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // The submitted value is a hidden id, not something anyone types.
     await expect(panel.locator('input[name="creativeBriefId"]')).toHaveAttribute('type', 'hidden');
     await expect(panel.locator('input[type="text"][name="creativeBriefId"]')).toHaveCount(0);
+  });
+
+  test('the Linked Creative chip under the select opens the brief detail', async ({ page }) => {
+    // Copy #1 is tied to the night-shift video brief; the panel renders a chip-link beside the
+    // select so the reader can jump to that brief without opening the drop-down.
+    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    const chip = panel.locator('[data-slot="copy-creative-chip"]');
+    await expect(chip).toBeVisible();
+    await expect(chip).toContainText('Open ');
+    await expect(chip).toHaveAttribute('href', /\/app\/creative-design\//);
+
+    // The unattached copy row has nothing to point at (`creative_brief_id` null), so no chip
+    // renders at all — only the "No creative" option in the select.
+    await page.goto(`${copywritingPath}?copy=${COPY_BUNDLE_UNATTACHED_ID}`);
+    await expect(page.locator('[data-slot="copy-panel"]')).toBeVisible();
+    await expect(page.locator('[data-slot="copy-creative-chip"]')).toHaveCount(0);
   });
 
   test('the panel carries the Copy Types picker with the fixture tag pressed, and the read-only campaigns and collections lists', async ({

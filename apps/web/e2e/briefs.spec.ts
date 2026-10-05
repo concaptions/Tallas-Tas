@@ -363,8 +363,13 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       /\/app\/creative-reporting\?creativeReport=/,
     );
 
-    // The Meta Copywriting section this page already had is still here.
-    await expect(page.locator('[data-slot="brief-copywriting"]')).toBeVisible();
+    // The Meta Copywriting section this page already had is still here, now with chip-links
+    // that reach the copy row's panel (Oct 5 meeting: the brief ↔ copy link renders both ends).
+    const copyLinks = page.locator('[data-slot="brief-copywriting"]');
+    await expect(copyLinks).toBeVisible();
+    const linkedCopy = copyLinks.locator('[data-slot="brief-copy-link"]');
+    await expect(linkedCopy).toHaveCount(1);
+    await expect(linkedCopy).toHaveAttribute('href', /\/app\/meta-copywriting\?copy=/);
   });
 
   test('a rail section nothing points at says so in a sentence, never a blank card', async ({
