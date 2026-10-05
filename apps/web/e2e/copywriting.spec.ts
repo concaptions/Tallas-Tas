@@ -81,12 +81,14 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="copy-missing-columns"]')).toHaveCount(0);
   });
 
-  test('the sidebar links Meta Copywriting and marks it active, with no Soon chip on it', async ({
+  test('the sidebar links Copywriting and marks it active, with no Soon chip on it', async ({
     page,
   }) => {
     await page.goto(copywritingPath);
 
-    const link = page.getByRole('link', { name: 'Meta Copywriting', exact: true });
+    // Oct 5 Talal sync (commit 105be26): the sidebar label dropped the "Meta" prefix. The route
+    // path and the module's own h1 both still read "Meta Copywriting" — only the nav label changed.
+    const link = page.getByRole('link', { name: 'Copywriting', exact: true });
     await expect(link).toHaveAttribute('href', copywritingPath);
     await expect(link).toHaveAttribute('aria-current', 'page');
 
