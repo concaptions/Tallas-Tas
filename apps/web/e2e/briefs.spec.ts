@@ -279,6 +279,30 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     );
   });
 
+  test('the Dimensions dropdown toggles ratios in state and updates the grid and the posted inputs', async ({
+    page,
+  }) => {
+    await page.goto(briefPath(BODY_CLOCK));
+
+    // The grid starts on the §8 defaults for this brief's type (Video → 4:5, 1:1, 9:16).
+    const dimensions = page.locator('[data-slot="brief-dimension"]');
+    await expect(dimensions).toHaveCount(3);
+
+    // Hidden inputs mirror the grid, so a save of the form carries the current selection; they are
+    // what the Dimensions bug fix wires to the dropdown instead of to the stored array.
+    const inputs = page.locator('#brief-form input[type="hidden"][name="dimensions"]');
+    await expect(inputs).toHaveCount(3);
+
+    // The trigger reports the count rather than nothing — the control is visible, not a dead cell.
+    const trigger = page.locator('[data-slot="brief-dimensions-trigger"]');
+    await expect(trigger).toHaveText(/\d+ selected/);
+    await expect(trigger).toBeDisabled();
+
+    // The disabled wrapper carries the usual demo reason, so the fix does not open a write path.
+    const wrapper = trigger.locator('xpath=..');
+    await expect(wrapper).toHaveAttribute('title', /Sign in required/);
+  });
+
   test('the rail shows both tracks, open past internal sign-off and shut before it', async ({
     page,
   }) => {
