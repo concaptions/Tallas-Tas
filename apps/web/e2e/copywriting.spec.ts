@@ -287,6 +287,33 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(collections.locator('[data-slot="copy-collection-link"]')).toHaveCount(0);
   });
 
+  test('the Linked Collection single-select pre-fills from the owner-side FK (Oct 5)', async ({
+    page,
+  }) => {
+    // Copy #1 is pointed at by the BFCM collection (`collections.copywriting_id`), so the Linked
+    // Collection control pre-fills with its name AND renders the chip-link.
+    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
+
+    const panel = page.locator('[data-slot="copy-panel"]');
+    const select = panel.locator('[data-slot="copy-collection-select"]');
+    await expect(select).toHaveRole('combobox');
+    await expect(select).toContainText('BFCM 2026 Collection');
+
+    const chip = panel.locator('[data-slot="copy-collection-chip"]');
+    await expect(chip).toContainText('Open BFCM 2026 Collection');
+    await expect(chip).toHaveAttribute(
+      'href',
+      `${collectionsPath}?collection=${BFCM_COLLECTION_ID}`,
+    );
+
+    // Copy #2 has no collection pointing at it, so the control falls back to "No collection".
+    await page.goto(`${copywritingPath}?copy=${COPY_NOT_YOUR_AGE_ID}`);
+    await expect(page.locator('[data-slot="copy-collection-select"]')).toContainText(
+      'No collection',
+    );
+    await expect(page.locator('[data-slot="copy-collection-chip"]')).toHaveCount(0);
+  });
+
   test('the panel is read-only and the save is disabled with the reason on hover', async ({
     page,
   }) => {
@@ -308,6 +335,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     );
     await expect(panel.locator('#copy-field-headline')).toHaveAttribute('readonly', '');
     await expect(panel.locator('[data-slot="copy-creative-select"]')).toBeDisabled();
+    await expect(panel.locator('[data-slot="copy-collection-select"]')).toBeDisabled();
     await expect(panel.locator('[data-slot="copy-status-select"]')).toBeDisabled();
 
     // The New copy button is a write too, so it is disabled everywhere it appears.

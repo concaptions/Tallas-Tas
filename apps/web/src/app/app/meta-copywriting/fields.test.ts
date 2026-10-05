@@ -53,6 +53,7 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     copyTypeIds: ['c0b7a1d3-0013-4013-8013-000000000001'],
     campaigns: [],
     collections: [],
+    linkedCollectionId: null,
     angleName: null,
     productName: null,
     productLink: null,

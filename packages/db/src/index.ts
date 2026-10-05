@@ -102,6 +102,7 @@ export {
   getCollectionById,
   insertCollection,
   listCollections,
+  setCollectionCopywritingLinkInBrand,
   updateCollection,
 } from './collections';
 export type { CollectionInput, CollectionListRow } from './collections';

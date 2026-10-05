@@ -106,10 +106,18 @@ export interface CopyItem {
   readonly campaigns: readonly LinkedCampaign[];
   /**
    * The collections whose `collections.copywriting_id` is this row (Airtable "Collections", the
-   * inverse of the Collections panel's Copywriting ID). Read-only here: the collection owns the
-   * link, see `COLLECTIONS_READ_ONLY_NOTE`.
+   * inverse of the Collections panel's Copywriting ID). The panel renders them as chip-links
+   * (reverse read), AND Oct 5 added an editable Linked Collection single-select (owner-side write);
+   * the Linked Collection control resolves to the first entry here, which is what the UI pre-fills.
    */
   readonly collections: readonly LinkedCollection[];
+  /**
+   * The current single Linked Collection — the first id of `collections`, or `null` when no
+   * collection points at this copy. Oct 5 ruling: one collection per copy (the many-to-many case is
+   * deferred); the Linked Collection control writes `collections.copywriting_id` through
+   * `setCollectionCopywritingLinkInBrand`.
+   */
+  readonly linkedCollectionId: string | null;
   /**
    * The Airtable LOOKUP cells (GRATSI-MATCH, 2026-10-04), each resolved on the server by
    * `page.tsx` through the row's links with `lookupRollup` — never stored, never editable, and
@@ -250,6 +258,19 @@ export interface ConceptChoice {
 export const NO_CONCEPT_VALUE = 'none';
 export const NO_CONCEPT_LABEL = 'No concept';
 
+/**
+ * One option of the panel's Linked Collection `<select>` (Oct 5 ruling in `docs/decisions.md`): a
+ * brand collection's id and hand-typed name. The owner-side FK (`collections.copywriting_id`)
+ * stores the pick, and this list is the whole brand so the picker can offer an unassigned one.
+ */
+export interface CollectionChoice {
+  readonly id: string;
+  readonly name: string;
+}
+
+export const NO_COLLECTION_VALUE = 'none';
+export const NO_COLLECTION_LABEL = 'No collection';
+
 /** The four copy fields of ticket criterion 6, and how each one is rendered. */
 export interface CopyField {
   readonly name: CopyDraftField;
@@ -366,11 +387,14 @@ export const CAMPAIGNS_READ_ONLY_NOTE =
   'Linking a campaign from this panel ships with the campaign-links writer.';
 
 /**
- * Why the Collections list is read-only here: the link IS `collections.copywriting_id`, the
- * Copywriting ID field of the collection's own panel, so that panel is the one place it changes.
+ * What the Collections section says under the read-only chip list. Oct 5 ruling
+ * (`docs/decisions.md`): the Linked Collection single-select above WRITES the owner-side FK on
+ * `collections.copywriting_id`, so a reader expects to see editing happen here — but a copy row can
+ * be pointed at by more than one legacy collection and the chip list is the whole truth, not the
+ * one entry the control pre-fills with.
  */
 export const COLLECTIONS_READ_ONLY_NOTE =
-  'A collection links its Meta copy through the Copywriting ID on its own panel.';
+  'Every collection whose Copywriting ID points at this row. The Linked Collection control above writes the owner-side FK.';
 
 /** How the header counts what is on screen. Singular at one, never "1 copies". */
 export function copyCountLabel(count: number): string {

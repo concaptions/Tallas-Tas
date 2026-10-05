@@ -1452,3 +1452,11 @@ paste's exact labels on screen, that is a label map in asset-grid.tsx (one-line 
 schema migration.
 
 **Not in this agent:** route renames, schema deletions, column drops.
+
+## 2026-10-05 — Copywriting ↔ Collection direction (Oct 5 Talal sync, Agent 4)
+
+The Oct 5 meeting asked for an editable Linked Collection control on the Copywriting panel. The
+pre-existing storage lives on the OTHER side — `collections.copywriting_id` is the owner-side FK —
+so the Copywriting panel's Collection control writes `collections.copywriting_id` (one collection
+per copy; a copy currently can only be in one). Many-to-many would need a junction and is deferred
+until Talal asks.

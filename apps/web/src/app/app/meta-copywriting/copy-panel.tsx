@@ -18,7 +18,7 @@ import {
 } from '@tas/ui';
 import { validateCopyDraft, type CopyDraft } from '@tas/domain/copy';
 
-import { briefPath } from '@/lib/routes';
+import { briefPath, collectionsPath } from '@/lib/routes';
 
 import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './actions';
 import {
@@ -34,6 +34,8 @@ import {
   EM_DASH,
   FUNNEL_OPTIONS,
   NO_CAMPAIGNS_NOTE,
+  NO_COLLECTION_LABEL,
+  NO_COLLECTION_VALUE,
   NO_CONCEPT_LABEL,
   NO_CONCEPT_VALUE,
   NO_COPY_TYPES_NOTE,
@@ -42,8 +44,10 @@ import {
   NO_FUNNEL_LABEL,
   NO_FUNNEL_VALUE,
   STATUS_OPTIONS,
+  COLLECTION_SELECTION_PARAM,
   counterLabel,
   counterTone,
+  type CollectionChoice,
   type ConceptChoice,
   type CopyField,
   type CopyItem,
@@ -95,6 +99,8 @@ interface CopyPanelProps {
   readonly item: CopyItem;
   readonly creatives: readonly CreativeChoice[];
   readonly concepts: readonly ConceptChoice[];
+  /** The brand's live collections, for the Linked Collection single-select. Empty on a brand with none. */
+  readonly collections: readonly CollectionChoice[];
   readonly copyTypes: readonly CopyTypeChoice[];
   readonly demo: boolean;
   readonly onClose: () => void;
@@ -153,6 +159,7 @@ export function CopyPanel({
   item,
   creatives,
   concepts,
+  collections,
   copyTypes,
   demo,
   onClose,
@@ -166,6 +173,9 @@ export function CopyPanel({
   const [detailDraft, setDetailDraft] = useState<DetailDraft>(() => detailDraftOf(item));
   const [selectedCopyTypeIds, setSelectedCopyTypeIds] = useState<readonly string[]>(
     item.copyTypeIds,
+  );
+  const [linkedCollectionId, setLinkedCollectionId] = useState<string | null>(
+    item.linkedCollectionId,
   );
 
   const validation = useMemo(() => validateCopyDraft(draft), [draft]);
@@ -198,10 +208,16 @@ export function CopyPanel({
     setDraft((current) => ({ ...current, ...values }));
   };
 
-  /** A message under a field: the save's own error first, then the draft's own rule. */
-  const errorFor = (name: CopyFieldName): string | undefined =>
-    (state !== null && !state.ok ? state.fieldErrors?.[name] : undefined) ??
-    validation.fieldErrors[name];
+  /**
+   * A message under a field: the save's own error first, then the draft's own rule. The validation
+   * tracks only the domain's `CopyDraft` fields; the cross-table link fields (`collectionId`) are
+   * only in the server-returned error map, so the fallback is only consulted for a draft field.
+   */
+  const errorFor = (name: CopyFieldName): string | undefined => {
+    const fromState = state !== null && !state.ok ? state.fieldErrors?.[name] : undefined;
+    if (fromState !== undefined) return fromState;
+    return name === 'collectionId' ? undefined : validation.fieldErrors[name];
+  };
 
   const renderCopyField = (field: CopyField) => {
     const id = `copy-field-${field.name}`;
@@ -572,6 +588,70 @@ export function CopyPanel({
               >
                 {COPY_HEADINGS.collections}
               </h3>
+
+              {/*
+               * The Linked Collection single-select (Oct 5 ruling in `docs/decisions.md`): writes
+               * the OWNER-SIDE FK on `collections.copywriting_id` through
+               * `setCollectionCopywritingLinkInBrand`. The reverse-read list below still renders
+               * every collection currently pointing at this copy as a chip-link, so the panel
+               * never loses the way to the collection(s) it belongs to.
+               */}
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="copy-field-collectionId"
+                  className="text-[11px] tracking-wide text-text3 uppercase"
+                >
+                  Linked Collection
+                </Label>
+                <Select
+                  value={linkedCollectionId ?? NO_COLLECTION_VALUE}
+                  onValueChange={(next) => {
+                    setLinkedCollectionId(next === NO_COLLECTION_VALUE ? null : next);
+                  }}
+                  disabled={demo}
+                >
+                  <SelectTrigger
+                    id="copy-field-collectionId"
+                    className="w-full"
+                    aria-label="Linked Collection"
+                    data-slot="copy-collection-select"
+                  >
+                    <SelectValue placeholder={NO_COLLECTION_LABEL} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_COLLECTION_VALUE}>{NO_COLLECTION_LABEL}</SelectItem>
+                    {collections.map((collection) => (
+                      <SelectItem key={collection.id} value={collection.id}>
+                        {collection.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input
+                  type="hidden"
+                  name="collectionId"
+                  value={linkedCollectionId ?? ''}
+                  data-slot="copy-collection-value"
+                />
+                {linkedCollectionId === null ? null : (
+                  <Link
+                    href={`${collectionsPath}?${COLLECTION_SELECTION_PARAM}=${encodeURIComponent(linkedCollectionId)}`}
+                    data-slot="copy-collection-chip"
+                    data-collection-id={linkedCollectionId}
+                    className="inline-flex self-start rounded-input border border-line bg-surface2 px-1.5 py-0.5 text-[11px] text-text2 hover:border-accent-line hover:text-accent"
+                  >
+                    Open{' '}
+                    {collections.find((collection) => collection.id === linkedCollectionId)?.name ??
+                      linkedCollectionId}
+                  </Link>
+                )}
+                {errorFor('collectionId') === undefined ? null : (
+                  <p data-slot="copy-error" className="text-xs text-bad">
+                    {errorFor('collectionId')}
+                  </p>
+                )}
+              </div>
+
               <div className="flex flex-wrap items-center gap-2" data-slot="copy-collections">
                 {item.collections.length === 0 ? (
                   <span className="text-sm text-text3">{EM_DASH}</span>

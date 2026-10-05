@@ -24,6 +24,13 @@ interface SyncedCopyTypes {
   readonly copyTypeIds: readonly string[];
 }
 
+/** One call the action made to the collection-link setter. */
+interface LinkedCollection {
+  readonly brandId: string;
+  readonly copyId: string;
+  readonly collectionId: string | null;
+}
+
 interface Seam {
   /** Null stands for a session that expired between rendering the panel and submitting it. */
   actor: string | null;
@@ -31,8 +38,12 @@ interface Seam {
   stored: CopyListRow | null;
   /** Whether the submitted creative resolves INSIDE the scope. */
   briefResolves: boolean;
+  /** Whether the submitted collection resolves INSIDE the scope (Oct 5 Linked Collection). */
+  collectionResolves: boolean;
   /** Every `syncCopywritingCopyTypesInBrand` call, so a test can assert it ran once or never. */
   synced: SyncedCopyTypes[];
+  /** Every `setCollectionCopywritingLinkInBrand` call. */
+  collectionLinks: LinkedCollection[];
 }
 
 /** Values the mocked seams read at call time, so a test can move the ground under one action. */
@@ -40,7 +51,9 @@ const seam = vi.hoisted<Seam>(() => ({
   actor: 'user_2TESTACTOR',
   stored: null,
   briefResolves: true,
+  collectionResolves: true,
   synced: [],
+  collectionLinks: [],
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -55,12 +68,14 @@ vi.mock('@/lib/copy-source', () => ({
     run({} as Db, 'brand-under-test'),
 }));
 
-/** Only the four scoped calls the action makes; every other export stays the real one. */
+/** Only the six scoped calls the action makes; every other export stays the real one. */
 vi.mock('@tas/db', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tas/db')>()),
   getCopyById: (): Promise<CopyListRow | null> => Promise.resolve(seam.stored),
   getBriefById: (_db: Db, _brandId: string, id: string): Promise<{ id: string } | null> =>
     Promise.resolve(seam.briefResolves ? { id } : null),
+  getCollectionById: (_db: Db, _brandId: string, id: string): Promise<{ id: string } | null> =>
+    Promise.resolve(seam.collectionResolves ? { id } : null),
   updateCopy: (_db: Db, _brandId: string, id: string): Promise<{ id: string }> =>
     Promise.resolve({ id }),
   syncCopywritingCopyTypesInBrand: (
@@ -71,6 +86,15 @@ vi.mock('@tas/db', async (importOriginal) => ({
   ): Promise<void> => {
     seam.synced.push({ brandId, copyId, copyTypeIds });
     return Promise.resolve();
+  },
+  setCollectionCopywritingLinkInBrand: (
+    _db: Db,
+    brandId: string,
+    copyId: string,
+    collectionId: string | null,
+  ): Promise<boolean> => {
+    seam.collectionLinks.push({ brandId, copyId, collectionId });
+    return Promise.resolve(true);
   },
 }));
 
@@ -147,7 +171,9 @@ afterEach(() => {
   seam.stored = null;
   seam.actor = 'user_2TESTACTOR';
   seam.briefResolves = true;
+  seam.collectionResolves = true;
   seam.synced = [];
+  seam.collectionLinks = [];
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -390,5 +416,55 @@ describe('with Clerk configured · the session', () => {
       ok: false,
       error: 'Your session has expired. Sign in again to save.',
     });
+  });
+});
+
+/** The Oct 5 Linked Collection single-select. Writes `collections.copywriting_id` through the
+ * owner-side setter; the action resolves the submitted id in the scope first. */
+const COLLECTION_BFCM = '11223344-1122-4334-8556-000000000001';
+
+describe('with Clerk configured · the Linked Collection control', () => {
+  it('leaves the owner-side FK alone when the form never carried the control', async () => {
+    live();
+
+    const result = await updateCopyAction(null, form(filled));
+
+    expect(saved(result, 'a save without the collection control was refused').id).toBe(STORED.id);
+    expect(seam.collectionLinks).toEqual([]);
+  });
+
+  it('reassigns the collection to the picked id when the control was submitted', async () => {
+    live();
+
+    const result = await updateCopyAction(null, form({ ...filled, collectionId: COLLECTION_BFCM }));
+
+    expect(saved(result, 'a save with a picked collection was refused').id).toBe(STORED.id);
+    expect(seam.collectionLinks).toEqual([
+      { brandId: 'brand-under-test', copyId: STORED.id, collectionId: COLLECTION_BFCM },
+    ]);
+  });
+
+  it('unlinks the owner-side FK when the "No collection" option was submitted', async () => {
+    live();
+
+    const result = await updateCopyAction(null, form({ ...filled, collectionId: '' }));
+
+    expect(saved(result, 'a save that cleared the collection was refused').id).toBe(STORED.id);
+    expect(seam.collectionLinks).toEqual([
+      { brandId: 'brand-under-test', copyId: STORED.id, collectionId: null },
+    ]);
+  });
+
+  it('refuses a collection that does not resolve in the scope', async () => {
+    live();
+    seam.collectionResolves = false;
+
+    const result = await updateCopyAction(null, form({ ...filled, collectionId: COLLECTION_BFCM }));
+
+    if (result.ok) {
+      throw new Error("another brand's collection was accepted");
+    }
+    expect(result.fieldErrors?.collectionId).toBe('That collection is no longer available.');
+    expect(seam.collectionLinks).toEqual([]);
   });
 });

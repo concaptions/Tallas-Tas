@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
   getBriefById,
+  getCollectionById,
   getCopyById,
+  setCollectionCopywritingLinkInBrand,
   syncCopywritingCopyTypesInBrand,
   updateCopy,
   type CopyInput,
@@ -71,8 +73,13 @@ import { copywritingPath } from '@/lib/routes';
  * `copywriting_campaigns` has no writer in `@tas/db`, so no campaign key is read here.
  */
 
-/** The fields the panel can show a message under: the domain's draft fields, one vocabulary. */
-export type CopyFieldName = CopyDraftField;
+/**
+ * The fields the panel can show a message under. The domain's draft fields PLUS the cross-table
+ * link fields the panel submits alongside — `collectionId` writes `collections.copywriting_id` on
+ * the other side (Oct 5 ruling in `docs/decisions.md`), so a refused pick needs a target to render
+ * its error on.
+ */
+export type CopyFieldName = CopyDraftField | 'collectionId';
 
 export interface CopyActionSuccess {
   readonly ok: true;
@@ -135,10 +142,16 @@ const optionalInt = z
 /**
  * Shape only. Every rule is `validateCopyDraft`'s. `copyNumber` is absent on purpose -- it is
  * generated, never submitted -- and so is `clientComment`, which the client writes, not us.
+ *
+ * `collectionId` is the Oct 5 Linked Collection control, documented in `docs/decisions.md`: it
+ * writes the OWNER-SIDE FK on `collections.copywriting_id`, not a column on this row. It carries
+ * the shape "unchanged" / "cleared" / "pick this collection" exactly as every other key here:
+ * absent is "leave the link alone", empty is "unlink", and a resolvable id is a reassignment.
  */
 const copySchema = z.object({
   creativeBriefId: optionalText,
   conceptId: optionalText,
+  collectionId: optionalText,
   primaryCopy: optionalText,
   headline: optionalText,
   linkDescription: optionalText,
@@ -166,6 +179,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
   for (const key of [
     'creativeBriefId',
     'conceptId',
+    'collectionId',
     'primaryCopy',
     'headline',
     'linkDescription',
@@ -322,6 +336,26 @@ async function creativeRefusal(
     : null;
 }
 
+/**
+ * The submitted collection, resolved in the scope — same refusal pattern as `creativeRefusal`. The
+ * Linked Collection control writes `collections.copywriting_id` on the OTHER side (owner-side FK),
+ * and a cross-brand id resolves to nothing, so a bad pick is refused with the field error rather
+ * than silently cleared.
+ */
+async function collectionRefusal(
+  db: Db,
+  brandId: string,
+  collectionId: string | null,
+): Promise<CopyActionFailure | null> {
+  if (collectionId === null) {
+    return null;
+  }
+  const collection = await getCollectionById(db, brandId, collectionId);
+  return collection === null
+    ? fieldFailure({ collectionId: 'That collection is no longer available.' })
+    : null;
+}
+
 function success(id: string, validation: CopyDraftValidation): CopyActionSuccess {
   return { ok: true, id, savedAt: Date.now(), warnings: validation.fieldWarnings };
 }
@@ -376,12 +410,25 @@ export async function updateCopyAction(
         return refusal;
       }
 
+      // `collectionId` is optional and crosses tables: absent is "leave the link alone", empty is
+      // "unlink", an id resolves against the brand and is rejected if it is foreign.
+      const collectionId = values.collectionId === undefined ? undefined : values.collectionId;
+      if (collectionId !== undefined) {
+        const refusal = await collectionRefusal(db, brandId, collectionId);
+        if (refusal !== null) {
+          return refusal;
+        }
+      }
+
       const saved = await updateCopy(db, brandId, id, checked.values, actor);
       if (saved === null) {
         return { ok: false as const, error: 'That copy is no longer available.' };
       }
       if (values.copyTypeIds !== undefined) {
         await syncCopywritingCopyTypesInBrand(db, brandId, saved.id, values.copyTypeIds);
+      }
+      if (collectionId !== undefined) {
+        await setCollectionCopywritingLinkInBrand(db, brandId, saved.id, collectionId, actor);
       }
       return success(saved.id, checked.validation);
     });

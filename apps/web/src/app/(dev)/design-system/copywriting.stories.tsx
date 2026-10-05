@@ -65,6 +65,7 @@ export function CopywritingGridStory() {
       items={items}
       creatives={demoBriefs.map(({ id, name }) => ({ id, name }))}
       concepts={[]}
+      collections={demoCollections.map(({ id, name }) => ({ id, name }))}
       copyTypes={demoCopyTypes.map(({ id, name }) => ({ id, name }))}
       demo
       initialSelection={null}

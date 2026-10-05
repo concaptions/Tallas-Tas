@@ -82,6 +82,9 @@ export function buildCopyItems(sources: CopyItemSources, now: Date): CopyItem[] 
       copyTypeIds,
       campaigns: campaignLinks(row.campaignIds, campaignNamesById),
       collections: linkedCollectionsByCopy.get(row.id) ?? [],
+      // Oct 5 Linked Collection control: the first collection that still points at this copy, so
+      // the control pre-fills with whatever the owner-side FK currently holds, or null when none.
+      linkedCollectionId: linkedCollections[0]?.id ?? null,
       // The lookup cells, each `lookupRollup` over the linked rows' values — the same computation
       // the column's seeded formula names, and null (the em dash) when the link points at nothing.
       angleName:
