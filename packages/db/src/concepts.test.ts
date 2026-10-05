@@ -6,6 +6,7 @@ import {
   insertConcept,
   listConcepts,
   updateConcept,
+  updateConceptClientStatus,
   type ConceptInput,
   type ConceptListRow,
 } from './concepts';
@@ -590,5 +591,62 @@ describe('concept queries', () => {
     if (row === null) throw new Error('concept vanished after junction delete');
     expect(row.collectionIds).toEqual([]);
     expect(row.collectionName).toBeNull();
+  });
+});
+
+describe('updateConceptClientStatus — the shared Oct 5 client-status writer', () => {
+  it('writes the key, the timestamp and the note in one update', async () => {
+    const { db, brandId } = await seeded();
+
+    const [existing] = await listConcepts(db, brandId);
+    if (existing === undefined) throw new Error('seeded concepts are empty');
+
+    const before = new Date();
+    const saved = await updateConceptClientStatus(
+      db,
+      brandId,
+      existing.id,
+      'revisions_needed',
+      'They want to see the hook rewritten before approving.',
+      'user_test',
+    );
+    if (saved === null) throw new Error('updateConceptClientStatus returned null');
+
+    expect(saved.clientStatus).toBe('revisions_needed');
+    expect(saved.clientStatusNote).toBe('They want to see the hook rewritten before approving.');
+    expect(saved.clientStatusUpdatedAt).not.toBeNull();
+    expect(saved.clientStatusUpdatedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+  });
+
+  it('refuses to resolve an id from another brand (scope guard)', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const [existing] = await listConcepts(db, brandId);
+    if (existing === undefined) throw new Error('seeded concepts are empty');
+
+    const saved = await updateConceptClientStatus(
+      db,
+      otherBrandId,
+      existing.id,
+      'approved',
+      null,
+      'user_test',
+    );
+    expect(saved).toBeNull();
+  });
+
+  it('clears the note on a key that is not note-required', async () => {
+    const { db, brandId } = await seeded();
+    const [existing] = await listConcepts(db, brandId);
+    if (existing === undefined) throw new Error('seeded concepts are empty');
+
+    const saved = await updateConceptClientStatus(
+      db,
+      brandId,
+      existing.id,
+      'approved',
+      null,
+      'user_test',
+    );
+    expect(saved?.clientStatusNote).toBeNull();
   });
 });

@@ -13,6 +13,7 @@ import type {
 } from '@tas/domain/state';
 import {
   Button,
+  ClientStatusBadge,
   DEMO_WRITE_HINT,
   disabledWriteClassName,
   DisabledWrite,
@@ -39,6 +40,9 @@ import {
   TableHeader,
   TableRow,
 } from '@tas/ui';
+import { CLIENT_STATUS, chipTone } from '@tas/domain/state';
+
+import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
 
 import type { BriefActivityItem } from '@/lib/briefs-source';
 import { briefsPath, copywritingPath } from '@/lib/routes';
@@ -126,6 +130,11 @@ export interface BriefValues {
   readonly qaVideoEditor: boolean;
   readonly qaDesigner: boolean;
   readonly qaStrategist: boolean;
+  /**
+   * The short reason the strategist typed on the last `revisions_needed` move (Oct 5 Talal
+   * sync). Null everywhere else: the dropdown opens with it as its default context.
+   */
+  readonly clientStatusNote: string | null;
 }
 
 /** One row of the Scripts table: the brief's own script, or a Meta Copywriting row written for it. */
@@ -962,6 +971,33 @@ export function BriefDetail({
               clientOnly={false}
             />
           </div>
+
+          {/*
+            Oct 5 client-status workflow (Agent 5): the shared badge + dropdown mount in the
+            detail view, below the two-track rail. The reason Textarea is gated to
+            `revisions_needed` by the shared action; concepts/briefs have no `disapproved` on
+            CLIENT_STATUS (PRD §9) so the single branch is enough here.
+          */}
+          <section
+            className="flex flex-col gap-2 border-t border-line pt-3"
+            data-slot="brief-client-status"
+          >
+            <h2 className="text-sm font-medium text-text2">Client status workflow</h2>
+            <ClientStatusBadge
+              vocabulary={CLIENT_STATUS}
+              value={client}
+              toneFor={(value) =>
+                chipTone(CLIENT_STATUS.find((entry) => entry.key === value)?.label ?? '')
+              }
+            />
+            <ClientStatusDropdown
+              tableKey="creative_briefs"
+              recordId={brief.id}
+              currentStatus={client}
+              currentNote={brief.clientStatusNote ?? null}
+              disabled={demo}
+            />
+          </section>
 
           {next === null ? null : (
             <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>

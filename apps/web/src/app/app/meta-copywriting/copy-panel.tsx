@@ -4,6 +4,7 @@ import { useActionState, useCallback, useEffect, useMemo, useState } from 'react
 import Link from 'next/link';
 import {
   Button,
+  ClientStatusBadge,
   disabledWriteClassName,
   DisabledWrite,
   Input,
@@ -17,6 +18,9 @@ import {
   Textarea,
 } from '@tas/ui';
 import { validateCopyDraft, type CopyDraft } from '@tas/domain/copy';
+import { COPY_STATUS, copyStatusTone } from '@tas/domain/state';
+
+import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
 
 import { briefPath, collectionsPath, productsPath } from '@/lib/routes';
 
@@ -578,6 +582,32 @@ export function CopyPanel({
                     {errorFor('status')}
                   </p>
                 )}
+              </div>
+
+              {/*
+                Oct 5 client-status workflow (Agent 5). Copywriting has ONE track that is already
+                client-facing (COPY_STATUS; `copy-status.ts`), so the column is `status` not
+                `client_status`, and the shared action's `tableKey: 'copywriting'` dispatches
+                `updateCopyStatus` — see docs/decisions.md 2026-10-05. The reason Textarea gates
+                on `revisions_needed` / `disapproved`, which COPY_STATUS has as distinct terminals.
+              */}
+              <div
+                className="flex flex-col gap-2 border-t border-line pt-3"
+                data-slot="copy-client-status"
+              >
+                <span className="text-xs font-medium text-text2">Oct 5 one-click workflow</span>
+                <ClientStatusBadge
+                  vocabulary={COPY_STATUS}
+                  value={item.status}
+                  toneFor={copyStatusTone}
+                />
+                <ClientStatusDropdown
+                  tableKey="copywriting"
+                  recordId={item.id}
+                  currentStatus={item.status}
+                  currentNote={item.clientComment ?? null}
+                  disabled={demo}
+                />
               </div>
             </section>
 

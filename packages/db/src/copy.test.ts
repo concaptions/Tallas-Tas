@@ -8,6 +8,7 @@ import {
   updateCopy,
   type CopyInput,
   type CopyListRow,
+  updateCopyStatus,
 } from './copy';
 import { DEMO_BRAND_ID, demoBriefs, demoCopy } from './demo-data';
 import { COPY_CTA_DEFAULT, COPY_STATUS_DEFAULT, copyCtas, copywriting, type Copy } from './schema';
@@ -92,6 +93,7 @@ describe('migration 0007 on PGlite', () => {
       'product_id',
       'spelling_feedback',
       'status',
+      'status_updated_at',
       'template_row_id',
       'updated_at',
       'updated_by',
@@ -389,5 +391,46 @@ describe('types', () => {
     expectTypeOf<CopyInput>().toHaveProperty('funnel');
     // PRD §5.11 dropped copy type, so it must not reappear as a column.
     expectTypeOf<CopyInput>().not.toHaveProperty('copyType');
+  });
+});
+
+describe('updateCopyStatus — the shared Oct 5 client-status writer (`status` is the track)', () => {
+  it('writes the key, the status_updated_at timestamp and the client comment in one update', async () => {
+    const { db, brandId } = await seeded();
+
+    const [existing] = await listCopy(db, brandId);
+    if (existing === undefined) throw new Error('seeded copy is empty');
+
+    const before = new Date();
+    const saved = await updateCopyStatus(
+      db,
+      brandId,
+      existing.id,
+      'revisions_needed',
+      'Soften the headline — too direct for this persona.',
+      'user_test',
+    );
+    if (saved === null) throw new Error('updateCopyStatus returned null');
+
+    expect(saved.status).toBe('revisions_needed');
+    expect(saved.clientComment).toBe('Soften the headline — too direct for this persona.');
+    expect(saved.statusUpdatedAt).not.toBeNull();
+    expect(saved.statusUpdatedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+  });
+
+  it('refuses an id from another brand (scope guard)', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const [existing] = await listCopy(db, brandId);
+    if (existing === undefined) throw new Error('seeded copy is empty');
+
+    const saved = await updateCopyStatus(
+      db,
+      otherBrandId,
+      existing.id,
+      'approved',
+      null,
+      'user_test',
+    );
+    expect(saved).toBeNull();
   });
 });

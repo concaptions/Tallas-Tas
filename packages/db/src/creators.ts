@@ -148,3 +148,35 @@ export async function updateCreator(
     .returning();
   return row ?? null;
 }
+
+/**
+ * Moves one creator's CLIENT-STATUS track in one write (Oct 5 Talal sync). The `note` lands on
+ * the EXISTING `client_note` column (CREATOR_CLIENT_STATUS vocabulary — PRD §5.8), not a parallel
+ * `client_status_note`: the schema already carries the client's reply field, and spawning a
+ * second one would leave two notes to keep in step. The timestamp is set to the same `now`
+ * `updatedAt` is bumped to.
+ */
+export async function updateCreatorClientStatus(
+  db: Db,
+  brandId: string,
+  id: string,
+  status: string,
+  note: string | null,
+  actorId: string,
+): Promise<Creator | null> {
+  const now = new Date();
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creators,
+      {
+        clientStatus: status,
+        clientStatusUpdatedAt: now,
+        clientNote: note,
+        updatedBy: actorId,
+        updatedAt: now,
+      },
+      eq(creators.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

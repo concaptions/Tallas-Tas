@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
@@ -66,6 +66,22 @@ export const concepts = pgTable(
     productionStatus: text('production_status').$type<ConceptProductionStatus>(),
     internalStatus: text('internal_status').notNull().default(CONCEPT_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(CONCEPT_CLIENT_STATUS_DEFAULT),
+    /**
+     * When the client-status track last moved (Oct 5 Talal sync). Nullable: a row that was never
+     * stepped out of its starting state has no recorded move-moment, and the client-facing track's
+     * default is `pending_for_approval` on every concept. The timestamp is set by the shared
+     * `updateClientStatus` server action; nothing else touches it.
+     */
+    clientStatusUpdatedAt: timestamp('client_status_updated_at', { withTimezone: true }),
+    /**
+     * The short reason the strategist typed when they moved the client-status track (Oct 5 Talal
+     * sync). Nullable: a status change does not always carry a reason — the natural
+     * `pending_for_approval` → `approved` edge typically does not. The paste's "disapproved" state
+     * has no CLIENT_STATUS key (PRD §9: Pending for Approval → Approved / Revisions Needed →
+     * Launched); `revisions_needed` is the one state that reads it, so the shared dropdown
+     * requires a note only for that transition.
+     */
+    clientStatusNote: text('client_status_note'),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [

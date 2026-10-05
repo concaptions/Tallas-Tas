@@ -7,6 +7,7 @@ import {
   listCreators,
   listPartnershipCreators,
   updateCreator,
+  updateCreatorClientStatus,
   type CreatorInput,
   type CreatorListRow,
 } from './creators';
@@ -424,5 +425,46 @@ describe('the creator row type', () => {
     expectTypeOf<CreatorInput>().toHaveProperty('paymentDate');
     expectTypeOf<CreatorInput>().toHaveProperty('creatorInfoRequest');
     expectTypeOf<CreatorListRow>().toHaveProperty('slackNotified');
+  });
+});
+
+describe('updateCreatorClientStatus — the shared Oct 5 client-status writer', () => {
+  it('writes the key, the timestamp and the client note (reusing client_note) in one update', async () => {
+    const { db, brandId } = await seeded();
+
+    const [existing] = await listCreators(db, brandId);
+    if (existing === undefined) throw new Error('seeded creators are empty');
+
+    const before = new Date();
+    const saved = await updateCreatorClientStatus(
+      db,
+      brandId,
+      existing.id,
+      'disapproved',
+      'Wrong accent for the UK ads.',
+      'user_test',
+    );
+    if (saved === null) throw new Error('updateCreatorClientStatus returned null');
+
+    expect(saved.clientStatus).toBe('disapproved');
+    expect(saved.clientNote).toBe('Wrong accent for the UK ads.');
+    expect(saved.clientStatusUpdatedAt).not.toBeNull();
+    expect(saved.clientStatusUpdatedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+  });
+
+  it('refuses an id from another brand (scope guard)', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const [existing] = await listCreators(db, brandId);
+    if (existing === undefined) throw new Error('seeded creators are empty');
+
+    const saved = await updateCreatorClientStatus(
+      db,
+      otherBrandId,
+      existing.id,
+      'approved',
+      null,
+      'user_test',
+    );
+    expect(saved).toBeNull();
   });
 });

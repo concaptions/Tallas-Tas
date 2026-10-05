@@ -1460,3 +1460,42 @@ pre-existing storage lives on the OTHER side — `collections.copywriting_id` is
 so the Copywriting panel's Collection control writes `collections.copywriting_id` (one collection
 per copy; a copy currently can only be in one). Many-to-many would need a junction and is deferred
 until Talal asks.
+
+## 2026-10-05 — Client-status workflow vocabulary mapping (Oct 5 Talal sync, Agent 5)
+
+Oct 5 Talal sync asked for `pending_review / approved / revision_needed / disapproved` across the
+four tables that carry a client-status workflow — Concepts, Creative Sheet (`creative_briefs`),
+UGC Management (`creators`), Copywriting. The domain already owns three enums for these tracks:
+`CLIENT_STATUS` (concepts + creative_briefs), `CREATOR_STATUS` (creators), `COPY_STATUS`
+(copywriting). The paste's four values map onto them as:
+
+- `pending_review` → `pending_for_approval` on CLIENT_STATUS / CREATOR_STATUS; →
+  `pending_for_client_review` on COPY_STATUS.
+- `approved` → `approved` (every track).
+- `revision_needed` → `revisions_needed` (every track; the plural is the domain's spelling and
+  the paste's singular reads as a casing drift, not a different state).
+- `disapproved` → `disapproved` on CREATOR_STATUS and COPY_STATUS directly. CLIENT_STATUS does
+  NOT include `disapproved` — PRD §9 writes the client track as "Pending for Approval → Approved
+  / Revisions Needed → Launched" — so a client who disapproves a concept or a brief lands on
+  `revisions_needed` with a reason, and the terminal rejection the paste calls out is a creator-
+  or copy-only state. The CLIENT_STATUS test (`creative-status.test.ts`) pins the 4 keys to the
+  PRD; adding `disapproved` would need a PRD change, not a migration.
+
+Timestamp and note storage per table: `concepts.client_status_updated_at` + `client_status_note`
+(both new via migration 0050); `creative_briefs.client_status_updated_at` +
+`client_status_note` (new); `creators.client_status_updated_at` (new) + the existing
+`creators.client_note` (PRD §5.8); `copywriting.status_updated_at` (new; the column is `status`,
+not `client_status`, because copy has ONE track that is already client-facing — COPY_STATUS owns
+the vocabulary) + the existing `copywriting.client_comment` (PRD §5.11). All six new columns are
+NULLABLE with no default: a row that was created before this migration carries no recorded
+update-moment, which is honest.
+
+Writing goes through `updateClientStatus({ tableKey, recordId, newStatus, note })` in
+`apps/web/src/lib/client-status-actions.ts`, which dispatches to one of four single-purpose
+writers in `@tas/db`: `updateConceptClientStatus`, `updateBriefClientStatus`,
+`updateCreatorClientStatus`, `updateCopyStatus`. The dropdown and the badge are shared
+primitives (`packages/ui/src/status/client-status-badge.tsx` and
+`apps/web/src/components/status/client-status-dropdown.tsx`), each table's rendering just picks
+its vocabulary and its tone function. The badge and dropdown live in the DETAIL VIEW of each
+table, so the Concepts grid-column hide for Gratsi (AI-33 follow-up) does not hide the record
+page control; the Gratsi hidden row stays as it is.

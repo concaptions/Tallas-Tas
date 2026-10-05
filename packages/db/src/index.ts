@@ -50,6 +50,7 @@ export {
   listBriefsByConceptId,
   renameBrief,
   updateBrief,
+  updateBriefClientStatus,
 } from './briefs';
 export type { BriefInput, BriefListRow } from './briefs';
 export {
@@ -135,9 +136,15 @@ export type {
   CustomFieldSchemaListRow,
   PropagateCustomFieldResult,
 } from './custom-field-schemas';
-export { getConceptById, insertConcept, listConcepts, updateConcept } from './concepts';
+export {
+  getConceptById,
+  insertConcept,
+  listConcepts,
+  updateConcept,
+  updateConceptClientStatus,
+} from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
-export { getCopyById, insertCopy, listCopy, updateCopy } from './copy';
+export { getCopyById, insertCopy, listCopy, updateCopy, updateCopyStatus } from './copy';
 export type { CopyInput, CopyListRow } from './copy';
 export {
   getCreatorById,
@@ -145,6 +152,7 @@ export {
   listCreators,
   listPartnershipCreators,
   updateCreator,
+  updateCreatorClientStatus,
 } from './creators';
 export type { CreatorInput, CreatorListRow } from './creators';
 export {

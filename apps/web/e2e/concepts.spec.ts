@@ -387,6 +387,27 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     );
   });
 
+  test('the Oct 5 client-status badge and dropdown live in the detail view, not the grid', async ({
+    page,
+  }) => {
+    // The detail view always carries the shared badge + dropdown — even for Gratsi where the grid
+    // column is hidden (AI-33 follow-up). Here we assert that on a plain demo-mode detail page
+    // (Niagara/template) the section mounts, the badge shows one of the four CLIENT_STATUS keys,
+    // and the dropdown reveals a reason Textarea only after switching to Revisions Needed.
+    await page.goto(conceptPath(NOT_YOUR_AGE));
+
+    const section = page.locator('[data-slot="concept-client-status"]');
+    await expect(section).toBeVisible();
+    await expect(section.locator('[data-slot="status-chip"]').first()).toBeVisible();
+
+    const dropdown = section.locator('[data-slot="client-status-dropdown"]');
+    await expect(dropdown).toHaveAttribute('data-table-key', 'concepts');
+
+    // The reason Textarea is hidden until the chosen key is a note-required branch
+    // (revisions_needed). It is identified by the `client_status_note` name attribute.
+    await expect(section.locator('textarea[name="client_status_note"]')).toHaveCount(0);
+  });
+
   test('the rail lists the campaigns running on the concept, read-only, after the creatives', async ({
     page,
   }) => {

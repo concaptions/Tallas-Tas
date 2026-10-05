@@ -119,6 +119,14 @@ export const creators = pgTable(
       .notNull()
       .default(CREATOR_ASSETS_STATUS_DEFAULT),
     clientNote: text('client_note'),
+    /**
+     * When the client-status track last moved (Oct 5 Talal sync). Nullable: a row that was never
+     * stepped out of its starting state has no recorded move-moment. The CREATOR_STATUS vocabulary
+     * (`pending_for_approval`, `approved`, `revisions_needed`, `disapproved`, `due_shipment`,
+     * `filming_in_progress`, `video_delivered`, `draft`, `internal_revisions`) is the stored
+     * vocabulary; the shared `updateClientStatus` writer sets this column alongside `client_note`.
+     */
+    clientStatusUpdatedAt: timestamp('client_status_updated_at', { withTimezone: true }),
 
     // Partnership / whitelisted ads (PRD §5.8.1), fields of this same record.
     instagramUsername: text('instagram_username'),

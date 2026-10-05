@@ -180,6 +180,36 @@ export async function updateBrief(
 }
 
 /**
+ * Moves one brief's CLIENT-STATUS track in one write (Oct 5 Talal sync). Shaped the same way as
+ * `updateConceptClientStatus`: a single-purpose writer the shared `updateClientStatus` server
+ * action dispatches to, keeping `client_status_updated_at` in step with `updatedAt`.
+ */
+export async function updateBriefClientStatus(
+  db: Db,
+  brandId: string,
+  id: string,
+  status: string,
+  note: string | null,
+  actorId: string,
+): Promise<CreativeBrief | null> {
+  const now = new Date();
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creativeBriefs,
+      {
+        clientStatus: status,
+        clientStatusUpdatedAt: now,
+        clientStatusNote: note,
+        updatedBy: actorId,
+        updatedAt: now,
+      },
+      eq(creativeBriefs.id, id),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
  * All live briefs in the brand that belong to a concept — the rows whose name must be recomputed
  * when the concept's own name changes. Returns raw rows (no inherited joins) because the caller
  * only needs the fields the naming formula reads.

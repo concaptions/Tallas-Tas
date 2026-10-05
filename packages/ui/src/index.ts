@@ -74,6 +74,7 @@ export {
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 export { Textarea } from './components/textarea';
 
+export { ClientStatusBadge, type ClientStatusBadgeProps } from './status/client-status-badge';
 export { SoonChip, type SoonChipProps } from './status/soon-chip';
 export { StatusChip, type StatusChipProps } from './status/status-chip';
 export { StepRow, type StepRowProps } from './status/step-row';

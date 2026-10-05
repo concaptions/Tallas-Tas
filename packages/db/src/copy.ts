@@ -159,3 +159,35 @@ export async function updateCopy(
     .returning();
   return row ?? null;
 }
+
+/**
+ * Moves one copy row's `status` track in one write (Oct 5 Talal sync). Named after the COLUMN
+ * (`status`), not after the shape ("client status"), because copy has one track that is already
+ * client-facing — COPY_STATUS owns the vocabulary, including the distinct `revisions_needed` and
+ * `disapproved` terminal — and the schema column is `status`. The `note` writes to the EXISTING
+ * `client_comment` column; a parallel note column would be a second notepad to keep in step.
+ */
+export async function updateCopyStatus(
+  db: Db,
+  brandId: string,
+  id: string,
+  status: string,
+  note: string | null,
+  actorId: string,
+): Promise<Copy | null> {
+  const now = new Date();
+  const [row] = await withBrand(db, brandId)
+    .update(
+      copywriting,
+      {
+        status,
+        statusUpdatedAt: now,
+        clientComment: note,
+        updatedBy: actorId,
+        updatedAt: now,
+      },
+      eq(copywriting.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

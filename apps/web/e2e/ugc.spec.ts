@@ -140,6 +140,23 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
   });
 
+  test('the Oct 5 client-status badge + dropdown mount in the creator panel', async ({ page }) => {
+    await page.goto(ugcPath);
+    await page.locator('[data-slot="creator-row"]').filter({ hasText: DANIELLE }).click();
+
+    const section = page.locator('[data-slot="creator-client-status"]');
+    await expect(section).toBeVisible();
+    await expect(section.locator('[data-slot="status-chip"]').first()).toBeVisible();
+
+    const dropdown = section.locator('[data-slot="client-status-dropdown"]');
+    await expect(dropdown).toHaveAttribute('data-table-key', 'creators');
+
+    // CREATOR_STATUS has `disapproved` AND `revisions_needed` as distinct terminals (unlike
+    // CLIENT_STATUS). The Textarea is hidden until the chosen key is a note-required branch;
+    // the panel opens on `approved` for Danielle, so the Textarea is not shown.
+    await expect(section.locator('textarea[name="client_status_note"]')).toHaveCount(0);
+  });
+
   test('falls back to initials for the creator with no headshot, never a broken image', async ({
     page,
   }) => {

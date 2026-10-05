@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Button,
+  ClientStatusBadge,
   DEMO_WRITE_HINT,
   disabledWriteClassName,
   DisabledWrite,
@@ -16,6 +17,9 @@ import {
   StatusChip,
   Textarea,
 } from '@tas/ui';
+import { CREATOR_STATUS, creatorStatusTone } from '@tas/domain/state';
+
+import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
 
 import { LinkField } from '@/components/links/link-field';
 
@@ -412,6 +416,30 @@ export function CreatorPanel({
                   clientChoices,
                 )}
                 {textareaField('clientNote', "Client's Note", creator.clientNote)}
+              </div>
+              {/*
+                Oct 5 client-status workflow (Agent 5): a one-click status + reason shortcut that
+                writes through the shared `updateClientStatus` action, in addition to the full
+                form above. The reason Textarea gates on `revisions_needed` / `disapproved` —
+                CREATOR_STATUS has both terminals.
+              */}
+              <div
+                className="flex flex-col gap-2 border-t border-line pt-3"
+                data-slot="creator-client-status"
+              >
+                <span className="text-xs font-medium text-text2">Oct 5 one-click workflow</span>
+                <ClientStatusBadge
+                  vocabulary={CREATOR_STATUS}
+                  value={creator.clientStatus}
+                  toneFor={creatorStatusTone}
+                />
+                <ClientStatusDropdown
+                  tableKey="creators"
+                  recordId={creator.id}
+                  currentStatus={creator.clientStatus}
+                  currentNote={creator.clientNote ?? null}
+                  disabled={demo}
+                />
               </div>
             </section>
 

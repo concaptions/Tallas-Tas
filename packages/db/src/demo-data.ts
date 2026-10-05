@@ -730,7 +730,7 @@ const ninetyMinutes = demoAngle(ANGLE_NINETY_MINUTES_ID);
  * The array is in `updated_at` descending order, the order `listConcepts` returns, so a test can
  * compare the two directly. The oldest batch has travelled furthest down the internal track.
  */
-export const demoConcepts: ConceptListRow[] = [
+export const demoConcepts = [
   {
     ...propagationBase(
       CONCEPT_NOT_YOUR_AGE_ID,
@@ -871,7 +871,11 @@ export const demoConcepts: ConceptListRow[] = [
     formatsToCreate: [],
     productionStatus: null,
   },
-];
+].map((row) => ({
+  ...row,
+  clientStatusUpdatedAt: null,
+  clientStatusNote: null,
+})) as ConceptListRow[];
 
 /** One seeded concept by id, past `noUncheckedIndexedAccess`; the briefs below are built on these. */
 function demoConcept(id: string): ConceptListRow {
@@ -1085,7 +1089,7 @@ const ninetyMinutesConcept = demoConcept(CONCEPT_NINETY_MINUTES_ID);
  * type. The array is in `updated_at` descending order, the order `listBriefs` returns, so a test can
  * compare the two directly.
  */
-export const demoBriefs: BriefListRow[] = [
+export const demoBriefs = [
   {
     ...propagationBase(
       BRIEF_BODY_CLOCK_VIDEO_ID,
@@ -1482,7 +1486,7 @@ export const demoBriefs: BriefListRow[] = [
     launchedAt: null,
     launchPriority: null,
   },
-];
+].map((row) => ({ ...row, clientStatusUpdatedAt: null, clientStatusNote: null })) as BriefListRow[];
 
 /** One seeded brief by id, past `noUncheckedIndexedAccess`; the copy rows below are tied to these. */
 function demoBrief(id: string): BriefListRow {
@@ -1517,7 +1521,7 @@ function demoBrief(id: string): BriefListRow {
  * `updated_at` descending order, the order `listCopy` returns, so a test can compare the two
  * directly.
  */
-export const demoCopy: CopyListRow[] = [
+export const demoCopy = [
   {
     ...propagationBase(COPY_BODY_CLOCK_ID, '2026-09-01T10:15:00.000Z', '2026-09-16T11:20:00.000Z'),
     brandId: DEMO_BRAND_ID,
@@ -1624,7 +1628,7 @@ export const demoCopy: CopyListRow[] = [
     clickForAiSpellChecker: false,
     spellingFeedback: null,
   },
-];
+].map((row) => ({ ...row, statusUpdatedAt: null })) as CopyListRow[];
 
 /**
  * The instant every partnership countdown in the demo is measured from.
@@ -1695,7 +1699,7 @@ function initialsAvatar(initials: string): string {
  * Money is whole US dollars (`schema/creators.ts`). The array is in `updated_at` descending order,
  * the order `listCreators` returns, so a test can compare the two directly.
  */
-export const demoCreators: CreatorListRow[] = [
+export const demoCreators = [
   {
     ...propagationBase(CREATOR_DANIELLE_ID, '2026-06-18T13:20:00.000Z', '2026-09-16T11:40:00.000Z'),
     brandId: DEMO_BRAND_ID,
@@ -1933,7 +1937,7 @@ export const demoCreators: CreatorListRow[] = [
     partnershipEndedAt: null,
     requiresAttention: false,
   },
-];
+].map((row) => ({ ...row, clientStatusUpdatedAt: null })) as CreatorListRow[];
 
 /**
  * The §5.8.1 list: the three creators marked for partnership ads, in the same `updated_at`
