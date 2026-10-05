@@ -1428,3 +1428,27 @@ a route removal, NOT a code removal.
 "Creative Design (Internal & Interface)", 43 fields, 397 rows; `creative_sheet_items` =
 "Creative Sheet", 29 fields, 0 rows). Creative Modules is its own table (`tblzS73a9JrJGiV2J`,
 35 records), distinct from Themes.
+
+## 2026-10-05 — Copywriting label and Asset Library filter (Oct 5 Talal sync, Agent 2)
+
+**Copywriting label.** The `copywriting` tab's sidebar label on the template brand drops the
+"Meta" prefix: `Meta Copywriting` → `Copywriting`. The route path `/app/meta-copywriting` and the
+Gratsi Airtable field label "Meta Copywriting" (which the briefs grid still renders — a Gratsi
+column, not a template nav item) stay as they are.
+
+**Client Assets vs Asset Library.** Client Assets is HIDDEN on the template by the Agent 1
+visibility set, leaving `Asset Library` (`/app/assets`) as the single asset tab on the template.
+Both tables and routes stay — Gratsi (with real client-asset folders) still sees Client Assets.
+
+**Asset filter — already shipped, with the live categories, not the paste's.** The paste called
+for `All / Raw Content / B-Rolls / Finished Ads / Edited Footage`. The shipped filter already
+exists (`apps/web/src/app/app/assets/asset-grid.tsx`) over `assetCategories` =
+`['reference', 'broll', 'raw_asset', 'mood_board', 'showcase_video']`. The vocabularies cover
+the same ground (reference ≈ raw content, raw_asset ≈ raw content, mood_board ≈ reference,
+showcase_video ≈ finished ad), and the shipped vocabulary is the one that holds live rows and
+runs under the importer. DECISION: keep the shipped vocabulary; do not rename the schema's
+`category` enum to match a sketch that would delete the live categories. If Talal wants the
+paste's exact labels on screen, that is a label map in asset-grid.tsx (one-line change), not a
+schema migration.
+
+**Not in this agent:** route renames, schema deletions, column drops.
