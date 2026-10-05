@@ -1499,3 +1499,26 @@ primitives (`packages/ui/src/status/client-status-badge.tsx` and
 its vocabulary and its tone function. The badge and dropdown live in the DETAIL VIEW of each
 table, so the Concepts grid-column hide for Gratsi (AI-33 follow-up) does not hide the record
 page control; the Gratsi hidden row stays as it is.
+
+## 2026-10-06 — Oct 5 sprint applied to prod (migrations 0049 + 0050)
+
+Migrations 0049 (`creative_briefs.brief_number` + brand index) and 0050 (`client_status_updated_at`
++ `client_status_note` on concepts and creative_briefs; `client_status_updated_at` on creators;
+`status_updated_at` on copywriting) applied against prod via `migrate-prod --apply` after a clean
+dry-run. All seven new columns are nullable; no data moved. Row/junction counts match the Oct 4
+overnight baseline on every content and junction table. `verify-rollout` 20/20.
+
+Prod state at push:
+
+- `creative_briefs.brief_number`: integer nullable, with `creative_briefs_brand_brief_number_idx`
+  over `(brand_id, brief_number)` — new briefs allocate under a per-brand advisory lock.
+- `concepts.client_status_updated_at`, `concepts.client_status_note`: timestamptz / text, both
+  nullable.
+- `creative_briefs.client_status_updated_at`, `creative_briefs.client_status_note`: same.
+- `creators.client_status_updated_at`: timestamptz nullable. The note reuses the shipped
+  `client_note` column (CLIENT_STATUS lives on the existing `client_status` field).
+- `copywriting.status_updated_at`: timestamptz nullable. The note reuses the shipped
+  `client_comment`; copywriting's single track is already client-facing (COPY_STATUS).
+
+The hardened 0049 (information_schema guard) replaces the generator's bare `ADD COLUMN` so a
+re-run never errors.
