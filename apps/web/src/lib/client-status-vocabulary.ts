@@ -30,10 +30,11 @@ export function clientStatusVocabulary(tableKey: ClientStatusTableKey): readonly
 }
 
 /**
- * The statuses whose decision must carry a reason. `revisions_needed` (every table) and
- * `disapproved` (creators + copywriting; not a member of CLIENT_STATUS, so concepts/briefs
- * cannot ever reach it): the dropdown shows the Textarea only here, and the server rejects a
- * blank one. Everywhere else the note is optional and may be null.
+ * The statuses whose decision must carry a reason. `revisions_needed` and `disapproved` on every
+ * table that carries them (Oct 6 Talal ruling added `disapproved` to CLIENT_STATUS; see
+ * `docs/decisions.md` 2026-10-07, which supersedes the Oct 5 mapping that routed disapproved onto
+ * revisions_needed for concepts and briefs). The dropdown shows the Textarea only on these keys,
+ * and the server rejects a blank one. Everywhere else the note is optional and may be null.
  */
 export const NOTE_REQUIRED_STATUSES: readonly string[] = ['revisions_needed', 'disapproved'];
 

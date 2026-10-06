@@ -121,11 +121,12 @@ describe('clientQueueRows', () => {
 });
 
 describe('clientQueueColumns', () => {
-  it('is CLIENT_STATUS in PRD §9 order with launched removed', () => {
+  it('is CLIENT_STATUS in PRD §9 order with launched removed, disapproved included (Oct 6 Talal ruling)', () => {
     expect(clientQueueColumns().map((column) => column.key)).toEqual([
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'disapproved',
     ]);
   });
 
@@ -139,11 +140,12 @@ describe('clientQueueColumns', () => {
     }
   });
 
-  it('leaves CLIENT_STATUS itself untouched, launched included', () => {
+  it('leaves CLIENT_STATUS itself untouched, launched included and disapproved after revisions_needed', () => {
     expect(CLIENT_STATUS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'disapproved',
       'launched',
     ]);
   });
@@ -175,12 +177,13 @@ describe('clientQueueColumnEntry', () => {
 });
 
 describe('groupByClientStatus', () => {
-  it('puts the seeded briefs in 2 Pending for Approval, 1 Approved and 0 Revisions Needed', () => {
+  it('puts the seeded briefs in the four columns with disapproved empty (Oct 6 ruling)', () => {
     const columns = groupByClientStatus(demoRows);
     expect(columns.map((column) => [column.key, column.count])).toEqual([
       ['pending_for_approval', 2],
       ['approved', 1],
       ['revisions_needed', 0],
+      ['disapproved', 0],
     ]);
     expect(columns[0]?.rows.map((entry) => entry.id)).toEqual(['0', '3']);
     expect(columns[1]?.rows.map((entry) => entry.id)).toEqual(['4']);
@@ -190,6 +193,13 @@ describe('groupByClientStatus', () => {
     const columns = groupByClientStatus([row('sent-back', 'approved', 'revisions_needed')]);
     const revisions = columns.find((column) => column.key === 'revisions_needed');
     expect(revisions?.rows.map((entry) => entry.id)).toEqual(['sent-back']);
+    expect(columns.map((column) => column.key)).not.toContain(QUEUE_OTHER_COLUMN.key);
+  });
+
+  it('keeps a Disapproved row on the board: the client rejected it, the record stays visible (Oct 6)', () => {
+    const columns = groupByClientStatus([row('rejected', 'approved', 'disapproved')]);
+    const disapproved = columns.find((column) => column.key === 'disapproved');
+    expect(disapproved?.rows.map((entry) => entry.id)).toEqual(['rejected']);
     expect(columns.map((column) => column.key)).not.toContain(QUEUE_OTHER_COLUMN.key);
   });
 
@@ -207,6 +217,7 @@ describe('groupByClientStatus', () => {
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'disapproved',
     ]);
     expect(columns.every((column) => column.count === 0)).toBe(true);
   });
@@ -355,7 +366,13 @@ describe('clientQueueActionsFor — only the controls that can succeed', () => {
 
   it('never offers a move canTransitionClient would refuse', () => {
     const internals = ['approved', 'launched', 'ad_submitted'];
-    const clients = ['pending_for_approval', 'approved', 'revisions_needed', 'launched'];
+    const clients = [
+      'pending_for_approval',
+      'approved',
+      'revisions_needed',
+      'disapproved',
+      'launched',
+    ];
     for (const internal of internals) {
       for (const client of clients) {
         for (const action of clientQueueActionsFor(internal, client)) {

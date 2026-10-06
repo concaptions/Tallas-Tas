@@ -26,8 +26,12 @@ import { briefPath, clientQueuePath, propagationPath } from '../src/lib/routes';
  * that deliberately, and the counts below are the ones the fixtures actually produce.
  */
 
-/** `CLIENT_STATUS` in PRD §9 order with `launched` removed — what `clientQueueColumns()` returns. */
-const COLUMNS_IN_ORDER = ['Pending for Approval', 'Approved', 'Revisions Needed'];
+/**
+ * `CLIENT_STATUS` in PRD §9 order with `launched` removed — what `clientQueueColumns()` returns.
+ * The Oct 6 Talal ruling added `disapproved` as a client-track terminal (see
+ * `docs/decisions.md` 2026-10-07), so it is a column too, sitting after Revisions Needed.
+ */
+const COLUMNS_IN_ORDER = ['Pending for Approval', 'Approved', 'Revisions Needed', 'Disapproved'];
 
 /** The three fixtures PRD §9's gate lets through, with the column each one lands in. */
 const ON_BOARD = [

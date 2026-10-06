@@ -392,8 +392,8 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
   }) => {
     // The detail view always carries the shared badge + dropdown — even for Gratsi where the grid
     // column is hidden (AI-33 follow-up). Here we assert that on a plain demo-mode detail page
-    // (Niagara/template) the section mounts, the badge shows one of the four CLIENT_STATUS keys,
-    // and the dropdown reveals a reason Textarea only after switching to Revisions Needed.
+    // (Niagara/template) the section mounts, the badge shows one of the CLIENT_STATUS keys,
+    // and the dropdown reveals a reason Textarea only after switching to a note-required branch.
     await page.goto(conceptPath(NOT_YOUR_AGE));
 
     const section = page.locator('[data-slot="concept-client-status"]');
@@ -404,8 +404,28 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(dropdown).toHaveAttribute('data-table-key', 'concepts');
 
     // The reason Textarea is hidden until the chosen key is a note-required branch
-    // (revisions_needed). It is identified by the `client_status_note` name attribute.
+    // (revisions_needed / disapproved). It is identified by the `client_status_note` name attribute.
     await expect(section.locator('textarea[name="client_status_note"]')).toHaveCount(0);
+  });
+
+  // Oct 6 Talal ruling (docs/decisions.md 2026-10-07): `disapproved` is now a CLIENT_STATUS
+  // terminal. The design-system badges story renders every CLIENT_STATUS entry as its own chip,
+  // so this is an end-to-end assertion that the vocabulary carries the new key and `bad` tone
+  // through SSR into the DOM — a check the demo-mode dropdown cannot make since its Select is
+  // disabled (Save-is-off), so the Radix portal of options never mounts.
+  test('the design-system badges story renders Disapproved for CLIENT_STATUS (Oct 6 ruling)', async ({
+    page,
+  }) => {
+    await page.goto('/design-system');
+    const clientStatusBadges = page
+      .locator('text=/CLIENT_STATUS — concepts and creative briefs/')
+      .locator('..')
+      .locator('[data-slot="status-chip"]');
+    await expect(clientStatusBadges.filter({ hasText: 'Disapproved' })).toHaveCount(1);
+    await expect(clientStatusBadges.filter({ hasText: 'Disapproved' })).toHaveAttribute(
+      'data-tone',
+      'bad',
+    );
   });
 
   test('the rail lists the campaigns running on the concept, read-only, after the creatives', async ({
