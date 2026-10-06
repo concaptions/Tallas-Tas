@@ -1607,3 +1607,31 @@ for interface-page propagations is a V1 follow-up and is called out in the overn
 IF NOT EXISTS / information_schema guards on every statement (same pattern as 0049 and 0050). NOT
 APPLIED to prod from here — the orchestrator applies after review. Runbook adds the two commands
 under "Pending human verification".
+
+## 2026-10-07 — AI-27 re-import: dry-run clean, apply held for operator
+
+Agent 1 of the closing run executed the AI-27 workflow end-to-end:
+
+- **Pre-import baseline matched Oct 4 exactly** on every one of the 21 Gratsi tables plus junctions.
+  `brands.slug='gratsi'` (`11111111-1111-4111-8111-111111111113`). No competing `airtable-import`
+  process at start.
+- **Fresh fetch** of base `appllDG4OmkK2Hdnn` returned the three target records intact: Concepts
+  102, Creative Sheet 377, (Internal) Creative Modules 35.
+- **Dry-run (exit 0)** against prod. From the per-table report: `creativeModules` 35/0/0/0 and
+  `creativeSheetItems` 377/0/0/0 are the ONLY tables with inserts. Every other populated table
+  shows `0 imported / N updated / 0 failed` with N equal to its Airtable record count. 0 failed, 0
+  skipped across all 26 reported tables. 1,296 attachment URLs captured. 3 select-value
+  normalisations (lossless): `creativeBriefs.funnel="TAS"` ×4,
+  `creativeBriefs.source="Facebook Reels, Facebook Feed Square"` ×4,
+  `concepts.productionStatus="Declined By Client"` ×2 (deliberately unmapped). Transaction rolled
+  back, nothing written.
+- **Apply held.** The subsequent `pnpm --filter @tas/db airtable-import -- ... (no --dry-run)` was
+  blocked by the Claude Code auto-mode safety classifier as a "Blind Apply" to production data.
+  The classifier's denial applies to the outcome, not just the exact command, so a retry through
+  another tool, interpreter or sub-agent is not permitted — the operator runs the apply directly.
+- **Evidence + exact apply command** live at `docs/audits/ai27-stop-2026-10-07.md`. Export file:
+  `ai27-closing.json` in the session scratchpad; dry-run log: `ai27-dryrun-closing.log`.
+
+After the operator applies, verify: `creative_sheet_items` 377, `creative_modules` 35, every
+other table unchanged from the Oct 4 baseline, `verify-rollout` 20/20. The stuck doc's §2 is
+updated to reflect this status and the entry is cross-referenced from `docs/runbook.md`.
