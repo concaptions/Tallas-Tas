@@ -1,11 +1,19 @@
-import { canSeePropagationPage } from '@tas/domain';
+import {
+  CUSTOM_PAGE_SOURCE_TABLE_KEYS,
+  canConfigureInterface,
+  canSeePropagationPage,
+  type CustomPageSourceTableKey,
+} from '@tas/domain';
 
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadInterfaceConfig } from '@/lib/interface-config-source';
+import { loadCustomPagesSnapshot } from '@/lib/interface-config-pages-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { parentColumnsFor } from '@/lib/resolved-columns-source';
 import { currentTeamActor } from '@/lib/team-actor';
 import { loadTeam } from '@/lib/team-source';
 
+import { CustomPagesSection } from './custom-pages-section';
 import {
   INTERFACE_CONFIG_ADMIN_NOTE,
   INTERFACE_CONFIG_ENFORCEMENT_NOTE,
@@ -13,6 +21,7 @@ import {
   conceptPreview,
 } from './fields';
 import { InterfaceConfigWorkspace } from './interface-config-workspace';
+import { TabVisibilitySection } from './tab-visibility-section';
 
 /**
  * Interface Config (PRD §10): "the interface must be configurable per client, at two levels —
@@ -69,24 +78,87 @@ function NotAdmin() {
 }
 
 export default async function InterfaceConfigPage() {
-  const [{ rows }, { rows: concepts }, { rows: team }] = await Promise.all([
+  const [{ rows }, { rows: concepts }, { rows: team }, snapshot] = await Promise.all([
     loadInterfaceConfig(),
     loadConcepts(),
     loadTeam(),
+    loadCustomPagesSnapshot(),
   ]);
 
-  if (!canSeePropagationPage(await currentTeamActor(team))) {
+  const actor = await currentTeamActor(team);
+  // Admin-only sections (page save, shipped PRD §10 config) use the stricter rule, same as before;
+  // Admin + CSM may use the two Oct 6/7 sections below. Oct 6/7 Agent 4 widened the surface — the
+  // original shipped page already enforced strict Admin, and this preserves that for its payload.
+  if (!canSeePropagationPage(actor)) {
     return <NotAdmin />;
   }
+  const canConfigureNew = canConfigureInterface(actor);
 
   const demo = isDemoMode();
   const newest = concepts[0];
 
+  const resolverColumnsByTable = CUSTOM_PAGE_SOURCE_TABLE_KEYS.reduce(
+    (acc, key) => {
+      acc[key] = parentColumnsFor(key).map((col) => ({
+        columnKey: col.columnKey,
+        displayLabel: col.displayLabel,
+      }));
+      return acc;
+    },
+    {} as Record<CustomPageSourceTableKey, readonly { columnKey: string; displayLabel: string }[]>,
+  );
+
   return (
-    <InterfaceConfigWorkspace
-      rows={rows}
-      demo={demo}
-      concept={newest === undefined ? null : conceptPreview(newest)}
-    />
+    <div className="flex flex-col gap-8">
+      <InterfaceConfigWorkspace
+        rows={rows}
+        demo={demo}
+        concept={newest === undefined ? null : conceptPreview(newest)}
+      />
+      <TabVisibilitySection
+        brandId={snapshot.brandId}
+        templateRows={snapshot.tabVisibility
+          .filter((row) => row.brandId === snapshot.brandId)
+          .map((row) => ({
+            brandId: row.brandId,
+            tabKey: row.tabKey as never,
+            isVisible: row.isVisible,
+            sortOrder: row.sortOrder,
+          }))}
+        brandRows={[]}
+        demo={demo}
+        disabled={!canConfigureNew}
+      />
+      <CustomPagesSection
+        brandId={snapshot.brandId}
+        templatePages={snapshot.templatePages.map((row) => ({
+          id: row.id,
+          brandId: row.brandId,
+          slug: row.slug,
+          title: row.title,
+          sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
+          filterConfig: row.filterConfig,
+          columnConfig: row.columnConfig,
+          sortOrder: row.sortOrder,
+          isVisible: row.isVisible,
+          isInherited: row.isInherited,
+        }))}
+        brandPages={snapshot.brandPages.map((row) => ({
+          id: row.id,
+          brandId: row.brandId,
+          slug: row.slug,
+          title: row.title,
+          sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
+          filterConfig: row.filterConfig,
+          columnConfig: row.columnConfig,
+          sortOrder: row.sortOrder,
+          isVisible: row.isVisible,
+          isInherited: row.isInherited,
+        }))}
+        resolverColumnsByTable={resolverColumnsByTable}
+        demo={demo}
+        disabled={!canConfigureNew}
+      />
+    </div>
   );
 }
