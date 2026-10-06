@@ -120,6 +120,34 @@ export const PROPAGATION_ADMIN_NOTE =
   'and an agency admin approves or rejects it here — nothing is promoted automatically.';
 
 /**
+ * Who may configure the client interface (`/app/interface-config`).
+ *
+ * Oct 6/7 Talal ruling: this surface is wider than `canSeePropagationPage` on purpose — a CSM owns
+ * the client relationship (§11: "they work across the whole client base"), so curating which pages
+ * and tabs that client reaches is part of their day. An Admin keeps the ability as the superset of
+ * everyone else. Everybody else — strategist, editor, designer, media buyer, client, member —
+ * stays out.
+ *
+ * The existing `canSeePropagationPage` continues to gate the TEMPLATE write (approving a
+ * propagation request writes the parent every brand inherits), which is why that rule stays
+ * strictly Admin and this one widens by one role; the two decisions disagree deliberately.
+ */
+export function canConfigureInterface(actor: TeamPageActor | null | undefined): boolean {
+  if (!actor) {
+    return false;
+  }
+  if (actor.agencyRole === 'admin') {
+    return true;
+  }
+  return actor.brandRoles?.includes('csm') ?? false;
+}
+
+/** What a reader who fails `canConfigureInterface` is told, in the same voice as the siblings above. */
+export const INTERFACE_CONFIG_NOT_PERMITTED_NOTE =
+  'Only an agency Admin or a Client Success Manager can change which pages and tabs the client ' +
+  'interface shows.';
+
+/**
  * The extra sentence demo mode appends, where there is no identity provider to ask. It says the
  * check is STUBBED rather than absent, because the check does still run: the page hands
  * `DEMO_TEAM_ACTOR` to `canSeePropagationPage` and gets a real answer from a stand-in actor.

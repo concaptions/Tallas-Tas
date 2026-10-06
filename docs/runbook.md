@@ -83,6 +83,16 @@ Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PA
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Interface-config schema (2026-10-07, Oct 6/7 Agent 4) · apply migration
+  `0051_interface-config` to production before deploying the admin UI that reads
+  `custom_interface_pages` / `interface_tab_visibility`:
+  `pnpm --filter @tas/db migrate-prod -- --dry-run` then
+  `pnpm --filter @tas/db migrate-prod -- --apply`. Then seed the four standard-tab
+  defaults for the template brand:
+  `pnpm --filter @tas/db seed-interface-config -- --apply`.
+  Both tables are verified on PGlite by the full suite; neither has been applied
+  to Neon from here. The migration adds two tables and six indexes; nothing is
+  dropped and existing data is untouched.
 - GRATSI-MATCH links cluster (2026-10-04) · apply the reconciled column seed to production so
   Gratsi's six grids (angles, creative_briefs, concepts, products, creators, creative_reporting)
   resolve the live base's own sets: `pnpm --filter @tas/db seed-columns -- --apply`, then

@@ -23,6 +23,7 @@ export * from './creators';
 export * from './enums';
 export * from './health-check';
 export * from './interface-config';
+export * from './custom-interface-pages';
 export * from './junction-tables';
 export * from './memberships';
 export * from './notification-log';

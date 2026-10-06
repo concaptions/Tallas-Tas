@@ -1556,3 +1556,54 @@ the client-queue page's `fields.test.ts` (tone list pinned to include `bad`), an
 shared dropdown's options list, the badge's tone wiring, the server action's enum validator, and
 the required-note predicate all resolve against `CLIENT_STATUS` and
 `NOTE_REQUIRED_STATUSES`-intersected-with-the-vocabulary, so adding the key cascades through.
+
+## 2026-10-07 — Interface config: custom pages + standard-tab visibility (overnight Agent 4)
+
+Oct 6/7 overnight sprint adds two new tables and a sibling admin surface to the shipped
+`/app/interface-config` route (which covers PRD §10's five pages and their field flags, unchanged).
+
+**What ships.** Two migrations and schema modules, one domain module, two admin UI sections, one
+client-portal route, and the propagation helper that pushes a template page to every live child
+brand. Zero changes to existing routes, seeds, column_definitions rows or Gratsi data.
+
+**Why `custom_interface_pages` is separate from the shipped `interface_pages`.** The shipped table
+keys on `pageKey ∈ interfacePageKeys` (the five fixed PRD §10 pages) and stores whether each is
+enabled per brand. The custom-pages table carries arbitrary filtered views of any source table,
+with `slug`, `filter_config`, and `column_config` — the shapes are different, so one table would
+blur one data contract across two product concepts. They sit beside each other instead; the
+sidebar and nav merge the two reads at render time via the two new `@tas/domain` helpers.
+
+**Non-negotiable 10 enforcement on the custom-page route.** Three guards, together:
+1. Hidden pages (`is_visible = false`) and soft-deleted pages 404.
+2. `source_table_key` is pinned to a six-table allow-list (`CUSTOM_PAGE_SOURCE_TABLE_KEYS`), and
+   `loadCustomPageRows` refuses anything else. Themes is deliberately out — it is the global
+   library, not per-brand content.
+3. Columns the renderer draws come from `parentColumnsFor(sourceTableKey)` narrowed by
+   `column_config`; the resolver's own hide-list (which Oct 5 Gratsi-match and the overnight runs
+   control per brand) decides what the client sees, so a column_config pick that names a resolver-
+ hidden column is dropped by `intersectCustomPageColumns`.
+
+**Access scope.** `canConfigureInterface(actor)` admits Admin + CSM — intentionally wider than
+`canSeePropagationPage` (strictly Admin). A CSM owns the client relationship per PRD §11 and
+curating the client surface is part of their day. The shipped PRD §10 save path stays strictly
+Admin: approving a propagation request writes the parent template every brand inherits, which is
+narrower on purpose.
+
+**Default seed.** Two template custom pages (`brand_id IS NULL`) shipped by
+`seed-interface-config` mirror the shipped internal/client queue routes — `/internal-queue` (filter
+`internal_status is_not_empty`) and `/client-queue` (filter
+`client_status is pending_for_approval`). They live beside `/app/queue/internal` and
+`/app/queue/client` as the client-portal mirror, not a replacement.
+
+**Propagation.** `propagateCustomInterfacePageToChildren` is template → child, not child →
+template: when an admin clicks "Push to all clients" on a template-row card, every live
+non-template child gets a fresh inherited row OR an existing inherited row updated in place; a
+child row with `is_inherited = false` is honoured and left alone (child customised, propagation
+respects it, same contract as `column_definitions.is_detached`). The shipped
+`promotion_requests` table + Admin review surface stay as they are — adding a reviewed-queue flow
+for interface-page propagations is a V1 follow-up and is called out in the overnight report.
+
+**Migration status.** `0051_interface-config.sql` is generated under `packages/db/drizzle/` with
+IF NOT EXISTS / information_schema guards on every statement (same pattern as 0049 and 0050). NOT
+APPLIED to prod from here — the orchestrator applies after review. Runbook adds the two commands
+under "Pending human verification".

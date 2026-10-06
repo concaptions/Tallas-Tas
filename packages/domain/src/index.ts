@@ -10,6 +10,7 @@ export * from './copy/index';
 export * from './creators/index';
 export * from './team/index';
 export * from './interface/index';
+export * from './interface-config/index';
 export * from './notifications/index';
 export * from './propagation/index';
 export * from './onboard/index';
