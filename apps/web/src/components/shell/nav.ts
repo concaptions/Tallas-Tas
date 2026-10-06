@@ -142,13 +142,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         href: clientAssetsPath,
       },
       { key: 'assets', label: 'Asset Library', icon: 'assets', emoji: '🗂️', href: assetsPath },
-      {
-        key: 'upload-links',
-        label: 'Upload Links',
-        icon: 'upload-links',
-        emoji: '🔗',
-        href: uploadLinksPath,
-      },
     ],
   },
   {
@@ -287,6 +280,17 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         icon: 'notifications',
         href: notificationsPath,
       },
+      // Upload Links relocated here on 2026-10-06/07 (docs/decisions.md "Oct 6/7 Upload Links →
+      // Settings"). The management surface is Settings-level now, not a Production tab, so no
+      // brand's sidebar lists it as a top-level nav section. The data (`upload_links` table), the
+      // route (`/app/upload-links`) and any public upload URL remain untouched.
+      {
+        key: 'upload-links',
+        label: 'Upload Links',
+        icon: 'upload-links',
+        emoji: '🔗',
+        href: uploadLinksPath,
+      },
       { key: 'propagation', label: 'Propagation', icon: 'propagation', href: propagationPath },
       {
         key: 'column-admin',
@@ -346,9 +350,13 @@ export function navGroupsForRole(role: ViewerRole | null | undefined): readonly 
  * table rows, routes, seeds and child-brand visibility are UNTOUCHED by this; the template brand
  * only shows what the TAS team authors on the TAS template itself, and the tables these keys name
  * are either client-only data (Email Campaigns, Email Flows, SM Campaign Feed, Creative Reporting,
- * Creative Modules, Ads by Creator Ranking, …) or waiting on their own sprint (Performance,
- * Upload Links). `briefs` = "Creative Design (Internal & Interface)" lives on the client bases
- * where its 397 Gratsi rows are — hidden here, visible on Gratsi.
+ * Creative Modules, Ads by Creator Ranking, …) or waiting on their own sprint (Performance).
+ * `briefs` = "Creative Design (Internal & Interface)" lives on the client bases where its 397
+ * Gratsi rows are — hidden here, visible on Gratsi.
+ *
+ * `upload-links` is NOT in this set as of 2026-10-06/07: the Upload Links management surface was
+ * relocated to the Settings group (docs/decisions.md), so the template hide is no longer needed —
+ * no brand lists upload-links as a top-level nav section any more.
  *
  * Keys match `NavSection.key`, so a child-brand filter can be added later without changing shape.
  * NOT a security control, same as the role filter above.
@@ -359,7 +367,6 @@ export const TEMPLATE_HIDDEN_SECTION_KEYS: ReadonlySet<string> = new Set([
   'competitive-research',
   'briefs',
   'client-assets',
-  'upload-links',
   'youtube-copywriting',
   'campaigns',
   'email-campaigns',
