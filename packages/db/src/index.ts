@@ -165,8 +165,11 @@ export {
 export type { CollaborationInput, CollaborationListRow } from './collaborations';
 export { createAutoDb, createDb, createNeonDb, createNodeDb, drizzleConfig } from './db';
 export type { Db, NeonDb, Schema } from './db';
-export { downloadFromUrl, isR2Available, uploadToR2 } from './r2';
+export { deleteFromR2, downloadFromUrl, isR2Available, presignedGetUrl, uploadToR2 } from './r2';
 export type {
+  R2DeleteFailure,
+  R2DeleteOutcome,
+  R2DeleteResult,
   R2DownloadOutcome,
   R2DownloadResult,
   R2UploadFailure,
