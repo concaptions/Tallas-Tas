@@ -32,6 +32,7 @@ export {
   listAssets,
   listConceptAssets,
   listCreatorAssets,
+  softDeleteAsset,
   updateAsset,
 } from './assets';
 export type { AssetInput, AssetListRow } from './assets';

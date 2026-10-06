@@ -70,3 +70,14 @@ export async function updateAsset(
     .returning();
   return row ?? null;
 }
+
+/**
+ * Soft-delete one asset (CLAUDE.md: "Soft delete only. Never `DELETE FROM` a data table."). Writes
+ * `deleted_at = now()` via `withBrand(brandId).softDelete`, so the row stays in Postgres and the
+ * audit trail is intact; `listAssets` filters deleted rows out by convention. Returns the deleted
+ * row or `null` when the id does not belong to this brand — the caller translates that to 404.
+ */
+export async function softDeleteAsset(db: Db, brandId: string, id: string): Promise<Asset | null> {
+  const [row] = await withBrand(db, brandId).softDelete(assets, eq(assets.id, id)).returning();
+  return row ?? null;
+}
