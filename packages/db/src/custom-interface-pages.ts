@@ -1,11 +1,18 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
 import { listChildBrands } from './propagation';
 import {
   brands,
+  collections,
+  concepts,
+  copywriting,
+  creativeBriefs,
+  creators,
   customInterfacePages,
   interfaceTabVisibility,
+  products,
   type CustomInterfacePage,
   type InterfaceTabVisibility,
   type NewCustomInterfacePage,
@@ -435,4 +442,62 @@ export async function resolveTemplateBrandFromAny(
   if (!brand) return null;
   if (brand.isTemplate) return brand.id;
   return brand.templateBrandId ?? null;
+}
+
+// ── custom-page rows ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * The six source tables a custom page may draw from (mirrors
+ * `CUSTOM_PAGE_SOURCE_TABLE_KEYS` in `@tas/domain`). Local allow-list — a stored row with a
+ * `source_table_key` outside this set reads zero rows, so the admin UI's zod gate is the first
+ * line and this is the belt.
+ *
+ * `brandIdCol` and `deletedAtCol` are read as `unknown` and compared in SQL via `eq` and
+ * `isNull`; a stored string that is not in the record is handled by `SOURCE_TABLES` lookup
+ * returning undefined.
+ */
+const SOURCE_TABLES: Readonly<Record<string, PgTable>> = {
+  creative_briefs: creativeBriefs,
+  creators,
+  copywriting,
+  concepts,
+  collections,
+  products,
+};
+
+/**
+ * Fetch raw rows from a source table for the custom-page renderer. Scoped by brand through the
+ * table's own `brand_id` and `deleted_at IS NULL`. Returns the empty set for a `sourceTableKey`
+ * that is not in the allow-list.
+ */
+export async function loadCustomPageRows(
+  db: Db,
+  brandId: string,
+  sourceTableKey: string,
+): Promise<readonly Record<string, unknown>[]> {
+  const table = SOURCE_TABLES[sourceTableKey];
+  if (!table) return [];
+  // Every allowed table carries `brand_id` and `deleted_at` through `baseColumns()`; the lookup
+  // above refuses anything else, so these columns are known to exist.
+  const columns = table as unknown as Record<'brandId' | 'deletedAt', AnyPgColumn>;
+  const rows = await db
+    .select()
+    .from(table)
+    .where(and(eq(columns.brandId, brandId), isNull(columns.deletedAt)));
+  return rows;
+}
+
+/** The one-shot read for a client custom-page route: config + rows. */
+export async function loadCustomPageRender(
+  db: Db,
+  brandId: string,
+  slug: string,
+): Promise<null | {
+  readonly page: CustomInterfacePage;
+  readonly rows: readonly Record<string, unknown>[];
+}> {
+  const page = await findCustomPageBySlug(db, brandId, slug);
+  if (!page || !page.isVisible) return null;
+  const rows = await loadCustomPageRows(db, brandId, page.sourceTableKey);
+  return { page, rows };
 }
