@@ -228,4 +228,24 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     );
     expect(overflow).toBeLessThanOrEqual(1);
   });
+
+  // Oct 6/7 Agent 4: the two new sections render alongside the shipped workspace, with disabled
+  // write controls (demo mode) and the shipped set of four standard tab rows.
+  test('renders the standard-tab visibility and custom-pages sections', async ({ page }) => {
+    await page.goto(interfaceConfigPath);
+
+    const tabSection = page.locator('[data-slot="tab-visibility"]');
+    await expect(tabSection).toBeVisible();
+    await expect(tabSection.locator('[data-slot="tab-row"]')).toHaveCount(4);
+    for (const key of ['concepts', 'creative_sheet', 'ugc_management', 'copywriting']) {
+      await expect(
+        tabSection.locator(`[data-slot="tab-row"][data-tab-key="${key}"]`),
+      ).toBeVisible();
+    }
+
+    const pagesSection = page.locator('[data-slot="custom-pages"]');
+    await expect(pagesSection).toBeVisible();
+    // In demo mode the loader returns the empty snapshot — the admin UI prints the empty-state copy.
+    await expect(pagesSection.locator('[data-slot="add-custom-page"]')).toBeDisabled();
+  });
 });
