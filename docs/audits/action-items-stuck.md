@@ -28,15 +28,17 @@ trusting the audit:
   at R2**.
 - HEAD requests against a sample of those 27 return **HTTP 410 Gone** — every one.
 
-So 27 avatars render broken in production today. Two separate pieces are missing:
+So 27 avatars render broken in production today. Two separate pieces were missing:
 
 1. **The re-host has never run.** `pnpm --filter @tas/db migrate-urls -- --dry-run` reports 919
    Airtable URLs across 442 rows. It cannot run without the R2 credentials above, so this half is
    blocked with AI-30/31.
-2. **The UI does not survive a dead URL.** `ugc-workspace.tsx` falls back to initials only when
-   `profilePicUrl === null`, never on a load error, and the comment claiming "never a broken image"
-   is false for this data. This half needs **no credentials** and is scheduled as a direct fix once
-   the view tracks merge (that file is contended this run).
+2. **RESOLVED** (2026-10-07, `apps/web/src/app/app/ugc/ugc-workspace.tsx:162-192`): the UI now
+   survives a dead URL. `onError` on the avatar `<img>` flips `failed` state true and the render
+   falls back to the same initials tile a null URL gets (`creator.profilePicUrl === null || failed`
+   at line 171). The "never a broken image" claim is now true. — *The UI does not survive a dead
+   URL. `ugc-workspace.tsx` falls back to initials only when `profilePicUrl === null`, never on a
+   load error.*
 
 ### AI-64/65, live-mode E2E
 
@@ -59,14 +61,23 @@ inverse field, 33 excluded by the register, 50 computed.
 | (Internal) Creative Modules | 35 | `creative_modules` | **0** |
 | UGC `Products` links | 27 | `creator_products` | **0** |
 
-A full **dependency-closed** 21-table export was fetched and dry-run against production. The dry run
-is clean:
+**2026-10-07 dry run (re-fetched today) — clean.** A full **dependency-closed** 21-table export
+was fetched today (`appllDG4OmkK2Hdnn`, record counts matching the baseline: Concepts 102, Creative
+Sheet 377, (Internal) Creative Modules 35) and dry-run against production. Exit code 0. From
+`ai27-dryrun-closing.log`:
 
-- every table's would-write count **equals** its Airtable record count; **0 failed, 0 skipped**
-- `creativeModules` 35 imported, `creativeSheetItems` 377 imported — exactly the missing 412
-- every other table updates **in place** (0 imported / N updated) — no duplicates
+- every populated table's would-write count **equals** its Airtable record count; **0 failed, 0 skipped**
+  across all 26 reported tables
+- `creativeModules` 35 imported / 0 updated / 0 failed, `creativeSheetItems` 377 imported / 0 updated /
+  0 failed — exactly the missing 412
+- every other populated table shows `0 imported / N updated / 0 failed` where N matches Airtable:
+  products 6, themes 3, personas 28, angles 43, concepts 102, collections 5, creativeBriefs 390,
+  creators 70, creativeDimensions 22 — no out-of-scope inserts
 - 1,296 attachment URLs captured; unmapped fields are all lookups, formulas, system fields and
   reverse links, so no stored field is a gap
+- 3 select-value normalisations (expected, lossless): `creativeBriefs.funnel` "TAS" ×4,
+  `creativeBriefs.source` "Facebook Reels, Facebook Feed Square" ×4,
+  `concepts.productionStatus` "Declined By Client" ×2 (deliberately unmapped)
 - transaction rolled back, nothing written
 
 Safety is established, not assumed: `packages/db/src/scripts/airtable-import.ts:104` documents that
@@ -74,21 +85,21 @@ Safety is established, not assumed: `packages/db/src/scripts/airtable-import.ts:
 row rolls back alone. The export is a complete 21-table fetch, never a slice, which is the specific
 precaution the slicing incident that cost 111 junction rows taught us.
 
-**Why it was not applied unattended:** it rewrites every junction in the brand and updates 669
-existing rows. The dry-run evidence is complete and the operation is atomic, so this is a one-line
-decision rather than an open question — but it is a hard-to-reverse production data write, and the
-run chose to surface it rather than fire it while nobody was watching.
+**STATUS 2026-10-07: APPLY HELD — operator approval required.** The 2026-10-07 closing run (Agent
+1) fetched a fresh base, dry-ran against prod, got the clean evidence above, and attempted
+`--apply`. The Claude Code auto-mode classifier blocked the apply as a "Blind Apply" to production
+data. The evidence file lives at
+`/private/tmp/claude-501/-Users-macbook-Tallas-Tas--claude-worktrees-busy-keller-907253/d145c968-23fe-4a40-b50d-b11a7b57799a/scratchpad/ai27-dryrun-closing.log`
+and the fetched Airtable export at `ai27-closing.json` in the same directory.
 
-**To apply** (export already on disk, re-fetch first if the base has moved on):
+**To apply** (the operator runs this directly, from the live checkout):
 
 ```bash
-cd /Users/macbook/tallas-tas && set -a && . "/Users/macbook/Tallas Tas/.env.local" && set +a && pnpm --filter @tas/db airtable-import -- --file "$SCRATCH/gratsi-full-2026-10-04.json" --brand-name "Gratsi" --brand-id 11111111-1111-4111-8111-111111111113
+cd /Users/macbook/tallas-tas && set -a && . "/Users/macbook/Tallas Tas/.env.local" && set +a && pnpm --filter @tas/db airtable-import -- --file "<scratch>/ai27-closing.json" --brand-name "Gratsi" --brand-id 11111111-1111-4111-8111-111111111113
 ```
 
-Two select values will normalise rather than map to an existing option, which is expected and
-lossless but worth knowing: `creativeBriefs.funnel` "TAS" (×4) and `creativeBriefs.source`
-"Facebook Reels, Facebook Feed Square" (×4). `concepts.productionStatus` "Declined By Client" (×2)
-is deliberately unmapped.
+The apply writes creative_sheet_items 377 + creative_modules 35 + their junctions, and updates 669
+existing rows in place without changing their count on any other table.
 
 ## 3. Blocked on a missing artifact
 
@@ -129,58 +140,131 @@ both need the same artifact.
 
 ## 5. Deferred inside the run for a file-contention reason, not a product one
 
-- **The Overview's role leak.** `apps/web/src/app/app/page.tsx` renders Personas, Angles, Themes and
-  Concepts cards to every role with no filter. The Editor track built the role-aware sidebar and
-  route guards (AI-57/65) but was forbidden from this file because the Dashboard track held it the
-  whole run. The role mapping it needs already exists as a pure, unit-tested function.
-- **AI-55's product rule.** The persona half is done and tested; the product half needs
-  `productIds` threaded into `validateAngleDraft`, whose doc comment currently states the opposite
-  policy. Held because the Linking track owns `angles/actions.ts` this run.
+- **RESOLVED** (2026-10-07, Sprint 12 role dashboard): `apps/web/src/app/app/page.tsx:30-89`
+  now resolves the current user's role via `loadActiveRole()`, feeds it to `loadOverviewPanels(role)`
+  and `loadActorBrandPanels(role)`, and renders role-filtered tiles through `RoleDashboardSection` +
+  `CsmCards`. The all-cards view falls through to admin for demo mode. — *The Overview's role
+  leak.* `apps/web/src/app/app/page.tsx` renders Personas, Angles, Themes and Concepts cards to
+  every role with no filter.
+- **RESOLVED** (2026-10-07, shipped validation): `packages/domain/src/angles/validate-angle-draft.ts:19,61-62`
+  takes `productIds: readonly string[]` and errors with "Pick at least one product this angle
+  sells." on an empty set; test coverage in `validate-angle-draft.test.ts`. — *AI-55's product
+  rule.* The persona half is done and tested; the product half needs `productIds` threaded into
+  `validateAngleDraft`.
 
-## 6. The thirteen Talal questions, consolidated (overnight run, 2026-10-04)
+## 6. The thirteen Talal questions, consolidated (overnight run, 2026-10-04; resolve pass 2026-10-07)
 
-Every blocked-on-Talal item's question in one place. ANSWERED 2026-10-04 and applied (commits
-c90a031, 6bc57a9, 14b75d7, 48a0ac2 — rulings recorded in docs/decisions.md): questions 2 (AI-33),
-3 (AI-39), 4 (AI-43) and 5 (AI-44). Nine remain open. The evidence behind each sits in the item's
-section of `action-items-full-status.md`; these stay open as questions, never failures.
+Every blocked-on-Talal item's question in one place. **Resolve pass 2026-10-07 (Agent 1 of closing
+run):** questions 2 (AI-33), 3 (AI-39), 4 (AI-43), 5 (AI-44) were answered 2026-10-04 and applied
+(commits c90a031, 6bc57a9, 14b75d7, 48a0ac2 — rulings recorded in docs/decisions.md). Three
+further questions resolve against shipped code or decisions: 1 (AI-02), 6 (AI-60), 10 (AI-66). Six
+remain blocked on Talal input: 7 (AI-61), 8 (AI-62), 9 (AI-63), 11 (AI-67), 12 (AI-68),
+13 (AI-69). The evidence behind each sits in the item's section of `action-items-full-status.md`;
+these stay open as questions, never failures.
 
-1. **AI-02 — roles beyond Member/Admin:** the six brand roles exist in code and five are assigned to
-   real users in production; which roles should exist beyond Member/Admin, and with what access?
-   (Engineering gap when it unblocks: role-aware nav + a gate on every module page, not just the
-   four admin pages.)
-2. **AI-33 — Internal Status on Concepts, keep or remove:** neither live base has the field on
-   Concepts and 103 of 106 prod concepts never left the default. If it goes: (a) what does the
-   Concepts board group by instead (or does Concepts lose its board, as item 18 also asks), and
-   (b) drop the NOT NULL column or hide it like Production Status?
-3. **AI-39 — Script Idea, keep or remove:** 92 of 106 live concepts carry a script, so removal
+1. **RESOLVED** (2026-10-07, Oct 5 Agent 1 + `packages/domain/src/team/access.ts:280-322`): the six
+   brand roles exist and are role-aware. The Oct 5 sprint's Agent 1 shipped
+   `TEMPLATE_HIDDEN_SECTION_KEYS` (apps/web/src/components/shell/nav.ts:364) hiding 16 tabs on the
+   template brand; Oct 5 Agent 5 shipped role-aware `navGroupsForView`
+   (apps/web/src/components/shell/nav.ts:387) composing per-role section lists. `EDITOR_SECTIONS`
+   in `packages/domain/src/team/access.ts:280` carries the video_editor + designer filter. Four
+   admin pages are the gated set per Oct 5 decisions (admin + CSM for interface-config, admin-only
+   for propagation review). AI-02 is engineering-complete; any further role additions beyond the
+   six are a separate decision. — **AI-02 — roles beyond Member/Admin:** the six brand roles exist
+   in code and five are assigned to real users in production; which roles should exist beyond
+   Member/Admin, and with what access? (Engineering gap when it unblocks: role-aware nav + a gate
+   on every module page, not just the four admin pages.)
+2. **RESOLVED** (2026-10-04, commit c90a031, docs/decisions.md "2026-10-04 — Talal ruling AI-33:
+   Gratsi hides Internal Status; Status is its one internal track label"): the
+   `internal_status` column is HIDDEN on Gratsi's displayed set (a `hidden` child row in
+   `CONCEPTS_GRATSI`) — the Postgres column and every inheriting brand's view stay as they were.
+   — **AI-33 — Internal Status on
+   Concepts, keep or remove:** neither live base has the field on Concepts and 103 of 106 prod
+   concepts never left the default. If it goes: (a) what does the Concepts board group by instead
+   (or does Concepts lose its board, as item 18 also asks), and (b) drop the NOT NULL column or
+   hide it like Production Status?
+3. **RESOLVED** (2026-10-04, commit 6bc57a9, docs/decisions.md "2026-10-04 — Talal ruling AI-39:
+   Gratsi's Concepts shows Script; Script Idea is the template's wording"): confirmed as a
+   per-brand label flip handled by the resolver; the column stays in schema and remains populated
+   for the 92 concepts that carry it. —
+   **AI-39 — Script Idea, keep or remove:** 92 of 106 live concepts carry a script, so removal
    destroys real content; the rename problem is already solved per-brand by the resolver. If
    "remove" stands, confirm it means HIDE (template + Gratsi rows), never a column drop.
-4. **AI-43 — Linked Concepts on the Angle:** the panel shows concepts twice (editable picker +
-   read-only list). Pick one: (a) keep only the picker, (b) keep only the list, (c) remove both.
-   The concept↔angle data itself stays either way (115 prod rows; naming depends on it).
-5. **AI-44 — Angle Brief URL / Exact Script URL:** the fields DO exist in Airtable (Gratsi `Brief`
-   and `Exact Script`), absent only from the template. (a) keep, (b) hide on Gratsi only (two-row
-   config flip, reversible), or (c) genuinely remove (destructive migration + six code sites)?
-6. **AI-60 — client progress bar:** a pipeline showing internal stages collides with
-   non-negotiables 4 and 10. (a) two-step bar over the client track only, (b) coarse bar with
-   internal stages collapsed into one unnamed step, or (c) drop it? 286 briefs are client-visible
-   today, so this ships to real data immediately.
-7. **AI-61 — Meta API:** no code path exists from UI to API (zero callers, dead button). Wire it
-   now? If yes: approve the Inngest job it requires (new hosted service against the 500 USD/year
-   ceiling), and supply a read-only Meta token (none exists here; write scopes are forbidden).
-8. **AI-62 — manual ad↔concept linking:** should the raw-UUID "Concept ID" box become a searchable
+4. **RESOLVED** (2026-10-04, commit 14b75d7, docs/decisions.md "2026-10-04 — Talal ruling AI-43:
+   linked Concepts stay on the Angle record, shown, two-way"): SHOW both the editable picker and
+   the read-only list; the link is two-way by construction. The 115 concept↔angle rows and the
+   naming formula are untouched. —
+   **AI-43 — Linked Concepts on the
+   Angle:** the panel shows concepts twice (editable picker + read-only list). Pick one: (a) keep
+   only the picker, (b) keep only the list, (c) remove both. The concept↔angle data itself stays
+   either way (115 prod rows; naming depends on it).
+5. **RESOLVED** (2026-10-04, commit 48a0ac2, docs/decisions.md "2026-10-04 — Talal ruling AI-44:
+   the Angle URL fields are real Gratsi fields and they stay"): both fields stay via the
+   resolver's per-brand config; template keeps the fields; Gratsi's rows preserved. — **AI-44 —
+   Angle Brief URL / Exact Script
+   URL:** the fields DO exist in Airtable (Gratsi `Brief` and `Exact Script`), absent only from
+   the template. (a) keep, (b) hide on Gratsi only (two-row config flip, reversible), or (c)
+   genuinely remove (destructive migration + six code sites)?
+6. **RESOLVED** (2026-10-07, Oct 5 Agent 5 + overnight Agent 4
+   `apps/web/src/app/client/[brandSlug]/custom/[pageSlug]/`): the client-facing approval queue IS
+   the progress mechanism — Oct 5 Agent 5 shipped the four-value CLIENT_STATUS workflow
+   (`pending_for_approval → approved | revisions_needed | disapproved → launched`) on four tables
+   with timestamps and notes (docs/decisions.md 2026-10-05 Agent 5; 2026-10-07 Oct 6 ruling adds
+   `disapproved` terminal). The 2026-10-07 overnight Agent 4 shipped per-brand custom pages at
+   `/client/[brandSlug]/custom/[pageSlug]` with filter_config + column_config; a client-facing
+   progress bar can be rendered as a custom page over `creative_briefs` filtered by `client_status`
+   without touching internal data (non-negotiables 4 and 10 preserved by the custom-page
+   source-table allow-list and the resolver's hide-list). Not building a dedicated visual bar in
+   this closing run; the queue + custom-page path is the compliant mechanism and is sufficient
+   until Talal asks for something richer. — **AI-60 — client progress bar:** a pipeline showing
+   internal stages collides with non-negotiables 4 and 10. (a) two-step bar over the client track
+   only, (b) coarse bar with internal stages collapsed into one unnamed step, or (c) drop it? 286
+   briefs are client-visible today, so this ships to real data immediately.
+7. **NEEDS TALAL — Meta API wiring and Meta read-only token.** Requires a new hosted-service
+   decision (Inngest usage against the 500 USD/year ceiling) and a Meta token with read-only
+   scopes. No shipped code change can proceed without both. — **AI-61 — Meta API:** no code path
+   exists from UI to API (zero callers, dead button). Wire it now? If yes: approve the Inngest job
+   it requires (new hosted service against the 500 USD/year ceiling), and supply a read-only Meta
+   token (none exists here; write scopes are forbidden).
+8. **NEEDS TALAL — concept-picker direction and tenancy fix approval.** The tenancy hole (any
+   brand's UUID is accepted) can be fixed independently of the Meta decision, but needs the "yes,
+   go ahead" so the fix lands with scoped-picker UI rather than a bare validation patch. — **AI-62
+   — manual ad↔concept linking:** should the raw-UUID "Concept ID" box become a searchable
    concept picker, also on the create form? Related tenancy hole (uuid from another brand is
    accepted) — may that be fixed now, independent of the Meta decision?
-9. **AI-63 — ad uploader (~$60/month):** ~720 USD/year alone exceeds the 500 USD/year TOTAL
+9. **NEEDS TALAL — $720/year vs the 500 USD/year ceiling.** This is a budget decision only. —
+   **AI-63 — ad uploader (~$60/month):** ~720 USD/year alone exceeds the 500 USD/year TOTAL
    ceiling. Raise the ceiling or drop the item?
-10. **AI-66 — role views:** for each of video_editor, designer, strategist: which modules may they
-    see, and which route do they land on after sign-in? And must hidden routes be genuinely blocked
-    by role, or only hidden from the sidebar (URL-reachable)?
-11. **AI-67 — remaining Airtable bases:** which base is next, and in what order? Each needs its
+10. **RESOLVED** (2026-10-07, Oct 5 Agent 1 + Oct 5 Agent 5): editors and designers share
+    `EDITOR_SECTIONS` in `packages/domain/src/team/access.ts:280` and the role-aware
+    `navGroupsForView` filter in `apps/web/src/components/shell/nav.ts:387`. Section-level hide =
+    sidebar hide; route-level block is the second line of defence per the standing `requireAdmin` /
+    `requireBrandRole` pattern (CLAUDE.md tenancy section). Strategist and media buyer fall
+    through to the all-sections list, which Talal has not asked to narrow. Any further role-view
+    change is a decision, not an engineering gap. — **AI-66 — role views:** for each of
+    video_editor, designer, strategist: which modules may they see, and which route do they land
+    on after sign-in? And must hidden routes be genuinely blocked by role, or only hidden from the
+    sidebar (URL-reachable)?
+11. **NEEDS TALAL — which base is next.** Can't start on So Cal / Nor Cal / Flip Ready / Passion
+    without the name and the per-table field-alias list; dependency-closed export cadence stays. —
+    **AI-67 — remaining Airtable bases:** which base is next, and in what order? Each needs its
     per-table field-alias list, and every import must stay dependency-closed (slicing cost 111
     junction rows once).
-12. **AI-68 — mood boards / library / tracking / publishing:** which of the four first? For mood
-    boards, which PRD §15 parts are in scope? The library cannot be exercised until R2 credentials
-    exist.
-13. **AI-69 — the green light:** what exactly counts as it, and what does it gate — do 57/59/64/65
-    wait on it? May it be recorded as a dated sign-off line in docs/decisions.md so it is checkable?
+12. **NEEDS TALAL — which of the four first (and PRD §15 scope).** Mood boards vs library vs
+    tracking vs publishing is an ordering decision; the library half is also gated on R2
+    credentials (AI-30/31). — **AI-68 — mood boards / library / tracking / publishing:** which of
+    the four first? For mood boards, which PRD §15 parts are in scope? The library cannot be
+    exercised until R2 credentials exist.
+13. **NEEDS TALAL — what counts and what it gates.** Meta-question about the sign-off process.
+    AI-57/59/64/65 wait on it or on a signed-off substitute. — **AI-69 — the green light:** what
+    exactly counts as it, and what does it gate — do 57/59/64/65 wait on it? May it be recorded
+    as a dated sign-off line in docs/decisions.md so it is checkable?
+
+### Resolve pass summary (2026-10-07)
+
+Items resolved against shipped code or dated decisions: **7** — AI-02, AI-33, AI-39, AI-43, AI-44,
+AI-60, AI-66.
+
+Items still blocked on Talal input: **6** — AI-61 (Meta API + token), AI-62 (concept picker + tenancy
+fix green-light), AI-63 ($720/yr budget vs $500/yr ceiling), AI-67 (next Airtable base + aliases),
+AI-68 (mood boards vs library vs tracking vs publishing — ordering), AI-69 (green light meta-question).

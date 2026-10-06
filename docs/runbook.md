@@ -181,9 +181,11 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   builds redact server error messages from the browser), and no route may render "Niagara Sleep
   Solutions" sample data. With no Clerk key at all, the same build must still serve the demo fixtures
   read-only.
-- AI-27 production import: ready but NOT applied (2026-10-04 overnight run) — the live base moved
-  (Concepts 106→102) so junction sync would cross the baseline guarantee; see
-  docs/audits/overnight-items-report.md for the two stop signals and the exact apply command.
+- AI-27 production import: dry-run CLEAN 2026-10-07, apply HELD by Claude Code auto-mode
+  classifier (Blind Apply). The 2026-10-07 closing run (Agent 1) re-fetched the base, ran a dry
+  run (exit 0, 1,296 attachment URLs captured, 0 failed, 0 skipped, inserts scoped to
+  creative_sheet_items 377 + creative_modules 35), and left apply to the operator. Evidence +
+  exact apply command: `docs/audits/ai27-stop-2026-10-07.md`.
 - Per-CSM overview shell (AI-06/09): signed-in multi-brand render needs a real session; logic is
   PGlite-tested. Check /app as the 4-brand CSM after deploy.
 
