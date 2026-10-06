@@ -29,7 +29,6 @@ describe('NAV_SECTIONS', () => {
       'UGC Management',
       'Client Assets',
       'Asset Library',
-      'Upload Links',
       'Copywriting',
       'YouTube Copywriting',
       'Campaigns & Offers',
@@ -47,6 +46,7 @@ describe('NAV_SECTIONS', () => {
       'Team',
       'Interface Config',
       'Notifications',
+      'Upload Links',
       'Propagation',
       'Column Admin',
       'Onboarding Forms',
@@ -106,7 +106,6 @@ describe('NAV_SECTIONS', () => {
       ['UGC Management', '/app/ugc'],
       ['Client Assets', '/app/client-assets'],
       ['Asset Library', '/app/assets'],
-      ['Upload Links', '/app/upload-links'],
       ['Copywriting', '/app/meta-copywriting'],
       ['YouTube Copywriting', '/app/youtube-copywriting'],
       ['Campaigns & Offers', '/app/campaigns-offers'],
@@ -124,6 +123,7 @@ describe('NAV_SECTIONS', () => {
       ['Team', '/app/team'],
       ['Interface Config', '/app/interface-config'],
       ['Notifications', '/app/notifications'],
+      ['Upload Links', '/app/upload-links'],
       ['Propagation', '/app/propagation'],
       ['Column Admin', '/app/column-admin'],
       ['Onboarding Forms', '/app/onboarding-forms'],
@@ -190,8 +190,17 @@ describe('activeSectionKey', () => {
  * other.
  */
 describe('navGroupsForRole', () => {
-  it('nav keys and the domain access table are the same set, in the same order', () => {
-    expect(NAV_SECTIONS.map((section) => section.key)).toEqual([...NAV_SECTION_KEYS]);
+  // The integrity gate is that the nav and the domain name the SAME SET of sections — a key in
+  // one with no partner in the other has either no access rule (if nav-only) or no sidebar entry
+  // (if domain-only). Order used to be strict here (the sidebar iterated NAV_SECTIONS directly),
+  // but the Oct 6/7 Upload Links relocation moves one key from the Production group to the
+  // Settings group, so the flat sidebar order diverges from the domain's `NAV_SECTION_KEYS`
+  // listing by one position. The sidebar's own order is still enforced by the "lists every
+  // module in sidebar order" assertion above.
+  it('nav keys and the domain access table name the same set', () => {
+    expect([...NAV_SECTIONS.map((section) => section.key)].sort()).toEqual(
+      [...NAV_SECTION_KEYS].sort(),
+    );
   });
 
   it('gives an admin the whole catalogue, groups and all', () => {
@@ -203,7 +212,13 @@ describe('navGroupsForRole', () => {
       const groups = navGroupsForRole(role);
       const keys = groups.flatMap((group) => group.sections.map((section) => section.key));
 
-      expect(keys, role).toEqual([...navSectionsForRole(role)]);
+      // Set equality, not list equality. The Oct 6/7 relocation of Upload Links from the
+      // Production group to the Settings group makes the sidebar's traversal order diverge from
+      // `navSectionsForRole`'s domain order by one position (upload-links sits after
+      // `notifications` in the sidebar, after `assets` in `EDITOR_SECTIONS`). The integrity gate
+      // is still that the two name the SAME sections — the sidebar's own order has its own
+      // explicit assertion above.
+      expect([...keys].sort(), role).toEqual([...navSectionsForRole(role)].sort());
       // No heading without sections under it, and no group left behind by the filter.
       for (const group of groups) {
         expect(group.sections.length, group.key).toBeGreaterThan(0);
@@ -220,9 +235,12 @@ describe('navGroupsForRole', () => {
           `${role}/${gone}`,
         ).toBe(false);
       }
-      // Settings survives with exactly one section: the viewer's own notification preference.
+      // Settings survives with the viewer's own notification preference AND Upload Links —
+      // the two Settings-group sections an editor's role lets them open (access.ts
+      // `EDITOR_SECTIONS` includes `upload-links`, "how a finished file comes back in").
       expect(groups.find((group) => group.key === 'settings')?.sections.map((s) => s.key)).toEqual([
         'notifications',
+        'upload-links',
       ]);
     }
   });
@@ -263,7 +281,10 @@ describe('navGroupsForRole', () => {
 describe('navGroupsForView · the template brand hides a set of sections (Oct 5 Talal sync)', () => {
   const KEYS = TEMPLATE_HIDDEN_SECTION_KEYS;
 
-  it('names the sixteen keys the decision covers, no more and no fewer', () => {
+  // On 2026-10-06/07 Upload Links was relocated to the Settings group (docs/decisions.md), so it
+  // left this template-only hide set — no brand lists it as a top-level nav section any more, and
+  // the one management surface lives under Settings for every brand that imports its role.
+  it('names the fifteen keys the decision covers, no more and no fewer', () => {
     expect([...KEYS].sort()).toEqual(
       [
         'ai-characters',
@@ -280,10 +301,13 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
         'email-flows',
         'performance',
         'sm-campaign-feed',
-        'upload-links',
         'youtube-copywriting',
       ].sort(),
     );
+  });
+
+  it('upload-links left the template hide after the Oct 6/7 relocation to Settings', () => {
+    expect(KEYS.has('upload-links')).toBe(false);
   });
 
   it('every hidden key resolves to a real section (no typo stays silent)', () => {
@@ -323,6 +347,38 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
     // Competitive Research — every one of them hidden by the Oct 5 decision — so the group itself
     // drops out of an admin's view on the template, same shape the role filter uses.
     expect(groups.some((group) => group.key === 'lookups')).toBe(false);
+  });
+
+  /**
+   * Oct 6/7 Upload Links relocation. The management surface sits inside the Settings group now;
+   * no brand's sidebar lists it as a top-level nav section, and no brand's sidebar hides it from
+   * a role that can open it. Covers template AND child brands, every role whose access rule
+   * includes `upload-links`.
+   */
+  it('upload-links lives inside the Settings group, never in Production, on every brand and role that may open it', () => {
+    for (const isTemplate of [false, true] as const) {
+      for (const role of [
+        'admin',
+        'csm',
+        'strategist',
+        'media_buyer',
+        'video_editor',
+        'designer',
+      ] as const) {
+        const groups = navGroupsForView(role, isTemplate);
+        const settings = groups.find((group) => group.key === 'settings');
+        const production = groups.find((group) => group.key === 'production');
+        const label = `${role}/${isTemplate ? 'template' : 'child'}`;
+        expect(
+          settings?.sections.map((section) => section.key),
+          `${label} settings`,
+        ).toContain('upload-links');
+        expect(
+          production?.sections.map((section) => section.key) ?? [],
+          `${label} production`,
+        ).not.toContain('upload-links');
+      }
+    }
   });
 
   it('leaves TEMPLATE_HIDDEN_SECTION_KEYS and NAV_GROUPS untouched — reads, never mutations', () => {
