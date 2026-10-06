@@ -3,6 +3,7 @@ import { presignedGetUrl } from '@tas/db';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { loadAssetById } from '@/lib/assets-source';
+import { isDemoMode } from '@/lib/demo-mode';
 
 import { handleServe } from './handler';
 
@@ -19,8 +20,17 @@ export async function GET(
   { params }: { params: Promise<{ assetId: string }> },
 ): Promise<NextResponse | Response> {
   const { assetId } = await params;
+
+  // Demo mode has no Clerk middleware, so `auth()` would throw. We short-circuit to a 503 "Storage
+  // not configured" because the demo fixtures carry fictional `/demo/assets/...` URLs that are not
+  // reachable here either — nothing useful to serve, same user-facing copy as a missing R2.
+  const demoActive = isDemoMode();
+
   const outcome = await handleServe(assetId, {
-    authenticated: async () => (await auth()).userId !== null,
+    authenticated: async () => {
+      if (demoActive) return false;
+      return (await auth()).userId !== null;
+    },
     loadAsset: async (id) => (await loadAssetById(id)).asset,
     presignedGetUrl: (key, expires) => presignedGetUrl(key, expires),
   });

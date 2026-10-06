@@ -22,7 +22,7 @@ import {
   Label,
 } from '@tas/ui';
 
-import { ASSET_MAX_BYTES } from '@/lib/r2-upload';
+import { ASSET_MAX_BYTES } from '@/lib/r2-constants';
 
 /**
  * Native-only drag-and-drop upload modal (CLAUDE.md "No new dependency without a note in

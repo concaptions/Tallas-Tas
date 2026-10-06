@@ -1,10 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { assetCategories } from '@tas/db';
+import type { AssetCategory } from '@tas/db';
 import { Button } from '@tas/ui';
 
 import { AssetUploadModal, type UploadResponse } from '@/components/assets/upload-modal';
+
+// Inlined rather than imported from `@tas/db` as a value: this is a `'use client'` module, and a
+// value import of `assetCategories` pulls `pg` into the client bundle through `@tas/db`'s barrel
+// index (D-012: `@tas/db` is in `transpilePackages` but not `optimizePackageImports`). The type
+// stays sourced from `@tas/db`, so a drift in the enum fails typecheck here.
+const CATEGORIES: readonly AssetCategory[] = [
+  'reference',
+  'broll',
+  'raw_asset',
+  'mood_board',
+  'showcase_video',
+];
 
 /**
  * The Oct 7 Asset Library's upload drag-drop label is the one new primitive this ticket introduces
@@ -68,7 +80,7 @@ export function AssetUploadModalStory() {
       </div>
       <AssetUploadModal
         brandId={BRAND_ID}
-        categories={[...assetCategories]}
+        categories={CATEGORIES}
         open={open}
         onOpenChange={setOpen}
         uploadFn={upload}
