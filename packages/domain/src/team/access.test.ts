@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { brandRoles, type BrandRole } from '../roles';
 import {
   DEMO_PROPAGATION_ACCESS_NOTE,
+  INTERFACE_CONFIG_NOT_PERMITTED_NOTE,
   NAV_SECTION_KEYS,
   NO_WORKSPACE_NOTE,
   NO_WORKSPACE_TITLE,
@@ -13,6 +14,7 @@ import {
   PROPAGATION_ADMIN_NOTE,
   PROPAGATION_NOT_ADMIN_NOTE,
   TEAM_ACCESS_ROLES,
+  canConfigureInterface,
   canSeeInternalWorkspace,
   canSeeNavSection,
   canSeePropagationPage,
@@ -289,5 +291,34 @@ describe('canSeeNavSection / navSectionsForRole', () => {
       expect(note.trim()).toBe(note);
       expect(note.endsWith('.')).toBe(true);
     }
+  });
+});
+
+describe('canConfigureInterface', () => {
+  it('lets an agency admin in', () => {
+    expect(canConfigureInterface({ agencyRole: 'admin', brandRoles: [] })).toBe(true);
+  });
+
+  it('lets a CSM in, whatever their agency role', () => {
+    expect(canConfigureInterface({ agencyRole: 'member', brandRoles: ['csm'] })).toBe(true);
+    expect(canConfigureInterface({ agencyRole: null, brandRoles: ['csm'] })).toBe(true);
+  });
+
+  it('refuses every other brand role held alone', () => {
+    const refused = brandRoles.filter((role): role is BrandRole => role !== 'csm');
+    for (const role of refused) {
+      expect(canConfigureInterface({ agencyRole: 'member', brandRoles: [role] }), role).toBe(false);
+    }
+  });
+
+  it('denies by default', () => {
+    expect(canConfigureInterface(null)).toBe(false);
+    expect(canConfigureInterface(undefined)).toBe(false);
+    expect(canConfigureInterface({})).toBe(false);
+  });
+
+  it('refusal note is a plain sentence', () => {
+    expect(INTERFACE_CONFIG_NOT_PERMITTED_NOTE).not.toContain('<');
+    expect(INTERFACE_CONFIG_NOT_PERMITTED_NOTE.endsWith('.')).toBe(true);
   });
 });
