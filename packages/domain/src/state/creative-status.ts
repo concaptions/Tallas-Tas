@@ -111,6 +111,12 @@ export const CLIENT_STATUS = [
     description: 'Client asked for changes. Sits here until the team resubmits the creative.',
   },
   {
+    key: 'disapproved',
+    label: 'Disapproved',
+    description:
+      'Client rejected the creative outright. Not a revision: this creative is not being run (Oct 6 Talal ruling).',
+  },
+  {
     key: 'launched',
     label: 'Launched',
     description: 'Set by the media buyer once the ad is live in the account.',
@@ -140,17 +146,19 @@ export type OnHoldStatusKey = typeof ON_HOLD.key;
 export type InternalStatusOrHoldKey = InternalStatusKey | OnHoldStatusKey;
 
 /**
- * The client track's LINEAR path: `CLIENT_STATUS` without the branch.
+ * The client track's LINEAR path: `CLIENT_STATUS` without the branches.
  *
- * PRD §9 writes the client track as "Pending for Approval → Approved / Revisions Needed → Launched".
- * `revisions_needed` is a BRANCH off the client's decision, the way `on_hold` branches off the
- * internal track, and a linear stepper cannot honestly place it: drawn as the third row it would mark
- * Approved as `done` on a creative the client had just sent back. So a stepper walks this list and
- * names `revisions_needed` with the status chip instead, which is the treatment `ON_HOLD` gets.
- * `CLIENT_STATUS` itself is untouched — it is the vocabulary of the stored column.
+ * PRD §9 writes the client track as "Pending for Approval → Approved / Revisions Needed → Launched",
+ * and the Oct 6 Talal ruling added `disapproved` as a second terminal branch alongside
+ * `revisions_needed`. Both are BRANCHES off the client's decision, the way `on_hold` branches off the
+ * internal track, and a linear stepper cannot honestly place them: drawn as third or fourth rows
+ * they would mark Approved as `done` on a creative the client had just rejected or sent back. So a
+ * stepper walks this list and renders the branches with the status chip instead, which is the
+ * treatment `ON_HOLD` gets. `CLIENT_STATUS` itself is untouched — it is the vocabulary of the
+ * stored column.
  */
 export const CLIENT_TRACK_STEPS: readonly StatusEntry<ClientStatusKey>[] = CLIENT_STATUS.filter(
-  (entry) => entry.key !== 'revisions_needed',
+  (entry) => entry.key !== 'revisions_needed' && entry.key !== 'disapproved',
 );
 
 export type StepState = 'done' | 'now' | 'next';
@@ -187,6 +195,9 @@ export function stepState(list: readonly StatusEntry[], current: string, key: st
 /**
  * Tone for a status chip, keyed on the human label (the handoff's map). `Revisions Submitted` holds
  * both words, so the `Submitted` exclusion keeps it out of `warn` and it lands on `mute`.
+ *
+ * `Disapproved` is the Oct 6 Talal addition: the client-track terminal refusal, matching
+ * `COPY_STATUS`'s and `CREATOR_STATUS`'s existing `disapproved` → `bad` reading.
  */
 export function chipTone(label: string): ChipTone {
   if (label === 'Approved') {
@@ -194,6 +205,9 @@ export function chipTone(label: string): ChipTone {
   }
   if (label === 'Launched') {
     return 'accent';
+  }
+  if (label === 'Disapproved') {
+    return 'bad';
   }
   if (label.includes('Revisions') && !label.includes('Submitted')) {
     return 'warn';
@@ -236,15 +250,18 @@ export const INTERNAL_STATIC_TRANSITIONS: TransitionTable<
 };
 
 /**
- * The client track exactly as PRD §9 writes it: "Pending for Approval → Approved / Revisions Needed
- * → Launched". `pending_for_approval` branches on the client's decision; `revisions_needed` rejoins
- * at `pending_for_approval` when the team resubmits, which is the only way back onto the decision;
- * `launched` is the media buyer's terminal state.
+ * The client track exactly as PRD §9 writes it, extended by the Oct 6 Talal ruling (see
+ * `docs/decisions.md` 2026-10-07). The decision branches three ways: `approved`, `revisions_needed`
+ * and `disapproved`. `revisions_needed` rejoins at `pending_for_approval` when the team resubmits,
+ * which is the only way back onto the decision; `disapproved` is a terminal rejection, matching
+ * `CREATOR_STATUS` / `COPY_STATUS`'s existing terminal of the same name; `launched` is the media
+ * buyer's terminal state.
  */
 export const CLIENT_TRANSITIONS: TransitionTable<ClientStatusKey> = {
-  pending_for_approval: ['approved', 'revisions_needed'],
+  pending_for_approval: ['approved', 'revisions_needed', 'disapproved'],
   approved: ['launched'],
   revisions_needed: ['pending_for_approval'],
+  disapproved: [],
   launched: [],
 };
 

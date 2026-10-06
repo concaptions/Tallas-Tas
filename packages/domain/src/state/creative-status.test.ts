@@ -63,16 +63,29 @@ describe('the status vocabularies', () => {
     }
   });
 
-  it('lists the client track in PRD §9 order, Revisions Needed included', () => {
+  it('lists the client track in PRD §9 order, both terminal branches included (Oct 6 Talal ruling)', () => {
+    // `disapproved` sits after `revisions_needed` and before `launched`: the two work-remains
+    // branches sit together and the two terminal states sit at the tail. See docs/decisions.md
+    // 2026-10-07 for the ruling that promoted it from a creator/copy-only state.
     expect(CLIENT_STATUS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'disapproved',
       'launched',
     ]);
   });
 
-  it('keeps the Revisions Needed branch out of the linear client stepper', () => {
+  it('gives disapproved a non-empty label, description, and the shipped StatusEntry shape', () => {
+    const entry = CLIENT_STATUS.find((row) => row.key === 'disapproved');
+    expect(entry).toBeDefined();
+    expect(entry?.label).toBe('Disapproved');
+    expect(entry?.description.length).toBeGreaterThan(0);
+    // Shipped shape, exactly as the other entries carry.
+    expect(Object.keys(entry ?? {}).sort()).toEqual(['description', 'key', 'label']);
+  });
+
+  it('keeps both branches out of the linear client stepper', () => {
     expect(CLIENT_TRACK_STEPS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
@@ -84,9 +97,16 @@ describe('the status vocabularies', () => {
     }
   });
 
-  it('leaves every client step upcoming while the creative sits on the branch', () => {
+  it('leaves every client step upcoming while the creative sits on Revisions Needed', () => {
     const states = CLIENT_TRACK_STEPS.map((entry) =>
       stepState(CLIENT_TRACK_STEPS, 'revisions_needed', entry.key),
+    );
+    expect(states).toEqual(['next', 'next', 'next']);
+  });
+
+  it('leaves every client step upcoming while the creative sits on Disapproved', () => {
+    const states = CLIENT_TRACK_STEPS.map((entry) =>
+      stepState(CLIENT_TRACK_STEPS, 'disapproved', entry.key),
     );
     expect(states).toEqual(['next', 'next', 'next']);
   });
@@ -159,6 +179,7 @@ describe('chipTone — the tone map over every label', () => {
     ['Images Revisions', 'warn'],
     ['Revisions Submitted', 'mute'],
     ['Revisions Needed', 'warn'],
+    ['Disapproved', 'bad'],
     ['Pending for Approval', 'info'],
     ['Sent to Video Editor', 'mute'],
     ['Video Editing in Progress', 'mute'],
@@ -283,6 +304,11 @@ describe('canTransitionClient', () => {
     expect(canTransitionClient('launched', 'pending_for_approval', 'revisions_needed')).toBe(true);
   });
 
+  it('branches Pending for Approval to Disapproved, the Oct 6 Talal terminal rejection', () => {
+    expect(canTransitionClient('approved', 'pending_for_approval', 'disapproved')).toBe(true);
+    expect(canTransitionClient('launched', 'pending_for_approval', 'disapproved')).toBe(true);
+  });
+
   it('rejoins Revisions Needed to Pending for Approval when the team resubmits', () => {
     expect(canTransitionClient('approved', 'revisions_needed', 'pending_for_approval')).toBe(true);
   });
@@ -290,14 +316,23 @@ describe('canTransitionClient', () => {
   it('refuses the moves Revisions Needed is not a shortcut for', () => {
     expect(canTransitionClient('approved', 'revisions_needed', 'approved')).toBe(false);
     expect(canTransitionClient('approved', 'revisions_needed', 'launched')).toBe(false);
+    expect(canTransitionClient('approved', 'revisions_needed', 'disapproved')).toBe(false);
     expect(canTransitionClient('approved', 'approved', 'revisions_needed')).toBe(false);
     expect(canTransitionClient('approved', 'launched', 'revisions_needed')).toBe(false);
+  });
+
+  it('is terminal from Disapproved: no outgoing move, not even back to Pending', () => {
+    expect(canTransitionClient('approved', 'disapproved', 'pending_for_approval')).toBe(false);
+    expect(canTransitionClient('approved', 'disapproved', 'approved')).toBe(false);
+    expect(canTransitionClient('approved', 'disapproved', 'revisions_needed')).toBe(false);
+    expect(canTransitionClient('approved', 'disapproved', 'launched')).toBe(false);
   });
 
   it('refuses every client transition while the gate is closed', () => {
     const pairs: [ClientStatusKey, ClientStatusKey][] = [
       ['pending_for_approval', 'approved'],
       ['pending_for_approval', 'revisions_needed'],
+      ['pending_for_approval', 'disapproved'],
       ['revisions_needed', 'pending_for_approval'],
       ['approved', 'launched'],
     ];
@@ -316,9 +351,14 @@ describe('canTransitionClient', () => {
   });
 
   it('is PRD §9\u2019s table: one branch out of Pending, one way back, one terminal state', () => {
-    expect(CLIENT_TRANSITIONS.pending_for_approval).toEqual(['approved', 'revisions_needed']);
+    expect(CLIENT_TRANSITIONS.pending_for_approval).toEqual([
+      'approved',
+      'revisions_needed',
+      'disapproved',
+    ]);
     expect(CLIENT_TRANSITIONS.approved).toEqual(['launched']);
     expect(CLIENT_TRANSITIONS.revisions_needed).toEqual(['pending_for_approval']);
+    expect(CLIENT_TRANSITIONS.disapproved).toEqual([]);
     expect(CLIENT_TRANSITIONS.launched).toEqual([]);
   });
 

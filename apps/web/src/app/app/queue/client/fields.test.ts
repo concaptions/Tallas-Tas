@@ -172,7 +172,9 @@ describe('clientQueueColumnView', () => {
       columns.map((column) => column.description),
     );
     // Pinned as values, not recomputed with chipTone: a tautology proves nothing about the tone.
-    expect(views.map((view) => view.tone)).toEqual(['info', 'ok', 'warn']);
+    // `bad` for Disapproved is the Oct 6 Talal ruling, matching COPY_STATUS/CREATOR_STATUS's
+    // reading of the same word.
+    expect(views.map((view) => view.tone)).toEqual(['info', 'ok', 'warn', 'bad']);
   });
 });
 

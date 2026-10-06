@@ -343,8 +343,27 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(dropdown).toHaveAttribute('data-table-key', 'creative_briefs');
 
     // The reason Textarea is only shown when the chosen key is a note-required branch
-    // (revisions_needed). The brief starts on pending_for_approval, so it is hidden.
+    // (revisions_needed / disapproved). The brief starts on pending_for_approval, so it is hidden.
     await expect(section.locator('textarea[name="client_status_note"]')).toHaveCount(0);
+  });
+
+  // Oct 6 Talal ruling (docs/decisions.md 2026-10-07): `disapproved` is now a CLIENT_STATUS
+  // terminal. The design-system badges story renders every CLIENT_STATUS entry as its own chip,
+  // so this is a cross-page end-to-end assertion that the vocabulary carries the new key through
+  // SSR into the DOM — a check the demo-mode dropdown cannot make since its Select is disabled.
+  test('the design-system badges story renders Disapproved for CLIENT_STATUS (Oct 6 ruling)', async ({
+    page,
+  }) => {
+    await page.goto('/design-system');
+    const clientStatusBadges = page
+      .locator('text=/CLIENT_STATUS — concepts and creative briefs/')
+      .locator('..')
+      .locator('[data-slot="status-chip"]');
+    await expect(clientStatusBadges.filter({ hasText: 'Disapproved' })).toHaveCount(1);
+    await expect(clientStatusBadges.filter({ hasText: 'Disapproved' })).toHaveAttribute(
+      'data-tone',
+      'bad',
+    );
   });
 
   // Module parity, phase 2: the four tables that point at a brief are read back the other way on

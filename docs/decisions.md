@@ -1522,3 +1522,37 @@ Prod state at push:
 
 The hardened 0049 (information_schema guard) replaces the generator's bare `ADD COLUMN` so a
 re-run never errors.
+
+## 2026-10-07 — CLIENT_STATUS gains an explicit `disapproved` terminal (Oct 6 Talal ruling)
+
+Oct 5 Agent 5 mapped the paste's `disapproved` onto `revisions_needed` with a note because the
+shipped CLIENT_STATUS didn't carry a disapproved terminal. The operator ruled this an explicit
+terminal state on Oct 6; CLIENT_STATUS now carries it alongside the existing four, positioned after
+`revisions_needed` and before `launched` (the two work-remains branches sit together, both
+terminals sit at the tail). The DB column is text with no enum constraint (migration 0050), so no
+schema change was needed. Backward compatible: every stored row keeps its existing value, and the
+note is required when writing either `revisions_needed` or `disapproved`.
+
+Transitions, in `creative-status.ts`:
+
+- `pending_for_approval` branches three ways now — `approved`, `revisions_needed`, `disapproved` —
+  matching the paste. `revisions_needed` still rejoins at `pending_for_approval` when the team
+  resubmits; `disapproved` is terminal (no outgoing move), as `CREATOR_STATUS` and `COPY_STATUS`
+  already treated the same key.
+- `CLIENT_TRACK_STEPS` (the linear stepper) excludes `disapproved` the same way it excludes
+  `revisions_needed`: both are branches off the decision, not steps along it, and a stepper that
+  tried to place them as rows would mark Approved as `done` on a creative the client had just
+  rejected.
+- `chipTone('Disapproved')` returns `bad`, matching `COPY_STATUS`'s and `CREATOR_STATUS`'s existing
+  `disapproved → bad` reading. All other CLIENT_STATUS tones are unchanged.
+- `CLIENT_QUEUE_COLUMNS` picks up the new column automatically — it is `CLIENT_STATUS.filter(entry
+  => entry.key !== 'launched')`. The two write controls (`approve`, `request_revisions`) are
+  unchanged; a `disapprove` button on the client queue is deferred — the dropdown in the detail
+  view is the only writer today.
+
+No files outside `packages/domain/src/state/creative-status.ts` (+its test), the client-queue test,
+the client-queue page's `fields.test.ts` (tone list pinned to include `bad`), and
+`apps/web/src/lib/client-status-vocabulary.ts` (stale comment correction) needed to change. The
+shared dropdown's options list, the badge's tone wiring, the server action's enum validator, and
+the required-note predicate all resolve against `CLIENT_STATUS` and
+`NOTE_REQUIRED_STATUSES`-intersected-with-the-vocabulary, so adding the key cascades through.
