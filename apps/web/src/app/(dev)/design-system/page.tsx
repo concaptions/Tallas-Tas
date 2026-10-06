@@ -109,6 +109,7 @@ import {
   OverviewMetricsEditorStory,
   OverviewPipelineStory,
 } from './overview.stories';
+import { AssetUploadModalStory } from './assets-upload.stories';
 import { ClientAssetPanelStory, ClientAssetsGridStory } from './client-assets.stories';
 import { CopyTypePanelStory, CopyTypesGridStory } from './copy-types.stories';
 import { CreativeModulePanelStory, CreativeModulesGridStory } from './creative-modules.stories';
@@ -1226,6 +1227,9 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex-1 basis-full">
             <ClientAssetsGridStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <AssetUploadModalStory />
           </div>
           <div className="flex-1 basis-full">
             <CopyTypePanelStory />

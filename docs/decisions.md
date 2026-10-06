@@ -1635,3 +1635,30 @@ Agent 1 of the closing run executed the AI-27 workflow end-to-end:
 After the operator applies, verify: `creative_sheet_items` 377, `creative_modules` 35, every
 other table unchanged from the Oct 4 baseline, `verify-rollout` 20/20. The stuck doc's §2 is
 updated to reflect this status and the entry is cross-referenced from `docs/runbook.md`.
+## D-032 · 2026-10-07 · Asset-library delete: soft-delete + best-effort R2 remove
+
+The Oct 7 Asset Library upload/serve/delete pipeline (Agent 2 of the ovn6 run) implements delete
+as a **soft** delete on the row paired with a best-effort R2 object delete, not the hard delete
+the implementation paste described.
+
+**Row.** CLAUDE.md non-negotiable "Soft delete only. Never `DELETE FROM` a data table" is binding
+on this surface the same way it is on every other content table — the audit trail (`created_by`,
+`updated_by`, `created_at`, `updated_at`, now `deleted_at`) stays intact so a mis-click can be
+reversed from Postgres without replaying an upload. `softDeleteAsset` (in `packages/db/src/assets.ts`)
+goes through `withBrand(brandId).softDelete` to keep the tenancy check in SQL rather than in the
+Server Action.
+
+**R2 object.** The paste points at R2 lifetime being tied to the asset, so `deleteAssetAction`
+calls `deleteFromR2` after the soft-delete. `deleteFromR2` is idempotent (404 counts as success),
+and a non-idempotent failure (500, network) is logged (`console.warn` for now; Pino later) but
+not fatal — the row's `deleted_at` is the authoritative state, and the UI must not show a deleted
+file just because R2 was briefly unreachable. An undeleted row's object will be absent from R2 if
+the delete raced ahead; the file would need to be re-uploaded.
+
+**Role gate.** Admin or CSM. The same `admin OR csm` shape `canConfigureInterface` uses — a
+strategist, editor, designer, media buyer or client cannot reach the delete. The predicate is
+inlined in `delete-policy.ts` (rather than a new domain function) because the viewer-role resolver
+already returns the role string the gate reads.
+
+**Not a migration.** No schema change: `assets.deleted_at` already exists via `baseColumns()`.
+Nothing new to generate or apply.

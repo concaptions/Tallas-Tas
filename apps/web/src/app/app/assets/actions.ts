@@ -2,12 +2,21 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { assetCategories, insertAsset, updateAsset } from '@tas/db';
+import {
+  assetCategories,
+  deleteFromR2,
+  getAssetById,
+  insertAsset,
+  isR2Available,
+  softDeleteAsset,
+  updateAsset,
+} from '@tas/db';
 import { z } from 'zod';
 
 import { withAssetScope } from '@/lib/assets-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { assetsPath } from '@/lib/routes';
+import { viewerRole } from '@/lib/viewer-role';
 
 export interface AssetActionSuccess {
   readonly ok: true;
@@ -86,4 +95,44 @@ export async function updateAssetAction(
   } finally {
     await scope.close();
   }
+}
+
+/**
+ * Soft-delete one asset (CLAUDE.md: "Soft delete only. Never `DELETE FROM` a data table.") and
+ * remove the backing R2 object. The paste says hard delete; the project-wide rule says soft, so the
+ * row stays with `deleted_at = now()` and the audit trail is intact. The R2 object is removed
+ * because the paste points at R2 lifetime being tied to the asset, and `deleteFromR2` is
+ * idempotent (404 counts as success). The decision line in `docs/decisions.md` explains both halves.
+ *
+ * ROLE GATE: admin or CSM. Deleting an asset is a privileged action for the agency side; a
+ * strategist, editor, designer, media buyer or client cannot reach it. The predicate reuses the
+ * `admin OR csm` shape that `canConfigureInterface` already uses, applied inline here because the
+ * domain's predicate takes a shape the viewer-role resolver does not expose.
+ *
+ * HTTP-free policy lives in `delete-policy.ts` for the unit tests; this Server Action is the thin
+ * wiring that reads `isDemoMode()`, `auth()`, `viewerRole()`, `withAssetScope()` and the R2 helpers.
+ */
+export async function deleteAssetAction(
+  _previous: AssetActionResult | null,
+  formData: FormData,
+): Promise<AssetActionResult> {
+  const { runDelete } = await import('./delete-policy');
+  return runDelete(formData, {
+    isDemoMode,
+    auth: async () => (await auth()).userId,
+    role: async () => viewerRole(),
+    openScope: async () => {
+      const scope = await withAssetScope();
+      return {
+        getAsset: (id: string) => getAssetById(scope.db, scope.brandId, id),
+        softDelete: (id: string) => softDeleteAsset(scope.db, scope.brandId, id),
+        close: scope.close,
+      };
+    },
+    isR2Available,
+    deleteFromR2,
+    revalidatePath: () => {
+      revalidatePath(assetsPath);
+    },
+  });
 }
