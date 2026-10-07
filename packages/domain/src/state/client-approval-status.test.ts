@@ -26,13 +26,13 @@ describe('CLIENT_APPROVAL_STATUS', () => {
 
   it('returns tone for known key', () => {
     expect(clientApprovalTone('approved')).toBe('ok');
-    expect(clientApprovalTone('disapproved')).toBe('error');
-    expect(clientApprovalTone('pending_client_approval')).toBe('warning');
-    expect(clientApprovalTone('revision_needed')).toBe('warning');
+    expect(clientApprovalTone('disapproved')).toBe('bad');
+    expect(clientApprovalTone('pending_client_approval')).toBe('warn');
+    expect(clientApprovalTone('revision_needed')).toBe('warn');
   });
 
-  it('returns neutral for null/undefined/unknown', () => {
-    expect(clientApprovalTone(null)).toBe('neutral');
-    expect(clientApprovalTone(undefined)).toBe('neutral');
+  it('returns mute for null/undefined/unknown', () => {
+    expect(clientApprovalTone(null)).toBe('mute');
+    expect(clientApprovalTone(undefined)).toBe('mute');
   });
 });
