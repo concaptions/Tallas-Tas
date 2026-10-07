@@ -20,7 +20,10 @@
     "./interface": "./src/interface/index.ts",
     "./notifications": "./src/notifications/index.ts",
     "./campaigns": "./src/campaigns/index.ts",
-    "./propagation": "./src/propagation/index.ts"
+    "./propagation": "./src/propagation/index.ts",
+    "./client-progress": "./src/client-progress/index.ts",
+    "./client-auth": "./src/client-auth/index.ts",
+    "./dashboard": "./src/dashboard/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

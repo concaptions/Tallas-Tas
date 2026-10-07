@@ -11,9 +11,13 @@ import {
   type CustomInterfacePageView,
   type InterfaceTabVisibilityView,
 } from '@tas/domain';
+import { computeClientProgress } from '@tas/domain/client-progress';
 
 import { resolveClientBrand } from '@/lib/client-brand-source';
+import { loadClientProgressData } from '@/lib/client-data-source';
 import { loadClientInterfaceConfig } from '@/lib/client-interface-config-source';
+
+import { ClientProgressBar } from '../client-progress-bar';
 
 interface Props {
   readonly children: ReactNode;
@@ -48,7 +52,11 @@ export default async function ClientBrandLayout({ children, params }: Props) {
 
   const basePath = `/client/${encodeURIComponent(brandSlug)}`;
 
-  const config = await loadClientInterfaceConfig(brand.id);
+  const [config, progressData] = await Promise.all([
+    loadClientInterfaceConfig(brand.id),
+    loadClientProgressData(brand.id),
+  ]);
+  const progress = computeClientProgress(progressData);
   const mergedTabs = mergeTabVisibility(
     config.templateTabRows.map((row) => ({
       brandId: row.brandId,
@@ -105,6 +113,7 @@ export default async function ClientBrandLayout({ children, params }: Props) {
           <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Client Portal</p>
           <p className="text-sm font-semibold text-text">{brand.name}</p>
         </div>
+        <ClientProgressBar progress={progress} />
         <nav className="flex flex-row gap-1 overflow-x-auto md:flex-col" data-slot="client-nav">
           {(standardFallback
             ? (CLIENT_TAB_KEYS.map((key) => ({ tabKey: key, sortOrder: 0 })) as readonly {
