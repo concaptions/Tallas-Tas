@@ -90,6 +90,9 @@ export const demoCreativeSheetItems: CreativeSheetItemListRow[] = [
     winning: null,
     spellCheckRequested: false,
     spellingFeedback: null,
+    clientApprovalStatus: null,
+    clientApprovalNote: null,
+    clientApprovalStatusUpdatedAt: null,
   },
   {
     ...propagationBase(SHEET_UNLINKED_ID, '2026-10-01T07:00:00.000Z', '2026-10-01T07:05:00.000Z'),
@@ -107,6 +110,9 @@ export const demoCreativeSheetItems: CreativeSheetItemListRow[] = [
     winning: null,
     spellCheckRequested: false,
     spellingFeedback: null,
+    clientApprovalStatus: null,
+    clientApprovalNote: null,
+    clientApprovalStatusUpdatedAt: null,
   },
   {
     ...propagationBase(SHEET_BUNDLE_V3_ID, '2026-09-20T10:15:00.000Z', '2026-09-28T16:40:00.000Z'),
@@ -127,6 +133,9 @@ export const demoCreativeSheetItems: CreativeSheetItemListRow[] = [
     winning: 'average',
     spellCheckRequested: false,
     spellingFeedback: null,
+    clientApprovalStatus: null,
+    clientApprovalNote: null,
+    clientApprovalStatusUpdatedAt: null,
   },
   {
     ...propagationBase(SHEET_DAYLIGHT_ID, '2026-09-12T19:00:00.000Z', '2026-09-25T11:20:00.000Z'),
@@ -146,6 +155,9 @@ export const demoCreativeSheetItems: CreativeSheetItemListRow[] = [
     spellCheckRequested: true,
     spellingFeedback:
       'Card 3 says "ninety to one" while card 2 reads 186 over 2, which is ninety-three to one. "on-call room" is hyphenated on card 5 and not on the end card.',
+    clientApprovalStatus: null,
+    clientApprovalNote: null,
+    clientApprovalStatusUpdatedAt: null,
   },
   {
     ...propagationBase(
@@ -167,5 +179,8 @@ export const demoCreativeSheetItems: CreativeSheetItemListRow[] = [
     winning: 'best_performing',
     spellCheckRequested: false,
     spellingFeedback: null,
+    clientApprovalStatus: null,
+    clientApprovalNote: null,
+    clientApprovalStatusUpdatedAt: null,
   },
 ];

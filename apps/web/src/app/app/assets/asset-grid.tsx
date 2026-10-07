@@ -34,7 +34,21 @@ const L: Record<AssetCategory, string> = {
   raw_asset: 'Raw Assets',
   mood_board: 'Mood Board',
   showcase_video: 'Showcase video',
+  ad: 'Ads',
+  edited_footage: 'Edited Footage',
 };
+
+/** A client asset folder as the merged Asset Library renders it. */
+export interface ClientFolderItem {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly locationUrl: string | null;
+  readonly locationHost: string | null;
+  readonly designCount: number;
+  readonly updatedLabel: string;
+  readonly updatedTitle: string;
+}
 
 export function AssetLibrary({
   items,
@@ -42,14 +56,20 @@ export function AssetLibrary({
   categories,
   brandId,
   canDelete = false,
+  clientFolders = [],
+  initialTab = 'all',
 }: {
   items: readonly AssetItem[];
   demo: boolean;
   categories: readonly AssetCategory[];
   brandId: string | null;
   canDelete?: boolean;
+  clientFolders?: readonly ClientFolderItem[];
+  initialTab?: string;
 }) {
-  const [filter, setFilter] = useState<AssetCategory | 'all'>('all');
+  const [filter, setFilter] = useState<AssetCategory | 'all' | 'client-folders'>(
+    initialTab === 'client-folders' ? 'client-folders' : 'all',
+  );
   const [search, setSearch] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AssetItem | null>(null);
@@ -107,7 +127,7 @@ export function AssetLibrary({
         </DisabledWrite>
       </div>
       <div className="flex flex-wrap gap-2">
-        {['all' as const, ...categories].map((k) => (
+        {(['all' as const, ...categories] as const).map((k) => (
           <button
             key={k}
             type="button"
@@ -120,6 +140,15 @@ export function AssetLibrary({
             {k === 'all' ? items.length : items.filter((i) => i.asset.category === k).length})
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => {
+            setFilter('client-folders');
+          }}
+          className={`rounded-input px-3 py-1 text-xs ${filter === 'client-folders' ? 'bg-accent text-white' : 'bg-surface-alt text-text2'}`}
+        >
+          Client Folders ({clientFolders.length})
+        </button>
       </div>
       <input
         type="text"
@@ -130,7 +159,49 @@ export function AssetLibrary({
         }}
         className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text4"
       />
-      {filtered.length === 0 ? (
+      {filter === 'client-folders' ? (
+        clientFolders.length === 0 ? (
+          <p className="py-8 text-center text-sm text-text3">No client folders yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {clientFolders.map((folder) => (
+              <article
+                key={folder.id}
+                data-slot="client-folder-card"
+                className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3 transition-colors hover:border-line2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-xl leading-none" aria-hidden="true">
+                    📁
+                  </span>
+                  <span className="rounded-input bg-surface-alt px-2 py-0.5 text-[10px] uppercase text-text3">
+                    {folder.designCount} {folder.designCount === 1 ? 'design' : 'designs'}
+                  </span>
+                </div>
+                <span className="truncate font-medium text-sm text-text">{folder.name}</span>
+                {folder.description !== null && (
+                  <p className="line-clamp-2 text-xs text-text2">{folder.description}</p>
+                )}
+                <div className="mt-auto flex items-center justify-between text-[11px] text-text3">
+                  {folder.locationUrl !== null ? (
+                    <a
+                      href={folder.locationUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent underline-offset-2 hover:underline"
+                    >
+                      {folder.locationHost ?? folder.locationUrl}
+                    </a>
+                  ) : (
+                    <span />
+                  )}
+                  <time title={folder.updatedTitle}>{folder.updatedLabel}</time>
+                </div>
+              </article>
+            ))}
+          </div>
+        )
+      ) : filtered.length === 0 ? (
         <p className="py-8 text-center text-sm text-text3">
           {items.length === 0 ? 'No assets uploaded yet.' : 'No assets match the current filter.'}
         </p>

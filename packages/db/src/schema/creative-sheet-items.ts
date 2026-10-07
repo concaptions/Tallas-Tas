@@ -1,9 +1,10 @@
-import { boolean, index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { creativeBriefs } from './briefs';
 import type {
+  ClientApprovalStatusKey,
   CreativeSheetInternalStatusesKey,
   CreativeSheetStatusesKey,
   CreativeSheetWinningKey,
@@ -75,6 +76,11 @@ export const creativeSheetItems = pgTable(
     winning: text('winning').$type<CreativeSheetWinningKey>(),
     spellCheckRequested: boolean('spell_check_requested').notNull().default(false),
     spellingFeedback: text('spelling_feedback'),
+    clientApprovalStatus: text('client_approval_status').$type<ClientApprovalStatusKey>(),
+    clientApprovalNote: text('client_approval_note'),
+    clientApprovalStatusUpdatedAt: timestamp('client_approval_status_updated_at', {
+      withTimezone: true,
+    }),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [

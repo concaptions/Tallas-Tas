@@ -361,3 +361,11 @@ export * from './formulas';
 export * from './column-definitions';
 export * from './column-seed';
 export * from './custom-interface-pages';
+export {
+  findTokenByValue,
+  findTokenByValueAndBrand,
+  touchTokenLastUsed,
+  revokeToken,
+  listTokensForBrand,
+  insertClientToken,
+} from './client-token-queries';

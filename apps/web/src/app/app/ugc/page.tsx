@@ -4,6 +4,7 @@ import { loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
 import {
+  loadAllCreatorAssets,
   loadCollaborations,
   loadCreatorVideos,
   loadUgc,
@@ -31,6 +32,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     conceptResult,
     productResult,
     userViews,
+    creatorAssets,
     params,
   ] = await Promise.all([
     loadUgc(),
@@ -38,6 +40,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     loadConcepts(),
     loadProducts(),
     loadUserViews('creators'),
+    loadAllCreatorAssets(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -128,6 +131,12 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     notes: row.notes,
   }));
 
+  // Serialize the Map to a plain Record for client component serialisation.
+  const creatorAssetsRecord: Record<
+    string,
+    readonly { url: string; filename: string; category: string }[]
+  > = Object.fromEntries(creatorAssets);
+
   return (
     <UgcWorkspace
       columns={columns}
@@ -144,6 +153,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
       initialVideos={videos}
       uploadsEnabled={!demo && isR2Available()}
       userViews={userViews}
+      creatorAssets={creatorAssetsRecord}
     />
   );
 }

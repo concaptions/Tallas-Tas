@@ -64,6 +64,7 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     collectionUrls: null,
     collectionProducts: null,
     copyTypeNames: ['Problem / Agitate / Solve'],
+    clientApprovalStatus: null,
     createdBy: 'seed',
     updatedLabel: 'yesterday',
     updatedTitle: '2026-09-16 11:20',

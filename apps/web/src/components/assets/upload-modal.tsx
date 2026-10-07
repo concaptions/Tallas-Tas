@@ -62,6 +62,8 @@ const CATEGORY_LABELS: Record<AssetCategory, string> = {
   raw_asset: 'Raw Assets',
   mood_board: 'Mood Board',
   showcase_video: 'Showcase video',
+  ad: 'Ad',
+  edited_footage: 'Edited Footage',
 };
 
 const ACCEPT = 'image/*,video/*,application/pdf';

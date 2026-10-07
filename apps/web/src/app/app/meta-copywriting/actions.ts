@@ -23,6 +23,7 @@ import {
   type CopyDraftField,
   type CopyDraftValidation,
 } from '@tas/domain/copy';
+import { clientApprovalStatuses } from '@tas/db/schema';
 import { COPY_STATUS_INITIAL } from '@tas/domain/state';
 import { z } from 'zod';
 
@@ -472,6 +473,68 @@ export async function updateCopyAction(
         await setCollectionCopywritingLinkInBrand(db, brandId, saved.id, collectionId, actor);
       }
       return success(saved.id, checked.validation);
+    });
+
+    if (outcome === null) {
+      return { ok: false, error: 'This workspace has no brand yet.' };
+    }
+    if (outcome.ok) {
+      revalidatePath(copywritingPath);
+    }
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The copy could not be saved. Try again.' };
+  }
+}
+
+/**
+ * Updates the client-facing approval status and optional note on one copy row. The vocabulary is
+ * the four `clientApprovalStatuses` keys from `@tas/db/schema`; an empty note stores NULL.
+ * `clientApprovalStatusUpdatedAt` is stamped with the server's clock so the timeline never
+ * depends on the client's.
+ */
+export async function updateCopyClientApproval(
+  id: string,
+  status: string,
+  note?: string,
+): Promise<CopyActionResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+
+  if (typeof id !== 'string' || id === '') {
+    return { ok: false, error: 'This copy could not be identified.' };
+  }
+
+  const validStatus = clientApprovalStatuses.find((entry) => entry.key === status);
+  if (validStatus === undefined) {
+    return { ok: false, error: 'That is not one of the client approval statuses.' };
+  }
+
+  const trimmedNote = note?.trim() || null;
+
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
+    }
+
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const saved = await updateCopy(
+        db,
+        brandId,
+        id,
+        {
+          clientApprovalStatus: validStatus.key,
+          clientApprovalNote: trimmedNote,
+          clientApprovalStatusUpdatedAt: new Date(),
+        },
+        actor,
+      );
+      if (saved === null) {
+        return { ok: false as const, error: 'That copy is no longer available.' };
+      }
+      return { ok: true as const, id: saved.id, savedAt: Date.now(), warnings: {} };
     });
 
     if (outcome === null) {

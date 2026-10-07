@@ -44,7 +44,11 @@ export function createNeonDb(databaseUrl: string): NeonDb {
  * `db.$client.end()`.
  */
 export function createNodeDb(databaseUrl: string) {
-  const pool = new PgPool({ connectionString: databaseUrl });
+  const pool = new PgPool({
+    connectionString: databaseUrl,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  });
   return Object.assign(drizzleNode(pool, drizzleConfig), {
     $client: pool,
   });

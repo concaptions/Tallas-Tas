@@ -3,9 +3,10 @@ import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { creativeBriefs } from './briefs';
+import { collections } from './collections';
 import { concepts } from './concepts';
 import { products } from './products';
-import type { CopyCta, CopyFunnel } from './enums';
+import type { ClientApprovalStatusKey, CopyCta, CopyFunnel } from './enums';
 
 /**
  * The value `status` starts at: the FIRST entry of `COPY_STATUS` in `@tas/domain/state`, verbatim —
@@ -65,6 +66,7 @@ export const copywriting = pgTable(
     creativeBriefId: uuid('creative_brief_id').references(() => creativeBriefs.id),
     conceptId: uuid('concept_id').references(() => concepts.id),
     productId: uuid('product_id').references(() => products.id),
+    collectionId: uuid('collection_id').references(() => collections.id),
     copyNumber: integer('copy_number').notNull().default(1),
     primaryCopy: text('primary_copy'),
     headline: text('headline'),
@@ -89,12 +91,19 @@ export const copywriting = pgTable(
      * alongside `client_comment` (the existing note column).
      */
     statusUpdatedAt: timestamp('status_updated_at', { withTimezone: true }),
+    clientApprovalStatus: text('client_approval_status').$type<ClientApprovalStatusKey>(),
+    clientApprovalNote: text('client_approval_note'),
+    clientApprovalStatusUpdatedAt: timestamp('client_approval_status_updated_at', {
+      withTimezone: true,
+    }),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [
     index('copywriting_brand_id_idx').on(table.brandId),
     index('copywriting_creative_brief_id_idx').on(table.creativeBriefId),
     index('copywriting_concept_id_idx').on(table.conceptId),
+    index('copywriting_product_id_idx').on(table.productId),
+    index('copywriting_collection_id_idx').on(table.collectionId),
     index('copywriting_template_row_id_idx').on(table.templateRowId),
   ],
 );

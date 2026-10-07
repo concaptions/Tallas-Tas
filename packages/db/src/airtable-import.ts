@@ -625,6 +625,7 @@ async function importRows(
   records: readonly AirtableRecord[],
   mapFn: (fields: Record<string, unknown>) => Record<string, unknown>,
   actorId: string,
+  tableName?: string,
 ): Promise<{ result: TableResult; idMap: IdMap }> {
   const result: TableResult = {
     records: records.length,
@@ -635,8 +636,17 @@ async function importRows(
     errors: [],
   };
   const idMap: IdMap = new Map();
+  const label = tableName ?? 'unknown';
+  const total = records.length;
+  if (total > 0) console.log(`[PROGRESS] ${label}: importing ${String(total)} records...`);
+  let rowNum = 0;
 
   for (const rec of records) {
+    rowNum++;
+    if (rowNum === 1 || rowNum % 50 === 0 || rowNum === total) {
+      process.stdout.write(`
+[PROGRESS] ${label}: ${String(rowNum)}/${String(total)}`);
+    }
     const existing = await db
       .select({ id: table.id })
       .from(table)
@@ -698,6 +708,9 @@ async function importRows(
       result.errors.push(`${rec.id}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+  if (total > 0)
+    console.log(`
+[PROGRESS] ${label}: done (${String(result.imported)} imported, ${String(result.updated)} updated, ${String(result.failed)} failed)`);
   return { result, idMap };
 }
 
@@ -869,6 +882,7 @@ export async function importAirtableExport(
       collectionLink: str(f['Collection Link']),
     }),
     actorId,
+    'Products',
   );
   results.products = prodResult;
 
@@ -887,6 +901,7 @@ export async function importAirtableExport(
       isActive: f['Is Active'] !== false,
     }),
     actorId,
+    'Themes',
   );
   results.themes = themeResult;
 
@@ -910,6 +925,7 @@ export async function importAirtableExport(
       adsEndDate: str(f['Ads End Date']),
     }),
     actorId,
+    'Campaigns',
   );
   results.campaignsOffers = campaignResult;
 
@@ -1018,6 +1034,7 @@ export async function importAirtableExport(
       creativeDesignNote: str(f['Creative Design'] ?? f['(Internal) Creative Design 2']),
     }),
     actorId,
+    'Collections',
   );
   results.collections = collectionResult;
 
@@ -1142,6 +1159,7 @@ export async function importAirtableExport(
       description: str(f.Description),
     }),
     actorId,
+    'CopyTypes',
   );
   results.copyTypes = copyTypeResult;
 
@@ -1167,6 +1185,7 @@ export async function importAirtableExport(
       metaRating: ratingInt(f['Meta Rating']),
     }),
     actorId,
+    'YoutubeCopy',
   );
   results.youtubeCopy = youtubeResult;
 
@@ -1259,6 +1278,7 @@ export async function importAirtableExport(
       caption: str(f.Caption),
     }),
     actorId,
+    'Assets',
   );
   results.assets = assetResult;
 
@@ -1305,6 +1325,7 @@ export async function importAirtableExport(
       notes: str(f.Notes),
     }),
     actorId,
+    'CompetitorAds',
   );
   results.competitorAds = competitorAdResult;
 
@@ -1325,6 +1346,7 @@ export async function importAirtableExport(
       periodLabel: str(f['Period Label']) ?? '',
     }),
     actorId,
+    'Rankings',
   );
   results.creatorRankings = rankingResult;
 
@@ -1343,6 +1365,7 @@ export async function importAirtableExport(
       notes: str(f.Notes),
     }),
     actorId,
+    'UploadLinks',
   );
   results.uploadLinks = uploadLinkResult;
 
@@ -1362,6 +1385,7 @@ export async function importAirtableExport(
       analysis: str(f.Analysis),
     }),
     actorId,
+    'CompetitiveResearch',
   );
   results.competitiveResearch = competitiveResult;
 
@@ -1379,6 +1403,7 @@ export async function importAirtableExport(
       locationUrl: str(f.Location ?? f['Location URL']),
     }),
     actorId,
+    'ClientAssetFolders',
   );
   results.clientAssetFolders = folderResult;
   if ((data['Client Assets Organisation'] ?? []).length > 0) {
@@ -1399,6 +1424,7 @@ export async function importAirtableExport(
       linkDescription: str(f['Link Description']),
     }),
     actorId,
+    'Dimensions',
   );
   results.creativeDimensions = dimensionResult;
 
@@ -1415,6 +1441,7 @@ export async function importAirtableExport(
       foreplayLink: str(f['Foreplay Link']),
     }),
     actorId,
+    'Modules',
   );
   results.creativeModules = moduleResult;
 
@@ -1469,6 +1496,7 @@ export async function importAirtableExport(
       notes: str(f.Notes),
     }),
     actorId,
+    'SMCampaigns',
   );
   results.smCampaignFeedTasks = smResult;
 
@@ -1493,6 +1521,7 @@ export async function importAirtableExport(
       channel: mapStatus(w, 'emailCampaigns.channel', MAPS.emailChannel, f.Channel),
     }),
     actorId,
+    'EmailCampaigns',
   );
   results.emailCampaigns = emailCampaignResult;
 
@@ -1515,6 +1544,7 @@ export async function importAirtableExport(
       assigneeId: collaboratorName(f.Assignee),
     }),
     actorId,
+    'EmailFlows',
   );
   results.emailFlows = emailFlowResult;
 
@@ -1540,9 +1570,11 @@ export async function importAirtableExport(
       targetRoas: numStr(f['Target ROAS']),
     }),
     actorId,
+    'Reporting',
   );
   results.creativeReporting = reportingResult;
 
+  console.log('[PROGRESS] Pass 1 complete. Starting Pass 2 (cross-table FKs and junctions)...');
   // ━━ Pass 2: Resolve cross-table FKs and junction tables ━━
 
   // Sprint 2026-09-29: junction sets for the records THIS import touches are rebuilt from scratch,
@@ -1915,6 +1947,7 @@ export async function importAirtableExport(
     }
   }
 
+  console.log('[PROGRESS] Pass 2 complete. Collecting unmapped fields...');
   collectUnmappedFields(w, trackers);
   return results;
 }

@@ -8,6 +8,7 @@ import {
   type CreativeSheetItemInput,
 } from '@tas/db';
 import {
+  clientApprovalStatuses,
   creativeSheetInternalStatuses,
   creativeSheetStatuses,
   creativeSheetWinning,
@@ -256,6 +257,60 @@ const moveSchema = z.discriminatedUnion('field', [
   }),
   z.object({ field: z.literal('status'), value: optionalKey(creativeSheetStatuses) }),
 ]);
+
+/**
+ * Updates the client-facing approval status and optional note on one creative sheet row. The
+ * vocabulary is the four `clientApprovalStatuses` keys from `@tas/db/schema`; an empty note
+ * stores NULL. `clientApprovalStatusUpdatedAt` is stamped with the server's clock so the timeline
+ * never depends on the client's.
+ */
+export async function updateCreativeSheetClientApproval(
+  id: string,
+  status: string,
+  note?: string,
+): Promise<CreativeSheetActionResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+
+  if (typeof id !== 'string' || id === '') {
+    return { ok: false, error: 'This sheet row could not be identified.' };
+  }
+
+  const validStatus = clientApprovalStatuses.find((entry) => entry.key === status);
+  if (validStatus === undefined) {
+    return { ok: false, error: 'That is not one of the client approval statuses.' };
+  }
+
+  const trimmedNote = note?.trim() || null;
+
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: SESSION_EXPIRED };
+    }
+    const saved = await withBrandScope((db, brandId) =>
+      updateCreativeSheetItem(
+        db,
+        brandId,
+        id,
+        {
+          clientApprovalStatus: validStatus.key,
+          clientApprovalNote: trimmedNote,
+          clientApprovalStatusUpdatedAt: new Date(),
+        },
+        actor,
+      ),
+    );
+    if (saved === null) {
+      return { ok: false, error: 'That sheet row is no longer available.' };
+    }
+    revalidatePath(creativeSheetPath);
+    return { ok: true, id: saved.id, savedAt: Date.now() };
+  } catch {
+    return { ok: false, error: SAVE_FAILED };
+  }
+}
 
 /**
  * Moves one row to another Kanban column: a single-field patch of `internal_status` or `status`,

@@ -12,6 +12,7 @@ import { loadActorBrandPanels, loadOverviewPanels } from '@/lib/dashboard-source
 import { loadActiveRole, loadOverview } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { conceptsPath, personasPath, themesPath } from '@/lib/routes';
+import { OverviewDashboard } from './overview-dashboard';
 
 /**
  * The workspace Overview. Counts come from the data source, which is the demo fixtures when Clerk
@@ -35,11 +36,8 @@ export default async function OverviewPage() {
   // connection and its once-per-request brand resolution. The third is the cross-client shell's
   // data (AI-06/AI-09): the signed-in actor's OWN assigned brands, one panel each — empty for an
   // actor with fewer than two, which keeps the single-brand Overview exactly as it was.
-  const [{ brand, counts }, { dashboard, metrics, pipeline }, brandPanels] = await Promise.all([
-    loadOverview(),
-    loadOverviewPanels(role),
-    loadActorBrandPanels(role),
-  ]);
+  const [{ brand, counts }, { dashboard, metrics, pipeline, pipelineSummary }, brandPanels] =
+    await Promise.all([loadOverview(), loadOverviewPanels(role), loadActorBrandPanels(role)]);
 
   // The library sections the Overview surfaces. ANGLES IS NOT ONE OF THEM: action item 8 took it
   // out of this section, the same removal that dropped the CSM's "Angles in library" tile. The
@@ -91,6 +89,8 @@ export default async function OverviewPage() {
       <PipelineChart steps={pipeline} />
 
       <RoleDashboardSection dashboard={dashboard} />
+
+      <OverviewDashboard summary={pipelineSummary} />
 
       <section
         aria-labelledby="library-heading"

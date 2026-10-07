@@ -577,3 +577,16 @@ export const angleStatuses = [
   { key: 'revisions_submitted', label: 'Revisions Submitted' },
 ] as const satisfies readonly { key: string; label: string }[];
 export type AngleStatusesKey = (typeof angleStatuses)[number]['key'];
+
+/**
+ * Client-facing approval status shared across creative sheet items and copywriting
+ * (`creative_sheet_items.client_approval_status`, `copywriting.client_approval_status`).
+ * The four states a client can move a row through on the approval track.
+ */
+export const clientApprovalStatuses = [
+  { key: 'pending_client_approval', label: 'Pending Client Approval' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'disapproved', label: 'Disapproved' },
+  { key: 'revision_needed', label: 'Revision Needed' },
+] as const satisfies readonly { key: string; label: string }[];
+export type ClientApprovalStatusKey = (typeof clientApprovalStatuses)[number]['key'];

@@ -65,6 +65,9 @@ function sampleRow(
     winning: null,
     spellCheckRequested: false,
     spellingFeedback: null,
+    clientApprovalStatus: null,
+    clientApprovalNote: null,
+    clientApprovalStatusUpdatedAt: null,
     ...overrides,
   };
 }

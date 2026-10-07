@@ -1,19 +1,34 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import {
   CLIENT_TAB_KEYS,
   type ClientTabKey,
   clientTabLabel,
+  computeClientProgress,
+  isTokenExpired,
   mergeCustomPages,
   mergeTabVisibility,
+  type ClientProgress,
   type CustomInterfacePageView,
   type InterfaceTabVisibilityView,
 } from '@tas/domain';
+import {
+  DEMO_BRAND_ID,
+  demoBriefs,
+  demoConcepts,
+  demoCreativeSheetItems,
+  findTokenByValueAndBrand,
+} from '@tas/db';
+import { serverEnv } from '@tas/env';
 
 import { resolveClientBrand } from '@/lib/client-brand-source';
+import { getClientToken } from '@/lib/client-auth';
+import { loadClientConcepts, loadClientCreatives } from '@/lib/client-data-source';
+import { isDemoMode } from '@/lib/demo-mode';
 import { loadClientInterfaceConfig } from '@/lib/client-interface-config-source';
+import { requestConnection } from '@/lib/request-db';
 
 interface Props {
   readonly children: ReactNode;
@@ -46,7 +61,55 @@ export default async function ClientBrandLayout({ children, params }: Props) {
   const brand = await resolveClientBrand(brandSlug);
   if (!brand) notFound();
 
+  // Token gate: in live mode, verify the client has a valid access token for this brand.
+  // In demo mode the token check is skipped entirely — there are no credentials to issue.
+  if (!isDemoMode()) {
+    const token = await getClientToken();
+    if (!token) {
+      redirect(`/client/${encodeURIComponent(brandSlug)}/auth`);
+    }
+
+    const databaseUrl = serverEnv().DATABASE_URL;
+    if (databaseUrl !== undefined) {
+      const { db, close } = requestConnection(databaseUrl);
+      try {
+        const row = await findTokenByValueAndBrand(db, token, brand.id);
+        if (!row || isTokenExpired(row.expiresAt)) {
+          redirect(`/client/${encodeURIComponent(brandSlug)}/auth`);
+        }
+      } finally {
+        await close();
+      }
+    }
+  }
+
   const basePath = `/client/${encodeURIComponent(brandSlug)}`;
+
+  // Load progress data: demo fixtures in demo mode, client data loaders in live mode.
+  let progress: ClientProgress;
+  if (isDemoMode()) {
+    progress = computeClientProgress({
+      concepts: demoConcepts
+        .filter((c) => c.brandId === DEMO_BRAND_ID)
+        .map((c) => ({ clientStatus: c.clientStatus })),
+      briefs: demoBriefs
+        .filter((b) => b.brandId === DEMO_BRAND_ID)
+        .map((b) => ({ clientStatus: b.clientStatus })),
+      creativeSheet: demoCreativeSheetItems
+        .filter((s) => s.brandId === DEMO_BRAND_ID)
+        .map((s) => ({ status: s.clientApprovalStatus ?? null })),
+    });
+  } else {
+    const [concepts, creatives] = await Promise.all([
+      loadClientConcepts(brand.id),
+      loadClientCreatives(brand.id),
+    ]);
+    progress = computeClientProgress({
+      concepts: concepts.map((c) => ({ clientStatus: c.clientStatus })),
+      briefs: creatives.map((c) => ({ clientStatus: c.clientStatus })),
+      creativeSheet: [],
+    });
+  }
 
   const config = await loadClientInterfaceConfig(brand.id);
   const mergedTabs = mergeTabVisibility(
@@ -104,6 +167,21 @@ export default async function ClientBrandLayout({ children, params }: Props) {
         <div className="flex flex-col gap-1">
           <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Client Portal</p>
           <p className="text-sm font-semibold text-text">{brand.name}</p>
+        </div>
+        <div className="flex flex-col gap-1.5" data-slot="campaign-progress">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-text3">Campaign Progress</span>
+            <span className="font-mono text-sm text-text2">{progress.percentage}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-surface2">
+            <div
+              className="h-full rounded-full bg-accent transition-all"
+              style={{ width: `${String(progress.percentage)}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-text3">
+            {progress.approved} of {progress.total} approved
+          </p>
         </div>
         <nav className="flex flex-row gap-1 overflow-x-auto md:flex-col" data-slot="client-nav">
           {(standardFallback

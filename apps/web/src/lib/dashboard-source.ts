@@ -1,7 +1,7 @@
 import type { BriefListRow, Db } from '@tas/db';
 import { demoBriefs, demoConcepts, demoCopy, demoCreators, listBrandsForActor } from '@tas/db';
 import type { BrandRole } from '@tas/domain';
-import { BRAND_ROLE_LABELS } from '@tas/domain';
+import { BRAND_ROLE_LABELS, computePipelineSummary, type PipelineSummary } from '@tas/domain';
 import {
   INTERNAL_STATIC_STATUS,
   INTERNAL_VIDEO_STATUS,
@@ -13,6 +13,7 @@ import { serverEnv } from '@tas/env';
 import { loadBriefs, type BriefSourceDeps, type DbConnection } from './briefs-source';
 import { loadConcepts } from './concepts-source';
 import { loadCopy } from './copy-source';
+import { loadCreativeSheetItems } from './creative-sheet-source';
 import { clerkActorScope, inDemoMode, loadBrandScope } from './data-source';
 import { briefsPath, conceptsPath, copywritingPath, internalQueuePath, ugcPath } from './routes';
 import { loadUgc } from './ugc-source';
@@ -459,6 +460,7 @@ export interface OverviewPanels {
   readonly dashboard: RoleDashboard;
   readonly metrics: MetricCard[];
   readonly pipeline: PipelineStep[];
+  readonly pipelineSummary: PipelineSummary;
 }
 
 export async function loadRoleDashboard(
@@ -476,11 +478,12 @@ export async function loadOverviewPanels(
   role: BrandRole | 'admin',
   deps: BriefSourceDeps = {},
 ): Promise<OverviewPanels> {
-  const [briefs, concepts, copy, creators] = await Promise.all([
+  const [briefs, concepts, copy, creators, creativeSheet] = await Promise.all([
     loadBriefs(deps),
     loadConcepts(deps),
     loadCopy(deps),
     loadUgc(deps),
+    loadCreativeSheetItems(deps),
   ]);
   const data: DashboardData = {
     briefs: briefs.rows,
@@ -488,10 +491,30 @@ export async function loadOverviewPanels(
     copy: copy.rows,
     creators: creators.creators,
   };
+  const pipelineSummary = computePipelineSummary({
+    briefs: data.briefs.map((b) => ({
+      internalStatus: b.internalStatus,
+      clientStatus: b.clientStatus,
+    })),
+    concepts: concepts.rows.map((c) => ({
+      internalStatus: c.internalStatus,
+      clientStatus: c.clientStatus,
+    })),
+    creativeSheet: creativeSheet.rows.map((item) => ({
+      internalStatus: item.internalStatus ?? null,
+      status: item.clientApprovalStatus ?? null,
+    })),
+    copywriting: copy.rows.map((c) => ({ status: c.status })),
+    creators: creators.creators.map((c) => ({
+      internalCreatorStatus: c.internalCreatorStatus,
+      clientStatus: c.clientStatus,
+    })),
+  });
   return {
     dashboard: buildRoleDashboard(role, data),
     metrics: buildOverviewMetrics(role, data),
     pipeline: buildPipeline(data.briefs),
+    pipelineSummary,
   };
 }
 

@@ -79,6 +79,7 @@ export function buildCopyItems(sources: CopyItemSources, now: Date): CopyItem[] 
       metaRating: row.metaRating,
       spellingFeedback: row.spellingFeedback,
       clientComment: row.clientComment,
+      clientApprovalStatus: row.clientApprovalStatus,
       copyTypeIds,
       campaigns: campaignLinks(row.campaignIds, campaignNamesById),
       collections: linkedCollectionsByCopy.get(row.id) ?? [],

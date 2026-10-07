@@ -22,6 +22,7 @@ import {
 } from './fields';
 import { InterfaceConfigWorkspace } from './interface-config-workspace';
 import { TabVisibilitySection } from './tab-visibility-section';
+import { TokenSection } from './token-section';
 
 /**
  * Interface Config (PRD §10): "the interface must be configurable per client, at two levels —
@@ -159,6 +160,7 @@ export default async function InterfaceConfigPage() {
         demo={demo}
         disabled={!canConfigureNew}
       />
+      {snapshot.brandId !== null ? <TokenSection brandId={snapshot.brandId} demo={demo} /> : null}
     </div>
   );
 }

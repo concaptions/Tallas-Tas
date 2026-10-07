@@ -4,6 +4,7 @@ import {
   demoCreators,
   demoPartnershipCreators,
   getCreatorById,
+  listAssets,
   listCollaborations,
   listCreatorAssets,
   listCreators,
@@ -246,6 +247,61 @@ export async function loadCollaborations(
     const brandId = await resolveLiveBrandId(db, deps);
     const rows = brandId === null ? [] : await listCollaborations(db, brandId, creatorId);
     return { rows, source: 'database' };
+  });
+}
+
+/** One asset's thumbnail data as the gallery card renders it: the URL, the filename and the category. */
+export interface CreatorAssetSummary {
+  readonly url: string;
+  readonly filename: string;
+  readonly category: string;
+}
+
+/**
+ * All assets in the brand that are linked to a creator, grouped by `creatorId`. The gallery card
+ * shows up to four thumbnails and the total count, so every creator's assets travel on the same
+ * page load rather than N+1-ing a request per card.
+ *
+ * In demo mode the fixtures are filtered in JS; in live mode `listAssets` runs one scoped query
+ * and the grouping is done here, never in a component.
+ */
+export async function loadAllCreatorAssets(
+  deps: UgcSourceDeps = {},
+): Promise<Map<string, readonly CreatorAssetSummary[]>> {
+  const toSummary = (row: AssetListRow): CreatorAssetSummary => ({
+    url: row.url,
+    filename: row.filename,
+    category: row.category,
+  });
+
+  if (inDemoMode(deps)) {
+    const map = new Map<string, CreatorAssetSummary[]>();
+    for (const row of demoAssets) {
+      if (row.creatorId === null) continue;
+      const list = map.get(row.creatorId);
+      if (list !== undefined) {
+        list.push(toSummary(row));
+      } else {
+        map.set(row.creatorId, [toSummary(row)]);
+      }
+    }
+    return map;
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    if (brandId === null) return new Map<string, CreatorAssetSummary[]>();
+    const all = await listAssets(db, brandId);
+    const map = new Map<string, CreatorAssetSummary[]>();
+    for (const row of all) {
+      if (row.creatorId === null) continue;
+      const list = map.get(row.creatorId);
+      if (list !== undefined) {
+        list.push(toSummary(row));
+      } else {
+        map.set(row.creatorId, [toSummary(row)]);
+      }
+    }
+    return map;
   });
 }
 

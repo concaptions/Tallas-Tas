@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
+import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -298,6 +299,19 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   creative_module: {
     render: ({ lookups }) => <TextCell value={lookups.creativeModule} maxWidth={200} />,
     sortValue: ({ lookups }) => lookups.creativeModule,
+  },
+  client_approval_status: {
+    render: ({ item }) => {
+      const key = item.clientApprovalStatus;
+      if (key === null) return <span className="text-text4">{EM_DASH}</span>;
+      return (
+        <StatusChip
+          tone={clientApprovalTone(key) as import('@tas/domain/state').ChipTone}
+          label={clientApprovalLabel(key)}
+        />
+      );
+    },
+    sortValue: ({ item }) => clientApprovalLabel(item.clientApprovalStatus),
   },
   /* Airtable's `Created` / `Last Modified` system fields: the shared audit timestamps, displayed. */
   created_at: {

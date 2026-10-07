@@ -1,3 +1,4 @@
+export * from './client-approval-status';
 export * from './creative-status';
 export * from './editor-board';
 export * from './copy-status';

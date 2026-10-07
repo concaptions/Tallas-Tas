@@ -73,7 +73,11 @@ describe('migration 0007 on PGlite', () => {
     expect(names).toEqual([
       'brand_id',
       'click_for_ai_spell_checker',
+      'client_approval_note',
+      'client_approval_status',
+      'client_approval_status_updated_at',
       'client_comment',
+      'collection_id',
       'concept_id',
       'copy_number',
       'created_at',

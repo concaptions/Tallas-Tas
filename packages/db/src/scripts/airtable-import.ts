@@ -101,34 +101,48 @@ async function main(): Promise<void> {
     if (Array.isArray(records)) console.log(`  ${table}: ${String(records.length)} records`);
   }
 
-  // The whole import — dry or live — runs inside ONE transaction. A dry run executes every insert,
-  // update and junction write against the real database and then rolls the transaction back, so
-  // the printed report is exactly what a live run would commit; a live run that fails anywhere
-  // rolls back the same way and leaves nothing half-imported.
   const warnings = emptyWarnings();
-  // A property, not a `let`: TS does not flow-narrow closure assignments, and a plain variable
-  // would read as always-null after the transaction callback.
   const run: { results: Awaited<ReturnType<typeof importAirtableExport>> | null } = {
     results: null,
   };
-  try {
-    await db.transaction(async (tx) => {
-      const migrated = await applyPendingMigrations(tx);
-      if (migrated.length > 0)
-        console.log(
-          `\n${dryRun ? '[DRY RUN] previewing' : 'Applying'} pending migrations: ${migrated.join(', ')}`,
+
+  if (dryRun) {
+    // Dry run: wrap in one transaction so everything rolls back.
+    try {
+      await db.transaction(async (tx) => {
+        console.log('\n[PROGRESS] Starting migrations check...');
+        const migrated = await applyPendingMigrations(tx);
+        console.log('[PROGRESS] Migrations done. Starting import...');
+        if (migrated.length > 0)
+          console.log(`\nPreviewing pending migrations: ${migrated.join(', ')}`);
+        run.results = await importAirtableExport(
+          tx,
+          data,
+          resolvedBrandId,
+          'airtable-migration',
+          warnings,
         );
-      run.results = await importAirtableExport(
-        tx,
-        data,
-        resolvedBrandId,
-        'airtable-migration',
-        warnings,
-      );
-      if (dryRun) throw new DryRunRollback();
-    });
-  } catch (e) {
-    if (!(e instanceof DryRunRollback)) throw e;
+        throw new DryRunRollback();
+      });
+    } catch (e) {
+      if (!(e instanceof DryRunRollback)) throw e;
+    }
+  } else {
+    // Live run: NO wrapping transaction — each row has its own SAVEPOINT inside importRows,
+    // so one bad row does not abort the import, and the connection survives long imports over
+    // the internet (the old single-transaction approach hit EADDRNOTAVAIL on Railway after
+    // ~400 sequential queries).
+    console.log('\n[PROGRESS] Starting migrations check...');
+    const migrated = await applyPendingMigrations(db);
+    console.log('[PROGRESS] Migrations done. Starting import...');
+    if (migrated.length > 0) console.log(`\nApplying pending migrations: ${migrated.join(', ')}`);
+    run.results = await importAirtableExport(
+      db,
+      data,
+      resolvedBrandId,
+      'airtable-migration',
+      warnings,
+    );
   }
 
   if (run.results === null) throw new Error('import produced no results');

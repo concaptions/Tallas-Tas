@@ -45,6 +45,8 @@ export const assetCategories = [
   'raw_asset',
   'mood_board',
   'showcase_video',
+  'ad',
+  'edited_footage',
 ] as const;
 export type AssetCategory = (typeof assetCategories)[number];
 

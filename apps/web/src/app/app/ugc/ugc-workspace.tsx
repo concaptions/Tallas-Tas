@@ -17,7 +17,6 @@ import { getTableCapability, type ViewType } from '@tas/domain';
 
 import {
   KanbanBoard,
-  GalleryView,
   ListView,
   type KanbanItem,
   type ListChip,
@@ -48,6 +47,7 @@ import {
 } from '@/components/views/grid-cells';
 import { ageBracketLabel, creatorPlatformLabel } from '@tas/domain/creators';
 
+import { CreatorGalleryCard, type CreatorAssetThumb } from './creator-gallery-card';
 import { CreatorPanel, type CreatorVideo, type LinkOption } from './creator-panel';
 import { PartnershipTable } from './partnership-table';
 import {
@@ -98,6 +98,8 @@ export interface UgcWorkspaceProps {
   readonly uploadsEnabled?: boolean;
   /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
   readonly userViews: UserViewsResult;
+  /** Assets grouped by creatorId, for the gallery card's 2x2 thumbnail grid and count badge. */
+  readonly creatorAssets?: Readonly<Record<string, readonly CreatorAssetThumb[]>>;
 }
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
@@ -381,6 +383,7 @@ export function UgcWorkspace({
   userViews,
   columns,
   unconfiguredColumns = false,
+  creatorAssets = {},
 }: UgcWorkspaceProps) {
   const router = useRouter();
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
@@ -696,15 +699,22 @@ export function UgcWorkspace({
               demo={demo}
             />
           ) : activeView === 'gallery' ? (
-            <GalleryView
-              items={galleryItems}
-              visibleFields={tableView.config.visibleFields}
-              selectedId={selection}
-              cardSlot="creator-gallery-card"
-              onItemClick={(item) => {
-                select(item.id);
-              }}
-            />
+            <div
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+              data-slot="creator-gallery-view"
+            >
+              {filteredCreators.map((creator) => (
+                <CreatorGalleryCard
+                  key={creator.id}
+                  creator={creator}
+                  assets={creatorAssets[creator.id] ?? []}
+                  selected={creator.id === selection}
+                  onClick={() => {
+                    select(creator.id);
+                  }}
+                />
+              ))}
+            </div>
           ) : activeView === 'list' ? (
             <ListView
               items={galleryItems}
