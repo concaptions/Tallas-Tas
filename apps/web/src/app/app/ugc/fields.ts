@@ -55,6 +55,7 @@ export const SEARCH_PARAM = 'q';
 export const UGC_TABS = [
   { key: 'creators', label: 'Creators' },
   { key: 'partnerships', label: 'Partnership Ads' },
+  { key: 'creator_pool', label: 'Creator Pool' },
 ] as const;
 
 export type UgcTabKey = (typeof UGC_TABS)[number]['key'];
@@ -614,3 +615,39 @@ export const MAX_SHOWCASE_VIDEO_BYTES = 250 * 1024 * 1024;
 /** Why the upload is inert when the bucket is not configured: the credentials, not the code, are missing. */
 export const R2_UNAVAILABLE_HINT =
   'Video upload needs the R2 bucket credentials; they are not configured on this deployment.';
+
+/** What one row in the Creator Pool tab renders. Narrower than `RegistryCreatorListRow` so a story can hand a plain object. */
+export interface RegistryCreatorCardRow {
+  readonly id: string;
+  readonly name: string;
+  readonly instagramUsername: string | null;
+  readonly gender: string | null;
+  readonly ageBracket: string | null;
+  readonly ethnicity: string | null;
+  readonly shippingLocation: string | null;
+  readonly notes: string | null;
+  readonly platform: readonly string[];
+  readonly creatorLink: string | null;
+  readonly profilePicUrl: string | null;
+  readonly totalBrands: number;
+}
+
+export function registryCountLabel(total: number): string {
+  const count = Math.max(Math.trunc(total), 0);
+  return `${String(count)} ${count === 1 ? 'creator' : 'creators'} in pool`;
+}
+
+export const NO_REGISTRY_NOTE =
+  'No creators in the global pool yet. Add someone and they can be assigned to any brand.';
+
+export const REGISTRY_POOL_COLUMNS = [
+  'Name',
+  'Instagram',
+  'Gender',
+  'Age',
+  'Ethnicity',
+  'Location',
+  'Platforms',
+  'Brands',
+  '',
+] as const;

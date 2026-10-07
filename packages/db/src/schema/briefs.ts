@@ -152,6 +152,7 @@ export const creativeBriefs = pgTable(
   (table) => [
     index('creative_briefs_brand_id_idx').on(table.brandId),
     index('creative_briefs_concept_id_idx').on(table.conceptId),
+    index('creative_briefs_collection_id_idx').on(table.collectionId),
     index('creative_briefs_template_row_id_idx').on(table.templateRowId),
     // The Oct 5 brief-naming formula allocates `MAX(brief_number)+1 WHERE brand_id = ...` in one
     // transaction; this composite keeps that read cheap on a brand with many creatives.

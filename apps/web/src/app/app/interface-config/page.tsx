@@ -12,6 +12,7 @@ import { isDemoMode } from '@/lib/demo-mode';
 import { parentColumnsFor } from '@/lib/resolved-columns-source';
 import { currentTeamActor } from '@/lib/team-actor';
 import { loadTeam } from '@/lib/team-source';
+import { loadClientTokens } from '@/lib/token-source';
 
 import { CustomPagesSection } from './custom-pages-section';
 import {
@@ -22,6 +23,7 @@ import {
 } from './fields';
 import { InterfaceConfigWorkspace } from './interface-config-workspace';
 import { TabVisibilitySection } from './tab-visibility-section';
+import { TokenSection } from './token-section';
 
 /**
  * Interface Config (PRD §10): "the interface must be configurable per client, at two levels —
@@ -78,11 +80,12 @@ function NotAdmin() {
 }
 
 export default async function InterfaceConfigPage() {
-  const [{ rows }, { rows: concepts }, { rows: team }, snapshot] = await Promise.all([
+  const [{ rows }, { rows: concepts }, { rows: team }, snapshot, { tokens }] = await Promise.all([
     loadInterfaceConfig(),
     loadConcepts(),
     loadTeam(),
     loadCustomPagesSnapshot(),
+    loadClientTokens(),
   ]);
 
   const actor = await currentTeamActor(team);
@@ -156,6 +159,19 @@ export default async function InterfaceConfigPage() {
           isInherited: row.isInherited,
         }))}
         resolverColumnsByTable={resolverColumnsByTable}
+        demo={demo}
+        disabled={!canConfigureNew}
+      />
+      <TokenSection
+        tokens={tokens.map((t) => ({
+          id: t.id,
+          email: t.email,
+          label: t.label,
+          expiresAt: t.expiresAt,
+          lastUsedAt: t.lastUsedAt,
+          revoked: t.revoked,
+          createdAt: t.createdAt,
+        }))}
         demo={demo}
         disabled={!canConfigureNew}
       />

@@ -49,3 +49,5 @@ export * from './creative-modules';
 export * from './creative-sheet-items';
 export * from './email-campaigns';
 export * from './email-flows';
+export * from './client-access-tokens';
+export * from './creator-registry';

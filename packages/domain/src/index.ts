@@ -17,3 +17,6 @@ export * from './onboard/index';
 export * from './views/index';
 export * from './links/index';
 export * from './activity/index';
+export * from './client-auth/index';
+export * from './client-progress/index';
+export * from './dashboard/index';

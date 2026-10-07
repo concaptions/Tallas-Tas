@@ -1136,6 +1136,7 @@ const CREATIVE_SHEET_ITEMS_PLATFORM = platformRows('creative_sheet_items', [
   ['winning', 'Winning', 25, 'singleSelect'],
   ['spell_check_requested', 'Click for AI Spell Checker Again', 26, 'checkbox'],
   ['spelling_feedback', 'Spelling Feedback', 27, 'multilineText'],
+  ['client_approval_status', 'Client Approval', 30, 'singleSelect'],
 ]);
 
 /**
@@ -1904,6 +1905,15 @@ const EMAIL_CAMPAIGNS_PLATFORM = platformRows('email_campaigns', [
  * Gratsi base's own field positions, which is the only evidence of order a table the parent base
  * does not have can have.
  */
+/**
+ * `Copywriting` PLATFORM COLUMNS: the platform's own columns that no Airtable base defines.
+ * `client_approval_status` is the Phase 2 direct client response to delivered copy (separate from
+ * the two-track `status` which is the internal copy workflow status).
+ */
+const COPYWRITING_PLATFORM = platformRows('copywriting', [
+  ['client_approval_status', 'Client Approval', 12, 'singleSelect'],
+]);
+
 const YOUTUBE_COPY_PLATFORM = platformRows('youtube_copy', [
   ['copy_number', 'Copy #', 1, 'singleLineText'],
   ['status', 'Status', 2, 'singleSelect'],
@@ -1992,6 +2002,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
     rows: [
       ...PERSONAS_PARENT,
       ...COPYWRITING_PARENT,
+      ...COPYWRITING_PLATFORM,
       ...CREATIVE_BRIEFS_PARENT,
       ...CREATIVE_BRIEFS_PLATFORM,
       ...CONCEPTS_PARENT,

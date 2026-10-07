@@ -3,6 +3,7 @@ import { creatorCostWithFee, creatorNotifyFlag, isR2Available } from '@tas/db';
 import { loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
+import { loadRegistryCreators } from '@/lib/registry-source';
 import {
   loadCollaborations,
   loadCreatorVideos,
@@ -17,6 +18,7 @@ import {
   type CollabRow,
   type CreatorPanelRow,
   type PartnershipRow,
+  type RegistryCreatorCardRow,
 } from './fields';
 import { UgcWorkspace } from './ugc-workspace';
 
@@ -31,6 +33,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     conceptResult,
     productResult,
     userViews,
+    registryCreatorsRaw,
     params,
   ] = await Promise.all([
     loadUgc(),
@@ -38,6 +41,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     loadConcepts(),
     loadProducts(),
     loadUserViews('creators'),
+    loadRegistryCreators(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -92,6 +96,21 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
   const conceptOptions = conceptResult.rows.map(({ id, name }) => ({ id, name }));
   const productOptions = productResult.rows.map(({ id, name }) => ({ id, name }));
 
+  const registryCreators: RegistryCreatorCardRow[] = registryCreatorsRaw.map((row) => ({
+    id: row.id,
+    name: row.name,
+    instagramUsername: row.instagramUsername,
+    gender: row.gender,
+    ageBracket: row.ageBracket,
+    ethnicity: row.ethnicity,
+    shippingLocation: row.shippingLocation,
+    notes: row.notes,
+    platform: row.platform,
+    creatorLink: row.creatorLink,
+    profilePicUrl: row.profilePicUrl,
+    totalBrands: row.totalBrands,
+  }));
+
   const requestedTab = params.tab;
   const initialTab = tabFromParam(typeof requestedTab === 'string' ? requestedTab : null);
 
@@ -144,6 +163,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
       initialVideos={videos}
       uploadsEnabled={!demo && isR2Available()}
       userViews={userViews}
+      registryCreators={registryCreators}
     />
   );
 }

@@ -5,3 +5,4 @@ export * from './partnership-expiry';
 // every status label comes from `@tas/domain/state`). Re-exported here so a UGC component can take
 // its whole vocabulary — statuses, brackets, platforms, expiry — from one import.
 export * from '../state/creator-status';
+export * from './registry';

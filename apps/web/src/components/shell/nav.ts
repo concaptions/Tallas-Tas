@@ -377,6 +377,8 @@ export const TEMPLATE_HIDDEN_SECTION_KEYS: ReadonlySet<string> = new Set([
   'creator-ranking',
   'copy-types',
   'creative-dimensions',
+  'internal-queue',
+  'client-queue',
 ]);
 
 /**

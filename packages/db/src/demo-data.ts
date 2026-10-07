@@ -1628,7 +1628,14 @@ export const demoCopy = [
     clickForAiSpellChecker: false,
     spellingFeedback: null,
   },
-].map((row) => ({ ...row, statusUpdatedAt: null })) as CopyListRow[];
+].map((row) => ({
+  ...row,
+  statusUpdatedAt: null,
+  collectionId: null,
+  clientApprovalStatus: null,
+  clientApprovalNote: null,
+  clientApprovalStatusUpdatedAt: null,
+})) as CopyListRow[];
 
 /**
  * The instant every partnership countdown in the demo is measured from.
@@ -1937,7 +1944,11 @@ export const demoCreators = [
     partnershipEndedAt: null,
     requiresAttention: false,
   },
-].map((row) => ({ ...row, clientStatusUpdatedAt: null })) as CreatorListRow[];
+].map((row) => ({
+  ...row,
+  clientStatusUpdatedAt: null,
+  registryCreatorId: null,
+})) as CreatorListRow[];
 
 /**
  * The §5.8.1 list: the three creators marked for partnership ads, in the same `updated_at`

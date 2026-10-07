@@ -284,13 +284,14 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
   // On 2026-10-06/07 Upload Links was relocated to the Settings group (docs/decisions.md), so it
   // left this template-only hide set — no brand lists it as a top-level nav section any more, and
   // the one management surface lives under Settings for every brand that imports its role.
-  it('names the fifteen keys the decision covers, no more and no fewer', () => {
+  it('names the seventeen keys the decision covers, no more and no fewer', () => {
     expect([...KEYS].sort()).toEqual(
       [
         'ai-characters',
         'briefs',
         'campaigns',
         'client-assets',
+        'client-queue',
         'competitive-research',
         'copy-types',
         'creative-dimensions',
@@ -299,6 +300,7 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
         'creator-ranking',
         'email-campaigns',
         'email-flows',
+        'internal-queue',
         'performance',
         'sm-campaign-feed',
         'youtube-copywriting',

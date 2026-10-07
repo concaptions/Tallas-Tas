@@ -11,6 +11,7 @@ import {
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
+import { creatorRegistry } from './creator-registry';
 import type { CreatorAgeBracket, CreatorPlatform } from './enums';
 
 /**
@@ -87,6 +88,7 @@ export const creators = pgTable(
     brandId: uuid('brand_id')
       .notNull()
       .references(() => brands.id),
+    registryCreatorId: uuid('registry_creator_id').references(() => creatorRegistry.id),
 
     // Core (PRD §5.8), in the PRD's own order. Only `name` is required: a creator is added the
     // moment someone has a name and a link, and the rest is filled in over the booking.
@@ -158,6 +160,7 @@ export const creators = pgTable(
   (table) => [
     index('creators_brand_id_idx').on(table.brandId),
     index('creators_partnership_idx').on(table.brandId, table.forPartnershipAds),
+    index('creators_registry_creator_id_idx').on(table.registryCreatorId),
     index('creators_template_row_id_idx').on(table.templateRowId),
   ],
 );

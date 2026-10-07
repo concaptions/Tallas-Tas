@@ -49,6 +49,7 @@ import {
 import { ageBracketLabel, creatorPlatformLabel } from '@tas/domain/creators';
 
 import { CreatorPanel, type CreatorVideo, type LinkOption } from './creator-panel';
+import { CreatorPoolTable } from './creator-pool-table';
 import { PartnershipTable } from './partnership-table';
 import {
   creatorCountLabel,
@@ -63,13 +64,16 @@ import {
   NO_CREATORS_NOTE,
   NO_MATCH_NOTE,
   NO_PARTNERSHIPS_NOTE,
+  NO_REGISTRY_NOTE,
   partnershipCountLabel,
+  registryCountLabel,
   SEARCH_PARAM,
   TAB_PARAM,
   UGC_TABS,
   type CollabRow,
   type CreatorCardRow,
   type PartnershipRow,
+  type RegistryCreatorCardRow,
   type UgcTabKey,
 } from './fields';
 
@@ -98,6 +102,8 @@ export interface UgcWorkspaceProps {
   readonly uploadsEnabled?: boolean;
   /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
   readonly userViews: UserViewsResult;
+  /** The global creator registry rows for the Creator Pool tab. */
+  readonly registryCreators?: readonly RegistryCreatorCardRow[];
 }
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
@@ -381,6 +387,7 @@ export function UgcWorkspace({
   userViews,
   columns,
   unconfiguredColumns = false,
+  registryCreators = [],
 }: UgcWorkspaceProps) {
   const router = useRouter();
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
@@ -473,6 +480,10 @@ export function UgcWorkspace({
   const visiblePartnerships = useMemo(
     () => partnerships.filter((row) => matchesQuery(row.name, query)),
     [partnerships, query],
+  );
+  const visibleRegistry = useMemo(
+    () => registryCreators.filter((row) => matchesQuery(row.name, query)),
+    [registryCreators, query],
   );
 
   /**
@@ -575,9 +586,16 @@ export function UgcWorkspace({
       ? creatorsNarrowed
         ? filteredCountLabel(filteredCreators.length, creatorCountLabel(creators.length))
         : creatorCountLabel(creators.length)
-      : narrowed
-        ? filteredCountLabel(visiblePartnerships.length, partnershipCountLabel(partnerships.length))
-        : partnershipCountLabel(partnerships.length);
+      : tab === 'creator_pool'
+        ? narrowed
+          ? filteredCountLabel(visibleRegistry.length, registryCountLabel(registryCreators.length))
+          : registryCountLabel(registryCreators.length)
+        : narrowed
+          ? filteredCountLabel(
+              visiblePartnerships.length,
+              partnershipCountLabel(partnerships.length),
+            )
+          : partnershipCountLabel(partnerships.length);
 
   const open = creators.find((c) => c.id === selection) ?? null;
 
@@ -741,6 +759,14 @@ export function UgcWorkspace({
             emptyPanel('partnerships-empty', NO_PARTNERSHIPS_NOTE, narrowed)
           ) : (
             <PartnershipTable rows={visiblePartnerships} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="creator_pool" className="flex min-w-0 flex-col gap-4">
+          {visibleRegistry.length === 0 ? (
+            emptyPanel('registry-empty', NO_REGISTRY_NOTE, narrowed)
+          ) : (
+            <CreatorPoolTable rows={visibleRegistry} demo={demo} />
           )}
         </TabsContent>
       </Tabs>

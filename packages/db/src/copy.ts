@@ -191,3 +191,33 @@ export async function updateCopyStatus(
     .returning();
   return row ?? null;
 }
+
+/**
+ * Sets the client approval status, note and timestamp on one live copy row of the brand. Same
+ * trio pattern as `updateCreativeSheetClientApproval`: the three columns travel together so the
+ * timestamp is the moment the status changed.
+ */
+export async function updateCopyClientApproval(
+  db: Db,
+  brandId: string,
+  id: string,
+  status: string,
+  note: string | null,
+  actorId: string,
+): Promise<Copy | null> {
+  const now = new Date();
+  const [row] = await withBrand(db, brandId)
+    .update(
+      copywriting,
+      {
+        clientApprovalStatus: status as Copy['clientApprovalStatus'],
+        clientApprovalNote: note,
+        clientApprovalStatusUpdatedAt: now,
+        updatedBy: actorId,
+        updatedAt: now,
+      },
+      eq(copywriting.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

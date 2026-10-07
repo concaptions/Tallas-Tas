@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { copyFunnelLabel } from '@tas/domain/copy';
 import { getTableCapability, type ViewType } from '@tas/domain';
+import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -275,6 +276,18 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
   internal_product: {
     render: (item) => <TextCell value={item.productName} maxWidth={200} />,
     sortValue: (item) => item.productName,
+  },
+  client_approval_status: {
+    render: (item) =>
+      item.clientApprovalStatus === null ? (
+        dash(null)
+      ) : (
+        <StatusChip
+          tone={clientApprovalTone(item.clientApprovalStatus)}
+          label={clientApprovalLabel(item.clientApprovalStatus)}
+        />
+      ),
+    sortValue: (item) => clientApprovalLabel(item.clientApprovalStatus),
   },
 };
 

@@ -577,3 +577,16 @@ export const angleStatuses = [
   { key: 'revisions_submitted', label: 'Revisions Submitted' },
 ] as const satisfies readonly { key: string; label: string }[];
 export type AngleStatusesKey = (typeof angleStatuses)[number]['key'];
+
+/**
+ * Standardised client approval status used across `creative_sheet_items` and `copywriting`
+ * (Oct 7 Talal sync). Concepts and creators already have their own approval columns that
+ * predate this vocabulary.
+ */
+export const clientApprovalStatuses = [
+  { key: 'pending_client_approval', label: 'Pending Client Approval' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'disapproved', label: 'Disapproved' },
+  { key: 'revision_needed', label: 'Revision Needed' },
+] as const satisfies readonly { key: string; label: string }[];
+export type ClientApprovalStatusKey = (typeof clientApprovalStatuses)[number]['key'];
