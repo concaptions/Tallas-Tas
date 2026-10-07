@@ -48,9 +48,8 @@ export const TAB_PARAM = 'tab';
 export const SEARCH_PARAM = 'q';
 
 /**
- * The two tabs, in the order PRD §5.8 then §5.8.1 reads: the roster first, the whitelisting
- * arrangements struck with a few of them second. `creators` is the default because it is the whole
- * table; Partnership Ads is the slice of it that carries an expiring permission.
+ * The three tabs: the roster, the whitelisting arrangements, and the cross-brand creator pool.
+ * `creators` is the default because it is the per-brand table; Creator Pool is the global registry.
  */
 export const UGC_TABS = [
   { key: 'creators', label: 'Creators' },
