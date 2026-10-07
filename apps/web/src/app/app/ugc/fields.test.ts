@@ -41,9 +41,10 @@ import {
  * reads, and which of the three tracks a chip belongs to.
  */
 describe('tabFromParam', () => {
-  it('narrows the two known tabs', () => {
+  it('narrows the three known tabs', () => {
     expect(tabFromParam('creators')).toBe('creators');
     expect(tabFromParam('partnerships')).toBe('partnerships');
+    expect(tabFromParam('pool')).toBe('pool');
   });
 
   it('falls back to Creators for anything else, so a stale link still renders a page', () => {
@@ -58,8 +59,12 @@ describe('tabFromParam', () => {
     expect(tabFromParam('CREATORS')).toBe('creators');
   });
 
-  it('offers exactly the two tabs, roster first', () => {
-    expect(UGC_TABS.map((tab) => tab.label)).toEqual(['Creators', 'Partnership Ads']);
+  it('offers exactly the three tabs, roster first', () => {
+    expect(UGC_TABS.map((tab) => tab.label)).toEqual([
+      'Creators',
+      'Partnership Ads',
+      'Creator Pool',
+    ]);
   });
 });
 

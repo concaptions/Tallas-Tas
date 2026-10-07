@@ -19,6 +19,7 @@ export * from './competitive-research';
 export * from './concepts';
 export * from './copy';
 export * from './creative-dimensions';
+export * from './creator-registry';
 export * from './creators';
 export * from './enums';
 export * from './health-check';

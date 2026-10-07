@@ -49,6 +49,7 @@ import { ageBracketLabel, creatorPlatformLabel } from '@tas/domain/creators';
 
 import { CreatorGalleryCard, type CreatorAssetThumb } from './creator-gallery-card';
 import { CreatorPanel, type CreatorVideo, type LinkOption } from './creator-panel';
+import { CreatorPool } from './creator-pool';
 import { PartnershipTable } from './partnership-table';
 import {
   creatorCountLabel,
@@ -100,6 +101,8 @@ export interface UgcWorkspaceProps {
   readonly userViews: UserViewsResult;
   /** Assets grouped by creatorId, for the gallery card's 2x2 thumbnail grid and count badge. */
   readonly creatorAssets?: Readonly<Record<string, readonly CreatorAssetThumb[]>>;
+  /** The current brand's display name, shown in "Add to {brandName}" on the Creator Pool tab. */
+  readonly brandName?: string;
 }
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
@@ -384,6 +387,7 @@ export function UgcWorkspace({
   columns,
   unconfiguredColumns = false,
   creatorAssets = {},
+  brandName = 'this brand',
 }: UgcWorkspaceProps) {
   const router = useRouter();
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
@@ -752,6 +756,16 @@ export function UgcWorkspace({
           ) : (
             <PartnershipTable rows={visiblePartnerships} />
           )}
+        </TabsContent>
+
+        <TabsContent value="pool" className="flex min-w-0 flex-col gap-4">
+          <CreatorPool
+            brandName={brandName}
+            demo={demo}
+            onAdded={() => {
+              router.refresh();
+            }}
+          />
         </TabsContent>
       </Tabs>
 

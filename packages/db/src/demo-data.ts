@@ -1937,7 +1937,11 @@ export const demoCreators = [
     partnershipEndedAt: null,
     requiresAttention: false,
   },
-].map((row) => ({ ...row, clientStatusUpdatedAt: null })) as CreatorListRow[];
+].map((row) => ({
+  ...row,
+  clientStatusUpdatedAt: null,
+  registryCreatorId: null,
+})) as CreatorListRow[];
 
 /**
  * The §5.8.1 list: the three creators marked for partnership ads, in the same `updated_at`

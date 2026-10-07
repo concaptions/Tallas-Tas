@@ -55,6 +55,7 @@ export const SEARCH_PARAM = 'q';
 export const UGC_TABS = [
   { key: 'creators', label: 'Creators' },
   { key: 'partnerships', label: 'Partnership Ads' },
+  { key: 'pool', label: 'Creator Pool' },
 ] as const;
 
 export type UgcTabKey = (typeof UGC_TABS)[number]['key'];

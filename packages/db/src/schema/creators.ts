@@ -11,6 +11,7 @@ import {
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
+import { creatorRegistry } from './creator-registry';
 import type { CreatorAgeBracket, CreatorPlatform } from './enums';
 
 /**
@@ -154,11 +155,14 @@ export const creators = pgTable(
     paymentDate: timestamp('payment_date', { withTimezone: true }),
     creatorInfoRequest: text('creator_info_request'),
     legacyAirtableId: text('legacy_airtable_id'),
+
+    registryCreatorId: uuid('registry_creator_id').references(() => creatorRegistry.id),
   },
   (table) => [
     index('creators_brand_id_idx').on(table.brandId),
     index('creators_partnership_idx').on(table.brandId, table.forPartnershipAds),
     index('creators_template_row_id_idx').on(table.templateRowId),
+    index('creators_registry_creator_id_idx').on(table.registryCreatorId),
   ],
 );
 

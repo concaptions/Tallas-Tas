@@ -23,7 +23,8 @@
     "check-columns": "tsx src/scripts/check-columns.ts",
     "import-passion": "tsx src/scripts/import-passion.ts",
     "verify-rollout": "tsx src/scripts/verify-rollout.ts",
-    "diagnose-brand": "tsx src/scripts/diagnose-brand.ts"
+    "diagnose-brand": "tsx src/scripts/diagnose-brand.ts",
+    "seed-creator-registry": "tsx src/scripts/seed-creator-registry.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

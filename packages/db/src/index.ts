@@ -369,3 +369,17 @@ export {
   listTokensForBrand,
   insertClientToken,
 } from './client-token-queries';
+export {
+  addRegistryCreatorToBrand,
+  findBrandCreatorByRegistryId,
+  findRegistryCreatorByNormalizedIg,
+  insertRegistryCreator,
+  listRegistryCreatorBrandHistory,
+  listRegistryCreators,
+  updateRegistryCreatorStats,
+} from './creator-registry-queries';
+export type {
+  RegistryBrandHistoryRow,
+  RegistryCreatorInput,
+  RegistryCreatorListRow,
+} from './creator-registry-queries';

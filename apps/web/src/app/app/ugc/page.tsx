@@ -1,6 +1,7 @@
 import { creatorCostWithFee, creatorNotifyFlag, isR2Available } from '@tas/db';
 
 import { loadConcepts } from '@/lib/concepts-source';
+import { currentBrand } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
 import {
@@ -33,6 +34,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     productResult,
     userViews,
     creatorAssets,
+    brand,
     params,
   ] = await Promise.all([
     loadUgc(),
@@ -41,6 +43,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     loadProducts(),
     loadUserViews('creators'),
     loadAllCreatorAssets(),
+    currentBrand(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -154,6 +157,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
       uploadsEnabled={!demo && isR2Available()}
       userViews={userViews}
       creatorAssets={creatorAssetsRecord}
+      brandName={brand?.name}
     />
   );
 }
