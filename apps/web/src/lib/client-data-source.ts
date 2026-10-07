@@ -159,6 +159,24 @@ export async function loadClientAngles(brandId: string): Promise<ClientAngle[]> 
   return withDb((db) => clientAngles(db, brandId));
 }
 
+export interface ClientProgressData {
+  concepts: readonly { clientStatus: string | null }[];
+  briefs: readonly { clientStatus: string | null }[];
+  creativeSheet: readonly { status: string | null }[];
+}
+
+export async function loadClientProgressData(brandId: string): Promise<ClientProgressData> {
+  const [concepts, briefs] = await Promise.all([
+    loadClientConcepts(brandId),
+    loadClientCreatives(brandId),
+  ]);
+  return {
+    concepts: concepts.map((c) => ({ clientStatus: c.clientStatus })),
+    briefs: briefs.map((b) => ({ clientStatus: b.clientStatus })),
+    creativeSheet: [],
+  };
+}
+
 export async function loadClientCalendar(brandId: string): Promise<ClientCalendarEvent[]> {
   if (inDemoMode()) {
     return demoCampaigns
