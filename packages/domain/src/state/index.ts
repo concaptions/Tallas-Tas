@@ -3,6 +3,7 @@ export * from './creative-status';
 export * from './editor-board';
 export * from './copy-status';
 export * from './creator-status';
+export * from './client-approval-status';
 export * from './queue-columns';
 export * from './promotion-status';
 /**

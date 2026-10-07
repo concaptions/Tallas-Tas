@@ -386,6 +386,13 @@
       "when": 1791399915629,
       "tag": "0054_worthless_killer_shrike",
       "breakpoints": true
+    },
+    {
+      "version": "7",
+      "breakpoints": true,
+      "idx": 55,
+      "tag": "0055_client-approval-concepts-creators",
+      "when": 1791918000000
     }
   ]
 }

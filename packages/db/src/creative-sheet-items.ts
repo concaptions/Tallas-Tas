@@ -126,6 +126,37 @@ export async function insertCreativeSheetItem(
 }
 
 /**
+ * Sets the client approval status, note and timestamp on one live sheet row of the brand. The
+ * three columns (`client_approval_status`, `client_approval_note`,
+ * `client_approval_status_updated_at`) travel as one write so the timestamp is always the moment
+ * the status changed, never a stale value from a prior save.
+ */
+export async function updateCreativeSheetClientApproval(
+  db: Db,
+  brandId: string,
+  id: string,
+  status: string,
+  note: string | null,
+  actorId: string,
+): Promise<CreativeSheetItem | null> {
+  const now = new Date();
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creativeSheetItems,
+      {
+        clientApprovalStatus: status as CreativeSheetItem['clientApprovalStatus'],
+        clientApprovalNote: note,
+        clientApprovalStatusUpdatedAt: now,
+        updatedBy: actorId,
+        updatedAt: now,
+      },
+      eq(creativeSheetItems.id, id),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
  * Patches one live sheet row of the brand and returns it, or null when the id belongs to another
  * brand or to a soft-deleted row — the scope makes those the same outcome: zero rows changed.
  */

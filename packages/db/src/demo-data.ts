@@ -1628,7 +1628,14 @@ export const demoCopy = [
     clickForAiSpellChecker: false,
     spellingFeedback: null,
   },
-].map((row) => ({ ...row, statusUpdatedAt: null })) as CopyListRow[];
+].map((row) => ({
+  ...row,
+  statusUpdatedAt: null,
+  collectionId: null,
+  clientApprovalStatus: null,
+  clientApprovalNote: null,
+  clientApprovalStatusUpdatedAt: null,
+})) as CopyListRow[];
 
 /**
  * The instant every partnership countdown in the demo is measured from.

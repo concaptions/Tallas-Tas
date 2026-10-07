@@ -579,9 +579,8 @@ export const angleStatuses = [
 export type AngleStatusesKey = (typeof angleStatuses)[number]['key'];
 
 /**
- * Client-facing approval status shared across creative sheet items and copywriting
- * (`creative_sheet_items.client_approval_status`, `copywriting.client_approval_status`).
- * The four states a client can move a row through on the approval track.
+ * Client-facing approval status shared across creative sheet items, copywriting, concepts
+ * and creators. The four states a client can move a row through on the approval track.
  */
 export const clientApprovalStatuses = [
   { key: 'pending_client_approval', label: 'Pending Client Approval' },

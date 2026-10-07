@@ -145,7 +145,14 @@ export {
   updateConceptClientStatus,
 } from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
-export { getCopyById, insertCopy, listCopy, updateCopy, updateCopyStatus } from './copy';
+export {
+  getCopyById,
+  insertCopy,
+  listCopy,
+  updateCopy,
+  updateCopyClientApproval,
+  updateCopyStatus,
+} from './copy';
 export type { CopyInput, CopyListRow } from './copy';
 export {
   getCreatorById,
@@ -349,6 +356,8 @@ export * from './demo-email-flows';
 export * from './youtube-copy';
 export * from './demo-youtube-copy';
 export * from './airtable-tables';
+export * from './client-access-tokens';
+export * from './creator-registry';
 export { listLinkedIds, syncLinks, syncLinksInBrand } from './links';
 export type { LinkJunction, LinkSpec, LinkTable } from './links';
 export { insertActivity, listActivity } from './activity-log';
