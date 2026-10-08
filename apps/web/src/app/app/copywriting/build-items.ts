@@ -108,7 +108,6 @@ export function buildCopyItems(sources: CopyItemSources, now: Date): CopyItem[] 
       createdBy: row.createdBy,
       updatedLabel: relativeTime(row.updatedAt, now),
       updatedTitle: absoluteTime(row.updatedAt),
-      clientApprovalStatus: row.clientApprovalStatus ?? null,
     };
   });
 }

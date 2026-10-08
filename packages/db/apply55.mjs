@@ -1,3 +1,4 @@
+/* eslint-disable */
 import pg from 'pg';
 import fs from 'fs';
 import crypto from 'crypto';

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import pg from 'pg';
 const c = new pg.Client(process.env.DATABASE_URL);
 await c.connect();

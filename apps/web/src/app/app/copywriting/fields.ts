@@ -146,8 +146,6 @@ export interface CopyItem {
   readonly createdBy: string | null;
   readonly updatedLabel: string;
   readonly updatedTitle: string;
-  /** Phase 2 direct client approval response — separate from the internal `status` workflow. */
-  readonly clientApprovalStatus: string | null;
 }
 
 /** One toggle of the panel's Copy Types picker: a copy type's id and its name. */

@@ -68,7 +68,6 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     createdBy: 'seed',
     updatedLabel: 'yesterday',
     updatedTitle: '2026-09-16 11:20',
-    clientApprovalStatus: null,
     ...overrides,
   };
 }

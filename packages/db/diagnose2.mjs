@@ -1,3 +1,4 @@
+/* eslint-disable */
 import pg from 'pg';
 import fs from 'fs';
 const c = new pg.Client(process.env.DATABASE_URL);
