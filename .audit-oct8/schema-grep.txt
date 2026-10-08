@@ -1,0 +1,135 @@
+=== ITEM 1: Schema grep for tables that should be removed from template ===
+--- creative_modules ---
+Schema files:
+packages/db/src/schema/creative-sheet-items.ts
+packages/db/src/schema/creative-modules.ts
+App routes:
+  Route exists: apps/web/src/app/app/creative-modules/
+
+--- ai_characters ---
+Schema files:
+packages/db/src/schema/ai-characters.ts
+App routes:
+  Route exists: apps/web/src/app/app/ai-characters/
+
+--- competitive_research ---
+Schema files:
+packages/db/src/schema/competitive-research.ts
+App routes:
+  Route exists: apps/web/src/app/app/competitive-research/
+
+--- creative_design ---
+Schema files:
+packages/db/src/schema/creative-dimensions.ts
+packages/db/src/schema/collections.ts
+App routes:
+  Route exists: apps/web/src/app/app/creative-design/
+
+--- client_assets ---
+Schema files:
+  (no matches)
+App routes:
+  Route exists: apps/web/src/app/app/client-assets/
+
+--- upload_links ---
+Schema files:
+packages/db/src/schema/upload-links.ts
+App routes:
+  Route exists: apps/web/src/app/app/upload-links/
+
+--- copywriting ---
+Schema files:
+packages/db/src/schema/email-flows.ts
+packages/db/src/schema/copy.ts
+packages/db/src/schema/custom-interface-pages.ts
+packages/db/src/schema/youtube-copy.ts
+packages/db/src/schema/campaign-links.ts
+packages/db/src/schema/creative-sheet-items.ts
+packages/db/src/schema/collections.ts
+packages/db/src/schema/annotations.ts
+packages/db/src/schema/notifications.ts
+packages/db/src/schema/campaigns.ts
+packages/db/src/schema/email-campaigns.ts
+packages/db/src/schema/copy-types.ts
+packages/db/src/schema/enums.ts
+App routes:
+  Route exists: apps/web/src/app/app/copywriting/
+
+--- youtube_copy ---
+Schema files:
+packages/db/src/schema/youtube-copy.ts
+packages/db/src/schema/campaign-links.ts
+packages/db/src/schema/campaigns.ts
+packages/db/src/schema/copy-types.ts
+packages/db/src/schema/enums.ts
+App routes:
+  No route at apps/web/src/app/app/youtube-copy/
+
+--- campaigns ---
+Schema files:
+packages/db/src/schema/email-flows.ts
+packages/db/src/schema/index.ts
+packages/db/src/schema/youtube-copy.ts
+packages/db/src/schema/campaign-links.ts
+packages/db/src/schema/collections.ts
+packages/db/src/schema/briefs.ts
+packages/db/src/schema/campaigns.ts
+packages/db/src/schema/email-campaigns.ts
+packages/db/src/schema/enums.ts
+App routes:
+  Route exists: apps/web/src/app/app/campaigns/
+
+--- email_campaigns ---
+Schema files:
+packages/db/src/schema/email-flows.ts
+packages/db/src/schema/email-campaigns.ts
+packages/db/src/schema/enums.ts
+App routes:
+  Route exists: apps/web/src/app/app/email-campaigns/
+
+--- email_flows ---
+Schema files:
+packages/db/src/schema/email-flows.ts
+packages/db/src/schema/enums.ts
+App routes:
+  Route exists: apps/web/src/app/app/email-flows/
+
+--- sm_campaign_feed ---
+Schema files:
+packages/db/src/schema/sm-campaign-feed-tasks.ts
+packages/db/src/schema/enums.ts
+App routes:
+  Route exists: apps/web/src/app/app/sm-campaign-feed/
+
+--- creative_reporting ---
+Schema files:
+packages/db/src/schema/creative-reporting.ts
+App routes:
+  Route exists: apps/web/src/app/app/creative-reporting/
+
+--- creator_ranking ---
+Schema files:
+packages/db/src/schema/creator-rankings.ts
+App routes:
+  Route exists: apps/web/src/app/app/creator-ranking/
+
+--- copy_types ---
+Schema files:
+packages/db/src/schema/youtube-copy.ts
+packages/db/src/schema/copy-types.ts
+App routes:
+  Route exists: apps/web/src/app/app/copy-types/
+
+--- creative_dimensions ---
+Schema files:
+packages/db/src/schema/creative-dimensions.ts
+App routes:
+  Route exists: apps/web/src/app/app/creative-dimensions/
+
+--- ad_metrics ---
+Schema files:
+packages/db/src/schema/ad-metrics.ts
+packages/db/src/schema/creative-reporting.ts
+App routes:
+  No route at apps/web/src/app/app/ad-metrics/
+
