@@ -44,7 +44,9 @@ import {
   type CreatorCardRow,
   type StatusChoice,
   R2_UNAVAILABLE_HINT,
+  RATING_SECTION_TITLE,
 } from './fields';
+import { RatingWidget } from './rating-widget';
 
 export interface LinkOption {
   readonly id: string;
@@ -61,6 +63,10 @@ interface CreatorPanelProps {
   /** Whether the deployment can take an upload (R2 configured); the control explains itself when not. */
   readonly uploadsEnabled?: boolean;
   readonly demo: boolean;
+  /** Agency admin only: whether the performance rating is editable (Oct 8 Talal ask). */
+  readonly canRate?: boolean;
+  /** The request's one clock, for the rating receipt; the page resolves it, never this component. */
+  readonly now: Date;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
 }
@@ -87,6 +93,8 @@ export function CreatorPanel({
   videos = [],
   uploadsEnabled = false,
   demo,
+  canRate = false,
+  now,
   onClose,
   onSaved,
 }: CreatorPanelProps) {
@@ -638,6 +646,25 @@ export function CreatorPanel({
                 demo={demo}
                 slot="creator-products"
                 empty="No product booked yet. Link one here or from the product's page."
+              />
+            </section>
+
+            <section className="flex flex-col gap-3" data-slot="performance-rating-section">
+              <h3 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
+                {RATING_SECTION_TITLE}
+              </h3>
+              {/* Its own Save, through `rateCreatorAction`: the rating is the agency's verdict, not
+                  a creator field, so it never rides along with the record form above. */}
+              <RatingWidget
+                creatorId={creator.id}
+                rating={creator.performanceRating ?? null}
+                note={creator.performanceNote ?? null}
+                ratedAt={creator.performanceRatedAt ?? null}
+                ratedBy={creator.performanceRatedBy ?? null}
+                canRate={canRate}
+                now={now}
+                demo={demo}
+                onSaved={onSaved}
               />
             </section>
 

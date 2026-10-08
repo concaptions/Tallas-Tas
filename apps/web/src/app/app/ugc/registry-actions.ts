@@ -7,6 +7,8 @@ import {
   insertRegistryCreator,
   listRegistryCreatorBrandHistory,
   listRegistryCreators,
+  loadCreatorPerformanceHistory,
+  type CreatorPerformanceHistoryRow,
   type Db,
   type RegistryBrandHistoryRow,
   type RegistryCreatorListRow,
@@ -51,6 +53,18 @@ export async function getRegistryCreatorHistoryAction(
 ): Promise<RegistryBrandHistoryRow[]> {
   if (isDemoMode()) return [];
   return withGlobalDb((db) => listRegistryCreatorBrandHistory(db, registryCreatorId));
+}
+
+/**
+ * Every brand's performance rating of one pool creator, rated or not (Oct 8 Talal ask), for the
+ * read-only list on the Creator Pool detail. The rating is EDITED on the per-brand creator panel
+ * only; this is the cross-brand view of it.
+ */
+export async function getRegistryCreatorRatingsAction(
+  registryCreatorId: string,
+): Promise<CreatorPerformanceHistoryRow[]> {
+  if (isDemoMode()) return [];
+  return withGlobalDb((db) => loadCreatorPerformanceHistory(db, registryCreatorId));
 }
 
 export async function addCreatorToRegistryAction(data: {

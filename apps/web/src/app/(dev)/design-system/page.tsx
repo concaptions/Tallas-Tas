@@ -191,7 +191,12 @@ import {
   ColumnAdminVirtualStory,
   ColumnOriginChipsStory,
 } from './column-admin.stories';
-import { CreatorCardStory, PartnershipCountdownStory } from './ugc.stories';
+import {
+  CreatorCardStory,
+  PartnershipCountdownStory,
+  RatingStarsStory,
+  RatingWidgetStory,
+} from './ugc.stories';
 import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 export const metadata = {
@@ -1150,6 +1155,28 @@ export default function DesignSystemPage() {
               partnership countdown — expiring, active, expired, and never activated
             </h3>
             <PartnershipCountdownStory />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="UGC Management: the creator performance rating"
+        note="The agency's 1–5 verdict on a creator, per brand (Oct 8). RatingStars is the one star control in the product; the widget is the panel's own, mounted here with plain objects."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              rating stars — read-only at every value, then editable (arrow keys step, Home/End
+              jump) and disabled
+            </h3>
+            <RatingStarsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              rating widget — admin editing, admin rating for the first time, and a non-admin
+              reading it
+            </h3>
+            <RatingWidgetStory />
           </div>
         </div>
       </Section>

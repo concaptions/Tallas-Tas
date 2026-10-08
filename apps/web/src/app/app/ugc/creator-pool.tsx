@@ -1,14 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
-import { Button, Input, StatusChip } from '@tas/ui';
+import { Button, Input, RatingStars, StatusChip } from '@tas/ui';
 import { ageBracketLabel, creatorPlatformLabel, matchRegistryCreator } from '@tas/domain/creators';
 import { creatorStatusLabel, creatorStatusTone } from '@tas/domain/state';
-import type { RegistryBrandHistoryRow, RegistryCreatorListRow } from '@tas/db';
+import type {
+  CreatorPerformanceHistoryRow,
+  RegistryBrandHistoryRow,
+  RegistryCreatorListRow,
+} from '@tas/db';
+
+import { absoluteTime } from '@/lib/relative-time';
 
 import {
   addRegistryCreatorToBrandAction,
   getRegistryCreatorHistoryAction,
+  getRegistryCreatorRatingsAction,
   listRegistryCreatorsAction,
 } from './registry-actions';
 import { creatorInitials, EM_DASH } from './fields';
@@ -27,6 +34,7 @@ export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
   const [selectedCreator, setSelectedCreator] = useState<RegistryCreatorListRow | null>(null);
   const [history, setHistory] = useState<RegistryBrandHistoryRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [ratings, setRatings] = useState<CreatorPerformanceHistoryRow[]>([]);
   const [adding, startAdding] = useTransition();
   const [addResult, setAddResult] = useState<string | null>(null);
 
@@ -72,8 +80,12 @@ export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
   const selectCreator = useCallback((creator: RegistryCreatorListRow) => {
     setSelectedCreator(creator);
     setHistoryLoading(true);
-    void getRegistryCreatorHistoryAction(creator.id).then((rows) => {
+    void Promise.all([
+      getRegistryCreatorHistoryAction(creator.id),
+      getRegistryCreatorRatingsAction(creator.id),
+    ]).then(([rows, rated]) => {
       setHistory(rows);
+      setRatings(rated);
       setHistoryLoading(false);
     });
   }, []);
@@ -175,6 +187,7 @@ export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
                     )}
                   </div>
                 </div>
+                <RatingStars value={creator.avgRating} readOnly size="sm" label="Average rating" />
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-text2">
                   {creator.platform.length > 0 && (
                     <span>{creator.platform.map((p) => creatorPlatformLabel(p)).join(', ')}</span>
@@ -279,6 +292,48 @@ export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+
+              <div data-slot="pool-ratings">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text3">
+                  Ratings
+                </h3>
+                {historyLoading ? (
+                  <p className="text-xs text-text3">Loading…</p>
+                ) : ratings.length === 0 ? (
+                  <p className="text-xs text-text3">Not on any brand yet.</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {ratings.map((entry) => (
+                      <li
+                        key={entry.creatorId}
+                        className="flex flex-col gap-1 rounded border border-line px-2 py-1.5 text-xs"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-text">{entry.brandName}</p>
+                          <RatingStars
+                            value={entry.rating}
+                            readOnly
+                            size="sm"
+                            label={`${entry.brandName} rating`}
+                          />
+                        </div>
+                        {entry.note !== null && entry.note.trim() !== '' ? (
+                          <p className="leading-relaxed text-text2">{entry.note}</p>
+                        ) : null}
+                        {entry.ratedAt !== null ? (
+                          <p className="text-text3">
+                            Rated by{' '}
+                            <span className="font-mono text-text2">{entry.ratedBy ?? EM_DASH}</span>{' '}
+                            <time dateTime={entry.ratedAt.toISOString()}>
+                              {absoluteTime(entry.ratedAt)}
+                            </time>
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 

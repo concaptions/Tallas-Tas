@@ -103,6 +103,10 @@ export interface UgcWorkspaceProps {
   readonly creatorAssets?: Readonly<Record<string, readonly CreatorAssetThumb[]>>;
   /** The current brand's display name, shown in "Add to {brandName}" on the Creator Pool tab. */
   readonly brandName?: string;
+  /** Agency admin only: whether the panel's performance rating is editable (Oct 8 Talal ask). */
+  readonly canRate?: boolean;
+  /** The request's one clock, for the rating receipt's "3 days ago"; never a component's own. */
+  readonly now: Date;
 }
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
@@ -388,6 +392,8 @@ export function UgcWorkspace({
   unconfiguredColumns = false,
   creatorAssets = {},
   brandName = 'this brand',
+  canRate = false,
+  now,
 }: UgcWorkspaceProps) {
   const router = useRouter();
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
@@ -779,6 +785,8 @@ export function UgcWorkspace({
           videos={initialVideos}
           uploadsEnabled={uploadsEnabled}
           demo={demo}
+          canRate={canRate}
+          now={now}
           onClose={close}
           onSaved={saved}
         />

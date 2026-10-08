@@ -26,6 +26,9 @@ import {
   partnershipActivityChip,
   partnershipRow,
   periodLabel,
+  ratedLine,
+  ratingNoteCounter,
+  ratingNoteTooLong,
   creatorCountLabel,
   partnershipCountLabel,
   statusChoice,
@@ -410,5 +413,35 @@ describe('collabDateLabel', () => {
       makeCollab({ startDate: new Date('2026-09-15T08:30:00.000Z'), endDate: null }),
     );
     expect(label).toBe('2026-09-15 → ongoing');
+  });
+});
+
+describe('ratingNoteCounter', () => {
+  it('counts the draft against the domain limit', () => {
+    expect(ratingNoteCounter('')).toBe('0 / 1000');
+    expect(ratingNoteCounter('Reliable.')).toBe('9 / 1000');
+  });
+
+  it('flags only a note past the limit', () => {
+    expect(ratingNoteTooLong('x'.repeat(1000))).toBe(false);
+    expect(ratingNoteTooLong('x'.repeat(1001))).toBe(true);
+  });
+});
+
+describe('ratedLine', () => {
+  const now = new Date('2026-10-08T09:00:00.000Z');
+
+  it('is null until something has been rated', () => {
+    expect(ratedLine(null, null, now)).toBeNull();
+    expect(ratedLine('user_2ABC', null, now)).toBeNull();
+  });
+
+  it('reads the receipt against the given clock, with the full stamp as the title', () => {
+    const line = ratedLine('user_2ABC', new Date('2026-10-05T09:00:00.000Z'), now);
+    expect(line).toEqual({ by: 'user_2ABC', when: '3 days ago', title: '2026-10-05 09:00' });
+  });
+
+  it('shows the em dash when the receipt lost its rater', () => {
+    expect(ratedLine(null, new Date('2026-10-08T08:00:00.000Z'), now)?.by).toBe('—');
   });
 });

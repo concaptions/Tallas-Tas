@@ -5,6 +5,7 @@ import {
   expiryTone,
   partnershipCountdownLabel,
   partnershipExpiry,
+  RATING_NOTE_MAX,
   UNSET_LABEL,
   type PartnershipExpiry,
   type PartnershipExpiryState,
@@ -23,6 +24,8 @@ import {
   type ChipTone,
   type StatusEntry,
 } from '@tas/domain/state';
+
+import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
 /**
  * How the UGC Management route presents what `creators` stores (PRD §5.8 and §5.8.1). One module,
@@ -220,6 +223,15 @@ export interface CreatorPanelFields {
    */
   readonly costWithFee: number | null;
   readonly notifyFlag: 'YES' | null;
+  /**
+   * The agency's 1–5 verdict on this creator FOR THIS BRAND (Oct 8 Talal ask), with its note and
+   * receipt. Written only by `rateCreatorAction`; `ratedBy` is the Clerk user id and renders in
+   * `font-mono` like every other system id.
+   */
+  readonly performanceRating: number | null;
+  readonly performanceNote: string | null;
+  readonly performanceRatedAt: Date | null;
+  readonly performanceRatedBy: string | null;
 }
 
 export type CreatorPanelRow = CreatorCardRow & CreatorPanelFields;
@@ -629,6 +641,8 @@ export interface RegistryCreatorCardRow {
   readonly creatorLink: string | null;
   readonly profilePicUrl: string | null;
   readonly totalBrands: number;
+  /** The cross-brand roll-up the `creators` trigger keeps on `creator_registry.avg_rating`. */
+  readonly avgRating: number | null;
 }
 
 export function registryCountLabel(total: number): string {
@@ -650,3 +664,38 @@ export const REGISTRY_POOL_COLUMNS = [
   'Brands',
   '',
 ] as const;
+
+// ── Performance rating (Oct 8 Talal ask) ──────────────────────────────────────────────────────────
+
+export const RATING_SECTION_TITLE = 'Performance rating';
+export const NOT_RATED_NOTE = 'Not rated for this brand yet.';
+export const RATING_ADMIN_ONLY_NOTE = 'Only an agency admin can rate a creator.';
+export const RATING_REQUIRED_HINT = 'Pick a star rating first.';
+
+/** "123 / 1000": the note's counter against the domain's limit, which the action enforces too. */
+export function ratingNoteCounter(note: string): string {
+  return `${String(note.length)} / ${String(RATING_NOTE_MAX)}`;
+}
+
+export function ratingNoteTooLong(note: string): boolean {
+  return note.length > RATING_NOTE_MAX;
+}
+
+/** The "rated by · when" receipt under a rating; null when nothing has been rated. */
+export interface RatedLine {
+  /** The rater's Clerk user id, or the em dash when the receipt lost it. */
+  readonly by: string;
+  /** "3 days ago", against the request's one `now` — never a component's own clock. */
+  readonly when: string;
+  /** The full timestamp, for the `title`. */
+  readonly title: string;
+}
+
+export function ratedLine(
+  ratedBy: string | null,
+  ratedAt: Date | null,
+  now: Date,
+): RatedLine | null {
+  if (ratedAt === null) return null;
+  return { by: ratedBy ?? EM_DASH, when: relativeTime(ratedAt, now), title: absoluteTime(ratedAt) };
+}

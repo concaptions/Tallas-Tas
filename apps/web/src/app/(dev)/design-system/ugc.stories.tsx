@@ -1,5 +1,8 @@
+import { RatingStars } from '@tas/ui';
+
 import { CreatorCard } from '@/app/app/ugc/creator-card';
 import { PartnershipTable } from '@/app/app/ugc/partnership-table';
+import { RatingWidget } from '@/app/app/ugc/rating-widget';
 import {
   partnershipRow,
   type CreatorCardRow,
@@ -151,5 +154,76 @@ const SAMPLE_PARTNERSHIPS: readonly PartnershipSourceRow[] = [
 export function PartnershipCountdownStory() {
   return (
     <PartnershipTable rows={SAMPLE_PARTNERSHIPS.map((row) => partnershipRow(row, STORY_NOW))} />
+  );
+}
+
+/**
+ * The star primitive (Oct 8 Talal ask) in both of its forms: read-only rows at every value on the
+ * scale, including unrated, and the editable `radiogroup` — arrow keys step, Home/End jump, Enter
+ * or Space select. Filled stars are the `--warn` token; there is no other amber in the palette.
+ */
+export function RatingStarsStory() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-4">
+        {[null, 1, 2, 3, 4, 5].map((value) => (
+          <RatingStars key={value ?? 'unrated'} value={value} readOnly label="Sample" />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <RatingStars value={3} readOnly size="sm" label="Small" />
+        <RatingStars value={4} onChange={() => undefined} label="Editable" />
+        <RatingStars value={2} onChange={() => undefined} disabled label="Disabled" />
+      </div>
+    </div>
+  );
+}
+
+/** The instant the rating receipts are read against, pinned so "3 days ago" never drifts. */
+const RATING_STORY_NOW = new Date('2026-10-08T09:00:00.000Z');
+
+/**
+ * The panel's rating widget three ways: an admin editing an existing rating, an admin rating for
+ * the first time, and a non-admin who sees the verdict read-only. The Clerk id in the receipt is
+ * auto-generated system output, so it renders in `font-mono`. The Save posts to the real action,
+ * which refuses in demo mode exactly as the panel's own Save does.
+ */
+export function RatingWidgetStory() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-card border border-line bg-surface p-4">
+        <RatingWidget
+          creatorId="story-rated"
+          rating={4}
+          note="Hit every deadline; the second hook needed one re-take."
+          ratedAt={new Date('2026-10-05T14:30:00.000Z')}
+          ratedBy="user_2nX8kQ3vTzYwLm9c"
+          canRate
+          now={RATING_STORY_NOW}
+        />
+      </div>
+      <div className="rounded-card border border-line bg-surface p-4">
+        <RatingWidget
+          creatorId="story-unrated"
+          rating={null}
+          note={null}
+          ratedAt={null}
+          ratedBy={null}
+          canRate
+          now={RATING_STORY_NOW}
+        />
+      </div>
+      <div className="rounded-card border border-line bg-surface p-4">
+        <RatingWidget
+          creatorId="story-read-only"
+          rating={2}
+          note="Late twice; assets arrived in the wrong aspect ratio."
+          ratedAt={new Date('2026-09-28T11:00:00.000Z')}
+          ratedBy="user_2nX8kQ3vTzYwLm9c"
+          canRate={false}
+          now={RATING_STORY_NOW}
+        />
+      </div>
+    </div>
   );
 }

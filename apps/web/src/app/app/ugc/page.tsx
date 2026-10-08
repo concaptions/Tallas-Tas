@@ -12,6 +12,7 @@ import {
   loadCreatorColumns,
 } from '@/lib/ugc-source';
 import { loadUserViews } from '@/lib/user-view-actions';
+import { viewerRole } from '@/lib/viewer-role';
 
 import {
   partnershipRow,
@@ -35,6 +36,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     userViews,
     creatorAssets,
     brand,
+    role,
     params,
   ] = await Promise.all([
     loadUgc(),
@@ -44,9 +46,13 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     loadUserViews('creators'),
     loadAllCreatorAssets(),
     currentBrand(),
+    viewerRole(),
     searchParams,
   ]);
   const demo = isDemoMode();
+  // Only an agency admin rates a creator (Oct 8 Talal ask). Demo mode resolves to 'admin', so the
+  // form shows there and the Server Action refuses with the shipped copy, as every other write does.
+  const canRate = role === 'admin';
 
   // `CreatorPanelRow`, not `CreatorCardRow`: the full shape, so a panel column this map forgets is
   // a type error here rather than an empty control.
@@ -91,6 +97,10 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     // request's one `now` — never stored, never cached (the wall-clock rule of the formula policy).
     costWithFee: creatorCostWithFee(row.creatorCost, row.platform),
     notifyFlag: creatorNotifyFlag(row.partnershipActivatedAt, now),
+    performanceRating: row.performanceRating,
+    performanceNote: row.performanceNote,
+    performanceRatedAt: row.performanceRatedAt,
+    performanceRatedBy: row.performanceRatedBy,
   }));
 
   const rows: PartnershipRow[] = partnerships.map((row) => partnershipRow(row, now));
@@ -158,6 +168,8 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
       userViews={userViews}
       creatorAssets={creatorAssetsRecord}
       brandName={brand?.name}
+      canRate={canRate}
+      now={now}
     />
   );
 }
