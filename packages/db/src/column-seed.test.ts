@@ -1199,7 +1199,7 @@ describe('the Creative Sheet column set', () => {
     // child-added `lookupRollup` virtuals, dead in the template only
     // (docs/decisions/overnight-dead-lookups.md).
     expect(onNiagara).toHaveLength(16);
-    expect(onGratsi).toHaveLength(29);
+    expect(onGratsi).toHaveLength(30);
     expect(onNiagara[0]?.displayLabel).toBe('Name + Angle + Offer');
     // Gratsi words it `Name`, and the formula survives the relabel because the resolver reads it
     // from the parent row — the column has no Postgres column to fall back to.

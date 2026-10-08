@@ -110,6 +110,7 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       [27, 'updated_at', 'Last Modified'],
       [28, 'spell_check_requested', 'Click for AI Spell Checker Again'],
       [29, 'spelling_feedback', 'Spelling Feedback'],
+      [30, 'client_approval_status', 'Client Approval'],
     ]);
   });
 
@@ -152,7 +153,7 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     if (niagara === undefined) throw new Error('the seed has no niagara brand');
 
     const resolved = await resolveColumns(db, niagara.id, 'creative_sheet_items');
-    expect(resolved).toHaveLength(15);
+    expect(resolved).toHaveLength(16);
     expect(resolved.map((column) => column.displayLabel)).toContain('Last Modified');
     for (const deadLookup of [
       'performance',

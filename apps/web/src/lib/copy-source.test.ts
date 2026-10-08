@@ -247,6 +247,7 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
       [9, 'cta', 'CTA'],
       [10, 'copywriting_campaigns', 'Campaign Code'],
       [11, 'offer', 'Offer'],
+      [12, 'client_approval_status', 'Client Approval'],
       [12, 'campaign_from_campaign', 'Campaign (from Campaign)'],
       [13, 'code_from_campaign', 'Code (from Campaign)'],
       [14, 'funnel', 'Funnel'],
@@ -283,7 +284,7 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
     expect(virtual.every((column) => column.formula === 'lookupRollup')).toBe(true);
   });
 
-  it('resolves the template to its own full ten-field base, Copy # and the reverse-link Collection included', async () => {
+  it('resolves the template to its own full eleven-field base, Copy # and the reverse-link Collection included', async () => {
     const { db } = await seededColumns();
     const brandRows = await db.select().from(brands);
     const template = brandRows.find((brand) => brand.isTemplate);
@@ -301,6 +302,7 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
       [8, 'News Feed / Link Description'],
       [9, 'CTA'],
       [10, 'USED'],
+      [12, 'Client Approval'],
     ]);
   });
 });
