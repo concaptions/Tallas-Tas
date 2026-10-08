@@ -911,7 +911,7 @@ describe('the Products column set', () => {
       'Campaigns & Offers',
       'Angles',
       '(Internal) Creative Design',
-      'Meta Copywriting',
+      'Copywriting',
       'UGC Management',
       'Collection Link',
       'Email Campaigns',

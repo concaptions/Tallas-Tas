@@ -12,7 +12,7 @@ import {
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
 import { creatorRegistry } from './creator-registry';
-import type { CreatorAgeBracket, CreatorPlatform } from './enums';
+import type { ClientApprovalStatusKey, CreatorAgeBracket, CreatorPlatform } from './enums';
 
 /**
  * The value each of the three status tracks starts at: the FIRST entry of the matching list in
@@ -129,6 +129,11 @@ export const creators = pgTable(
      * vocabulary; the shared `updateClientStatus` writer sets this column alongside `client_note`.
      */
     clientStatusUpdatedAt: timestamp('client_status_updated_at', { withTimezone: true }),
+    clientApprovalStatus: text('client_approval_status').$type<ClientApprovalStatusKey>(),
+    clientApprovalNote: text('client_approval_note'),
+    clientApprovalStatusUpdatedAt: timestamp('client_approval_status_updated_at', {
+      withTimezone: true,
+    }),
 
     // Partnership / whitelisted ads (PRD §5.8.1), fields of this same record.
     instagramUsername: text('instagram_username'),

@@ -2,13 +2,21 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { updateCopyClientApproval, updateCreativeSheetClientApproval, type Db } from '@tas/db';
+import {
+  updateConceptClientApproval,
+  updateCopyClientApproval,
+  updateCreativeSheetClientApproval,
+  updateCreatorClientApproval,
+  type Db,
+} from '@tas/db';
 import { CLIENT_APPROVAL_STATUS } from '@tas/domain/state';
 
+import { withBrandScope as withConceptScope } from './concepts-source';
 import { withBrandScope as withCreativeSheetScope } from './creative-sheet-source';
 import { withBrandScope as withCopyScope } from './copy-source';
+import { withBrandScope as withUgcScope } from './ugc-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from './demo-mode';
-import { copywritingPath, creativeSheetPath } from './routes';
+import { conceptsPath, copywritingPath, creativeSheetPath, ugcPath } from './routes';
 
 /**
  * The server action for the `client_approval_status` column on `creative_sheet_items` and
@@ -18,7 +26,8 @@ import { copywritingPath, creativeSheetPath } from './routes';
  * `client-status-actions.ts`, with one entry point for both tables.
  */
 
-export type ClientApprovalTableKey = 'creative_sheet_items' | 'copywriting';
+export type ClientApprovalTableKey =
+  'creative_sheet_items' | 'copywriting' | 'concepts' | 'creators';
 
 export interface UpdateClientApprovalArgs {
   readonly tableKey: ClientApprovalTableKey;
@@ -61,15 +70,30 @@ const DISPATCH: Record<ClientApprovalTableKey, ClientApprovalDispatch> = {
     updateCreativeSheetClientApproval(db, brandId, id, status, note, actorId),
   copywriting: async (db, brandId, id, status, note, actorId) =>
     updateCopyClientApproval(db, brandId, id, status, note, actorId),
+  concepts: async (db, brandId, id, status, note, actorId) =>
+    updateConceptClientApproval(db, brandId, id, status, note, actorId),
+  creators: async (db, brandId, id, status, note, actorId) =>
+    updateCreatorClientApproval(db, brandId, id, status, note, actorId),
 };
 
 const REVALIDATE: Record<ClientApprovalTableKey, readonly string[]> = {
   creative_sheet_items: [creativeSheetPath],
   copywriting: [copywritingPath],
+  concepts: [conceptsPath],
+  creators: [ugcPath],
 };
 
 function scopeFor(tableKey: ClientApprovalTableKey) {
-  return tableKey === 'creative_sheet_items' ? withCreativeSheetScope : withCopyScope;
+  switch (tableKey) {
+    case 'creative_sheet_items':
+      return withCreativeSheetScope;
+    case 'copywriting':
+      return withCopyScope;
+    case 'concepts':
+      return withConceptScope;
+    case 'creators':
+      return withUgcScope;
+  }
 }
 
 export async function updateClientApproval(

@@ -24,7 +24,7 @@ import {
 import { internalStatusView as conceptInternalStatusView } from '../concepts/fields';
 import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
 import { statusView } from '../email-campaigns/fields';
-import { SELECTION_PARAM as META_COPY_PARAM } from '../meta-copywriting/fields';
+import { SELECTION_PARAM as META_COPY_PARAM } from '../copywriting/fields';
 import {
   copyNumberLabel,
   SELECTION_PARAM as YOUTUBE_COPY_PARAM,
@@ -193,7 +193,7 @@ export const NO_CREATIVE_DESIGNS_HINT = 'No creative design is briefed on this c
 export const NO_CONCEPTS_HINT = 'No concept is built on this collection yet.';
 /** The Meta copy IS the Copywriting ID field of this panel, so the link is made right here. */
 export const NO_META_COPY_HINT =
-  'No Meta copy is linked to this collection yet. Set the Copywriting ID above.';
+  'No copy is linked to this collection yet. Set the Copywriting ID above.';
 
 function push(
   index: Map<string, LinkedRecord[]>,

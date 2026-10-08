@@ -142,6 +142,7 @@ export {
   insertConcept,
   listConcepts,
   updateConcept,
+  updateConceptClientApproval,
   updateConceptClientStatus,
 } from './concepts';
 export type { ConceptInput, ConceptListRow } from './concepts';
@@ -160,6 +161,7 @@ export {
   listCreators,
   listPartnershipCreators,
   updateCreator,
+  updateCreatorClientApproval,
   updateCreatorClientStatus,
 } from './creators';
 export type { CreatorInput, CreatorListRow } from './creators';

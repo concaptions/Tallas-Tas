@@ -19,9 +19,9 @@ export const conceptsPath = '/app/concepts';
 export const creativeDesignPath = '/app/creative-design';
 /** Alias of `creativeDesignPath` — Creative Briefs ARE Creative Design; kept so every consumer follows the rename. */
 export const briefsPath = creativeDesignPath;
-export const metaCopywritingPath = '/app/meta-copywriting';
-/** Alias of `metaCopywritingPath` — the copywriting table IS Meta Copywriting. */
-export const copywritingPath = metaCopywritingPath;
+export const copywritingPath = '/app/copywriting';
+/** Alias of `copywritingPath` — kept so every consumer follows the Oct 8 rename from `/app/meta-copywriting`. */
+export const metaCopywritingPath = copywritingPath;
 export const ugcPath = '/app/ugc';
 /**
  * The Internal Queue board (PRD §9, §13). It lives under a `queue` segment rather than at
@@ -112,7 +112,7 @@ export function creatorRankingDetailPath(id: string): string {
 }
 /** The pre-parity URLs, kept alive as redirects to the canonical paths above. */
 export const legacyBriefsPath = '/app/briefs';
-export const legacyCopywritingPath = '/app/copywriting';
+export const legacyCopywritingPath = '/app/meta-copywriting';
 export const legacyCampaignsPath = '/app/campaigns';
 export const clientPortalPath = '/client';
 

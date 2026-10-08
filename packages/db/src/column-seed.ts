@@ -670,7 +670,7 @@ const CREATIVE_BRIEFS_GRATSI = childRows('creative_briefs', [
   ['spelling_feedback_2', 'Spelling Feedback 2', 33, 'custom', 'multilineText'],
   ['collection_id', '(Internal) Collections 3', 36, 'relabel', 'multipleRecordLinks'],
   ['creative_sheet_items', 'Creative Sheet', 37, 'custom', 'multipleRecordLinks'],
-  ['copywriting', 'Meta Copywriting', 39, 'custom', 'multipleRecordLinks'],
+  ['copywriting', 'Copywriting', 39, 'custom', 'multipleRecordLinks'],
   // The trailing space is the live field name, exactly as the parent row carries it.
   ['script_and_brief_breakdown', 'Script & brief breakdown ', 40, 'relabel', 'multipleAttachments'],
   ['due_date', 'Due Date', 43, 'relabel-platform', 'date'],
@@ -787,6 +787,14 @@ const CONCEPTS_PLATFORM: readonly UpsertColumnDefinition[] = [
     columnKey: 'client_status',
     displayLabel: 'Client Status',
     displayOrder: 23,
+    fieldType: 'singleSelect',
+    source: 'platform',
+  },
+  {
+    tableKey: 'concepts',
+    columnKey: 'client_approval_status',
+    displayLabel: 'Client Approval',
+    displayOrder: 32,
     fieldType: 'singleSelect',
     source: 'platform',
   },
@@ -1306,6 +1314,7 @@ const CREATORS_PLATFORM: readonly UpsertColumnDefinition[] = [
   ['payment_date', 'Payment Date', 24, 'date'],
   ['creator_info_request', 'Creator Info Request', 26, 'multilineText'],
   ['slack_notified', 'Slack Notified', 30, 'checkbox'],
+  ['client_approval_status', 'Client Approval', 31, 'singleSelect'],
 ].map(([columnKey, displayLabel, displayOrder, fieldType]) => ({
   tableKey: 'creators',
   columnKey: columnKey as string,
@@ -1511,7 +1520,7 @@ const PRODUCTS_PARENT = parentRows('products', [
   ['campaigns_offers', 'Campaigns & Offers', 4, 'multipleRecordLinks'],
   ['angle_products', 'Angles', 5, 'multipleRecordLinks'],
   ['creative_briefs', '(Internal) Creative Design', 6, 'multipleRecordLinks'],
-  ['copywriting', 'Meta Copywriting', 7, 'multipleRecordLinks'],
+  ['copywriting', 'Copywriting', 7, 'multipleRecordLinks'],
   ['creator_products', 'UGC Management', 8, 'multipleRecordLinks'],
 ]);
 
@@ -1602,7 +1611,7 @@ const PRODUCTS_GRATSI = childRows('products', [
   ['creator_products', 'UGC Management', 11, 'relabel', 'multipleRecordLinks'],
   ['collections', '(Internal) Collections', 100, 'hidden', 'multipleRecordLinks'],
   ['campaigns_offers', 'Campaigns & Offers', 101, 'hidden', 'multipleRecordLinks'],
-  ['copywriting', 'Meta Copywriting', 102, 'hidden', 'multipleRecordLinks'],
+  ['copywriting', 'Copywriting', 102, 'hidden', 'multipleRecordLinks'],
   ['collection_link', 'Collection Link', 9, 'hidden', 'url'],
   ['concepts', 'Concepts', 12, 'hidden', 'count'],
 ]);

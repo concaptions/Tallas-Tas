@@ -11,18 +11,18 @@ import { StatusChip } from '@tas/ui';
 import { COPY_LIMITS } from '@tas/domain/copy';
 import { COPY_STATUS, copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
-import { buildCopyItems } from '@/app/app/meta-copywriting/build-items';
-import { CopywritingWorkspace } from '@/app/app/meta-copywriting/copywriting-workspace';
+import { buildCopyItems } from '@/app/app/copywriting/build-items';
+import { CopywritingWorkspace } from '@/app/app/copywriting/copywriting-workspace';
 import {
   COUNTER_TONE_CLASS,
   EM_DASH,
   counterLabel,
   counterTone,
-} from '@/app/app/meta-copywriting/fields';
+} from '@/app/app/copywriting/fields';
 import { parentColumnsFor } from '@/lib/resolved-columns-source';
 
 /**
- * The shapes the Meta Copywriting route introduces (CLAUDE.md UI governance rule 4): the whole
+ * The shapes the Copywriting route introduces (CLAUDE.md UI governance rule 4): the whole
  * resolver-driven workspace as the product mounts it (GRATSI-MATCH, 2026-10-04), the five copy
  * status chips, the linked-creative cell in both of its states, and the live character counter at
  * each of its three tones.

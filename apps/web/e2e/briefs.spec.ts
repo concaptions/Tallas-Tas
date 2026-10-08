@@ -427,7 +427,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(copyLinks).toBeVisible();
     const linkedCopy = copyLinks.locator('[data-slot="brief-copy-link"]');
     await expect(linkedCopy).toHaveCount(1);
-    await expect(linkedCopy).toHaveAttribute('href', /\/app\/meta-copywriting\?copy=/);
+    await expect(linkedCopy).toHaveAttribute('href', /\/app\/copywriting\?copy=/);
   });
 
   test('a rail section nothing points at says so in a sentence, never a blank card', async ({

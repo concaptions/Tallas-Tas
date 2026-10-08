@@ -344,7 +344,7 @@ export function CollectionPanel({
                   mono
                 />
                 <LinkedRecordList
-                  title="Meta copy"
+                  title="Copywriting"
                   slot="collection-meta-copy"
                   records={metaCopy === null ? [] : [metaCopy]}
                   emptyHint={NO_META_COPY_HINT}

@@ -38,7 +38,7 @@ export const NO_CREATORS_NOTE =
   'No creator is booked for this product yet. Link one here or from the creator’s panel.';
 /** What the Related Copywriting list says when no copy row names this product (Oct 5). */
 export const NO_META_COPYWRITING_NOTE =
-  'No Meta copywriting names this product yet. Link one from the copy’s Linked Product control.';
+  'No copywriting names this product yet. Link one from the copy’s Linked Product control.';
 
 interface ProductPanelProps {
   readonly product: ProductListRow | null;

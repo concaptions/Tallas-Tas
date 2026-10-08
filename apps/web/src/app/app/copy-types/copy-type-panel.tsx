@@ -228,12 +228,12 @@ export function CopyTypePanel({ item, demo, onClose, onSaved }: CopyTypePanelPro
                   </h3>
                   <p className="text-xs text-text3">
                     Airtable calls this field “Ads Copywriting copy”. Read-only here: a copy is
-                    tagged from its own panel in Meta Copywriting.
+                    tagged from its own panel in Copywriting.
                   </p>
                   <LinkedCopyList
                     slot="meta"
                     copies={item.metaCopies}
-                    emptyText="No Meta copy carries this type yet."
+                    emptyText="No copy carries this type yet."
                   />
                 </section>
 

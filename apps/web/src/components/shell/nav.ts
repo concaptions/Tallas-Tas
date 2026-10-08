@@ -17,7 +17,7 @@ import {
   creatorRankingPath,
   emailCampaignsPath,
   emailFlowsPath,
-  metaCopywritingPath,
+  copywritingPath,
   performancePath,
   clientQueuePath,
   conceptsPath,
@@ -150,14 +150,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     sections: [
       {
         key: 'copywriting',
-        // Oct 5 Talal sync: on the template brand the label reads "Copywriting" (no "Meta"
-        // prefix). This renames the one copywriting tab the TAS team ships out of the parent;
-        // Gratsi's own Airtable field names are unaffected (Meta Copywriting as a table name
-        // still lives in the imported data and in the module-parity spec).
         label: 'Copywriting',
         icon: 'copywriting',
         emoji: '✍️',
-        href: metaCopywritingPath,
+        href: copywritingPath,
       },
       {
         key: 'youtube-copywriting',
