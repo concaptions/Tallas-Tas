@@ -25,7 +25,7 @@ global registry. Decisions: `docs/decisions.md` 2026-10-08 (two entries).
       `computeRegistryAverage` (round half up) — 11 unit tests.
 - [x] `@tas/db` `creator-rating-queries.ts`: brand-scoped `updateCreatorPerformanceRating`,
       `loadCreatorPerformanceHistory`, `getRegistryAvgRating` — 7 PGlite tests incl. trigger behaviour.
-- [ ] `rateCreatorAction` (agency admin only, 1..5, note ≤ 1000) and `RatingStars` / `RatingWidget`
+- [x] `rateCreatorAction` (agency admin only, 1..5, note ≤ 1000) and `RatingStars` / `RatingWidget`
       wired into the creator panel, the pool card (read-only) and the registry detail per-brand rows;
       stories on `/design-system`.
 - [ ] Migration 0056 applied to Railway (pending human — `docs/runbook.md`).
@@ -34,14 +34,14 @@ global registry. Decisions: `docs/decisions.md` 2026-10-08 (two entries).
 - [x] `creator_registry.brands jsonb` — migration `0057_registry_brand_history`, idx 57, `apply57.mjs`.
 - [x] `AIRTABLE_SOURCE_BASES` in `@tas/env` + `.env.example`; `parseAirtableSourceBases`,
       `listAirtableCreatorRows`, `findRegistryMatch`, `storeRegistryProfilePic` helpers with tests.
-- [ ] `airtable-enumerate-creators.ts` (read-only inventory, `--limit`, `--out`).
-- [ ] `import-creators-from-airtable.ts` (dry-run default, `--apply`, idempotent, PGlite-tested).
+- [x] `airtable-enumerate-creators.ts` (read-only inventory, `--limit`, `--out`).
+- [x] `import-creators-from-airtable.ts` (dry-run default, `--apply`, idempotent, PGlite-tested).
 - [ ] Real enumeration + import runs (pending human: needs `AIRTABLE_PAT`, `AIRTABLE_SOURCE_BASES`
       and Talal's confirmation per base).
 
 ### Phase 2 — photo backfill
-- [ ] `backfill-ig-profile-pics.ts` (unavatar.io, 5 req/s, R2 `creator-registry/`, ≤ 2 MB, images only).
-- [ ] `backfill-registry-from-airtable.ts` (inventory attachments → R2).
+- [x] `backfill-ig-profile-pics.ts` (unavatar.io, 5 req/s, R2 `creator-registry/`, ≤ 2 MB, images only).
+- [x] `backfill-registry-from-airtable.ts` (inventory attachments → R2).
 - [ ] Real runs + `.audit-oct8/ig-backfill-report.md` (pending human: R2 + network).
 
 ### Phase 4 — verification
