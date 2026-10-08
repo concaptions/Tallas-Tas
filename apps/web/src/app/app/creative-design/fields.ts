@@ -670,7 +670,7 @@ export const BRIEF_HEADINGS = {
   designLinkUrl: 'Design Link URL',
   collection: 'Collection',
   asset: 'Assets',
-  metaCopywriting: 'Meta Copywriting',
+  metaCopywriting: 'Copywriting',
   version: 'Version',
   priority: 'Priority',
   dimensions: 'Dimensions',

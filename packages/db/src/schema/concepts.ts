@@ -2,7 +2,12 @@ import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-cor
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
-import type { AngleFormat, ConceptApprovalStatus, ConceptProductionStatus } from './enums';
+import type {
+  AngleFormat,
+  ClientApprovalStatusKey,
+  ConceptApprovalStatus,
+  ConceptProductionStatus,
+} from './enums';
 
 /**
  * The value `internal_status` starts at: the FIRST entry of `INTERNAL_VIDEO_STATUS` in
@@ -82,6 +87,11 @@ export const concepts = pgTable(
      * requires a note only for that transition.
      */
     clientStatusNote: text('client_status_note'),
+    clientApprovalStatus: text('client_approval_status').$type<ClientApprovalStatusKey>(),
+    clientApprovalNote: text('client_approval_note'),
+    clientApprovalStatusUpdatedAt: timestamp('client_approval_status_updated_at', {
+      withTimezone: true,
+    }),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [

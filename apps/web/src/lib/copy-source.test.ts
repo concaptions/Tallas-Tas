@@ -17,7 +17,7 @@ import {
 import { testDb } from '@tas/db/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildCopyItems } from '@/app/app/meta-copywriting/build-items';
+import { buildCopyItems } from '@/app/app/copywriting/build-items';
 
 import {
   loadCopy,

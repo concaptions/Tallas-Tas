@@ -875,6 +875,9 @@ export const demoConcepts = [
   ...row,
   clientStatusUpdatedAt: null,
   clientStatusNote: null,
+  clientApprovalStatus: null,
+  clientApprovalNote: null,
+  clientApprovalStatusUpdatedAt: null,
 })) as ConceptListRow[];
 
 /** One seeded concept by id, past `noUncheckedIndexedAccess`; the briefs below are built on these. */
@@ -1948,6 +1951,9 @@ export const demoCreators = [
   ...row,
   clientStatusUpdatedAt: null,
   registryCreatorId: null,
+  clientApprovalStatus: null,
+  clientApprovalNote: null,
+  clientApprovalStatusUpdatedAt: null,
 })) as CreatorListRow[];
 
 /**

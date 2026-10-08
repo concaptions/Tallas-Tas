@@ -136,11 +136,11 @@ interface ModuleEntry {
  */
 const MODULES: readonly ModuleEntry[] = [
   {
-    // Oct 5 Talal sync (commit 105be26): the template sidebar label dropped the "Meta" prefix.
-    // The page's own h1 still reads "Meta Copywriting" (that heading is the module name).
+    // Oct 8 rename: route moved from `/app/meta-copywriting` to `/app/copywriting`; heading and
+    // sidebar label both read "Copywriting" now.
     label: 'Copywriting',
     path: metaCopywritingPath,
-    heading: 'Meta Copywriting',
+    heading: 'Copywriting',
     rowSlot: 'copy-row',
     clickSlot: 'copy-row-title',
     opens: { panelSlot: 'copy-panel' },
@@ -250,7 +250,7 @@ const MODULES: readonly ModuleEntry[] = [
       { gratsi: 'Spelling Feedback 2', label: 'Spelling Feedback 2' },
       { gratsi: '(Internal) Collections 3', label: 'Collection' },
       { gratsi: 'Creative Sheet', label: 'Creative Sheet' },
-      { gratsi: 'Meta Copywriting', label: 'Meta Copywriting' },
+      { gratsi: 'Meta Copywriting', label: 'Copywriting' },
       { gratsi: 'Script & brief breakdown', label: 'Script & Brief Breakdown' },
     ],
     excluded: [

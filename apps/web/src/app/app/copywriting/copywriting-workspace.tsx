@@ -47,7 +47,7 @@ import {
 } from './fields';
 
 /**
- * The Meta Copywriting grid, its kanban and its side panel (PRD §5.11) — RESOLVER-DRIVEN since the
+ * The Copywriting grid, its kanban and its side panel (PRD §5.11) — RESOLVER-DRIVEN since the
  * Gratsi column match (2026-10-04, `docs/audits/gratsi-column-diff-2026-10-04.md`): label, order
  * and visibility come from the brand's resolved column set, rendering from the registry below, and
  * the two are joined by the ONE `gridColumnsFrom` adapter, exactly as on YouTube Copywriting. The
@@ -111,7 +111,7 @@ function dash(value: string | null) {
 }
 
 /**
- * THE Meta Copywriting renderer registry, keyed by the resolver's `column_key` — every key of the
+ * THE Copywriting renderer registry, keyed by the resolver's `column_key` — every key of the
  * template's ten-field master set AND of Gratsi's twenty-five (the virtual `lookupRollup` columns
  * included), so `ColumnNotices` never has a "not drawn here" to report on either base.
  *
@@ -399,9 +399,9 @@ export function CopywritingWorkspace({
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Meta Copywriting</p>
+        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Copywriting</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">Meta Copywriting</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-text">Copywriting</h1>
           {newCopy('new-copy')}
         </div>
         <p className="text-sm text-text2">
