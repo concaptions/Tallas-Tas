@@ -17,6 +17,13 @@ import type { CreatorAgeBracket, CreatorPlatform } from './enums';
  * `brand_id` is forced null by a CHECK constraint, exactly as `themes` does: a row carrying a
  * brand is rejected by Postgres, not by convention.
  */
+export interface RegistryBrandMembership {
+  readonly brandLabel: string;
+  readonly sourceAirtableBaseId: string;
+  /** ISO timestamp of the first import that saw this person in that brand's base. */
+  readonly firstSeenAt: string;
+}
+
 export const creatorRegistry = pgTable(
   'creator_registry',
   {
@@ -43,6 +50,11 @@ export const creatorRegistry = pgTable(
     normalizedInstagram: text('normalized_instagram').unique(),
 
     legacyAirtableId: text('legacy_airtable_id'),
+
+    // Every brand this person has worked with, INCLUDING brands that only exist in another
+    // client's Airtable base and never in this Postgres (Oct 8 Talal ask, migration 0057). The
+    // per-brand `creators` rows cover TAS's own brands; this array is the memory of the rest.
+    brands: jsonb('brands').$type<RegistryBrandMembership[]>().notNull().default([]),
   },
   (table) => [
     check('creator_registry_global', sql`${table.brandId} is null`),

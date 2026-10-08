@@ -26,6 +26,11 @@ export const serverSchema = clientSchema.extend({
   R2_BUCKET: secret.optional(),
   ANTHROPIC_API_KEY: secret.optional(),
   AIRTABLE_PAT: secret.optional(),
+  // JSON array of `{ baseId, creatorsTableId, brandLabel }` naming the OTHER client bases the
+  // creator-registry scripts may read (Oct 8 Talal ask). Parsed and validated by
+  // `parseAirtableSourceBases` in @tas/db; kept as a string here so a bad entry fails at the script
+  // with a message naming the entry, not at every server boot.
+  AIRTABLE_SOURCE_BASES: secret.optional(),
   META_ACCESS_TOKEN: secret.optional(),
   META_AD_ACCOUNT_ID: secret.optional(),
   // Playwright live mode (docs/runbook.md, "Playwright live mode"): one variable per GitHub secret,

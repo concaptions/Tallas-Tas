@@ -83,6 +83,36 @@ Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PA
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Creator Pool v2 migrations (2026-10-08, Oct 8 Talal ask) · apply `0056_creator_performance_rating`
+  (four rating columns + CHECK + the `creators_registry_avg_rating` trigger) and
+  `0057_registry_brand_history` (`creator_registry.brands jsonb`) to Railway, in that order, from
+  `packages/db` with the journal-aware apply scripts — NOT `pnpm db:migrate`, the journal is out of
+  sync with drizzle-kit: `DATABASE_URL=… node apply56.mjs` then `DATABASE_URL=… node apply57.mjs`.
+  Each is a single transaction with a hash guard (a second run prints "already applied"). Then
+  confirm: `DATABASE_URL=… node qa-registry-v2.mjs` must print `schema ready: YES`. Both migrations
+  are verified on PGlite by the full suite (`creator-rating-queries.test.ts` exercises the trigger).
+- Creator Pool v2 backfills and import (2026-10-08) · after the two migrations and a deploy, from
+  the repo root with `DATABASE_URL`, R2 and `AIRTABLE_PAT` set:
+  1. `pnpm --filter @tas/db backfill-ig-profile-pics` (dry run: counts the Instagram-keyed rows with
+     no photo), then `-- --apply` (unavatar.io → R2 `creator-registry/`); read
+     `.audit-oct8/ig-backfill-report.md`.
+  2. Set `AIRTABLE_SOURCE_BASES` to the bases Talal has confirmed (one JSON entry per base; never a
+     base he has not named), then `pnpm --filter @tas/db airtable-enumerate-creators -- --limit 20`
+     for a smoke run and again without `--limit`; the inventory lands in
+     `.audit-oct8/airtable-creators-inventory-<date>.json`.
+  3. `pnpm --filter @tas/db import-creators-from-airtable -- --file <inventory>` (dry run), compare
+     the counts with the inventory, then `-- --apply`.
+  4. `pnpm --filter @tas/db backfill-registry-from-airtable -- --file <inventory>` (dry run), then
+     `-- --apply`.
+  5. `DATABASE_URL=… node packages/db/qa-registry-v2.mjs > .audit-oct8/creator-pool-v2-verify.md`
+     and paste the counts into `.audit-oct8/creator-pool-v2-report.md`.
+  Every script is dry-run by default, idempotent, logs-and-continues on a bad row, and refuses
+  `--apply` without R2. All four are PGlite-tested with injected fakes; none has run against Railway,
+  Airtable, unavatar.io or R2 from here (no credentials, outbound blocked).
+- Creator rating UI smoke (2026-10-08) · as an agency admin on `/app/ugc`, open a creator, rate it
+  in the Performance rating section, then open the Creator Pool tab: the registry card shows the
+  average and the registry detail lists the per-brand rating; `qa-registry-v2.mjs` must report
+  `avg_rating consistent with brand ratings: YES`.
 - Interface-config schema (2026-10-07, Oct 6/7 Agent 4) · apply migration
   `0051_interface-config` to production before deploying the admin UI that reads
   `custom_interface_pages` / `interface_tab_visibility`:

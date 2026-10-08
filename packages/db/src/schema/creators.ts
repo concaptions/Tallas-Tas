@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -135,6 +137,15 @@ export const creators = pgTable(
       withTimezone: true,
     }),
 
+    // The agency's 1–5 verdict on how this creator performed FOR THIS BRAND (Oct 8 Talal ask).
+    // Per-brand on purpose: the same person can be a 5 for Gratsi and a 2 for Niagara. The
+    // cross-brand roll-up lives on `creator_registry.avg_rating`, kept current by the
+    // `creators_registry_avg_rating` trigger (migration 0056), never written by application code.
+    performanceRating: integer('performance_rating'),
+    performanceNote: text('performance_note'),
+    performanceRatedAt: timestamp('performance_rated_at', { withTimezone: true }),
+    performanceRatedBy: text('performance_rated_by'),
+
     // Partnership / whitelisted ads (PRD §5.8.1), fields of this same record.
     instagramUsername: text('instagram_username'),
     forPartnershipAds: boolean('for_partnership_ads').notNull().default(false),
@@ -167,6 +178,10 @@ export const creators = pgTable(
     index('creators_partnership_idx').on(table.brandId, table.forPartnershipAds),
     index('creators_registry_creator_id_idx').on(table.registryCreatorId),
     index('creators_template_row_id_idx').on(table.templateRowId),
+    check(
+      'creators_performance_rating_range',
+      sql`${table.performanceRating} is null or ${table.performanceRating} between 1 and 5`,
+    ),
   ],
 );
 

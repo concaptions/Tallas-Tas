@@ -1668,3 +1668,44 @@ Nothing new to generate or apply.
 Oct 8: 62 PGlite failures from Oct 7 audit are closed; main run shows 3203/3203 tests passing on
 commit `08a22f6` (234/234 files, typecheck and lint clean, full log in `.audit-oct8/main-test-run.log`,
 closeout in `.audit-oct8/62-failures-closeout.md`).
+
+## 2026-10-08 — Creator performance rating: per-brand column, registry roll-up by trigger
+
+Oct 8 Talal ask: a 1–5 rating per creator per brand, averaged on the Creator Pool. The rating is
+four nullable columns on the per-brand `creators` row (`performance_rating`, `performance_note`,
+`performance_rated_at`, `performance_rated_by`; migration 0056, CHECK 1..5) because the verdict is a
+brand's, and the same person can be a 5 for one brand and a 2 for another. The cross-brand number
+`creator_registry.avg_rating` is maintained by a Postgres trigger (`creators_registry_avg_rating`,
+AFTER INSERT/UPDATE OF rating, link, deleted_at / DELETE) rather than by application code.
+
+**Why a trigger, given "business logic lives in packages/domain".** The roll-up is not a decision; it
+is a derived aggregate over rows in several brands at once, and the writes that change it are not
+all rating writes — soft-deleting a brand row or re-linking it to another registry entry must move the
+average too. One recompute-from-scratch function in the database is the only place that sees every
+such path. The domain still owns the rule: `computeRegistryAverage` in `packages/domain/src/creators/
+rating.ts` is the reference (integer mean, round half up) and the PGlite tests in
+`creator-rating-queries.test.ts` pin the trigger to the same answers. Migrations are hand-written
+(journal out of sync with drizzle-kit, see the Oct 8 apply55 pattern) and `apply56.mjs` applies
+0056 to Railway with a hash guard so a second run is a no-op.
+
+## 2026-10-08 — Creator registry: external brand history and cross-base import rules
+
+Migration 0057 adds `creator_registry.brands jsonb NOT NULL DEFAULT '[]'`: an array of
+`{ brandLabel, sourceAirtableBaseId, firstSeenAt }` recording brands a creator worked with that
+exist only in another client's Airtable base, never in this Postgres. Brands TAS runs here stay
+represented by the per-brand `creators` rows; this array is the memory of the rest.
+
+Import rules (`import-creators-from-airtable.ts`): a base is read only when listed in
+`AIRTABLE_SOURCE_BASES`; match by normalised Instagram handle first, then by case-insensitive name
+but only against a registry row with `total_brands >= 1`, so two different people with the same name
+who each appear once are never merged. Each new base appends one entry to `brands` and increments
+`total_brands` once, guarded by `sourceAirtableBaseId`, so re-running is a no-op. Consequence to
+remember: `updateRegistryCreatorStats` recounts `total_brands` from linked Postgres brands only and
+would undercount a creator whose extra brands are external — it is not called on import, and any
+future recount must add `jsonb_array_length(brands)`.
+
+Photos: never store an Airtable CDN URL (they expire; Sprint 10 already had to migrate them). Every
+registry photo is re-hosted in R2 under `creator-registry/<registry id>/`, images only, ≤ 2 MB
+(`registry-media.ts`). Instagram avatars come from unavatar.io (`?fallback=false`, 5 req/s), a free
+public service — no scraping, no token, no cost; a row it cannot resolve is logged and left alone.
+Scripts stay flat in `packages/db/src/scripts/` beside the existing ones (no new `queries/` folder).

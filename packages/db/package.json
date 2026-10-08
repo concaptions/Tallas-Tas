@@ -24,7 +24,11 @@
     "import-passion": "tsx src/scripts/import-passion.ts",
     "verify-rollout": "tsx src/scripts/verify-rollout.ts",
     "diagnose-brand": "tsx src/scripts/diagnose-brand.ts",
-    "seed-creator-registry": "tsx src/scripts/seed-creator-registry.ts"
+    "seed-creator-registry": "tsx src/scripts/seed-creator-registry.ts",
+    "airtable-enumerate-creators": "tsx src/scripts/airtable-enumerate-creators.ts",
+    "import-creators-from-airtable": "tsx src/scripts/import-creators-from-airtable.ts",
+    "backfill-ig-profile-pics": "tsx src/scripts/backfill-ig-profile-pics.ts",
+    "backfill-registry-from-airtable": "tsx src/scripts/backfill-registry-from-airtable.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

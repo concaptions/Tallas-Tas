@@ -394,3 +394,9 @@ export type {
   RegistryCreatorInput,
   RegistryCreatorListRow,
 } from './creator-registry-queries';
+export {
+  getRegistryAvgRating,
+  loadCreatorPerformanceHistory,
+  updateCreatorPerformanceRating,
+} from './creator-rating-queries';
+export type { CreatorPerformanceHistoryRow } from './creator-rating-queries';

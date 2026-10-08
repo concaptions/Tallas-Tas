@@ -1954,6 +1954,10 @@ export const demoCreators = [
   clientApprovalStatus: null,
   clientApprovalNote: null,
   clientApprovalStatusUpdatedAt: null,
+  performanceRating: null,
+  performanceNote: null,
+  performanceRatedAt: null,
+  performanceRatedBy: null,
 })) as CreatorListRow[];
 
 /**

@@ -1,5 +1,6 @@
 export * from './vocabulary';
 export * from './partnership-expiry';
+export * from './rating';
 export * from './registry';
 // The three creator status tracks and the partnership activity vocabulary live in
 // `../state/creator-status` beside every other status in the platform (CLAUDE.md non-negotiable 2:
