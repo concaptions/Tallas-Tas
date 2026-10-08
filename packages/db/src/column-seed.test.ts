@@ -535,6 +535,7 @@ describe('platform columns on concepts', () => {
     'name',
     'internal_status',
     'client_status',
+    'client_approval_status',
     'concept_themes',
     'description',
     'pain_points',
@@ -611,13 +612,14 @@ describe('platform columns on concepts', () => {
     const decription = resolved.find((column) => column.columnKey === 'description');
     expect(decription?.displayLabel).toBe('Decription');
     expect(decription?.inheritedFrom).toBeNull();
-    // NEITHER platform track reaches Gratsi's displayed set: AI-33 hid Internal Status and the
-    // follow-up ruling hid Client Status — Gratsi's base has Status alone. The client GATE is
-    // untouched: it reads concepts.client_status from the database, never the displayed set.
+    // NEITHER of the two original platform tracks reaches Gratsi's displayed set: AI-33 hid
+    // Internal Status and the follow-up ruling hid Client Status — Gratsi's base has Status alone.
+    // The client GATE is untouched: it reads concepts.client_status from the database, never the
+    // displayed set. Client Approval is a separate approval track added later and is NOT hidden.
     const statuses = resolved
       .filter((column) => column.columnKey.endsWith('_status') && column.source === 'platform')
       .map((column) => column.displayLabel);
-    expect(statuses).toEqual([]);
+    expect(statuses).toEqual(['Client Approval']);
   });
 
   /**
@@ -708,10 +710,11 @@ describe('platform columns on concepts', () => {
 
     expect(claimed.sort()).toEqual(
       [
-        // Concepts: the two approval tracks, the generated name, and the eight the parent base reads
-        // back from its Angles link as lookups.
+        // Concepts: the three approval tracks, the generated name, and the eight the parent base
+        // reads back from its Angles link as lookups.
         'concepts.angle_personas',
         'concepts.angle_products',
+        'concepts.client_approval_status',
         'concepts.client_comments',
         'concepts.client_status',
         'concepts.concept_collections',
@@ -740,7 +743,8 @@ describe('platform columns on concepts', () => {
         'angles.potential',
         'angles.status',
         'angles.winning',
-        // Creators: five internal money-and-process fields.
+        // Creators: five internal money-and-process fields, plus client approval.
+        'creators.client_approval_status',
         'creators.cost_usd',
         'creators.creator_cost',
         'creators.creator_info_request',

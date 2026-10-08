@@ -153,7 +153,7 @@ describe('GRATSI-MATCH · creative_briefs', () => {
     '(Internal) Collections 3',
     'Creative Sheet',
     'Ads Copywriting copy',
-    'Meta Copywriting',
+    'Copywriting',
     'Script & brief breakdown ',
     'Angles',
     'Concepts (from Angles)',
@@ -167,7 +167,7 @@ describe('GRATSI-MATCH · creative_briefs', () => {
    *    the live link is `(Internal) Collections 3` → `collection_id`).
    *  (FLIPPED 2026-10-04: `Ads Copywriting copy` is now SHOWN fidelity-empty as the
    *  `ads_copywriting_copy` virtual — its stored side still does not exist (`copywriting` carries
-   *  ONE brief FK, `creative_brief_id`, which `Meta Copywriting` reverses); the operator chose
+   *  ONE brief FK, `creative_brief_id`, which `Copywriting` reverses); the operator chose
    *  exact-Airtable fidelity over omission.)
    *  - `Angles` — residual single-line text; the real link is the `Angle` field → `angle_id`
    *    (rule 5).
@@ -191,7 +191,7 @@ describe('GRATSI-MATCH · creative_briefs', () => {
     // Reverse links: the table that carries the FK/junction back to creative_briefs.
     expect(byLabel.get('Creative Module')?.columnKey).toBe('creative_module_designs');
     expect(byLabel.get('Creative Sheet')?.columnKey).toBe('creative_sheet_items');
-    expect(byLabel.get('Meta Copywriting')?.columnKey).toBe('copywriting');
+    expect(byLabel.get('Copywriting')?.columnKey).toBe('copywriting');
     // Airtable's system fields display the shared columns — no migration (diff annotation 3).
     expect(byLabel.get('Last Modified')?.columnKey).toBe('updated_at');
     expect(byLabel.get('Created')?.columnKey).toBe('created_at');
@@ -249,9 +249,10 @@ describe('GRATSI-MATCH · concepts', () => {
 
   it('resolves exactly the Airtable list minus the named exclusions, in Airtable order', async () => {
     const resolved = await gratsiColumns('concepts');
-    expect(resolved.map((column) => column.displayLabel)).toEqual(
-      expectedLabels(AIRTABLE_CONCEPTS, EXCLUDED),
-    );
+    expect(resolved.map((column) => column.displayLabel)).toEqual([
+      ...expectedLabels(AIRTABLE_CONCEPTS, EXCLUDED),
+      'Client Approval',
+    ]);
   });
 
   it('keys the links and the lookup to what really backs them, display-only', async () => {
@@ -382,9 +383,10 @@ describe('GRATSI-MATCH · creators (UGC Management)', () => {
 
   it('resolves exactly the Airtable list minus the AI-41 exclusion, in Airtable order', async () => {
     const resolved = await gratsiColumns('creators');
-    expect(resolved.map((column) => column.displayLabel)).toEqual(
-      expectedLabels(AIRTABLE_UGC, EXCLUDED),
-    );
+    const expected = [...expectedLabels(AIRTABLE_UGC, EXCLUDED)];
+    const slackIdx = expected.indexOf('Slack Notified ');
+    expected.splice(slackIdx + 1, 0, 'Client Approval');
+    expect(resolved.map((column) => column.displayLabel)).toEqual(expected);
   });
 
   it('computes the two formula fields at read time — virtual, never stored, never writable', async () => {
