@@ -85,3 +85,12 @@ export {
   type TwoTrackApprovalProps,
 } from './approval/two-track';
 export { PropagationBadge } from './propagation/propagation-badge';
+export {
+  isStarFilled,
+  NOT_RATED_LABEL,
+  RATING_STARS_DEFAULT_MAX,
+  ratingLabel,
+  RatingStars,
+  stepStar,
+  type RatingStarsProps,
+} from './rating/rating-stars';
