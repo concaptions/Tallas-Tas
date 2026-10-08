@@ -1662,3 +1662,9 @@ already returns the role string the gate reads.
 
 **Not a migration.** No schema change: `assets.deleted_at` already exists via `baseColumns()`.
 Nothing new to generate or apply.
+
+## 2026-10-08 — 62 PGlite failures from the Oct 7 audit are closed
+
+Oct 8: 62 PGlite failures from Oct 7 audit are closed; main run shows 3203/3203 tests passing on
+commit `08a22f6` (234/234 files, typecheck and lint clean, full log in `.audit-oct8/main-test-run.log`,
+closeout in `.audit-oct8/62-failures-closeout.md`).
