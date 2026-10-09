@@ -162,6 +162,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
   const values: BriefValues = {
     id: brief.id,
     name: brief.name,
+    nameMode: brief.nameMode,
     source: brief.source,
     conceptId: brief.conceptId,
     designFileUrl: brief.designFileUrl,

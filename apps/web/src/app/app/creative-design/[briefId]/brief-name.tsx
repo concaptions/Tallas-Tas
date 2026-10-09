@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@tas/ui';
 
-import { COPIED_LABEL, COPY_LABEL, NAME_GENERATED_NOTE } from '../fields';
+import { COPIED_LABEL, COPY_LABEL, NAME_GENERATED_NOTE, NAME_MANUAL_NOTE } from '../fields';
 
 interface BriefNameProps {
-  /** The §7 name, already built by `creativeName` upstream. This component never assembles one. */
+  /** `creative_briefs.name`, exactly as stored. This component never assembles one. */
   readonly name: string;
+  /** `auto` (the formula wrote it at create time) or `manual` (typed or imported, never rewritten). */
+  readonly mode?: 'auto' | 'manual';
 }
 
 /**
@@ -23,7 +25,7 @@ interface BriefNameProps {
  * timer is cleared on unmount, and a clipboard that refuses (an insecure origin, a browser that
  * withholds permission) leaves the label alone rather than lying about what happened.
  */
-export function BriefName({ name }: BriefNameProps) {
+export function BriefName({ name, mode = 'auto' }: BriefNameProps) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export function BriefName({ name }: BriefNameProps) {
         </Button>
       </div>
       <p data-slot="brief-name-note" className="text-xs text-text3">
-        {NAME_GENERATED_NOTE}
+        {mode === 'manual' ? NAME_MANUAL_NOTE : NAME_GENERATED_NOTE}
       </p>
     </div>
   );

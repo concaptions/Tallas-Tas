@@ -40,6 +40,7 @@ function values(overrides: Partial<BriefValues> = {}): BriefValues {
   return {
     id: '050ea4fe-6915-4e33-8eec-555de55834b3',
     name: 'TV01-Everyday Wine Culture-Hrenee_23-V1',
+    nameMode: 'manual',
     source: 'TAS',
     conceptId: null,
     designFileUrl: null,
@@ -135,5 +136,28 @@ describe('BriefDetail — the Dimensions picker (smoke test, 2026-10-10)', () =>
 
   it('keeps the sheet-item link counts type honest: NO_BRIEF_LINKS still names four kinds', () => {
     expect(Object.keys(NO_BRIEF_LINKS)).toHaveLength(4);
+  });
+});
+
+/** The h1 the page prints for the name. */
+function heading(markup: string): string | undefined {
+  return /data-slot="brief-name"[^>]*>([^<]*)</.exec(markup)?.[1];
+}
+
+describe('BriefDetail — the name (smoke test, 2026-10-10)', () => {
+  it('shows a manual-named brief under its STORED name, never a recomputed one', () => {
+    const markup = render(values({ name: 'SMOKETEST-DELETE-ME-20261010', nameMode: 'manual' }));
+
+    expect(heading(markup)).toBe('SMOKETEST-DELETE-ME-20261010');
+    expect(markup).not.toContain('TAS-TV2-Batch-Standalone-V1');
+    expect(markup).toContain('Nothing rewrites this name.');
+  });
+
+  it('shows an auto-named brief under its stored name too — the formula runs at create time only', () => {
+    const markup = render(
+      values({ name: 'TAS-TOF-V007-Pain-UGC-B1', nameMode: 'auto', version: 3 }),
+    );
+
+    expect(heading(markup)).toBe('TAS-TOF-V007-Pain-UGC-B1');
   });
 });

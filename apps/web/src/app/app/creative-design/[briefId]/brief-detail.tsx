@@ -3,12 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  applyDimensionChange,
-  creativeNameForConcept,
-  dimensionsFor,
-  type DimensionChange,
-} from '@tas/domain/creatives';
+import { applyDimensionChange, dimensionsFor, type DimensionChange } from '@tas/domain/creatives';
 import { editorStageLabel, editorStageOf, editorStageTone } from '@tas/domain/state';
 import type {
   ChipTone,
@@ -98,7 +93,10 @@ export interface BriefConceptCard {
 /** The columns this page shows and submits. `name` is here to be READ, never to be edited. */
 export interface BriefValues {
   readonly id: string;
+  /** `creative_briefs.name`, shown VERBATIM — never recomputed on display (migration 0060). */
   readonly name: string;
+  /** Who owns the name: `auto` follows its concept's renames, `manual` is never rewritten. */
+  readonly nameMode: 'auto' | 'manual';
   readonly source: string;
   readonly conceptId: string | null;
   readonly designFileUrl: string | null;
@@ -281,11 +279,13 @@ function LinkedRecordCard({ record }: { readonly record: BriefLinkedRecord }) {
  * three columns would squeeze the stepper past reading — and stack to one column below it, so a
  * phone reads them in that same order.
  *
- * THE NAME IS NOT A FIELD. `BriefName` renders `creativeNameForConcept` from
- * `@tas/domain/creatives` — the one place the §7 string is built — and the Version dropdown
- * re-renders it with NO ROUND TRIP, because the formula is pure and runs in the browser. There is
- * no input holding the name, and `updateBriefAction` ignores anything a form claims it is called:
- * it re-derives the name from the concept row it reads itself.
+ * THE NAME IS NOT A FIELD. `BriefName` renders `creative_briefs.name` VERBATIM. It used to run the
+ * §7 formula over the row at render time, which showed an imported or hand-typed (`manual`) brief
+ * under a name it never had — the Creative Sheet said `SMOKETEST-DELETE-ME-20261010`, this page
+ * said `TAS-TV2-Batch-Standalone-V1` (smoke test, 2026-10-10). The formula runs at CREATE time
+ * only (`createBriefAction`), and a concept rename cascades through `renameBrief` to `auto` rows;
+ * nothing on the display path builds a name. There is no input holding it, and `updateBriefAction`
+ * never overwrites it.
  *
  * THE CONCEPT CARD IS LABELLED. The card still shows the concept's own `Batch-Angle-Theme` name,
  * and under it a definition list names ALL FOUR fields PRD §5.10 says a concept link auto-fills —
@@ -393,16 +393,6 @@ export function BriefDetail({
     [concept, brief.name, brief.version],
   );
 
-  const name = creativeNameForConcept(concept === null ? null : concept, {
-    source: brief.source,
-    funnel: brief.funnel,
-    format: brief.type,
-    number: brief.sequence,
-    version: Number(version),
-    batch: brief.batch,
-    product,
-  });
-
   const priority = priorityView(brief.priority);
   const performance = performanceView(
     performanceChoice === NOT_GRADED_VALUE ? null : performanceChoice,
@@ -493,7 +483,7 @@ export function BriefDetail({
         >
           ← Creative Sheet
         </Link>
-        <BriefName name={name} />
+        <BriefName name={brief.name} mode={brief.nameMode} />
         {/* The editor board's stage this brief sits in, colour-coded by stage (Sprint 10); off the
             board once approved or launched. */}
         <span className="flex items-center gap-2" data-slot="brief-stage" data-stage={stage ?? ''}>
