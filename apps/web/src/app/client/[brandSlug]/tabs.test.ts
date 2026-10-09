@@ -24,8 +24,13 @@ import {
  */
 const ROUTE_DIR = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Every portal page sits under the `(portal)` route group — the token gate's layout — which the
+ * App Router leaves out of the URL, so `/client/gratsi/concepts` is `(portal)/concepts/page.tsx`.
+ * Only `auth` lives beside the group (`portal-gate.test.ts`).
+ */
 function hasPage(...segments: readonly string[]): boolean {
-  return existsSync(join(ROUTE_DIR, ...segments, 'page.tsx'));
+  return existsSync(join(ROUTE_DIR, '(portal)', ...segments, 'page.tsx'));
 }
 
 describe('client portal tab links resolve to routes', () => {

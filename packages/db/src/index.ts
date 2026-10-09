@@ -54,6 +54,7 @@ export {
   updateBrief,
   updateBriefClientStatus,
   updateBriefDimensions,
+  updateBriefDimensionsWith,
 } from './briefs';
 export type { BriefInput, BriefListRow, CreateBriefValues } from './briefs';
 export {

@@ -7,6 +7,7 @@ import {
   creativeTypeLabel,
   creativeVersionLabel,
   dimensionsFor,
+  normalizeCreativeDimensions,
   priorityTone,
   prioritySlaLabel,
   creativePriorityLabel,
@@ -753,11 +754,29 @@ export function briefDimensions(
   stored: readonly string[],
   type: string,
 ): readonly CreativeDimensionEntry[] {
-  const keys = stored.length === 0 ? dimensionsFor(type) : stored;
-  return keys
+  return briefDimensionKeys(stored, type)
     .map((key) => creativeDimensionEntry(key))
     .filter((entry): entry is CreativeDimensionEntry => entry !== undefined);
 }
+
+/**
+ * The values the Dimensions picker is seeded with: the stored array NORMALISED — an imported
+ * Airtable placement name read as its ratio, a name this build cannot place kept as it is — or
+ * the §8 defaults for the type when the row carries nothing. The 2026-10-10 smoke test found the
+ * picker looking the stored names up raw, so an imported brief read as empty: no checkmarks, and
+ * its first tick would have saved one ratio over three.
+ */
+export function briefDimensionKeys(stored: readonly string[], type: string): string[] {
+  return stored.length === 0 ? [...dimensionsFor(type)] : normalizeCreativeDimensions(stored);
+}
+
+/** What the picker says around its save-on-tick: it writes on every tick, with no Save button. */
+export const BRIEF_DIMENSIONS_SAVE_LABELS = {
+  hint: 'Saves on each tick.',
+  pending: 'Saving…',
+  saved: 'Saved',
+  none: 'Choose dimensions',
+} as const;
 
 /**
  * The next step on this brief's own internal ladder, or `null` at the end of it.

@@ -86,6 +86,7 @@ import { ThemeCard } from '@/app/app/themes/theme-card';
 
 import {
   BriefChipsStory,
+  BriefDimensionsPickerStory,
   BriefDimensionsStory,
   BriefInspirationStory,
   BriefNameStory,
@@ -1055,6 +1056,7 @@ export default function DesignSystemPage() {
               dimensions — the PRD §8 defaults, video set then static set
             </h3>
             <BriefDimensionsStory />
+            <BriefDimensionsPickerStory />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">

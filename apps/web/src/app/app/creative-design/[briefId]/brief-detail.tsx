@@ -3,7 +3,12 @@
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { creativeNameForConcept } from '@tas/domain/creatives';
+import {
+  applyDimensionChange,
+  creativeNameForConcept,
+  dimensionsFor,
+  type DimensionChange,
+} from '@tas/domain/creatives';
 import { editorStageLabel, editorStageOf, editorStageTone } from '@tas/domain/state';
 import type {
   ChipTone,
@@ -17,12 +22,6 @@ import {
   DEMO_WRITE_HINT,
   disabledWriteClassName,
   DisabledWrite,
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Label,
   Select,
   SelectContent,
@@ -47,10 +46,14 @@ import { ClientStatusDropdown } from '@/components/status/client-status-dropdown
 import type { BriefActivityItem } from '@/lib/briefs-source';
 import { copywritingPath, creativeSheetPath } from '@/lib/routes';
 
-import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '../actions';
+import {
+  changeBriefDimensionAction,
+  updateBriefAction,
+  type BriefActionResult,
+  type BriefFieldName,
+} from '../actions';
 import { runSpellCheckAction, type SpellCheckActionResult } from '../spell-check-action';
 import {
-  BRIEF_DIMENSION_OPTIONS,
   BRIEF_HEADINGS,
   BRIEF_LINK_SECTIONS,
   BRIEF_PROSE_FIELDS,
@@ -64,6 +67,7 @@ import {
   STANDALONE_NOTE,
   VERSION_OPTIONS,
   advanceLabel,
+  briefDimensionKeys,
   briefDimensions,
   creativeTypeLabel,
   nextInternalStatus,
@@ -76,6 +80,7 @@ import {
 } from '../fields';
 import { BriefName } from './brief-name';
 import { DimensionsGrid } from './dimensions-grid';
+import { BriefDimensionsPicker, type DimensionsSaveState } from './dimensions-picker';
 import { InspirationList } from './inspiration-list';
 import { QaChecklist } from './qa-checklist';
 
@@ -343,20 +348,33 @@ export function BriefDetail({
   const [version, setVersion] = useState(String(brief.version));
   const [performanceChoice, setPerformanceChoice] = useState(brief.performance ?? NOT_GRADED_VALUE);
   /**
-   * The Dimensions multi-select (bug: the field showed its values read-only, with no control to
-   * change them — the row's stored array could not be edited from this page). Seeded from the
-   * stored array when the brief carries one, or from PRD §8's defaults for the type when it does
-   * not — the same reading `briefDimensions` gives the grid, so an untouched save does not blank
-   * a brief that has never been explicitly edited. The hidden inputs below are rendered from this
-   * state, so what the form submits is always what the dropdown shows.
+   * The Dimensions picker SAVES ON TICK (smoke test, 2026-10-10: it set React state and nothing
+   * reached the server until "Save brief"). Seeded by `briefDimensionKeys` — the stored array
+   * normalised, so an imported brief's placement names tick their ratios, or PRD §8's defaults
+   * for the type when the row carries nothing. A tick applies the ONE change optimistically with
+   * the same domain rule the server merges with, dispatches `changeBriefDimensionAction`, and
+   * adopts the array the server wrote (or puts the previous one back on a refusal). The hidden
+   * inputs below are rendered from this state, so a later "Save brief" re-posts what was saved.
    */
   const [dimensionKeys, setDimensionKeys] = useState<readonly string[]>(() =>
-    briefDimensions(brief.dimensions, brief.type).map((entry) => entry.key),
+    briefDimensionKeys(brief.dimensions, brief.type),
   );
+  const [dimensionsState, setDimensionsState] = useState<DimensionsSaveState>({ status: 'idle' });
   const toggleDimension = (key: string) => {
-    setDimensionKeys((prev) =>
-      prev.includes(key) ? prev.filter((entry) => entry !== key) : [...prev, key],
-    );
+    const previous = dimensionKeys;
+    const change: DimensionChange = { op: previous.includes(key) ? 'remove' : 'add', key };
+    setDimensionKeys(applyDimensionChange(previous, dimensionsFor(brief.type), change));
+    setDimensionsState({ status: 'pending' });
+    void changeBriefDimensionAction(brief.id, change).then((result) => {
+      if (result.ok) {
+        setDimensionKeys(result.dimensions);
+        setDimensionsState({ status: 'saved' });
+        router.refresh();
+      } else {
+        setDimensionKeys(previous);
+        setDimensionsState({ status: 'error', error: result.error });
+      }
+    });
   };
 
   useEffect(() => {
@@ -731,55 +749,13 @@ export function BriefDetail({
                 {BRIEF_HEADINGS.dimensions}
               </span>
               <DimensionsGrid entries={dimensions} />
-              {/*
-                The Dimensions dropdown (bug-fix): the grid shows the current selection, and this
-                control CHANGES it. One `DropdownMenuCheckboxItem` per ratio — the same pattern the
-                link field uses — so a click toggles the ratio in state and the hidden inputs above
-                re-render with it, which is what makes a save of the form carry the new array.
-                `onSelect` is prevented so the menu stays open across multiple ticks, exactly as the
-                link field does. The whole control is disabled in demo mode with the usual reason.
-              */}
-              <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={demo}
-                      data-slot="brief-dimensions-trigger"
-                      className={disabledWriteClassName}
-                    >
-                      {dimensionKeys.length === 0
-                        ? 'Choose dimensions'
-                        : `${String(dimensionKeys.length)} selected`}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56">
-                    <DropdownMenuLabel>{BRIEF_HEADINGS.dimensions}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {BRIEF_DIMENSION_OPTIONS.map((option) => (
-                      <DropdownMenuCheckboxItem
-                        key={option.key}
-                        checked={dimensionKeys.includes(option.key)}
-                        onCheckedChange={() => {
-                          toggleDimension(option.key);
-                        }}
-                        onSelect={(event) => {
-                          event.preventDefault();
-                        }}
-                        data-slot="brief-dimension-option"
-                        data-dimension={option.key}
-                      >
-                        <span className="font-mono text-xs">
-                          {option.label}
-                          <span className="pl-2 text-text3">{option.pixels}</span>
-                        </span>
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </DisabledWrite>
+              {/* The grid shows the current selection; the picker CHANGES it, one saved tick at a time. */}
+              <BriefDimensionsPicker
+                selected={dimensionKeys}
+                disabled={demo}
+                saveState={dimensionsState}
+                onToggle={toggleDimension}
+              />
               {fieldError('dimensions') === undefined ? null : (
                 <p className="text-xs text-bad">{fieldError('dimensions')}</p>
               )}

@@ -8,6 +8,7 @@ import {
   listBriefs,
   updateBrief,
   updateBriefClientStatus,
+  updateBriefDimensionsWith,
   type BriefInput,
   type BriefListRow,
 } from './briefs';
@@ -754,5 +755,61 @@ describe('updateBriefClientStatus — the shared Oct 5 client-status writer', ()
       'user_test',
     );
     expect(saved).toBeNull();
+  });
+});
+
+describe('updateBriefDimensionsWith — one change merged onto the stored array, under the row lock', () => {
+  it('hands the compute step the CURRENT stored array and writes what it returns', async () => {
+    const { db, brandId } = await seeded();
+    const brief = demoBrief();
+    await updateBrief(db, brandId, brief.id, { dimensions: ['4:5', '1:1', '9:16'] }, 'seed');
+
+    const seen: string[][] = [];
+    const saved = await updateBriefDimensionsWith(
+      db,
+      brandId,
+      brief.id,
+      (current) => {
+        seen.push([...current.dimensions]);
+        return [...current.dimensions, 'Billboard 970x250'];
+      },
+      'strategist',
+    );
+
+    expect(seen).toEqual([['4:5', '1:1', '9:16']]);
+    expect(saved?.dimensions).toEqual(['4:5', '1:1', '9:16', 'Billboard 970x250']);
+    expect(saved?.updatedBy).toBe('strategist');
+    const [row] = await withBrand(db, brandId).select(
+      creativeBriefs,
+      eq(creativeBriefs.id, brief.id),
+    );
+    expect(row?.dimensions).toEqual(['4:5', '1:1', '9:16', 'Billboard 970x250']);
+  });
+
+  it('serialises two concurrent changes so neither overwrites the other', async () => {
+    const { db, brandId } = await seeded();
+    const brief = demoBrief();
+    await updateBrief(db, brandId, brief.id, { dimensions: ['4:5'] }, 'seed');
+
+    await Promise.all([
+      updateBriefDimensionsWith(db, brandId, brief.id, (c) => [...c.dimensions, '1:1'], 'a'),
+      updateBriefDimensionsWith(db, brandId, brief.id, (c) => [...c.dimensions, '9:16'], 'b'),
+    ]);
+
+    const [row] = await withBrand(db, brandId).select(
+      creativeBriefs,
+      eq(creativeBriefs.id, brief.id),
+    );
+    expect([...(row?.dimensions ?? [])].sort()).toEqual(['1:1', '4:5', '9:16']);
+  });
+
+  it("returns null and computes nothing for another brand's brief", async () => {
+    const { db, otherBrandId } = await seeded();
+    const compute = () => {
+      throw new Error('computed for a brief outside the scope');
+    };
+    expect(
+      await updateBriefDimensionsWith(db, otherBrandId, demoBrief().id, compute, 'x'),
+    ).toBeNull();
   });
 });

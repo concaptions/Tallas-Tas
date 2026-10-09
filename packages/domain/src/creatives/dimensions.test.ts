@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyDimensionChange,
   creativeDimensionDisplay,
   DIMENSION_OPTIONS,
   dimensionOptionsFor,
@@ -116,5 +117,58 @@ describe('DIMENSION_OPTIONS and dimensionOptionsFor', () => {
   it('displays a stored value as its key where it has one and as itself otherwise', () => {
     expect(creativeDimensionDisplay('IG Story / Reel')).toBe('9:16');
     expect(creativeDimensionDisplay('Billboard')).toBe('Billboard');
+  });
+});
+
+describe('applyDimensionChange', () => {
+  /**
+   * The rule a save-on-tick picker needs: one tick is ONE change to the STORED array, merged on the
+   * server — never a replacement with whatever the browser happened to hold. The 2026-10-10 smoke
+   * test found the brief page's picker reading an imported brief as empty; had its tick saved, it
+   * would have replaced `['4:5', '1:1', '9:16']` with `['1:1']`. A change merges instead.
+   */
+  it('adds a ratio to the stored array and keeps every other value', () => {
+    expect(
+      applyDimensionChange(['4:5', '1:1', '9:16'], ['4:5', '1:1'], { op: 'add', key: '1:1' }),
+    ).toEqual(['4:5', '1:1', '9:16']);
+    expect(applyDimensionChange(['4:5'], ['4:5', '1:1'], { op: 'add', key: '9:16' })).toEqual([
+      '4:5',
+      '9:16',
+    ]);
+  });
+
+  it('normalises an imported placement name before merging, so a legacy row keeps its ratios', () => {
+    expect(
+      applyDimensionChange(['Facebook Reels', 'Facebook Feed Square'], ['4:5'], {
+        op: 'add',
+        key: '4:5',
+      }),
+    ).toEqual(['4:5', '1:1', '9:16']);
+  });
+
+  it('keeps a legacy name this build cannot place through an add and a remove of a ratio', () => {
+    expect(applyDimensionChange(['Meta', '1:1'], ['4:5'], { op: 'add', key: '9:16' })).toEqual([
+      '1:1',
+      '9:16',
+      'Meta',
+    ]);
+    expect(applyDimensionChange(['Meta', '1:1'], ['4:5'], { op: 'remove', key: '1:1' })).toEqual([
+      'Meta',
+    ]);
+  });
+
+  it('removes a ratio, accepting the key in either spelling', () => {
+    expect(
+      applyDimensionChange(['4:5', '9:16'], ['4:5'], { op: 'remove', key: 'IG Story / Reel' }),
+    ).toEqual(['4:5']);
+  });
+
+  it('starts from the §8 defaults when the row carries nothing, so the first tick does not drop them', () => {
+    expect(applyDimensionChange([], ['4:5', '1:1'], { op: 'add', key: '9:16' })).toEqual([
+      '4:5',
+      '1:1',
+      '9:16',
+    ]);
+    expect(applyDimensionChange([], ['4:5', '1:1'], { op: 'remove', key: '4:5' })).toEqual(['1:1']);
   });
 });

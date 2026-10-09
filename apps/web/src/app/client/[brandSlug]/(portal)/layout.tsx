@@ -24,7 +24,7 @@ import { isDemoMode } from '@/lib/demo-mode';
 import { loadClientInterfaceConfig } from '@/lib/client-interface-config-source';
 import { requestConnection } from '@/lib/request-db';
 
-import { AUX_NAV_ITEMS, auxTabHref, customPageHref, standardTabHref } from './tabs';
+import { AUX_NAV_ITEMS, auxTabHref, customPageHref, standardTabHref } from '../tabs';
 
 interface Props {
   readonly children: ReactNode;

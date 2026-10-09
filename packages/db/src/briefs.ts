@@ -341,3 +341,27 @@ export async function updateBriefDimensions(
     .returning();
   return row ?? null;
 }
+
+/**
+ * Applies ONE change to a brief's `dimensions` under the brief's own advisory lock: `next` is
+ * handed the brief as stored at that moment and returns the array to write, so two ticks that
+ * race — two tabs, a double click — are applied one after the other to the current array rather
+ * than each replacing the other's. The lock is per brief (`hashtext(id)`), transaction-scoped,
+ * and the read and the write share the transaction. Returns null, and never calls `next`, when
+ * the id is another brand's or soft-deleted. The merge rule itself (`applyDimensionChange`) lives
+ * in `@tas/domain/creatives`, which this package cannot import — hence the callback.
+ */
+export async function updateBriefDimensionsWith(
+  db: Db,
+  brandId: string,
+  id: string,
+  next: (current: BriefListRow) => readonly string[],
+  actorId: string,
+): Promise<CreativeBrief | null> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${id}))`);
+    const current = await getBriefById(tx, brandId, id);
+    if (current === null) return null;
+    return updateBriefDimensions(tx, brandId, id, next(current), actorId);
+  });
+}

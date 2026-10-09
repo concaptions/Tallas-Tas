@@ -4,8 +4,6 @@ import Link from 'next/link';
 import type { PipelineSummary } from '@tas/domain';
 import {
   chipTone,
-  clientApprovalLabel,
-  clientApprovalTone,
   copyStatusLabel,
   copyStatusTone,
   creatorStatusLabel,
@@ -47,8 +45,14 @@ function copyChip(key: string): { label: string; tone: ChipTone } {
   return { label: copyStatusLabel(key), tone: copyStatusTone(key) };
 }
 
+/**
+ * The Creative Sheet tile's `byStatus` is the briefs' `client_status` since the single-source
+ * cutover (`creative-sheet-items.ts`: `status: brief.clientStatus`), so it resolves through the
+ * same six-value `CLIENT_STATUS` map as the Concepts tile — not the sheet's retired four-value
+ * approval vocabulary, which read four of the six keys as "—" (smoke test, 2026-10-10).
+ */
 function creativeSheetChip(key: string): { label: string; tone: ChipTone } {
-  return { label: clientApprovalLabel(key), tone: clientApprovalTone(key) as ChipTone };
+  return clientChip(key);
 }
 
 function creatorClientChip(key: string): { label: string; tone: ChipTone } {

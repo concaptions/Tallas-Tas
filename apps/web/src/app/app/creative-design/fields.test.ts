@@ -353,8 +353,8 @@ describe('count labels', () => {
 describe('briefDimensions', () => {
   it('renders the stored ratios, in vocabulary order and with their pixel sizes', () => {
     expect(briefDimensions(['9:16', '1:1'], 'Static').map((entry) => entry.key)).toEqual([
-      '9:16',
       '1:1',
+      '9:16',
     ]);
     expect(briefDimensions(['1:1'], 'Static')[0]?.pixels).toBe('1080x1080');
   });
@@ -368,6 +368,17 @@ describe('briefDimensions', () => {
 
   it('drops a ratio this build cannot deliver rather than rendering it raw', () => {
     expect(briefDimensions(['1:1', '21:9'], 'Static').map((entry) => entry.key)).toEqual(['1:1']);
+  });
+
+  /**
+   * The 2026-10-10 smoke test: an imported brief stores Airtable placement NAMES, and the picker
+   * read it as empty — no checkmarks, and a tick would have saved one ratio over the three. The
+   * stored names are normalised through the domain's one table before they are looked up.
+   */
+  it('reads an imported placement name as its ratio, so a legacy row shows its checkmarks', () => {
+    expect(
+      briefDimensions(['Facebook Reels', 'Facebook Feed Square'], 'Video').map((e) => e.key),
+    ).toEqual(['1:1', '9:16']);
   });
 });
 

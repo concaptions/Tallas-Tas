@@ -10,6 +10,7 @@ import {
   insertActivity,
   listBriefs,
   updateBrief,
+  updateBriefDimensionsWith,
   type BriefInput,
 } from '@tas/db';
 import {
@@ -20,6 +21,7 @@ import {
 } from '@tas/db/schema';
 import { BRIEF_NAME_DEFAULT_SOURCE, generateBriefName } from '@tas/domain/briefs';
 import {
+  applyDimensionChange,
   conceptNameSegment,
   creativeTrack,
   dimensionsFor,
@@ -33,6 +35,7 @@ import {
   type CreativeFunnelKey,
   type CreativePriorityKey,
   type CreativeTypeKey,
+  type DimensionChange,
 } from '@tas/domain/creatives';
 import {
   CLIENT_STATUS,
@@ -858,6 +861,92 @@ export async function toggleQaAction(
     return outcome;
   } catch {
     return { ok: false, error: 'The QA checklist could not be saved. Try again.' };
+  }
+}
+
+/** One tick on the brief page's Dimensions picker: the ratio and whether it was ticked or unticked. */
+const dimensionChangeSchema = z.object({
+  op: z.enum(['add', 'remove']),
+  key: z.string().refine(isKnownOrLegacyDimension, 'That is not one of the delivery ratios.'),
+});
+
+export interface BriefDimensionsSuccess {
+  readonly ok: true;
+  readonly id: string;
+  /** The array the server wrote, so the page adopts what was stored rather than what it guessed. */
+  readonly dimensions: readonly string[];
+}
+
+export type BriefDimensionsResult = BriefDimensionsSuccess | BriefActionFailure;
+
+/**
+ * Applies ONE tick of the brief page's Dimensions picker (smoke test, 2026-10-10: the picker set
+ * React state and nothing reached the server until "Save brief"). The change is MERGED onto the
+ * stored array on the server, under the brief's row lock (`updateBriefDimensionsWith`), through the
+ * domain's `applyDimensionChange` — so a tick can only add or remove the value it names, and the
+ * ratios the browser could not read on an imported brief survive it. Writes
+ * `creative_briefs.dimensions` through the one write path the Creative Sheet's field uses, and
+ * logs the change like every other field write (EDIT-03). Like `toggleQaAction`, it never touches
+ * the name.
+ */
+export async function changeBriefDimensionAction(
+  id: string,
+  change: DimensionChange,
+): Promise<BriefDimensionsResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+  if (typeof id !== 'string' || id === '') {
+    return { ok: false, error: 'This creative could not be identified.' };
+  }
+  const parsed = dimensionChangeSchema.safeParse(change);
+  if (!parsed.success) {
+    return fieldFailure({ dimensions: 'That is not one of the delivery ratios.' });
+  }
+
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
+    }
+    const actorName = (await currentActor()).fullName;
+
+    const outcome = await withBrandScope(async (db, brandId) => {
+      let before: readonly string[] = [];
+      const saved = await updateBriefDimensionsWith(
+        db,
+        brandId,
+        id,
+        (current) => {
+          before = current.dimensions;
+          return applyDimensionChange(current.dimensions, dimensionsFor(current.type), parsed.data);
+        },
+        actor,
+      );
+      if (saved === null) {
+        return { ok: false as const, error: 'That creative is no longer available.' };
+      }
+      await insertActivity(
+        db,
+        brandId,
+        BRIEF_ENTITY,
+        saved.id,
+        diffFields({ dimensions: before }, { dimensions: saved.dimensions }, ['dimensions']),
+        { id: actor, name: actorName },
+      );
+      return { ok: true as const, id: saved.id, dimensions: saved.dimensions };
+    });
+
+    if (outcome === null) {
+      return { ok: false, error: 'This workspace has no brand yet.' };
+    }
+    if (!outcome.ok) {
+      return outcome;
+    }
+    revalidateBrief(outcome.id);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The dimensions could not be saved. Try again.' };
   }
 }
 

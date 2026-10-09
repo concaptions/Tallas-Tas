@@ -12,6 +12,7 @@ import {
 } from '@/app/app/creative-design/fields';
 import { BriefName } from '@/app/app/creative-design/[briefId]/brief-name';
 import { DimensionsGrid } from '@/app/app/creative-design/[briefId]/dimensions-grid';
+import { BriefDimensionsPicker } from '@/app/app/creative-design/[briefId]/dimensions-picker';
 import { InspirationList } from '@/app/app/creative-design/[briefId]/inspiration-list';
 import { QaChecklist } from '@/app/app/creative-design/[briefId]/qa-checklist';
 
@@ -76,6 +77,36 @@ export function BriefDimensionsStory() {
     <div className="flex flex-col gap-3">
       <DimensionsGrid entries={briefDimensions([], 'Video')} />
       <DimensionsGrid entries={briefDimensions([], 'Static')} />
+    </div>
+  );
+}
+
+/**
+ * The brief page's save-on-tick Dimensions picker (2026-10-10), in its three save states. The
+ * story's handler is inert: on the page, a tick dispatches `changeBriefDimensionAction`.
+ */
+export function BriefDimensionsPickerStory() {
+  const inert = () => undefined;
+  return (
+    <div className="flex flex-col gap-3">
+      <BriefDimensionsPicker
+        selected={['4:5', '1:1', '9:16']}
+        disabled={false}
+        saveState={{ status: 'idle' }}
+        onToggle={inert}
+      />
+      <BriefDimensionsPicker
+        selected={['1:1']}
+        disabled={false}
+        saveState={{ status: 'saved' }}
+        onToggle={inert}
+      />
+      <BriefDimensionsPicker
+        selected={[]}
+        disabled={false}
+        saveState={{ status: 'error', error: 'That is not one of the delivery ratios.' }}
+        onToggle={inert}
+      />
     </div>
   );
 }

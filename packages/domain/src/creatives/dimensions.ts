@@ -153,6 +153,32 @@ export function dimensionOptionsFor(stored: readonly string[]): readonly Dimensi
   return [...DIMENSION_OPTIONS, ...legacy];
 }
 
+/** One tick on a Dimensions picker: add or remove ONE value, in either spelling. */
+export interface DimensionChange {
+  readonly op: 'add' | 'remove';
+  readonly key: string;
+}
+
+/**
+ * The stored array after one tick, merged on the server: `stored` normalised — or the §8
+ * `defaults` for the type when the row carries nothing, the same reading the page gives an empty
+ * row — plus or minus the one value. A picker that posted its whole selection instead would
+ * replace three stored ratios with the one it could read (the 2026-10-10 smoke test, on an
+ * imported brief whose placement names the picker did not recognise); a change can only ever
+ * touch the value it names, and a legacy name this build cannot place rides through untouched.
+ */
+export function applyDimensionChange(
+  stored: readonly string[],
+  defaults: readonly string[],
+  change: DimensionChange,
+): string[] {
+  const base = normalizeCreativeDimensions(stored.length === 0 ? defaults : stored);
+  const key = normalizeCreativeDimension(change.key);
+  return change.op === 'add'
+    ? normalizeCreativeDimensions([...base, key])
+    : base.filter((value) => value !== key);
+}
+
 /** The label a grid cell or a chip shows for one stored value: the key itself, or the legacy name. */
 export function creativeDimensionDisplay(value: string): string {
   return normalizeCreativeDimension(value);
