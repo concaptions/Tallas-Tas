@@ -12,8 +12,13 @@ import {
   updateBrief,
   type BriefInput,
 } from '@tas/db';
-import { creativePerformances, type CreativePerformance } from '@tas/db/schema';
-import { generateBriefName } from '@tas/domain/briefs';
+import {
+  creativePerformances,
+  creativeSources,
+  type CreativePerformance,
+  type CreativeSource,
+} from '@tas/db/schema';
+import { BRIEF_NAME_DEFAULT_SOURCE, generateBriefName } from '@tas/domain/briefs';
 import {
   creativeTrack,
   dimensionsFor,
@@ -121,6 +126,7 @@ export type BriefFieldName =
   | 'dimensions'
   | 'internalStatus'
   | 'clientStatus'
+  | 'source'
   | 'qa';
 
 /** The three QA checkboxes of ticket criterion 10, by the column each one ticks. */
@@ -292,9 +298,22 @@ const briefSchema = z.object({
     })
     .optional(),
   nameOverride: text.optional(),
-  // Source segment of the new formula; empty defaults to "TAS" inside the generator.
-  source: text.optional(),
+  // Source: the first segment of the name AND the `source` column (audit item 9, 2026-10-09 —
+  // the column used to keep its default whatever the form said). Empty defaults to TAS here,
+  // not only inside the generator, so the stored column and the printed prefix always agree;
+  // anything outside `creativeSources` is refused. Absent (an UPDATE form without the field)
+  // leaves the column alone.
+  source: z
+    .string()
+    .trim()
+    .transform((value) => (value === '' ? BRIEF_NAME_DEFAULT_SOURCE : value))
+    .refine(isCreativeSource, 'That is not one of the two sources.')
+    .optional(),
 });
+
+function isCreativeSource(value: string): value is CreativeSource {
+  return (creativeSources as readonly string[]).includes(value);
+}
 
 type BriefFormValues = z.infer<typeof briefSchema>;
 
@@ -495,6 +514,8 @@ function toInput(
   return {
     conceptId: values.conceptId,
     batch,
+    // Absent from the submission means absent from the statement, exactly as `performance`.
+    ...(values.source === undefined ? {} : { source: values.source }),
     funnel: values.funnel,
     type: values.type,
     version: values.version,
