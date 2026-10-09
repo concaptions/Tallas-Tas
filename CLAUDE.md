@@ -101,6 +101,20 @@ scripts                  Migration and one-off scripts
 - Tests live next to the code as `*.test.ts`; E2E under `apps/web/e2e/*.spec.ts`.
 - Secrets never enter the repo. `.env.example` lists every variable with a comment. `.env*` is gitignored.
 
+## Branching and release (rule since 2026-10-09)
+
+- `main` is the only branch. Work directly on `main`; do not create feature branches. `main` deploys
+  production (Vercel builds every push).
+- Before EVERY push to `main`, from the repo root: `pnpm typecheck`, `pnpm lint`, `pnpm test`, and
+  `pnpm --filter @tas/web build:ci` (the prerender must pass). A push with any of the four red is a
+  production incident.
+- Any migration must be applied to Railway with its `packages/db/applyNN.mjs` BEFORE the push that
+  needs it (`cd packages/db && DATABASE_URL=… node applyNN.mjs`). Production code must never reach
+  Vercel ahead of the column it reads. Never `pnpm db:migrate` against Railway: the drizzle-kit
+  journal is out of sync; the apply scripts are the only path.
+- Migration numbers are hand-assigned and contiguous (`NNNN_<slug>.sql` + a journal entry with the
+  same tag); check the last number in `packages/db/drizzle` before adding one.
+
 ## UI governance (design system, from the 2026-09-16 handoff)
 
 Every UI ticket after TICKET-DS-01..05 must, in this order, and the reviewer rejects any diff that breaks one:

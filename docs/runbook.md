@@ -79,6 +79,27 @@ fixture restores status, assignee and activity rows in teardown whether it passe
 Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PASSWORD=… DATABASE_URL_E2E=… pnpm test:e2e`
 (Turbo passes exactly these names through to the Playwright task, `turbo.json`).
 
+## Branching and release (rule since 2026-10-09)
+
+`main` is the only branch and it deploys production: Vercel builds every push to `main`. Every
+earlier branch was consolidated into `main` on 2026-10-09 and archived as a tag
+(`archive/<branch-name>`), then deleted; nothing else is open.
+
+Before every push to `main`, run from the repo root and get all four green:
+
+```
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm --filter @tas/web build:ci   # next build with the Google Fonts mock; the prerender must pass
+```
+
+Migrations: a migration is applied to Railway BEFORE the push that needs it, with its apply script
+— `cd packages/db && DATABASE_URL=… node applyNN.mjs` (transaction, sha256 journal hash, post-apply
+verify; a second run is a no-op). Never `pnpm db:migrate` against Railway (the drizzle-kit journal
+is out of sync). Order for a change that adds a column: apply the migration → confirm the verify
+line → push `main`.
+
 ## Pending human verification
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
