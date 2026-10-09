@@ -45,7 +45,6 @@ const LAUNCHED: EditorBoardBrief = { ...REVIEW, id: 'launched-1', internalStatus
 const SHEET_ROWS: readonly EditorBoardSheetRow[] = [
   { id: 'row-1', name: 'September-TM1-B1-Daylight-Problem/Solution-V2', briefId: REVIEW.id },
   { id: 'row-2', name: 'October-TM1-B1-Daylight-Problem/Solution-V2', briefId: REVIEW.id },
-  { id: 'row-3', name: 'October', briefId: null },
   { id: 'row-4', name: 'October-approved', briefId: APPROVED.id },
 ];
 
@@ -85,7 +84,8 @@ describe('editorBoardItems', () => {
 
     expect(result.items).toHaveLength(2);
     expect(result.offBoardBriefs).toBe(2);
-    expect(result.unlinkedSheetRows).toBe(1);
+    // Since the single-source cutover every sheet row is a brief, so this is always zero.
+    expect(result.unlinkedSheetRows).toBe(0);
   });
 
   it('puts Start on the Incoming card only, disabled with the hint in demo mode', () => {

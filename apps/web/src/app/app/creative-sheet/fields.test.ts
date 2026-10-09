@@ -1,9 +1,11 @@
 import {
-  creativeSheetInternalStatuses,
-  creativeSheetStatuses,
-  creativeSheetWinning,
-} from '@tas/db/schema';
-import { chipTone, EDITOR_STAGES } from '@tas/domain/state';
+  CLIENT_STATUS,
+  chipTone,
+  EDITOR_STAGES,
+  INTERNAL_STATIC_STATUS,
+  INTERNAL_VIDEO_STATUS,
+  ON_HOLD,
+} from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -16,25 +18,21 @@ import {
   kanbanColumnsFor,
   kanbanView,
   matchesSearch,
-  NOT_SET,
+  OTHER_COLUMN,
   QA_CHECKS,
   SHEET_CHECKS,
   STATUS_OPTIONS,
   statusView,
-  WINNING_OPTIONS,
-  winningView,
 } from './fields';
 
-describe('the three select vocabularies', () => {
-  it('render the @tas/db labels in vocabulary order and store the keys', () => {
-    expect(INTERNAL_STATUS_OPTIONS.map(({ key, label }) => ({ key, label }))).toEqual(
-      creativeSheetInternalStatuses.map(({ key, label }) => ({ key, label })),
-    );
+describe('the two select vocabularies', () => {
+  it('are the state machine’s own tracks: both internal ladders merged, then CLIENT_STATUS', () => {
+    const merged = [...INTERNAL_VIDEO_STATUS, ...INTERNAL_STATIC_STATUS, ON_HOLD]
+      .map(({ key, label }) => ({ key, label }))
+      .filter((entry, index, all) => all.findIndex((other) => other.key === entry.key) === index);
+    expect(INTERNAL_STATUS_OPTIONS.map(({ key, label }) => ({ key, label }))).toEqual(merged);
     expect(STATUS_OPTIONS.map(({ key, label }) => ({ key, label }))).toEqual(
-      creativeSheetStatuses.map(({ key, label }) => ({ key, label })),
-    );
-    expect(WINNING_OPTIONS.map(({ key, label }) => ({ key, label }))).toEqual(
-      creativeSheetWinning.map(({ key, label }) => ({ key, label })),
+      CLIENT_STATUS.map(({ key, label }) => ({ key, label })),
     );
   });
 
@@ -50,21 +48,19 @@ describe('the three select vocabularies', () => {
     expect(internalStatusView('revisions_submitted')?.tone).toBe(chipTone('Revisions Submitted'));
     expect(statusView('launched')?.tone).toBe(chipTone('Launched'));
     expect(statusView('revisions_needed')?.tone).toBe(chipTone('Revisions Needed'));
+    expect(statusView('disapproved')?.tone).toBe(chipTone('Disapproved'));
   });
 
-  it('give the sheet’s own words the tones the domain cannot', () => {
+  it('give the in-progress, hold and submitted steps the tones the label map cannot', () => {
     expect(statusView('pending_for_approval')?.tone).toBe('info');
-    expect(statusView('denied')?.tone).toBe('bad');
     expect(internalStatusView('ad_submitted')?.tone).toBe('accent');
-    expect(internalStatusView('video_editing_on_hold')?.tone).toBe('warn');
-    expect(winningView('best_performing')?.tone).toBe('ok');
-    expect(winningView('average')?.tone).toBe('mute');
+    expect(internalStatusView('video_editing_in_progress')?.tone).toBe('info');
+    expect(internalStatusView('on_hold')?.tone).toBe('warn');
   });
 
   it('are total: null is no chip, an unknown key renders itself muted', () => {
     expect(internalStatusView(null)).toBeNull();
     expect(statusView(null)).toBeNull();
-    expect(winningView(null)).toBeNull();
     expect(statusView('from_a_newer_build')).toEqual({
       key: 'from_a_newer_build',
       label: 'from_a_newer_build',
@@ -74,13 +70,11 @@ describe('the three select vocabularies', () => {
 });
 
 describe('the checkboxes', () => {
-  it('are the six Airtable checkboxes, the three QA ticks first', () => {
+  it('are the brief’s three QA ticks and its spell-check trigger, QA first', () => {
     expect(SHEET_CHECKS.map((check) => check.name)).toEqual([
       'qaVideoEditor',
       'qaDesigner',
       'qaStrategist',
-      'used',
-      'deniedRevisionsNeeded',
       'spellCheckRequested',
     ]);
     expect(QA_CHECKS.map((check) => check.label)).toEqual([
@@ -132,16 +126,14 @@ describe('matchesSearch', () => {
 });
 
 describe('the Kanban board', () => {
-  it('lays out the vocabulary in order, empties kept, with a trailing Not set column', () => {
+  it('lays out the vocabulary in order, empties kept, with a trailing Other column', () => {
     const columns = kanbanColumnsFor('status');
     expect(columns.map((column) => column.key)).toEqual([
-      ...creativeSheetStatuses.map((entry) => entry.key),
+      ...CLIENT_STATUS.map((entry) => entry.key),
       '',
     ]);
-    expect(columns.at(-1)?.label).toBe(NOT_SET);
-    expect(kanbanColumnsFor('internalStatus')).toHaveLength(
-      creativeSheetInternalStatuses.length + 1,
-    );
+    expect(columns.at(-1)?.label).toBe(OTHER_COLUMN);
+    expect(kanbanColumnsFor('internalStatus')).toHaveLength(INTERNAL_STATUS_OPTIONS.length + 1);
   });
 
   it('groups a card by the chosen field', () => {

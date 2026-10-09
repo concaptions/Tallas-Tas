@@ -8,7 +8,6 @@ import {
   creativeBriefs,
   creativeModuleDesigns,
   creativeModules,
-  creativeSheetItems,
   demoCreativeSheetItems,
   products,
   resolveColumns,
@@ -186,7 +185,7 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
     };
   }
 
-  it('each lookup column carries the linked value; a brief-less row resolves them all to null', async () => {
+  it('each lookup column carries the brief’s linked values; a brief with no links resolves them all to null', async () => {
     vi.stubEnv('DATABASE_URL', 'postgres://user:pw@example.test/db');
     const db = await testDb();
     await seed(db);
@@ -241,20 +240,18 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       { brandId: gratsi.id, copyNumber: 1, creativeBriefId: brief.id },
       { brandId: gratsi.id, copyNumber: 3, creativeBriefId: brief.id },
     ]);
-    const [sheetRow] = await db
-      .insert(creativeSheetItems)
-      .values({ brandId: gratsi.id, briefId: brief.id })
-      .returning();
+    // Since the single-source cutover a sheet row IS a brief: the linked one is the brief above,
+    // the bare one a brief with no links at all.
     const [bareRow] = await db
-      .insert(creativeSheetItems)
-      .values({ brandId: gratsi.id })
+      .insert(creativeBriefs)
+      .values({ brandId: gratsi.id, name: 'TV2-B1-Bare-V1' })
       .returning();
 
     const workspace = await loadCreativeSheetWorkspace(liveDeps(db, gratsi.id));
     expect(workspace.source).toBe('database');
     const items = buildSheetItems(workspace, new Date('2026-10-04T09:00:00.000Z'));
 
-    const linked = items.find((view) => view.item.id === sheetRow?.id);
+    const linked = items.find((view) => view.item.id === brief.id);
     if (linked === undefined) throw new Error('the linked sheet row did not come back');
     expect(linked.lookups).toEqual({
       performance: 'Winning',
@@ -273,6 +270,8 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       creativeModule: 'Problem/Solution',
     });
 
+    // A brief with no links: every joined lookup is null; funnel and type are the brief's own
+    // column defaults, because the row IS the brief now.
     const bare = items.find((view) => view.item.id === bareRow?.id);
     expect(bare?.lookups).toEqual({
       performance: null,
@@ -284,8 +283,8 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       designLinkUrl: null,
       collection: null,
       platform: null,
-      funnel: null,
-      type: null,
+      funnel: 'TOF',
+      type: 'Video',
       proposedCopy: null,
       creativeModule: null,
     });

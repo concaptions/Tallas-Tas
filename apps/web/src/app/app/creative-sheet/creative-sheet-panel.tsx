@@ -42,9 +42,6 @@ import {
   SPELL_CHECK_FIELD,
   STATUS_OPTIONS,
   statusView,
-  TRACKING_CHECKS,
-  WINNING_OPTIONS,
-  winningView,
   type CreativeSheetCheck,
   type CreativeSheetFieldName,
   type SheetCheckField,
@@ -77,8 +74,6 @@ function checksOf(item: CreativeSheetItemListRow | null): Checks {
     qaVideoEditor: item?.qaVideoEditor ?? false,
     qaDesigner: item?.qaDesigner ?? false,
     qaStrategist: item?.qaStrategist ?? false,
-    used: item?.used ?? false,
-    deniedRevisionsNeeded: item?.deniedRevisionsNeeded ?? false,
     spellCheckRequested: item?.spellCheckRequested ?? false,
   };
 }
@@ -134,7 +129,6 @@ export function CreativeSheetPanel({
   const [briefId, setBriefId] = useState(item?.briefId ?? NONE_VALUE);
   const [internalStatus, setInternalStatus] = useState(item?.internalStatus ?? NONE_VALUE);
   const [status, setStatus] = useState(item?.status ?? NONE_VALUE);
-  const [winning, setWinning] = useState(item?.winning ?? NONE_VALUE);
   const [checks, setChecks] = useState<Checks>(() => checksOf(item));
 
   // The Dimensions field saves ON PICK, outside the form: its own array, its own transition and
@@ -177,7 +171,7 @@ export function CreativeSheetPanel({
     state !== null && !state.ok ? state.fieldErrors?.[name] : undefined;
 
   const selectField = (
-    name: 'internalStatus' | 'status' | 'winning',
+    name: 'internalStatus' | 'status',
     options: readonly SheetStatusView[],
     value: string,
     setValue: (next: string) => void,
@@ -255,7 +249,6 @@ export function CreativeSheetPanel({
   );
 
   const dash = <span className="text-text4">{EM_DASH}</span>;
-  const commentsError = fieldError('clientComments');
   const docError = fieldError('qaChecklistDoc');
   const briefError = fieldError('briefId');
 
@@ -295,7 +288,6 @@ export function CreativeSheetPanel({
         <input type="hidden" name="briefId" value={briefId} />
         <input type="hidden" name="internalStatus" value={internalStatus} />
         <input type="hidden" name="status" value={status} />
-        <input type="hidden" name="winning" value={winning} />
         {(Object.keys(checks) as CreativeSheetCheck[]).map((name) => (
           <input key={name} type="hidden" name={name} value={checks[name] ? 'true' : ''} />
         ))}
@@ -418,13 +410,6 @@ export function CreativeSheetPanel({
                 setStatus,
                 statusView(status === NONE_VALUE ? null : status),
               )}
-              {selectField(
-                'winning',
-                WINNING_OPTIONS,
-                winning,
-                setWinning,
-                winningView(winning === NONE_VALUE ? null : winning),
-              )}
             </Group>
 
             <Group heading={SHEET_GROUPS.qa}>
@@ -450,32 +435,6 @@ export function CreativeSheetPanel({
                 />
                 {docError === undefined ? null : <p className="text-xs text-bad">{docError}</p>}
               </div>
-            </Group>
-
-            <Group heading={SHEET_GROUPS.client}>
-              <div
-                data-slot="creative-sheet-field-clientComments"
-                className="flex flex-col gap-1.5"
-              >
-                <Label htmlFor="creative-sheet-field-clientComments" className={LABEL_CLASS}>
-                  {SHEET_LABELS.clientComments}
-                </Label>
-                <Textarea
-                  id="creative-sheet-field-clientComments"
-                  name="clientComments"
-                  readOnly={demo}
-                  aria-invalid={commentsError !== undefined}
-                  placeholder={demo ? NOT_SET : 'What the client said about this creative'}
-                  defaultValue={item?.clientComments ?? ''}
-                  className="min-h-24 leading-relaxed"
-                />
-                {commentsError === undefined ? null : (
-                  <p className="text-xs text-bad">{commentsError}</p>
-                )}
-              </div>
-              <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
-                <div className="flex w-full flex-col gap-2">{TRACKING_CHECKS.map(checkField)}</div>
-              </DisabledWrite>
             </Group>
 
             <Group heading={SHEET_GROUPS.spelling}>

@@ -1,12 +1,12 @@
 import {
-  creativeSheetInternalStatuses,
-  creativeSheetStatuses,
-  creativeSheetWinning,
-  type CreativeSheetInternalStatusesKey,
-  type CreativeSheetStatusesKey,
-  type CreativeSheetWinningKey,
-} from '@tas/db/schema';
-import { EDITOR_STAGES, type ChipTone } from '@tas/domain/state';
+  CLIENT_STATUS,
+  chipTone,
+  EDITOR_STAGES,
+  INTERNAL_STATIC_STATUS,
+  INTERNAL_VIDEO_STATUS,
+  ON_HOLD,
+  type ChipTone,
+} from '@tas/domain/state';
 
 import type {
   CreativeSheetCheck,
@@ -16,19 +16,20 @@ import type {
 } from './actions';
 
 /**
- * How the Creative Sheet route presents what it stores (Airtable `tblGC0TxnHI7lKaNQ`). One module,
- * so the grid, the board, the panel and the `/design-system` story cannot drift: every label, every
- * chip tone, the em dash and the checkbox wording are stated exactly once.
+ * How the Creative Sheet route presents what it stores. One module, so the grid, the board, the
+ * panel and the `/design-system` story cannot drift: every label, every chip tone, the em dash and
+ * the checkbox wording are stated exactly once.
  *
- * Nothing here invents a vocabulary. The three selects come from `@tas/db/schema`
- * (`creativeSheetInternalStatuses`, `creativeSheetStatuses`, `creativeSheetWinning`): a component
- * renders their LABELS and stores their KEYS, and never writes `'ad_submitted'` or `'Denied'`.
- * The schema barrel is pure Drizzle table definitions (the same import `personas/fields.ts`
- * makes), so it is safe in a client bundle; `@tas/db` itself — the driver — is not imported here.
+ * Nothing here invents a vocabulary. Since the single-source cutover (2026-10-09) a sheet row IS a
+ * brief, so the two selects are the two tracks of the state machine in `@tas/domain/state`:
+ * `INTERNAL_VIDEO_STATUS` / `INTERNAL_STATIC_STATUS` (plus the `ON_HOLD` branch) and
+ * `CLIENT_STATUS`. A component renders their LABELS and stores their KEYS, and never writes
+ * `'ad_submitted'` or `'Approved'` itself. The sheet's own Airtable vocabularies are gone with the
+ * frozen `creative_sheet_items` table.
  *
- * The three field-name unions are re-exported from `actions.ts` rather than declared a second
- * time: the actions own the unions their zod schema validates. A type-only re-export is erased,
- * so this module stays importable from a client component.
+ * The field-name unions are re-exported from `actions.ts` rather than declared a second time: the
+ * actions own the unions their zod schema validates. A type-only re-export is erased, so this
+ * module stays importable from a client component.
  */
 export type {
   CreativeSheetCheck,
@@ -40,6 +41,8 @@ export type {
 /** The dash an empty cell shows, so a null value is never just a gap. */
 export const EM_DASH = '—';
 export const NOT_SET = 'Not set';
+/** The trailing board column for a stored status outside the vocabulary (an imported oddity). */
+export const OTHER_COLUMN = 'Other';
 
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
@@ -59,57 +62,49 @@ export interface SheetStatusView {
 }
 
 /**
- * The tone of each Internal Status, keyed on the KEY. A local total map rather than
- * `chipTone(label)` because the sheet's vocabulary has words the domain's label map has no rule
- * for (in-progress and submitted steps all read as `mute` there); where a label IS one `chipTone`
- * rules on — Approved, the two Revisions, Revisions Submitted — the two agree, and
- * `fields.test.ts` pins that. In-progress steps are `info`, a hold is `warn`, a submission waiting
- * on review is `accent`, and the two hand-offs rest at `mute`.
+ * The tone of each internal status, keyed on the KEY: in-progress steps are `info`, a hold is
+ * `warn`, a submission waiting on review is `accent`, the hand-offs rest at `mute`, Approved is
+ * `ok` and Launched `accent`. Where the domain's `chipTone` has a rule for the label the two
+ * agree, and `fields.test.ts` pins that.
  */
-const INTERNAL_STATUS_TONE: Record<CreativeSheetInternalStatusesKey, ChipTone> = {
+const INTERNAL_STATUS_TONE: Readonly<Record<string, ChipTone>> = {
   sent_to_designer: 'mute',
   sent_to_video_editor: 'mute',
   static_design_in_progress: 'info',
   video_editing_in_progress: 'info',
-  video_editing_on_hold: 'warn',
+  on_hold: 'warn',
   ad_submitted: 'accent',
-  design_submitted: 'accent',
   approved: 'ok',
   images_revisions: 'warn',
   videos_revisions: 'warn',
   revisions_submitted: 'mute',
+  launched: 'accent',
 };
 
 /**
- * The tone of each client-facing Status. `denied` is `bad` — the sheet's one terminal refusal,
- * which `CLIENT_STATUS` does not carry and `chipTone` therefore has no word for; the rest agree
- * with the domain's reading of the same words.
+ * Every internal status a brief can hold, both tracks merged in ladder order (the video track, then
+ * the static track's own three steps) and the `on_hold` branch last; the panel narrows this to the
+ * open row's own track.
  */
-const STATUS_TONE: Record<CreativeSheetStatusesKey, ChipTone> = {
-  pending_for_approval: 'info',
-  approved: 'ok',
-  launched: 'accent',
-  revisions_needed: 'warn',
-  denied: 'bad',
-  revisions_submitted: 'mute',
-};
+const INTERNAL_ENTRIES: readonly { readonly key: string; readonly label: string }[] = [
+  ...INTERNAL_VIDEO_STATUS,
+  ...INTERNAL_STATIC_STATUS,
+  ON_HOLD,
+].filter((entry, index, all) => all.findIndex((other) => other.key === entry.key) === index);
 
-const WINNING_TONE: Record<CreativeSheetWinningKey, ChipTone> = {
-  best_performing: 'ok',
-  average: 'mute',
-};
-
-function views<K extends string>(
-  entries: readonly { readonly key: K; readonly label: string }[],
-  tones: Record<K, ChipTone>,
-): readonly SheetStatusView[] {
-  return entries.map((entry) => ({ key: entry.key, label: entry.label, tone: tones[entry.key] }));
-}
-
-/** The three dropdowns' options, in vocabulary order, each already carrying its tone. */
-export const INTERNAL_STATUS_OPTIONS = views(creativeSheetInternalStatuses, INTERNAL_STATUS_TONE);
-export const STATUS_OPTIONS = views(creativeSheetStatuses, STATUS_TONE);
-export const WINNING_OPTIONS = views(creativeSheetWinning, WINNING_TONE);
+/** The two dropdowns' options, in vocabulary order, each already carrying its tone. */
+export const INTERNAL_STATUS_OPTIONS: readonly SheetStatusView[] = INTERNAL_ENTRIES.map(
+  (entry) => ({
+    key: entry.key,
+    label: entry.label,
+    tone: INTERNAL_STATUS_TONE[entry.key] ?? 'mute',
+  }),
+);
+export const STATUS_OPTIONS: readonly SheetStatusView[] = CLIENT_STATUS.map((entry) => ({
+  key: entry.key,
+  label: entry.label,
+  tone: chipTone(entry.label),
+}));
 
 /**
  * The view of one stored key, or null for an unset select. Total on purpose: a key this build does
@@ -128,10 +123,6 @@ export function statusView(key: string | null): SheetStatusView | null {
   return viewOf(STATUS_OPTIONS, key);
 }
 
-export function winningView(key: string | null): SheetStatusView | null {
-  return viewOf(WINNING_OPTIONS, key);
-}
-
 /** One checkbox: the column it writes and the Airtable wording a strategist reads. */
 export interface SheetCheckField {
   readonly name: CreativeSheetCheck;
@@ -145,12 +136,6 @@ export const QA_CHECKS: readonly SheetCheckField[] = [
   { name: 'qaStrategist', label: 'Creative Strategist QA' },
 ];
 
-/** The two client-side flags. */
-export const TRACKING_CHECKS: readonly SheetCheckField[] = [
-  { name: 'used', label: 'Used' },
-  { name: 'deniedRevisionsNeeded', label: 'Denied / revisions needed' },
-];
-
 /** The spell-check trigger, Airtable's "Click for AI Spell Checker Again". */
 export const SPELL_CHECK_FIELD: SheetCheckField = {
   name: 'spellCheckRequested',
@@ -158,19 +143,13 @@ export const SPELL_CHECK_FIELD: SheetCheckField = {
 };
 
 /** Every checkbox, flattened, so the panel's state and the hidden inputs are built from one list. */
-export const SHEET_CHECKS: readonly SheetCheckField[] = [
-  ...QA_CHECKS,
-  ...TRACKING_CHECKS,
-  SPELL_CHECK_FIELD,
-];
+export const SHEET_CHECKS: readonly SheetCheckField[] = [...QA_CHECKS, SPELL_CHECK_FIELD];
 
 /** The labels of the non-checkbox fields, so the panel and the E2E assertion read one string. */
 export const SHEET_LABELS = {
   briefId: 'Creative Name',
   internalStatus: 'Internal Status',
   status: 'Status',
-  winning: 'Winning',
-  clientComments: "Client's Comments",
   qaChecklistDoc: 'QA Checklist Doc',
   spellingFeedback: 'Spelling Feedback',
   dimensions: 'Dimensions',
@@ -199,7 +178,6 @@ export const SHEET_GROUPS = {
   creative: 'Creative',
   approval: 'Approval',
   qa: 'QA checklist',
-  client: 'Client',
   spelling: 'Spelling',
 } as const;
 
@@ -214,7 +192,7 @@ export const BRIEF_LOOKUP_LABELS = {
 
 /** The quiet line under the name: it is a formula, never an input. */
 export const NAME_GENERATED_NOTE =
-  'Generated from the month this row was created and the linked creative’s name. Never typed.';
+  'Generated from the month the creative was created and its name. Never typed.';
 
 /** The checklist textarea's helper line. */
 export const QA_DOC_HINT = 'One link per line.';
@@ -232,13 +210,12 @@ export function countLabel(total: number, visible: number): string {
     : `${String(visible)} of ${String(total)} ${noun}`;
 }
 
-/** What the search reads: the generated name, the brief, and the three select LABELS. */
+/** What the search reads: the generated name, the brief, and the two select LABELS. */
 export interface SheetSearchable {
   readonly name: string;
   readonly briefName: string | null;
   readonly internalStatus: string | null;
   readonly status: string | null;
-  readonly winning: string | null;
 }
 
 /** `query` arrives lowercased and trimmed; "denied" finds the row whose chip says Denied. */
@@ -249,7 +226,6 @@ export function matchesSearch(item: SheetSearchable, query: string): boolean {
     item.briefName ?? '',
     internalStatusView(item.internalStatus)?.label ?? '',
     statusView(item.status)?.label ?? '',
-    winningView(item.winning)?.label ?? '',
   ].some((value) => value.toLowerCase().includes(query));
 }
 
@@ -260,23 +236,23 @@ export interface SheetKanbanColumn {
 }
 
 /**
- * The board's columns for a group-by field. For the two sheet statuses: the vocabulary in its own
- * order, empties kept, plus a trailing "Not set" column so a row with a NULL status is on the board
- * rather than silently gone. For the editor board: exactly the three `EDITOR_STAGES`, in mapping
- * order and nothing after them — a brief with no stage is OFF the board, counted in one line, never
- * a fourth column.
+ * The board's columns for a group-by field. For the two status tracks: the vocabulary in its own
+ * order, empties kept, plus a trailing "Other" column so a brief whose stored status is outside the
+ * vocabulary (an imported oddity) is on the board rather than silently gone. For the editor board:
+ * exactly the three `EDITOR_STAGES`, in mapping order and nothing after them — a brief with no
+ * stage is OFF the board, counted in one line, never a fourth column.
  */
 export function kanbanColumnsFor(field: CreativeSheetKanbanField): readonly SheetKanbanColumn[] {
   if (field === 'editorStage') {
     return EDITOR_STAGES.map(({ key, label }) => ({ key, label }));
   }
   const options = field === 'internalStatus' ? INTERNAL_STATUS_OPTIONS : STATUS_OPTIONS;
-  return [...options.map(({ key, label }) => ({ key, label })), { key: '', label: NOT_SET }];
+  return [...options.map(({ key, label }) => ({ key, label })), { key: '', label: OTHER_COLUMN }];
 }
 
 /**
- * The view of the sheet field a card is grouped by, so the card's chip matches its column. The
- * editor board is not a sheet field: its cards are briefs, built by `editor-board.ts`.
+ * The view of the status track a card is grouped by, so the card's chip matches its column. The
+ * editor board is not a status field: its cards are briefs, built by `editor-board.ts`.
  */
 export function kanbanView(
   field: CreativeSheetStatusField,
@@ -287,7 +263,14 @@ export function kanbanView(
     : statusView(item.status);
 }
 
-/** True when the string names one of the two sheet statuses a drop writes through the sheet. */
+/** The column a card lands in: its own key when the vocabulary has it, else the trailing Other. */
+export function kanbanGroupValue(field: CreativeSheetStatusField, view: SheetStatusView | null) {
+  if (view === null) return '';
+  const options = field === 'internalStatus' ? INTERNAL_STATUS_OPTIONS : STATUS_OPTIONS;
+  return options.some((option) => option.key === view.key) ? view.key : '';
+}
+
+/** True when the string names one of the two status tracks a drop writes on the brief. */
 export function isSheetStatusField(value: string): value is CreativeSheetStatusField {
   return value === 'internalStatus' || value === 'status';
 }

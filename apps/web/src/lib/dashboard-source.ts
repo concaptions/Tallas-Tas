@@ -502,8 +502,8 @@ export async function loadOverviewPanels(
       clientStatus: c.clientStatus,
     })),
     creativeSheet: creativeSheet.rows.map((item) => ({
-      internalStatus: item.internalStatus ?? null,
-      status: item.clientApprovalStatus ?? null,
+      internalStatus: item.internalStatus,
+      status: item.status,
     })),
     copywriting: copy.rows.map((c) => ({ status: c.status })),
     creators: creators.creators.map((c) => ({

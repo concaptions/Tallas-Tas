@@ -458,8 +458,9 @@ describe('indexBriefLinkCounts', () => {
 
   it('counts every counterpart row that points at the brief, by the junction', () => {
     expect(index.get(BODY_CLOCK)).toEqual({ sheetItems: 1, modules: 1, folders: 1, reports: 1 });
+    // Every brief is its own sheet row since the single-source cutover, even one nothing else cites.
     expect(index.get(NINETY_MINUTES_CAROUSEL)).toEqual({
-      sheetItems: 0,
+      sheetItems: 1,
       modules: 1,
       folders: 0,
       reports: 0,
@@ -470,10 +471,10 @@ describe('indexBriefLinkCounts', () => {
     expect(index.get('77777777-7777-4777-8777-999999999999')).toBeUndefined();
   });
 
-  it('skips a sheet row or report whose link is still empty rather than indexing a null', () => {
+  it('indexes every sheet row (each is a brief now) and skips a report whose link is still empty', () => {
     const sheetTotal = [...index.values()].reduce((sum, counts) => sum + counts.sheetItems, 0);
     const reportTotal = [...index.values()].reduce((sum, counts) => sum + counts.reports, 0);
-    expect(sheetTotal).toBe(demoCreativeSheetItems.filter((row) => row.briefId !== null).length);
+    expect(sheetTotal).toBe(demoCreativeSheetItems.length);
     expect(reportTotal).toBe(demoCreativeReports.filter((row) => row.briefId !== null).length);
   });
 });
@@ -481,20 +482,25 @@ describe('indexBriefLinkCounts', () => {
 describe('briefLinkedRecords', () => {
   const linked = briefLinkedRecords(BODY_CLOCK, DEMO_LINK_SOURCES);
 
-  it('renders the sheet row by its computed name, in mono, with the sheet own two status chips', () => {
+  it('renders the sheet row — the brief itself — by its computed name, in mono, with its two track chips', () => {
+    const sheetRow = demoCreativeSheetItems.find((row) => row.id === BODY_CLOCK);
+    if (sheetRow === undefined) throw new Error('the Body Clock brief has no sheet row');
     expect(linked.sheetItems).toEqual([
       {
-        id: 'c5c5c5c5-c5c5-4c5c-8c5c-000000000001',
-        label: 'October-TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2',
+        id: BODY_CLOCK,
+        label: sheetRow.name,
         mono: true,
-        href: '/app/creative-sheet?creative-sheet=c5c5c5c5-c5c5-4c5c-8c5c-000000000001',
+        href: `/app/creative-sheet?creative-sheet=${BODY_CLOCK}`,
         detail: null,
         chips: [
           { label: 'Approved', tone: 'ok' },
-          { label: 'Pending For Approval', tone: 'info' },
+          { label: 'Pending for Approval', tone: 'info' },
         ],
       },
     ]);
+    expect(
+      sheetRow.name.endsWith('-TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2'),
+    ).toBe(true);
   });
 
   it('names the module and the asset folder without a link: their workspaces are removed', () => {
@@ -549,7 +555,8 @@ describe('briefLinkedRecords', () => {
 
   it('is empty, not absent, for a table nothing points from', () => {
     const sparse = briefLinkedRecords(NINETY_MINUTES_CAROUSEL, DEMO_LINK_SOURCES);
-    expect(sparse.sheetItems).toEqual([]);
+    // Its own sheet row is always there; nothing else points at it.
+    expect(sparse.sheetItems.map((record) => record.id)).toEqual([NINETY_MINUTES_CAROUSEL]);
     expect(sparse.modules.map((record) => record.label)).toEqual(['Parent Handover Window']);
     expect(sparse.folders).toEqual([]);
     expect(sparse.reports).toEqual([]);

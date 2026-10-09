@@ -14,13 +14,7 @@ import {
   type CustomInterfacePageView,
   type InterfaceTabVisibilityView,
 } from '@tas/domain';
-import {
-  DEMO_BRAND_ID,
-  demoBriefs,
-  demoConcepts,
-  demoCreativeSheetItems,
-  findTokenByValueAndBrand,
-} from '@tas/db';
+import { DEMO_BRAND_ID, demoBriefs, demoConcepts, findTokenByValueAndBrand } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { resolveClientBrand } from '@/lib/client-brand-source';
@@ -74,9 +68,9 @@ export default async function ClientBrandLayout({ children, params }: Props) {
       briefs: demoBriefs
         .filter((b) => b.brandId === DEMO_BRAND_ID)
         .map((b) => ({ clientStatus: b.clientStatus })),
-      creativeSheet: demoCreativeSheetItems
-        .filter((s) => s.brandId === DEMO_BRAND_ID)
-        .map((s) => ({ status: s.clientApprovalStatus ?? null })),
+      // The Creative Sheet is a view over the briefs since the single-source cutover: counting
+      // it too would count every creative twice.
+      creativeSheet: [],
     });
   } else {
     const [concepts, creatives] = await Promise.all([

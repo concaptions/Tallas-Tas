@@ -70,7 +70,6 @@ const BRIEFS: readonly EditorBoardBrief[] = [
 const SHEET_ROWS: readonly EditorBoardSheetRow[] = [
   { id: 'row-1', name: 'September-TAS-TM1-B1-Daylight-Problem/Solution-V2', briefId: 'review-1' },
   { id: 'row-2', name: 'October-TAS-TS1-B2-Not Your Age-Green Screen-V1', briefId: 'editing-1' },
-  { id: 'row-3', name: 'October', briefId: null },
 ];
 
 const COLUMNS = kanbanColumnsFor('editorStage');

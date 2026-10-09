@@ -554,8 +554,9 @@ export function indexBriefLinkCounts(
     counts[kind] += 1;
     index.set(briefId, counts);
   };
+  // Every sheet row is a brief since the single-source cutover: the link is never empty.
   for (const row of sources.sheetItems) {
-    if (row.briefId !== null) bump(row.briefId, 'sheetItems');
+    bump(row.briefId, 'sheetItems');
   }
   for (const row of sources.modules) {
     for (const briefId of row.briefIds) bump(briefId, 'modules');

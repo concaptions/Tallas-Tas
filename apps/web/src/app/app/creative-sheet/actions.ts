@@ -12,7 +12,6 @@ import {
   clientApprovalStatuses,
   creativeSheetInternalStatuses,
   creativeSheetStatuses,
-  creativeSheetWinning,
 } from '@tas/db/schema';
 import { isKnownOrLegacyDimension, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { z } from 'zod';
@@ -39,23 +38,11 @@ import { creativeSheetPath } from '@/lib/routes';
 
 /** The six Airtable checkboxes, each a NOT NULL boolean column. */
 export type CreativeSheetCheck =
-  | 'qaVideoEditor'
-  | 'qaDesigner'
-  | 'qaStrategist'
-  | 'used'
-  | 'deniedRevisionsNeeded'
-  | 'spellCheckRequested';
+  'qaVideoEditor' | 'qaDesigner' | 'qaStrategist' | 'spellCheckRequested';
 
 /** Every writable column the panel submits. `fields.ts` labels these; nothing else is editable. */
 export type CreativeSheetFieldName =
-  | 'briefId'
-  | 'internalStatus'
-  | 'status'
-  | 'winning'
-  | 'clientComments'
-  | 'qaChecklistDoc'
-  | 'dimensions'
-  | CreativeSheetCheck;
+  'briefId' | 'internalStatus' | 'status' | 'qaChecklistDoc' | 'dimensions' | CreativeSheetCheck;
 
 /**
  * The two sheet fields the Kanban board can regroup by, and so the two a card drag may change.
@@ -102,11 +89,6 @@ function optionalKey<K extends string>(entries: readonly { readonly key: K }[]) 
     .transform((value) => (value === '' ? null : value));
 }
 
-const optionalText = z
-  .string()
-  .trim()
-  .transform((value) => (value === '' ? null : value));
-
 /** The brief picker's hidden input: empty means "no brief", which the column allows. */
 const optionalUuid = z
   .string()
@@ -141,14 +123,10 @@ const sheetItemSchema = z.object({
   briefId: optionalUuid,
   internalStatus: optionalKey(creativeSheetInternalStatuses),
   status: optionalKey(creativeSheetStatuses),
-  winning: optionalKey(creativeSheetWinning),
-  clientComments: optionalText,
   qaChecklistDoc: urlLines,
   qaVideoEditor: checkbox,
   qaDesigner: checkbox,
   qaStrategist: checkbox,
-  used: checkbox,
-  deniedRevisionsNeeded: checkbox,
   spellCheckRequested: checkbox,
 });
 

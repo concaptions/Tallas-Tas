@@ -16,7 +16,6 @@ import {
   INTERNAL_STATUS_OPTIONS,
   SHEET_LABELS,
   STATUS_OPTIONS,
-  WINNING_OPTIONS,
   type SheetStatusView,
 } from '@/app/app/creative-sheet/fields';
 import { AirtableGrid } from '@/components/views/airtable-grid';
@@ -25,7 +24,7 @@ import { gridColumnsFrom, type ResolvedColumnView } from '@/components/views/res
 /**
  * The three shapes the Creative Sheet route introduces, mounted as the product mounts them
  * (CLAUDE.md UI governance rule 4): the grid with its generated `font-mono` name, the three select
- * vocabularies as chips, and the tick glyphs the Used and QA columns are drawn with.
+ * vocabularies as chips, and the tick glyphs the QA columns are drawn with.
  *
  * Nothing is re-drawn here. The columns are joined from the route's own registry, every chip
  * tone comes from the route's `fields.ts` views, and the rows are plain objects in the `@tas/db`
@@ -41,35 +40,22 @@ function sampleRow(
     brandId: 'ds-brand',
     createdAt: AT,
     updatedAt: AT,
-    createdBy: null,
-    updatedBy: null,
-    deletedAt: null,
     legacyAirtableId: null,
-    templateRowId: null,
-    overriddenFields: [],
-    customFields: {},
-    briefId: null,
+    briefId: overrides.id,
     briefName: null,
     briefType: null,
     briefPlatform: [],
     briefFunnel: null,
     briefPerformance: null,
     briefDesignFileUrl: null,
-    internalStatus: null,
-    status: null,
+    internalStatus: 'sent_to_video_editor',
+    status: 'pending_for_approval',
     qaChecklistDoc: null,
     qaVideoEditor: false,
     qaDesigner: false,
     qaStrategist: false,
-    clientComments: null,
-    used: false,
-    deniedRevisionsNeeded: false,
-    winning: null,
     spellCheckRequested: false,
     spellingFeedback: null,
-    clientApprovalStatus: null,
-    clientApprovalNote: null,
-    clientApprovalStatusUpdatedAt: null,
     dimensions: [],
     ...overrides,
   };
@@ -147,8 +133,6 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
       briefName: 'RS1-B4-NIGHT RESET BUNDLE-V3',
       internalStatus: 'approved',
       status: 'approved',
-      winning: 'average',
-      used: true,
       qaDesigner: true,
       qaStrategist: true,
     }),
@@ -202,7 +186,6 @@ export function CreativeSheetGridStory({ columns }: CreativeSheetGridStoryProps)
 const VOCABULARIES: readonly { title: string; options: readonly SheetStatusView[] }[] = [
   { title: SHEET_LABELS.internalStatus, options: INTERNAL_STATUS_OPTIONS },
   { title: SHEET_LABELS.status, options: STATUS_OPTIONS },
-  { title: SHEET_LABELS.winning, options: WINNING_OPTIONS },
 ];
 
 /** The three vocabularies as chips, in vocabulary order, each with the tone `fields.ts` gives it. */
@@ -223,7 +206,7 @@ export function CreativeSheetChipsStory() {
   );
 }
 
-/** The tick glyphs: one Used tick each way, then the QA cell at none, some and all. */
+/** The tick glyphs: one spell-check tick each way, then the QA cell at none, some and all. */
 export function CreativeSheetTicksStory() {
   const none = sampleRow({ id: 'ds-ticks-0', name: 'none' });
   const some = sampleRow({ id: 'ds-ticks-1', name: 'some', qaVideoEditor: true, qaDesigner: true });
@@ -237,9 +220,9 @@ export function CreativeSheetTicksStory() {
   return (
     <div className="flex flex-wrap items-center gap-6 text-sm">
       <span className="flex items-center gap-2">
-        <Tick on label="Used" />
-        <Tick on={false} label="Used" />
-        <span className="text-xs text-text3">Used, then not used</span>
+        <Tick on label="Click for AI Spell Checker Again" />
+        <Tick on={false} label="Click for AI Spell Checker Again" />
+        <span className="text-xs text-text3">Requested, then not requested</span>
       </span>
       <span className="flex items-center gap-3">
         <QaTicks item={none} />

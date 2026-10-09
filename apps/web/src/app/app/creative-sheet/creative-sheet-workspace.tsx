@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
-import { clientApprovalLabel, clientApprovalTone, EDITOR_STAGE_KEYS } from '@tas/domain/state';
+import { EDITOR_STAGE_KEYS } from '@tas/domain/state';
 import { Button, Input, StatusChip } from '@tas/ui';
 
 import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
@@ -30,13 +30,13 @@ import {
   internalStatusView,
   isKanbanField,
   kanbanColumnsFor,
+  kanbanGroupValue,
   kanbanView,
   matchesSearch,
   QA_CHECKS,
   SEARCH_PARAM,
   SELECTION_PARAM,
   statusView,
-  winningView,
   type CreativeSheetKanbanField,
   type SheetStatusView,
 } from './fields';
@@ -195,10 +195,6 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
     render: ({ item }) => chipOrDash(statusView(item.status)),
     sortValue: ({ item }) => statusView(item.status)?.label ?? '',
   },
-  client_comments: {
-    render: ({ item }) => <TextCell value={item.clientComments} maxWidth={280} />,
-    cellTitle: ({ item }) => item.clientComments ?? undefined,
-  },
   internal_status: {
     render: ({ item }) => chipOrDash(internalStatusView(item.internalStatus)),
     sortValue: ({ item }) => internalStatusView(item.internalStatus)?.label ?? '',
@@ -221,20 +217,6 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
     render: ({ item }) => <Tick on={item.qaStrategist} label="Creative Strategist QA" />,
     sortValue: ({ item }) => (item.qaStrategist ? 1 : 0),
     align: 'center',
-  },
-  used: {
-    render: ({ item }) => <Tick on={item.used} label="Used" />,
-    sortValue: ({ item }) => (item.used ? 1 : 0),
-    align: 'center',
-  },
-  denied_revisions_needed: {
-    render: ({ item }) => <Tick on={item.deniedRevisionsNeeded} label="Denied/revisions needed" />,
-    sortValue: ({ item }) => (item.deniedRevisionsNeeded ? 1 : 0),
-    align: 'center',
-  },
-  winning: {
-    render: ({ item }) => chipOrDash(winningView(item.winning)),
-    sortValue: ({ item }) => winningView(item.winning)?.label ?? '',
   },
   spell_check_requested: {
     render: ({ item }) => (
@@ -331,19 +313,6 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
     render: ({ lookups }) => <TextCell value={lookups.creativeModule} maxWidth={200} />,
     sortValue: ({ lookups }) => lookups.creativeModule,
   },
-  client_approval_status: {
-    render: ({ item }) => {
-      const key = item.clientApprovalStatus;
-      if (key === null) return <span className="text-text4">{EM_DASH}</span>;
-      return (
-        <StatusChip
-          tone={clientApprovalTone(key) as import('@tas/domain/state').ChipTone}
-          label={clientApprovalLabel(key)}
-        />
-      );
-    },
-    sortValue: ({ item }) => clientApprovalLabel(item.clientApprovalStatus),
-  },
   /* Airtable's `Created` / `Last Modified` system fields: the shared audit timestamps, displayed. */
   created_at: {
     render: (view) => (
@@ -436,7 +405,7 @@ export function CreativeSheetWorkspace({
             return {
               id: item.id,
               name: item.name,
-              groupValue: view?.key ?? '',
+              groupValue: kanbanGroupValue(kanbanField, view),
               subtitle: item.briefName ?? 'No creative linked',
               chipLabel: view?.label,
               chipTone: view?.tone,

@@ -54,7 +54,6 @@ export const START_LABEL = 'Start';
 function sheetNamesByBrief(rows: readonly EditorBoardSheetRow[]): ReadonlyMap<string, string[]> {
   const names = new Map<string, string[]>();
   for (const row of rows) {
-    if (row.briefId === null) continue;
     const list = names.get(row.briefId) ?? [];
     list.push(row.name);
     names.set(row.briefId, list);
@@ -114,7 +113,9 @@ export function editorBoardItems(
   return {
     items,
     offBoardBriefs,
-    unlinkedSheetRows: sheetRows.filter((row) => row.briefId === null).length,
+    // Every sheet row is a brief since the single-source cutover, so none is unlinked. Kept so
+    // the footer line keeps its shape.
+    unlinkedSheetRows: 0,
   };
 }
 

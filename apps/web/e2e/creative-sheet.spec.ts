@@ -6,27 +6,29 @@ import { creativeSheetPath } from '../src/lib/routes';
 /**
  * The Creative Sheet route with no environment variables at all — the Vercel deployment as it
  * stands. The middleware lets the route through, the data source serves the in-repo fixtures, and
- * the page is fully usable read-only: five rows in the grid, a side panel that is not a modal with
+ * the page is fully usable read-only: one row per brief in the grid, a side panel that is not a modal with
  * a labelled control for every stored Airtable field, the open row in the URL, and a Kanban board
  * grouped by either status.
  */
 
-/** Every stored field of Airtable's Creative Sheet, by the panel's `data-slot`. */
+/**
+ * Every field the panel edits on the brief, by the panel's `data-slot` (the sheet is a view over
+ * `creative_briefs` since the single-source cutover, 2026-10-09).
+ */
 const STORED_FIELDS = [
-  'briefId',
   'internalStatus',
   'status',
-  'winning',
   'qaVideoEditor',
   'qaDesigner',
   'qaStrategist',
-  'used',
-  'deniedRevisionsNeeded',
   'spellCheckRequested',
-  'clientComments',
   'qaChecklistDoc',
   'spellingFeedback',
 ] as const;
+
+/** The seven Niagara briefs are the seven sheet rows. */
+const ROWS = 7;
+const DAYLIGHT_BRIEF_ID = '77777777-7777-4777-8777-000000000003';
 
 test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -34,14 +36,16 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     'Clerk keys present: /app/creative-sheet needs a session and real data',
   );
 
-  test('lists the five fixture rows with the resolved columns, named by the formula', async ({
+  test('lists one row per fixture brief with the resolved columns, named by the formula', async ({
     page,
   }) => {
     await page.goto(creativeSheetPath);
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Sheet');
-    await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(5);
-    await expect(page.locator('[data-slot="creative-sheet-count"]')).toContainText('5 rows');
+    await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(ROWS);
+    await expect(page.locator('[data-slot="creative-sheet-count"]')).toContainText(
+      `${String(ROWS)} rows`,
+    );
 
     /*
      * The resolver's labels, in the template's order. Demo mode's brand is Niagara, which owns no
@@ -60,7 +64,6 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       'Name + Angle + Offer',
       'Creative Name',
       'Status',
-      "Client's Comments",
       // Template field 17, added by the Gratsi column match (2026-10-04): the one system
       // timestamp the parent base genuinely has, `updated_at` under Airtable's own label. The
       // thirteen lookups are NOT here — the template's copies are dead and seed nothing
@@ -72,9 +75,6 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       'Video Editor QA',
       'Graphic Designer QA',
       'Creative Strategist QA',
-      'Used',
-      'Denied/revisions needed',
-      'Winning',
       'Click for AI Spell Checker Again',
       'Spelling Feedback',
     ]);
@@ -85,17 +85,8 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
      * Cells by COLUMN KEY, not position: the order is configuration now.
      */
     const first = page.locator('[data-slot="creative-sheet-row"]').first();
-    await expect(first.locator('td[data-column="name"]')).toContainText(/^October-/);
+    await expect(first.locator('td[data-column="name"]')).toContainText(/^[A-Z][a-z]+-/);
     await expect(first.locator('td[data-column="name"] .font-mono')).toHaveCount(1);
-
-    // A row with no creative linked is named by its month alone and dashes its Brief cell.
-    const unlinked = page.locator(
-      '[data-creative-sheet-id="c5c5c5c5-c5c5-4c5c-8c5c-000000000002"]',
-    );
-    // With no brief there is nothing to concatenate, and Airtable's `&` leaves the separator — the
-    // faithful reading, which is why `creativeSheetItemName` and its tidier "October" are gone.
-    await expect(unlinked.locator('td[data-column="name"]')).toHaveText('October-');
-    await expect(unlinked.locator('td[data-column="brief_id"]')).toHaveText('—');
 
     // Statuses are the shared chip, never bare text.
     await expect(first.locator('[data-slot="status-chip"]').first()).toBeVisible();
@@ -140,7 +131,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="creative-sheet-panel"]')).toBeVisible();
 
     // Not a modal: the grid is still there beside the panel.
-    await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(5);
+    await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(ROWS);
 
     // After the reload the client bundle can still be hydrating when a single Escape lands (the
 
@@ -159,25 +150,22 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
   });
 
   test('the panel is read-only and refuses to save', async ({ page }) => {
-    await page.goto(`${creativeSheetPath}?creative-sheet=c5c5c5c5-c5c5-4c5c-8c5c-000000000004`);
+    await page.goto(`${creativeSheetPath}?creative-sheet=${DAYLIGHT_BRIEF_ID}`);
 
     const panel = page.locator('[data-slot="creative-sheet-panel"]');
     await expect(panel.locator('[data-slot="creative-sheet-demo-note"]')).toContainText(
       'changes are not saved',
     );
     await expect(panel.locator('[data-slot="creative-sheet-save"]')).toBeDisabled();
-    await expect(panel.locator('#creative-sheet-field-clientComments')).toHaveAttribute(
+    await expect(panel.locator('#creative-sheet-field-qaChecklistDoc')).toHaveAttribute(
       'readonly',
       '',
     );
     await expect(panel.locator('#creative-sheet-field-qaVideoEditor')).toBeDisabled();
-    // The daylight row carries the AI's spelling feedback, shown but never editable.
+    // The AI's spelling feedback is shown but never editable.
     await expect(panel.locator('#creative-sheet-field-spellingFeedback')).toHaveAttribute(
       'readonly',
       '',
-    );
-    await expect(panel.locator('#creative-sheet-field-spellingFeedback')).toHaveValue(
-      /ninety to one/,
     );
   });
 
@@ -187,12 +175,10 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await page.getByRole('tab', { name: 'Kanban' }).click();
     const board = page.locator('[data-slot="kanban-board"]');
     await expect(board).toBeVisible();
-    await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(5);
+    await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(ROWS);
 
     await page.locator('[data-slot="creative-sheet-group-by"]').selectOption('status');
-    await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(5);
-    // The unlinked row has no client status yet, and still sits on the board under Not set.
-    await expect(board).toContainText('Not set');
+    await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(ROWS);
   });
 
   test('the Editing stage grouping is the editor board: cards are briefs, Start on Incoming', async ({
@@ -217,37 +203,37 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(daylight).toHaveCount(1);
     await expect(daylight).toContainText('Daylight');
 
-    // The Incoming brief has no sheet row yet and is still on the board, Start withheld in demo.
+    // The Incoming brief is on the board with its own sheet name as subtitle, Start withheld in demo.
     const incoming = columns
       .nth(0)
       .locator('[data-card-id="77777777-7777-4777-8777-000000000006"]');
     await expect(incoming).toHaveCount(1);
-    await expect(incoming).toContainText('No sheet row yet');
+    await expect(incoming).not.toContainText('No sheet row yet');
     await expect(incoming.locator('[data-slot="brief-start"]')).toBeDisabled();
     await expect(incoming.locator('[data-slot="disabled-write"]')).toHaveAttribute(
       'title',
       'Sign in required to save changes',
     );
 
-    // What is not on the board is counted: the four approved/launched briefs, the unlinked row.
+    // What is not on the board is counted: the four approved/launched briefs; every sheet row is a
+    // brief since the cutover, so none is without one.
     await expect(page.locator('[data-slot="brief-off-board"]')).toHaveText(
-      '4 creatives off the board (approved, launched or on hold) · 1 sheet row with no creative',
+      '4 creatives off the board (approved, launched or on hold) · 0 sheet rows with no creative',
     );
   });
 
   test('search reads the name, the brief and the status labels', async ({ page }) => {
     await page.goto(creativeSheetPath);
 
-    await page.locator('[data-slot="creative-sheet-search"]').fill('september');
-    await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(3);
-    await expect(page.locator('[data-slot="creative-sheet-count"]')).toContainText('3 of 5 rows');
-
-    await page.locator('[data-slot="creative-sheet-search"]').fill('launched');
+    await page.locator('[data-slot="creative-sheet-search"]').fill('daylight');
     await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="creative-sheet-count"]')).toContainText(
+      `1 of ${String(ROWS)} rows`,
+    );
 
     await page.locator('[data-slot="creative-sheet-search"]').fill('nothing matches this');
     await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(0);
     await page.locator('[data-slot="creative-sheet-empty"] [data-slot="clear-search"]').click();
-    await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(5);
+    await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(ROWS);
   });
 });
