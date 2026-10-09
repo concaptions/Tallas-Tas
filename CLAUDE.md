@@ -105,6 +105,10 @@ scripts                  Migration and one-off scripts
 
 - `main` is the only branch. Work directly on `main`; do not create feature branches. `main` deploys
   production (Vercel builds every push).
+- Everything that matters lives on `origin/main` (rule since 2026-10-10): push after every green commit;
+  no local branches, no worktrees, no stashes, no untracked work left on a machine. If a change is not
+  ready to push, it is not ready to write. A one-off script is deleted after it runs; its output goes
+  into the commit message or `docs/decisions.md`.
 - Before EVERY push to `main`, from the repo root: `pnpm typecheck`, `pnpm lint`, `pnpm test`, and
   `pnpm --filter @tas/web build:ci` (the prerender must pass). A push with any of the four red is a
   production incident.
