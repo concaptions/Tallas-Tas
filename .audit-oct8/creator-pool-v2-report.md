@@ -70,6 +70,51 @@ own per-row log output inside passing tests (a 3 MB image and a 404 are the case
 | With avg_rating    | 0                    | unchanged until an admin rates a creator |
 | With brands[] > 1  | n/a (column new)     | unchanged until the import runs          |
 
+## Oct 9 — first live run of `stream-airtable-to-r2.mjs` (run by Talal's operator, log: `.audit-oct8/stream-r2.log`)
+
+Preconditions verified on the operator's machine: R2 LIST/PUT/DELETE on `tas-site-media` (after a
+merged `R2_BUCKET`/`R2_PUBLIC_BASE` line in `.env.local` was split), Railway reachable
+(`creator_registry` = 812 rows), Airtable PAT working on 55 bases.
+
+| Metric                                 | Value                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------- |
+| Bases walked                           | 55 (9.3 min)                                                            |
+| Records seen                           | 999                                                                     |
+| Matched to a registry row              | 540 (48 registry rows carry an Instagram key; the rest matched by name) |
+| Unmatched                              | 459                                                                     |
+| Pics uploaded to R2                    | 52 (0 failed, 1 already on R2)                                          |
+| Matched records with no pic attachment | 487                                                                     |
+| Videos                                 | skipped — `creator_registry` has no video column yet                    |
+| Verification                           | `total 812 · pics_in_r2 52`                                             |
+
+**Why 487 "no attachment".** A field probe on five bases shows the pic candidates do not exist in
+most tables; the only attachment field is `Creator's Intro` (Star Voice 14/15, FIXD 11/100, Holistic
+Hercules 9/9), which the script treats as a video and skipped. Not Your Grandmas has an `Assignee`
+attachment field only; Pandaloo has none.
+
+**Bases with zero matches (26 bases, 456 records) — NOT imported, needs Talal's approval per base:**
+Ergonomist 97 · SOS Performance Gear 46 · Blackout Coffee 2025 45 · Pongfinity 31 · Clean Green 27 ·
+Letter School 24 · K9 Cabins 23 · 3AM Latte 18 · Mattress Central 17 · Panther in the Room 14 ·
+The Wisdom World 11 · Comfylabs 11 · Nutty Hero 11 · Funding Fred 11 · Calzone Kitchen 9 ·
+The Sample Select 9 · Turkista 8 · Mindra 7 · Santa Mood 7 · Rise Bands 6 · MacKinnon Watches 5 ·
+Niagara Sleep Solutions 5 · Bellalab 5 · Rushie 4 · Automatten 4 · Nathan James 1.
+The remaining 3 unmatched records are Pandaloo (2) and FIXD (1). Niagara Sleep Solutions scoring 0
+is worth a look: Niagara is one of the two brands already in Postgres, so its base's names do not
+match the registry's spelling.
+
+**Script changes made in response (same file, pushed to the branch):**
+
+1. Per-base schema diagnostics from `/meta/bases/{id}/tables`: each base prints which pic/video
+   field it has, or `NOT FOUND` with the attachment fields it does have; "no attachment" is now
+   split into _field missing in table_ vs _field empty on record_, per base and in the totals.
+2. Videos go to `intro_videos jsonb` when that column exists (one entry per attachment, keyed by the
+   Airtable attachment id, so re-runs append nothing twice); `video_intro_url text` remains a
+   fallback; neither present → skipped with a NOTE. Videos over 500 MB are refused.
+3. A name match is accepted only when exactly one live registry row carries that name; ambiguous
+   names are logged (`AMBIG …`) and listed in the summary, never guessed.
+4. The summary lists every base with zero matches and its record count, and every base that has
+   matches but no pic field together with its attachment fields, for the mapping fix.
+
 ## Deviations and follow-ups for the lead/reviewer
 
 1. **Diff size.** The rating UI (`aa56b14`) is ~740 non-test lines and the Phase 3 scripts ~386,
