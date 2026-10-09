@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import { Suspense, useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
@@ -571,75 +571,86 @@ export function CreativeSheetWorkspace({
           </div>
         </div>
 
-        {activeView === 'kanban' ? (
-          <div className="flex flex-col gap-2">
-            <KanbanBoard
-              items={editorBoard ? board.items : kanbanItems}
-              columns={kanbanColumns.map((column) => column.key)}
-              columnLabels={kanbanLabels}
-              onMove={handleKanbanMove}
-              onCardClick={editorBoard ? openBrief : openCard}
-              demo={demo}
-            />
-            {editorBoard ? (
-              <p className="text-xs text-text3" data-slot="brief-off-board">
-                {offBoardLabel(board.offBoardBriefs, board.unlinkedSheetRows)}
-              </p>
-            ) : null}
-            {editorBoard && startError !== null ? (
-              <p className="text-sm text-bad" role="alert" data-slot="brief-start-error">
-                {startError}
-              </p>
-            ) : null}
-            {editorBoard && moveError !== null ? (
-              <p className="text-sm text-bad" role="alert" data-slot="brief-move-error">
-                {moveError}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <AirtableGrid
-            tableKey={CAP.tableKey}
-            columns={grid.columns}
-            rows={visible}
-            rowId={({ item }) => item.id}
-            rowLabel={({ item }) => item.name}
-            rowAttributes={({ item }) => ({ 'data-creative-sheet-id': item.id })}
-            selectedId={selection}
-            onRowClick={({ item }) => {
-              select(item.id);
-            }}
-            tableSlot="creative-sheet-table"
-            rowSlot="creative-sheet-row"
-            empty={
-              <div
-                data-slot="creative-sheet-empty"
-                className="flex flex-col items-center gap-3 text-center"
-              >
-                <p className="text-sm text-text2">
-                  {items.length === 0
-                    ? 'No sheet rows yet. Add the first creative of the month.'
-                    : `Nothing matches “${term}”. Try a creative name or a status.`}
+        {/*
+          HYDRATION BOUNDARY (smoke test, 2026-10-10: "first click ignored" on New creative and
+          the Kanban tab). React drops a click that lands before the root has hydrated, and this
+          page hydrates every cell of every row — seconds on the production sheet. Nothing here
+          suspends; the boundary exists so React hydrates the header and its controls FIRST and
+          the grid or board at lower priority, which is the React 18 "selective hydration" rule.
+          The server-rendered rows stay on screen throughout; a click inside them before their
+          turn hydrates that boundary synchronously and is replayed. No fallback is ever shown.
+        */}
+        <Suspense fallback={null}>
+          {activeView === 'kanban' ? (
+            <div className="flex flex-col gap-2">
+              <KanbanBoard
+                items={editorBoard ? board.items : kanbanItems}
+                columns={kanbanColumns.map((column) => column.key)}
+                columnLabels={kanbanLabels}
+                onMove={handleKanbanMove}
+                onCardClick={editorBoard ? openBrief : openCard}
+                demo={demo}
+              />
+              {editorBoard ? (
+                <p className="text-xs text-text3" data-slot="brief-off-board">
+                  {offBoardLabel(board.offBoardBriefs, board.unlinkedSheetRows)}
                 </p>
-                {items.length === 0 ? (
-                  newCreative
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      filter('');
-                    }}
-                    data-slot="clear-search"
-                  >
-                    Clear search
-                  </Button>
-                )}
-              </div>
-            }
-          />
-        )}
+              ) : null}
+              {editorBoard && startError !== null ? (
+                <p className="text-sm text-bad" role="alert" data-slot="brief-start-error">
+                  {startError}
+                </p>
+              ) : null}
+              {editorBoard && moveError !== null ? (
+                <p className="text-sm text-bad" role="alert" data-slot="brief-move-error">
+                  {moveError}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <AirtableGrid
+              tableKey={CAP.tableKey}
+              columns={grid.columns}
+              rows={visible}
+              rowId={({ item }) => item.id}
+              rowLabel={({ item }) => item.name}
+              rowAttributes={({ item }) => ({ 'data-creative-sheet-id': item.id })}
+              selectedId={selection}
+              onRowClick={({ item }) => {
+                select(item.id);
+              }}
+              tableSlot="creative-sheet-table"
+              rowSlot="creative-sheet-row"
+              empty={
+                <div
+                  data-slot="creative-sheet-empty"
+                  className="flex flex-col items-center gap-3 text-center"
+                >
+                  <p className="text-sm text-text2">
+                    {items.length === 0
+                      ? 'No sheet rows yet. Add the first creative of the month.'
+                      : `Nothing matches “${term}”. Try a creative name or a status.`}
+                  </p>
+                  {items.length === 0 ? (
+                    newCreative
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        filter('');
+                      }}
+                      data-slot="clear-search"
+                    >
+                      Clear search
+                    </Button>
+                  )}
+                </div>
+              }
+            />
+          )}
+        </Suspense>
       </section>
 
       {open !== null ? (
