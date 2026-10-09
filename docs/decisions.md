@@ -2036,3 +2036,20 @@ phase (`docs/designs/client-interface-config-2026-10-10.md`), implementation aft
   reach the library today. **Flag B (non-negotiable 10):** the template custom page `internal-queue` is
   visible on every brand's portal and draws every `creative_briefs` resolver column, internal status
   included; see the design note, F1. Neither flag is changed by this commit.
+
+## 2026-10-10 — F1 contained: the template queue pages are hidden; an empty column set is refused
+
+The seeded template custom pages `internal-queue` and `client-queue` (`custom_interface_pages`, `brand_id`
+NULL) carried `column_config = []`, which the client custom-page route reads as every resolver column of
+`creative_briefs` — internal status included — on every brand's portal (non-negotiable 10; design note
+F1). Containment, applied to Railway on 2026-10-10 by a one-off script since deleted: both rows set
+`is_visible = false` (`is_inherited` untouched), so `mergeCustomPages` drops them from every portal nav
+and the route answers 404. Structurally: `insertCustomPage` / `updateCustomPage` refuse an empty
+`columnConfig` for a template and a brand row alike (`EMPTY_COLUMN_CONFIG_REFUSED`), the admin action
+says why, and `seed-interface-config` writes no template page any more; `seed-interface-config.test.ts`
+pins that no template row is ever visible with an empty column set. The client column allowlist on
+`loadCustomPageRows` is Tier B2.
+
+Same session: the stray `test` brand (`1e8c34ea…`, created 2026-09-24, no content, no assignments, six
+§10 page rows, one view-preference row) was soft-deleted with its `interface_pages` and `interface_fields`
+rows; `notification_settings` and the view-preference row were left, unreachable behind the deleted brand.
