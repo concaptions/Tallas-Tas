@@ -421,6 +421,13 @@
       "when": 1791990300000,
       "tag": "0059_creative_sheet_dimensions",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791990400000,
+      "tag": "0060_brief_name_mode",
+      "breakpoints": true
     }
   ]
 }
