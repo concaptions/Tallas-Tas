@@ -29,6 +29,30 @@ test.describe('client portal nav in demo mode (no Clerk)', () => {
     expect(keys).toStrictEqual(['concepts', 'creative_sheet', 'ugc_management', 'copywriting']);
   });
 
+  test('every standard tab opens a page, never a 404 — the Copywriting tab shipped without one (2026-10-09)', async ({
+    page,
+  }) => {
+    await page.goto('/client/niagara-sleep-solutions');
+    const nav = page.locator('[data-slot="client-nav"]');
+    const hrefs = await nav
+      .locator('[data-slot="standard-tab-link"]')
+      .evaluateAll((nodes: Element[]) =>
+        nodes.map((n) => (n as HTMLAnchorElement).getAttribute('href') ?? ''),
+      );
+    expect(hrefs).toHaveLength(4);
+
+    for (const href of hrefs) {
+      const response = await page.goto(href);
+      expect(response?.status(), `${href} should resolve`).toBe(200);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    }
+
+    // The Copywriting tab in particular: its page lists the demo copy with a status chip per row.
+    await page.goto('/client/niagara-sleep-solutions/copywriting');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Copywriting');
+    await expect(page.locator('[data-slot="client-copy-row"]').first()).toBeVisible();
+  });
+
   test('renders no custom-page entries when the brand has no custom pages', async ({ page }) => {
     await page.goto('/client/niagara-sleep-solutions');
     await expect(page.locator('[data-slot="custom-tab-link"]')).toHaveCount(0);

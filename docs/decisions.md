@@ -1871,3 +1871,16 @@ can be reverted alone; migration 0060 went out first, on its own, with nothing r
   `qa-flag-diff.mjs` lists the 62 production pairs whose QA flags disagree for that decision); the
   client portal Copywriting tab still 404s (not a rename); the brief page's own dimensions picker still
   saves on "Save creative".
+
+## 2026-10-09 — Client portal Copywriting tab 404: the page never shipped (not a rename casualty)
+
+Root cause: the `copywriting` tab key, its label and `loadClientCopywriting` landed with the
+interface-config work on 2026-10-06 (`0a47cd7`, `6250685`), and the layout mapped the tab to the
+`copywriting` segment — but no `app/client/[brandSlug]/copywriting/page.tsx` was ever created, so the
+link 404'd from day one. Nothing moved during the Meta Copywriting → Copywriting rename: that rename
+only touched the internal `/app/meta-copywriting` route, which redirects. Fix: the page, in the shape
+of the Creative Sheet and Concepts client pages (PRD §9: "Copywriting | Status, Client's Comment"),
+over the existing allowlisted `clientCopywriting` query; copy's one status track is already
+client-facing (`COPY_STATUS`), so no internal/client gate applies. Guard: the tab map moved out of the
+layout into `tabs.ts`, and `tabs.test.ts` asserts a `page.tsx` exists for every standard tab segment,
+every fixed tab and the custom-page route — a tab can no longer be added without its page.

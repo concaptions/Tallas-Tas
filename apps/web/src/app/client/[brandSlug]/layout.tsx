@@ -30,31 +30,12 @@ import { isDemoMode } from '@/lib/demo-mode';
 import { loadClientInterfaceConfig } from '@/lib/client-interface-config-source';
 import { requestConnection } from '@/lib/request-db';
 
+import { AUX_NAV_ITEMS, auxTabHref, customPageHref, standardTabHref } from './tabs';
+
 interface Props {
   readonly children: ReactNode;
   readonly params: Promise<{ brandSlug: string }>;
 }
-
-/**
- * Which URL segment under `/client/<brandSlug>/…` each standard tab points at. The storage key
- * (`CLIENT_TAB_KEYS` in `@tas/domain`) is deliberately different from the route segment on three
- * tabs — the live routes shipped with their own names and are not renamed here (ticket keeps the
- * route tree stable, as the Oct 5 decisions entry says). The map is the one place the two
- * vocabularies meet.
- */
-const TAB_HREF_SEGMENT: Readonly<Record<ClientTabKey, string>> = {
-  concepts: 'concepts',
-  creative_sheet: 'briefs',
-  ugc_management: 'ugc',
-  copywriting: 'copywriting',
-};
-
-/** Non-standard tabs the shipped nav carries — angles / themes / calendar — are shown unconditionally. */
-const AUX_NAV_ITEMS = [
-  { segment: 'angles', label: 'Angles' },
-  { segment: 'themes', label: 'Themes' },
-  { segment: 'calendar', label: 'Calendar' },
-] as const;
 
 export default async function ClientBrandLayout({ children, params }: Props) {
   const { brandSlug } = await params;
@@ -82,8 +63,6 @@ export default async function ClientBrandLayout({ children, params }: Props) {
       }
     }
   }
-
-  const basePath = `/client/${encodeURIComponent(brandSlug)}`;
 
   // Load progress data: demo fixtures in demo mode, client data loaders in live mode.
   let progress: ClientProgress;
@@ -195,7 +174,7 @@ export default async function ClientBrandLayout({ children, params }: Props) {
             return (
               <Link
                 key={key}
-                href={`${basePath}/${TAB_HREF_SEGMENT[key]}`}
+                href={standardTabHref(brandSlug, key)}
                 data-slot="standard-tab-link"
                 data-tab-key={key}
                 className="rounded-input px-3 py-2 text-sm text-text2 transition-colors hover:bg-surface hover:text-text"
@@ -207,7 +186,7 @@ export default async function ClientBrandLayout({ children, params }: Props) {
           {AUX_NAV_ITEMS.map((item) => (
             <Link
               key={item.segment}
-              href={`${basePath}/${item.segment}`}
+              href={auxTabHref(brandSlug, item.segment)}
               className="rounded-input px-3 py-2 text-sm text-text2 transition-colors hover:bg-surface hover:text-text"
             >
               {item.label}
@@ -216,7 +195,7 @@ export default async function ClientBrandLayout({ children, params }: Props) {
           {customTabs.map((page) => (
             <Link
               key={page.id}
-              href={`${basePath}/custom/${page.slug}`}
+              href={customPageHref(brandSlug, page.slug)}
               data-slot="custom-tab-link"
               data-page-slug={page.slug}
               className="rounded-input px-3 py-2 text-sm text-text2 transition-colors hover:bg-surface hover:text-text"
