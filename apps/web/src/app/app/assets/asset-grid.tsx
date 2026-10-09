@@ -20,6 +20,7 @@ import { AssetUploadModal } from '@/components/assets/upload-modal';
 import { assetPath } from '@/lib/routes';
 
 import { deleteAssetAction } from './actions';
+import { assetLibraryHref, CLIENT_FOLDERS_FILTER, type AssetLibraryFilter } from './filter';
 
 export interface AssetItem {
   readonly asset: AssetListRow;
@@ -57,7 +58,7 @@ export function AssetLibrary({
   brandId,
   canDelete = false,
   clientFolders = [],
-  initialTab = 'all',
+  initialFilter = 'all',
 }: {
   items: readonly AssetItem[];
   demo: boolean;
@@ -65,17 +66,23 @@ export function AssetLibrary({
   brandId: string | null;
   canDelete?: boolean;
   clientFolders?: readonly ClientFolderItem[];
-  initialTab?: string;
+  /** The chip the URL asked for (`?type=` or `?tab=client-folders`), parsed by the page. */
+  initialFilter?: AssetLibraryFilter;
 }) {
-  const [filter, setFilter] = useState<AssetCategory | 'all' | 'client-folders'>(
-    initialTab === 'client-folders' ? 'client-folders' : 'all',
-  );
+  // The type filter is URL state (audit item 4, 2026-10-09): a chip click rewrites `?type=` so a
+  // refresh, a shared link or the back button restores it. `replace`, not `push`, so the chips do
+  // not pile up in history; no scroll, so the grid stays where it is.
+  const [filter, setFilter] = useState<AssetLibraryFilter>(initialFilter);
   const [search, setSearch] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AssetItem | null>(null);
   const [pending, startTransition] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const router = useRouter();
+  const pick = (next: AssetLibraryFilter) => {
+    setFilter(next);
+    router.replace(assetLibraryHref(next), { scroll: false });
+  };
 
   const filtered = useMemo(() => {
     let r = items;
@@ -132,8 +139,11 @@ export function AssetLibrary({
             key={k}
             type="button"
             onClick={() => {
-              setFilter(k);
+              pick(k);
             }}
+            data-slot="asset-type-filter"
+            data-filter={k}
+            aria-pressed={filter === k}
             className={`rounded-input px-3 py-1 text-xs ${filter === k ? 'bg-accent text-white' : 'bg-surface-alt text-text2'}`}
           >
             {k === 'all' ? 'All' : L[k]} (
@@ -143,9 +153,12 @@ export function AssetLibrary({
         <button
           type="button"
           onClick={() => {
-            setFilter('client-folders');
+            pick(CLIENT_FOLDERS_FILTER);
           }}
-          className={`rounded-input px-3 py-1 text-xs ${filter === 'client-folders' ? 'bg-accent text-white' : 'bg-surface-alt text-text2'}`}
+          data-slot="asset-type-filter"
+          data-filter={CLIENT_FOLDERS_FILTER}
+          aria-pressed={filter === CLIENT_FOLDERS_FILTER}
+          className={`rounded-input px-3 py-1 text-xs ${filter === CLIENT_FOLDERS_FILTER ? 'bg-accent text-white' : 'bg-surface-alt text-text2'}`}
         >
           Client Folders ({clientFolders.length})
         </button>
@@ -159,7 +172,7 @@ export function AssetLibrary({
         }}
         className="rounded-input border border-line bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text4"
       />
-      {filter === 'client-folders' ? (
+      {filter === CLIENT_FOLDERS_FILTER ? (
         clientFolders.length === 0 ? (
           <p className="py-8 text-center text-sm text-text3">No client folders yet.</p>
         ) : (

@@ -8,6 +8,7 @@ import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { viewerRole } from '@/lib/viewer-role';
 
 import { AssetLibrary, type AssetItem, type ClientFolderItem } from './asset-grid';
+import { assetLibraryFilterFrom } from './filter';
 
 function hostLabel(value: string | null): string | null {
   if (value === null || value.trim() === '') return null;
@@ -55,8 +56,8 @@ export default async function AssetsPage({ searchParams }: AssetsPageProps) {
   // 'admin', so the control shows but the Server Action refuses with the shipped copy.
   const canDelete = role === 'admin' || role === 'csm';
 
-  const requestedTab = params.tab;
-  const initialTab = typeof requestedTab === 'string' ? requestedTab : 'all';
+  // `?type=<category>` or `?tab=client-folders` (the retired Client Assets redirect's target).
+  const initialFilter = assetLibraryFilterFrom(params);
 
   return (
     <AssetLibrary
@@ -66,7 +67,7 @@ export default async function AssetsPage({ searchParams }: AssetsPageProps) {
       brandId={scope.active?.id ?? null}
       canDelete={canDelete}
       clientFolders={clientFolders}
-      initialTab={initialTab}
+      initialFilter={initialFilter}
     />
   );
 }
