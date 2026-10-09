@@ -1994,3 +1994,45 @@ reached `StatusChip` through a cast); `normalizeClientApprovalStatus` reads the 
 writers (`updateClientApproval`, `updateCopyClientApproval`) store only the mapped key. `creators.client_status`
 is not touched; `creators.client_approval_status` stays, unused, for the frozen-tables drop. A CHECK
 constraint can follow as its own migration if wanted; nothing today depends on it.
+
+## 2026-10-10 — Migration status is tracked in Airtable, not mirrored here (Talal Oct 7, item 8)
+
+Talal tracks which clients have migrated with a checkbox in the Airtable Client Management Interface.
+The platform has no code reading or writing it (`packages/db/src/airtable-import.ts` carries no such
+field; nothing in `apps/web` names it), and none is planned: migration is a per-client, Talal-guided
+event, and its status is operational, not product data. If the platform ever needs to know, it will be
+a column on `brands` written by the migration runbook — never a sync from Airtable.
+
+## 2026-10-10 — Priority order for the next meeting (Talal Oct 7, item 10)
+
+1. Finalise the template — Oct 7 items 1–4, shipped. 2. Creative Sheet detail view — dimensions, naming,
+fields — shipped in the SMOKE-01..09 and AUDIT-12/13 commits. 3. Client interface config — item 6, design
+phase (`docs/designs/client-interface-config-2026-10-10.md`), implementation after the scope decision.
+4. Migration is later, per client, Talal-guided — nothing propagates to a client brand automatically
+(audit below) and nothing will until each client's go.
+
+## 2026-10-10 — Oct 7 items 6–10 audit: what the production state says
+
+- **Item 7, no auto-sync (PASS).** Propagation runs only from `propagateAllAction` (Admin, manual, every
+  template table to every child), from a promotion approval (`propagateTemplateRow`, one row), and from
+  "Push to all clients" on a template custom page (Admin+CSM, direct). No cron (`vercel.json` has none),
+  no job runner package exists, no API route schedules anything. `propagation_runs` is empty in
+  production: nothing has ever propagated. Risk to note, not a failure: "Propagate all" has no per-brand
+  targeting — one click reaches Gratsi and Niagara alike.
+- **Item 7a, special brands (PASS — nothing to do yet).** Brands in production: the template, Niagara
+  (7 briefs), Mattress Central (0), Gratsi (390 briefs, 102 concepts, 71 creators, 238 brand column
+  definitions incl. its own `creative_briefs.language`), Funky Painting (0), `test` (0, six §10 page rows —
+  a stray brand worth deleting). No FIXD, KillenFrog or Killen Academy brand exists; `custom_field_schemas`
+  is empty. Gratsi following its own base is reflected (per-brand column definitions, migration 0044);
+  the FIXD and Killen requirements are per-client migration work for Tier C.
+- **Item 9, Asset Library (PASS with two flags).** One library per brand at `/app/assets`, `?type=` filter
+  in the URL, categories `reference, broll, raw_asset, mood_board, showcase_video, ad, edited_footage`
+  (raw, b-roll, finished ads and edited footage all present). Client Assets is retired: its nav key is in
+  `REMOVED_WORKSPACES`, the route permanently redirects into the library's `client-folders` filter. Upload
+  Links sit under Settings (c2aadd3), which is the right global place for a brand-scoped management surface
+  — no further move. **Flag A:** the "someone uploads via a public link" path does not exist — `upload_links`
+  rows carry a token, but no public route accepts a file against it; the only upload surface is
+  `POST /api/assets/upload`, which requires a Clerk session and brand entitlement. Nothing from a link can
+  reach the library today. **Flag B (non-negotiable 10):** the template custom page `internal-queue` is
+  visible on every brand's portal and draws every `creative_briefs` resolver column, internal status
+  included; see the design note, F1. Neither flag is changed by this commit.
