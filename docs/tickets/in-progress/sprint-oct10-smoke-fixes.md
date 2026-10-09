@@ -13,10 +13,10 @@ the order they were fixed; each has one failing test first, then the fix.
 | SMOKE-02 | Brief page Dimensions picker: (a) `briefDimensions` looked stored values up raw, so an imported brief's Airtable placement names read as empty — no checkmarks; (b) a tick only set React state, nothing reached the server until "Save brief"; (c) had it saved, it would have replaced the stored array with the one ratio the browser could read. Fix: `briefDimensionKeys` normalises; the picker (`dimensions-picker.tsx`, hook-free) fires `onToggle` on every tick; `changeBriefDimensionAction` MERGES one change onto the stored array on the server (`applyDimensionChange` in `@tas/domain/creatives`) under the brief's advisory lock (`updateBriefDimensionsWith` in `@tas/db`), and logs it (§8). |
 | SMOKE-03 | `/client/gratsi` ERR_TOO_MANY_REDIRECTS: `auth/page.tsx` rendered under `[brandSlug]/layout.tsx`, whose token gate redirected to `/auth` again. The gate's layout moved into the `(portal)` route group over every portal page; `auth` sits beside it. URLs unchanged (§10). |
 | SMOKE-04 | Production data: brief 5dd5e834… reset `ad_submitted` → `video_editing_in_progress` with an `activity_log` row naming the reason; brief ae4193d7… (SMOKETEST-DELETE-ME-20261010) soft-deleted. One-off guarded script, run once, deleted. |
-| SMOKE-05 | First click ignored on the Creative Sheet's Kanban toggle and "New creative" button (Tier 2). |
-| SMOKE-06 | Internal Queue says "One brand in this workspace" with two brands live (Tier 2). |
-| SMOKE-07 | Brief page heading recomputed the §7 name for a manual-named brief; the page shows `creative_briefs.name` verbatim (Tier 2, §7). |
-| SMOKE-08 | Interface Config and Notifications 503 on background load (Tier 2, §10, §12). |
+| SMOKE-05 | First click ignored on the Creative Sheet's Kanban toggle and "New creative" button. Reproduced with Playwright: a click that lands before React has hydrated the root is dropped (the button takes native focus, nothing opens), and the sheet hydrates every cell of every row. Not the brand-switcher shape (no form, no menu). Fix: the grid/board sits in its own `Suspense` boundary so the header controls hydrate first (React 18 selective hydration); the window that remains is the JS download on a cold visit. |
+| SMOKE-06 | Internal Queue said "One brand in this workspace" with two brands live: the options were derived from the loaded rows, which are scoped to the working brand, so there was always exactly one. `queueBrandOptions` now takes the agency's brands from `loadBrandScope` (the switcher's list), template excluded, each with its row count. |
+| SMOKE-07 | Brief page heading ran `creativeNameForConcept` at render time, so a manual-named brief (every imported row) showed a name it never had. `BriefName` renders `creative_briefs.name` verbatim with a mode-aware note; the formula runs at create time only (§7). |
+| SMOKE-08 | Interface Config and Notifications 503 on background load (§10, §12) — BLOCKED on production logs: neither page calls an external API, both render under `/app/loading.tsx`, and the demo e2e for both is green; the throw is only visible in Vercel's function logs. |
 
 ## Acceptance criteria
 
@@ -31,7 +31,13 @@ the order they were fixed; each has one failing test first, then the fix.
       `(portal)`. E2E: demo `client-portal-gate.spec.ts` (auth route answers 200 with its h1); live
       `live/client-portal-gate.spec.ts` (`/client/gratsi` → one redirect → `/client/gratsi/auth`, 200, h1).
 - [x] SMOKE-04: before/after rows printed; both writes guarded on the state the smoke test left.
-- [ ] SMOKE-05 … SMOKE-08: see the Tier 2 entries as they land.
+- [x] SMOKE-05: `creative-sheet-workspace.test.tsx` renders the page with `renderToString` and asserts the
+      New creative button and the view switcher come before the first Suspense marker and the table after.
+- [x] SMOKE-06: `internal-queue-source.test.ts` — two brands in scope yield two options (0 for the one
+      without rows), the template never, an out-of-scope row stays reachable by id.
+- [x] SMOKE-07: `brief-detail.test.tsx` — a manual brief's h1 is the stored name, never the formula's;
+      an auto brief's h1 is the stored name too.
+- [ ] SMOKE-08: needs the Vercel function log lines for `/app/interface-config` and `/app/notifications`.
 - [x] `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm --filter @tas/web build:ci` on the final head.
 
 ## Pending human verification

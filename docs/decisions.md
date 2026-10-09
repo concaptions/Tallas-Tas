@@ -1957,3 +1957,21 @@ read-merge-write in one transaction under `pg_advisory_xact_lock(hashtext(brief_
 that race are applied one after the other. The Creative Sheet's field keeps its whole-array write:
 it seeds from the stored array already, so its array is never a guess. The page seeds the picker
 with `briefDimensionKeys` (stored, normalised) and adopts the array the server wrote.
+
+## 2026-10-10 — Creative Sheet: a Suspense boundary around the grid, for hydration, not for loading
+
+**Context.** The smoke test reported the first click on "New creative" and on the Kanban tab ignored.
+Reproduced with Playwright against the demo server: a click dispatched before React had hydrated the
+root takes native focus and does nothing; the same click a second later works. React 18+ does not
+replay a discrete event that lands outside an already-hydrated tree — it hydrates a Suspense boundary
+synchronously to handle one, but the root itself it cannot. The Creative Sheet hydrates every cell of
+every row (397 rows in production), so the window is seconds long. Not the brand-switcher bug
+(b801854): no form, no Radix menu item — the handlers are fine, they are not attached yet.
+
+**Decision.** The grid / board is wrapped in `<Suspense fallback={null}>` inside the workspace. Nothing
+suspends and no fallback is ever shown: the boundary exists so React hydrates the header and its
+controls first and the rows at lower priority (selective hydration), and a click inside the rows before
+their turn hydrates that boundary at once and is replayed. `creative-sheet-workspace.test.tsx` pins the
+shape through `renderToString`'s `<!--$-->` marker. What remains is the JS download on a cold visit,
+which no boundary can shorten; the honest fix for that is a smaller page (row virtualisation), logged as
+follow-up rather than done here.
