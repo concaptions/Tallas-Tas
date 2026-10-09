@@ -119,6 +119,68 @@ scripts                  Migration and one-off scripts
 - Migration numbers are hand-assigned and contiguous (`NNNN_<slug>.sql` + a journal entry with the
   same tag); check the last number in `packages/db/drizzle` before adding one.
 
+## Current state (as of 2026-10-10, main at fcb148c + B2 in flight)
+
+What is live in production (Railway Postgres, Vercel on every push to `main`):
+
+- **Single source of truth for creatives**: the Creative Sheet is a view over `creative_briefs`
+  (migration 0061). `creative_sheet_items` and `creative_dimensions` are FROZEN (no reader, no writer,
+  `frozen-tables.test.ts` fails the suite on a new import); the drop is a later migration after Talal.
+- **Names**: every one of the 397 live briefs is `name_mode = 'manual'`; the formula runs at CREATE only
+  (`createBriefAction`), a concept rename cascades only to `auto` rows (`renameBrief`), and the brief
+  page shows `creative_briefs.name` verbatim. Never recompute a name on a display path.
+- **Dimensions** live in `creative_briefs.dimensions` (jsonb string[]). Production holds two spellings
+  — 354 briefs with Airtable placement names (`Facebook Reels`), ~8 with ratios — and the code reads
+  both through `normalizeCreativeDimensions`; a one-time normalisation is a pending data decision.
+  The brief page's picker saves ONE change per tick, merged on the server under the brief's advisory
+  lock (`updateBriefDimensionsWith` + `applyDimensionChange`).
+- **One client vocabulary**: `CLIENT_STATUS` (six keys) is the client track everywhere.
+  `concepts.client_approval_status` and `copywriting.client_approval_status` carry the same keys
+  (code-level, no migration; every row was NULL). `creators.client_status` is the creator track and is
+  untouched; `creators.client_approval_status` is unused until the frozen-tables drop.
+- **Client portal**: the token gate lives in `app/client/[brandSlug]/(portal)/layout.tsx`;
+  `auth/page.tsx` sits beside the group (a layout beside `auth` loops the redirect —
+  `portal-gate.test.ts` pins this). The template custom pages `internal-queue` and `client-queue` are
+  HIDDEN (`is_visible = false`, F1 containment); an empty `column_config` is refused at the write path.
+- **Brands in production**: the template (`creative-hub-template`), Niagara, Mattress Central, Gratsi
+  (390 briefs, 102 concepts, 71 creators, its own `creative_briefs.language` column definition),
+  Funky Painting. The stray `test` brand is soft-deleted. No FIXD / KillenFrog / Killen Academy brand
+  exists yet; `custom_field_schemas` is empty; `propagation_runs` was empty until B3 — nothing has
+  ever propagated to a client brand, and nothing is scheduled to (no cron, no job runner package).
+- **Migrations applied on Railway**: through 0062 (`custom_interface_pages.page_kind / module_key /
+  template_row_id / overridden_fields`). Apply scripts are `packages/db/applyNN.mjs`, never
+  `db:migrate`.
+
+In flight — Scope A of `docs/designs/client-interface-config-2026-10-10.md` (ticket
+`docs/tickets/in-progress/sprint-oct10-smoke-fixes.md` holds the Oct 10 fixes; the Oct 7 audit is in
+`docs/decisions.md` 2026-10-10 entries):
+
+- B2 client column allow-list on `loadCustomPageRows` (`packages/db/src/client-columns.ts`; rows are
+  projected to allowed Postgres-named keys — `internal_*`, costs, prices, QA ticks never leave it).
+- B3 template page pushes go through `promotion_requests` (Admin approves on `/app/propagation`,
+  approval runs `propagateCustomInterfacePageToChildren` under a `propagation_runs` row); the direct
+  push path is gone. Admin only may push; CSM may toggle per brand.
+- B4 Interface Config "Pages" section + migration 0063 (the four `interface_tab_visibility` template
+  rows and `calendar` become `page_kind = 'standard'` rows; `interface_pages.enabled` is read from
+  them). 0063 ships alone, is applied on Railway, then the UI code.
+- B5 Partnership Ads Tracking as the first `module` page (`source_table_key = creators`, filter
+  `for_partnership_ads = true`, the PRD §5.8.1 columns WITHOUT `partnership_price_per_30_days`),
+  enabled on Gratsi only.
+- B6 (separate session, after a week live): delete `/app/queue/*`, replace `client-queue` with a
+  standard "Approvals" page, hard-delete the hidden `internal-queue` row.
+
+Open, needing the human: SMOKE-08 closed as PASS (no code); `UPLOAD-PUBLIC-ROUTE` (no public route
+accepts a file against an `upload_links` token); the dimensions data normalisation; the FIXD /
+KillenFrog per-client column work (Tier C, one at a time, Talal's go each); the `claude/ai-cleanup`
+worktree (uncommitted brand-gradient work, unclassified); the `.audit-oct8/` and `.audit-oct9/`
+scratch folders (untracked, 3.6 MB, importer and audit outputs).
+
+Operating lessons that cost time this sprint: run `git reset` before each commit and chain commits
+with `&&` (lint-staged stashes unstaged edits on partially staged files and a rejected commit leaves
+the index staged); edit nothing while a gate run is in flight; stale `apps/web/.next/types` can fail
+typecheck after a route is deleted (`rm -rf apps/web/.next/types`); pg scripts must run from
+`packages/db` to resolve `pg`; `DATABASE_URL` for Railway is in the live repo's `.env.local`.
+
 ## UI governance (design system, from the 2026-09-16 handoff)
 
 Every UI ticket after TICKET-DS-01..05 must, in this order, and the reviewer rejects any diff that breaks one:
