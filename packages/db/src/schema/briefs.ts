@@ -18,6 +18,7 @@ import { collections } from './collections';
 import { concepts } from './concepts';
 import { products } from './products';
 import type {
+  BriefNameMode,
   CreativeFunnel,
   CreativeLanguage,
   CreativePerformance,
@@ -148,6 +149,11 @@ export const creativeBriefs = pgTable(
      * in the same transaction, so two concurrent creates cannot share a number.
      */
     briefNumber: integer('brief_number'),
+    /**
+     * Who owns the name (migration 0060): `auto` follows the concept, `manual` is never rewritten.
+     * Defaults to `manual` so every pre-0060 row — imported or hand-typed — is protected.
+     */
+    nameMode: text('name_mode').$type<BriefNameMode>().notNull().default('manual'),
   },
   (table) => [
     index('creative_briefs_brand_id_idx').on(table.brandId),

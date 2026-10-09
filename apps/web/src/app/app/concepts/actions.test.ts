@@ -6,7 +6,9 @@ import {
   type ConceptInput,
   type Db,
 } from '@tas/db';
+import { generateBriefName } from '@tas/domain/briefs';
 import { conceptName } from '@tas/domain/concepts';
+import { conceptNameSegment } from '@tas/domain/creatives';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createConceptAction, updateConceptAction } from './actions';
@@ -32,7 +34,10 @@ interface Seam {
   /** Every `updateConcept` call's `{ id, patch }`, in order. */
   updated: { id: string; patch: Partial<ConceptInput> }[];
   /** Each `listBriefsByConceptId` call's response, used only by the cascade tests. */
-  briefsByConceptId: Record<string, readonly { id: string; briefNumber: number | null }[]>;
+  briefsByConceptId: Record<
+    string,
+    readonly { id: string; briefNumber: number | null; nameMode: 'auto' | 'manual' }[]
+  >;
   /** Every `renameBrief` call's `{ id, name }`, in order (cascade cases). */
   renames: { id: string; name: string }[];
 }
@@ -105,11 +110,14 @@ vi.mock('@tas/db', async (importOriginal) => {
         stubs.map((row) => ({
           id: row.id,
           briefNumber: row.briefNumber,
-          // Enough of a shape for the cascade to feed PRD §7 — real fields come from fixtures
-          // in other tests; the cascade only reads briefNumber + the handful of §7 inputs.
+          nameMode: row.nameMode,
+          // Enough of a shape for the cascade to feed `generateBriefName` — real fields come from
+          // fixtures in other tests; the cascade reads name_mode, brief_number and the formula's
+          // source, funnel and type.
           source: 'TAS',
           funnel: 'TOF',
           type: 'Video',
+          batch: 'B1',
           sequence: 1,
           version: 1,
         })) as unknown as Awaited<ReturnType<typeof actual.listBriefsByConceptId>>,
@@ -506,20 +514,37 @@ describe('with Clerk configured', () => {
 });
 
 /**
- * Oct 6 (Agent 3 flagged edge #1): a concept rename cascaded through PRD §7's formula into every
- * linked brief's name — fine while every brief was named by §7, dangerous now that Oct 5 briefs
- * carry their own `generateBriefName`-produced name AND a non-null `briefNumber`. The guard in
- * `updateConceptAction` filters `briefs.filter((brief) => brief.briefNumber === null)` before
- * calling `renameBrief`, so an Oct 5-named brief keeps its printed name.
+ * The concept-rename cascade (2026-10-09, migration 0060). Only a brief the formula owns —
+ * `name_mode = 'auto'`, created by "New creative" — is renamed, and it is renamed with the SAME
+ * formula that named it (`generateBriefName`, the brief's own number) and the concept's new
+ * `Angle-Theme` segment. An imported or hand-typed name is `manual` (the column default every
+ * pre-0060 row kept) and is never touched: the audit found the old `briefNumber === null` guard let
+ * a concept save rewrite every Airtable-imported brief under it into the PRD §7 shape.
  */
-describe('updateConceptAction · the concept-rename cascade is guarded (Oct 6)', () => {
-  it('renames only the legacy briefs linked to the concept; Oct 5 briefs (brief_number set) stay', async () => {
+describe('updateConceptAction · the concept-rename cascade renames only auto-named briefs', () => {
+  it('never renames an imported or hand-typed brief (name_mode manual), whatever its number', async () => {
     live();
+    seam.briefsByConceptId[firstConcept.id] = [
+      { id: 'imported-brief', briefNumber: null, nameMode: 'manual' },
+      { id: 'typed-by-hand', briefNumber: 7, nameMode: 'manual' },
+    ];
+
     // Rename the concept by shifting its batch — the formula reads batch, angle, theme, so a new
     // batch produces a new name, which is the only trigger for the cascade.
+    const result = await updateConceptAction(
+      null,
+      form({ ...filled, batch: 'B9', id: firstConcept.id }, filledRepeated),
+    );
+
+    expect(result).toMatchObject({ ok: true });
+    expect(seam.renames).toEqual([]);
+  });
+
+  it('renames an auto-named brief with the create formula, its own number and the new Angle-Theme segment', async () => {
+    live();
     seam.briefsByConceptId[firstConcept.id] = [
-      { id: 'legacy-brief', briefNumber: null },
-      { id: 'oct5-brief', briefNumber: 7 },
+      { id: 'auto-brief', briefNumber: 7, nameMode: 'auto' },
+      { id: 'imported-brief', briefNumber: null, nameMode: 'manual' },
     ];
 
     const result = await updateConceptAction(
@@ -528,7 +553,24 @@ describe('updateConceptAction · the concept-rename cascade is guarded (Oct 6)',
     );
 
     expect(result).toMatchObject({ ok: true });
-    // Only the legacy brief is renamed; the Oct 5-numbered one is skipped by the guard.
-    expect(seam.renames.map((r) => r.id)).toEqual(['legacy-brief']);
+    const conceptPatch = seam.updated.find((entry) => entry.id === firstConcept.id)?.patch;
+    const newConceptName = conceptPatch?.name;
+    if (typeof newConceptName !== 'string') throw new Error('the concept was not renamed');
+    expect(newConceptName.startsWith('B9-')).toBe(true);
+    expect(seam.renames).toEqual([
+      {
+        id: 'auto-brief',
+        name: generateBriefName({
+          source: 'TAS',
+          funnel: 'TOF',
+          creativeType: 'Video',
+          number: 7,
+          concept: conceptNameSegment({ name: newConceptName, batch: 'B9' }),
+          batch: 'B9',
+        }),
+      },
+    ]);
+    // The batch is printed once: as the trailing segment, never also inside the concept segment.
+    expect(seam.renames[0]?.name).toBe(`TAS-TOF-V007-${newConceptName.slice('B9-'.length)}-B9`);
   });
 });

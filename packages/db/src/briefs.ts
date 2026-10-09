@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { loadAllAngleProducts, loadAllConceptAngles } from './junction-queries';
@@ -260,6 +260,12 @@ export async function allocateBriefNumber(db: Db, brandId: string): Promise<numb
 /**
  * Rename a brief: updates only the `name` column and the audit trail, nothing else. Used by the
  * cascade that recomputes brief names when a concept's name changes.
+ *
+ * ONLY a brief whose `name_mode` is `auto` is renamed (migration 0060, 2026-10-09). An imported or
+ * hand-typed name is `manual` — the column default every pre-0060 row kept — and this statement
+ * matches zero rows for it, so no caller, however it filters, can overwrite an Airtable name or a
+ * name a strategist typed. The guard lives here, at the query layer, rather than only in the
+ * action above it (CLAUDE.md: tenancy and invariants are enforced where the statement is built).
  */
 export async function renameBrief(
   db: Db,
@@ -271,6 +277,6 @@ export async function renameBrief(
   await withBrand(db, brandId).update(
     creativeBriefs,
     { name, updatedBy: actorId, updatedAt: new Date() },
-    eq(creativeBriefs.id, id),
+    and(eq(creativeBriefs.id, id), eq(creativeBriefs.nameMode, 'auto')),
   );
 }

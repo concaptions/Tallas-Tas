@@ -159,6 +159,17 @@ export type AnglePotential = (typeof anglePotentials)[number];
 export const creativeSources = ['TAS', 'Client'] as const;
 export type CreativeSource = (typeof creativeSources)[number];
 
+/**
+ * `creative_briefs.name_mode` (migration 0060, 2026-10-09). `auto`: the name was written by the
+ * CREATE formula (`generateBriefName` in `@tas/domain/briefs`) and follows its concept's renames.
+ * `manual`: the name was imported from Airtable or typed by hand, and NOTHING rewrites it — the
+ * column default, so every row that existed before the migration is `manual` and the concept
+ * cascade can never touch an imported name again. A CHECK constraint in the migration pins the
+ * two values at the database.
+ */
+export const briefNameModes = ['auto', 'manual'] as const;
+export type BriefNameMode = (typeof briefNameModes)[number];
+
 /** Where the creative runs (`creative_briefs.funnel`); the first letter of the §7 name comes from it. */
 export const creativeFunnels = ['TOF', 'Retargeting', 'All Funnels'] as const;
 export type CreativeFunnel = (typeof creativeFunnels)[number];

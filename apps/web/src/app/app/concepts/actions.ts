@@ -18,7 +18,8 @@ import {
   type ConceptInput,
 } from '@tas/db';
 import { isAngleFormat, type AngleFormatKey } from '@tas/domain/angles';
-import { creativeNameForConcept } from '@tas/domain/creatives';
+import { generateBriefName } from '@tas/domain/briefs';
+import { conceptNameSegment } from '@tas/domain/creatives';
 import {
   conceptName,
   isConceptApprovalStatus,
@@ -645,30 +646,37 @@ export async function updateConceptAction(
         syncConceptCreators(db, id, parsed.creatorIds),
       ]);
 
-      // Cascade: when the concept name changed, recompute every brief that carries it. GUARDED
-      // against the Oct 5 auto-naming (Agent 3): a brief with a non-null `briefNumber` was named
-      // by `generateBriefName` and MUST NOT be rewritten here — PRD §7's output would overwrite
-      // "TAS-TOF-V001-..." with the legacy "FUNNEL-FORMAT-NUMBER-..." shape, destroying the
-      // print the file-system already carries. Legacy briefs (`briefNumber === null`) still
-      // cascade: nothing else prints their name and the §7 recompute keeps them consistent.
+      // Cascade: when the concept name changed, recompute the name of every brief the FORMULA
+      // owns — `name_mode = 'auto'`, the rows "New creative" created with `generateBriefName`
+      // (migration 0060, 2026-10-09). An imported or hand-typed name is `manual` and is never
+      // rewritten: the audit found the old `briefNumber === null` guard let a concept save rename
+      // every Airtable-imported brief under it into the PRD §7 shape. `renameBrief` repeats the
+      // `auto` check in its WHERE, so a `manual` row cannot be renamed from here even by mistake.
+      // The same formula as CREATE, with the brief's own number, source, funnel and type, and the
+      // concept's new `Angle-Theme` segment and batch — so a renamed concept reads the same way on
+      // the creative as a freshly created one would.
       if (name !== current.name) {
-        const conceptRow = { name, batch: parsed.values.batch };
+        const segment = conceptNameSegment({ name, batch: parsed.values.batch });
         const briefs = await listBriefsByConceptId(db, brandId, id);
         await Promise.all(
           briefs
-            .filter((brief) => brief.briefNumber === null)
-            .map((brief) => {
-              const newName = creativeNameForConcept(conceptRow, {
-                source: brief.source,
-                funnel: brief.funnel,
-                format: brief.type,
-                number: brief.sequence,
-                version: brief.version,
-                batch: parsed.values.batch,
-                product: null,
-              });
-              return renameBrief(db, brandId, brief.id, newName, actor);
-            }),
+            .filter((brief) => brief.nameMode === 'auto' && brief.briefNumber !== null)
+            .map((brief) =>
+              renameBrief(
+                db,
+                brandId,
+                brief.id,
+                generateBriefName({
+                  source: brief.source,
+                  funnel: brief.funnel,
+                  creativeType: brief.type,
+                  number: brief.briefNumber ?? 0,
+                  concept: segment,
+                  batch: parsed.values.batch,
+                }),
+                actor,
+              ),
+            ),
         );
       }
 

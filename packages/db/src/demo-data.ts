@@ -993,6 +993,8 @@ function fromConcept(
     // The Oct 5 brand-wide counter: null on fixtures that predate the column, matching the way
     // the production rows will read it until a brand's first new-formula brief is created.
     briefNumber: null as number | null,
+    // Fixtures are hand-written names: `manual`, the 0060 default, so no cascade ever renames them.
+    nameMode: 'manual' as const,
   };
 }
 
@@ -1035,6 +1037,7 @@ function standalone(spec: {
     productName: null,
     // See `fromConcept`: the Oct 5 counter does not reach back to fixtures.
     briefNumber: null as number | null,
+    nameMode: 'manual' as const,
   };
 }
 
