@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:ci": "NEXT_FONT_GOOGLE_MOCKED_RESPONSES=\"$PWD/test/google-fonts-mock.cjs\" next build",
     "start": "next start",
     "typecheck": "next typegen && tsc -p tsconfig.json"
   },
