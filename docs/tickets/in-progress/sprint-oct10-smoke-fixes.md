@@ -16,7 +16,8 @@ the order they were fixed; each has one failing test first, then the fix.
 | SMOKE-05 | First click ignored on the Creative Sheet's Kanban toggle and "New creative" button. Reproduced with Playwright: a click that lands before React has hydrated the root is dropped (the button takes native focus, nothing opens), and the sheet hydrates every cell of every row. Not the brand-switcher shape (no form, no menu). Fix: the grid/board sits in its own `Suspense` boundary so the header controls hydrate first (React 18 selective hydration); the window that remains is the JS download on a cold visit. |
 | SMOKE-06 | Internal Queue said "One brand in this workspace" with two brands live: the options were derived from the loaded rows, which are scoped to the working brand, so there was always exactly one. `queueBrandOptions` now takes the agency's brands from `loadBrandScope` (the switcher's list), template excluded, each with its row count. |
 | SMOKE-07 | Brief page heading ran `creativeNameForConcept` at render time, so a manual-named brief (every imported row) showed a name it never had. `BriefName` renders `creative_briefs.name` verbatim with a mode-aware note; the formula runs at create time only (§7). |
-| SMOKE-08 | Interface Config and Notifications 503 on background load (§10, §12) — BLOCKED on production logs: neither page calls an external API, both render under `/app/loading.tsx`, and the demo e2e for both is green; the throw is only visible in Vercel's function logs. |
+| SMOKE-08 | Interface Config and Notifications 503 on background load (§10, §12) — DEFERRED: neither page calls an external API, both render under `/app/loading.tsx`, the demo e2e for both is green; the throw is only visible in Vercel's function logs, which arrive 2026-10-11. |
+| AUDIT-13 | One client vocabulary (Talal, 2026-10-10): `concepts.client_approval_status` and `copywriting.client_approval_status` carry the six `CLIENT_STATUS` keys the Creative Sheet's `creative_briefs.client_status` already carries. Mapped in code — `clientApprovalStatuses` in `@tas/db/schema`, `CLIENT_APPROVAL_STATUS` derived from `CLIENT_STATUS` in `@tas/domain/state`, both writers normalise the retired four-value spelling — no migration: every row of both columns was NULL. `creators.client_status` (the creator track) is untouched and remains the UGC page's client status; `creators.client_approval_status` (76 NULL rows) stays until the frozen-tables drop. |
 
 ## Acceptance criteria
 
@@ -37,7 +38,11 @@ the order they were fixed; each has one failing test first, then the fix.
       without rows), the template never, an out-of-scope row stays reachable by id.
 - [x] SMOKE-07: `brief-detail.test.tsx` — a manual brief's h1 is the stored name, never the formula's;
       an auto brief's h1 is the stored name too.
-- [ ] SMOKE-08: needs the Vercel function log lines for `/app/interface-config` and `/app/notifications`.
+- [ ] SMOKE-08: deferred to the Vercel function log lines for `/app/interface-config` and `/app/notifications`.
+- [x] AUDIT-13: `client-approval-status.test.ts` (the list IS `CLIENT_STATUS`; legacy keys map; tones from
+      `chipTone`), `client-approval-actions.test.ts` (schema list equals the domain's; concepts and
+      copywriting store a client-track key as is and the retired spelling as its mapped key; refusals
+      and the reason rule), `copywriting/actions.test.ts` (`updateCopyClientApproval` the same).
 - [x] `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm --filter @tas/web build:ci` on the final head.
 
 ## Pending human verification

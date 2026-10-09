@@ -1975,3 +1975,22 @@ their turn hydrates that boundary at once and is replayed. `creative-sheet-works
 shape through `renderToString`'s `<!--$-->` marker. What remains is the JS download on a cold visit,
 which no boundary can shorten; the honest fix for that is a smaller page (row virtualisation), logged as
 follow-up rather than done here.
+
+## 2026-10-10 — One client vocabulary: `client_approval_status` on concepts and copywriting is `CLIENT_STATUS`
+
+**Context.** The Oct 7 item "client approval status on four tables" met two vocabularies: the Creative
+Sheet's approval is `creative_briefs.client_status` (six values, `CLIENT_STATUS`, per the single-source
+cutover), while `concepts.client_approval_status` and `copywriting.client_approval_status` were typed on a
+four-value list (`pending_client_approval`, `approved`, `disapproved`, `revision_needed`), and the UGC
+page's client status is `creators.client_status` — the creator track (`video_delivered`, `draft`, …), a
+different column from the `creators.client_approval_status` the item named. In production every row of
+all three `client_approval_status` columns was NULL (106 concepts, 4 copy, 76 creators); no CHECK
+constraint exists (0055 added plain `text`).
+
+**Decision (Talal, 2026-10-10).** Unify on `CLIENT_STATUS`, in code, no migration. `clientApprovalStatuses`
+in `@tas/db/schema` is the six keys; `CLIENT_APPROVAL_STATUS` in `@tas/domain/state` is derived from
+`CLIENT_STATUS` with `chipTone` tones (the old module's `warning` / `error` were not `ChipTone` values and
+reached `StatusChip` through a cast); `normalizeClientApprovalStatus` reads the retired spelling and both
+writers (`updateClientApproval`, `updateCopyClientApproval`) store only the mapped key. `creators.client_status`
+is not touched; `creators.client_approval_status` stays, unused, for the frozen-tables drop. A CHECK
+constraint can follow as its own migration if wanted; nothing today depends on it.
