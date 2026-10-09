@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 
+import { isClientVisibleColumn } from '@tas/db';
 import {
   CUSTOM_PAGE_SOURCE_TABLE_LABELS,
   intersectCustomPageColumns,
@@ -44,11 +45,15 @@ export default async function ClientCustomPage({ params }: Props) {
   const render = await loadCustomPageRender(brand.id, pageSlug);
   if (!render) notFound();
   const { page, rows } = render;
-  const resolverColumns = parentColumnsFor(page.sourceTableKey).map((col) => ({
-    columnKey: col.columnKey,
-    displayLabel: col.displayLabel,
-    displayOrder: col.displayOrder,
-  }));
+  // The resolver's columns, narrowed to what a client may see (`@tas/db` `clientVisibleColumns`,
+  // the same allow-list that already projected the rows), then to the page's own picks.
+  const resolverColumns = parentColumnsFor(page.sourceTableKey)
+    .filter((col) => isClientVisibleColumn(page.sourceTableKey, col.columnKey))
+    .map((col) => ({
+      columnKey: col.columnKey,
+      displayLabel: col.displayLabel,
+      displayOrder: col.displayOrder,
+    }));
   const columns = intersectCustomPageColumns(
     resolverColumns,
     page.columnConfig satisfies readonly CustomPageColumnConfig[],

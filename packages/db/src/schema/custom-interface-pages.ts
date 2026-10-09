@@ -37,6 +37,9 @@ import { brands } from './brands';
  * to say something the DB never enforces anyway), and both default to the empty value so a page
  * created with no filter / no column pick still reads sanely.
  */
+export const customPageKinds = ['standard', 'custom', 'module'] as const;
+export type CustomPageKind = (typeof customPageKinds)[number];
+
 export const customInterfacePages = pgTable(
   'custom_interface_pages',
   {
@@ -67,6 +70,17 @@ export const customInterfacePages = pgTable(
       .default([]),
     sortOrder: integer('sort_order').notNull().default(0),
     isVisible: boolean('is_visible').notNull().default(true),
+    /**
+     * Migration 0062 (Scope A, B1): what kind of page the row is — a STANDARD tab (one of
+     * `CLIENT_TAB_KEYS`, from migration 0063), an admin-defined CUSTOM filtered view, or a MODULE
+     * page the platform renders (`module_key`, e.g. `partnership_ads`).
+     */
+    pageKind: text('page_kind').$type<CustomPageKind>().notNull().default('custom'),
+    moduleKey: text('module_key'),
+    /** The template page a child row inherits from (0062 backfilled it from the slug match). */
+    templateRowId: uuid('template_row_id'),
+    /** The fields this child keeps its own value for; propagation leaves them alone. */
+    overriddenFields: jsonb('overridden_fields').$type<string[]>().notNull().default([]),
     /**
      * True on a child row that still mirrors the template. The propagation engine updates
      * inheriting rows when the template page changes; a child row with `is_inherited = false` is

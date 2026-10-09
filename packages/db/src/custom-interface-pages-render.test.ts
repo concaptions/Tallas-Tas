@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { agencies, brands, creativeBriefs } from './schema';
 import { testDb } from './testing';
+import { isClientVisibleColumn } from './client-columns';
 import {
   insertCustomPage,
   loadCustomPageRender,
@@ -115,5 +116,67 @@ describe('loadCustomPageRender', () => {
     const { db, child } = await seedScenario();
     const result = await loadCustomPageRender(db, child.id, 'ghost-page');
     expect(result).toBeNull();
+  });
+});
+
+describe('the client column allow-list (B2, the structural F1 fix)', () => {
+  it('a template page asking for internal_status gets rows WITHOUT it, and its pick dropped', async () => {
+    const { db, child } = await seedScenario();
+    await insertCustomPage(db, {
+      brandId: null,
+      slug: 'leaky',
+      title: 'Leaky',
+      sourceTableKey: 'creative_briefs',
+      filterConfig: {},
+      columnConfig: [
+        { columnKey: 'name', displayLabel: 'Name', displayOrder: 0 },
+        { columnKey: 'internal_status', displayLabel: 'Internal Status', displayOrder: 1 },
+        { columnKey: 'client_status', displayLabel: 'Client Status', displayOrder: 2 },
+      ],
+      sortOrder: 10,
+      isVisible: true,
+      isInherited: true,
+      createdBy: 'test',
+    });
+
+    const result = await loadCustomPageRender(db, child.id, 'leaky');
+
+    expect(result).not.toBeNull();
+    expect(result?.page.columnConfig.map((pick) => pick.columnKey)).toEqual([
+      'name',
+      'client_status',
+    ]);
+    for (const row of result?.rows ?? []) {
+      expect(row).not.toHaveProperty('internal_status');
+      expect(row).not.toHaveProperty('internalStatus');
+      expect(row).toHaveProperty('client_status');
+    }
+  });
+
+  it('keys the rows by Postgres column name, so a filter on client_status actually matches', async () => {
+    const { db, child } = await seedScenario();
+    const rows = await loadCustomPageRows(db, child.id, 'creative_briefs');
+    expect(rows.map((row) => row['client_status']).sort()).toEqual([
+      'approved',
+      'pending_for_approval',
+    ]);
+    expect(Object.keys(rows[0] ?? {}).every((key) => !/[A-Z]/.test(key))).toBe(true);
+  });
+
+  it('never lets a cost, a price or an internal column through on creators', () => {
+    for (const key of [
+      'creator_cost',
+      'cost_usd',
+      'budget_per_60s',
+      'partnership_price_per_30_days',
+      'internal_creator_status',
+      'internal_brief',
+      'internal_assets_status',
+    ]) {
+      expect(isClientVisibleColumn('creators', key)).toBe(false);
+    }
+    expect(isClientVisibleColumn('creators', 'partnership_activity')).toBe(true);
+    expect(isClientVisibleColumn('creative_briefs', 'qa_designer')).toBe(false);
+    expect(isClientVisibleColumn('nope', 'name')).toBe(false);
   });
 });

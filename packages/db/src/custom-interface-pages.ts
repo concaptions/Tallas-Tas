@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, isNull } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import type { Db } from './db';
@@ -18,6 +18,7 @@ import {
   type NewCustomInterfacePage,
   type NewInterfaceTabVisibility,
 } from './schema';
+import { clientVisibleColumns } from './client-columns';
 
 /**
  * Data access for the Oct 6/7 custom-interface-pages / tab-visibility sprint.
@@ -484,9 +485,17 @@ const SOURCE_TABLES: Readonly<Record<string, PgTable>> = {
 };
 
 /**
- * Fetch raw rows from a source table for the custom-page renderer. Scoped by brand through the
- * table's own `brand_id` and `deleted_at IS NULL`. Returns the empty set for a `sourceTableKey`
- * that is not in the allow-list.
+ * Fetch the CLIENT-VISIBLE cells of a source table for the custom-page renderer. Scoped by brand
+ * through the table's own `brand_id` and `deleted_at IS NULL`; the empty set for a
+ * `sourceTableKey` outside the allow-list.
+ *
+ * Every row is PROJECTED to the columns `clientVisibleColumns(sourceTableKey)` names, keyed by
+ * their Postgres names (`client_status`), which is the spelling `column_config`, the filter and
+ * the portal route use — Drizzle's camelCase property names (`clientStatus`) never leave this
+ * function. Before 2026-10-10 the rows went out whole and camelCased: a page's filter on
+ * `client_status` never matched (so the template queue pages drew nothing, by accident), and had
+ * the keys agreed, `column_config = []` would have drawn every column, internal status included
+ * (F1). Now a column the client may not see is not in the row at all, whatever the page asks for.
  */
 export async function loadCustomPageRows(
   db: Db,
@@ -502,7 +511,17 @@ export async function loadCustomPageRows(
     .select()
     .from(table)
     .where(and(eq(columns.brandId, brandId), isNull(columns.deletedAt)));
-  return rows;
+  const visible = clientVisibleColumns(sourceTableKey);
+  // Property name → Postgres column name, from the table's own definition.
+  const names = Object.entries(getTableColumns(table) as Record<string, { name: string }>)
+    .map(([property, column]) => [property, column.name] as const)
+    .filter(([, name]) => visible.has(name));
+  return rows.map((row) => {
+    const record = row as Record<string, unknown>;
+    const projected: Record<string, unknown> = {};
+    for (const [property, name] of names) projected[name] = record[property];
+    return projected;
+  });
 }
 
 /** The one-shot read for a client custom-page route: config + rows. */
@@ -516,6 +535,13 @@ export async function loadCustomPageRender(
 }> {
   const page = await findCustomPageBySlug(db, brandId, slug);
   if (!page || !page.isVisible) return null;
+  // A STANDARD page row (migration 0063) only carries a tab's visibility and order; its route is
+  // the tab's own, never this one.
+  if (page.pageKind === 'standard') return null;
   const rows = await loadCustomPageRows(db, brandId, page.sourceTableKey);
-  return { page, rows };
+  // The page's own column picks, narrowed the same way: a stored pick of a column the client may
+  // not see is dropped here, so the route never even asks for it.
+  const visible = clientVisibleColumns(page.sourceTableKey);
+  const columnConfig = page.columnConfig.filter((pick) => visible.has(pick.columnKey));
+  return { page: { ...page, columnConfig }, rows };
 }

@@ -99,8 +99,11 @@ export default async function ClientBrandLayout({ children, params }: Props) {
       sortOrder: row.sortOrder,
     })) satisfies InterfaceTabVisibilityView[],
   );
+  // Only CUSTOM and MODULE rows are nav entries of their own; a STANDARD row (migration 0063)
+  // describes one of the four tabs above, which keep their own routes.
+  const customRow = (row: { readonly pageKind: string }) => row.pageKind !== 'standard';
   const mergedPages = mergeCustomPages(
-    config.templateCustomPages.map((row) => ({
+    config.templateCustomPages.filter(customRow).map((row) => ({
       id: row.id,
       brandId: row.brandId,
       slug: row.slug,
@@ -112,7 +115,7 @@ export default async function ClientBrandLayout({ children, params }: Props) {
       isVisible: row.isVisible,
       isInherited: row.isInherited,
     })) satisfies CustomInterfacePageView[],
-    config.customPages.map((row) => ({
+    config.customPages.filter(customRow).map((row) => ({
       id: row.id,
       brandId: row.brandId,
       slug: row.slug,
