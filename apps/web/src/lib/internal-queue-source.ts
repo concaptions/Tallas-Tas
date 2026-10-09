@@ -6,7 +6,7 @@ import {
   type BriefSourceDeps,
   type BriefSourceKind,
 } from './briefs-source';
-import { currentBrand, type BrandSummary } from './data-source';
+import { loadBrandScope, type BrandSummary } from './data-source';
 import { DEMO_QUEUE_ASSIGNEE, isDemoMode } from './demo-mode';
 
 /**
@@ -30,7 +30,7 @@ import { DEMO_QUEUE_ASSIGNEE, isDemoMode } from './demo-mode';
  * seeded briefs, so "Mine" shows real cards instead of an empty board.
  *
  * LIVE MODE (Clerk configured): `loadBriefs()` opens and closes its own Neon connection, the viewer
- * is the actor's full name from `currentActor()`, and the brand label comes from `currentBrand()`.
+ * is the actor's full name from `currentActor()`, and the brand options come from `loadBrandScope()`.
  *
  * There are NO writes on this route and therefore no Server Action in this feature — see the note
  * at the foot of `docs/tickets/in-progress/internal-queue.md`. The queue is a view over briefs; a
@@ -64,30 +64,35 @@ export interface InternalQueueResult {
 export interface InternalQueueDeps extends BriefSourceDeps {
   readonly briefs?: (deps: BriefSourceDeps) => Promise<BriefListResult>;
   readonly actor?: () => Promise<{ readonly fullName: string }>;
-  readonly brand?: () => Promise<BrandSummary | null>;
+  /** The brands of the agency in scope — the switcher's own list (`loadBrandScope`). */
+  readonly brands?: () => Promise<readonly BrandSummary[]>;
 }
 
 /**
- * The brands the loaded rows actually belong to, first-seen order, each with its own count.
- *
- * Pure, so the derivation is testable without a loader. `brand` is the working brand from
- * `currentBrand()`; its name labels the option whose id matches. Any other id — which a brand-scoped
- * query cannot produce today, but a multi-brand switcher will — is labelled with the id itself
- * rather than being dropped, because a card belonging to no offered option would be unreachable.
+ * The brand options the board offers: every brand of the agency in scope — the same list the top
+ * bar's switcher draws from `loadBrandScope` — each with the number of loaded rows behind it, in
+ * scope order, the parent template left out. The loaded rows are scoped to the WORKING brand, so
+ * deriving the options from them always produced exactly one and the board said "One brand in this
+ * workspace" with Niagara and Gratsi both live (smoke test, 2026-10-10). A row whose brand is not
+ * in scope — which a brand-scoped query cannot produce today — is still listed, by id, so no card
+ * is ever unreachable. Pure, so the derivation is testable without a loader.
  */
 export function queueBrandOptions(
   rows: readonly BriefRow[],
-  brand: BrandSummary | null,
+  brands: readonly BrandSummary[],
 ): QueueBrandOption[] {
   const counts = new Map<string, number>();
   for (const row of rows) {
     counts.set(row.brandId, (counts.get(row.brandId) ?? 0) + 1);
   }
-  return [...counts].map(([id, count]) => ({
-    id,
-    name: brand !== null && brand.id === id ? brand.name : id,
-    count,
-  }));
+  const scoped = brands
+    .filter((brand) => !brand.isTemplate)
+    .map(({ id, name }) => ({ id, name, count: counts.get(id) ?? 0 }));
+  const known = new Set(scoped.map((brand) => brand.id));
+  const unscoped = [...counts]
+    .filter(([id]) => !known.has(id))
+    .map(([id, count]) => ({ id, name: id, count }));
+  return [...scoped, ...unscoped];
 }
 
 function inDemoMode(deps: InternalQueueDeps): boolean {
@@ -116,6 +121,9 @@ export async function loadInternalQueue(
 ): Promise<InternalQueueResult> {
   const read: BriefSourceDeps = { demoMode: deps.demoMode, connect: deps.connect };
   const { rows, source } = await (deps.briefs ?? loadBriefs)(read);
-  const [viewer, brand] = await Promise.all([viewerName(deps), (deps.brand ?? currentBrand)()]);
-  return { rows, source, viewer, brands: queueBrandOptions(rows, brand) };
+  const [viewer, brands] = await Promise.all([
+    viewerName(deps),
+    (deps.brands ?? (async () => (await loadBrandScope(read)).options))(),
+  ]);
+  return { rows, source, viewer, brands: queueBrandOptions(rows, brands) };
 }

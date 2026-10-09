@@ -221,8 +221,7 @@ export function brandViewLabel(choice: QueueBrandChoice): string {
 }
 
 /** The quiet line above the board when there is exactly one brand to offer. */
-export const ONE_BRAND_NOTE =
-  'One brand in this workspace, so the brand filter offers only it. The switcher arrives with multi-brand.';
+export const ONE_BRAND_NOTE = 'One brand in this workspace, so the brand filter offers only it.';
 
 /**
  * Why this page has no buttons to disable (criterion 11). Stated in one quiet line rather than

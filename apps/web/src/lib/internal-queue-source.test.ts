@@ -68,25 +68,28 @@ describe('loadInternalQueue in demo mode', () => {
 });
 
 describe('loadInternalQueue in live mode', () => {
-  it('names the signed-in actor as the viewer and labels the brand from currentBrand()', async () => {
+  it('names the signed-in actor as the viewer and offers every brand of the scope', async () => {
     const rows = demoBriefs.map(toBriefRow);
 
     const result = await loadInternalQueue({
       demoMode: () => false,
       briefs: () => Promise.resolve({ rows, source: 'database' as const }),
       actor: () => Promise.resolve({ fullName: 'Imogen Bardsley' }),
-      brand: () =>
-        Promise.resolve({
-          id: DEMO_BRAND_ID,
-          name: 'Live Brand',
-          status: 'active',
-          isTemplate: false,
-        }),
+      brands: () =>
+        Promise.resolve([
+          { id: DEMO_BRAND_ID, name: 'Live Brand', status: 'active', isTemplate: false },
+          { id: 'gratsi', name: 'Gratsi', status: 'active', isTemplate: false },
+        ]),
     });
 
     expect(result.source).toBe('database');
     expect(result.viewer).toBe('Imogen Bardsley');
-    expect(result.brands).toEqual([{ id: DEMO_BRAND_ID, name: 'Live Brand', count: 7 }]);
+    // Every brand of the agency, the scoped rows counted under the working one (smoke test
+    // 2026-10-10: deriving the options from the rows always found one brand).
+    expect(result.brands).toEqual([
+      { id: DEMO_BRAND_ID, name: 'Live Brand', count: 7 },
+      { id: 'gratsi', name: 'Gratsi', count: 0 },
+    ]);
   });
 });
 
@@ -101,36 +104,34 @@ describe('queueBrandOptions', () => {
     return row;
   }
 
-  it('is empty for an empty board rather than offering a brand with nothing behind it', () => {
-    expect(
-      queueBrandOptions([], {
-        id: DEMO_BRAND_ID,
-        name: 'Niagara',
-        status: 'active',
-        isTemplate: false,
-      }),
-    ).toEqual([]);
-  });
+  const niagara = { id: DEMO_BRAND_ID, name: 'Niagara', status: 'active', isTemplate: false };
+  const gratsi = { id: 'gratsi', name: 'Gratsi', status: 'active', isTemplate: false };
+  const template = { id: 'tpl', name: 'Creative Hub Template', status: 'active', isTemplate: true };
 
-  it('counts each brand and keeps first-seen order', () => {
-    const options = queueBrandOptions([row('b-2'), row('b-1'), row('b-2')], null);
-
-    expect(options).toEqual([
-      { id: 'b-2', name: 'b-2', count: 2 },
-      { id: 'b-1', name: 'b-1', count: 1 },
+  it('offers every brand in scope with a zero count for an empty board, never the template', () => {
+    expect(queueBrandOptions([], [niagara, gratsi, template])).toEqual([
+      { id: DEMO_BRAND_ID, name: 'Niagara', count: 0 },
+      { id: 'gratsi', name: 'Gratsi', count: 0 },
     ]);
   });
 
-  it('labels only the working brand by name and keeps any other id reachable', () => {
-    const options = queueBrandOptions([row(DEMO_BRAND_ID), row('other')], {
-      id: DEMO_BRAND_ID,
-      name: 'Niagara Sleep Solutions',
-      isTemplate: false,
-      status: 'active',
-    });
+  it('counts the rows under their brand and keeps scope order', () => {
+    const options = queueBrandOptions(
+      [row('gratsi'), row(DEMO_BRAND_ID), row('gratsi')],
+      [niagara, gratsi],
+    );
 
     expect(options).toEqual([
-      { id: DEMO_BRAND_ID, name: 'Niagara Sleep Solutions', count: 1 },
+      { id: DEMO_BRAND_ID, name: 'Niagara', count: 1 },
+      { id: 'gratsi', name: 'Gratsi', count: 2 },
+    ]);
+  });
+
+  it('keeps a row whose brand is outside the scope reachable, by id, after the scoped ones', () => {
+    const options = queueBrandOptions([row(DEMO_BRAND_ID), row('other')], [niagara]);
+
+    expect(options).toEqual([
+      { id: DEMO_BRAND_ID, name: 'Niagara', count: 1 },
       { id: 'other', name: 'other', count: 1 },
     ]);
   });
