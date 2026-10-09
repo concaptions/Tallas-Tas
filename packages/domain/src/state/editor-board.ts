@@ -1,6 +1,8 @@
 import {
   INTERNAL_STATIC_STATUS,
   INTERNAL_VIDEO_STATUS,
+  canTransitionInternal,
+  internalStatusFor,
   type ChipTone,
   type CreativeTrack,
   type InternalStatusKey,
@@ -92,4 +94,38 @@ export function startedStatusFor(track: CreativeTrack): InternalStatusKey {
   const ladder = track === 'static' ? INTERNAL_STATIC_STATUS : INTERNAL_VIDEO_STATUS;
   const second = ladder[1];
   return second.key;
+}
+
+/** Whether a stored string is a step on the track's own ladder (never `on_hold`, never the other track). */
+function isStatusOnTrack(track: CreativeTrack, value: string): value is InternalStatusKey {
+  return internalStatusFor(track).some((entry) => entry.key === value);
+}
+
+/**
+ * The internal status a card drop between the editor's columns writes, or `null` when the drop is
+ * not a move the machine allows (re-homed from the retired Creative Design list, 2026-10-09).
+ *
+ * Only two drops mean anything: Incoming → Under Editing is Start (the track's in-progress step),
+ * and Under Editing → Under Review is a submission — the revision resubmission when the brief was
+ * under revisions, the first submission otherwise. Everything else (backwards, a skipped column,
+ * the same column, a brief that is off the board) is `null`, so the caller ignores it rather than
+ * writing. The target is then checked against `canTransitionInternal`, so this never invents a
+ * move the transition table refuses.
+ */
+export function editorStageMoveTarget(
+  from: string,
+  track: CreativeTrack,
+  to: EditorStageKey,
+): InternalStatusKey | null {
+  const stage = editorStageOf(from);
+  const next: InternalStatusKey | null =
+    to === 'under_editing' && stage === 'incoming'
+      ? startedStatusFor(track)
+      : to === 'under_review' && stage === 'under_editing'
+        ? from.endsWith('_revisions')
+          ? 'revisions_submitted'
+          : 'ad_submitted'
+        : null;
+  if (next === null || !isStatusOnTrack(track, from)) return null;
+  return canTransitionInternal(track, from, next) ? next : null;
 }

@@ -42,12 +42,18 @@ import {
 import { z } from 'zod';
 
 import { diffFields } from '@tas/domain';
-import { canStartBrief, startedStatusFor } from '@tas/domain/state';
+import {
+  canStartBrief,
+  EDITOR_STAGE_KEYS,
+  editorStageMoveTarget,
+  startedStatusFor,
+  type EditorStageKey,
+} from '@tas/domain/state';
 
 import { currentActor } from '@/lib/actor';
 import { withBrandScope } from '@/lib/briefs-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
-import { briefPath, briefsPath } from '@/lib/routes';
+import { briefPath, briefsPath, creativeSheetPath } from '@/lib/routes';
 
 /**
  * The Creative Briefs route's three mutations (PRD §5.10). All three follow `angles/actions.ts` and
@@ -519,10 +525,14 @@ function toInput(
   };
 }
 
-/** Both routes the list and the detail page render, revalidated together after every write. */
+/**
+ * Every route that renders a brief, revalidated together after every write: the list, the detail
+ * page, and the Creative Sheet, whose "Editing stage" board reads the briefs' internal status.
+ */
 function revalidateBrief(id: string): void {
   revalidatePath(briefsPath);
   revalidatePath(briefPath(id));
+  revalidatePath(creativeSheetPath);
 }
 
 /**
@@ -916,5 +926,90 @@ export async function startBriefAction(briefId: string): Promise<StartBriefResul
     return outcome;
   } catch {
     return { ok: false, error: 'The brief could not be started. Try again.' };
+  }
+}
+
+export interface MoveBriefStageSuccess {
+  readonly ok: true;
+  readonly id: string;
+  readonly internalStatus: string;
+}
+
+export type MoveBriefStageResult = MoveBriefStageSuccess | BriefActionFailure;
+
+function isEditorStage(value: string): value is EditorStageKey {
+  return (EDITOR_STAGE_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * A card dropped in another column of the editor board (the Creative Sheet's "Editing stage"
+ * grouping, 2026-10-09). The status it writes is `editorStageMoveTarget`'s — Incoming → Under
+ * Editing is the track's in-progress step, Under Editing → Under Review is the submission — and a
+ * drop the machine refuses is refused here too, never written. Only `internal_status` changes:
+ * the assignee is Start's business, not a drag's. Refused in demo mode, for a stage that is not
+ * one of the three, without a session, and for a brief outside the brand.
+ */
+export async function moveBriefStageAction(
+  briefId: string,
+  stage: string,
+): Promise<MoveBriefStageResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+  if (briefId.trim() === '') {
+    return { ok: false, error: 'This brief could not be identified.' };
+  }
+  if (!isEditorStage(stage)) {
+    return { ok: false, error: 'That is not a column on the editor board.' };
+  }
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
+    }
+    const actorName = (await currentActor()).fullName;
+
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const current = await getBriefById(db, brandId, briefId);
+      if (current === null) {
+        return { ok: false as const, error: 'That brief is no longer available.' };
+      }
+      const next = editorStageMoveTarget(
+        current.internalStatus,
+        creativeTrack(current.type),
+        stage,
+      );
+      if (next === null) {
+        return { ok: false as const, error: 'That is not the next step on the internal track.' };
+      }
+      const patch = { internalStatus: next };
+      const saved = await updateBrief(db, brandId, briefId, patch, actor);
+      if (saved === null) {
+        return { ok: false as const, error: 'That brief is no longer available.' };
+      }
+      await insertActivity(
+        db,
+        brandId,
+        BRIEF_ENTITY,
+        saved.id,
+        diffFields(current, patch, ['internalStatus']),
+        {
+          id: actor,
+          name: actorName,
+        },
+      );
+      return { ok: true as const, id: saved.id, internalStatus: next };
+    });
+
+    if (outcome === null) {
+      return { ok: false, error: 'This workspace has no brand yet.' };
+    }
+    if (!outcome.ok) {
+      return outcome;
+    }
+    revalidateBrief(outcome.id);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The brief could not be moved. Try again.' };
   }
 }

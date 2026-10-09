@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createBriefAction, startBriefAction, toggleQaAction, updateBriefAction } from './actions';
+import {
+  createBriefAction,
+  moveBriefStageAction,
+  startBriefAction,
+  toggleQaAction,
+  updateBriefAction,
+} from './actions';
 
 /** The actions call `revalidatePath`, which only exists inside a Next request. */
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -60,6 +66,12 @@ describe('in demo mode (no Clerk publishable key)', () => {
 
   it('refuses to Start a brief, before it even looks at the id', async () => {
     const result = await startBriefAction('whatever');
+
+    expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
+  });
+
+  it('refuses to move a brief between the editor columns, before it even looks at the id', async () => {
+    const result = await moveBriefStageAction('whatever', 'under_editing');
 
     expect(result).toEqual({ ok: false, error: 'Sign in required to save changes.' });
   });
@@ -286,6 +298,22 @@ describe('with Clerk configured', () => {
     expect(result.fieldErrors?.internalStatus).toBe(
       'That is not a status on this brief internal track.',
     );
+  });
+
+  it('rejects a board drop on a column that is not one of the three stages', async () => {
+    configured();
+
+    const result = await moveBriefStageAction('a-brief', 'approved');
+
+    expect(result).toEqual({ ok: false, error: 'That is not a column on the editor board.' });
+  });
+
+  it('rejects a board drop whose brief id is missing', async () => {
+    configured();
+
+    const result = await moveBriefStageAction('   ', 'under_review');
+
+    expect(result).toEqual({ ok: false, error: 'This brief could not be identified.' });
   });
 
   it('rejects an update whose id is missing', async () => {

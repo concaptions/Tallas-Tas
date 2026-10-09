@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
-import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
+import { clientApprovalLabel, clientApprovalTone, EDITOR_STAGE_KEYS } from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -24,12 +24,17 @@ import {
   type ResolvedColumnView,
 } from '@/components/views/resolved-columns';
 
+import { moveBriefStageAction, startBriefAction } from '@/app/app/creative-design/actions';
+import { briefPath } from '@/lib/routes';
+
 import { moveCreativeSheetItemAction } from './actions';
 import { CreativeSheetPanel, NEW_ITEM, type LinkOption } from './creative-sheet-panel';
+import { editorBoardItems, offBoardLabel, type EditorBoardBrief } from './editor-board';
 import {
   countLabel,
   EM_DASH,
   internalStatusView,
+  isKanbanField,
   kanbanColumnsFor,
   kanbanView,
   matchesSearch,
@@ -53,6 +58,12 @@ import {
  * Two views, from `getTableCapability('creative-sheet')`: the Airtable-style grid and a Kanban
  * board grouped by Internal Status or Status. A card dropped in another column is one write through
  * `moveCreativeSheetItemAction`; in demo mode the board ignores the drop.
+ *
+ * The board's third grouping, "Editing stage", is the editor's board re-homed from the retired
+ * Creative Design list (2026-10-09): its cards are BRIEFS (`editor-board.ts`), grouped by
+ * `creative_briefs.internal_status`, a drop writes through `moveBriefStageAction`, Start through
+ * `startBriefAction`, and a click opens the brief's own page. The two sheet groupings are untouched
+ * by it: they never read a brief's status and it never reads a sheet row's.
  */
 /**
  * The thirteen `Creative Name` lookup cells (GRATSI-MATCH, 2026-10-04), each resolved on the
@@ -93,6 +104,8 @@ interface CreativeSheetWorkspaceProps {
   readonly unconfiguredColumns?: boolean;
   readonly items: readonly SheetItemView[];
   readonly briefs: readonly LinkOption[];
+  /** Every brief of the brand, the "Editing stage" board's cards; `[]` keeps that board empty. */
+  readonly boardBriefs?: readonly EditorBoardBrief[];
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -355,6 +368,7 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
 export function CreativeSheetWorkspace({
   items,
   briefs,
+  boardBriefs = [],
   demo,
   initialSelection,
   initialSearch,
@@ -411,21 +425,58 @@ export function CreativeSheetWorkspace({
   const open = items.find(({ item }) => item.id === selection)?.item ?? null;
   const creating = selection === NEW_ITEM;
 
+  const editorBoard = kanbanField === 'editorStage';
+
   const kanbanItems: readonly KanbanItem[] = useMemo(
     () =>
-      visible.map(({ item }) => {
-        const view = kanbanView(kanbanField, item);
-        return {
-          id: item.id,
-          name: item.name,
-          groupValue: view?.key ?? '',
-          subtitle: item.briefName ?? 'No creative linked',
-          chipLabel: view?.label,
-          chipTone: view?.tone,
-          accentTone: view?.tone,
-        };
-      }),
+      kanbanField === 'editorStage'
+        ? []
+        : visible.map(({ item }) => {
+            const view = kanbanView(kanbanField, item);
+            return {
+              id: item.id,
+              name: item.name,
+              groupValue: view?.key ?? '',
+              subtitle: item.briefName ?? 'No creative linked',
+              chipLabel: view?.label,
+              chipTone: view?.tone,
+              accentTone: view?.tone,
+            };
+          }),
     [visible, kanbanField],
+  );
+
+  // The editor board's two writes (Start, a drop) each report their refusal under the board.
+  const [startError, setStartError] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+
+  const startBrief = useCallback(
+    (id: string) => {
+      setStartError(null);
+      startTransition(async () => {
+        const result = await startBriefAction(id);
+        if (result.ok) {
+          router.refresh();
+        } else {
+          setStartError(result.error);
+        }
+      });
+    },
+    [router],
+  );
+
+  // Cards are briefs, every brief of the brand; the search narrows them by name like the grid.
+  const board = useMemo(
+    () =>
+      editorBoardItems(
+        query === ''
+          ? boardBriefs
+          : boardBriefs.filter((brief) => brief.name.toLowerCase().includes(query)),
+        items.map(({ item }) => item),
+        demo,
+        startBrief,
+      ),
+    [boardBriefs, items, query, demo, startBrief],
   );
 
   const kanbanColumns = useMemo(() => kanbanColumnsFor(kanbanField), [kanbanField]);
@@ -437,6 +488,21 @@ export function CreativeSheetWorkspace({
   const handleKanbanMove = useCallback(
     (itemId: string, newValue: string) => {
       if (demo) return;
+      if (kanbanField === 'editorStage') {
+        // A brief dropped in another stage: the status move, through the briefs' own action,
+        // which validates the stage again — a Server Action is a POST endpoint.
+        if (!(EDITOR_STAGE_KEYS as readonly string[]).includes(newValue)) return;
+        setMoveError(null);
+        startTransition(async () => {
+          const result = await moveBriefStageAction(itemId, newValue);
+          if (result.ok) {
+            router.refresh();
+          } else {
+            setMoveError(result.error);
+          }
+        });
+        return;
+      }
       startTransition(() => {
         const formData = new FormData();
         formData.set('id', itemId);
@@ -455,6 +521,14 @@ export function CreativeSheetWorkspace({
       select(card.id);
     },
     [select],
+  );
+
+  // A brief card opens the brief's own page: the detail route stays live after the list retired.
+  const openBrief = useCallback(
+    (card: KanbanItem) => {
+      router.push(card.href ?? briefPath(card.id));
+    },
+    [router],
   );
 
   const newRow = (slot: string) => (
@@ -513,7 +587,7 @@ export function CreativeSheetWorkspace({
                 value={kanbanField}
                 onChange={(event) => {
                   const next = event.target.value;
-                  if (next === 'internalStatus' || next === 'status') setKanbanField(next);
+                  if (isKanbanField(next)) setKanbanField(next);
                 }}
                 className="h-8 rounded-input border border-line bg-surface px-2 text-xs text-text"
                 aria-label="Group by"
@@ -541,14 +615,31 @@ export function CreativeSheetWorkspace({
         </div>
 
         {activeView === 'kanban' ? (
-          <KanbanBoard
-            items={kanbanItems}
-            columns={kanbanColumns.map((column) => column.key)}
-            columnLabels={kanbanLabels}
-            onMove={handleKanbanMove}
-            onCardClick={openCard}
-            demo={demo}
-          />
+          <div className="flex flex-col gap-2">
+            <KanbanBoard
+              items={editorBoard ? board.items : kanbanItems}
+              columns={kanbanColumns.map((column) => column.key)}
+              columnLabels={kanbanLabels}
+              onMove={handleKanbanMove}
+              onCardClick={editorBoard ? openBrief : openCard}
+              demo={demo}
+            />
+            {editorBoard ? (
+              <p className="text-xs text-text3" data-slot="brief-off-board">
+                {offBoardLabel(board.offBoardBriefs, board.unlinkedSheetRows)}
+              </p>
+            ) : null}
+            {editorBoard && startError !== null ? (
+              <p className="text-sm text-bad" role="alert" data-slot="brief-start-error">
+                {startError}
+              </p>
+            ) : null}
+            {editorBoard && moveError !== null ? (
+              <p className="text-sm text-bad" role="alert" data-slot="brief-move-error">
+                {moveError}
+              </p>
+            ) : null}
+          </div>
         ) : (
           <AirtableGrid
             tableKey={CAP.tableKey}

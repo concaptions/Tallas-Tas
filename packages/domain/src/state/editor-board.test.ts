@@ -10,6 +10,7 @@ import {
   EDITOR_STAGE_KEYS,
   EDITOR_STAGES,
   editorStageLabel,
+  editorStageMoveTarget,
   editorStageOf,
   editorStageTone,
   startedStatusFor,
@@ -75,5 +76,66 @@ describe('editor board stages', () => {
       true,
     );
     expect(editorStageOf(startedStatusFor('video'))).toBe('under_editing');
+  });
+
+  describe('a drop between the columns', () => {
+    it('Incoming → Under Editing is Start on both tracks', () => {
+      expect(editorStageMoveTarget('sent_to_video_editor', 'video', 'under_editing')).toBe(
+        'video_editing_in_progress',
+      );
+      expect(editorStageMoveTarget('sent_to_designer', 'static', 'under_editing')).toBe(
+        'static_design_in_progress',
+      );
+    });
+
+    it('Under Editing → Under Review submits, or resubmits after revisions', () => {
+      expect(editorStageMoveTarget('video_editing_in_progress', 'video', 'under_review')).toBe(
+        'ad_submitted',
+      );
+      expect(editorStageMoveTarget('static_design_in_progress', 'static', 'under_review')).toBe(
+        'ad_submitted',
+      );
+      expect(editorStageMoveTarget('videos_revisions', 'video', 'under_review')).toBe(
+        'revisions_submitted',
+      );
+      expect(editorStageMoveTarget('images_revisions', 'static', 'under_review')).toBe(
+        'revisions_submitted',
+      );
+    });
+
+    it('refuses a backwards drop, a skipped column, the same column and a brief off the board', () => {
+      // Backwards.
+      expect(editorStageMoveTarget('ad_submitted', 'video', 'under_editing')).toBeNull();
+      expect(editorStageMoveTarget('video_editing_in_progress', 'video', 'incoming')).toBeNull();
+      // Skipping Under Editing.
+      expect(editorStageMoveTarget('sent_to_video_editor', 'video', 'under_review')).toBeNull();
+      // The same column.
+      expect(editorStageMoveTarget('sent_to_designer', 'static', 'incoming')).toBeNull();
+      expect(editorStageMoveTarget('videos_revisions', 'video', 'under_editing')).toBeNull();
+      // Off the board, and not a status at all.
+      expect(editorStageMoveTarget('approved', 'video', 'under_editing')).toBeNull();
+      expect(editorStageMoveTarget('launched', 'static', 'under_review')).toBeNull();
+      expect(editorStageMoveTarget('on_hold', 'video', 'under_review')).toBeNull();
+      expect(editorStageMoveTarget('nonsense', 'video', 'under_editing')).toBeNull();
+      // A status from the other track is not on this ladder.
+      expect(editorStageMoveTarget('sent_to_designer', 'video', 'under_editing')).toBeNull();
+    });
+
+    it('only ever returns a status the transition table allows from the current one', () => {
+      const tracks = ['video', 'static'] as const;
+      for (const track of tracks) {
+        for (const entry of track === 'video' ? INTERNAL_VIDEO_STATUS : INTERNAL_STATIC_STATUS) {
+          for (const stage of EDITOR_STAGE_KEYS) {
+            const next = editorStageMoveTarget(entry.key, track, stage);
+            if (next !== null) {
+              expect(canTransitionInternal(track, entry.key, next), `${entry.key} → ${stage}`).toBe(
+                true,
+              );
+              expect(editorStageOf(next)).toBe(stage);
+            }
+          }
+        }
+      }
+    });
   });
 });

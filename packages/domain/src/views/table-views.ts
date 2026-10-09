@@ -44,6 +44,9 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
     kanbanFields: [
       { field: 'internalStatus', label: 'Internal Status' },
       { field: 'status', label: 'Status' },
+      // The editor's board, re-homed here from the retired Creative Design list (2026-10-09): the
+      // three EDITOR_STAGES over the BRIEFS' internal status, cards are briefs, not sheet rows.
+      { field: 'editorStage', label: 'Editing stage' },
     ],
     galleryFields: [],
     timelineDates: null,

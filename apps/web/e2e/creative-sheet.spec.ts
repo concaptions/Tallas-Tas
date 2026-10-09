@@ -195,6 +195,46 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(board).toContainText('Not set');
   });
 
+  test('the Editing stage grouping is the editor board: cards are briefs, Start on Incoming', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+
+    await page.getByRole('tab', { name: 'Kanban' }).click();
+    await page.locator('[data-slot="creative-sheet-group-by"]').selectOption('editorStage');
+    const board = page.locator('[data-slot="kanban-board"]');
+    const columns = board.locator(':scope > div');
+    await expect(columns).toHaveCount(3);
+    await expect(columns.nth(0)).toContainText('Sent to Editor/Designer');
+    await expect(columns.nth(1)).toContainText('Under Editing');
+    await expect(columns.nth(2)).toContainText('Under Review');
+
+    // A card is a BRIEF, keyed by the brief id: the Daylight brief sits under Under Review, with
+    // the sheet row linked to it as its subtitle.
+    const daylight = columns
+      .nth(2)
+      .locator('[data-card-id="77777777-7777-4777-8777-000000000003"]');
+    await expect(daylight).toHaveCount(1);
+    await expect(daylight).toContainText('Daylight');
+
+    // The Incoming brief has no sheet row yet and is still on the board, Start withheld in demo.
+    const incoming = columns
+      .nth(0)
+      .locator('[data-card-id="77777777-7777-4777-8777-000000000006"]');
+    await expect(incoming).toHaveCount(1);
+    await expect(incoming).toContainText('No sheet row yet');
+    await expect(incoming.locator('[data-slot="brief-start"]')).toBeDisabled();
+    await expect(incoming.locator('[data-slot="disabled-write"]')).toHaveAttribute(
+      'title',
+      'Sign in required to save changes',
+    );
+
+    // What is not on the board is counted: the four approved/launched briefs, the unlinked row.
+    await expect(page.locator('[data-slot="brief-off-board"]')).toHaveText(
+      '4 briefs off the board (approved, launched or on hold) · 1 sheet row with no brief',
+    );
+  });
+
   test('search reads the name, the brief and the status labels', async ({ page }) => {
     await page.goto(creativeSheetPath);
 

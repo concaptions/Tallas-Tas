@@ -57,8 +57,18 @@ export type CreativeSheetFieldName =
   | 'dimensions'
   | CreativeSheetCheck;
 
-/** The two fields the Kanban board can regroup by, and so the two a card drag may change. */
-export type CreativeSheetKanbanField = 'internalStatus' | 'status';
+/**
+ * The two sheet fields the Kanban board can regroup by, and so the two a card drag may change.
+ * `moveSchema` below accepts exactly these two: the sheet's own statuses.
+ */
+export type CreativeSheetStatusField = 'internalStatus' | 'status';
+
+/**
+ * Everything the board's group-by offers: the two sheet statuses, and `editorStage` — the editor's
+ * board re-homed here (2026-10-09), whose cards are BRIEFS grouped by `creative_briefs.internal_status`
+ * and whose drops go through `creative-design/actions.ts`, never through `moveCreativeSheetItemAction`.
+ */
+export type CreativeSheetKanbanField = CreativeSheetStatusField | 'editorStage';
 
 export interface CreativeSheetActionSuccess {
   readonly ok: true;

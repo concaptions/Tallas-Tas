@@ -1811,3 +1811,26 @@ A real `next build` is the second guard, and it needs Google Fonts, which a sand
 may not reach. `pnpm --filter @tas/web build:ci` sets Next's own `NEXT_FONT_GOOGLE_MOCKED_RESPONSES`
 hook to `apps/web/test/google-fonts-mock.cjs`, which answers the two `fonts.googleapis.com` CSS
 requests from disk; the fonts themselves are unchanged and the plain `build` still fetches them.
+
+## 2026-10-09 — Editor board re-homed on the Creative Sheet (Kanban, group by Editing stage)
+
+The editors' three-column board (Incoming → Under Editing → Under Review, Start, drag to move) lived
+on the retired Creative Design LIST page. Per the Sep 28 rule (Kanban only where the lanes ARE the
+briefs workflow) it is now a third grouping of the Creative Sheet's existing Kanban view:
+`/app/creative-sheet?view=kanban&groupBy=editorStage` (`?group=` is accepted as an alias, so the
+retired list's `?group=editorStage` redirect lands on it).
+
+- **Status source:** `creative_briefs.internal_status`, read through `editorStageOf` and moved
+  through `editorStageMoveTarget` (`packages/domain/src/state/editor-board.ts`), the drop rule
+  extracted verbatim from the retired workspace and checked against `canTransitionInternal`.
+  `creative_sheet_items.internal_status` is never read or written by this grouping; the sheet's two
+  statuses keep their own code path and `moveCreativeSheetItemAction` untouched.
+- **A card is a brief.** `editorBoardItems` (`apps/web/src/app/app/creative-sheet/editor-board.ts`)
+  builds one `KanbanItem` per brief of the brand (`loadBriefs()`, the same rows the picker reads),
+  `id` = brief id, subtitle = the names of the sheet rows linked to it or "No sheet row yet", so a
+  brief with no sheet row is still on the board. Briefs with no stage and sheet rows with no brief
+  are counted in one line (`data-slot="brief-off-board"`), never a fourth column.
+- **Writes:** a drop → `moveBriefStageAction` (new, beside `startBriefAction`, status only, one
+  activity row); Start → `startBriefAction` (unchanged). Both now also revalidate the sheet route.
+- **Role rule:** unchanged — none beyond a session, brand scope and the demo refusal.
+

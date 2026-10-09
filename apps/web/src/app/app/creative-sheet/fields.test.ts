@@ -3,7 +3,7 @@ import {
   creativeSheetStatuses,
   creativeSheetWinning,
 } from '@tas/db/schema';
-import { chipTone } from '@tas/domain/state';
+import { chipTone, EDITOR_STAGES } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -11,6 +11,7 @@ import {
   INTERNAL_STATUS_OPTIONS,
   internalStatusView,
   isKanbanField,
+  isSheetStatusField,
   joinUrlLines,
   kanbanColumnsFor,
   kanbanView,
@@ -150,9 +151,19 @@ describe('the Kanban board', () => {
     expect(kanbanView('status', { internalStatus: 'approved', status: null })).toBeNull();
   });
 
-  it('accepts only the two groupable fields', () => {
+  it('lays out the editor board as exactly the three stages, with no Not set column', () => {
+    expect(kanbanColumnsFor('editorStage')).toEqual(
+      EDITOR_STAGES.map(({ key, label }) => ({ key, label })),
+    );
+    expect(kanbanColumnsFor('editorStage').some((column) => column.key === '')).toBe(false);
+  });
+
+  it('accepts the two sheet statuses and the editor stage as groupable fields', () => {
     expect(isKanbanField('internalStatus')).toBe(true);
     expect(isKanbanField('status')).toBe(true);
+    expect(isKanbanField('editorStage')).toBe(true);
+    expect(isSheetStatusField('editorStage')).toBe(false);
+    expect(isSheetStatusField('status')).toBe(true);
     expect(isKanbanField('winning')).toBe(false);
   });
 });

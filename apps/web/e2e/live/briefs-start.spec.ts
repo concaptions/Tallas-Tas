@@ -1,8 +1,9 @@
 import { liveE2eEnv } from '../../src/lib/live-e2e-env';
-import { briefPath, briefsPath } from '../../src/lib/routes';
+import { briefPath, creativeSheetPath } from '../../src/lib/routes';
 import { expect, test } from '../support/brief-reset';
 
-const EDITOR_BOARD = `${briefsPath}?group=editorStage`;
+/** The editor board: the Creative Sheet's Kanban view grouped by Editing stage (2026-10-09). */
+const EDITOR_BOARD = `${creativeSheetPath}?view=kanban&groupBy=editorStage`;
 
 /**
  * The live half of the editor board (Sprint 10): Start claims an Incoming brief through the real
@@ -12,14 +13,6 @@ const EDITOR_BOARD = `${briefsPath}?group=editorStage`;
  * it picks is put back by `briefGuard` whether the test passes or not.
  */
 test.describe('editor board with Clerk and a database', () => {
-  // The editor board lived on the Creative Design LIST page, which the Oct 7 template cleanup
-  // retired (`/app/creative-design` now redirects to the Creative Sheet). The Start action and
-  // the brief detail assertions below still hold, but the board has no page to mount on until it
-  // is re-homed — see docs/decisions.md, "Template cleanup".
-  test.skip(
-    true,
-    'Creative Design list page retired on 2026-10-07; the editor board needs a new home before this can run.',
-  );
   test.skip(
     liveE2eEnv() === undefined,
     'No live-mode variables (CLERK_PUBLISHABLE_KEY_TEST, CLERK_SECRET_KEY_TEST, CLERK_E2E_USER_PASSWORD, DATABASE_URL_E2E): Start writes a status and an activity row, which demo mode refuses (D-008). See docs/runbook.md, "Playwright live mode".',
@@ -32,7 +25,11 @@ test.describe('editor board with Clerk and a database', () => {
   }) => {
     await page.goto(EDITOR_BOARD);
     const board = page.locator('[data-slot="kanban-board"]');
+    // Exactly the three EDITOR_STAGES columns, in mapping order, and nothing before them.
     const columns = board.locator(':scope > div');
+    await expect(columns).toHaveCount(3);
+    await expect(columns.nth(0)).toContainText('Sent to Editor/Designer');
+    await expect(columns.nth(1)).toContainText('Under Editing');
     const card = columns.nth(0).locator('[data-slot="kanban-card"]').first();
     await expect(card).toBeVisible();
     const id = (await card.getAttribute('data-card-id')) ?? '';

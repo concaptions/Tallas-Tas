@@ -7,6 +7,7 @@ import { isDemoMode } from '@/lib/demo-mode';
 import { buildSheetItems } from './build-items';
 import type { LinkOption } from './creative-sheet-panel';
 import { CreativeSheetWorkspace } from './creative-sheet-workspace';
+import type { EditorBoardBrief } from './editor-board';
 import { isKanbanField, SEARCH_PARAM, SELECTION_PARAM } from './fields';
 
 /**
@@ -19,10 +20,12 @@ import { isKanbanField, SEARCH_PARAM, SELECTION_PARAM } from './fields';
  * (GRATSI-MATCH, 2026-10-04): fixtures in demo mode, the brand-scoped queries otherwise; the page
  * does not know which and does not branch on it. The computed name arrives on the row from the
  * query layer, and the lookup cells are computed once in `buildSheetItems` — nothing is computed
- * inside a component. The brief picker's options come from `loadBriefs()`, the same source the
- * Creative Design page reads. Table state is query parameters — `?creative-sheet=` for the open
- * panel, `?q=` for the filter, `?view=` and `?groupBy=` for the board — so a refresh restores the
- * view.
+ * inside a component. The brief picker's options AND the "Editing stage" board's cards come from
+ * `loadBriefs()`, every brief of the brand, the same source the Creative Design page read. Table
+ * state is query parameters — `?creative-sheet=` for the open panel, `?q=` for the filter, `?view=`
+ * and `?groupBy=` for the board — so a refresh restores the view. `?group=` is accepted as an alias
+ * of `?groupBy=`: the retired Creative Design list's `?group=editorStage` redirects here with its
+ * query string, so an old bookmark of the editor board still lands on it.
  */
 interface CreativeSheetPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -43,6 +46,16 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
   const items = buildSheetItems(workspace, new Date());
 
   const briefs: LinkOption[] = briefResult.rows.map(({ id, name }) => ({ id, name }));
+  const boardBriefs: EditorBoardBrief[] = briefResult.rows.map(
+    ({ id, name, internalStatus, type, priority, assignee }) => ({
+      id,
+      name,
+      internalStatus,
+      type,
+      priority,
+      assignee,
+    }),
+  );
 
   const requested = params[SELECTION_PARAM];
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -56,7 +69,7 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
       ? (requestedView as ViewType)
       : 'grid';
 
-  const requestedGroupBy = params.groupBy;
+  const requestedGroupBy = params.groupBy ?? params.group;
   const initialKanbanField =
     typeof requestedGroupBy === 'string' && isKanbanField(requestedGroupBy)
       ? requestedGroupBy
@@ -68,6 +81,7 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
       unconfiguredColumns={unconfiguredColumns}
       items={items}
       briefs={briefs}
+      boardBriefs={boardBriefs}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

@@ -6,12 +6,13 @@ import {
   type CreativeSheetStatusesKey,
   type CreativeSheetWinningKey,
 } from '@tas/db/schema';
-import type { ChipTone } from '@tas/domain/state';
+import { EDITOR_STAGES, type ChipTone } from '@tas/domain/state';
 
 import type {
   CreativeSheetCheck,
   CreativeSheetFieldName,
   CreativeSheetKanbanField,
+  CreativeSheetStatusField,
 } from './actions';
 
 /**
@@ -29,7 +30,12 @@ import type {
  * time: the actions own the unions their zod schema validates. A type-only re-export is erased,
  * so this module stays importable from a client component.
  */
-export type { CreativeSheetCheck, CreativeSheetFieldName, CreativeSheetKanbanField };
+export type {
+  CreativeSheetCheck,
+  CreativeSheetFieldName,
+  CreativeSheetKanbanField,
+  CreativeSheetStatusField,
+};
 
 /** The dash an empty cell shows, so a null value is never just a gap. */
 export const EM_DASH = '—';
@@ -254,17 +260,26 @@ export interface SheetKanbanColumn {
 }
 
 /**
- * The board's columns for a group-by field: the vocabulary in its own order, empties kept, plus a
- * trailing "Not set" column so a row with a NULL status is on the board rather than silently gone.
+ * The board's columns for a group-by field. For the two sheet statuses: the vocabulary in its own
+ * order, empties kept, plus a trailing "Not set" column so a row with a NULL status is on the board
+ * rather than silently gone. For the editor board: exactly the three `EDITOR_STAGES`, in mapping
+ * order and nothing after them — a brief with no stage is OFF the board, counted in one line, never
+ * a fourth column.
  */
 export function kanbanColumnsFor(field: CreativeSheetKanbanField): readonly SheetKanbanColumn[] {
+  if (field === 'editorStage') {
+    return EDITOR_STAGES.map(({ key, label }) => ({ key, label }));
+  }
   const options = field === 'internalStatus' ? INTERNAL_STATUS_OPTIONS : STATUS_OPTIONS;
   return [...options.map(({ key, label }) => ({ key, label })), { key: '', label: NOT_SET }];
 }
 
-/** The view of the field a card is grouped by, so the card's chip matches its column. */
+/**
+ * The view of the sheet field a card is grouped by, so the card's chip matches its column. The
+ * editor board is not a sheet field: its cards are briefs, built by `editor-board.ts`.
+ */
 export function kanbanView(
-  field: CreativeSheetKanbanField,
+  field: CreativeSheetStatusField,
   item: Pick<SheetSearchable, 'internalStatus' | 'status'>,
 ): SheetStatusView | null {
   return field === 'internalStatus'
@@ -272,7 +287,12 @@ export function kanbanView(
     : statusView(item.status);
 }
 
-/** True when the string names one of the two groupable fields. */
-export function isKanbanField(value: string): value is CreativeSheetKanbanField {
+/** True when the string names one of the two sheet statuses a drop writes through the sheet. */
+export function isSheetStatusField(value: string): value is CreativeSheetStatusField {
   return value === 'internalStatus' || value === 'status';
+}
+
+/** True when the string names one of the three groupable fields (`?groupBy=`). */
+export function isKanbanField(value: string): value is CreativeSheetKanbanField {
+  return isSheetStatusField(value) || value === 'editorStage';
 }
