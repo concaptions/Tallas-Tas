@@ -228,7 +228,7 @@ function CustomPageRow({ page, brandId, demo, disabled }: CustomPageRowProps) {
       ) : null}
       {promotionState !== null && promotionState.ok ? (
         <p data-slot="custom-page-promoted" className="text-xs text-ok" role="status">
-          Request opened for every client brand.
+          Sent to the Propagation page for an Admin to approve.
         </p>
       ) : null}
     </li>

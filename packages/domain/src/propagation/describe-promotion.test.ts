@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  pagePushSubject,
   PROMOTION_UNKNOWN_BRAND,
   describePromotion,
   humanizeIdentifier,
@@ -125,5 +126,29 @@ describe('the cell labels', () => {
     expect(promotionBrandLabel(null)).toBe(PROMOTION_UNKNOWN_BRAND);
     expect(promotionBrandLabel(undefined)).toBe(PROMOTION_UNKNOWN_BRAND);
     expect(promotionBrandLabel('')).toBe(PROMOTION_UNKNOWN_BRAND);
+  });
+});
+
+describe('a template page push (B3)', () => {
+  const push = {
+    brandName: 'Creative Hub Template',
+    tableName: 'custom_interface_pages',
+    fieldName: 'push',
+    proposedValue: JSON.stringify({ slug: 'partnership-ads', title: 'Partnership Ads Tracking' }),
+  };
+
+  it('reads the page out of the stored JSON', () => {
+    expect(pagePushSubject(push)).toEqual({
+      title: 'Partnership Ads Tracking',
+      slug: 'partnership-ads',
+    });
+    expect(pagePushSubject({ ...push, tableName: 'personas' })).toBeNull();
+    expect(pagePushSubject({ ...push, proposedValue: 'not json' })).toBeNull();
+  });
+
+  it('describes it as a push to every client brand, naming the page', () => {
+    expect(describePromotion(push)).toBe(
+      'Creative Hub Template requests pushing the page "Partnership Ads Tracking" to every client brand.',
+    );
   });
 });

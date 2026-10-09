@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { propagateCustomFieldSchema } from './custom-field-schemas';
+import { propagateCustomInterfacePageToChildren } from './custom-interface-pages';
+import { recordPropagationRun } from './propagation-runs';
 import type { Db } from './db';
 import { listChildBrands, PROPAGATION_TABLES, propagateTemplateRow } from './propagation';
 import {
@@ -226,6 +228,36 @@ export async function applyApprovedPromotion(
       request.rowId,
       actorId,
       children.map((c) => c.id),
+    );
+    return { applied: true, childrenUpdated: result.childrenUpdated };
+  }
+
+  // A TEMPLATE page push (B3, 2026-10-10): the request is template-side, like a custom field
+  // schema — `brand_id` is the template brand and `row_id` the template page. Approval runs the
+  // one page propagation and writes the ledger row the engine never wrote before.
+  if (request.tableName === 'custom_interface_pages' && request.rowId) {
+    const templateBrandId = request.brandId;
+    const children = await listChildBrands(db, templateBrandId);
+    const result = await propagateCustomInterfacePageToChildren(
+      db,
+      request.rowId,
+      children.map((c) => c.id),
+      actorId,
+    );
+    if (!result.applied) {
+      return { applied: false, reason: result.reason ?? 'The page could not be pushed' };
+    }
+    await recordPropagationRun(
+      db,
+      {
+        templateBrandId,
+        tableName: 'custom_interface_pages',
+        trigger: 'interface',
+        templateRowId: request.rowId,
+        childrenUpdated: result.childrenUpdated,
+        skipped: Math.max(0, children.length - result.childrenUpdated),
+      },
+      actorId,
     );
     return { applied: true, childrenUpdated: result.childrenUpdated };
   }

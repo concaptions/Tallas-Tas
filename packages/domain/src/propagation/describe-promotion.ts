@@ -27,6 +27,27 @@ export interface PromotionSubject {
   readonly tableName: string;
   /** The origin field, as stored: `pain_points`, `reference_links`. */
   readonly fieldName: string;
+  /** The proposed value, as stored; a page push carries `{"slug","title"}` JSON here. */
+  readonly proposedValue?: string | null;
+}
+
+/** The table a template page push names, and the one field name it uses. */
+export const PAGE_PUSH_TABLE = 'custom_interface_pages';
+export const PAGE_PUSH_FIELD = 'push';
+
+/** The page a push request names, read out of its stored JSON; null when it is not a push. */
+export function pagePushSubject(request: PromotionSubject): { title: string; slug: string } | null {
+  if (request.tableName !== PAGE_PUSH_TABLE || request.fieldName !== PAGE_PUSH_FIELD) return null;
+  try {
+    const parsed: unknown = JSON.parse(request.proposedValue ?? '');
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const record = parsed as Record<string, unknown>;
+    const title = typeof record['title'] === 'string' ? record['title'] : '';
+    const slug = typeof record['slug'] === 'string' ? record['slug'] : '';
+    return title === '' && slug === '' ? null : { title: title || slug, slug };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -79,6 +100,10 @@ export function promotionBrandLabel(brandName: string | null | undefined): strin
  * scope for this ticket and there is no second brand column to name.
  */
 export function describePromotion(request: PromotionSubject): string {
+  const page = pagePushSubject(request);
+  if (page !== null) {
+    return `${promotionBrandLabel(request.brandName)} requests pushing the page "${page.title}" to every client brand.`;
+  }
   const brand = promotionBrandLabel(request.brandName);
   const field = promotionFieldLabel(request.fieldName);
   const table = promotionTableLabel(request.tableName);
