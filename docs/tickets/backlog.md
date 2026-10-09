@@ -105,4 +105,6 @@ approval queue + ads pending launch).
 ## Phase 7 · hardening
 
 Load test propagation (50 brands × 100 rows) · backup/restore runbook · secrets rotation runbook ·
-feature flags.
+feature flags · UPLOAD-PUBLIC-ROUTE: `POST /u/<token>` for upload links (creates an asset in the brand's
+library, rate-limited, token-expiry gated; today only the Clerk-gated `/api/assets/upload` exists —
+docs/decisions.md 2026-10-10).

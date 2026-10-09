@@ -2053,3 +2053,11 @@ pins that no template row is ever visible with an empty column set. The client c
 Same session: the stray `test` brand (`1e8c34ea…`, created 2026-09-24, no content, no assignments, six
 §10 page rows, one view-preference row) was soft-deleted with its `interface_pages` and `interface_fields`
 rows; `notification_settings` and the view-preference row were left, unreachable behind the deleted brand.
+
+## 2026-10-10 — Upload Links do not accept files from a public URL yet
+
+upload_links rows carry a token, but no public route accepts a file against that token. The only upload
+surface is /api/assets/upload, which requires a Clerk session and brand entitlement. If a token link is
+handed to a recipient outside the agency, a POST /u/<token> handler must be built first (creates an asset
+in the brand's library, rate-limited, token-expiry gated). Backlog ticket: UPLOAD-PUBLIC-ROUTE. Not
+blocking any current workflow.
