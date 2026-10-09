@@ -20,6 +20,7 @@ import {
 } from '@tas/db/schema';
 import { BRIEF_NAME_DEFAULT_SOURCE, generateBriefName } from '@tas/domain/briefs';
 import {
+  conceptNameSegment,
   creativeTrack,
   dimensionsFor,
   isCreativeFunnel,
@@ -637,7 +638,9 @@ export async function createBriefAction(
             funnel: values.funnel,
             creativeType: values.type,
             number: briefNumber,
-            concept: concept?.name ?? null,
+            // The concept's `Angle-Theme` segment, not its whole `Batch-Angle-Theme` name: the
+            // batch is already the trailing segment (audit item 7 found `…-B1-Pain-UGC-B1`).
+            concept: concept === null ? null : conceptNameSegment(concept),
             batch: base.batch,
           }),
         override === null ? 'auto' : 'manual',

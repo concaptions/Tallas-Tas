@@ -141,6 +141,18 @@ describe('createBriefAction · what reaches the query layer', () => {
     expect(seam.created).toHaveLength(0);
   });
 
+  it('prints a linked concept as its Angle-Theme segment and the batch once', async () => {
+    live();
+
+    await createBriefAction(null, form({ ...submitted, conceptId: LINKED_CONCEPT_ID, batch: '' }));
+
+    expect(seam.created[0]).toMatchObject({
+      values: { conceptId: LINKED_CONCEPT_ID, batch: 'B1' },
+      name: 'TAS-TOF-V007-Pain-UGC-B1',
+      nameMode: 'auto',
+    });
+  });
+
   it('stores a hand-typed name verbatim as manual, which no rename will ever touch', async () => {
     live();
 
