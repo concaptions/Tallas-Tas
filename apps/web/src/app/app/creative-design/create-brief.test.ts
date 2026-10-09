@@ -13,7 +13,7 @@ import { createBriefAction } from './actions';
  */
 interface Seam {
   actor: string | null;
-  /** Every `createBriefWithSheetRow` call: the values, the name the callback produced, the mode. */
+  /** Every `createBrief` call: the values, the name the callback produced, the mode. */
   created: { values: CreateBriefValues; name: string; nameMode: BriefNameMode }[];
   /** The number the fake allocator hands the callback. */
   nextNumber: number;
@@ -47,7 +47,7 @@ vi.mock('@tas/db', async (importOriginal) => {
           : null,
       ),
     listBriefs: () => Promise.resolve([]),
-    createBriefWithSheetRow: (
+    createBrief: (
       _db: Db,
       _brandId: string,
       values: CreateBriefValues,
@@ -56,10 +56,7 @@ vi.mock('@tas/db', async (importOriginal) => {
     ) => {
       const name = nameFor(seam.nextNumber);
       seam.created.push({ values, name, nameMode });
-      return Promise.resolve({
-        brief: { id: 'brief-created', name },
-        sheetItem: { id: 'sheet-row-created' },
-      });
+      return Promise.resolve({ id: 'brief-created', name });
     },
   };
 });

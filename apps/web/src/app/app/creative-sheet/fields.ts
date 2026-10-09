@@ -51,9 +51,6 @@ export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 export const SELECTION_PARAM = 'creative-sheet';
 export const SEARCH_PARAM = 'q';
 
-/** The `?creative-sheet=` value that means "the panel is open on a row that does not exist yet". */
-export const NEW_ITEM = 'new';
-
 /** One select value, ready to render: the stored key, its label and the chip tone it carries. */
 export interface SheetStatusView {
   readonly key: string;
@@ -147,17 +144,12 @@ export const SHEET_CHECKS: readonly SheetCheckField[] = [...QA_CHECKS, SPELL_CHE
 
 /** The labels of the non-checkbox fields, so the panel and the E2E assertion read one string. */
 export const SHEET_LABELS = {
-  briefId: 'Creative Name',
   internalStatus: 'Internal Status',
   status: 'Status',
   qaChecklistDoc: 'QA Checklist Doc',
   spellingFeedback: 'Spelling Feedback',
   dimensions: 'Dimensions',
 } as const;
-
-/** What a row that has no id yet reads where the Dimensions field will be. */
-export const DIMENSIONS_AFTER_SAVE_NOTE =
-  'Dimensions can be picked once the row is saved; they start as the linked creative’s.';
 
 /** The Dimensions field's add-select placeholder. */
 export const DIMENSIONS_ADD_PLACEHOLDER = 'Add a ratio';
@@ -181,7 +173,10 @@ export const SHEET_GROUPS = {
   spelling: 'Spelling',
 } as const;
 
-/** The read-only lookups the panel shows under the brief picker, all joined by the query layer. */
+/** The link from the panel's header to the creative's own page, where the rest is edited. */
+export const OPEN_CREATIVE_LABEL = 'Open the creative’s page';
+
+/** The read-only lookups the panel shows beneath the ratios, all read from the brief itself. */
 export const BRIEF_LOOKUP_LABELS = {
   briefType: 'Type',
   briefPlatform: 'Platform',

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
   BRIEF_CLIENT_STATUS_DEFAULT,
-  createBriefWithSheetRow,
+  createBrief,
   getBriefById,
   getConceptById,
   insertActivity,
@@ -625,9 +625,9 @@ export async function createBriefAction(
         values.nameOverride !== ''
           ? values.nameOverride
           : null;
-      // One transaction: the brand-wide `brief_number` under the advisory lock, the brief, and
-      // its Creative Sheet row — "New creative" on the sheet never leaves a row without a brief.
-      const created = await createBriefWithSheetRow(
+      // One transaction: the brand-wide `brief_number` under the advisory lock and the brief. The
+      // Creative Sheet is a view over the briefs, so the new creative is on the sheet at once.
+      const created = await createBrief(
         db,
         brandId,
         base,
@@ -646,12 +646,7 @@ export async function createBriefAction(
         override === null ? 'auto' : 'manual',
         actor,
       );
-      return {
-        ok: true as const,
-        id: created.brief.id,
-        name: created.brief.name,
-        savedAt: Date.now(),
-      };
+      return { ok: true as const, id: created.id, name: created.name, savedAt: Date.now() };
     });
 
     if (outcome === null) {

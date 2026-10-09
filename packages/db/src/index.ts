@@ -45,7 +45,7 @@ export type { BriefSnapshot } from './briefs-e2e';
 export type { AngleInput, AngleListRow } from './angles';
 export {
   allocateBriefNumber,
-  createBriefWithSheetRow,
+  createBrief,
   getBriefById,
   insertBrief,
   listBriefs,
@@ -53,8 +53,9 @@ export {
   renameBrief,
   updateBrief,
   updateBriefClientStatus,
+  updateBriefDimensions,
 } from './briefs';
-export type { BriefInput, BriefListRow, CreateBriefValues, CreatedBrief } from './briefs';
+export type { BriefInput, BriefListRow, CreateBriefValues } from './briefs';
 export {
   getUploadLinkById,
   getUploadLinkByToken,

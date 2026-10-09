@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { createBriefWithSheetRow, getBriefById, insertBrief, renameBrief } from './briefs';
+import { createBrief, getBriefById, insertBrief, renameBrief } from './briefs';
 import { DEMO_BRAND_ID } from './demo-data';
-import { creativeBriefs, creativeSheetItems } from './schema';
+import { creativeBriefs } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
 
@@ -88,12 +88,12 @@ describe('renameBrief', () => {
   });
 });
 
-describe('createBriefWithSheetRow', () => {
-  it('names the brief through the callback with the allocated number, stores source and name_mode, and links one sheet row', async () => {
+describe('createBrief', () => {
+  it('names the brief through the callback with the allocated number and stores source and name_mode', async () => {
     const db = await freshDb();
     const numbers: number[] = [];
 
-    const created = await createBriefWithSheetRow(
+    const created = await createBrief(
       db,
       DEMO_BRAND_ID,
       { source: 'Client', funnel: 'TOF', type: 'Static', batch: 'B4', dimensions: ['1:1'] },
@@ -106,22 +106,12 @@ describe('createBriefWithSheetRow', () => {
     );
 
     expect(numbers).toEqual([1]);
-    expect(created.brief).toMatchObject({
+    expect(created).toMatchObject({
       brandId: DEMO_BRAND_ID,
       name: 'Client-TOF-S001-B4',
       briefNumber: 1,
       source: 'Client',
       nameMode: 'auto',
-      createdBy: ACTOR,
-    });
-    // The sheet row is the brief's, in the same brand, carrying the same ratios (as 0059 copies).
-    const [sheetRow] = await db
-      .select()
-      .from(creativeSheetItems)
-      .where(eq(creativeSheetItems.briefId, created.brief.id));
-    expect(sheetRow).toMatchObject({
-      id: created.sheetItem.id,
-      brandId: DEMO_BRAND_ID,
       dimensions: ['1:1'],
       createdBy: ACTOR,
     });
@@ -131,27 +121,19 @@ describe('createBriefWithSheetRow', () => {
     const db = await freshDb();
     const name = (n: number): string => `TAS-TOF-V00${String(n)}`;
 
-    const first = await createBriefWithSheetRow(db, DEMO_BRAND_ID, {}, name, 'auto', ACTOR);
-    const second = await createBriefWithSheetRow(db, DEMO_BRAND_ID, {}, name, 'manual', ACTOR);
+    const first = await createBrief(db, DEMO_BRAND_ID, {}, name, 'auto', ACTOR);
+    const second = await createBrief(db, DEMO_BRAND_ID, {}, name, 'manual', ACTOR);
 
-    expect([first.brief.briefNumber, second.brief.briefNumber]).toEqual([1, 2]);
-    expect(second.brief.nameMode).toBe('manual');
+    expect([first.briefNumber, second.briefNumber]).toEqual([1, 2]);
+    expect(second.nameMode).toBe('manual');
   });
 
-  it('stores nothing when the sheet row cannot be written: one transaction', async () => {
+  it('stores nothing when the insert fails: one transaction', async () => {
     const db = await freshDb();
     const before = await db.select().from(creativeBriefs);
 
-    // A brand that does not exist fails the sheet row's FK after the brief insert would have run.
     await expect(
-      createBriefWithSheetRow(
-        db,
-        '00000000-0000-4000-8000-000000000000',
-        {},
-        () => 'x',
-        'auto',
-        ACTOR,
-      ),
+      createBrief(db, '00000000-0000-4000-8000-000000000000', {}, () => 'x', 'auto', ACTOR),
     ).rejects.toThrow();
 
     const after = await db.select().from(creativeBriefs);

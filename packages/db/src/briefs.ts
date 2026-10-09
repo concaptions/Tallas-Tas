@@ -9,10 +9,8 @@ import {
   products,
   type BriefNameMode,
   type CreativeBrief,
-  type CreativeSheetItem,
   type NewCreativeBrief,
 } from './schema';
-import { insertCreativeSheetItem } from './creative-sheet-items';
 import { withBrand, type BrandScope } from './tenancy';
 
 /**
@@ -287,44 +285,59 @@ export async function renameBrief(
 /** What "New creative" stores before the number is allocated and the name computed from it. */
 export type CreateBriefValues = Omit<BriefInput, 'name' | 'briefNumber' | 'nameMode'>;
 
-export interface CreatedBrief {
-  readonly brief: CreativeBrief;
-  readonly sheetItem: CreativeSheetItem;
-}
-
 /**
  * "New creative" on the Creative Sheet (2026-10-09, audit item 7): ONE transaction that allocates
- * the brand-wide number under the advisory lock, stores the brief with the name `nameFor` builds
- * from that number, and links a sheet row to it — so a sheet row never exists without a named,
- * numbered creative behind it, and two concurrent creates never share a number.
+ * the brand-wide number under the advisory lock and stores the brief with the name `nameFor`
+ * builds from that number — so two concurrent creates never share a number. Since the
+ * single-source cutover the Creative Sheet is a view over the briefs, so there is no sheet row to
+ * write beside it: the brief IS the sheet row.
  *
  * The name is the caller's: `@tas/db` never builds one (CLAUDE.md non-negotiable 6; the formula is
  * `generateBriefName` in `@tas/domain/briefs`, which this package cannot import). `nameMode` says
  * who owns it afterwards — `auto` follows the concept's renames, `manual` is never rewritten
- * (migration 0060). The sheet row copies the brief's ratios, as the 0059 backfill did.
+ * (migration 0060).
  */
-export async function createBriefWithSheetRow(
+export async function createBrief(
   db: Db,
   brandId: string,
   values: CreateBriefValues,
   nameFor: (briefNumber: number) => string,
   nameMode: BriefNameMode,
   actorId: string,
-): Promise<CreatedBrief> {
+): Promise<CreativeBrief> {
   return db.transaction(async (tx) => {
     const briefNumber = await allocateBriefNumber(tx, brandId);
-    const brief = await insertBrief(
+    return insertBrief(
       tx,
       brandId,
       { ...values, name: nameFor(briefNumber), briefNumber, nameMode },
       actorId,
     );
-    const sheetItem = await insertCreativeSheetItem(
-      tx,
-      brandId,
-      { briefId: brief.id, dimensions: [...brief.dimensions] },
-      actorId,
-    );
-    return { brief, sheetItem };
   });
+}
+
+/**
+ * Replaces the ratios of one live brief of the brand (`dimensions`) and returns the brief, or null
+ * when the id is another brand's or soft-deleted. THE one write path for dimensions since the
+ * single-source cutover: the Creative Sheet's save-on-pick field calls this, and the brief page's
+ * form writes the same column through `updateBrief`, so the sheet and the brief page can never
+ * show two different arrays. The Server Action has already validated and normalised every value
+ * through `@tas/domain/creatives`; this function stores what it is given, scoped, and holds no
+ * vocabulary of its own.
+ */
+export async function updateBriefDimensions(
+  db: Db,
+  brandId: string,
+  id: string,
+  dimensions: readonly string[],
+  actorId: string,
+): Promise<CreativeBrief | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creativeBriefs,
+      { dimensions: [...dimensions], updatedBy: actorId, updatedAt: new Date() },
+      eq(creativeBriefs.id, id),
+    )
+    .returning();
+  return row ?? null;
 }

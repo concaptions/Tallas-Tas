@@ -5,29 +5,28 @@ import { auth } from '@clerk/nextjs/server';
 import {
   updateConceptClientApproval,
   updateCopyClientApproval,
-  updateCreativeSheetClientApproval,
   updateCreatorClientApproval,
   type Db,
 } from '@tas/db';
 import { CLIENT_APPROVAL_STATUS } from '@tas/domain/state';
 
 import { withBrandScope as withConceptScope } from './concepts-source';
-import { withBrandScope as withCreativeSheetScope } from './creative-sheet-source';
 import { withBrandScope as withCopyScope } from './copy-source';
 import { withBrandScope as withUgcScope } from './ugc-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from './demo-mode';
-import { conceptsPath, copywritingPath, creativeSheetPath, ugcPath } from './routes';
+import { conceptsPath, copywritingPath, ugcPath } from './routes';
 
 /**
- * The server action for the `client_approval_status` column on `creative_sheet_items` and
- * `copywriting` (Talal sync action item). These columns are SEPARATE from the two-track
+ * The server action for the `client_approval_status` column on `copywriting`, `concepts` and
+ * `creators` (Talal sync action item). These columns are SEPARATE from the two-track
  * `clientStatus` column: the two-track is the PRD approval flow, while client approval status
- * is the client's direct response to a delivered creative or copy. The dispatch pattern mirrors
- * `client-status-actions.ts`, with one entry point for both tables.
+ * is the client's direct response to a delivered copy, concept or creator. The dispatch pattern
+ * mirrors `client-status-actions.ts`, with one entry point for the three tables. The Creative
+ * Sheet is no longer here: since the single-source cutover (2026-10-09) a creative's approval IS
+ * `creative_briefs.client_status`, written through `client-status-actions.ts`.
  */
 
-export type ClientApprovalTableKey =
-  'creative_sheet_items' | 'copywriting' | 'concepts' | 'creators';
+export type ClientApprovalTableKey = 'copywriting' | 'concepts' | 'creators';
 
 export interface UpdateClientApprovalArgs {
   readonly tableKey: ClientApprovalTableKey;
@@ -66,8 +65,6 @@ type ClientApprovalDispatch = (
 ) => Promise<{ clientApprovalStatus?: string | null } | null>;
 
 const DISPATCH: Record<ClientApprovalTableKey, ClientApprovalDispatch> = {
-  creative_sheet_items: async (db, brandId, id, status, note, actorId) =>
-    updateCreativeSheetClientApproval(db, brandId, id, status, note, actorId),
   copywriting: async (db, brandId, id, status, note, actorId) =>
     updateCopyClientApproval(db, brandId, id, status, note, actorId),
   concepts: async (db, brandId, id, status, note, actorId) =>
@@ -77,7 +74,6 @@ const DISPATCH: Record<ClientApprovalTableKey, ClientApprovalDispatch> = {
 };
 
 const REVALIDATE: Record<ClientApprovalTableKey, readonly string[]> = {
-  creative_sheet_items: [creativeSheetPath],
   copywriting: [copywritingPath],
   concepts: [conceptsPath],
   creators: [ugcPath],
@@ -85,8 +81,6 @@ const REVALIDATE: Record<ClientApprovalTableKey, readonly string[]> = {
 
 function scopeFor(tableKey: ClientApprovalTableKey) {
   switch (tableKey) {
-    case 'creative_sheet_items':
-      return withCreativeSheetScope;
     case 'copywriting':
       return withCopyScope;
     case 'concepts':

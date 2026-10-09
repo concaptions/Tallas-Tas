@@ -6,7 +6,6 @@ import { loadCreativeSheetColumns, loadCreativeSheetWorkspace } from '@/lib/crea
 import { isDemoMode } from '@/lib/demo-mode';
 
 import { buildSheetItems } from './build-items';
-import type { LinkOption } from './creative-sheet-panel';
 import { CreativeSheetWorkspace } from './creative-sheet-workspace';
 import type { EditorBoardBrief } from './editor-board';
 import type { ConceptOption } from './new-creative-dialog';
@@ -22,8 +21,8 @@ import { isKanbanField, SEARCH_PARAM, SELECTION_PARAM } from './fields';
  * (GRATSI-MATCH, 2026-10-04): fixtures in demo mode, the brand-scoped queries otherwise; the page
  * does not know which and does not branch on it. The computed name arrives on the row from the
  * query layer, and the lookup cells are computed once in `buildSheetItems` — nothing is computed
- * inside a component. The brief picker's options AND the "Editing stage" board's cards come from
- * `loadBriefs()`, every brief of the brand, the same source the Creative Design page read; the
+ * inside a component. The "Editing stage" board's cards come from `loadBriefs()`, every brief of
+ * the brand, the same source the Creative Design page read; the
  * "New creative" dialog's Concept select comes from `loadConcepts()`. Table
  * state is query parameters — `?creative-sheet=` for the open panel, `?q=` for the filter, `?view=`
  * and `?groupBy=` for the board — so a refresh restores the view. `?group=` is accepted as an alias
@@ -58,7 +57,6 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
 
   const items = buildSheetItems(workspace, new Date());
 
-  const briefs: LinkOption[] = briefResult.rows.map(({ id, name }) => ({ id, name }));
   const boardBriefs: EditorBoardBrief[] = briefResult.rows.map(
     ({ id, name, internalStatus, type, priority, assignee }) => ({
       id,
@@ -103,7 +101,6 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
       columns={columns}
       unconfiguredColumns={unconfiguredColumns}
       items={items}
-      briefs={briefs}
       boardBriefs={boardBriefs}
       conceptOptions={conceptOptions}
       nextNumber={nextNumber}

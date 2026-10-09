@@ -1,7 +1,13 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { insertBrief, listBriefs, updateBrief } from './briefs';
+import {
+  getBriefById,
+  insertBrief,
+  listBriefs,
+  updateBrief,
+  updateBriefDimensions,
+} from './briefs';
 import {
   getCreativeSheetItemById,
   listCreativeSheetItems,
@@ -99,6 +105,26 @@ describe('the Creative Sheet view over creative_briefs', () => {
       qaDesigner: true,
       dimensions: ['4:5'],
     });
+  });
+
+  it('has ONE write path for dimensions: the sheet’s pick and the brief page land on the same column', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const brief = await insertBrief(db, brandId, { name: 'TAS-TOF-V044-Ratios' }, ACTOR);
+
+    // The sheet's save-on-pick field writes through updateBriefDimensions …
+    const picked = await updateBriefDimensions(db, brandId, brief.id, ['9:16', '4:5'], ACTOR);
+    expect(picked?.dimensions).toEqual(['9:16', '4:5']);
+    // … and the brief page, which reads the brief, sees exactly that; so does the sheet row.
+    expect((await getBriefById(db, brandId, brief.id))?.dimensions).toEqual(['9:16', '4:5']);
+    expect((await getCreativeSheetItemById(db, brandId, brief.id))?.dimensions).toEqual([
+      '9:16',
+      '4:5',
+    ]);
+    // The reverse: the brief page's form writes the same column, and the sheet shows it.
+    await updateBrief(db, brandId, brief.id, { dimensions: ['1:1'] }, ACTOR);
+    expect((await getCreativeSheetItemById(db, brandId, brief.id))?.dimensions).toEqual(['1:1']);
+    // Scoped: another brand's id never resolves.
+    expect(await updateBriefDimensions(db, otherBrandId, brief.id, ['9:16'], ACTOR)).toBeNull();
   });
 
   it('returns nothing for another brand, and nothing once a brief is soft-deleted', async () => {

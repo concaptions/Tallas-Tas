@@ -21,7 +21,7 @@ import { moveBriefStageAction, startBriefAction } from '@/app/app/creative-desig
 import { briefPath } from '@/lib/routes';
 
 import { moveCreativeSheetItemAction } from './actions';
-import { CreativeSheetPanel, NEW_ITEM, type LinkOption } from './creative-sheet-panel';
+import { CreativeSheetPanel } from './creative-sheet-panel';
 import { editorBoardItems, offBoardLabel, type EditorBoardBrief } from './editor-board';
 import { NewCreativeDialog, type ConceptOption } from './new-creative-dialog';
 import {
@@ -97,7 +97,6 @@ interface CreativeSheetWorkspaceProps {
   /** True when `columns` is the parent master-set fallback because the brand resolved none. */
   readonly unconfiguredColumns?: boolean;
   readonly items: readonly SheetItemView[];
-  readonly briefs: readonly LinkOption[];
   /** Every brief of the brand, the "Editing stage" board's cards; `[]` keeps that board empty. */
   readonly boardBriefs?: readonly EditorBoardBrief[];
   /** The "New creative" dialog's Concept select; standalone is always offered. */
@@ -334,7 +333,6 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
 
 export function CreativeSheetWorkspace({
   items,
-  briefs,
   boardBriefs = [],
   conceptOptions = [],
   nextNumber = 1,
@@ -392,7 +390,6 @@ export function CreativeSheetWorkspace({
   );
 
   const open = items.find(({ item }) => item.id === selection)?.item ?? null;
-  const creating = selection === NEW_ITEM;
 
   const editorBoard = kanbanField === 'editorStage';
 
@@ -501,10 +498,8 @@ export function CreativeSheetWorkspace({
   );
 
   // "New creative" (2026-10-09, audit item 7): the ONE way a creative is added here. It creates
-  // the brief — auto-named, numbered under the brand's lock — and its sheet row in a single
-  // transaction, so the sheet never carries a row without a named creative behind it. The old
-  // "New sheet row" (an unnamed, unnumbered row) is gone; the panel's create mode stays only for
-  // `?creative-sheet=new` deep links.
+  // the brief — auto-named, numbered under the brand's lock — and, the sheet being a view over the
+  // briefs, the creative is on the sheet at once. There is no sheet-only row to create any more.
   const newCreative = (
     <NewCreativeDialog demo={demo} conceptOptions={conceptOptions} nextNumber={nextNumber} />
   );
@@ -647,11 +642,10 @@ export function CreativeSheetWorkspace({
         )}
       </section>
 
-      {creating || open !== null ? (
+      {open !== null ? (
         <CreativeSheetPanel
           key={selection}
-          item={creating ? null : open}
-          briefs={briefs}
+          item={open}
           demo={demo}
           onClose={close}
           onSaved={saved}
