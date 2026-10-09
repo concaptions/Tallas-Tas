@@ -1724,3 +1724,18 @@ app's small uploads; the re-host script cannot use it because a single signed PU
 SHA-256 up front, which means buffering the whole file — a 300 MB intro video in memory per record.
 `lib-storage`'s `Upload` does multipart from a Node stream, holding at most `partSize × queueSize`
 (8 MB × 2) in flight. No hosted service, no cost: it talks to the same R2 bucket.
+
+## 2026-10-09 — Hotfix: no function props across the server→client boundary on `/design-system`; fonts mock for builds
+
+The Oct 8 rating stories passed `onChange` to `RatingStars` (a 'use client' primitive) from a server
+story module, and Next's prerender of `/design-system` refused to serialise it ("Event handlers
+cannot be passed to Client Component props"), which failed the Vercel build on main. The fix is a
+small 'use client' demo (`rating-stars-demo.tsx`) that owns the state; the page and the story
+modules stay server components. The rule is now enforced by
+`apps/web/src/app/(dev)/design-system/server-safe-props.test.ts`: in a server module of that page, a
+function-valued prop may only go to a component whose own module is not 'use client'.
+
+A real `next build` is the second guard, and it needs Google Fonts, which a sandbox or CI runner
+may not reach. `pnpm --filter @tas/web build:ci` sets Next's own `NEXT_FONT_GOOGLE_MOCKED_RESPONSES`
+hook to `apps/web/test/google-fonts-mock.cjs`, which answers the two `fonts.googleapis.com` CSS
+requests from disk; the fonts themselves are unchanged and the plain `build` still fetches them.

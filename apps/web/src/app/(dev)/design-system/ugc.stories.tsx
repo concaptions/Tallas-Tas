@@ -3,6 +3,8 @@ import { RatingStars } from '@tas/ui';
 import { CreatorCard } from '@/app/app/ugc/creator-card';
 import { PartnershipTable } from '@/app/app/ugc/partnership-table';
 import { RatingWidget } from '@/app/app/ugc/rating-widget';
+
+import { RatingStarsDemo } from './rating-stars-demo';
 import {
   partnershipRow,
   type CreatorCardRow,
@@ -172,8 +174,8 @@ export function RatingStarsStory() {
       </div>
       <div className="flex flex-wrap items-center gap-4">
         <RatingStars value={3} readOnly size="sm" label="Small" />
-        <RatingStars value={4} onChange={() => undefined} label="Editable" />
-        <RatingStars value={2} onChange={() => undefined} disabled label="Disabled" />
+        <RatingStarsDemo initial={4} label="Editable" />
+        <RatingStarsDemo initial={2} disabled label="Disabled" />
       </div>
     </div>
   );
