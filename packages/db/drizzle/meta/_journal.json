@@ -442,6 +442,13 @@
       "when": 1791990600000,
       "tag": "0062_custom_pages_page_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1791990700000,
+      "tag": "0063_standard_page_rows",
+      "breakpoints": true
     }
   ]
 }
