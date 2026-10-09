@@ -104,6 +104,13 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Smoke-test fixes (2026-10-10, `docs/tickets/in-progress/sprint-oct10-smoke-fixes.md`) · no migration.
+  After the deploy: `/client/gratsi` with no client cookie must land on `/client/gratsi/auth` ("Invalid
+  Link", one 307, then 200) — the redirect loop is the route tree, so demo mode cannot show it; and on
+  an imported brief the Dimensions picker must open with its ratios ticked and keep a tick across a
+  refresh. The production cleanup (brief `5dd5e834…` back to `video_editing_in_progress`,
+  `ae4193d7…` soft-deleted) was applied from here on 2026-10-10 by a one-off guarded script, since
+  deleted; the `activity_log` row on `5dd5e834…` names it.
 - Single-source cutover (2026-10-09) · `node apply61.mjs` was applied BEFORE the app push (done, verified).
   After the cutover deploy: `node audit-creative-sheet.mjs` should show the sheet view equal to the live
   briefs per brand (the old table's counts are history now), and the Creative Sheet in production should

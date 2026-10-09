@@ -1920,3 +1920,40 @@ the client approval work had happened on the sheet, and no sheet-only column hel
 Open, logged for Talal: all 378 `qa_checklist_doc` attachments are expired Airtable links on both tables
 (nothing was ever re-hosted to R2 for that field); his team re-uploads, or we re-pull from Airtable
 before more expire.
+
+## 2026-10-10 — Client portal: the token gate lives in a route group; the auth page sits outside it
+
+**Context.** The 2026-10-10 smoke test opened `/client/gratsi` and got ERR_TOO_MANY_REDIRECTS. Trace:
+`[brandSlug]/layout.tsx` holds the token gate (no client cookie → `redirect('/client/<slug>/auth')`), and
+`auth/page.tsx` — the page that reads `?token=` and SETS that cookie — rendered under the same layout.
+Every redirect to `/auth` ran the gate again, found no cookie, and redirected to `/auth`. Nothing in
+demo mode shows it: the gate is skipped without a database.
+
+**Decision.** The gate's layout moved to `[brandSlug]/(portal)/layout.tsx`, a route group over every
+portal page (`page.tsx`, `loading.tsx`, `angles`, `briefs`, `calendar`, `concepts`, `copywriting`, `custom`,
+`themes`, `ugc`); `auth/page.tsx`, `tabs.ts` and `actions.ts` stay at `[brandSlug]/`. A route group is
+invisible in the URL, so every client link and every issued magic link (`/client/<slug>/auth?token=`)
+is unchanged. `portal-gate.test.ts` reads the route tree and fails if a layout appears beside `auth`
+again; `tabs.test.ts` resolves pages through the group.
+
+**Alternatives.** A pathname check inside the layout — layouts do not receive the pathname, and a
+header set by the middleware for that purpose is a second mechanism to keep in step. Moving `auth`
+to `/client/auth/<slug>` — changes a URL already in clients' inboxes. The route group is the App
+Router's own answer: one layout per gated subtree, nothing else.
+
+## 2026-10-10 — Brief page Dimensions: one change per tick, merged on the server under the row lock
+
+**Context.** The brief page's picker set React state and wrote hidden inputs; nothing reached the
+server until "Save brief" ("click 1:1 → no network request, refresh reverts"). It also looked the
+stored values up raw, so an imported brief's Airtable placement names (`Facebook Reels`, 354 briefs
+in production) read as EMPTY — no checkmarks — and its first saved tick would have replaced the
+stored array with the one ratio it could read.
+
+**Decision.** A tick is ONE change — `{ op: 'add' | 'remove', key }` — dispatched at once through
+`changeBriefDimensionAction` and merged onto the STORED array on the server by the domain's
+`applyDimensionChange` (stored normalised, or the §8 defaults for an empty row, ± the one value; a
+legacy name the build cannot place rides through). `updateBriefDimensionsWith` in `@tas/db` runs the
+read-merge-write in one transaction under `pg_advisory_xact_lock(hashtext(brief_id))`, so two ticks
+that race are applied one after the other. The Creative Sheet's field keeps its whole-array write:
+it seeds from the stored array already, so its array is never a guess. The page seeds the picker
+with `briefDimensionKeys` (stored, normalised) and adopts the array the server wrote.
