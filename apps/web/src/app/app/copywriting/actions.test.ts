@@ -46,8 +46,8 @@ interface Seam {
   synced: SyncedCopyTypes[];
   /** Every `setCollectionCopywritingLinkInBrand` call. */
   collectionLinks: LinkedCollection[];
-  /** Every `updateCopy` patch, so a test can assert that `productId` reached the setter. */
-  updates: { readonly productId?: string | null }[];
+  /** Every `updateCopy` patch, so a test can assert what reached the setter for the two row-side links. */
+  updates: { readonly productId?: string | null; readonly creativeBriefId?: string | null }[];
 }
 
 /** Values the mocked seams read at call time, so a test can move the ground under one action. */
@@ -88,9 +88,9 @@ vi.mock('@tas/db', async (importOriginal) => ({
     _db: Db,
     _brandId: string,
     id: string,
-    patch: { productId?: string | null },
+    patch: { productId?: string | null; creativeBriefId?: string | null },
   ): Promise<{ id: string }> => {
-    seam.updates.push({ productId: patch.productId });
+    seam.updates.push({ productId: patch.productId, creativeBriefId: patch.creativeBriefId });
     return Promise.resolve({ id });
   },
   syncCopywritingCopyTypesInBrand: (
@@ -499,6 +499,24 @@ describe('with Clerk configured · the Linked Product control', () => {
     expect(saved(result, 'a save without the product control was refused').id).toBe(STORED.id);
     const [first] = seam.updates;
     expect(first?.productId).toBe(STORED.productId);
+  });
+
+  it('accepts a copy linked to a PRODUCT ONLY — no creative, no collection (Oct 7 item 5)', async () => {
+    live();
+    seam.briefResolves = false;
+
+    const result = await updateCopyAction(
+      null,
+      form({ ...filled, creativeBriefId: '', collectionId: '', productId: PRODUCT_BLANKET }),
+    );
+
+    expect(saved(result, 'a product-only copy row was refused').id).toBe(STORED.id);
+    const [first] = seam.updates;
+    expect(first?.productId).toBe(PRODUCT_BLANKET);
+    expect(first?.creativeBriefId).toBeNull();
+    expect(seam.collectionLinks).toEqual([
+      { brandId: 'brand-under-test', copyId: STORED.id, collectionId: null },
+    ]);
   });
 
   it('writes the picked product id to copywriting.product_id', async () => {
