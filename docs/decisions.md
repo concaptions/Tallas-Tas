@@ -1709,3 +1709,18 @@ registry photo is re-hosted in R2 under `creator-registry/<registry id>/`, image
 (`registry-media.ts`). Instagram avatars come from unavatar.io (`?fallback=false`, 5 req/s), a free
 public service — no scraping, no token, no cost; a row it cannot resolve is logged and left alone.
 Scripts stay flat in `packages/db/src/scripts/` beside the existing ones (no new `queries/` folder).
+
+## 2026-10-09 — Registry intro videos: `intro_videos jsonb` and streamed R2 uploads via `@aws-sdk/lib-storage`
+
+Migration 0058 adds `creator_registry.intro_videos jsonb NOT NULL DEFAULT '[]'` — a list of
+`RegistryIntroVideo` (`url`, `r2Key`, `airtableAttachmentId`, `filename`, `contentType`, `bytes`,
+`sourceBase`, `sourceBrand`, `sourceRecord`, `uploadedAt`). A list rather than one url because the
+same creator records one intro per brand, and the Airtable attachment id is the idempotency key for
+the streaming re-host (`packages/db/stream-airtable-to-r2.mjs`).
+
+**New dependencies (pinned):** `@aws-sdk/client-s3@3.1147.0` and `@aws-sdk/lib-storage@3.1147.0` in
+`@tas/db`. `src/r2.ts` deliberately hand-rolls SigV4 to avoid the SDK, and that stays for the web
+app's small uploads; the re-host script cannot use it because a single signed PUT needs the body's
+SHA-256 up front, which means buffering the whole file — a 300 MB intro video in memory per record.
+`lib-storage`'s `Upload` does multipart from a Node stream, holding at most `partSize × queueSize`
+(8 MB × 2) in flight. No hosted service, no cost: it talks to the same R2 bucket.

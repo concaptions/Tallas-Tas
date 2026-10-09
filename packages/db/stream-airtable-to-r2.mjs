@@ -7,8 +7,9 @@
 // Env (read from the shell, then from <repo>/.env.local for anything unset): DATABASE_URL,
 // AIRTABLE_PAT, AIRTABLE_SOURCE_BASES, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
 // R2_BUCKET, R2_PUBLIC_BASE. Idempotent: a pic already on R2_PUBLIC_BASE and a video whose Airtable
-// attachment id is already in intro_videos are skipped. Uploads use the same dependency-free SigV4
-// PUT as src/r2.ts (no @aws-sdk in this workspace).
+// attachment id is already in intro_videos are skipped. Every file is STREAMED: the Airtable
+// response body is piped into @aws-sdk/lib-storage's multipart Upload, so memory holds at most
+// PART_SIZE × QUEUE_SIZE (16 MB) of a video, never the whole file.
 //
 // Matching: instagram handle first; otherwise the lowercased, trimmed name, and ONLY when exactly one
 // live registry row carries it (an ambiguous name is logged, never guessed). Bases where nothing
@@ -17,10 +18,13 @@
 // Per-base diagnostics come from the table schema (/meta/bases/{id}/tables): "pic field not found"
 // means no candidate field exists in that table (the attachment fields it does have are printed so
 // the mapping can be fixed); "pic field empty" means the field exists but the record has no file.
-import { createHash, createHmac, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { PassThrough, Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import pg from 'pg';
 
 // ---------- env ----------
@@ -108,9 +112,14 @@ const normName = (v) =>
   typeof v === 'string' ? v.trim().toLowerCase().replace(/\s+/g, ' ') || null : null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- R2 SigV4 PUT (mirrors src/r2.ts) ----------
-const hmac = (key, data) => createHmac('sha256', key).update(data).digest();
-const hex = (data) => createHash('sha256').update(data).digest('hex');
+// ---------- R2 streaming upload ----------
+const s3 = new S3Client({
+  region: 'auto',
+  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
+});
+const PART_SIZE = 8 * 1024 * 1024;
+const QUEUE_SIZE = 2;
 const EXT_BY_TYPE = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -126,37 +135,32 @@ function extensionFor(contentType, filename) {
   const fromName = /\.([a-z0-9]{2,5})$/i.exec(filename ?? '')?.[1]?.toLowerCase();
   return EXT_BY_TYPE[contentType] ?? fromName ?? 'bin';
 }
-async function putToR2(key, body, contentType) {
-  const host = `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-  const encodedKey = key.split('/').map(encodeURIComponent).join('/');
-  const url = `https://${host}/${R2_BUCKET}/${encodedKey}`;
-  const now = new Date();
-  const ds = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const amz = `${ds}T${now.toISOString().slice(11, 19).replace(/:/g, '')}Z`;
-  const ph = hex(new Uint8Array(body));
-  const ch = `content-type:${contentType}\nhost:${host}\nx-amz-content-sha256:${ph}\nx-amz-date:${amz}\n`;
-  const sh = 'content-type;host;x-amz-content-sha256;x-amz-date';
-  const cr = `PUT\n/${R2_BUCKET}/${encodedKey}\n\n${ch}\n${sh}\n${ph}`;
-  const scope = `${ds}/auto/s3/aws4_request`;
-  const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${hex(cr)}`;
-  const sk = hmac(
-    hmac(hmac(hmac(`AWS4${R2_SECRET_ACCESS_KEY}`, ds), 'auto'), 's3'),
-    'aws4_request',
-  );
-  const sig = createHmac('sha256', sk).update(sts).digest('hex');
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': contentType,
-      Host: host,
-      'x-amz-content-sha256': ph,
-      'x-amz-date': amz,
-      Authorization: `AWS4-HMAC-SHA256 Credential=${R2_ACCESS_KEY_ID}/${scope}, SignedHeaders=${sh}, Signature=${sig}`,
-    },
-    body: new Uint8Array(body),
+/**
+ * Pipe a web ReadableStream (the Airtable download body) straight into R2. lib-storage reads the
+ * stream in PART_SIZE chunks and keeps at most QUEUE_SIZE parts in flight, so a 300 MB intro never
+ * sits in memory. Bytes are counted on the way through; an empty stream is deleted again and
+ * reported, so a zero-byte object never ends up referenced from the registry.
+ */
+async function streamToR2(key, webBody, contentType) {
+  let bytes = 0;
+  const counter = new PassThrough();
+  counter.on('data', (chunk) => {
+    bytes += chunk.length;
   });
-  if (!res.ok) throw new Error(`R2 PUT ${res.status} ${(await res.text()).slice(0, 200)}`);
-  return { url: `${R2_PUBLIC_BASE}/${key}`, key };
+  const body = Readable.fromWeb(webBody).pipe(counter);
+  const upload = new Upload({
+    client: s3,
+    params: { Bucket: R2_BUCKET, Key: key, Body: body, ContentType: contentType },
+    partSize: PART_SIZE,
+    queueSize: QUEUE_SIZE,
+    leavePartsOnError: false,
+  });
+  await upload.done();
+  if (bytes === 0) {
+    await s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })).catch(() => {});
+    throw new Error('empty body');
+  }
+  return { url: `${R2_PUBLIC_BASE}/${key}`, key, bytes };
 }
 
 // ---------- Airtable ----------
@@ -391,9 +395,7 @@ for (const base of bases) {
               );
             }
             const res = await fetch(attachment.url);
-            if (!res.ok) throw new Error(`download ${res.status}`);
-            const body = await res.arrayBuffer();
-            if (body.byteLength === 0) throw new Error('empty body');
+            if (!res.ok || !res.body) throw new Error(`download ${res.status}`);
             const contentType = (
               attachment.type ||
               res.headers.get('content-type') ||
@@ -402,7 +404,7 @@ for (const base of bases) {
               .split(';')[0]
               .trim();
             const key = `creator-registry/${row.id}/${t.prefix}-${randomUUID()}.${extensionFor(contentType, attachment.filename)}`;
-            const put = await putToR2(key, body, contentType);
+            const put = await streamToR2(key, res.body, contentType);
             if (t.kind === 'pic' || VIDEO_MODE === 'text') {
               await client.query(
                 `UPDATE creator_registry SET ${t.column} = $1, updated_at = now(), updated_by = 'script:stream-airtable-to-r2' WHERE id = $2`,
@@ -416,7 +418,7 @@ for (const base of bases) {
                 airtableAttachmentId: attachment.id ?? null,
                 filename: attachment.filename ?? null,
                 contentType,
-                bytes: body.byteLength,
+                bytes: put.bytes,
                 sourceBase: base.baseId,
                 sourceBrand: label,
                 sourceRecord: record.id,
@@ -434,7 +436,7 @@ for (const base of bases) {
             totals[t.kind].done += 1;
             stats[t.kind].done += 1;
             console.log(
-              `  OK   ${t.kind} ${row.id} <- ${label}/${record.id} (${(body.byteLength / 1024).toFixed(0)} KB)`,
+              `  OK   ${t.kind} ${row.id} <- ${label}/${record.id} (${(put.bytes / 1024).toFixed(0)} KB)`,
             );
           } catch (e) {
             totals[t.kind].failed += 1;
