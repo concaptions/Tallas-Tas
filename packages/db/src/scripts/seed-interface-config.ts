@@ -2,11 +2,11 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { serverEnv } from '@tas/env';
 
 import { createAutoDb, type Db } from '../db';
-import { brands, customInterfacePages, interfaceTabVisibility } from '../schema';
+import { brands, interfaceTabVisibility } from '../schema';
 
 /**
- * Seed the four shipped `interface_tab_visibility` rows for the TEMPLATE brand AND the two
- * default custom pages that mirror the shipped internal / client queues.
+ * Seed the four shipped `interface_tab_visibility` rows for the TEMPLATE brand. (Until 2026-10-10 it
+ * also wrote two template custom pages; see the note above `seedInterfaceConfig` for why it no longer does.)
  *
  *   pnpm --filter @tas/db seed-interface-config -- --dry-run   (default)
  *   pnpm --filter @tas/db seed-interface-config -- --apply
@@ -38,30 +38,14 @@ const STANDARD_TAB_SEEDS = [
   { tabKey: 'copywriting', sortOrder: 4 },
 ] as const;
 
-const DEFAULT_CUSTOM_PAGE_SEEDS = [
-  {
-    slug: 'internal-queue',
-    title: 'Internal Queue',
-    sourceTableKey: 'creative_briefs',
-    filterConfig: { column: 'internal_status', op: 'is_not_empty' as const },
-    columnConfig: [],
-    sortOrder: 10,
-    isVisible: true,
-  },
-  {
-    slug: 'client-queue',
-    title: 'Client Queue',
-    sourceTableKey: 'creative_briefs',
-    filterConfig: {
-      column: 'client_status',
-      op: 'is' as const,
-      value: 'pending_for_approval',
-    },
-    columnConfig: [],
-    sortOrder: 11,
-    isVisible: true,
-  },
-] as const;
+/**
+ * No template custom pages are seeded (2026-10-10). The two queue pages this seed used to write
+ * carried `column_config = []`, which the client route reads as every column of `creative_briefs`
+ * — internal status included — on every brand's portal (non-negotiable 10). They were soft-deleted
+ * in production by `contain-template-pages.mjs`; `insertCustomPage` now refuses the shape, and
+ * `seed-interface-config.test.ts` pins that this seed leaves no such row. `pagesInserted` and
+ * `pagesSkipped` stay in the result, always 0, so the script's report shape is unchanged.
+ */
 
 export interface SeedResult {
   readonly templateBrandId: string | null;
@@ -112,43 +96,8 @@ export async function seedInterfaceConfig(db: Db, actor: string = ACTOR): Promis
     }
   }
 
-  // `custom_interface_pages.brand_id` is nullable; Postgres treats two NULLs as DISTINCT in a
-  // UNIQUE constraint, so `ON CONFLICT (brand_id, slug)` cannot catch a duplicate template row.
-  // The seed therefore reads first and inserts only when no live row with (brand_id IS NULL,
-  // slug) exists yet — the same idempotence contract the tab seeds use through ON CONFLICT.
-  let pagesInserted = 0;
-  let pagesSkipped = 0;
-  for (const seed of DEFAULT_CUSTOM_PAGE_SEEDS) {
-    const [existing] = await db
-      .select({ id: customInterfacePages.id })
-      .from(customInterfacePages)
-      .where(
-        and(
-          isNull(customInterfacePages.brandId),
-          eq(customInterfacePages.slug, seed.slug),
-          isNull(customInterfacePages.deletedAt),
-        ),
-      )
-      .limit(1);
-    if (existing) {
-      pagesSkipped += 1;
-      continue;
-    }
-    await db.insert(customInterfacePages).values({
-      brandId: null,
-      slug: seed.slug,
-      title: seed.title,
-      sourceTableKey: seed.sourceTableKey,
-      filterConfig: seed.filterConfig,
-      columnConfig: seed.columnConfig,
-      sortOrder: seed.sortOrder,
-      isVisible: seed.isVisible,
-      isInherited: true,
-      createdBy: actor,
-      updatedBy: actor,
-    });
-    pagesInserted += 1;
-  }
+  const pagesInserted = 0;
+  const pagesSkipped = 0;
 
   return {
     templateBrandId: templateBrand.id,

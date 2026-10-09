@@ -18,6 +18,7 @@ import {
   updateCustomPage,
   upsertBrandCustomPageFromTemplate,
   upsertTabVisibility,
+  EMPTY_COLUMN_CONFIG_REFUSED,
 } from './custom-interface-pages';
 
 async function seedBrands() {
@@ -44,6 +45,8 @@ async function seedBrands() {
 
 const CONFIG_EMPTY: CustomPageFilterConfig = {};
 const COLUMNS_EMPTY: readonly CustomPageColumnConfig[] = [];
+/** One column pick: the smallest column set a page may carry (an empty one is refused, see below). */
+const ONE_COLUMN = [{ columnKey: 'name', displayLabel: 'Name', displayOrder: 0 }];
 
 describe('custom_interface_pages round-trip', () => {
   it('inserts a template page and reads it back', async () => {
@@ -54,7 +57,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Internal Queue',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: true,
@@ -75,7 +78,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Templ',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: true,
@@ -87,7 +90,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Child Only',
       sourceTableKey: 'creators',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 2,
       isVisible: true,
       isInherited: false,
@@ -109,7 +112,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'To Delete',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: false,
@@ -129,7 +132,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'A',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: false,
@@ -142,7 +145,7 @@ describe('custom_interface_pages round-trip', () => {
         title: 'B',
         sourceTableKey: 'creative_briefs',
         filterConfig: CONFIG_EMPTY,
-        columnConfig: COLUMNS_EMPTY,
+        columnConfig: ONE_COLUMN,
         sortOrder: 2,
         isVisible: true,
         isInherited: false,
@@ -159,7 +162,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Shared',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: true,
@@ -177,7 +180,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Template',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: true,
@@ -189,7 +192,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Brand',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: false,
@@ -208,7 +211,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Old',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: false,
@@ -230,7 +233,7 @@ describe('custom_interface_pages round-trip', () => {
       title: 'Propped',
       sourceTableKey: 'creative_briefs',
       filterConfig: CONFIG_EMPTY,
-      columnConfig: COLUMNS_EMPTY,
+      columnConfig: ONE_COLUMN,
       sortOrder: 1,
       isVisible: true,
       isInherited: true,
@@ -276,5 +279,41 @@ describe('interface_tab_visibility round-trip', () => {
     expect(ok).toBe(true);
     const rows = await listTabVisibility(db, child.id);
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe('an empty column_config is refused — non-negotiable 10 (contained 2026-10-10)', () => {
+  const page = (brandId: string | null) => ({
+    brandId,
+    slug: 'leak',
+    title: 'Leak',
+    sourceTableKey: 'creative_briefs',
+    filterConfig: CONFIG_EMPTY,
+    columnConfig: COLUMNS_EMPTY,
+    sortOrder: 1,
+    isVisible: true,
+    isInherited: true,
+    createdBy: 'test',
+    updatedBy: 'test',
+  });
+
+  it('cannot insert a TEMPLATE page with no columns: that page showed every brand every column', async () => {
+    const { db } = await seedBrands();
+    await expect(insertCustomPage(db, page(null))).rejects.toThrow(EMPTY_COLUMN_CONFIG_REFUSED);
+    expect(await listTemplateCustomPages(db)).toHaveLength(0);
+  });
+
+  it('cannot insert a BRAND page with no columns either — the client route reads it the same way', async () => {
+    const { db, child } = await seedBrands();
+    await expect(insertCustomPage(db, page(child.id))).rejects.toThrow(EMPTY_COLUMN_CONFIG_REFUSED);
+  });
+
+  it('cannot update a page down to no columns', async () => {
+    const { db } = await seedBrands();
+    const row = await insertCustomPage(db, { ...page(null), columnConfig: ONE_COLUMN });
+    await expect(updateCustomPage(db, row.id, null, { columnConfig: [] })).rejects.toThrow(
+      EMPTY_COLUMN_CONFIG_REFUSED,
+    );
+    expect((await listTemplateCustomPages(db))[0]?.columnConfig).toEqual(ONE_COLUMN);
   });
 });

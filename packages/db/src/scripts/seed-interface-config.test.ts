@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { agencies, brands, interfaceTabVisibility } from '../schema';
+import { agencies, brands, customInterfacePages, interfaceTabVisibility } from '../schema';
 import { testDb } from '../testing';
 
 import { seedInterfaceConfig } from './seed-interface-config';
@@ -24,13 +24,13 @@ async function seedTemplateBrand() {
 }
 
 describe('seedInterfaceConfig', () => {
-  it('writes four tab-visibility rows and two default custom pages for the template brand', async () => {
+  it('writes four tab-visibility rows and NO custom pages for the template brand', async () => {
     const { db, template } = await seedTemplateBrand();
     const result = await seedInterfaceConfig(db);
     expect(result.templateBrandId).toBe(template.id);
     expect(result.inserted).toBe(4);
     expect(result.skipped).toBe(0);
-    expect(result.pagesInserted).toBe(2);
+    expect(result.pagesInserted).toBe(0);
     expect(result.pagesSkipped).toBe(0);
     const rows = await db
       .select()
@@ -60,7 +60,24 @@ describe('seedInterfaceConfig', () => {
     expect(second.inserted).toBe(0);
     expect(second.skipped).toBe(4);
     expect(second.pagesInserted).toBe(0);
-    expect(second.pagesSkipped).toBe(2);
+    expect(second.pagesSkipped).toBe(0);
+  });
+
+  it('leaves NO template custom page with an empty column set — the 2026-10-10 leak, pinned', async () => {
+    const { db } = await seedTemplateBrand();
+    await seedInterfaceConfig(db);
+    const rows = await db
+      .select({
+        slug: customInterfacePages.slug,
+        columnConfig: customInterfacePages.columnConfig,
+        isVisible: customInterfacePages.isVisible,
+      })
+      .from(customInterfacePages)
+      .where(and(isNull(customInterfacePages.brandId), isNull(customInterfacePages.deletedAt)));
+    // The exact shape that leaked: a template page, no column set, visible. Pinned first; then the
+    // stronger fact that the seed writes no template page at all.
+    expect(rows.filter((row) => row.columnConfig.length === 0 && row.isVisible)).toEqual([]);
+    expect(rows).toEqual([]);
   });
 
   it('reports no template when the brand set does not include one yet', async () => {

@@ -90,6 +90,15 @@ const columnConfigSchema = z
   )
   .max(64);
 
+/**
+ * At least one column pick: `column_config = []` is "every resolver column" to the client route,
+ * internal fields included (non-negotiable 10). `@tas/db` refuses it too; this is the message.
+ */
+const columnPicksSchema = columnConfigSchema.min(
+  1,
+  'Pick at least one column: an empty set would show the client every column of the table.',
+);
+
 const filterConfigSchema = z.union([
   z.object({}).strict(),
   z.object({
@@ -108,7 +117,7 @@ const createSchema = z.object({
   title: z.string().min(1).max(120),
   sourceTableKey: z.enum(CUSTOM_PAGE_SOURCE_TABLE_KEYS),
   filterConfig: filterConfigSchema,
-  columnConfig: columnConfigSchema,
+  columnConfig: columnPicksSchema,
   isVisible: z.boolean(),
 });
 
@@ -118,7 +127,7 @@ const updateSchema = z.object({
   slug: z.string().min(1).max(80).regex(slugRegex, 'Slug must be kebab-case.').optional(),
   sourceTableKey: z.enum(CUSTOM_PAGE_SOURCE_TABLE_KEYS).optional(),
   filterConfig: filterConfigSchema.optional(),
-  columnConfig: columnConfigSchema.optional(),
+  columnConfig: columnPicksSchema.optional(),
   isVisible: z.boolean().optional(),
 });
 

@@ -102,13 +102,30 @@ export async function findCustomPageBySlug(
 }
 
 /**
+ * The one shape a custom page must never have. `column_config = []` is read by the client route as
+ * "every resolver column of the source table" — internal status, costs, prices — and
+ * `loadCustomPageRows` strips nothing, so an empty column set is a client-facing leak whatever the
+ * filter says (non-negotiable 10; the seeded template `internal-queue` page, contained 2026-10-10).
+ * Refused at the write path, for a template row and a brand row alike, so no caller can store it.
+ */
+export const EMPTY_COLUMN_CONFIG_REFUSED =
+  'A custom page needs at least one column: an empty column set would show every column of the table.';
+
+function refuseEmptyColumns(columnConfig: readonly unknown[] | undefined): void {
+  if (columnConfig !== undefined && columnConfig.length === 0) {
+    throw new Error(EMPTY_COLUMN_CONFIG_REFUSED);
+  }
+}
+
+/**
  * Insert one custom page (template-level when `brandId` is null, brand-level otherwise). Returns
- * the written row.
+ * the written row. Refuses an empty `columnConfig` (see `EMPTY_COLUMN_CONFIG_REFUSED`).
  */
 export async function insertCustomPage(
   db: Db,
   input: CustomInterfacePageInput,
 ): Promise<CustomInterfacePage> {
+  refuseEmptyColumns(input.columnConfig);
   const [row] = await db.insert(customInterfacePages).values(input).returning();
   if (!row) throw new Error('insertCustomPage: insert returned no row');
   return row;
@@ -137,6 +154,7 @@ export async function updateCustomPage(
     >
   >,
 ): Promise<CustomInterfacePage | null> {
+  refuseEmptyColumns(patch.columnConfig);
   const brandFilter =
     brandId === null
       ? isNull(customInterfacePages.brandId)
