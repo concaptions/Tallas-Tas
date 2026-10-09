@@ -1834,3 +1834,40 @@ retired list's `?group=editorStage` redirect lands on it).
   activity row); Start → `startBriefAction` (unchanged). Both now also revalidate the sheet route.
 - **Role rule:** unchanged — none beyond a session, brand scope and the demo refusal.
 
+
+## 2026-10-09 — Creative Sheet audit follow-up: `name_mode`, "New creative", Source stored, renames
+
+Audit: `docs/audits/creative-sheet-audit-2026-10-09.md`. Shipped as one commit per item so any one
+can be reverted alone; migration 0060 went out first, on its own, with nothing reading the column.
+
+- **`creative_briefs.name_mode` (migration 0060, `apply60.mjs`)**: `text NOT NULL DEFAULT 'manual'
+  CHECK IN ('auto','manual')`. Every pre-existing row is `manual`, so an imported or hand-typed name
+  can never be rewritten: the concept-rename cascade renames only `auto` rows, and `renameBrief` repeats
+  the `auto` check in its WHERE. The old guard (`brief_number IS NULL`) let a concept save rename every
+  Airtable-imported brief under it into the PRD §7 shape. `auto` rows are renamed with the SAME create
+  formula (`generateBriefName`, the brief's own number) and the concept's new `Angle-Theme` segment,
+  never with §7 — so the §7 cascade shape is gone.
+- **"New creative" on the Creative Sheet** is the one entry point for a creative: `createBriefAction`
+  → `createBriefWithSheetRow` (`@tas/db`) creates the brief (number allocated under the brand's
+  advisory lock, name from the caller's formula, `name_mode`) and its linked `creative_sheet_items`
+  row in one transaction. The unnamed "New sheet row" button is gone; the panel's create mode remains
+  only behind `?creative-sheet=new`. The dialog is the Oct 5 `NewBriefDialog` re-homed; the retired
+  Creative Design list stays unmounted.
+- **Source** is a `<select>` over `creativeSources` and is STORED on the brief: `briefSchema.source`
+  defaults blank to TAS and refuses other values; `toInput` passes it through. Before, the form's value
+  reached the name only and the column always kept its default.
+- **Concept segment**: a linked creative is named with `conceptNameSegment` (the concept's
+  `Angle-Theme`), so the batch is printed once (`TAS-TOF-V001-Pain-UGC-B1`, not `…-B1-Pain-UGC-B1`).
+- **Renames**: user-facing "brief"/"Creative Design"/"Creative Briefs" where the sheet is meant now
+  read "creative"/"Creative Sheet" (client portal page, Overview, Internal Queue, linked-work panels,
+  Interface Config and Propagation labels, brief page copy and action messages, sheet search and
+  footer; the notification trigger label "Brief assigned…" stays, it is PRD §12's own bullet seeded
+  into `notification_settings` rows); "Meta copy" → "Copywriting" on the brief page; the brief detail page lights the
+  Creative Sheet in the rail. Airtable field names and retired modules are untouched. The stale
+  `e2e/copywriting.spec.ts` h1 assertion and the module-parity labels follow.
+- **Asset Library**: the type filter is `?type=<category>` (URL state, `assets/filter.ts`), with
+  `?tab=client-folders` kept for the retired Client Assets redirect.
+- **Not done, on purpose**: the two tables are NOT merged (audit item 2 recommendation stands;
+  `qa-flag-diff.mjs` lists the 62 production pairs whose QA flags disagree for that decision); the
+  client portal Copywriting tab still 404s (not a rename); the brief page's own dimensions picker still
+  saves on "Save creative".

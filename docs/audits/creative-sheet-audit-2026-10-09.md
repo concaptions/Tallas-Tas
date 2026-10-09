@@ -11,6 +11,12 @@ the repo cannot know.
 Sizes: **S** = under a day, under 100 lines · **M** = one to two days, 100 to 300 lines · **L** = more
 than two days, must be split into several tickets.
 
+> **Follow-up shipped the same day** (`docs/decisions.md` "Creative Sheet audit follow-up"): items 7, 8
+> and 9 are DONE (migration 0060 `name_mode`, "New creative" on the sheet, Source stored, batch printed
+> once), items 1, 3 and 4 are DONE for the strings and the `?type=` filter listed there, item 5's
+> caveat and item 6 stand, and item 2 is deliberately NOT done: the tables are not merged;
+> `packages/db/qa-flag-diff.mjs` feeds that decision.
+
 ## 1. Status table
 
 | # | Item | Status | Evidence (file:line, test, commit) | What is still missing |

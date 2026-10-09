@@ -104,6 +104,12 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Creative Sheet audit follow-up (2026-10-09) · `node apply60.mjs` (adds `creative_briefs.name_mode`,
+  every existing row `manual`; verified on PGlite) was due BEFORE the push that reads it, per the release
+  order Talal set (migration commit first, app commits after "go"). Then, read-only, for the single-source
+  decision: `node qa-flag-diff.mjs > ../../.audit-oct9/qa-flag-diff.md` (the 62 pairs whose QA flags
+  differ, ids and names only) and `node audit-creative-sheet.mjs` again after the first "New creative"
+  to see `name_mode` and `source` populated.
 - Template cleanup (2026-10-09, Oct 7 Talal decision) · in this order, from `packages/db` with
   `DATABASE_URL` set: (1) `node count-removed-tables.mjs > ../../.audit-oct8/removed-tables-counts.md`
   — read-only per-brand row counts for the 31 tables behind the fifteen hidden workspaces, the
