@@ -17,6 +17,21 @@ import type { CreatorAgeBracket, CreatorPlatform } from './enums';
  * `brand_id` is forced null by a CHECK constraint, exactly as `themes` does: a row carrying a
  * brand is rejected by Postgres, not by convention.
  */
+/** One intro video re-hosted in R2, keyed by the Airtable attachment it came from so a re-run appends nothing twice. */
+export interface RegistryIntroVideo {
+  readonly url: string;
+  readonly r2Key: string;
+  readonly airtableAttachmentId: string | null;
+  readonly filename: string | null;
+  readonly contentType: string;
+  readonly bytes: number;
+  readonly sourceBase: string;
+  readonly sourceBrand: string;
+  readonly sourceRecord: string;
+  /** ISO timestamp of the upload. */
+  readonly uploadedAt: string;
+}
+
 export interface RegistryBrandMembership {
   readonly brandLabel: string;
   readonly sourceAirtableBaseId: string;
@@ -55,6 +70,10 @@ export const creatorRegistry = pgTable(
     // client's Airtable base and never in this Postgres (Oct 8 Talal ask, migration 0057). The
     // per-brand `creators` rows cover TAS's own brands; this array is the memory of the rest.
     brands: jsonb('brands').$type<RegistryBrandMembership[]>().notNull().default([]),
+
+    // Every intro video this person has recorded for any brand, streamed from the client bases into
+    // R2 (migration 0058). A list, not one url: the same creator records one intro per brand.
+    introVideos: jsonb('intro_videos').$type<RegistryIntroVideo[]>().notNull().default([]),
   },
   (table) => [
     check('creator_registry_global', sql`${table.brandId} is null`),

@@ -407,6 +407,13 @@
       "when": 1791990100000,
       "tag": "0057_registry_brand_history",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791990200000,
+      "tag": "0058_registry_intro_videos",
+      "breakpoints": true
     }
   ]
 }
