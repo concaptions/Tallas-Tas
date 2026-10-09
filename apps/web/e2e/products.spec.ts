@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { emailCampaignsPath, productsPath, youtubeCopywritingPath } from '../src/lib/routes';
+import { productsPath } from '../src/lib/routes';
 
 /**
  * The Products route with no environment variables at all — the Vercel deployment as it stands.
@@ -146,42 +146,38 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
 
     // The blanket is promoted by two of the five fixture email campaigns (the
     // `email_campaign_products` junction, read from the campaign side), newest edit first, each
-    // carrying the Email Campaigns module's own status chip and a link that opens it there.
+    // carrying the Email Campaigns module's own status chip. Name and chip only: the Email
+    // Campaigns workspace is retired (Oct 7), so the record no longer links anywhere.
     const campaigns = panel.locator(
       '[data-slot="product-email-campaigns"] [data-slot="product-email-campaign"]',
     );
     await expect(campaigns).toHaveCount(2);
-    await expect(campaigns.nth(0).getByRole('link')).toHaveText('BFCM Early Access — VIP list');
-    await expect(campaigns.nth(0).getByRole('link')).toHaveAttribute(
-      'href',
-      `${emailCampaignsPath}?emailCampaign=ee11ee11-ee11-4e11-8e11-000000000001`,
-    );
+    await expect(campaigns.nth(0)).toContainText('BFCM Early Access — VIP list');
+    await expect(campaigns.nth(0).locator('a')).toHaveCount(0);
     await expect(campaigns.nth(0).locator('[data-slot="status-chip"]')).toHaveText(
       'Template Design',
     );
-    await expect(campaigns.nth(1).getByRole('link')).toHaveText('Valentine couples bundle');
+    await expect(campaigns.nth(1)).toContainText('Valentine couples bundle');
     await expect(campaigns.nth(1).locator('[data-slot="status-chip"]')).toHaveAttribute(
       'data-tone',
       'warn',
     );
 
     // Two YouTube copy rows are written for it (`youtube_copy_products`): the generated "Copy N"
-    // title in font-mono, never typed, beside the row's COPY_STATUS chip.
+    // title in font-mono, never typed, beside the row's COPY_STATUS chip — text, not a link, since
+    // YouTube Copywriting is retired too.
     const copy = panel.locator(
       '[data-slot="product-youtube-copy"] [data-slot="product-youtube-copy-row"]',
     );
     await expect(copy).toHaveCount(2);
-    await expect(copy.nth(0).getByRole('link')).toHaveText('Copy 1');
-    await expect(copy.nth(0).getByRole('link')).toHaveClass(/font-mono/);
+    await expect(copy.nth(0)).toContainText('Copy 1');
+    await expect(copy.nth(0).locator('.font-mono')).not.toHaveCount(0);
+    await expect(copy.nth(0).locator('a')).toHaveCount(0);
     await expect(copy.nth(0).locator('[data-slot="status-chip"]')).toHaveAttribute(
       'data-tone',
       'ok',
     );
-    await expect(copy.nth(1).getByRole('link')).toHaveText('Copy 4');
-    await expect(copy.nth(1).getByRole('link')).toHaveAttribute(
-      'href',
-      `${youtubeCopywritingPath}?youtube-copy=a1b2c3d4-0012-4012-8012-000000000004`,
-    );
+    await expect(copy.nth(1)).toContainText('Copy 4');
 
     // No fixture brief carries a `product_id`, so that reverse list renders its empty sentence
     // rather than a blank.
@@ -224,16 +220,8 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     await page.goto(`${productsPath}?product=22222222-2222-4222-8222-000000000003`);
     await expect(page.locator('[data-slot="product-email-campaign"]')).toHaveCount(1);
     await expect(page.locator('[data-slot="product-youtube-copy-row"]')).toHaveCount(1);
-    await expect(
-      page.locator('[data-slot="product-youtube-copy-row"]').getByRole('link'),
-    ).toHaveText('Copy 3');
-
-    // Two-way: following a link lands on the counterpart's page with its panel open on that row.
-    await page.locator('[data-slot="product-youtube-copy-row"]').getByRole('link').click();
-    await expect(page).toHaveURL(
-      /\/app\/youtube-copywriting\?youtube-copy=a1b2c3d4-0012-4012-8012-000000000003/,
-    );
-    await expect(page.locator('[data-slot="youtube-copy-panel"]')).toBeVisible();
+    await expect(page.locator('[data-slot="product-youtube-copy-row"]')).toContainText('Copy 3');
+    await expect(page.locator('[data-slot="product-youtube-copy-row"] a')).toHaveCount(0);
   });
 
   test('search filters the table and the empty state offers to clear it', async ({ page }) => {

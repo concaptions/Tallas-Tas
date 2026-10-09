@@ -220,24 +220,19 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       /\/app\/creative-sheet\?creative-sheet=/,
     );
 
-    // Creative Modules and Client Asset folders: the record's own name, opening its panel.
+    // Creative Modules and Client Asset folders: the record's own name. Their workspaces are
+    // retired (Oct 7), so the rail entry is text, not a link.
     const modules = page.locator('[data-slot="brief-creative-modules"]');
     await expect(modules.locator('[data-slot="brief-link-label"]')).toHaveText([
       'Problem → Solution Hooks',
     ]);
-    await expect(modules.locator('[data-slot="brief-link"]')).toHaveAttribute(
-      'href',
-      /\/app\/creative-modules\?module=/,
-    );
+    await expect(modules.locator('a[data-slot="brief-link"]')).toHaveCount(0);
 
     const folders = page.locator('[data-slot="brief-client-assets"]');
     await expect(folders.locator('[data-slot="brief-link-label"]')).toHaveText([
       'Product Photography — Deep Sleep Blanket',
     ]);
-    await expect(folders.locator('[data-slot="brief-link"]')).toHaveAttribute(
-      'href',
-      /\/app\/client-assets\?folder=/,
-    );
+    await expect(folders.locator('a[data-slot="brief-link"]')).toHaveCount(0);
 
     // Creative Reports: the name, CPA against target, and the difference as a chip — over, so bad.
     const reports = page.locator('[data-slot="brief-creative-reports"]');
@@ -250,10 +245,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     const difference = reports.locator('[data-slot="status-chip"]');
     await expect(difference).toHaveText('+$2.50');
     await expect(difference).toHaveAttribute('data-tone', 'bad');
-    await expect(reports.locator('[data-slot="brief-link"]')).toHaveAttribute(
-      'href',
-      /\/app\/creative-reporting\?creativeReport=/,
-    );
+    await expect(reports.locator('a[data-slot="brief-link"]')).toHaveCount(0);
 
     // The Meta Copywriting section this page already had is still here, now with chip-links
     // that reach the copy row's panel (Oct 5 meeting: the brief ↔ copy link renders both ends).

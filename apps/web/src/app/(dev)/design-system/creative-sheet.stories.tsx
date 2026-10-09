@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { StatusChip } from '@tas/ui';
 
+import { DimensionsField } from '@/app/app/creative-sheet/dimensions-field';
 import {
   CREATIVE_SHEET_RENDERERS,
   QaTicks,
@@ -245,6 +247,45 @@ export function CreativeSheetTicksStory() {
         <QaTicks item={all} />
         <span className="text-xs text-text3">QA: none, two of three, all three</span>
       </span>
+    </div>
+  );
+}
+
+/**
+ * The Dimensions field (migration 0059, Oct 7 cleanup): the stored ratios as removable chips plus
+ * one Select that adds a ratio and saves on the pick. Three states — a row with two §8 ratios, a
+ * row carrying an imported legacy placement name (shown and stored as its ratio), and a row that
+ * cannot be edited yet. This module is 'use client', so the stories own the state themselves.
+ */
+export function CreativeSheetDimensionsStory() {
+  const [ratios, setRatios] = useState<readonly string[]>(['4:5', '9:16']);
+  const [legacy, setLegacy] = useState<readonly string[]>(['IG Story / Reel']);
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-card border border-line bg-surface p-4">
+        <DimensionsField
+          value={ratios}
+          onChange={setRatios}
+          disabled={false}
+          saveState={{ status: 'idle' }}
+        />
+      </div>
+      <div className="rounded-card border border-line bg-surface p-4">
+        <DimensionsField
+          value={legacy}
+          onChange={setLegacy}
+          disabled={false}
+          saveState={{ status: 'saved' }}
+        />
+      </div>
+      <div className="rounded-card border border-line bg-surface p-4">
+        <DimensionsField
+          value={[]}
+          onChange={() => undefined}
+          disabled
+          saveState={{ status: 'idle' }}
+        />
+      </div>
     </div>
   );
 }

@@ -112,6 +112,7 @@ import {
 import { AssetUploadModalStory } from './assets-upload.stories';
 import {
   CreativeSheetChipsStory,
+  CreativeSheetDimensionsStory,
   CreativeSheetGridStory,
   CreativeSheetTicksStory,
 } from './creative-sheet.stories';
@@ -1231,6 +1232,12 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex-1 basis-full">
             <CreativeSheetTicksStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              dimensions field — ratios, a legacy placement name, read-only
+            </h3>
+            <CreativeSheetDimensionsStory />
           </div>
         </div>
       </Section>

@@ -1,12 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import {
-  collectionsPath,
-  emailCampaignsPath,
-  metaCopywritingPath,
-  youtubeCopywritingPath,
-} from '../src/lib/routes';
+import { collectionsPath, metaCopywritingPath } from '../src/lib/routes';
 
 /**
  * The Collections route with no environment variables at all — the Vercel deployment as it stands.
@@ -57,27 +52,22 @@ test.describe('collections in demo mode (no Clerk publishable key)', () => {
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="collection-linked-work"]')).toBeVisible();
 
-    // One email campaign promotes the BFCM collection; its label opens its own panel and its
-    // workflow status is the shared StatusChip.
+    // One email campaign promotes the BFCM collection; its name and workflow StatusChip are shown,
+    // but nothing links out: the Email Campaigns workspace is retired (Oct 7).
     const emails = panel.locator('[data-slot="collection-email-campaigns-item"]');
     await expect(emails).toHaveCount(1);
     await expect(emails.first()).toContainText('BFCM Early Access — VIP list');
-    await expect(emails.first().locator('a')).toHaveAttribute(
-      'href',
-      new RegExp(`^${emailCampaignsPath}\\?emailCampaign=`),
-    );
+    await expect(emails.first().locator('a')).toHaveCount(0);
     await expect(emails.first().locator('[data-slot="status-chip"]')).toHaveCount(1);
 
-    // Two YouTube copies link to it; the auto-generated titles render in font-mono and link to
-    // the YouTube Copywriting panel.
+    // Two YouTube copies link to it; the auto-generated titles render in font-mono, as text —
+    // YouTube Copywriting is retired too.
     const copies = panel.locator('[data-slot="collection-youtube-copy-item"]');
     await expect(copies).toHaveCount(2);
-    await expect(copies.locator('a')).toHaveText(['Copy 1', 'Copy 3']);
-    await expect(copies.first().locator('a')).toHaveClass(/font-mono/);
-    await expect(copies.first().locator('a')).toHaveAttribute(
-      'href',
-      new RegExp(`^${youtubeCopywritingPath}\\?youtube-copy=`),
-    );
+    await expect(copies.nth(0)).toContainText('Copy 1');
+    await expect(copies.nth(1)).toContainText('Copy 3');
+    await expect(copies.first().locator('.font-mono')).not.toHaveCount(0);
+    await expect(copies.locator('a')).toHaveCount(0);
     await expect(copies.first().locator('[data-slot="status-chip"]')).toHaveCount(1);
 
     // Two concepts carry the BFCM collection in `concept_collections`; the generated
@@ -115,8 +105,8 @@ test.describe('collections in demo mode (no Clerk publishable key)', () => {
     await expect(panel.locator('[data-slot="collection-email-campaigns-item"]')).toHaveText([
       /Summer cooling push/,
     ]);
-    await expect(panel.locator('[data-slot="collection-youtube-copy-item"] a')).toHaveText([
-      'Copy 2',
+    await expect(panel.locator('[data-slot="collection-youtube-copy-item"]')).toHaveText([
+      /Copy 2/,
     ]);
 
     // No fixture brief carries a `collection_id` and the summer collection's `copywriting_id` is

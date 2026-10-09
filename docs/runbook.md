@@ -83,6 +83,14 @@ Run: `CLERK_PUBLISHABLE_KEY_TEST=… CLERK_SECRET_KEY_TEST=… CLERK_E2E_USER_PA
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Template cleanup (2026-10-09, Oct 7 Talal decision) · in this order, from `packages/db` with
+  `DATABASE_URL` set: (1) `node count-removed-tables.mjs > ../../.audit-oct8/removed-tables-counts.md`
+  — read-only per-brand row counts for the 31 tables behind the fifteen hidden workspaces, the
+  inventory for the later data decision (nothing is dropped by this release); (2) `node apply59.mjs`
+  — adds `creative_sheet_items.dimensions jsonb` and backfills it from each item's brief and from
+  `creative_dimensions` rows pointing at that brief (copy only; it prints "items with dimensions"
+  and verifies the column; a second run is a no-op). Deploy after (2): the Creative Sheet reads the
+  column. Both verified on PGlite by the full suite; neither has run against Railway from here.
 - Creator Pool v2 migrations (2026-10-08, Oct 8 Talal ask) · apply `0056_creator_performance_rating`
   (four rating columns + CHECK + the `creators_registry_avg_rating` trigger) and
   `0057_registry_brand_history` (`creator_registry.brands jsonb`) to Railway, in that order, from

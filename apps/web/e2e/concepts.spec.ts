@@ -446,13 +446,14 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(sections.nth(1)).toHaveAttribute('data-slot', 'concept-campaigns');
 
     // `campaign_concepts` is read through `@tas/db` (PARITY-24): the fixture links this concept to
-    // the BFCM campaign, so the list renders one generated campaign name, in font-mono, linking to
-    // the Campaigns & Offers page — and no empty state.
+    // the BFCM campaign, so the list renders one generated campaign name, in font-mono, as text —
+    // the Campaigns & Offers workspace is retired (Oct 7) — and no empty state.
     await expect(campaigns.locator('[data-slot="concept-campaigns-empty"]')).toHaveCount(0);
     const links = campaigns.locator('[data-slot="concept-campaign"]');
     await expect(links).toHaveCount(1);
     await expect(links.first()).toHaveText('BFCM-20%OFF-BFCM26');
-    await expect(links.first()).toHaveAttribute('href', /\/app\/campaigns-offers\?campaign=/);
+    await expect(links.first().locator('a')).toHaveCount(0);
+    await expect(links.first()).not.toHaveAttribute('href', /.+/);
 
     // Read-only: nothing in the section can be typed into or submitted.
     await expect(
