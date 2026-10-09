@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
+import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
 import {
   Button,
@@ -234,6 +235,25 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   spelling_feedback: {
     render: ({ item }) => <TextCell value={item.spellingFeedback} maxWidth={280} />,
     cellTitle: ({ item }) => item.spellingFeedback ?? undefined,
+  },
+  /*
+   * The ratios the creative ships in (migration 0059): the sheet row's own stored array, §8 keys
+   * and legacy placement names alike, drawn as plain text through the domain's display rule so a
+   * mapped Airtable name reads as its ratio and an unknown one as itself. Replaces the Creative
+   * Dimensions workspace.
+   */
+  dimensions: {
+    render: ({ item }) => (
+      <TextCell
+        value={
+          item.dimensions.length === 0
+            ? null
+            : normalizeCreativeDimensions(item.dimensions).map(creativeDimensionDisplay).join(', ')
+        }
+        maxWidth={200}
+      />
+    ),
+    sortValue: ({ item }) => normalizeCreativeDimensions(item.dimensions).join(', '),
   },
   /*
    * The thirteen Creative Name lookups (GRATSI-MATCH, 2026-10-04): read-only echoes of the linked

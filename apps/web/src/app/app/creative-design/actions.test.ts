@@ -224,6 +224,38 @@ describe('with Clerk configured', () => {
     expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
   });
 
+  /**
+   * THE Oct 2026 Dimensions bug, reproduced before it was fixed. An Airtable-imported brief carries
+   * the NAMES of the `(Internal) Creative Dimensions` records it linked to (`'IG Story / Reel'`),
+   * not the §8 keys; the board and the detail page re-post the stored array verbatim on every save
+   * and every Kanban move, so a schema that accepts only the keys refused the WHOLE update of every
+   * imported brief — "the values show but the select does not fire". Reaching the poisoned Clerk
+   * mock's message is the proof the legacy name got past validation.
+   */
+  it('accepts an update that re-posts an imported legacy dimension name, so an imported brief can be saved', async () => {
+    configured();
+    const data = form({ ...filled, id: 'a-brief' });
+    data.append('dimensions', 'IG Story / Reel');
+    data.append('dimensions', '1:1');
+
+    const result = await updateBriefAction(null, data);
+
+    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+  });
+
+  it('still refuses a dimension that is not a placement at all: the empty string', async () => {
+    configured();
+    const data = form({ ...filled, id: 'a-brief' });
+    data.append('dimensions', '   ');
+
+    const result = await updateBriefAction(null, data);
+
+    if (result.ok) {
+      throw new Error('a blank delivery ratio was accepted');
+    }
+    expect(result.fieldErrors?.dimensions).toBe('That is not one of the delivery ratios.');
+  });
+
   it('refuses a client move while the internal track is not Approved', async () => {
     configured();
 

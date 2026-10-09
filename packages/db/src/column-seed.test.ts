@@ -761,6 +761,7 @@ describe('platform columns on concepts', () => {
         // field 1, so that column is the parent's and merely happens to be computed.
         'creative_sheet_items.client_approval_status',
         'creative_sheet_items.denied_revisions_needed',
+        'creative_sheet_items.dimensions',
         'creative_sheet_items.internal_status',
         'creative_sheet_items.qa_checklist_doc',
         'creative_sheet_items.qa_designer',
@@ -1197,13 +1198,21 @@ describe('the Creative Sheet column set', () => {
     );
     const onGratsi = await resolveColumns(db, await brandFor(db, 'gratsi'), 'creative_sheet_items');
 
-    // 16 and 29 since Phase 2 added client_approval_status to creative_sheet_items (0052).
+    // 16 and 29 since Phase 2 added client_approval_status to creative_sheet_items (0052); one
+    // more each since 0059 stored `dimensions` on the sheet row as a platform column.
     // The parent gained its own `Last Modified` (template field 17), and Gratsi displays its
     // full 29-field base — the thirteen Creative Name lookups are alive THERE and seeded as
     // child-added `lookupRollup` virtuals, dead in the template only
     // (docs/decisions/overnight-dead-lookups.md).
-    expect(onNiagara).toHaveLength(16);
-    expect(onGratsi).toHaveLength(30);
+    expect(onNiagara).toHaveLength(17);
+    expect(onGratsi).toHaveLength(31);
+    // The 0059 column resolves for every brand, last, as the platform's.
+    for (const set of [onNiagara, onGratsi]) {
+      const dimensions = set.find((column) => column.columnKey === 'dimensions');
+      expect(dimensions?.displayLabel).toBe('Dimensions');
+      expect(dimensions?.source).toBe('platform');
+      expect(set.at(-1)?.columnKey).toBe('dimensions');
+    }
     expect(onNiagara[0]?.displayLabel).toBe('Name + Angle + Offer');
     // Gratsi words it `Name`, and the formula survives the relabel because the resolver reads it
     // from the parent row — the column has no Postgres column to fall back to.
@@ -1244,6 +1253,7 @@ describe('the Creative Sheet column set', () => {
       'winning',
       'spell_check_requested',
       'spelling_feedback',
+      'dimensions',
     ]) {
       expect(keys.has(drawn), `the Creative Sheet grid draws ${drawn}`).toBe(true);
     }

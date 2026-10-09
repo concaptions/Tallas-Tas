@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState, type ReactNode } from 'react';
+import { useActionState, useEffect, useState, useTransition, type ReactNode } from 'react';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import {
   Button,
@@ -20,11 +20,14 @@ import {
 import {
   createCreativeSheetItemAction,
   updateCreativeSheetItemAction,
+  updateCreativeSheetItemDimensionsAction,
   type CreativeSheetActionResult,
 } from './actions';
+import { DimensionsField, type DimensionsSaveState } from './dimensions-field';
 import {
   BRIEF_LOOKUP_LABELS,
   DEMO_FOOTER_NOTICE,
+  DIMENSIONS_AFTER_SAVE_NOTE,
   EM_DASH,
   INTERNAL_STATUS_OPTIONS,
   internalStatusView,
@@ -133,6 +136,28 @@ export function CreativeSheetPanel({
   const [status, setStatus] = useState(item?.status ?? NONE_VALUE);
   const [winning, setWinning] = useState(item?.winning ?? NONE_VALUE);
   const [checks, setChecks] = useState<Checks>(() => checksOf(item));
+
+  // The Dimensions field saves ON PICK, outside the form: its own array, its own transition and
+  // its own state, so a pick is one write and the footer's Save never has to be pressed for it.
+  const [dimensions, setDimensions] = useState<readonly string[]>(item?.dimensions ?? []);
+  const [dimensionsState, setDimensionsState] = useState<DimensionsSaveState>({ status: 'idle' });
+  const [, startDimensionsSave] = useTransition();
+  const saveDimensions = (next: readonly string[]) => {
+    if (item === null) return;
+    const previous = dimensions;
+    setDimensions(next);
+    setDimensionsState({ status: 'pending' });
+    startDimensionsSave(async () => {
+      const result = await updateCreativeSheetItemDimensionsAction(item.id, next);
+      if (result.ok) {
+        setDimensionsState({ status: 'saved' });
+        onSaved(result.id);
+      } else {
+        setDimensions(previous);
+        setDimensionsState({ status: 'error', error: result.error });
+      }
+    });
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -315,6 +340,19 @@ export function CreativeSheetPanel({
                 ) : null}
                 {briefError === undefined ? null : <p className="text-xs text-bad">{briefError}</p>}
               </div>
+
+              {creating ? (
+                <p className="text-xs text-text4" data-slot="creative-sheet-dimensions-later">
+                  {DIMENSIONS_AFTER_SAVE_NOTE}
+                </p>
+              ) : (
+                <DimensionsField
+                  value={dimensions}
+                  onChange={saveDimensions}
+                  disabled={demo}
+                  saveState={dimensionsState}
+                />
+              )}
 
               {creating ? null : (
                 <div

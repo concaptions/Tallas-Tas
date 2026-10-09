@@ -18,13 +18,13 @@ import { generateBriefName } from '@tas/domain/briefs';
 import {
   creativeTrack,
   dimensionsFor,
-  isCreativeDimension,
   isCreativeFunnel,
   isCreativePriority,
   isCreativeType,
   isCreativeVersion,
+  isKnownOrLegacyDimension,
   nextSequence,
-  type CreativeDimensionKey,
+  normalizeCreativeDimension,
   type CreativeFunnelKey,
   type CreativePriorityKey,
   type CreativeTypeKey,
@@ -221,12 +221,18 @@ const performance = z
   .transform((value): CreativePerformance | null => (value === null ? null : value))
   .optional();
 
-/** One checked ratio of the §8 grid; an unknown ratio is not a ratio this build can deliver. */
+/**
+ * One stored dimension: a checked §8 ratio, or the NAME of an Airtable `(Internal) Creative
+ * Dimensions` record an imported brief carries (`'IG Story / Reel'`). The form re-posts the stored
+ * array on every save and every board move, so refusing a legacy name refused the whole update of
+ * every imported brief (the Oct 2026 "values show but select does not fire" bug). The gate is
+ * `isKnownOrLegacyDimension` from `@tas/domain/creatives`, and a name that maps to a ratio is stored
+ * as the ratio by `normalizeCreativeDimension`; a name this build cannot place is kept verbatim.
+ */
 const dimension = z
   .string()
-  .trim()
-  .refine(isCreativeDimension, 'That is not one of the delivery ratios.')
-  .transform((value): CreativeDimensionKey => value);
+  .refine(isKnownOrLegacyDimension, 'That is not one of the delivery ratios.')
+  .transform((value): string => normalizeCreativeDimension(value));
 
 /**
  * A submitted status, shape only. Absent means "leave it where it is", which is why both are

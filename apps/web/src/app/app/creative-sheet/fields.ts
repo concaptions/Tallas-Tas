@@ -167,6 +167,25 @@ export const SHEET_LABELS = {
   clientComments: "Client's Comments",
   qaChecklistDoc: 'QA Checklist Doc',
   spellingFeedback: 'Spelling Feedback',
+  dimensions: 'Dimensions',
+} as const;
+
+/** What a row that has no id yet reads where the Dimensions field will be. */
+export const DIMENSIONS_AFTER_SAVE_NOTE =
+  'Dimensions can be picked once the row is saved; they start as the linked creative’s.';
+
+/** The Dimensions field's add-select placeholder. */
+export const DIMENSIONS_ADD_PLACEHOLDER = 'Add a ratio';
+
+/**
+ * What the Dimensions field says around its immediate save: it writes on every pick, with no Save
+ * button in between, so the field itself reports where that write got to.
+ */
+export const DIMENSIONS_SAVE_LABELS = {
+  hint: 'saves on pick',
+  none: 'No ratios yet',
+  pending: 'Saving…',
+  saved: 'Saved',
 } as const;
 
 /** The panel's section headings, in order. */

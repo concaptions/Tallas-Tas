@@ -81,6 +81,20 @@ export const creativeSheetItems = pgTable(
     clientApprovalStatusUpdatedAt: timestamp('client_approval_status_updated_at', {
       withTimezone: true,
     }),
+    /**
+     * The ratios this creative ships in, mirroring `creative_briefs.dimensions` EXACTLY: a jsonb
+     * `string[]` of §8 keys (`'4:5' | '1:1' | '9:16'`, `CREATIVE_DIMENSIONS` in `@tas/domain`) and,
+     * on Airtable-imported rows, the NAMES of `(Internal) Creative Dimensions` records (migration
+     * 0059). An array and not a single value because one creative ships in several ratios at once
+     * (the §8 presets give a video 4:5 + 1:1 + 9:16); jsonb and not a junction because the
+     * vocabulary is a closed set of keys plus a short tail of legacy names, which is exactly what
+     * the brief column already holds — so the 0059 backfill is a plain copy, the two columns are
+     * compared without a mapping layer, and the Creative Dimensions workspace it replaces is not
+     * needed to read either. Stored on the sheet row, as the sheet's other brief-shaped fields are,
+     * because a sheet row can diverge from its brief (`docs/audits/airtable-module-gap-2026-10-01.md`
+     * §2.3). NOT NULL `[]`: a reader maps it without branching on null.
+     */
+    dimensions: jsonb('dimensions').$type<string[]>().notNull().default([]),
     legacyAirtableId: text('legacy_airtable_id'),
   },
   (table) => [

@@ -5,6 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import {
   insertCreativeSheetItem,
   updateCreativeSheetItem,
+  updateCreativeSheetItemDimensions,
   type CreativeSheetItemInput,
 } from '@tas/db';
 import {
@@ -13,6 +14,7 @@ import {
   creativeSheetStatuses,
   creativeSheetWinning,
 } from '@tas/db/schema';
+import { isKnownOrLegacyDimension, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/creative-sheet-source';
@@ -52,6 +54,7 @@ export type CreativeSheetFieldName =
   | 'winning'
   | 'clientComments'
   | 'qaChecklistDoc'
+  | 'dimensions'
   | CreativeSheetCheck;
 
 /** The two fields the Kanban board can regroup by, and so the two a card drag may change. */
@@ -238,6 +241,61 @@ export async function updateCreativeSheetItemAction(
     }
     const saved = await withBrandScope((db, brandId) =>
       updateCreativeSheetItem(db, brandId, id, parsed.values, actor),
+    );
+    if (saved === null) {
+      return { ok: false, error: 'That sheet row is no longer available.' };
+    }
+    revalidatePath(creativeSheetPath);
+    return { ok: true, id: saved.id, savedAt: Date.now() };
+  } catch {
+    return { ok: false, error: SAVE_FAILED };
+  }
+}
+
+/**
+ * One submitted dimension (migration 0059): a §8 ratio, or an imported placement name the row
+ * already carries. The gate is the domain's `isKnownOrLegacyDimension` — the same one the brief
+ * action uses, so a value the brief could store, the sheet can — and the array is normalised and
+ * deduplicated by `normalizeCreativeDimensions` before it is written.
+ */
+const dimensionsSchema = z
+  .array(z.string().refine(isKnownOrLegacyDimension, 'That is not one of the delivery ratios.'))
+  .transform((values) => normalizeCreativeDimensions(values));
+
+/**
+ * Replaces the ratios of one sheet row the moment the panel's Dimensions field changes — there is
+ * no Save button between the pick and this write, which is the point: the brief page's picker only
+ * set state until "Save brief", and that is the bug this field was built not to repeat. Validates
+ * every value, normalises, and writes through the scoped `@tas/db` function; never throws.
+ */
+export async function updateCreativeSheetItemDimensionsAction(
+  id: string,
+  dimensions: readonly string[],
+): Promise<CreativeSheetActionResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+
+  if (typeof id !== 'string' || id === '') {
+    return { ok: false, error: 'This sheet row could not be identified.' };
+  }
+
+  const parsed = dimensionsSchema.safeParse(dimensions);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'That is not one of the delivery ratios.',
+      fieldErrors: { dimensions: 'That is not one of the delivery ratios.' },
+    };
+  }
+
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: SESSION_EXPIRED };
+    }
+    const saved = await withBrandScope((db, brandId) =>
+      updateCreativeSheetItemDimensions(db, brandId, id, parsed.data, actor),
     );
     if (saved === null) {
       return { ok: false, error: 'That sheet row is no longer available.' };

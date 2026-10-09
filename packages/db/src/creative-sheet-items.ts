@@ -176,3 +176,26 @@ export async function updateCreativeSheetItem(
     .returning();
   return row ?? null;
 }
+
+/**
+ * Replaces the ratios of one live sheet row of the brand (`dimensions`, migration 0059) and returns
+ * the row, or null when the id is another brand's or soft-deleted. The Server Action has already
+ * validated and normalised every value through `@tas/domain/creatives`; this function stores what it
+ * is given, scoped, and holds no vocabulary of its own.
+ */
+export async function updateCreativeSheetItemDimensions(
+  db: Db,
+  brandId: string,
+  id: string,
+  dimensions: readonly string[],
+  actorId: string,
+): Promise<CreativeSheetItem | null> {
+  const [row] = await withBrand(db, brandId)
+    .update(
+      creativeSheetItems,
+      { dimensions: [...dimensions], updatedBy: actorId, updatedAt: new Date() },
+      eq(creativeSheetItems.id, id),
+    )
+    .returning();
+  return row ?? null;
+}

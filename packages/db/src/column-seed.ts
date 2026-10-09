@@ -1145,6 +1145,10 @@ const CREATIVE_SHEET_ITEMS_PLATFORM = platformRows('creative_sheet_items', [
   ['spell_check_requested', 'Click for AI Spell Checker Again', 26, 'checkbox'],
   ['spelling_feedback', 'Spelling Feedback', 27, 'multilineText'],
   ['client_approval_status', 'Client Approval', 30, 'singleSelect'],
+  // The ratios the creative ships in (migration 0059): a stored copy of the brief's `Dimensions`
+  // on the sheet row, replacing the Creative Dimensions workspace. A multi-select of §8 keys and
+  // legacy placement names, not a record link — the sheet stores values, never ids.
+  ['dimensions', 'Dimensions', 31, 'multipleSelects'],
 ]);
 
 /**

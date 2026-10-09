@@ -65,6 +65,8 @@ function fromBrief(briefId: string | null, createdAt: string) {
     briefFunnel: brief?.funnel ?? null,
     briefPerformance: brief?.performance ?? null,
     briefDesignFileUrl: brief?.designFileUrl ?? null,
+    // What migration 0059's backfill copies: the brief's own ratios, or nothing for an unlinked row.
+    dimensions: brief?.dimensions ?? [],
   };
 }
 
