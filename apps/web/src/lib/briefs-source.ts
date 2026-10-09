@@ -2,6 +2,7 @@ import {
   BRIEF_CLIENT_STATUS_DEFAULT,
   demoBriefs,
   getBriefById,
+  countLiveBriefsByBrand,
   listBriefs,
   type BriefListRow,
   type Db,
@@ -239,6 +240,26 @@ export async function loadBriefs(deps: BriefSourceDeps = {}): Promise<BriefListR
     const rows = brandId === null ? [] : await listBriefs(db, brandId);
     return { rows: rows.map(toBriefRow), source: 'database' };
   });
+}
+
+/**
+ * Live briefs per brand for the brands named, the Internal Queue's brand buttons (SMOKE-09). Demo
+ * mode counts the fixtures; live mode runs the one aggregate in `@tas/db` on the request's
+ * connection. The ids are the caller's agency scope (`loadBrandScope`), never a list of its own.
+ */
+export async function loadBriefCountsByBrand(
+  brandIds: readonly string[],
+  deps: BriefSourceDeps = {},
+): Promise<ReadonlyMap<string, number>> {
+  if (inDemoMode(deps)) {
+    const counts = new Map<string, number>();
+    for (const row of demoBriefs) {
+      if (brandIds.includes(row.brandId))
+        counts.set(row.brandId, (counts.get(row.brandId) ?? 0) + 1);
+    }
+    return counts;
+  }
+  return withDb(deps, (db) => countLiveBriefsByBrand(db, brandIds));
 }
 
 /**

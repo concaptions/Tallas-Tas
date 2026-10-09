@@ -70,6 +70,7 @@ describe('loadInternalQueue in demo mode', () => {
 describe('loadInternalQueue in live mode', () => {
   it('names the signed-in actor as the viewer and offers every brand of the scope', async () => {
     const rows = demoBriefs.map(toBriefRow);
+    const asked: string[][] = [];
 
     const result = await loadInternalQueue({
       demoMode: () => false,
@@ -80,15 +81,25 @@ describe('loadInternalQueue in live mode', () => {
           { id: DEMO_BRAND_ID, name: 'Live Brand', status: 'active', isTemplate: false },
           { id: 'gratsi', name: 'Gratsi', status: 'active', isTemplate: false },
         ]),
+      counts: (ids) => {
+        asked.push([...ids]);
+        return Promise.resolve(
+          new Map([
+            [DEMO_BRAND_ID, 7],
+            ['gratsi', 390],
+          ]),
+        );
+      },
     });
 
     expect(result.source).toBe('database');
     expect(result.viewer).toBe('Imogen Bardsley');
-    // Every brand of the agency, the scoped rows counted under the working one (smoke test
-    // 2026-10-10: deriving the options from the rows always found one brand).
+    // Every brand of the agency with ITS OWN live count from the aggregate, asked for exactly the
+    // scope's ids (SMOKE-09: counting the working brand's rows showed Gratsi as "· 0").
+    expect(asked).toEqual([[DEMO_BRAND_ID, 'gratsi']]);
     expect(result.brands).toEqual([
       { id: DEMO_BRAND_ID, name: 'Live Brand', count: 7 },
-      { id: 'gratsi', name: 'Gratsi', count: 0 },
+      { id: 'gratsi', name: 'Gratsi', count: 390 },
     ]);
   });
 });
@@ -107,31 +118,41 @@ describe('queueBrandOptions', () => {
   const niagara = { id: DEMO_BRAND_ID, name: 'Niagara', status: 'active', isTemplate: false };
   const gratsi = { id: 'gratsi', name: 'Gratsi', status: 'active', isTemplate: false };
   const template = { id: 'tpl', name: 'Creative Hub Template', status: 'active', isTemplate: true };
+  const counts = new Map([
+    [DEMO_BRAND_ID, 7],
+    ['gratsi', 390],
+    ['tpl', 12],
+  ]);
 
-  it('offers every brand in scope with a zero count for an empty board, never the template', () => {
-    expect(queueBrandOptions([], [niagara, gratsi, template])).toEqual([
-      { id: DEMO_BRAND_ID, name: 'Niagara', count: 0 },
+  it('shows the ACTIVE brand its own live count, from the aggregate, not from the rows', () => {
+    const options = queueBrandOptions([niagara], counts, [row(DEMO_BRAND_ID), row(DEMO_BRAND_ID)]);
+    expect(options).toEqual([{ id: DEMO_BRAND_ID, name: 'Niagara', count: 7 }]);
+  });
+
+  it('shows a NON-ACTIVE brand its own live count although no row of it was loaded', () => {
+    const options = queueBrandOptions([niagara, gratsi], counts, [row(DEMO_BRAND_ID)]);
+    expect(options).toEqual([
+      { id: DEMO_BRAND_ID, name: 'Niagara', count: 7 },
+      { id: 'gratsi', name: 'Gratsi', count: 390 },
+    ]);
+  });
+
+  it('leaves the parent template out, whatever the aggregate says about it', () => {
+    const options = queueBrandOptions([niagara, template, gratsi], counts, []);
+    expect(options.map((option) => option.id)).toEqual([DEMO_BRAND_ID, 'gratsi']);
+  });
+
+  it('reads an absent aggregate entry as 0 and an empty scope as no options', () => {
+    expect(queueBrandOptions([gratsi], new Map(), [])).toEqual([
       { id: 'gratsi', name: 'Gratsi', count: 0 },
     ]);
+    expect(queueBrandOptions([], counts, [])).toEqual([]);
   });
 
-  it('counts the rows under their brand and keeps scope order', () => {
-    const options = queueBrandOptions(
-      [row('gratsi'), row(DEMO_BRAND_ID), row('gratsi')],
-      [niagara, gratsi],
-    );
-
+  it('keeps a row whose brand is outside the scope reachable, by id, counted from its rows', () => {
+    const options = queueBrandOptions([niagara], counts, [row(DEMO_BRAND_ID), row('other')]);
     expect(options).toEqual([
-      { id: DEMO_BRAND_ID, name: 'Niagara', count: 1 },
-      { id: 'gratsi', name: 'Gratsi', count: 2 },
-    ]);
-  });
-
-  it('keeps a row whose brand is outside the scope reachable, by id, after the scoped ones', () => {
-    const options = queueBrandOptions([row(DEMO_BRAND_ID), row('other')], [niagara]);
-
-    expect(options).toEqual([
-      { id: DEMO_BRAND_ID, name: 'Niagara', count: 1 },
+      { id: DEMO_BRAND_ID, name: 'Niagara', count: 7 },
       { id: 'other', name: 'other', count: 1 },
     ]);
   });

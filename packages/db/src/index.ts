@@ -53,6 +53,7 @@ export {
   renameBrief,
   updateBrief,
   updateBriefClientStatus,
+  countLiveBriefsByBrand,
   updateBriefDimensions,
   updateBriefDimensionsWith,
 } from './briefs';

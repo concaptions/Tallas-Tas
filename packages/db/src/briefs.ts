@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { loadAllAngleProducts, loadAllConceptAngles } from './junction-queries';
@@ -364,4 +364,26 @@ export async function updateBriefDimensionsWith(
     if (current === null) return null;
     return updateBriefDimensions(tx, brandId, id, next(current), actorId);
   });
+}
+
+/**
+ * Live briefs per brand, for the brands named — the Internal Queue's brand buttons (SMOKE-09,
+ * 2026-10-10: counting the loaded rows, which are scoped to the working brand, showed "· 0" for
+ * every other brand of the agency). ONE aggregate, grouped, on the connection already open; a
+ * brand with no live brief is absent from the map. Deliberately not `withBrand`: it spans brands by
+ * design, and what bounds it is the id list, which the caller takes from `loadBrandScope` — the
+ * same entitlement check the switcher uses — so the numbers are those of brands the actor may
+ * switch to, and nothing but a number leaves the row. Empty ids means no query at all.
+ */
+export async function countLiveBriefsByBrand(
+  db: Db,
+  brandIds: readonly string[],
+): Promise<ReadonlyMap<string, number>> {
+  if (brandIds.length === 0) return new Map();
+  const rows = await db
+    .select({ brandId: creativeBriefs.brandId, total: count() })
+    .from(creativeBriefs)
+    .where(and(inArray(creativeBriefs.brandId, [...brandIds]), isNull(creativeBriefs.deletedAt)))
+    .groupBy(creativeBriefs.brandId);
+  return new Map(rows.map((row) => [row.brandId, row.total]));
 }

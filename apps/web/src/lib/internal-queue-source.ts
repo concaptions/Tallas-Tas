@@ -1,5 +1,6 @@
 import { currentActor } from './actor';
 import {
+  loadBriefCountsByBrand,
   loadBriefs,
   type BriefListResult,
   type BriefRow,
@@ -66,33 +67,34 @@ export interface InternalQueueDeps extends BriefSourceDeps {
   readonly actor?: () => Promise<{ readonly fullName: string }>;
   /** The brands of the agency in scope — the switcher's own list (`loadBrandScope`). */
   readonly brands?: () => Promise<readonly BrandSummary[]>;
+  /** Live briefs per brand id, across the scope (`loadBriefCountsByBrand`). */
+  readonly counts?: (brandIds: readonly string[]) => Promise<ReadonlyMap<string, number>>;
 }
 
 /**
  * The brand options the board offers: every brand of the agency in scope — the same list the top
- * bar's switcher draws from `loadBrandScope` — each with the number of loaded rows behind it, in
- * scope order, the parent template left out. The loaded rows are scoped to the WORKING brand, so
- * deriving the options from them always produced exactly one and the board said "One brand in this
- * workspace" with Niagara and Gratsi both live (smoke test, 2026-10-10). A row whose brand is not
- * in scope — which a brand-scoped query cannot produce today — is still listed, by id, so no card
- * is ever unreachable. Pure, so the derivation is testable without a loader.
+ * bar's switcher draws from `loadBrandScope` — in scope order, the parent template left out, each
+ * with ITS OWN live brief count from `counts`, an aggregate across the scope. The loaded rows are
+ * scoped to the WORKING brand, so counting them showed "· 0" beside every other brand (SMOKE-09:
+ * Gratsi with 390 live creatives) and, before that, only ever found one brand (SMOKE-06). A row
+ * whose brand is not in scope — which a brand-scoped query cannot produce today — is still listed,
+ * by id and by its rows, so no card is ever unreachable. Pure, so the derivation is testable
+ * without a loader.
  */
 export function queueBrandOptions(
-  rows: readonly BriefRow[],
   brands: readonly BrandSummary[],
+  counts: ReadonlyMap<string, number>,
+  rows: readonly BriefRow[],
 ): QueueBrandOption[] {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    counts.set(row.brandId, (counts.get(row.brandId) ?? 0) + 1);
-  }
   const scoped = brands
     .filter((brand) => !brand.isTemplate)
     .map(({ id, name }) => ({ id, name, count: counts.get(id) ?? 0 }));
   const known = new Set(scoped.map((brand) => brand.id));
-  const unscoped = [...counts]
-    .filter(([id]) => !known.has(id))
-    .map(([id, count]) => ({ id, name: id, count }));
-  return [...scoped, ...unscoped];
+  const unscoped = new Map<string, number>();
+  for (const row of rows) {
+    if (!known.has(row.brandId)) unscoped.set(row.brandId, (unscoped.get(row.brandId) ?? 0) + 1);
+  }
+  return [...scoped, ...[...unscoped].map(([id, count]) => ({ id, name: id, count }))];
 }
 
 function inDemoMode(deps: InternalQueueDeps): boolean {
@@ -125,5 +127,7 @@ export async function loadInternalQueue(
     viewerName(deps),
     (deps.brands ?? (async () => (await loadBrandScope(read)).options))(),
   ]);
-  return { rows, source, viewer, brands: queueBrandOptions(rows, brands) };
+  const ids = brands.filter((brand) => !brand.isTemplate).map((brand) => brand.id);
+  const counts = await (deps.counts ?? ((brandIds) => loadBriefCountsByBrand(brandIds, read)))(ids);
+  return { rows, source, viewer, brands: queueBrandOptions(brands, counts, rows) };
 }

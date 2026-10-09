@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   allocateBriefNumber,
+  countLiveBriefsByBrand,
   getBriefById,
   insertBrief,
   listBriefs,
@@ -811,5 +812,39 @@ describe('updateBriefDimensionsWith — one change merged onto the stored array,
     expect(
       await updateBriefDimensionsWith(db, otherBrandId, demoBrief().id, compute, 'x'),
     ).toBeNull();
+  });
+});
+
+describe('countLiveBriefsByBrand — the Internal Queue brand buttons (SMOKE-09)', () => {
+  it('counts live briefs per named brand in one aggregate, leaving out a brand with none', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+
+    const counts = await countLiveBriefsByBrand(db, [brandId, otherBrandId]);
+
+    expect(counts.get(brandId)).toBe(demoBriefs.length);
+    expect(counts.has(otherBrandId)).toBe(false);
+  });
+
+  it('drops a soft-deleted brief from its brand count', async () => {
+    const { db, brandId } = await seeded();
+    await withBrand(db, brandId).softDelete(creativeBriefs, eq(creativeBriefs.id, demoBrief().id));
+
+    const counts = await countLiveBriefsByBrand(db, [brandId]);
+
+    expect(counts.get(brandId)).toBe(demoBriefs.length - 1);
+  });
+
+  it('counts only the brands named: a brand outside the list is not in the map', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+
+    const counts = await countLiveBriefsByBrand(db, [otherBrandId]);
+
+    expect(counts.has(brandId)).toBe(false);
+    expect(counts.size).toBe(0);
+  });
+
+  it('answers an empty list with an empty map and no query', async () => {
+    const { db } = await seeded();
+    expect((await countLiveBriefsByBrand(db, [])).size).toBe(0);
   });
 });
