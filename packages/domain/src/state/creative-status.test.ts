@@ -71,6 +71,7 @@ describe('the status vocabularies', () => {
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'revisions_submitted',
       'disapproved',
       'launched',
     ]);
@@ -85,7 +86,7 @@ describe('the status vocabularies', () => {
     expect(Object.keys(entry ?? {}).sort()).toEqual(['description', 'key', 'label']);
   });
 
-  it('keeps both branches out of the linear client stepper', () => {
+  it('keeps the three branches out of the linear client stepper', () => {
     expect(CLIENT_TRACK_STEPS.map((entry) => entry.key)).toEqual([
       'pending_for_approval',
       'approved',
@@ -357,7 +358,16 @@ describe('canTransitionClient', () => {
       'disapproved',
     ]);
     expect(CLIENT_TRANSITIONS.approved).toEqual(['launched']);
-    expect(CLIENT_TRANSITIONS.revisions_needed).toEqual(['pending_for_approval']);
+    expect(CLIENT_TRANSITIONS.revisions_needed).toEqual([
+      'pending_for_approval',
+      'revisions_submitted',
+    ]);
+    // Resubmitted work takes the same three-way client decision as a fresh submission.
+    expect(CLIENT_TRANSITIONS.revisions_submitted).toEqual([
+      'approved',
+      'revisions_needed',
+      'disapproved',
+    ]);
     expect(CLIENT_TRANSITIONS.disapproved).toEqual([]);
     expect(CLIENT_TRANSITIONS.launched).toEqual([]);
   });

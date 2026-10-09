@@ -174,7 +174,9 @@ describe('clientQueueColumnView', () => {
     // Pinned as values, not recomputed with chipTone: a tautology proves nothing about the tone.
     // `bad` for Disapproved is the Oct 6 Talal ruling, matching COPY_STATUS/CREATOR_STATUS's
     // reading of the same word.
-    expect(views.map((view) => view.tone)).toEqual(['info', 'ok', 'warn', 'bad']);
+    // `mute` for Revisions Submitted: resubmitted work waiting on the client, neither a warning
+    // nor a decision (the Creative Sheet's own state, kept at the 2026-10-09 cutover).
+    expect(views.map((view) => view.tone)).toEqual(['info', 'ok', 'warn', 'mute', 'bad']);
   });
 });
 

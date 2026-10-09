@@ -111,6 +111,12 @@ export const CLIENT_STATUS = [
     description: 'Client asked for changes. Sits here until the team resubmits the creative.',
   },
   {
+    key: 'revisions_submitted',
+    label: 'Revisions Submitted',
+    description:
+      'The team resubmitted against the client’s notes; back with the client for a decision. The Creative Sheet’s own state, kept when the sheet became a view over the briefs (2026-10-09).',
+  },
+  {
     key: 'disapproved',
     label: 'Disapproved',
     description:
@@ -158,7 +164,10 @@ export type InternalStatusOrHoldKey = InternalStatusKey | OnHoldStatusKey;
  * stored column.
  */
 export const CLIENT_TRACK_STEPS: readonly StatusEntry<ClientStatusKey>[] = CLIENT_STATUS.filter(
-  (entry) => entry.key !== 'revisions_needed' && entry.key !== 'disapproved',
+  (entry) =>
+    entry.key !== 'revisions_needed' &&
+    entry.key !== 'revisions_submitted' &&
+    entry.key !== 'disapproved',
 );
 
 export type StepState = 'done' | 'now' | 'next';
@@ -251,16 +260,18 @@ export const INTERNAL_STATIC_TRANSITIONS: TransitionTable<
 
 /**
  * The client track exactly as PRD §9 writes it, extended by the Oct 6 Talal ruling (see
- * `docs/decisions.md` 2026-10-07). The decision branches three ways: `approved`, `revisions_needed`
- * and `disapproved`. `revisions_needed` rejoins at `pending_for_approval` when the team resubmits,
- * which is the only way back onto the decision; `disapproved` is a terminal rejection, matching
- * `CREATOR_STATUS` / `COPY_STATUS`'s existing terminal of the same name; `launched` is the media
- * buyer's terminal state.
+ * `docs/decisions.md` 2026-10-07) and the 2026-10-09 cutover. The decision branches three ways:
+ * `approved`, `revisions_needed` and `disapproved`. From `revisions_needed` the team either
+ * resubmits as `revisions_submitted` — the Creative Sheet's own word for "back with the client",
+ * which then takes the same three-way decision — or the creative goes back to
+ * `pending_for_approval`; `disapproved` is a terminal rejection, matching `CREATOR_STATUS` /
+ * `COPY_STATUS`'s existing terminal of the same name; `launched` is the media buyer's terminal state.
  */
 export const CLIENT_TRANSITIONS: TransitionTable<ClientStatusKey> = {
   pending_for_approval: ['approved', 'revisions_needed', 'disapproved'],
   approved: ['launched'],
-  revisions_needed: ['pending_for_approval'],
+  revisions_needed: ['pending_for_approval', 'revisions_submitted'],
+  revisions_submitted: ['approved', 'revisions_needed', 'disapproved'],
   disapproved: [],
   launched: [],
 };

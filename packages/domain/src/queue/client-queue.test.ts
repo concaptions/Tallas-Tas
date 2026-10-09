@@ -126,6 +126,7 @@ describe('clientQueueColumns', () => {
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'revisions_submitted',
       'disapproved',
     ]);
   });
@@ -145,6 +146,7 @@ describe('clientQueueColumns', () => {
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'revisions_submitted',
       'disapproved',
       'launched',
     ]);
@@ -177,12 +179,13 @@ describe('clientQueueColumnEntry', () => {
 });
 
 describe('groupByClientStatus', () => {
-  it('puts the seeded briefs in the four columns with disapproved empty (Oct 6 ruling)', () => {
+  it('puts the seeded briefs in the five columns with the two revision columns and disapproved empty', () => {
     const columns = groupByClientStatus(demoRows);
     expect(columns.map((column) => [column.key, column.count])).toEqual([
       ['pending_for_approval', 2],
       ['approved', 1],
       ['revisions_needed', 0],
+      ['revisions_submitted', 0],
       ['disapproved', 0],
     ]);
     expect(columns[0]?.rows.map((entry) => entry.id)).toEqual(['0', '3']);
@@ -217,6 +220,7 @@ describe('groupByClientStatus', () => {
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'revisions_submitted',
       'disapproved',
     ]);
     expect(columns.every((column) => column.count === 0)).toBe(true);
@@ -370,6 +374,7 @@ describe('clientQueueActionsFor — only the controls that can succeed', () => {
       'pending_for_approval',
       'approved',
       'revisions_needed',
+      'revisions_submitted',
       'disapproved',
       'launched',
     ];
