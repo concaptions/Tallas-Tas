@@ -1,29 +1,56 @@
 /**
- * Client-facing approval status shared across creative sheet items and copywriting
- * (`creative_sheet_items.client_approval_status`, `copywriting.client_approval_status`).
- * The four states a client can move a row through on the approval track.
+ * Client-facing approval status on `concepts.client_approval_status` and
+ * `copywriting.client_approval_status`: the client's direct response to a delivered concept or copy.
  *
- * The canonical vocabulary lives in `@tas/db/schema` (`clientApprovalStatuses`); this module
- * re-exports the same four entries with their TONE — `ok`, `error`, `warning` — so a component
- * can color a chip without branching on a key, the same arrangement `creative-status.ts` uses
- * for the internal and client tracks.
+ * ONE client vocabulary (Talal, 2026-10-10). The entries ARE `CLIENT_STATUS` — the six keys of the
+ * client track `creative_briefs.client_status` carries since the single-source cutover — with the
+ * tone `chipTone` gives each label, so a concept, a copy row and a creative read the same word in
+ * the same colour. The earlier four-value spelling of this column (`pending_client_approval`,
+ * `revision_needed`) was never written to a row in production; `normalizeClientApprovalStatus`
+ * still reads it, so a caller that learnt the old keys stores the new ones. The canonical list in
+ * `@tas/db/schema` (`clientApprovalStatuses`) is held equal to this one by the test beside it.
  */
 
-export const CLIENT_APPROVAL_STATUS = [
-  { key: 'pending_client_approval', label: 'Pending Client Approval', tone: 'warning' },
-  { key: 'approved', label: 'Approved', tone: 'ok' },
-  { key: 'disapproved', label: 'Disapproved', tone: 'error' },
-  { key: 'revision_needed', label: 'Revision Needed', tone: 'warning' },
-] as const;
+import { CLIENT_STATUS, chipTone, type ChipTone, type ClientStatusKey } from './creative-status';
 
-export type ClientApprovalStatusKey = (typeof CLIENT_APPROVAL_STATUS)[number]['key'];
+export type ClientApprovalStatusKey = ClientStatusKey;
 
-export function clientApprovalLabel(key: string | null | undefined): string {
-  const entry = CLIENT_APPROVAL_STATUS.find((s) => s.key === key);
-  return entry?.label ?? '—';
+export interface ClientApprovalStatusEntry {
+  readonly key: ClientApprovalStatusKey;
+  readonly label: string;
+  readonly tone: ChipTone;
 }
 
-export function clientApprovalTone(key: string | null | undefined): string {
-  const entry = CLIENT_APPROVAL_STATUS.find((s) => s.key === key);
-  return entry?.tone ?? 'neutral';
+export const CLIENT_APPROVAL_STATUS: readonly ClientApprovalStatusEntry[] = CLIENT_STATUS.map(
+  (entry) => ({ key: entry.key, label: entry.label, tone: chipTone(entry.label) }),
+);
+
+/** The four-value spelling this column had before 2026-10-10, read but never stored again. */
+const LEGACY_CLIENT_APPROVAL_KEYS: Readonly<Record<string, ClientApprovalStatusKey>> = {
+  pending_client_approval: 'pending_for_approval',
+  revision_needed: 'revisions_needed',
+};
+
+/**
+ * The `CLIENT_STATUS` key a submitted or stored value names: itself when it is one, its new
+ * spelling when it is a legacy key, and `null` for anything else (including null and undefined).
+ */
+export function normalizeClientApprovalStatus(
+  key: string | null | undefined,
+): ClientApprovalStatusKey | null {
+  if (key === null || key === undefined) return null;
+  if (CLIENT_APPROVAL_STATUS.some((entry) => entry.key === key)) {
+    return key as ClientApprovalStatusKey;
+  }
+  return LEGACY_CLIENT_APPROVAL_KEYS[key] ?? null;
+}
+
+export function clientApprovalLabel(key: string | null | undefined): string {
+  const normalised = normalizeClientApprovalStatus(key);
+  return CLIENT_APPROVAL_STATUS.find((entry) => entry.key === normalised)?.label ?? '—';
+}
+
+export function clientApprovalTone(key: string | null | undefined): ChipTone {
+  const normalised = normalizeClientApprovalStatus(key);
+  return CLIENT_APPROVAL_STATUS.find((entry) => entry.key === normalised)?.tone ?? 'mute';
 }

@@ -281,12 +281,7 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
     render: (item) => {
       const key = item.clientApprovalStatus;
       if (key === null) return dash(null);
-      return (
-        <StatusChip
-          tone={clientApprovalTone(key) as import('@tas/domain/state').ChipTone}
-          label={clientApprovalLabel(key)}
-        />
-      );
+      return <StatusChip tone={clientApprovalTone(key)} label={clientApprovalLabel(key)} />;
     },
     sortValue: (item) => clientApprovalLabel(item.clientApprovalStatus),
   },

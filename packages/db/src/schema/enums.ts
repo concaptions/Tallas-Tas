@@ -590,13 +590,22 @@ export const angleStatuses = [
 export type AngleStatusesKey = (typeof angleStatuses)[number]['key'];
 
 /**
- * Client-facing approval status shared across creative sheet items, copywriting, concepts
- * and creators. The four states a client can move a row through on the approval track.
+ * Client-facing approval status on `concepts.client_approval_status` and
+ * `copywriting.client_approval_status` (and the frozen sheet table's copy). ONE client vocabulary
+ * across the platform (Talal, 2026-10-10): the six keys of `CLIENT_STATUS` in `@tas/domain/state`,
+ * which `creative_briefs.client_status` already carries since the single-source cutover — this list
+ * must stay equal to it, and `client-approval-status.test.ts` checks that it does. The earlier
+ * four-value spelling (`pending_client_approval`, `revision_needed`) was never written to a row;
+ * `normalizeClientApprovalStatus` in the domain still reads it, so an old caller cannot store it.
+ * `creators.client_approval_status` keeps the type but is unused: the creator's client-facing track
+ * is `creators.client_status`, its own vocabulary, untouched.
  */
 export const clientApprovalStatuses = [
-  { key: 'pending_client_approval', label: 'Pending Client Approval' },
+  { key: 'pending_for_approval', label: 'Pending for Approval' },
   { key: 'approved', label: 'Approved' },
+  { key: 'revisions_needed', label: 'Revisions Needed' },
+  { key: 'revisions_submitted', label: 'Revisions Submitted' },
   { key: 'disapproved', label: 'Disapproved' },
-  { key: 'revision_needed', label: 'Revision Needed' },
+  { key: 'launched', label: 'Launched' },
 ] as const satisfies readonly { key: string; label: string }[];
 export type ClientApprovalStatusKey = (typeof clientApprovalStatuses)[number]['key'];

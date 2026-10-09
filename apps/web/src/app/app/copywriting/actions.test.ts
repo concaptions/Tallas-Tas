@@ -3,7 +3,12 @@ import { COPY_CTAS } from '@tas/domain/copy';
 import { COPY_STATUS } from '@tas/domain/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { updateCopyAction, type CopyActionResult, type CopyActionSuccess } from './actions';
+import {
+  updateCopyAction,
+  updateCopyClientApproval,
+  type CopyActionResult,
+  type CopyActionSuccess,
+} from './actions';
 
 /**
  * `updateCopyAction` is the Copywriting route's ONE mutation. There is no create action: the "New
@@ -47,7 +52,11 @@ interface Seam {
   /** Every `setCollectionCopywritingLinkInBrand` call. */
   collectionLinks: LinkedCollection[];
   /** Every `updateCopy` patch, so a test can assert what reached the setter for the two row-side links. */
-  updates: { readonly productId?: string | null; readonly creativeBriefId?: string | null }[];
+  updates: {
+    readonly productId?: string | null;
+    readonly creativeBriefId?: string | null;
+    readonly clientApprovalStatus?: string | null;
+  }[];
 }
 
 /** Values the mocked seams read at call time, so a test can move the ground under one action. */
@@ -88,9 +97,17 @@ vi.mock('@tas/db', async (importOriginal) => ({
     _db: Db,
     _brandId: string,
     id: string,
-    patch: { productId?: string | null; creativeBriefId?: string | null },
+    patch: {
+      productId?: string | null;
+      creativeBriefId?: string | null;
+      clientApprovalStatus?: string | null;
+    },
   ): Promise<{ id: string }> => {
-    seam.updates.push({ productId: patch.productId, creativeBriefId: patch.creativeBriefId });
+    seam.updates.push({
+      productId: patch.productId,
+      creativeBriefId: patch.creativeBriefId,
+      clientApprovalStatus: patch.clientApprovalStatus,
+    });
     return Promise.resolve({ id });
   },
   syncCopywritingCopyTypesInBrand: (
@@ -549,6 +566,38 @@ describe('with Clerk configured · the Linked Product control', () => {
       throw new Error("another brand's product was accepted");
     }
     expect(result.fieldErrors?.productId).toBe('That product is no longer available.');
+    expect(seam.updates).toEqual([]);
+  });
+});
+
+describe('with Clerk configured · updateCopyClientApproval — one client vocabulary (2026-10-10)', () => {
+  it('stores a CLIENT_STATUS key as it is, launched included', async () => {
+    live();
+
+    const result = await updateCopyClientApproval(STORED.id, 'launched');
+
+    expect(saved(result, 'a client-track key was refused').id).toBe(STORED.id);
+    expect(seam.updates.at(-1)?.clientApprovalStatus).toBe('launched');
+  });
+
+  it('maps the retired four-value spelling onto the client track before writing', async () => {
+    live();
+
+    await updateCopyClientApproval(STORED.id, 'revision_needed', 'Tighten the hook.');
+    await updateCopyClientApproval(STORED.id, 'pending_client_approval');
+
+    expect(seam.updates.map((patch) => patch.clientApprovalStatus)).toEqual([
+      'revisions_needed',
+      'pending_for_approval',
+    ]);
+  });
+
+  it('refuses a word outside both spellings before any write', async () => {
+    live();
+
+    const result = await updateCopyClientApproval(STORED.id, 'nonsense');
+
+    expect(result.ok).toBe(false);
     expect(seam.updates).toEqual([]);
   });
 });

@@ -8,7 +8,7 @@ import {
   updateCreatorClientApproval,
   type Db,
 } from '@tas/db';
-import { CLIENT_APPROVAL_STATUS } from '@tas/domain/state';
+import { normalizeClientApprovalStatus } from '@tas/domain/state';
 
 import { withBrandScope as withConceptScope } from './concepts-source';
 import { withBrandScope as withCopyScope } from './copy-source';
@@ -20,7 +20,10 @@ import { conceptsPath, copywritingPath, ugcPath } from './routes';
  * The server action for the `client_approval_status` column on `copywriting`, `concepts` and
  * `creators` (Talal sync action item). These columns are SEPARATE from the two-track
  * `clientStatus` column: the two-track is the PRD approval flow, while client approval status
- * is the client's direct response to a delivered copy, concept or creator. The dispatch pattern
+ * is the client's direct response to a delivered copy, concept or creator. The VOCABULARY is the
+ * one client vocabulary, `CLIENT_STATUS` (2026-10-10), the same six words the Creative Sheet's
+ * `creative_briefs.client_status` carries; `creators` keeps its own `client_status` track for the
+ * UGC page and this column on it is unused. The dispatch pattern
  * mirrors `client-status-actions.ts`, with one entry point for the three tables. The Creative
  * Sheet is no longer here: since the single-source cutover (2026-10-09) a creative's approval IS
  * `creative_briefs.client_status`, written through `client-status-actions.ts`.
@@ -51,9 +54,8 @@ export interface UpdateClientApprovalFailure {
 
 export type UpdateClientApprovalResult = UpdateClientApprovalSuccess | UpdateClientApprovalFailure;
 
-const VALID_KEYS = CLIENT_APPROVAL_STATUS.map((entry) => entry.key) as readonly string[];
-
-const NOTE_REQUIRED: readonly string[] = ['disapproved', 'revision_needed'];
+/** The two decisions that need a reason, in the one client vocabulary (`CLIENT_STATUS`). */
+const NOTE_REQUIRED: readonly string[] = ['disapproved', 'revisions_needed'];
 
 type ClientApprovalDispatch = (
   db: Db,
@@ -97,13 +99,16 @@ export async function updateClientApproval(
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
 
-  const { tableKey, recordId, newStatus } = args;
+  const { tableKey, recordId } = args;
 
   if (typeof recordId !== 'string' || recordId === '') {
     return { ok: false, error: 'That record is no longer available.' };
   }
 
-  if (!VALID_KEYS.includes(newStatus)) {
+  // One client vocabulary (2026-10-10): a `CLIENT_STATUS` key is stored as it is, the retired
+  // four-value spelling as its mapped key, anything else refused before any write.
+  const newStatus = normalizeClientApprovalStatus(args.newStatus);
+  if (newStatus === null) {
     return { ok: false, error: 'That is not a valid client approval status.' };
   }
 

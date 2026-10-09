@@ -94,7 +94,7 @@ export interface CopyItem {
   readonly spellingFeedback: string | null;
   /** The client writes this, we never do. Read-only wherever it appears. */
   readonly clientComment: string | null;
-  /** The client-facing approval status, one of four `CLIENT_APPROVAL_STATUS` keys or null. */
+  /** The client-facing approval status, one of the six `CLIENT_STATUS` keys or null. */
   readonly clientApprovalStatus: string | null;
   /**
    * The copy types this row is tagged with (Airtable "Copy Type", `copywriting_copy_types`). The

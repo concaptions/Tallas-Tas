@@ -23,8 +23,7 @@ import {
   type CopyDraftField,
   type CopyDraftValidation,
 } from '@tas/domain/copy';
-import { clientApprovalStatuses } from '@tas/db/schema';
-import { COPY_STATUS_INITIAL } from '@tas/domain/state';
+import { COPY_STATUS_INITIAL, normalizeClientApprovalStatus } from '@tas/domain/state';
 import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/copy-source';
@@ -489,7 +488,8 @@ export async function updateCopyAction(
 
 /**
  * Updates the client-facing approval status and optional note on one copy row. The vocabulary is
- * the four `clientApprovalStatuses` keys from `@tas/db/schema`; an empty note stores NULL.
+ * the one client vocabulary, `CLIENT_STATUS` (2026-10-10); the retired four-value spelling is read
+ * and stored as its mapped key, anything else refused. An empty note stores NULL.
  * `clientApprovalStatusUpdatedAt` is stamped with the server's clock so the timeline never
  * depends on the client's.
  */
@@ -506,8 +506,8 @@ export async function updateCopyClientApproval(
     return { ok: false, error: 'This copy could not be identified.' };
   }
 
-  const validStatus = clientApprovalStatuses.find((entry) => entry.key === status);
-  if (validStatus === undefined) {
+  const validStatus = normalizeClientApprovalStatus(status);
+  if (validStatus === null) {
     return { ok: false, error: 'That is not one of the client approval statuses.' };
   }
 
@@ -525,7 +525,7 @@ export async function updateCopyClientApproval(
         brandId,
         id,
         {
-          clientApprovalStatus: validStatus.key,
+          clientApprovalStatus: validStatus,
           clientApprovalNote: trimmedNote,
           clientApprovalStatusUpdatedAt: new Date(),
         },
