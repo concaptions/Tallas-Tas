@@ -75,7 +75,7 @@ describe('editorBoardItems', () => {
     );
   });
 
-  it('counts the briefs that are off the board and the sheet rows with no brief', () => {
+  it('counts the creatives that are off the board and the sheet rows with no creative', () => {
     const result = editorBoardItems(
       [INCOMING, APPROVED, LAUNCHED, REVIEW],
       SHEET_ROWS,
@@ -129,10 +129,10 @@ describe('editorBoardItems', () => {
 describe('offBoardLabel', () => {
   it('counts both, singular at one', () => {
     expect(offBoardLabel(4, 1)).toBe(
-      '4 briefs off the board (approved, launched or on hold) · 1 sheet row with no brief',
+      '4 creatives off the board (approved, launched or on hold) · 1 sheet row with no creative',
     );
     expect(offBoardLabel(1, 0)).toBe(
-      '1 brief off the board (approved, launched or on hold) · 0 sheet rows with no brief',
+      '1 creative off the board (approved, launched or on hold) · 0 sheet rows with no creative',
     );
   });
 });

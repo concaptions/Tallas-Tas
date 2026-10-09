@@ -123,7 +123,7 @@ export function OverviewDashboard({ summary }: OverviewDashboardProps) {
           resolver={clientChip}
         />
         <SummaryCard
-          title="Briefs"
+          title="Creative Sheet"
           total={summary.briefs.total}
           href={creativeSheetPath}
           breakdown={summary.briefs.byInternalStatus}

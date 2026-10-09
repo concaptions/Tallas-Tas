@@ -87,15 +87,15 @@ describe('roleDashboard', () => {
     const d = roleDashboard('strategist');
     expect(d.roleLabel).toBe('Creative Strategist');
     const labels = d.items.map((i) => i.label);
-    expect(labels).toContain('Concepts needing briefs');
-    expect(labels).toContain('Briefs needing QA sign-off');
+    expect(labels).toContain('Concepts needing creatives');
+    expect(labels).toContain('Creatives needing QA sign-off');
   });
 
   it('editor sees briefs in production and copy pending review', () => {
     const d = roleDashboard('video_editor');
     expect(d.roleLabel).toBe('Creative Items');
     const labels = d.items.map((i) => i.label);
-    expect(labels).toContain('Briefs in production');
+    expect(labels).toContain('Creatives in production');
     expect(labels).toContain('Copy pending review');
   });
 
@@ -104,14 +104,14 @@ describe('roleDashboard', () => {
     expect(d.roleLabel).toBe('Designer');
     const labels = d.items.map((i) => i.label);
     expect(labels).toContain('Design in progress');
-    expect(labels).toContain('Briefs without design file');
+    expect(labels).toContain('Creatives without design file');
   });
 
   it('csm sees briefs in progress and ready for client', () => {
     const d = roleDashboard('csm');
     expect(d.roleLabel).toBe('Client Success Manager');
     const labels = d.items.map((i) => i.label);
-    expect(labels).toContain('Briefs in progress');
+    expect(labels).toContain('Creatives in progress');
     expect(labels).toContain('Ready for client');
   });
 
@@ -130,7 +130,7 @@ describe('roleDashboard', () => {
     for (const label of csm.items.map((i) => i.label)) {
       expect(adminLabels).toContain(label);
     }
-    expect(adminLabels).toContain('Briefs with spell-check flags');
+    expect(adminLabels).toContain('Creatives with spell-check flags');
     expect(admin.roleLabel).toBe('Admin');
   });
 
@@ -187,7 +187,7 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
 
     const csm = buildRoleDashboard('csm', data);
     // Both briefs have cleared internal review, so the CSM's queue is empty and both are ready.
-    expect(csm.items.find((i) => i.label === 'Briefs in progress')?.count).toBe(0);
+    expect(csm.items.find((i) => i.label === 'Creatives in progress')?.count).toBe(0);
     expect(csm.items.find((i) => i.label === 'Ready for client')?.count).toBe(2);
     // The three concepts in `data` are no longer counted anywhere on the CSM's tiles — nor on the
     // two sets built from this one: `adminItems` spreads it and `client` aliases it.

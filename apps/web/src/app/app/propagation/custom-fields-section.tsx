@@ -35,7 +35,7 @@ const TABLE_OPTIONS = [
   { value: 'personas', label: 'Personas' },
   { value: 'angles', label: 'Angles' },
   { value: 'concepts', label: 'Concepts' },
-  { value: 'creative_briefs', label: 'Creative Briefs' },
+  { value: 'creative_briefs', label: 'Creative Sheet' },
   { value: 'copywriting', label: 'Copywriting' },
   { value: 'creators', label: 'Creators' },
   { value: 'campaigns_offers', label: 'Campaigns & Offers' },

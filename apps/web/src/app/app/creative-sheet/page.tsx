@@ -34,6 +34,10 @@ interface CreativeSheetPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
+export const metadata = {
+  title: 'Creative Sheet — TAS Creative Platform',
+};
+
 const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban']);
 
 export default async function CreativeSheetPage({ searchParams }: CreativeSheetPageProps) {

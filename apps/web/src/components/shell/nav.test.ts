@@ -153,7 +153,8 @@ describe('activeSectionKey', () => {
     ['/app/concepts/66666666-6666-4666-8666-000000000001', 'concepts'],
     ['/app/concepts/new', 'concepts'],
     ['/app/creative-design', 'briefs'],
-    ['/app/creative-design/77777777-7777-4777-8777-000000000001', 'briefs'],
+    // The brief detail page lights the Creative Sheet: its list is retired (2026-10-09).
+    ['/app/creative-design/77777777-7777-4777-8777-000000000001', 'creative-sheet'],
     ['/app/copywriting', 'copywriting'],
     ['/app/youtube-copywriting', 'youtube-copywriting'],
     ['/app/email-campaigns', 'email-campaigns'],

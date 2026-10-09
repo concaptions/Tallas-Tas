@@ -389,6 +389,11 @@ export function navGroupsForView(
  * lights Personas and not Overview even though both are prefixes of it.
  */
 export function activeSectionKey(pathname: string): string | null {
+  // A brief's detail page belongs to the Creative Sheet (2026-10-09, audit item 1): the Creative
+  // Design LIST is retired and hidden, so matching its prefix would light nothing in the rail.
+  if (pathname.startsWith(`${creativeDesignPath}/`)) {
+    return 'creative-sheet';
+  }
   let active: NavSection | null = null;
   for (const section of NAV_SECTIONS) {
     const href = section.href;

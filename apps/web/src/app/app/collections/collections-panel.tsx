@@ -337,7 +337,7 @@ export function CollectionPanel({
                   mono
                 />
                 <LinkedRecordList
-                  title="Creative Designs"
+                  title="Creatives"
                   slot="collection-creative-designs"
                   records={creativeDesigns}
                   emptyHint={NO_CREATIVE_DESIGNS_HINT}

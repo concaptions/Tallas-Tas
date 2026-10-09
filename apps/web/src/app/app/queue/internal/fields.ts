@@ -193,12 +193,12 @@ export function queueColumnView(entry: StatusEntry): QueueColumnView {
   };
 }
 
-/** How the header counts what is on the board. Singular at one, never "1 briefs". */
+/** How the header counts what is on the board. Singular at one, never "1 creatives". */
 export function queueCountLabel(count: number): string {
-  return `${String(count)} ${count === 1 ? 'brief' : 'briefs'}`;
+  return `${String(count)} ${count === 1 ? 'creative' : 'creatives'}`;
 }
 
-/** The count line while a filter is narrowing the board, so "6 briefs" never contradicts 2 cards. */
+/** The count line while a filter is narrowing the board, so "6 creatives" never contradicts 2 cards. */
 export function filteredQueueCountLabel(visible: number, total: number): string {
   return `${String(Math.max(Math.floor(visible), 0))} of ${queueCountLabel(total)}`;
 }
@@ -230,7 +230,7 @@ export const ONE_BRAND_NOTE =
  * never built is a worse lie than an honest sentence.
  */
 export const READ_ONLY_NOTE =
-  'Read-only board. Nothing here moves a brief: a status changes on the brief’s own page, where the transition lives.';
+  'Read-only board. Nothing here moves a creative: a status changes on the creative’s own page, where the transition lives.';
 
 /** The subtitle under the heading. */
 export const QUEUE_INTRO_NOTE =
@@ -241,11 +241,11 @@ export const EMPTY_COLUMN_NOTE = 'Nothing here';
 
 /**
  * The empty state's three sentences, which say different things and must never be collapsed into
- * one. A workspace with no briefs at all is offered the place briefs are made; a filter that matches
+ * one. A workspace with no creatives at all is offered the place creatives are made; a filter that matches
  * nothing is offered its way back, because those are different problems with different ways out.
  */
 export const NO_BRIEFS_NOTE =
-  'No creative briefs yet. The queue fills itself as briefs are created — every card here is a brief, and its name writes itself.';
+  'No creatives yet. The queue fills itself as creatives are added on the Creative Sheet — every card here is a creative, and its name writes itself.';
 
 /** What "Mine" says when the viewer genuinely owns nothing. A legitimate state, not an error. */
 export function noMineNote(viewer: string): string {
@@ -257,11 +257,11 @@ export function noMineNote(viewer: string): string {
 
 /** What a brand filter says when that brand has nothing on the internal track. */
 export function noBrandNote(name: string): string {
-  return `No briefs on the internal track for ${name} right now.`;
+  return `No creatives on the internal track for ${name} right now.`;
 }
 
 /** The empty state's way back, and the label of the button that takes it. */
-export const SHOW_ALL_LABEL = 'Show all briefs';
+export const SHOW_ALL_LABEL = 'Show all creatives';
 
 /** Where the empty board points instead: the Creative Sheet, where the brand's creatives are listed. */
 export const OPEN_BRIEFS_LABEL = 'Go to Creative Sheet';

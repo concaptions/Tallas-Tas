@@ -170,7 +170,7 @@ describe('with Clerk configured', () => {
 
     const result = await createBriefAction(null, form(values));
 
-    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+    expect(result).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
   });
 
   /**
@@ -184,7 +184,7 @@ describe('with Clerk configured', () => {
 
     const result = await updateBriefAction(null, form({ ...filled, id: 'a-brief' }));
 
-    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+    expect(result).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
   });
 
   it('still refuses an update that submits an unmapped grade verbatim', async () => {
@@ -233,7 +233,7 @@ describe('with Clerk configured', () => {
 
     const result = await updateBriefAction(null, data);
 
-    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+    expect(result).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
   });
 
   /**
@@ -252,7 +252,7 @@ describe('with Clerk configured', () => {
 
     const result = await updateBriefAction(null, data);
 
-    expect(result).toEqual({ ok: false, error: 'The brief could not be saved. Try again.' });
+    expect(result).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
   });
 
   it('still refuses a dimension that is not a placement at all: the empty string', async () => {
@@ -296,7 +296,7 @@ describe('with Clerk configured', () => {
       throw new Error('a video-track status was accepted on a carousel');
     }
     expect(result.fieldErrors?.internalStatus).toBe(
-      'That is not a status on this brief internal track.',
+      'That is not a status on this creative’s internal track.',
     );
   });
 
@@ -313,7 +313,7 @@ describe('with Clerk configured', () => {
 
     const result = await moveBriefStageAction('   ', 'under_review');
 
-    expect(result).toEqual({ ok: false, error: 'This brief could not be identified.' });
+    expect(result).toEqual({ ok: false, error: 'This creative could not be identified.' });
   });
 
   it('rejects an update whose id is missing', async () => {
@@ -321,7 +321,7 @@ describe('with Clerk configured', () => {
 
     const result = await updateBriefAction(null, form(filled));
 
-    expect(result).toEqual({ ok: false, error: 'This brief could not be identified.' });
+    expect(result).toEqual({ ok: false, error: 'This creative could not be identified.' });
   });
 
   it('rejects a QA tick naming a column that is not one of the three checks', async () => {

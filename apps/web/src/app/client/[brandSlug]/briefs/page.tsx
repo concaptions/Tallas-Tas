@@ -22,11 +22,11 @@ export default async function ClientBriefsPage({ params }: Props) {
   return (
     <>
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-text">Creative Briefs</h1>
+        <h1 className="text-xl font-semibold text-text">Creative Sheet</h1>
         <p className="text-sm text-text2">
           {briefs.length === 0
-            ? 'No briefs ready for review.'
-            : `${String(briefs.length)} brief${briefs.length === 1 ? '' : 's'}`}
+            ? 'No creatives ready for review.'
+            : `${String(briefs.length)} creative${briefs.length === 1 ? '' : 's'}`}
         </p>
       </div>
 

@@ -25,13 +25,13 @@ const MODULE_DAYLIGHT_PROOF = '1234abcd-1234-4abc-8abc-000000000002';
 const CONCEPT_BODY_CLOCK = '66666666-6666-4666-8666-000000000001';
 
 /**
- * What the panel says under "Creative Designs" when no brief's `angle_id` is the angle —
+ * What the panel says under "Creatives" when no brief's `angle_id` is the angle —
  * `NO_CREATIVE_DESIGNS_NOTICE` in `angles/fields.ts`, verbatim. Every `demoBriefs` row stores
  * `angleId: null` (a brief is ordinarily briefed through its concept), so in demo mode every angle
  * shows it.
  */
 const NO_CREATIVE_DESIGNS_NOTICE =
-  'No creative design points at this angle yet. Set it from the brief’s own page.';
+  'No creative points at this angle yet. Set it from the creative’s own page.';
 
 test.describe('angles in demo mode (no Clerk publishable key)', () => {
   test.skip(

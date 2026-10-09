@@ -184,10 +184,10 @@ describe('queueColumnView', () => {
 
 describe('the board’s own copy', () => {
   it('counts in the singular at one', () => {
-    expect(queueCountLabel(0)).toBe('0 briefs');
-    expect(queueCountLabel(1)).toBe('1 brief');
-    expect(queueCountLabel(6)).toBe('6 briefs');
-    expect(filteredQueueCountLabel(2, 6)).toBe('2 of 6 briefs');
+    expect(queueCountLabel(0)).toBe('0 creatives');
+    expect(queueCountLabel(1)).toBe('1 creative');
+    expect(queueCountLabel(6)).toBe('6 creatives');
+    expect(filteredQueueCountLabel(2, 6)).toBe('2 of 6 creatives');
   });
 
   it('names the viewer in the "Mine" option and in its empty state, so nothing is implied', () => {

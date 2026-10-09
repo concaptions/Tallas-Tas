@@ -466,7 +466,7 @@ function internalStatusOr(
   }
   return isInternalStatusOf(track, submitted)
     ? submitted
-    : fieldFailure({ internalStatus: 'That is not a status on this brief internal track.' });
+    : fieldFailure({ internalStatus: 'That is not a status on this creative’s internal track.' });
 }
 
 function clientStatusOr(
@@ -663,7 +663,7 @@ export async function createBriefAction(
     revalidateBrief(outcome.id);
     return outcome;
   } catch {
-    return { ok: false, error: 'The brief could not be saved. Try again.' };
+    return { ok: false, error: 'The creative could not be saved. Try again.' };
   }
 }
 
@@ -684,7 +684,7 @@ export async function updateBriefAction(
 
   const id = formData.get('id');
   if (typeof id !== 'string' || id === '') {
-    return { ok: false, error: 'This brief could not be identified.' };
+    return { ok: false, error: 'This creative could not be identified.' };
   }
 
   const parsed = parse(formData);
@@ -728,7 +728,7 @@ export async function updateBriefAction(
           : getConceptById(db, brandId, values.conceptId),
       ]);
       if (current === null) {
-        return { ok: false as const, error: 'That brief is no longer available.' };
+        return { ok: false as const, error: 'That creative is no longer available.' };
       }
       if (values.conceptId !== null && concept === null) {
         return fieldFailure({ conceptId: 'That concept is no longer available.' });
@@ -769,7 +769,7 @@ export async function updateBriefAction(
       const input = toInput(values, concept, current.sequence, internal, client);
       const saved = await updateBrief(db, brandId, id, input, actor);
       if (saved === null) {
-        return { ok: false as const, error: 'That brief is no longer available.' };
+        return { ok: false as const, error: 'That creative is no longer available.' };
       }
       // The activity log (EDIT-03): every field this write changed, old → new, by whom, written
       // here beside the row update and never from the client.
@@ -793,7 +793,7 @@ export async function updateBriefAction(
     revalidateBrief(outcome.id);
     return outcome;
   } catch {
-    return { ok: false, error: 'The brief could not be saved. Try again.' };
+    return { ok: false, error: 'The creative could not be saved. Try again.' };
   }
 }
 
@@ -828,7 +828,7 @@ export async function toggleQaAction(
 
   const id = formData.get('id');
   if (typeof id !== 'string' || id === '') {
-    return { ok: false, error: 'This brief could not be identified.' };
+    return { ok: false, error: 'This creative could not be identified.' };
   }
 
   const parsed = qaSchema.safeParse({
@@ -849,7 +849,7 @@ export async function toggleQaAction(
     const outcome = await withBrandScope(async (db, brandId) => {
       const saved = await updateBrief(db, brandId, id, { [check]: checked }, actor);
       return saved === null
-        ? { ok: false as const, error: 'That brief is no longer available.' }
+        ? { ok: false as const, error: 'That creative is no longer available.' }
         : { ok: true as const, id: saved.id, name: saved.name, savedAt: Date.now() };
     });
 
@@ -909,7 +909,7 @@ export async function startBriefAction(briefId: string): Promise<StartBriefResul
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
   if (briefId.trim() === '') {
-    return { ok: false, error: 'This brief could not be identified.' };
+    return { ok: false, error: 'This creative could not be identified.' };
   }
   try {
     const actor = await actorId();
@@ -921,10 +921,10 @@ export async function startBriefAction(briefId: string): Promise<StartBriefResul
     const outcome = await withBrandScope(async (db, brandId) => {
       const current = await getBriefById(db, brandId, briefId);
       if (current === null) {
-        return { ok: false as const, error: 'That brief is no longer available.' };
+        return { ok: false as const, error: 'That creative is no longer available.' };
       }
       if (!canStartBrief(current.internalStatus)) {
-        return { ok: false as const, error: 'Only an Incoming brief can be started.' };
+        return { ok: false as const, error: 'Only an Incoming creative can be started.' };
       }
       const track = creativeTrack(current.type);
       const next = startedStatusFor(track);
@@ -937,7 +937,7 @@ export async function startBriefAction(briefId: string): Promise<StartBriefResul
       const patch = { internalStatus: next, assignee: actorName };
       const saved = await updateBrief(db, brandId, briefId, patch, actor);
       if (saved === null) {
-        return { ok: false as const, error: 'That brief is no longer available.' };
+        return { ok: false as const, error: 'That creative is no longer available.' };
       }
       await insertActivity(
         db,
@@ -959,7 +959,7 @@ export async function startBriefAction(briefId: string): Promise<StartBriefResul
     revalidateBrief(outcome.id);
     return outcome;
   } catch {
-    return { ok: false, error: 'The brief could not be started. Try again.' };
+    return { ok: false, error: 'The creative could not be started. Try again.' };
   }
 }
 
@@ -991,7 +991,7 @@ export async function moveBriefStageAction(
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
   if (briefId.trim() === '') {
-    return { ok: false, error: 'This brief could not be identified.' };
+    return { ok: false, error: 'This creative could not be identified.' };
   }
   if (!isEditorStage(stage)) {
     return { ok: false, error: 'That is not a column on the editor board.' };
@@ -1006,7 +1006,7 @@ export async function moveBriefStageAction(
     const outcome = await withBrandScope(async (db, brandId) => {
       const current = await getBriefById(db, brandId, briefId);
       if (current === null) {
-        return { ok: false as const, error: 'That brief is no longer available.' };
+        return { ok: false as const, error: 'That creative is no longer available.' };
       }
       const next = editorStageMoveTarget(
         current.internalStatus,
@@ -1019,7 +1019,7 @@ export async function moveBriefStageAction(
       const patch = { internalStatus: next };
       const saved = await updateBrief(db, brandId, briefId, patch, actor);
       if (saved === null) {
-        return { ok: false as const, error: 'That brief is no longer available.' };
+        return { ok: false as const, error: 'That creative is no longer available.' };
       }
       await insertActivity(
         db,
@@ -1044,6 +1044,6 @@ export async function moveBriefStageAction(
     revalidateBrief(outcome.id);
     return outcome;
   } catch {
-    return { ok: false, error: 'The brief could not be moved. Try again.' };
+    return { ok: false, error: 'The creative could not be moved. Try again.' };
   }
 }

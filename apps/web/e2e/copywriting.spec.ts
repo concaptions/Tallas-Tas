@@ -34,7 +34,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
   test('lists the four fixture rows under the resolver-driven columns', async ({ page }) => {
     await page.goto(copywritingPath);
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Meta Copywriting');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Copywriting');
     await expect(page.locator('[data-slot="copy-row"]')).toHaveCount(4);
     await expect(page.locator('[data-slot="copy-count"]')).toContainText('4 copy rows');
 
@@ -86,8 +86,8 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
   }) => {
     await page.goto(copywritingPath);
 
-    // Oct 5 Talal sync (commit 105be26): the sidebar label dropped the "Meta" prefix. The route
-    // path and the module's own h1 both still read "Meta Copywriting" — only the nav label changed.
+    // Oct 5 Talal sync (commit 105be26): the sidebar label dropped the "Meta" prefix; the h1
+    // followed (2026-10-09, audit item 3). Only the route path still carries the old name.
     const link = page.getByRole('link', { name: 'Copywriting', exact: true });
     await expect(link).toHaveAttribute('href', copywritingPath);
     await expect(link).toHaveAttribute('aria-current', 'page');

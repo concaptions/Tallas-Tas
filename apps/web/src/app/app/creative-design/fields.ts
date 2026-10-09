@@ -708,13 +708,13 @@ export const BRIEF_PROSE_FIELDS = [
 ] as const satisfies readonly { name: BriefFieldName; label: string; hint: string }[];
 
 /** The empty state of the Inspiration section, so an empty array is never a blank panel. */
-export const NO_INSPIRATION_NOTE = 'No inspiration saved on this brief yet.';
+export const NO_INSPIRATION_NOTE = 'No inspiration saved on this creative yet.';
 
 /** The empty state of the Spelling Feedback panel. */
-export const NO_SPELLING_NOTE = 'The AI check has not run on this brief yet.';
+export const NO_SPELLING_NOTE = 'The AI check has not run on this creative yet.';
 
 /** The empty state of the Spelling Feedback 2 panel — the second pass, read-only like the first. */
-export const NO_SPELLING_2_NOTE = 'No second spelling pass has been recorded on this brief yet.';
+export const NO_SPELLING_2_NOTE = 'No second spelling pass has been recorded on this creative yet.';
 
 /** The short source name on an inspiration card. `inspirationLink` owns which provider a URL is. */
 const INSPIRATION_SOURCE_LABELS: Record<InspoLinkKind, string> = {

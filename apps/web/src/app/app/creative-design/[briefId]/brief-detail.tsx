@@ -148,7 +148,8 @@ interface BriefScriptRow {
 }
 
 /** What the Scripts table says when nothing has been written yet. */
-const NO_SCRIPTS_NOTE = 'No script yet. The brief’s script and its Meta copy rows appear here.';
+const NO_SCRIPTS_NOTE =
+  'No script yet. The creative’s script and its Copywriting rows appear here.';
 
 /** What the Activity section says before any write has been logged. */
 const NO_ACTIVITY_NOTE = 'No activity yet. Every saved change is listed here with who made it.';
@@ -418,7 +419,7 @@ export function BriefDetail({
     ...copyLinks.map((copy) => ({
       id: copy.id,
       label: copy.label,
-      kind: 'Meta copy',
+      kind: 'Copywriting',
       statusLabel: copy.statusLabel,
       statusTone: copy.statusTone,
       href: `${copywritingPath}?copy=${encodeURIComponent(copy.id)}`,
@@ -903,7 +904,7 @@ export function BriefDetail({
                   data-slot="brief-save"
                   className={disabledWriteClassName}
                 >
-                  {pending ? 'Saving…' : 'Save brief'}
+                  {pending ? 'Saving…' : 'Save creative'}
                 </Button>
               </DisabledWrite>
             </footer>

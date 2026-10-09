@@ -236,7 +236,7 @@ const MODULES: readonly ModuleEntry[] = [
       // "Table 17" links Email Campaigns Management (audit §1 row 7).
       { gratsi: 'Table 17', label: 'Email campaigns' },
       { gratsi: 'Youtube Copywriting', label: 'YouTube copy' },
-      { gratsi: '(Internal) Creative Design', label: 'Creative Designs' },
+      { gratsi: '(Internal) Creative Design', label: 'Creatives' },
       { gratsi: 'UGC Management', label: 'Creators' },
     ],
     excluded: [
@@ -279,13 +279,13 @@ const MODULES: readonly ModuleEntry[] = [
       { gratsi: 'Angles', label: 'Concepts' },
       // Gratsi stores loose text where Drizzle has product_id; same datum (audit §2.8).
       { gratsi: '(Internal) Product', label: 'Product ID' },
-      { gratsi: '(Internal) Creative Design', label: 'Creative Designs' },
+      { gratsi: '(Internal) Creative Design', label: 'Creatives' },
       // The text variant plausibly maps to creative_design_note (audit §2.8).
       { gratsi: '(Internal) Creative Design 2', label: 'Creative Design Note' },
       // "Table 17" links Email Campaigns Management (audit §1 row 8).
       { gratsi: 'Table 17', label: 'Email campaigns' },
-      // The Meta Copywriting link is collections.copywriting_id, shown as the panel's "Meta copy".
-      { gratsi: 'Ads Copywriting copy', label: 'Meta copy' },
+      // The Copywriting link is collections.copywriting_id, shown as the panel's "Copywriting".
+      { gratsi: 'Ads Copywriting copy', label: 'Copywriting' },
     ],
     excluded: [
       {
@@ -377,7 +377,7 @@ const MODULES: readonly ModuleEntry[] = [
       // gap: the `internal_notes` column has no field in the panel.
       { gratsi: 'Internal Notes', label: 'Internal Notes' },
       // gap: the reverse of creative_briefs.angle_id is not listed on the panel.
-      { gratsi: '(Internal) Creative Design 2', label: 'Creative Designs' },
+      { gratsi: '(Internal) Creative Design 2', label: 'Creatives' },
     ],
     excluded: [
       {

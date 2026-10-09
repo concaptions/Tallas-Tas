@@ -62,7 +62,7 @@ export function isCustomPageSourceTableKey(value: string): value is CustomPageSo
 
 /** The source table labels the admin UI prints in its "Source" dropdown. */
 export const CUSTOM_PAGE_SOURCE_TABLE_LABELS: Readonly<Record<CustomPageSourceTableKey, string>> = {
-  creative_briefs: 'Creative Design',
+  creative_briefs: 'Creative Sheet',
   creators: 'UGC Management',
   copywriting: 'Copywriting',
   concepts: 'Concepts',

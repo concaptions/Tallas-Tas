@@ -79,17 +79,17 @@ function strategistItems(data: DashboardData): DashboardItem[] {
   const { briefs, concepts } = data;
   return [
     {
-      label: 'Concepts needing briefs',
+      label: 'Concepts needing creatives',
       count: concepts.filter((c) => !briefs.some((b) => b.conceptId === c.id)).length,
       href: conceptsPath,
     },
     {
-      label: 'Briefs in early stages',
+      label: 'Creatives in early stages',
       count: briefsIn(briefs, ['sent_to_video_editor', 'static_design_in_progress']),
       href: creativeSheetPath,
     },
     {
-      label: 'Briefs needing QA sign-off',
+      label: 'Creatives needing QA sign-off',
       count: briefs.filter((b) => !b.qaStrategist && b.internalStatus !== 'launched').length,
       href: internalQueuePath,
     },
@@ -100,7 +100,7 @@ function editorItems(data: DashboardData): DashboardItem[] {
   const { briefs, copy } = data;
   return [
     {
-      label: 'Briefs in production',
+      label: 'Creatives in production',
       count: briefsIn(briefs, ['sent_to_video_editor', 'in_review', 'ad_submitted']),
       href: internalQueuePath,
     },
@@ -131,7 +131,7 @@ function designerItems(data: DashboardData): DashboardItem[] {
       href: internalQueuePath,
     },
     {
-      label: 'Briefs without design file',
+      label: 'Creatives without design file',
       count: briefs.filter((b) => b.designFileUrl === null && b.internalStatus !== 'launched')
         .length,
       href: creativeSheetPath,
@@ -155,7 +155,7 @@ function csmItems(data: DashboardData): DashboardItem[] {
     (b) => b.internalStatus === 'approved' || b.internalStatus === 'launched',
   );
   return [
-    { label: 'Briefs in progress', count: pending.length, href: internalQueuePath },
+    { label: 'Creatives in progress', count: pending.length, href: internalQueuePath },
     { label: 'Ready for client', count: clientReady.length, href: internalQueuePath },
   ];
 }
@@ -199,7 +199,7 @@ function adminItems(data: DashboardData): DashboardItem[] {
   return [
     ...csmItems(data),
     {
-      label: 'Briefs with spell-check flags',
+      label: 'Creatives with spell-check flags',
       count: data.briefs.filter((brief) => hasSpellingIssues(brief.spellingFeedback)).length,
       href: creativeSheetPath,
     },

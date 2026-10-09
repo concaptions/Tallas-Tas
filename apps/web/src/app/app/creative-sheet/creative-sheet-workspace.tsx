@@ -599,8 +599,8 @@ export function CreativeSheetWorkspace({
               onChange={(event) => {
                 filter(event.target.value);
               }}
-              placeholder="Search name, brief or status"
-              aria-label="Search the sheet by name, brief or status"
+              placeholder="Search name, creative or status"
+              aria-label="Search the sheet by name, creative or status"
               data-slot="creative-sheet-search"
               className="h-8 w-full sm:w-64"
             />

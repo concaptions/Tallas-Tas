@@ -24,13 +24,13 @@ export async function runSpellCheckAction(
 ): Promise<SpellCheckActionResult> {
   const parsed = schema.safeParse({ id: formData.get('id') });
   if (!parsed.success) {
-    return { ok: false, error: 'Brief not identified.' };
+    return { ok: false, error: 'Creative not identified.' };
   }
   const { id } = parsed.data;
 
   if (isDemoMode()) {
     const brief = demoBriefs.find((b) => b.id === id);
-    if (brief === undefined) return { ok: false, error: 'Brief not found.' };
+    if (brief === undefined) return { ok: false, error: 'Creative not found.' };
     const text = [brief.scriptContent, brief.briefToDesign].filter(Boolean).join('\n\n');
     return demoSpellCheck(text);
   }
@@ -43,7 +43,7 @@ export async function runSpellCheckAction(
 
     const outcome = await withBrandScope(async (db, brandId) => {
       const brief = await getBriefById(db, brandId, id);
-      if (brief === null) return { ok: false, error: 'Brief not found.' } as const;
+      if (brief === null) return { ok: false, error: 'Creative not found.' } as const;
 
       const text = [brief.scriptContent, brief.briefToDesign].filter(Boolean).join('\n\n');
       const result = await spellCheck(text);

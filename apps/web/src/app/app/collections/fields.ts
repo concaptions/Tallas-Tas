@@ -173,7 +173,7 @@ export const NO_YOUTUBE_COPY_HINT =
  * A brief's collection is `creative_briefs.collection_id`, which no form sets yet (the brief detail
  * reads it, the import writes it), so this sentence names no panel to go to.
  */
-export const NO_CREATIVE_DESIGNS_HINT = 'No creative design is briefed on this collection yet.';
+export const NO_CREATIVE_DESIGNS_HINT = 'No creative is linked to this collection yet.';
 /**
  * A concept's collections are the `concept_collections` junction, which no form sets yet (the
  * import writes it), so this sentence names no panel to go to either.

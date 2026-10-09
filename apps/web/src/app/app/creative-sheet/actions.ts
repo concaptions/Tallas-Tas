@@ -114,7 +114,7 @@ const optionalUuid = z
   .transform((value) => (value === '' ? null : value))
   .refine(
     (value) => value === null || z.uuid().safeParse(value).success,
-    'Pick a brief from the list.',
+    'Pick a creative from the list.',
   );
 
 /** The QA checklist textarea: one link per line, blank lines ignored, every line a real URL. */

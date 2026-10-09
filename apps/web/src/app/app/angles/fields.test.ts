@@ -139,7 +139,7 @@ describe('parity labels (Gratsi "Angles", verbatim)', () => {
     expect(AD_INSPO_LABEL).toBe('Ad Inspo');
     expect(WINNING_LABEL).toBe('Winning');
     expect(CONCEPTS_LABEL).toBe('Concepts');
-    expect(CREATIVE_DESIGNS_LABEL).toBe('Creative Designs');
+    expect(CREATIVE_DESIGNS_LABEL).toBe('Creatives');
   });
 
   it('renders Potential as a free-text field on its own column, never a select', () => {

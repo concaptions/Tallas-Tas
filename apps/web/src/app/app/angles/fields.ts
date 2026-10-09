@@ -83,7 +83,7 @@ export const FORMATS_LABEL = 'Formats to create';
 export const AD_INSPO_LABEL = 'Ad Inspo';
 export const WINNING_LABEL = 'Winning';
 export const CONCEPTS_LABEL = 'Concepts';
-export const CREATIVE_DESIGNS_LABEL = 'Creative Designs';
+export const CREATIVE_DESIGNS_LABEL = 'Creatives';
 
 /** What the Ad Inspo editor says under its rows while none of them holds a link. */
 export const NO_AD_INSPO_NOTICE =
@@ -186,7 +186,7 @@ export function indexCreativeModulesByAngle(
 export const NO_CONCEPTS_NOTICE =
   'No concept is paired with this angle yet. Pair one from the concept’s own page.';
 export const NO_CREATIVE_DESIGNS_NOTICE =
-  'No creative design points at this angle yet. Set it from the brief’s own page.';
+  'No creative points at this angle yet. Set it from the creative’s own page.';
 
 /**
  * The minimum a concept row has to carry to be listed on an angle: the junction ids that make it a

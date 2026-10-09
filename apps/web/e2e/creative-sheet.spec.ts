@@ -231,7 +231,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
 
     // What is not on the board is counted: the four approved/launched briefs, the unlinked row.
     await expect(page.locator('[data-slot="brief-off-board"]')).toHaveText(
-      '4 briefs off the board (approved, launched or on hold) · 1 sheet row with no brief',
+      '4 creatives off the board (approved, launched or on hold) · 1 sheet row with no creative',
     );
   });
 

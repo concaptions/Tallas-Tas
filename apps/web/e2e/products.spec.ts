@@ -182,7 +182,7 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
     // No fixture brief carries a `product_id`, so that reverse list renders its empty sentence
     // rather than a blank.
     await expect(panel.locator('[data-slot="product-creative-designs"]')).toHaveText(
-      'No creative design is briefed on this product yet.',
+      'No creative is linked to this product yet.',
     );
 
     /*

@@ -9,7 +9,7 @@ export function PipelineChart({ steps }: { readonly steps: readonly PipelineStep
   const max = Math.max(1, ...steps.map((step) => step.count));
   return (
     <section className="flex flex-col gap-3" data-slot="overview-pipeline">
-      <h2 className="text-sm font-medium text-text2">Briefs by stage</h2>
+      <h2 className="text-sm font-medium text-text2">Creatives by stage</h2>
       <ol className="flex flex-col gap-1.5 rounded-card border border-line bg-surface2 px-4 py-3">
         {steps.map((step) => (
           <li

@@ -120,7 +120,7 @@ export function editorBoardItems(
 
 /** The one line under the board that accounts for what is not on it. Singular at one. */
 export function offBoardLabel(offBoardBriefs: number, unlinkedSheetRows: number): string {
-  const briefs = `${String(offBoardBriefs)} ${offBoardBriefs === 1 ? 'brief' : 'briefs'} off the board (approved, launched or on hold)`;
-  const rows = `${String(unlinkedSheetRows)} sheet ${unlinkedSheetRows === 1 ? 'row' : 'rows'} with no brief`;
+  const briefs = `${String(offBoardBriefs)} ${offBoardBriefs === 1 ? 'creative' : 'creatives'} off the board (approved, launched or on hold)`;
+  const rows = `${String(unlinkedSheetRows)} sheet ${unlinkedSheetRows === 1 ? 'row' : 'rows'} with no creative`;
   return `${briefs} · ${rows}`;
 }

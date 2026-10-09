@@ -216,7 +216,7 @@ test.describe('internal queue in demo mode (no Clerk publishable key)', () => {
     await page.goto(`${internalQueuePath}?view=brand:nope`);
     await expect(page.locator('[data-slot="queue-board"]')).toHaveCount(0);
     const empty = page.locator('[data-slot="queue-empty"]');
-    await expect(empty).toContainText('No briefs on the internal track');
+    await expect(empty).toContainText('No creatives on the internal track');
     await page.locator('[data-slot="queue-show-all"]').click();
     await expect(page.locator('[data-slot="queue-card"]')).toHaveCount(BRIEF_COUNT);
 

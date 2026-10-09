@@ -27,7 +27,7 @@ const BFCM_CONCEPT_IDS = [
 
 /** The empty sentences `collections/fields.ts` exports, asserted by their exact text. */
 const NO_META_COPY_HINT = 'No copy is linked to this collection yet. Set the Copywriting ID above.';
-const NO_CREATIVE_DESIGNS_HINT = 'No creative design is briefed on this collection yet.';
+const NO_CREATIVE_DESIGNS_HINT = 'No creative is linked to this collection yet.';
 
 test.describe('collections in demo mode (no Clerk publishable key)', () => {
   test.skip(

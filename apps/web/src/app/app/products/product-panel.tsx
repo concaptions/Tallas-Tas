@@ -33,7 +33,7 @@ export const NO_YOUTUBE_COPY_NOTE =
  * A brief's product is `creative_briefs.product_id`, which no form sets yet (the brief detail
  * reads it, the import writes it), so this sentence names no panel to go to.
  */
-export const NO_CREATIVE_DESIGNS_NOTE = 'No creative design is briefed on this product yet.';
+export const NO_CREATIVE_DESIGNS_NOTE = 'No creative is linked to this product yet.';
 export const NO_CREATORS_NOTE =
   'No creator is booked for this product yet. Link one here or from the creator’s panel.';
 /** What the Related Copywriting list says when no copy row names this product (Oct 5). */
@@ -309,9 +309,7 @@ export function ProductPanel({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[11px] tracking-wide text-text3 uppercase">
-                    Creative Designs
-                  </span>
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">Creatives</span>
                   <LinkedRecordList
                     records={creativeDesigns}
                     empty={NO_CREATIVE_DESIGNS_NOTE}
