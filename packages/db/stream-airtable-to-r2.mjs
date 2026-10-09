@@ -24,6 +24,14 @@ if (existsSync(envFile)) {
     let v = m[2];
     if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
       v = v.slice(1, -1);
+    // Two assignments merged on one line (`R2_BUCKET=x R2_PUBLIC_BASE=y`) would silently poison the
+    // first value and surface later as an R2 403; refuse it here, naming the line.
+    if (/\s[A-Z0-9_]+=/.test(v)) {
+      console.error(
+        `.env.local: the ${m[1]} line also contains another KEY=…; put each variable on its own line`,
+      );
+      process.exit(1);
+    }
     if (v !== '') process.env[m[1]] = v;
   }
 }
