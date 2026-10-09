@@ -74,7 +74,7 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     return { db, gratsi };
   }
 
-  it("resolves Gratsi to ALL 29 Airtable fields, in the base's own order, nothing flagged", async () => {
+  it("resolves Gratsi to ALL 29 Airtable fields plus the two platform columns, in the base's own order, nothing flagged", async () => {
     const { db, gratsi } = await seededColumns();
     const resolved = await resolveColumns(db, gratsi.id, 'creative_sheet_items');
 
@@ -111,6 +111,8 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       [28, 'spell_check_requested', 'Click for AI Spell Checker Again'],
       [29, 'spelling_feedback', 'Spelling Feedback'],
       [30, 'client_approval_status', 'Client Approval'],
+      // Oct 7 cleanup (migration 0059): Dimensions moved from its own workspace onto the sheet.
+      [31, 'dimensions', 'Dimensions'],
     ]);
   });
 
@@ -146,14 +148,15 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     expect(stored.get('updated_at')).toBeNull();
   });
 
-  it("keeps the inheriting set at the template's own fifteen — the dead twelve resolve for no one", async () => {
+  it("keeps the inheriting set at the template's own fifteen plus the two platform columns — the dead twelve resolve for no one", async () => {
     const { db } = await seededColumns();
     const brandRows = await db.select().from(brands);
     const niagara = brandRows.find((brand) => brand.slug === 'niagara-sleep-solutions');
     if (niagara === undefined) throw new Error('the seed has no niagara brand');
 
     const resolved = await resolveColumns(db, niagara.id, 'creative_sheet_items');
-    expect(resolved).toHaveLength(16);
+    expect(resolved).toHaveLength(17);
+    expect(resolved.map((column) => column.columnKey)).toContain('dimensions');
     expect(resolved.map((column) => column.displayLabel)).toContain('Last Modified');
     for (const deadLookup of [
       'performance',
