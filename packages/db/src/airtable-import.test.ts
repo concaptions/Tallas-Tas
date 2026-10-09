@@ -26,6 +26,7 @@ import {
   creativeModuleDesigns,
   creativeModules,
   creativeReporting,
+  creativeDimensions,
   creativeSheetItems,
   creatorConcepts,
   creatorProducts,
@@ -703,12 +704,15 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
     ).toHaveLength(1);
   });
 
-  it('imports the three previously-skipped tables', async () => {
+  it('imports the two previously-skipped tables and leaves frozen creative_dimensions alone', async () => {
     const db = await seeded();
     const results = await importAirtableExport(db, GRATSI, DEMO_BRAND_ID, 'migration-actor');
     expect(results.competitiveResearch?.imported).toBe(1);
     expect(results.clientAssetFolders?.imported).toBe(1);
-    expect(results.creativeDimensions?.imported).toBe(2);
+    // Frozen at the single-source cutover (2026-10-09): the export's dimension NAMES still resolve
+    // brief dimensions, but no creative_dimensions row is written.
+    expect(results.creativeDimensions).toBeUndefined();
+    expect(await db.select().from(creativeDimensions)).toHaveLength(0);
 
     const [comp] = await db
       .select()
@@ -1061,34 +1065,16 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
       expect(results[table]?.imported, table).toBe(1);
       expect(results[table]?.failed, table).toBe(0);
     }
-    expect(results.creativeSheetItems?.records).toBe(2);
-    expect(results.creativeSheetItems?.imported).toBe(2);
-
-    const [sheet] = await db
-      .select()
-      .from(creativeSheetItems)
-      .where(eq(creativeSheetItems.legacyAirtableId, 'p_sheet_1'));
+    // The Creative Sheet table is FROZEN (single-source cutover, 2026-10-09): the sheet is a view
+    // over creative_briefs, so a re-import writes no sheet row, and the brief it would have linked
+    // is imported as before.
+    expect(results.creativeSheetItems).toBeUndefined();
+    expect(await db.select().from(creativeSheetItems)).toHaveLength(0);
     const [brief] = await db
       .select()
       .from(creativeBriefs)
       .where(eq(creativeBriefs.legacyAirtableId, 'p_brief_1'));
-    expect(sheet?.briefId).toBe(brief?.id);
-    expect(sheet?.internalStatus).toBe('static_design_in_progress');
-    expect(sheet?.status).toBe('revisions_submitted');
-    expect(sheet?.winning).toBe('best_performing');
-    expect(sheet?.qaChecklistDoc).toEqual(['https://dl.airtable.example/qa.pdf']);
-    expect(sheet?.qaVideoEditor).toBe(true);
-    expect(sheet?.qaDesigner).toBe(false);
-    expect(sheet?.used).toBe(true);
-    expect(sheet?.deniedRevisionsNeeded).toBe(true);
-    expect(sheet?.spellCheckRequested).toBe(true);
-    expect(sheet?.clientComments).toBe('Bigger logo please');
-    const [orphanSheet] = await db
-      .select()
-      .from(creativeSheetItems)
-      .where(eq(creativeSheetItems.legacyAirtableId, 'p_sheet_2'));
-    expect(orphanSheet?.briefId).toBeNull();
-    expect(orphanSheet?.status).toBe('denied');
+    expect(brief).toBeDefined();
 
     const [yt] = await db
       .select()
@@ -1312,7 +1298,7 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
       expect(results[table]?.imported, table).toBe(0);
       expect(results[table]?.updated, table).toBe(1);
     }
-    expect(results.creativeSheetItems?.updated).toBe(2);
+    expect(results.creativeSheetItems).toBeUndefined();
     expect(await countAll()).toEqual(before);
   });
 
@@ -1321,13 +1307,12 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
     const warnings = emptyWarnings();
     await importAirtableExport(db, PARITY, DEMO_BRAND_ID, 'migration-actor', warnings);
 
-    const sheet = warnings.unmappedFields.get('Creative Sheet');
-    expect(sheet?.get('Performance (from Creative Name)')).toBe(1);
-    expect(sheet?.get('Name')).toBe(1);
-    expect(sheet?.get('Created')).toBe(1);
-    expect(sheet?.has('Internal Status')).toBe(false);
-    expect(sheet?.has('Creative Name')).toBe(false);
-    expect(sheet?.has("Client's Comments")).toBe(false);
+    // The Creative Sheet is a frozen table (single-source cutover, 2026-10-09): nothing of it is
+    // read, so nothing of it is reported field by field — the skip is one general note instead.
+    expect(warnings.unmappedFields.has('Creative Sheet')).toBe(false);
+    expect(warnings.general.some((note) => note.startsWith('Creative Sheet: frozen table'))).toBe(
+      true,
+    );
 
     expect(
       warnings.unmappedFields.get('SM Campaign Management Feed')?.get('Reminder Trigger'),
@@ -1344,8 +1329,8 @@ describe('Gratsi module parity: every live table imports (Prompt 3, 2026-10-01)'
     // Every field of a Creative Module is read, so the table has no entry at all.
     expect(warnings.unmappedFields.has('(Internal) Creative Modules')).toBe(false);
 
-    // The sheet row whose brief is outside the export is counted, not failed.
-    expect(warnings.brokenRefs.get("creativeSheetItems.'Creative Name'")).toBe(1);
+    // No sheet row is written, so no sheet link can be broken.
+    expect(warnings.brokenRefs.has("creativeSheetItems.'Creative Name'")).toBe(false);
   });
   it('stores the Gratsi-only fields: angle status, concept description/pain points/USP/client comments, creator payment date/info request/Slack flag, campaign promotional ideas', async () => {
     const db = await seeded();

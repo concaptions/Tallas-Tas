@@ -104,6 +104,11 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Single-source cutover (2026-10-09) · `node apply61.mjs` was applied BEFORE the app push (done, verified).
+  After the cutover deploy: `node audit-creative-sheet.mjs` should show the sheet view equal to the live
+  briefs per brand (the old table's counts are history now), and the Creative Sheet in production should
+  list every brief — 19 more rows than before (12 Gratsi, 7 Niagara). `creative_sheet_items` stays
+  untouched until Talal confirms the drop.
 - Creative Sheet audit follow-up (2026-10-09) · `node apply60.mjs` (adds `creative_briefs.name_mode`,
   every existing row `manual`; verified on PGlite) was due BEFORE the push that reads it, per the release
   order Talal set (migration commit first, app commits after "go"). Then, read-only, for the single-source

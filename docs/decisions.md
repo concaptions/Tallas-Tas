@@ -1884,3 +1884,39 @@ over the existing allowlisted `clientCopywriting` query; copy's one status track
 client-facing (`COPY_STATUS`), so no internal/client gate applies. Guard: the tab map moved out of the
 layout into `tabs.ts`, and `tabs.test.ts` asserts a `page.tsx` exists for every standard tab segment,
 every fixed tab and the custom-page route — a tab can no longer be added without its page.
+
+## 2026-10-09 — Single source of truth: the Creative Sheet is a view over `creative_briefs`; `creative_sheet_items` frozen
+
+Talal's decision after the reconcile report (`sheet-columns-audit.mjs`, `sheet-reconcile-report.mjs`):
+the two tables had drifted (314 of 378 client statuses, every QA checklist, 85 spelling feedbacks), all
+the client approval work had happened on the sheet, and no sheet-only column held data. In order:
+
+1. **Migration 0061** (`apply61.mjs`, applied to Railway first, on its own) moved the sheet's client work
+   onto the briefs: `client_status` from the sheet's status through the vocabulary map (`denied` →
+   `disapproved`, `launched` kept, `revisions_submitted` new), `client_status_updated_at` from the sheet
+   row's timestamp, `launched_at` for launched rows, `qa_checklist_doc` and `spelling_feedback` where
+   the sheet held data. Internal status (all NULL on the sheet) and the spell-check trigger flag were
+   not migrated. Verified on Railway: before/after totals equal, every linked pair agreed.
+2. **Reads**: `listCreativeSheetItems` / `getCreativeSheetItemById` read `creative_briefs`; one row per
+   live brief, named by the month formula over the brief's `created_at`. The 19 briefs with no legacy
+   sheet row (12 Gratsi, 7 Niagara) are on the sheet now — expected. The sheet's own vocabularies are
+   gone: its selects and Kanban groupings are the state machine's two tracks. The four sheet-only fields
+   (Used, Denied/revisions needed, Winning, Client's Comments) held no data and are dropped from the
+   UI, not moved to the brief; the third client-approval vocabulary on the sheet is gone too.
+3. **Writes**: the sheet's save, its Dimensions field (`updateBriefDimensions`, the one write path for
+   ratios) and its Kanban drops write the brief through the brief's own writers and the same
+   state-machine checks the brief page applies. `createBrief` writes no sheet row. "New sheet row" and
+   the brief picker are gone: a creative is created once, as a brief, and is on the sheet at once.
+4. **Vocabulary**: `revisions_submitted` joined `CLIENT_STATUS` (label "Revisions Submitted", the
+   Title Case the vocabulary uses and the spelling `chipTone` reads as mute): `revisions_needed` →
+   `revisions_submitted` → the same three-way decision. The Client Queue gains the column by derivation.
+5. **Frozen, not dropped**: `creative_sheet_items` (378 rows) and `creative_dimensions` keep their rows.
+   Nothing reads or writes them: the importer's blocks are kept behind `IMPORT_FROZEN_TABLES = false`
+   (a re-import writes `creative_briefs` only and notes the skip), template propagation no longer lists
+   them, and `packages/db/src/frozen-tables.test.ts` fails the suite if any non-test source imports the
+   sheet table again. **The DROP is a later migration, after Talal confirms** — never a `DROP TABLE` or
+   a `DELETE` before that.
+
+Open, logged for Talal: all 378 `qa_checklist_doc` attachments are expired Airtable links on both tables
+(nothing was ever re-hosted to R2 for that field); his team re-uploads, or we re-pull from Airtable
+before more expire.

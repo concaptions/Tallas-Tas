@@ -227,6 +227,18 @@ export const PROPAGATION_TABLES: Record<string, BrandedTable> = {
 };
 
 /**
+ * Tables FROZEN at the single-source cutover (2026-10-09): they stay in the registry — Column
+ * Admin and the custom-field actions key the known tables off it — but the engine never WRITES
+ * them: no seed from the template, no row propagation, no resync. `creative_sheet_items` is a
+ * view over `creative_briefs` now and `creative_dimensions` has no reader; their drop is a later
+ * migration after Talal confirms.
+ */
+export const FROZEN_PROPAGATION_TABLES: ReadonlySet<string> = new Set([
+  'creative_dimensions',
+  'creative_sheet_items',
+]);
+
+/**
  * Columns that are managed by the system and must NEVER be copied during propagation.
  * These are set by the engine or the scope, not by the template data.
  */
@@ -285,6 +297,7 @@ export async function seedContentFromTemplate(
   }
 
   for (const [tableName, table] of Object.entries(PROPAGATION_TABLES)) {
+    if (FROZEN_PROPAGATION_TABLES.has(tableName)) continue;
     const templateRows = await templateScope.select(table);
     if (templateRows.length === 0) continue;
 
@@ -334,6 +347,7 @@ export async function propagateTemplateRow(
 ): Promise<{ childrenUpdated: number; skipped: number }> {
   const table = PROPAGATION_TABLES[tableName];
   if (!table) throw new Error(`Table ${tableName} is not in the propagation registry`);
+  if (FROZEN_PROPAGATION_TABLES.has(tableName)) return { childrenUpdated: 0, skipped: 0 };
 
   const children = await listChildBrands(db, templateBrandId);
   if (children.length === 0) return { childrenUpdated: 0, skipped: 0 };
@@ -449,6 +463,7 @@ export async function propagateAllContent(
   const tablesProcessed: string[] = [];
 
   for (const [tableName, table] of Object.entries(PROPAGATION_TABLES)) {
+    if (FROZEN_PROPAGATION_TABLES.has(tableName)) continue;
     const templateRows = await templateScope.select(table);
     if (templateRows.length === 0) continue;
 

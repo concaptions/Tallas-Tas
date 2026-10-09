@@ -196,6 +196,9 @@ function trackExport(data: AirtableExport): {
 
 function collectUnmappedFields(w: ImportWarnings, trackers: Map<string, FieldTracker>): void {
   for (const [table, tracker] of trackers) {
+    // A frozen table is not read at all, so reporting its every field as unmapped would say
+    // nothing; the skip is the one general note its block pushes.
+    if (!IMPORT_FROZEN_TABLES && FROZEN_EXPORT_TABLES.includes(table)) continue;
     const missing = new Map<string, number>();
     for (const [field, n] of tracker.present) {
       if (!tracker.read.has(field)) missing.set(field, n);
@@ -247,6 +250,18 @@ function numStr(v: unknown): string | undefined {
   if (typeof v === 'number' && Number.isFinite(v)) return String(v);
   return undefined;
 }
+
+/**
+ * The two tables frozen at the single-source cutover (2026-10-09): `creative_sheet_items` and
+ * `creative_dimensions`. Their import blocks below are kept, not removed, and never run — a
+ * re-import writes `creative_briefs` only. Flip only with a decision in `docs/decisions.md`.
+ */
+const IMPORT_FROZEN_TABLES = false as boolean;
+/** The export tables those two blocks read; the unmapped-field report skips them while frozen. */
+const FROZEN_EXPORT_TABLES: readonly string[] = [
+  'Creative Sheet',
+  '(Internal) Creative Dimensions',
+];
 
 function attachmentUrls(v: unknown): string[] | undefined {
   if (!Array.isArray(v)) return undefined;
@@ -1412,21 +1427,31 @@ export async function importAirtableExport(
     );
   }
 
-  // (Internal) Creative Dimensions → creative_dimensions (the names also resolve brief dimensions)
-  const { result: dimensionResult } = await importRows(
-    db,
-    creativeDimensions,
-    data['(Internal) Creative Dimensions'] ?? [],
-    (f) => ({
-      brandId,
-      name: str(f.Name) ?? 'Untitled',
-      dimensions: str(f.Dimensions),
-      linkDescription: str(f['Link Description']),
-    }),
-    actorId,
-    'Dimensions',
-  );
-  results.creativeDimensions = dimensionResult;
+  // (Internal) Creative Dimensions → creative_dimensions. DISABLED at the single-source cutover
+  // (2026-10-09): the names still resolve `creative_briefs.dimensions` above (that map is built
+  // from the export, not from the table), and nothing reads the `creative_dimensions` rows any
+  // more. The block stays so the mapping is not lost; the table's drop is a later migration after
+  // Talal confirms.
+  if (IMPORT_FROZEN_TABLES) {
+    const { result: dimensionResult } = await importRows(
+      db,
+      creativeDimensions,
+      data['(Internal) Creative Dimensions'] ?? [],
+      (f) => ({
+        brandId,
+        name: str(f.Name) ?? 'Untitled',
+        dimensions: str(f.Dimensions),
+        linkDescription: str(f['Link Description']),
+      }),
+      actorId,
+      'Dimensions',
+    );
+    results.creativeDimensions = dimensionResult;
+  } else if ((data['(Internal) Creative Dimensions'] ?? []).length > 0) {
+    w.general.push(
+      '(Internal) Creative Dimensions: frozen table, not imported (single-source cutover 2026-10-09); its names still resolve brief dimensions.',
+    );
+  }
 
   // ── Prompt 3 (2026-10-01): the seven tables that had no Drizzle home ──
 
@@ -1445,42 +1470,49 @@ export async function importAirtableExport(
   );
   results.creativeModules = moduleResult;
 
-  // Creative Sheet → creative_sheet_items. The row's brief is the first "Creative Name" link,
-  // nullable by design (schema/creative-sheet-items.ts); the 16 lookups through that link are
-  // joins, never columns, so they surface in the unmapped-field report on purpose.
-  const { result: sheetResult } = await importRows(
-    db,
-    creativeSheetItems,
-    data['Creative Sheet'] ?? [],
-    (f) => ({
-      brandId,
-      briefId: resolveRefs(
-        briefMap,
-        f['Creative Name'],
-        w,
-        "creativeSheetItems.'Creative Name'",
-      )[0],
-      internalStatus: mapStatus(
-        w,
-        'creativeSheetItems.internalStatus',
-        MAPS.creativeSheetInternal,
-        f['Internal Status'],
-      ),
-      status: mapStatus(w, 'creativeSheetItems.status', MAPS.creativeSheetStatus, f.Status),
-      qaChecklistDoc: att(w, f['QA Checklist Doc']),
-      qaVideoEditor: bool(f['Video Editor QA']),
-      qaDesigner: bool(f['Graphic Designer QA']),
-      qaStrategist: bool(f['Creative Strategist QA']),
-      clientComments: str(f["Client's Comments"]),
-      used: bool(f.Used),
-      deniedRevisionsNeeded: bool(f['Denied/revisions needed']),
-      winning: mapStatus(w, 'creativeSheetItems.winning', MAPS.creativeSheetWinning, f.Winning),
-      spellCheckRequested: bool(f['Click for AI Spell Checker Again']),
-      spellingFeedback: str(f['Spelling Feedback']),
-    }),
-    actorId,
-  );
-  results.creativeSheetItems = sheetResult;
+  // Creative Sheet → creative_sheet_items. DISABLED at the single-source cutover (2026-10-09):
+  // the Creative Sheet is a view over `creative_briefs`, migration 0061 moved the sheet's client
+  // work onto the briefs, and nothing reads `creative_sheet_items` any more. The mapping stays
+  // (not removed) until Talal confirms the drop; a re-import must never write the frozen table.
+  if (IMPORT_FROZEN_TABLES) {
+    const { result: sheetResult } = await importRows(
+      db,
+      creativeSheetItems,
+      data['Creative Sheet'] ?? [],
+      (f) => ({
+        brandId,
+        briefId: resolveRefs(
+          briefMap,
+          f['Creative Name'],
+          w,
+          "creativeSheetItems.'Creative Name'",
+        )[0],
+        internalStatus: mapStatus(
+          w,
+          'creativeSheetItems.internalStatus',
+          MAPS.creativeSheetInternal,
+          f['Internal Status'],
+        ),
+        status: mapStatus(w, 'creativeSheetItems.status', MAPS.creativeSheetStatus, f.Status),
+        qaChecklistDoc: att(w, f['QA Checklist Doc']),
+        qaVideoEditor: bool(f['Video Editor QA']),
+        qaDesigner: bool(f['Graphic Designer QA']),
+        qaStrategist: bool(f['Creative Strategist QA']),
+        clientComments: str(f["Client's Comments"]),
+        used: bool(f.Used),
+        deniedRevisionsNeeded: bool(f['Denied/revisions needed']),
+        winning: mapStatus(w, 'creativeSheetItems.winning', MAPS.creativeSheetWinning, f.Winning),
+        spellCheckRequested: bool(f['Click for AI Spell Checker Again']),
+        spellingFeedback: str(f['Spelling Feedback']),
+      }),
+      actorId,
+    );
+    results.creativeSheetItems = sheetResult;
+  } else if ((data['Creative Sheet'] ?? []).length > 0) {
+    w.general.push(
+      'Creative Sheet: frozen table, not imported (single-source cutover 2026-10-09); the sheet is a view over creative_briefs and migration 0061 carried its client work.',
+    );
+  }
 
   // SM Campaign Management Feed → sm_campaign_feed_tasks ("Reminder Trigger" is a clock formula).
   const { result: smResult } = await importRows(

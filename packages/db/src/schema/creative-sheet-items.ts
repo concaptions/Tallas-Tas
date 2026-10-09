@@ -11,6 +11,12 @@ import type {
 } from './enums';
 
 /**
+ * FROZEN since the single-source cutover (2026-10-09, `docs/decisions.md`): the Creative Sheet is a
+ * view over `creative_briefs`, migration 0061 moved this table's client work onto the briefs, and
+ * NO code reads or writes it any more — `frozen-tables.test.ts` enforces that. The table and its
+ * 378 production rows stay until Talal confirms the drop, which is a later migration; never a
+ * `DROP TABLE` or a `DELETE` here. The description below is the history.
+ *
  * "Creative Sheet" (Airtable `tblGC0TxnHI7lKaNQ` in the live Gratsi base): one row per creative on
  * the month's client-facing sheet. It is NOT a view over `creative_briefs` — 13 of its 29 fields are
  * stored on the sheet row itself (a second copy of the brief's internal status, client status, QA
