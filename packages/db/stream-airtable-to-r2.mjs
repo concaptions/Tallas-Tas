@@ -21,7 +21,8 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { PassThrough, Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -67,6 +68,12 @@ const KEEPALIVE = 'keepalives=1&keepalives_idle=30&keepalives_interval=10&keepal
 if (!DATABASE_URL.includes('keepalives='))
   DATABASE_URL += (DATABASE_URL.includes('?') ? '&' : '?') + KEEPALIVE;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+// Per asset: a download that dies (socket reset, ETIMEDOUT) or stalls is retried with a FRESH
+// Airtable URL — the old one may already have expired — and after MAX_ATTEMPTS the asset is logged
+// as FAIL and the run moves on. The two knobs are env-overridable so the regression test runs fast.
+const MAX_ATTEMPTS = 3;
+const RETRY_BACKOFF_MS = Number(process.env.RETRY_BACKOFF_MS ?? 2_000);
+const STALL_TIMEOUT_MS = Number(process.env.STALL_TIMEOUT_MS ?? 60_000);
 
 let bases;
 try {
@@ -95,15 +102,16 @@ const IG_FIELDS = ['Instagram', 'IG', 'Instagram Username', 'Instagram Handle'];
 const PIC_FIELDS = ["Creator's Profile Pic", 'Profile Pic', 'Profile Picture'];
 const VIDEO_FIELDS = ["Creator's Video Intro", "Creator's Intro", 'Video Intro', 'Intro Video'];
 
-function pickFieldValue(fields, candidates) {
+function pickField(fields, candidates) {
   for (const name of candidates) {
     const v = fields[name];
     if (v === undefined || v === null || v === '') continue;
     if (Array.isArray(v) && v.length === 0) continue;
-    return v;
+    return { name, value: v };
   }
   return null;
 }
+const pickFieldValue = (fields, candidates) => pickField(fields, candidates)?.value ?? null;
 const attachments = (v) =>
   Array.isArray(v) ? v.filter((a) => a && typeof a.url === 'string') : [];
 const normIg = (v) =>
@@ -136,31 +144,110 @@ function extensionFor(contentType, filename) {
   return EXT_BY_TYPE[contentType] ?? fromName ?? 'bin';
 }
 /**
- * Pipe a web ReadableStream (the Airtable download body) straight into R2. lib-storage reads the
- * stream in PART_SIZE chunks and keeps at most QUEUE_SIZE parts in flight, so a 300 MB intro never
- * sits in memory. Bytes are counted on the way through; an empty stream is deleted again and
- * reported, so a zero-byte object never ends up referenced from the registry.
+ * ONE attempt: pipe the download body into a multipart Upload. `pipeline` destroys the counting
+ * Transform with the source's error, which makes `upload.done()` reject — so a socket reset or
+ * ETIMEDOUT mid-download surfaces here as a rejection, never as an unhandled 'error' event on a
+ * stream nobody is listening to (the Oct 9 crash). A watchdog destroys the source when no bytes
+ * arrive for STALL_TIMEOUT_MS. On any failure the multipart upload is aborted so no parts linger.
+ * lib-storage reads PART_SIZE chunks with QUEUE_SIZE in flight, so a 300 MB intro never sits in
+ * memory. The byte count must equal the size Airtable declared (or Content-Length) — otherwise the
+ * finished object is deleted and the attempt fails — so the caller only ever records a complete file.
  */
-async function streamToR2(key, webBody, contentType) {
+async function uploadOnce(key, res, contentType, expectedBytes) {
+  const source = Readable.fromWeb(res.body);
   let bytes = 0;
-  const counter = new PassThrough();
-  counter.on('data', (chunk) => {
-    bytes += chunk.length;
+  let stallTimer;
+  const armStall = () => {
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => {
+      source.destroy(new Error(`stalled: no bytes for ${STALL_TIMEOUT_MS / 1000}s`));
+    }, STALL_TIMEOUT_MS);
+  };
+  const counter = new Transform({
+    transform(chunk, _encoding, callback) {
+      bytes += chunk.length;
+      armStall();
+      callback(null, chunk);
+    },
   });
-  const body = Readable.fromWeb(webBody).pipe(counter);
+  armStall();
   const upload = new Upload({
     client: s3,
-    params: { Bucket: R2_BUCKET, Key: key, Body: body, ContentType: contentType },
+    params: { Bucket: R2_BUCKET, Key: key, Body: counter, ContentType: contentType },
     partSize: PART_SIZE,
     queueSize: QUEUE_SIZE,
     leavePartsOnError: false,
   });
-  await upload.done();
-  if (bytes === 0) {
+  try {
+    await Promise.all([pipeline(source, counter), upload.done()]);
+  } catch (e) {
+    source.destroy();
+    await upload.abort().catch(() => {});
+    throw e;
+  } finally {
+    clearTimeout(stallTimer);
+  }
+  if (bytes === 0 || (expectedBytes !== null && bytes !== expectedBytes)) {
     await s3.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })).catch(() => {});
-    throw new Error('empty body');
+    throw new Error(
+      bytes === 0
+        ? 'empty body'
+        : `size mismatch: received ${bytes} bytes, Airtable declared ${expectedBytes}`,
+    );
   }
   return { url: `${R2_PUBLIC_BASE}/${key}`, key, bytes };
+}
+
+/** Re-read one record so a retry downloads from a URL Airtable issued just now, not an expired one. */
+async function refreshAttachment(base, recordId, fieldName, attachmentId) {
+  const record = await airtableGet(
+    `https://api.airtable.com/v0/${base.baseId}/${base.creatorsTableId}/${recordId}`,
+  );
+  const list = attachments(record.fields?.[fieldName]);
+  if (attachmentId) return list.find((a) => a.id === attachmentId) ?? null;
+  return list[0] ?? null;
+}
+
+/**
+ * Download + upload one attachment with up to MAX_ATTEMPTS tries (exponential backoff, fresh URL
+ * each retry). Resolves only when an attempt completed AND the byte count was verified; throws the
+ * last error otherwise. Never writes to the database — the caller does, after this resolves.
+ */
+async function transferAsset({ t, base, label, record, fieldName, attachment: first, row }) {
+  let attachment = first;
+  let lastError = new Error('no attempt made');
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        await sleep(RETRY_BACKOFF_MS * 2 ** (attempt - 2));
+        const fresh = await refreshAttachment(base, record.id, fieldName, attachment.id);
+        if (!fresh) throw new Error('attachment is no longer on the Airtable record');
+        attachment = fresh;
+      }
+      const res = await fetch(attachment.url);
+      if (!res.ok || !res.body) throw new Error(`download ${res.status}`);
+      const contentType = (
+        attachment.type ||
+        res.headers.get('content-type') ||
+        'application/octet-stream'
+      )
+        .split(';')[0]
+        .trim();
+      const declared =
+        typeof attachment.size === 'number'
+          ? attachment.size
+          : Number(res.headers.get('content-length')) || null;
+      const key = `creator-registry/${row.id}/${t.prefix}-${randomUUID()}.${extensionFor(contentType, attachment.filename)}`;
+      const put = await uploadOnce(key, res, contentType, declared);
+      return { ...put, contentType, attachment, attempts: attempt };
+    } catch (e) {
+      lastError = e;
+      console.log(
+        `  RETRY ${t.kind} ${row.id} <- ${label}/${record.id}: attempt ${attempt}/${MAX_ATTEMPTS} failed: ${e.message}`,
+      );
+    }
+  }
+  throw new Error(`${lastError.message} (after ${MAX_ATTEMPTS} attempts)`);
 }
 
 // ---------- Airtable ----------
@@ -364,8 +451,8 @@ for (const base of bases) {
       stats.matched += 1;
 
       for (const t of TARGETS) {
-        const value = pickFieldValue(fields, t.fields);
-        if (value === null) {
+        const picked = pickField(fields, t.fields);
+        if (picked === null) {
           const missing = schema.known ? schema[t.schemaKey] === null : false;
           const bucket = missing ? 'fieldMissing' : 'fieldEmpty';
           totals[t.kind][bucket] += 1;
@@ -374,8 +461,8 @@ for (const base of bases) {
         }
         const files =
           t.kind === 'video' && VIDEO_MODE === 'jsonb'
-            ? attachments(value)
-            : attachments(value).slice(0, 1);
+            ? attachments(picked.value)
+            : attachments(picked.value).slice(0, 1);
         for (const attachment of files) {
           const already =
             t.kind === 'pic' ? isR2(row.profile_pic_url) : hasVideo(row, attachment.id);
@@ -394,17 +481,18 @@ for (const base of bases) {
                 `video ${(attachment.size / 1048576).toFixed(0)} MB exceeds the ${MAX_VIDEO_BYTES / 1048576} MB cap`,
               );
             }
-            const res = await fetch(attachment.url);
-            if (!res.ok || !res.body) throw new Error(`download ${res.status}`);
-            const contentType = (
-              attachment.type ||
-              res.headers.get('content-type') ||
-              'application/octet-stream'
-            )
-              .split(';')[0]
-              .trim();
-            const key = `creator-registry/${row.id}/${t.prefix}-${randomUUID()}.${extensionFor(contentType, attachment.filename)}`;
-            const put = await streamToR2(key, res.body, contentType);
+            // Resolves only after the upload completed and the byte count matched; the DB writes
+            // below never run for a partial or failed transfer.
+            const put = await transferAsset({
+              t,
+              base,
+              label,
+              record,
+              fieldName: picked.name,
+              attachment,
+              row,
+            });
+            const { contentType } = put;
             if (t.kind === 'pic' || VIDEO_MODE === 'text') {
               await client.query(
                 `UPDATE creator_registry SET ${t.column} = $1, updated_at = now(), updated_by = 'script:stream-airtable-to-r2' WHERE id = $2`,
@@ -415,8 +503,8 @@ for (const base of bases) {
               const entry = {
                 url: put.url,
                 r2Key: put.key,
-                airtableAttachmentId: attachment.id ?? null,
-                filename: attachment.filename ?? null,
+                airtableAttachmentId: put.attachment.id ?? null,
+                filename: put.attachment.filename ?? null,
                 contentType,
                 bytes: put.bytes,
                 sourceBase: base.baseId,
@@ -436,7 +524,7 @@ for (const base of bases) {
             totals[t.kind].done += 1;
             stats[t.kind].done += 1;
             console.log(
-              `  OK   ${t.kind} ${row.id} <- ${label}/${record.id} (${(put.bytes / 1024).toFixed(0)} KB)`,
+              `  OK   ${t.kind} ${row.id} <- ${label}/${record.id} (${(put.bytes / 1024).toFixed(0)} KB${put.attempts > 1 ? `, attempt ${put.attempts}` : ''})`,
             );
           } catch (e) {
             totals[t.kind].failed += 1;
