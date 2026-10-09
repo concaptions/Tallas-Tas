@@ -287,7 +287,13 @@ async function tableSchema(base) {
       tableName: table.name,
       picField: PIC_FIELDS.find((n) => names.has(n)) ?? null,
       videoField: VIDEO_FIELDS.find((n) => names.has(n)) ?? null,
-      nameField: NAME_FIELDS.find((n) => names.has(n)) ?? null,
+      // A base that names its creator column something else still has a PRIMARY field, and in
+      // every UGC table that is the creator's name (Ergonomist, Calzone Kitchen); fall back to it.
+      nameField:
+        NAME_FIELDS.find((n) => names.has(n)) ??
+        table.fields.find((f) => f.id === table.primaryFieldId)?.name ??
+        null,
+      nameFromPrimary: !NAME_FIELDS.some((n) => names.has(n)),
       igField: IG_FIELDS.find((n) => names.has(n)) ?? null,
       attachmentFields: table.fields
         .filter((f) => f.type === 'multipleAttachments')
@@ -408,7 +414,13 @@ for (const base of bases) {
       );
     }
     if (!schema.nameField)
-      console.log(`  name field: NOT FOUND among ${NAME_FIELDS.map((n) => `"${n}"`).join(', ')}`);
+      console.log(
+        `  name field: NOT FOUND among ${NAME_FIELDS.map((n) => `"${n}"`).join(', ')} and the table has no primary field`,
+      );
+    else if (schema.nameFromPrimary)
+      console.log(
+        `  name field: "${schema.nameField}" (the table's primary field; add it to NAME_FIELDS to silence this)`,
+      );
   } else {
     console.log(
       `  schema: unavailable (${schema.reason}); field diagnostics fall back to record contents`,
@@ -420,7 +432,10 @@ for (const base of bases) {
       stats.records += 1;
       const fields = record.fields ?? {};
       const ig = normIg(pickFieldValue(fields, IG_FIELDS));
-      const name = normName(pickFieldValue(fields, NAME_FIELDS));
+      const name = normName(
+        pickFieldValue(fields, NAME_FIELDS) ??
+          (schema.known && schema.nameField ? fields[schema.nameField] : null),
+      );
       let row = ig ? (byIg.get(ig) ?? null) : null;
       let how = row ? 'instagram' : null;
       if (!row && name) {
