@@ -6,14 +6,7 @@ import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { clientApprovalLabel, clientApprovalTone, EDITOR_STAGE_KEYS } from '@tas/domain/state';
-import {
-  Button,
-  DEMO_WRITE_HINT,
-  disabledWriteClassName,
-  DisabledWrite,
-  Input,
-  StatusChip,
-} from '@tas/ui';
+import { Button, Input, StatusChip } from '@tas/ui';
 
 import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
@@ -30,6 +23,7 @@ import { briefPath } from '@/lib/routes';
 import { moveCreativeSheetItemAction } from './actions';
 import { CreativeSheetPanel, NEW_ITEM, type LinkOption } from './creative-sheet-panel';
 import { editorBoardItems, offBoardLabel, type EditorBoardBrief } from './editor-board';
+import { NewCreativeDialog, type ConceptOption } from './new-creative-dialog';
 import {
   countLabel,
   EM_DASH,
@@ -106,6 +100,10 @@ interface CreativeSheetWorkspaceProps {
   readonly briefs: readonly LinkOption[];
   /** Every brief of the brand, the "Editing stage" board's cards; `[]` keeps that board empty. */
   readonly boardBriefs?: readonly EditorBoardBrief[];
+  /** The "New creative" dialog's Concept select; standalone is always offered. */
+  readonly conceptOptions?: readonly ConceptOption[];
+  /** The number the "New creative" preview shows; the server allocates the real one. */
+  readonly nextNumber?: number;
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
@@ -369,6 +367,8 @@ export function CreativeSheetWorkspace({
   items,
   briefs,
   boardBriefs = [],
+  conceptOptions = [],
+  nextNumber = 1,
   demo,
   initialSelection,
   initialSearch,
@@ -531,20 +531,13 @@ export function CreativeSheetWorkspace({
     [router],
   );
 
-  const newRow = (slot: string) => (
-    <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
-      <Button
-        size="sm"
-        disabled={demo}
-        className={demo ? disabledWriteClassName : undefined}
-        onClick={() => {
-          select(NEW_ITEM);
-        }}
-        data-slot={slot}
-      >
-        New sheet row
-      </Button>
-    </DisabledWrite>
+  // "New creative" (2026-10-09, audit item 7): the ONE way a creative is added here. It creates
+  // the brief — auto-named, numbered under the brand's lock — and its sheet row in a single
+  // transaction, so the sheet never carries a row without a named creative behind it. The old
+  // "New sheet row" (an unnamed, unnumbered row) is gone; the panel's create mode stays only for
+  // `?creative-sheet=new` deep links.
+  const newCreative = (
+    <NewCreativeDialog demo={demo} conceptOptions={conceptOptions} nextNumber={nextNumber} />
   );
 
   return (
@@ -553,7 +546,7 @@ export function CreativeSheetWorkspace({
         <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Creative Sheet</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Sheet</h1>
-          {newRow('new-creative-sheet-item')}
+          {newCreative}
         </div>
         <p className="text-sm text-text2">
           <span data-slot="creative-sheet-count">{countLabel(items.length, visible.length)}</span> —
@@ -665,7 +658,7 @@ export function CreativeSheetWorkspace({
                     : `Nothing matches “${term}”. Try a creative name or a status.`}
                 </p>
                 {items.length === 0 ? (
-                  newRow('empty-new-creative-sheet-item')
+                  newCreative
                 ) : (
                   <Button
                     type="button"

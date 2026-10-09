@@ -1,6 +1,7 @@
 import type { ViewType } from '@tas/domain';
 
 import { loadBriefs } from '@/lib/briefs-source';
+import { loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeSheetColumns, loadCreativeSheetWorkspace } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
 
@@ -8,6 +9,7 @@ import { buildSheetItems } from './build-items';
 import type { LinkOption } from './creative-sheet-panel';
 import { CreativeSheetWorkspace } from './creative-sheet-workspace';
 import type { EditorBoardBrief } from './editor-board';
+import type { ConceptOption } from './new-creative-dialog';
 import { isKanbanField, SEARCH_PARAM, SELECTION_PARAM } from './fields';
 
 /**
@@ -21,7 +23,8 @@ import { isKanbanField, SEARCH_PARAM, SELECTION_PARAM } from './fields';
  * does not know which and does not branch on it. The computed name arrives on the row from the
  * query layer, and the lookup cells are computed once in `buildSheetItems` — nothing is computed
  * inside a component. The brief picker's options AND the "Editing stage" board's cards come from
- * `loadBriefs()`, every brief of the brand, the same source the Creative Design page read. Table
+ * `loadBriefs()`, every brief of the brand, the same source the Creative Design page read; the
+ * "New creative" dialog's Concept select comes from `loadConcepts()`. Table
  * state is query parameters — `?creative-sheet=` for the open panel, `?q=` for the filter, `?view=`
  * and `?groupBy=` for the board — so a refresh restores the view. `?group=` is accepted as an alias
  * of `?groupBy=`: the retired Creative Design list's `?group=editorStage` redirects here with its
@@ -34,13 +37,19 @@ interface CreativeSheetPageProps {
 const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban']);
 
 export default async function CreativeSheetPage({ searchParams }: CreativeSheetPageProps) {
-  const [workspace, { columns, unconfigured: unconfiguredColumns }, briefResult, params] =
-    await Promise.all([
-      loadCreativeSheetWorkspace(),
-      loadCreativeSheetColumns(),
-      loadBriefs(),
-      searchParams,
-    ]);
+  const [
+    workspace,
+    { columns, unconfigured: unconfiguredColumns },
+    briefResult,
+    conceptResult,
+    params,
+  ] = await Promise.all([
+    loadCreativeSheetWorkspace(),
+    loadCreativeSheetColumns(),
+    loadBriefs(),
+    loadConcepts(),
+    searchParams,
+  ]);
   const demo = isDemoMode();
 
   const items = buildSheetItems(workspace, new Date());
@@ -56,6 +65,16 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
       assignee,
     }),
   );
+
+  // "New creative": the Concept select and the preview's number. The server allocates the real
+  // number under the brand's lock; this is the honest guess from the briefs the page loaded.
+  const conceptOptions: ConceptOption[] = conceptResult.rows.map(({ id, name, batch }) => ({
+    id,
+    name,
+    batch,
+  }));
+  const nextNumber =
+    briefResult.rows.reduce((max, { briefNumber }) => Math.max(max, briefNumber ?? 0), 0) + 1;
 
   const requested = params[SELECTION_PARAM];
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -82,6 +101,8 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
       items={items}
       briefs={briefs}
       boardBriefs={boardBriefs}
+      conceptOptions={conceptOptions}
+      nextNumber={nextNumber}
       demo={demo}
       initialSelection={selection}
       initialSearch={initialSearch}

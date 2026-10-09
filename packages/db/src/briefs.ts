@@ -7,9 +7,12 @@ import {
   concepts,
   creativeBriefs,
   products,
+  type BriefNameMode,
   type CreativeBrief,
+  type CreativeSheetItem,
   type NewCreativeBrief,
 } from './schema';
+import { insertCreativeSheetItem } from './creative-sheet-items';
 import { withBrand, type BrandScope } from './tenancy';
 
 /**
@@ -279,4 +282,49 @@ export async function renameBrief(
     { name, updatedBy: actorId, updatedAt: new Date() },
     and(eq(creativeBriefs.id, id), eq(creativeBriefs.nameMode, 'auto')),
   );
+}
+
+/** What "New creative" stores before the number is allocated and the name computed from it. */
+export type CreateBriefValues = Omit<BriefInput, 'name' | 'briefNumber' | 'nameMode'>;
+
+export interface CreatedBrief {
+  readonly brief: CreativeBrief;
+  readonly sheetItem: CreativeSheetItem;
+}
+
+/**
+ * "New creative" on the Creative Sheet (2026-10-09, audit item 7): ONE transaction that allocates
+ * the brand-wide number under the advisory lock, stores the brief with the name `nameFor` builds
+ * from that number, and links a sheet row to it — so a sheet row never exists without a named,
+ * numbered creative behind it, and two concurrent creates never share a number.
+ *
+ * The name is the caller's: `@tas/db` never builds one (CLAUDE.md non-negotiable 6; the formula is
+ * `generateBriefName` in `@tas/domain/briefs`, which this package cannot import). `nameMode` says
+ * who owns it afterwards — `auto` follows the concept's renames, `manual` is never rewritten
+ * (migration 0060). The sheet row copies the brief's ratios, as the 0059 backfill did.
+ */
+export async function createBriefWithSheetRow(
+  db: Db,
+  brandId: string,
+  values: CreateBriefValues,
+  nameFor: (briefNumber: number) => string,
+  nameMode: BriefNameMode,
+  actorId: string,
+): Promise<CreatedBrief> {
+  return db.transaction(async (tx) => {
+    const briefNumber = await allocateBriefNumber(tx, brandId);
+    const brief = await insertBrief(
+      tx,
+      brandId,
+      { ...values, name: nameFor(briefNumber), briefNumber, nameMode },
+      actorId,
+    );
+    const sheetItem = await insertCreativeSheetItem(
+      tx,
+      brandId,
+      { briefId: brief.id, dimensions: [...brief.dimensions] },
+      actorId,
+    );
+    return { brief, sheetItem };
+  });
 }

@@ -3,12 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
-  allocateBriefNumber,
   BRIEF_CLIENT_STATUS_DEFAULT,
+  createBriefWithSheetRow,
   getBriefById,
   getConceptById,
   insertActivity,
-  insertBrief,
   listBriefs,
   updateBrief,
   type BriefInput,
@@ -594,18 +593,23 @@ export async function createBriefAction(
       const sequence = nextSequence(await listBriefs(db, brandId), values.funnel, values.type);
       const base = toInput(values, concept, sequence, internal, client);
 
-      const created = await db.transaction(async (tx) => {
-        const briefNumber = await allocateBriefNumber(tx, brandId);
-        // Manual-override toggle: when `nameMode === 'manual'` AND the user typed a non-empty
-        // name, that string is stored verbatim. Any other combination — auto, missing override,
-        // override blanked back out — falls through to the Oct 5 formula.
-        const override =
-          values.nameMode === 'manual' &&
-          typeof values.nameOverride === 'string' &&
-          values.nameOverride !== ''
-            ? values.nameOverride
-            : null;
-        const name =
+      // Manual-override toggle: when `nameMode === 'manual'` AND the user typed a non-empty
+      // name, that string is stored verbatim and the row is `manual` — nothing ever rewrites it.
+      // Any other combination — auto, missing override, override blanked back out — falls
+      // through to the Oct 5 formula and the row is `auto`, so a concept rename keeps it in step.
+      const override =
+        values.nameMode === 'manual' &&
+        typeof values.nameOverride === 'string' &&
+        values.nameOverride !== ''
+          ? values.nameOverride
+          : null;
+      // One transaction: the brand-wide `brief_number` under the advisory lock, the brief, and
+      // its Creative Sheet row — "New creative" on the sheet never leaves a row without a brief.
+      const created = await createBriefWithSheetRow(
+        db,
+        brandId,
+        base,
+        (briefNumber) =>
           override ??
           generateBriefName({
             source: values.source ?? null,
@@ -614,10 +618,16 @@ export async function createBriefAction(
             number: briefNumber,
             concept: concept?.name ?? null,
             batch: base.batch,
-          });
-        return insertBrief(tx, brandId, { ...base, name, briefNumber }, actor);
-      });
-      return { ok: true as const, id: created.id, name: created.name, savedAt: Date.now() };
+          }),
+        override === null ? 'auto' : 'manual',
+        actor,
+      );
+      return {
+        ok: true as const,
+        id: created.brief.id,
+        name: created.brief.name,
+        savedAt: Date.now(),
+      };
     });
 
     if (outcome === null) {
