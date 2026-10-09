@@ -15,7 +15,7 @@ import { loadThemes } from '@/lib/themes-source';
 import { briefPath } from '@/lib/routes';
 
 import { internalStatusView as briefStatusView } from '../../creative-design/fields';
-import { NEW_CONCEPT, campaignHref, type ConceptCampaignLink } from '../fields';
+import { NEW_CONCEPT, type ConceptCampaignLink } from '../fields';
 import {
   ConceptDetail,
   type AngleOption,
@@ -111,7 +111,7 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
   const campaignNames = new Map(campaignRows.rows.map((c) => [c.id, c.name]));
   const campaigns: ConceptCampaignLink[] = (concept?.campaignIds ?? []).flatMap((id) => {
     const label = campaignNames.get(id);
-    return label === undefined ? [] : [{ id, label, href: campaignHref(id) }];
+    return label === undefined ? [] : [{ id, label }];
   });
 
   // A collection id the brand's scope cannot see (another brand's, or soft-deleted) resolves to no

@@ -4,23 +4,23 @@ import { clerkKeys } from '../src/lib/clerk-keys';
 import { briefPath, briefsPath } from '../src/lib/routes';
 
 /**
- * The Creative Briefs route with no environment variables at all — the Vercel deployment as it
- * stands. The middleware lets the route through, the data source serves the in-repo fixtures, and
- * both pages are fully usable read-only: every brief in a six-column table, a real detail route with
- * a generated name that is not a field, three columns, the inspiration previews, the two-track rail
- * and every write disabled with a reason.
+ * The Creative Design DETAIL route with no environment variables at all — the Vercel deployment as
+ * it stands. The middleware lets the route through, the data source serves the in-repo fixtures,
+ * and the page is fully usable read-only: a real detail route with a generated name that is not a
+ * field, three columns, the inspiration previews, the two-track rail and every write disabled with
+ * a reason.
  *
- * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: SEVEN rows, newest edit first,
- * spread across both tracks of the internal ladder. Four of them are past internal sign-off (three
- * `approved`, one `launched`), so `isClientTrackOpen` is true on those four and false on the other
- * three — which is what makes "open here, shut there" a real assertion rather than a coincidence.
- * The count is spelled `BRIEF_COUNT` once so a fixture added to the seed fails in one place.
+ * The LIST page (`/app/creative-design`, grid, Kanban, search, the New brief dialog) was retired for
+ * every brand on 2026-10-07 (`REMOVED_WORKSPACES` in `@tas/domain`) and now redirects to the
+ * Creative Sheet — `removed-workspaces.spec.ts` covers that. The detail page stays live because the
+ * Internal and Client queues and the client portal open briefs by id, which is what this file
+ * proves.
+ *
+ * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: seven rows spread across both
+ * tracks of the internal ladder. Four of them are past internal sign-off (three `approved`, one
+ * `launched`), so `isClientTrackOpen` is true on those four and false on the other three — which is
+ * what makes "open here, shut there" a real assertion rather than a coincidence.
  */
-const BRIEF_COUNT = 7;
-
-/** The header's wording, built from the same number the table is asserted to render. */
-const briefsLabel = (count: number): string => `${String(count)} briefs`;
-
 const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
 /** `static_design_in_progress`: the one the client track is still shut on. */
 const NOT_YOUR_AGE_STATIC = '77777777-7777-4777-8777-000000000002';
@@ -39,174 +39,8 @@ const BODY_CLOCK_SHEET_NAME = `October-${BODY_CLOCK_NAME}`;
 test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
   test.skip(
     clerkKeys() !== undefined,
-    'Clerk keys present: /app/briefs needs a session and real data',
+    'Clerk keys present: /app/creative-design/[briefId] needs a session and real data',
   );
-
-  test('lists the seven fixtures under the resolved columns, with the standalone chip in the concept cell', async ({
-    page,
-  }) => {
-    await page.goto(`${briefsPath}?view=grid`);
-
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Design');
-    await expect(page.locator('[data-slot="brief-count"]')).toHaveText(briefsLabel(BRIEF_COUNT));
-
-    // AI-64a: the headers are `column_definitions` rows now, not a six-string tuple in the page, so
-    // a column is addressed by its KEY and its label is whatever the resolver returned. The
-    // thirty-one are the parent master set — thirty Airtable fields plus the platform's Due Date.
-    const headers = page.locator('[data-slot="briefs-table"] thead th');
-    await expect(headers).toHaveCount(31);
-    for (const key of [
-      'name',
-      'concept_id',
-      'type',
-      'priority',
-      'assignee',
-      'internal_status',
-      'due_date',
-    ]) {
-      await expect(
-        page.locator(`[data-slot="briefs-table"] thead th[data-column="${key}"]`),
-      ).toHaveCount(1);
-    }
-    // The label comes from the seed row, which is the point of the migration (AI-49).
-    await expect(
-      page.locator('[data-slot="briefs-table"] thead th[data-column="due_date"]'),
-    ).toHaveText('Due Date');
-
-    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
-
-    // AI-48. The pipeline sits above the view switcher: four buckets — the editor board's three
-    // stages plus the briefs that have left it — and they add up to the list underneath.
-    const buckets = page.locator('[data-slot="brief-pipeline-stage"]');
-    await expect(buckets).toHaveCount(4);
-    await expect(buckets.locator('[data-slot="status-chip"]')).toHaveText([
-      'Sent to Editor/Designer',
-      'Under Editing',
-      'Under Review',
-      'Off the board',
-    ]);
-    const counts = await page.locator('[data-slot="brief-pipeline-count"]').allInnerTexts();
-    expect(counts.reduce((sum, text) => sum + Number(text), 0)).toBe(BRIEF_COUNT);
-
-    // The generated name is monospace, because it is system output and not a typed field.
-    const name = page.locator(`[data-brief-id="${BODY_CLOCK}"] [data-slot="brief-row-name"]`);
-    await expect(name).toHaveText(BODY_CLOCK_NAME);
-    await expect(name).toHaveCSS('font-family', /mono/i);
-
-    // A brief with no concept says so in a chip, never a blank cell or a bare em dash.
-    const standalone = page.locator(
-      `[data-brief-id="${BUNDLE_STANDALONE}"] [data-slot="brief-standalone"] [data-slot="status-chip"]`,
-    );
-    await expect(standalone).toHaveText('Standalone');
-    await expect(standalone).toHaveAttribute('data-tone', 'mute');
-
-    // AI-52. The name is a real anchor, so the row can be cmd-clicked, middle-clicked or copied —
-    // which a `router.push` cannot be. The href is the detail route itself, not a fragment.
-    await expect(name).toHaveAttribute('href', briefPath(BODY_CLOCK));
-
-    // Every status is a StatusChip with a tone from chipTone, never a locally coloured pill. Read
-    // out of the internal-status COLUMN rather than as the row's last chip, so a reordered or
-    // relabelled column set cannot quietly move this assertion onto a different field.
-    const approved = page.locator(
-      `[data-brief-id="${BODY_CLOCK}"] td[data-column="internal_status"] [data-slot="status-chip"]`,
-    );
-    await expect(approved).toHaveText('Approved');
-    await expect(approved).toHaveAttribute('data-tone', 'ok');
-
-    // AI-49: the row carries the editor stage it sits at. This fixture is Approved, which is OFF
-    // the editor board, so it carries no stage at all rather than a made-up one.
-    await expect(page.locator(`[data-brief-id="${BODY_CLOCK}"]`)).not.toHaveAttribute(
-      'data-stage',
-      /.+/,
-    );
-
-    // "New brief" opens the Oct 5 auto-naming dialog (Agent 3). The trigger is enabled even in
-    // demo mode so the live preview is reachable — only the submit at the bottom of the dialog is
-    // blocked. The dialog's own test below pins the preview behaviour and the disabled submit.
-    const newBrief = page.locator('[data-slot="new-brief"]');
-    await expect(newBrief).toBeEnabled();
-  });
-
-  test('the search narrows the list into ?q= and the empty state offers a way out', async ({
-    page,
-  }) => {
-    await page.goto(`${briefsPath}?view=grid`);
-
-    await page.locator('[data-slot="brief-search"]').fill('standalone');
-    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(1);
-    await expect(page.locator('[data-slot="brief-count"]')).toHaveText(
-      `1 of ${briefsLabel(BRIEF_COUNT)}`,
-    );
-    // `?view=grid` is kept alongside `?q=`, so match the query param in either position.
-    await expect(page).toHaveURL(/[?&]q=standalone/);
-
-    // A filter that matches nothing says so in words and offers to clear itself.
-    await page.locator('[data-slot="brief-search"]').fill('zzzzz');
-    await expect(page.locator('[data-slot="briefs-table"]')).toHaveCount(0);
-    await expect(page.locator('[data-slot="briefs-empty"]')).toContainText('No brief matches');
-    await page.locator('[data-slot="clear-search"]').click();
-    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
-  });
-
-  test('opens on the Kanban board by default, with the table reachable via ?view=grid', async ({
-    page,
-  }) => {
-    await page.goto(briefsPath);
-    await expect(page.locator('[data-slot="kanban-board"]')).toBeVisible();
-    await expect(page.locator('[data-slot="briefs-table"]')).toHaveCount(0);
-
-    await page.goto(`${briefsPath}?view=grid`);
-    await expect(page.locator('[data-slot="briefs-table"]')).toBeVisible();
-    await expect(page.locator('[data-slot="kanban-board"]')).toHaveCount(0);
-  });
-
-  // P2B-3. The table's own click still navigates (covered by the ?view=grid test below); this covers
-  // the board's quick-look panel, which deliberately does NOT navigate.
-  test('a Kanban card opens the quick-look panel beside the board, and "Open full page" leaves for the detail route', async ({
-    page,
-  }) => {
-    await page.goto(briefsPath);
-    const card = page.locator(`[data-slot="kanban-card"][data-card-id="${BODY_CLOCK}"]`);
-    await card.click();
-
-    const panel = page.locator('[data-slot="brief-panel"]');
-    await expect(panel).toBeVisible();
-    await expect(panel.locator('[data-slot="brief-panel-title"]')).toHaveText(BODY_CLOCK_NAME);
-    // The quick look counts what points at the brief; the full page lists each record.
-    await expect(panel.locator('[data-slot="brief-panel-links"]')).toHaveText(
-      '1 sheet row · 1 module · 1 asset folder · 1 report',
-    );
-    // Not a modal: the board is still there beside it, and the URL has not moved.
-    await expect(page.locator('[data-slot="kanban-board"]')).toBeVisible();
-    await expect(page).not.toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));
-
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-slot="brief-panel"]')).toHaveCount(0);
-
-    // The full page is one button further. This is usually the run's FIRST navigation into the
-    // dynamic /app/briefs/[id] route, which `next dev` compiles on demand — the same cold-compile
-    // cost the config header describes, where the URL does change, just later than the 15s default
-    // expect budget. Only this assertion waits longer; nothing about it is relaxed.
-    await card.click();
-    // AI-52. The footer control is a link, not a button that pushes, so it can be opened in a new
-    // tab. The click below still navigates in this one.
-    const openFull = page.locator('[data-slot="brief-panel-open-full"]');
-    await expect(openFull).toHaveAttribute('href', briefPath(BODY_CLOCK));
-    await openFull.click();
-    await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`), { timeout: 45_000 });
-  });
-
-  test('a row click lands on the detail route, and Back restores the list', async ({ page }) => {
-    await page.goto(`${briefsPath}?view=grid`);
-    await page.locator(`[data-brief-id="${BODY_CLOCK}"]`).click();
-
-    await expect(page).toHaveURL(new RegExp(`${briefPath(BODY_CLOCK)}$`));
-    await expect(page.locator('[data-slot="briefs-table"]')).toHaveCount(0);
-    await expect(page.locator('[data-slot="brief-name"]')).toHaveText(BODY_CLOCK_NAME);
-
-    await page.goBack();
-    await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(BRIEF_COUNT);
-  });
 
   test('an unknown id is a 404, not a crash', async ({ page }) => {
     await page.goto(`${briefsPath}/77777777-7777-4777-8777-999999999999`);
@@ -468,45 +302,6 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(wrapper).toHaveAttribute('title', 'Sign in required to save changes');
   });
 
-  test('the New brief dialog previews the Oct 5 auto-naming formula live and offers a manual override', async ({
-    page,
-  }) => {
-    await page.goto(briefsPath);
-
-    // The trigger is enabled and opens the dialog — the inert placeholder is gone.
-    const trigger = page.locator('[data-slot="new-brief"]');
-    await expect(trigger).toBeEnabled();
-    await trigger.click();
-
-    const dialog = page.locator('[data-slot="new-brief-dialog"]');
-    await expect(dialog).toBeVisible();
-
-    // The initial preview reads from the default source, the first funnel and the first type —
-    // first=TOF, type=Video → V001 head, Standalone (no concept, no batch).
-    const preview = dialog.locator('[data-slot="new-brief-preview"]');
-    await expect(preview).toHaveText('TAS-TOF-V001');
-
-    // Typing a batch extends the name live, no round trip.
-    await dialog.locator('[data-slot="new-brief-batch"]').fill('Batch 1');
-    await expect(preview).toHaveText('TAS-TOF-V001-Batch 1');
-
-    // Switching Type to Static changes the head's initial letter — the formula's one letter rule.
-    await dialog.locator('[data-slot="new-brief-type"]').click();
-    await page.getByRole('option', { name: 'Static' }).click();
-    await expect(preview).toHaveText('TAS-TOF-S001-Batch 1');
-
-    // Flipping the manual-override Switch unlocks the Name field and the preview tracks it instead.
-    const nameField = dialog.locator('[data-slot="new-brief-name"]');
-    await expect(nameField).toHaveAttribute('readonly', '');
-    await dialog.locator('[data-slot="new-brief-name-mode"]').click();
-    await expect(nameField).not.toHaveAttribute('readonly', '');
-    await nameField.fill('Custom override name');
-    await expect(preview).toHaveText('Custom override name');
-
-    // The Submit button exists but is inert in demo mode — the write-side e2e is on the live shelf.
-    await expect(dialog.locator('[data-slot="new-brief-submit"]')).toBeDisabled();
-  });
-
   test('reads down to 390px with no horizontal scroll', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(briefPath(BODY_CLOCK));
@@ -515,11 +310,5 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(0);
-
-    await page.goto(briefsPath);
-    const listOverflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(listOverflow).toBeLessThanOrEqual(0);
   });
 });

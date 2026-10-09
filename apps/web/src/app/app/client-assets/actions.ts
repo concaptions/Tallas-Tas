@@ -12,6 +12,7 @@ import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/client-assets-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { clientAssetsPath } from '@/lib/routes';
 
 /**
@@ -131,6 +132,10 @@ export async function createClientAssetFolderAction(
   _previous: ClientAssetFolderActionResult | null,
   formData: FormData,
 ): Promise<ClientAssetFolderActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('client-assets');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -166,6 +171,10 @@ export async function updateClientAssetFolderAction(
   _previous: ClientAssetFolderActionResult | null,
   formData: FormData,
 ): Promise<ClientAssetFolderActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('client-assets');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

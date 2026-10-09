@@ -1,6 +1,8 @@
 import type { CampaignInput, Db } from '@tas/db';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { REMOVED_WORKSPACE_REFUSAL } from '@/lib/removed-workspaces';
+
 import { createCampaignAction, updateCampaignAction } from './actions';
 
 /**
@@ -13,6 +15,14 @@ import { createCampaignAction, updateCampaignAction } from './actions';
  */
 
 interface Seam {
+  /**
+   * Whether the workspace counts as LIVE for the test. Campaigns & Offers was retired for every
+   * brand on 2026-10-07 (`REMOVED_WORKSPACES`), so the real `assertWorkspaceLive` refuses before
+   * anything below runs. The contract tests pin the retained code path with this seam open, for
+   * the day the key is deleted from the list; the retirement block closes it and reads the REAL
+   * helper's answer.
+   */
+  workspaceLive: boolean;
   /** Null stands for a session that expired between rendering the panel and submitting it. */
   actor: string | null;
   /** Every `insertCampaign` call's values, in order. */
@@ -21,7 +31,21 @@ interface Seam {
   updated: { id: string; patch: Partial<CampaignInput> }[];
 }
 
-const seam = vi.hoisted<Seam>(() => ({ actor: 'user_2TESTACTOR', inserted: [], updated: [] }));
+const seam = vi.hoisted<Seam>(() => ({
+  workspaceLive: true,
+  actor: 'user_2TESTACTOR',
+  inserted: [],
+  updated: [],
+}));
+
+vi.mock('@/lib/removed-workspaces', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/removed-workspaces')>();
+  return {
+    ...actual,
+    assertWorkspaceLive: (key: Parameters<typeof actual.assertWorkspaceLive>[0]) =>
+      seam.workspaceLive ? null : actual.assertWorkspaceLive(key),
+  };
+});
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
@@ -100,9 +124,25 @@ function onlyUpdate(): { id: string; patch: Partial<CampaignInput> } {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  seam.workspaceLive = true;
   seam.actor = 'user_2TESTACTOR';
   seam.inserted = [];
   seam.updated = [];
+});
+
+describe('retired for every brand (Oct 7 Talal template cleanup)', () => {
+  it('refuses to create and to update before demo mode, validation or any write — even with Clerk configured', async () => {
+    seam.workspaceLive = false;
+    live();
+
+    const created = await createCampaignAction(null, form(filled));
+    const updated = await updateCampaignAction(null, form({ ...filled, id: CAMPAIGN_ID }));
+
+    expect(created).toEqual({ ok: false, error: REMOVED_WORKSPACE_REFUSAL });
+    expect(updated).toEqual({ ok: false, error: REMOVED_WORKSPACE_REFUSAL });
+    expect(seam.inserted).toEqual([]);
+    expect(seam.updated).toEqual([]);
+  });
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {

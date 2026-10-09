@@ -13,22 +13,13 @@ import type {
   YoutubeCopyListRow,
 } from '@tas/db';
 
-import {
-  briefPath,
-  conceptPath,
-  emailCampaignsPath,
-  metaCopywritingPath,
-  youtubeCopywritingPath,
-} from '@/lib/routes';
+import { briefPath, conceptPath, metaCopywritingPath } from '@/lib/routes';
 
 import { internalStatusView as conceptInternalStatusView } from '../concepts/fields';
 import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
 import { statusView } from '../email-campaigns/fields';
 import { SELECTION_PARAM as META_COPY_PARAM } from '../copywriting/fields';
-import {
-  copyNumberLabel,
-  SELECTION_PARAM as YOUTUBE_COPY_PARAM,
-} from '../youtube-copywriting/fields';
+import { copyNumberLabel } from '../youtube-copywriting/fields';
 import type { CollectionFieldName } from './actions';
 
 /**
@@ -173,9 +164,6 @@ export interface LinkedRecord {
   readonly chip?: { readonly label: string; readonly tone: ChipTone };
 }
 
-/** The parameter the Email Campaigns workspace reads its open row from (`?emailCampaign=`). */
-const EMAIL_CAMPAIGN_PARAM = 'emailCampaign';
-
 /** What each empty linked-work list says; the second sentence names where the link is made. */
 export const NO_EMAIL_CAMPAIGNS_HINT =
   'No email campaign promotes this collection yet. Link one from the campaign’s panel.';
@@ -212,7 +200,8 @@ function push(
  * The `email_campaign_collections` junction, inverted: every email campaign that links to a
  * collection, keyed by the collection's id and in the order the rows arrive (newest edit first).
  * The chip is the campaign's workflow status in the Email Campaigns route's own tones, so the two
- * pages never disagree about a colour.
+ * pages never disagree about a colour. No href: the Email Campaigns workspace is removed from the
+ * app (2026-10-09).
  */
 export function indexEmailCampaignsByCollection(
   rows: readonly EmailCampaignListRow[],
@@ -223,7 +212,6 @@ export function indexEmailCampaignsByCollection(
     const record: LinkedRecord = {
       id: row.id,
       label: row.name,
-      href: `${emailCampaignsPath}?${EMAIL_CAMPAIGN_PARAM}=${row.id}`,
       ...(status === null ? {} : { chip: { label: status.label, tone: status.tone } }),
     };
     for (const collectionId of row.collectionIds) {
@@ -236,7 +224,8 @@ export function indexEmailCampaignsByCollection(
 /**
  * The `youtube_copy_collections` junction, inverted the same way. The label is the auto-generated
  * "Copy N" title (non-negotiable 6), so the panel renders it in `font-mono`, and the chip is the
- * shared `COPY_STATUS` label and tone.
+ * shared `COPY_STATUS` label and tone. No href: the YouTube Copywriting workspace is removed from
+ * the app (2026-10-09).
  */
 export function indexYoutubeCopyByCollection(
   rows: readonly YoutubeCopyListRow[],
@@ -246,7 +235,6 @@ export function indexYoutubeCopyByCollection(
     const record: LinkedRecord = {
       id: row.id,
       label: copyNumberLabel(row.copyNumber),
-      href: `${youtubeCopywritingPath}?${YOUTUBE_COPY_PARAM}=${row.id}`,
       chip: { label: copyStatusLabel(row.status), tone: copyStatusTone(row.status) },
     };
     for (const { id: collectionId } of row.linkedCollections) {

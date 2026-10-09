@@ -2,7 +2,6 @@ import { INTERNAL_VIDEO_STATUS, chipTone } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import {
-  CAMPAIGN_SELECTION_PARAM,
   CONCEPT_COLUMNS,
   CONCEPT_GROUP_HEADINGS,
   CONCEPT_VIEWS,
@@ -10,7 +9,6 @@ import {
   NO_CONCEPTS_NOTE,
   NO_MATCH_NOTE,
   SEARCH_PARAM,
-  campaignHref,
   campaignLinksFor,
   conceptColumns,
   conceptCountLabel,
@@ -195,31 +193,18 @@ describe('the page contract', () => {
   });
 });
 
-describe('campaignHref', () => {
-  it('opens the Campaigns & Offers page on the campaign, through the key its workspace reads', () => {
-    expect(CAMPAIGN_SELECTION_PARAM).toBe('campaign');
-    expect(campaignHref('11111111-1111-4111-8111-000000000001')).toBe(
-      '/app/campaigns-offers?campaign=11111111-1111-4111-8111-000000000001',
-    );
-  });
-
-  it('encodes an id that is not a uuid rather than letting it break the query string', () => {
-    expect(campaignHref('a b&c')).toBe('/app/campaigns-offers?campaign=a%20b%26c');
-  });
-});
-
 describe('campaignLinksFor', () => {
   const bfcm = { id: 'c-bfcm', name: 'BFCM-20%OFF-BFCM26', conceptIds: ['k-1', 'k-2'] };
   const vday = { id: 'c-vday', name: 'Valentine-15%OFF-VDAY27', conceptIds: ['k-2'] };
   const summer = { id: 'c-summer', name: 'Summer Sale-Buy 2 Get 1 Free-SUM26', conceptIds: [] };
 
-  it('keeps the campaigns that list the concept, in row order, each with its name and deep link', () => {
+  it('keeps the campaigns that list the concept, in row order, each by name and with no deep link', () => {
     expect(campaignLinksFor('k-2', [bfcm, vday, summer])).toEqual([
-      { id: 'c-bfcm', label: 'BFCM-20%OFF-BFCM26', href: campaignHref('c-bfcm') },
-      { id: 'c-vday', label: 'Valentine-15%OFF-VDAY27', href: campaignHref('c-vday') },
+      { id: 'c-bfcm', label: 'BFCM-20%OFF-BFCM26' },
+      { id: 'c-vday', label: 'Valentine-15%OFF-VDAY27' },
     ]);
     expect(campaignLinksFor('k-1', [bfcm, vday, summer])).toEqual([
-      { id: 'c-bfcm', label: 'BFCM-20%OFF-BFCM26', href: campaignHref('c-bfcm') },
+      { id: 'c-bfcm', label: 'BFCM-20%OFF-BFCM26' },
     ]);
   });
 

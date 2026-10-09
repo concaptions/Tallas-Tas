@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/creative-modules-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { creativeModulesPath } from '@/lib/routes';
 
 /**
@@ -125,6 +126,10 @@ export async function createCreativeModuleAction(
   _previous: CreativeModuleActionResult | null,
   formData: FormData,
 ): Promise<CreativeModuleActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('creative-modules');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -161,6 +166,10 @@ export async function updateCreativeModuleAction(
   _previous: CreativeModuleActionResult | null,
   formData: FormData,
 ): Promise<CreativeModuleActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('creative-modules');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

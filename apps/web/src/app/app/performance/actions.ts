@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { withPerformanceScope } from '@/lib/performance-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { performancePath } from '@/lib/routes';
 
 export interface MetricActionSuccess {
@@ -48,6 +49,10 @@ export async function createAdMetricAction(
   _previous: MetricActionResult | null,
   formData: FormData,
 ): Promise<MetricActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('performance');
+  if (retired) return retired;
+
   if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
 
   const parsed = schema.safeParse(Object.fromEntries(formData));
@@ -71,6 +76,10 @@ export async function updateAdMetricAction(
   _previous: MetricActionResult | null,
   formData: FormData,
 ): Promise<MetricActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('performance');
+  if (retired) return retired;
+
   if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
 
   const id = formData.get('id') as string;

@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { withCreatorRankingScope } from '@/lib/creator-ranking-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { creatorRankingPath } from '@/lib/routes';
 
 export interface RankingActionSuccess {
@@ -44,6 +45,10 @@ export async function createCreatorRankingAction(
   _previous: RankingActionResult | null,
   formData: FormData,
 ): Promise<RankingActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('creator-ranking');
+  if (retired) return retired;
+
   if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
 
   const parsed = schema.safeParse(Object.fromEntries(formData));
@@ -67,6 +72,10 @@ export async function updateCreatorRankingAction(
   _previous: RankingActionResult | null,
   formData: FormData,
 ): Promise<RankingActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('creator-ranking');
+  if (retired) return retired;
+
   if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
 
   const id = formData.get('id') as string;

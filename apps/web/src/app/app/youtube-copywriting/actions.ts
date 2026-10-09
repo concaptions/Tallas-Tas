@@ -15,6 +15,7 @@ import { COPY_STATUS_INITIAL, COPY_STATUS_KEYS } from '@tas/domain/state';
 import { z } from 'zod';
 
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { youtubeCopywritingPath } from '@/lib/routes';
 import { withBrandScope } from '@/lib/youtube-copywriting-source';
 
@@ -249,6 +250,10 @@ export async function createYoutubeCopyAction(
   _previous: YoutubeCopyActionResult | null,
   formData: FormData,
 ): Promise<YoutubeCopyActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('youtube-copywriting');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -294,6 +299,10 @@ export async function updateYoutubeCopyAction(
   _previous: YoutubeCopyActionResult | null,
   formData: FormData,
 ): Promise<YoutubeCopyActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('youtube-copywriting');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

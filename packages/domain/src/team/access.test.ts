@@ -6,6 +6,8 @@ import {
   INTERFACE_CONFIG_NOT_PERMITTED_NOTE,
   NAV_SECTION_KEYS,
   NO_WORKSPACE_NOTE,
+  REMOVED_WORKSPACES,
+  REMOVED_WORKSPACE_REDIRECTS,
   NO_WORKSPACE_TITLE,
   SECTION_NOT_PERMITTED_NOTE,
   SECTION_NOT_PERMITTED_TITLE,
@@ -19,9 +21,13 @@ import {
   canSeeNavSection,
   canSeePropagationPage,
   canSeeTeamPage,
+  isRemovedWorkspace,
   navSectionsForRole,
   teamAccessNote,
 } from './access';
+
+/** The catalogue less the retired workspaces: what "every section" means since 2026-10-07. */
+const LIVE_KEYS = NAV_SECTION_KEYS.filter((key) => !isRemovedWorkspace(key));
 
 describe('canSeeTeamPage', () => {
   it('lets an agency admin in', () => {
@@ -168,9 +174,9 @@ describe('the propagation notes', () => {
  * that only checked "an editor sees fewer sections" would pass with the client seeing everything.
  */
 describe('canSeeNavSection / navSectionsForRole', () => {
-  it('gives an agency admin every section (PRD §11: everything, all brands)', () => {
-    expect(navSectionsForRole('admin')).toEqual(NAV_SECTION_KEYS);
-    for (const key of NAV_SECTION_KEYS) {
+  it('gives an agency admin every live section (PRD §11: everything, all brands)', () => {
+    expect(navSectionsForRole('admin')).toEqual(LIVE_KEYS);
+    for (const key of LIVE_KEYS) {
       expect(canSeeNavSection('admin', key), key).toBe(true);
     }
   });
@@ -184,19 +190,18 @@ describe('canSeeNavSection / navSectionsForRole', () => {
 
   it('confines a video editor and a designer to the creative-design work', () => {
     for (const role of ['video_editor', 'designer'] as const) {
+      // `briefs`, `client-assets` and `creative-dimensions` are in the editor's job description
+      // (`EDITOR_SECTIONS`) but retired for every brand, so they are cut out here.
       expect(navSectionsForRole(role), role).toEqual([
         'overview',
-        'briefs',
         'creative-sheet',
-        'client-assets',
         'assets',
         'upload-links',
-        'creative-dimensions',
         'notifications',
       ]);
       // Their own work, yes; somebody else's desk, no.
-      expect(canSeeNavSection(role, 'briefs')).toBe(true);
       expect(canSeeNavSection(role, 'creative-sheet')).toBe(true);
+      expect(canSeeNavSection(role, 'assets')).toBe(true);
       expect(canSeeNavSection(role, 'personas')).toBe(false);
       expect(canSeeNavSection(role, 'angles')).toBe(false);
       expect(canSeeNavSection(role, 'themes')).toBe(false);
@@ -211,15 +216,22 @@ describe('canSeeNavSection / navSectionsForRole', () => {
   it('keeps the breadth a CSM, a strategist and a media buyer have today, less the admin pages', () => {
     for (const role of ['csm', 'strategist', 'media_buyer'] as const) {
       const sections = navSectionsForRole(role);
-      // Every section except the five the Admin keeps.
-      expect(sections.length, role).toBe(NAV_SECTION_KEYS.length - 5);
+      // Every live section except the five the Admin keeps.
+      expect(sections.length, role).toBe(LIVE_KEYS.length - 5);
       expect(canSeeNavSection(role, 'propagation'), role).toBe(false);
       expect(canSeeNavSection(role, 'column-admin'), role).toBe(false);
       expect(canSeeNavSection(role, 'interface-config'), role).toBe(false);
       expect(canSeeNavSection(role, 'onboard'), role).toBe(false);
       expect(canSeeNavSection(role, 'onboarding-forms'), role).toBe(false);
-      // The strategy, production, copy, campaign and reporting modules stay.
-      for (const key of ['personas', 'concepts', 'briefs', 'copywriting', 'performance'] as const) {
+      // The strategy, production, copy, reporting and queue modules that are still live stay.
+      for (const key of [
+        'personas',
+        'concepts',
+        'creative-sheet',
+        'copywriting',
+        'ad-spy',
+        'internal-queue',
+      ] as const) {
         expect(canSeeNavSection(role, key), `${role}/${key}`).toBe(true);
       }
     }
@@ -242,8 +254,8 @@ describe('canSeeNavSection / navSectionsForRole', () => {
   });
 
   it('denies by default on an unresolved role and on an unknown key', () => {
-    expect(canSeeNavSection(null, 'briefs')).toBe(false);
-    expect(canSeeNavSection(undefined, 'briefs')).toBe(false);
+    expect(canSeeNavSection(null, 'creative-sheet')).toBe(false);
+    expect(canSeeNavSection(undefined, 'creative-sheet')).toBe(false);
     expect(navSectionsForRole(null)).toEqual([]);
     expect(navSectionsForRole(undefined)).toEqual([]);
     for (const role of ['admin', ...brandRoles] as const) {
@@ -291,6 +303,108 @@ describe('canSeeNavSection / navSectionsForRole', () => {
       expect(note.trim()).toBe(note);
       expect(note.endsWith('.')).toBe(true);
     }
+  });
+});
+
+/**
+ * The Oct 7 template cleanup (Talal): fifteen workspaces hidden for every brand behind ONE list.
+ * Nothing is deleted — the keys stay in `NAV_SECTION_KEYS` so the nav's catalogue, the route guards
+ * and `activeSectionKey` keep their types — but no role can see them, and every one has somewhere
+ * to redirect to.
+ */
+describe('REMOVED_WORKSPACES (Oct 7 Talal template cleanup)', () => {
+  it('names the fifteen retired workspaces, each a real section key, none twice', () => {
+    expect([...REMOVED_WORKSPACES].sort()).toEqual(
+      [
+        'ai-characters',
+        'briefs',
+        'campaigns',
+        'client-assets',
+        'competitive-research',
+        'copy-types',
+        'creative-dimensions',
+        'creative-modules',
+        'creative-reporting',
+        'creator-ranking',
+        'email-campaigns',
+        'email-flows',
+        'performance',
+        'sm-campaign-feed',
+        'youtube-copywriting',
+      ].sort(),
+    );
+    expect(new Set(REMOVED_WORKSPACES).size).toBe(REMOVED_WORKSPACES.length);
+    for (const key of REMOVED_WORKSPACES) {
+      expect(NAV_SECTION_KEYS).toContain(key);
+    }
+  });
+
+  it('keeps the workspaces Talal kept: Copywriting, Ad Spy, Upload Links, the queues, the Creative Sheet', () => {
+    for (const kept of [
+      'copywriting',
+      'ad-spy',
+      'upload-links',
+      'internal-queue',
+      'client-queue',
+      'creative-sheet',
+      'assets',
+      'overview',
+    ] as const) {
+      expect(isRemovedWorkspace(kept), kept).toBe(false);
+    }
+  });
+
+  it('is invisible to EVERY role, the Admin included, and absent from every role list', () => {
+    for (const role of ['admin', 'member', ...brandRoles] as const) {
+      for (const key of REMOVED_WORKSPACES) {
+        expect(canSeeNavSection(role, key), `${role}/${key}`).toBe(false);
+        expect(navSectionsForRole(role), `${role}/${key}`).not.toContain(key);
+      }
+    }
+  });
+
+  it('leaves every live section exactly where it was for every role', () => {
+    // The admin's list is the catalogue minus the retired keys, in catalogue order — nothing else
+    // moved, so an unrelated section cannot have been lost in the cut.
+    expect(navSectionsForRole('admin')).toEqual(
+      NAV_SECTION_KEYS.filter((key) => !isRemovedWorkspace(key)),
+    );
+    for (const role of ['csm', 'strategist', 'media_buyer'] as const) {
+      expect(navSectionsForRole(role), role).toEqual(
+        navSectionsForRole('admin').filter(
+          (key) =>
+            ![
+              'propagation',
+              'column-admin',
+              'interface-config',
+              'onboarding-forms',
+              'onboard',
+            ].includes(key),
+        ),
+      );
+    }
+  });
+
+  it('maps every retired key to a redirect target, and only the three that have a successor page leave the Overview', () => {
+    expect(Object.keys(REMOVED_WORKSPACE_REDIRECTS).sort()).toEqual([...REMOVED_WORKSPACES].sort());
+    expect(REMOVED_WORKSPACE_REDIRECTS.briefs).toBe('creative-sheet');
+    expect(REMOVED_WORKSPACE_REDIRECTS['client-assets']).toBe('assets');
+    expect(REMOVED_WORKSPACE_REDIRECTS['youtube-copywriting']).toBe('copywriting');
+    for (const key of REMOVED_WORKSPACES) {
+      if (key === 'briefs' || key === 'client-assets' || key === 'youtube-copywriting') continue;
+      expect(REMOVED_WORKSPACE_REDIRECTS[key], key).toBe('overview');
+    }
+    // A target is always a LIVE section, never another retired one — no redirect chains.
+    for (const target of Object.values(REMOVED_WORKSPACE_REDIRECTS)) {
+      expect(isRemovedWorkspace(target), target).toBe(false);
+      expect(canSeeNavSection('admin', target), target).toBe(true);
+    }
+  });
+
+  it('isRemovedWorkspace takes any string and is a type guard over the list', () => {
+    expect(isRemovedWorkspace('briefs')).toBe(true);
+    expect(isRemovedWorkspace('nonsense')).toBe(false);
+    expect(isRemovedWorkspace('')).toBe(false);
   });
 });
 

@@ -136,7 +136,7 @@ export interface ConceptCollectionItem {
 /**
  * The URL parameter the Collections workspace keeps its open row in — the key its `syncUrl` writes
  * and its page reads back as `params.collection` — restated here so the rail can deep-link into the
- * collection's own panel, exactly as `campaignHref` in `../fields` does for Campaigns & Offers.
+ * collection's own panel.
  */
 const COLLECTION_SELECTION_PARAM = 'collection';
 
@@ -949,8 +949,9 @@ export function ConceptDetail({
 
           {/*
             The other side of `campaign_concepts` (module parity, phase 2): the campaigns running on
-            this concept, named and linked but never edited here. Each label is the campaign's
-            generated name, so it is monospace like the creative names above it.
+            this concept, named but never edited here, and not linked: the Campaigns & Offers
+            workspace is removed from the app (2026-10-09). Each label is the campaign's generated
+            name, so it is monospace like the creative names above it.
           */}
           {concept === null ? null : (
             <section className="flex flex-col gap-2 pt-2" data-slot="concept-campaigns">
@@ -965,17 +966,15 @@ export function ConceptDetail({
               ) : (
                 <ol className="flex flex-col gap-1.5" data-slot="concept-campaigns-list">
                   {campaigns.map((campaign) => (
-                    <li key={campaign.id}>
-                      <Link
-                        href={campaign.href}
-                        data-slot="concept-campaign"
-                        data-campaign-id={campaign.id}
-                        className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2 transition-colors hover:border-accent-line hover:bg-surface3"
-                      >
-                        <span className="font-mono text-[11px] break-words text-text">
-                          {campaign.label}
-                        </span>
-                      </Link>
+                    <li
+                      key={campaign.id}
+                      data-slot="concept-campaign"
+                      data-campaign-id={campaign.id}
+                      className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2"
+                    >
+                      <span className="font-mono text-[11px] break-words text-text">
+                        {campaign.label}
+                      </span>
                     </li>
                   ))}
                 </ol>

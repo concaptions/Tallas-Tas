@@ -17,6 +17,8 @@ import {
 } from '@tas/domain/state';
 import { StatusChip } from '@tas/ui';
 
+import { conceptsPath, copywritingPath, creativeSheetPath, ugcPath } from '@/lib/routes';
+
 /**
  * A lookup for all internal status keys → { label, tone }. Merges video and static tracks so every
  * internal key resolves in one map. The map is built once at module load and used purely for display.
@@ -116,35 +118,35 @@ export function OverviewDashboard({ summary }: OverviewDashboardProps) {
         <SummaryCard
           title="Concepts"
           total={summary.concepts.total}
-          href="/app/concepts"
+          href={conceptsPath}
           breakdown={summary.concepts.byClientStatus}
           resolver={clientChip}
         />
         <SummaryCard
           title="Briefs"
           total={summary.briefs.total}
-          href="/app/creative-design"
+          href={creativeSheetPath}
           breakdown={summary.briefs.byInternalStatus}
           resolver={internalChip}
         />
         <SummaryCard
           title="Creative Sheet"
           total={summary.creativeSheet.total}
-          href="/app/creative-sheet"
+          href={creativeSheetPath}
           breakdown={summary.creativeSheet.byStatus}
           resolver={creativeSheetChip}
         />
         <SummaryCard
           title="Copywriting"
           total={summary.copywriting.total}
-          href="/app/meta-copywriting"
+          href={copywritingPath}
           breakdown={summary.copywriting.byStatus}
           resolver={copyChip}
         />
         <SummaryCard
           title="Creators"
           total={summary.creators.total}
-          href="/app/ugc"
+          href={ugcPath}
           breakdown={summary.creators.byClientStatus}
           resolver={creatorClientChip}
         />

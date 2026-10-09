@@ -110,40 +110,11 @@ import {
   OverviewPipelineStory,
 } from './overview.stories';
 import { AssetUploadModalStory } from './assets-upload.stories';
-import { ClientAssetPanelStory, ClientAssetsGridStory } from './client-assets.stories';
-import { CopyTypePanelStory, CopyTypesGridStory } from './copy-types.stories';
-import { CreativeModulePanelStory, CreativeModulesGridStory } from './creative-modules.stories';
-import {
-  CreativeReportDifferenceCpaStory,
-  CreativeReportingGridStory,
-} from './creative-reporting.stories';
 import {
   CreativeSheetChipsStory,
   CreativeSheetGridStory,
   CreativeSheetTicksStory,
 } from './creative-sheet.stories';
-import {
-  EmailCampaignChipsStory,
-  EmailCampaignsGridStory,
-  EmailCampaignsKanbanStory,
-  EmailCampaignsTimelineStory,
-} from './email-campaigns.stories';
-import {
-  EmailFlowChipsStory,
-  EmailFlowsBoardStory,
-  EmailFlowsGridStory,
-  EmailFlowsWorkspaceStory,
-} from './email-flows.stories';
-import {
-  SmCampaignFeedChipsStory,
-  SmCampaignFeedGridStory,
-  SmCampaignFeedKanbanStory,
-} from './sm-campaign-feed.stories';
-import {
-  YoutubeCopyGridStory,
-  YoutubeCopyNumberStory,
-  YoutubeCopyStatusChipsStory,
-} from './youtube-copywriting.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
 import { ClientStatusBadgesStory, ClientStatusDropdownDemoStory } from './client-status.stories';
 import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
@@ -1063,7 +1034,7 @@ export default function DesignSystemPage() {
 
       <Section
         title="Creative Briefs: generated name, chips, ratios, inspiration and QA"
-        note="The five shapes /app/briefs introduces. Mounted from the route's own modules, never re-drawn here."
+        note="The five shapes the brief detail page (/app/creative-design/[briefId]) introduces — the one Creative Design route still live after the Oct 7 cleanup, because the queues and the client portal open briefs by id. Mounted from the route's own modules, never re-drawn here."
       >
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
@@ -1250,31 +1221,7 @@ export default function DesignSystemPage() {
             <OverviewPipelineStory />
           </div>
           <div className="flex-1 basis-full">
-            <ClientAssetPanelStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <ClientAssetsGridStory />
-          </div>
-          <div className="flex-1 basis-full">
             <AssetUploadModalStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <CopyTypePanelStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <CopyTypesGridStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <CreativeModulePanelStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <CreativeModulesGridStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <CreativeReportDifferenceCpaStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <CreativeReportingGridStory />
           </div>
           <div className="flex-1 basis-full">
             <CreativeSheetChipsStory />
@@ -1284,48 +1231,6 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex-1 basis-full">
             <CreativeSheetTicksStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailCampaignChipsStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailCampaignsGridStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailCampaignsKanbanStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailCampaignsTimelineStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailFlowChipsStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailFlowsBoardStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailFlowsGridStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <EmailFlowsWorkspaceStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <SmCampaignFeedChipsStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <SmCampaignFeedGridStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <SmCampaignFeedKanbanStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <YoutubeCopyGridStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <YoutubeCopyNumberStory />
-          </div>
-          <div className="flex-1 basis-full">
-            <YoutubeCopyStatusChipsStory />
           </div>
         </div>
       </Section>

@@ -43,12 +43,7 @@ import {
   statusView as sheetStatusView,
   type SheetStatusView,
 } from '@/app/app/creative-sheet/fields';
-import {
-  clientAssetsPath,
-  creativeModulesPath,
-  creativeReportingPath,
-  creativeSheetPath,
-} from '@/lib/routes';
+import { creativeSheetPath } from '@/lib/routes';
 
 import type { BriefFieldName, BriefQaCheck } from './actions';
 
@@ -476,21 +471,12 @@ export const NO_BRIEF_LINKS: BriefLinkCounts = {
 };
 
 /**
- * Each counterpart page opened on one row. The Creative Sheet exports its selection parameter; the
- * other three read theirs inline (`params.module`, `params.folder`, `params.creativeReport` in
- * their `page.tsx`), so those three names are stated here, once, beside the page they belong to.
+ * The Creative Sheet opened on one row, through the selection parameter it exports. It is the only
+ * counterpart still linked: the Creative Modules, Client Assets and Creative Reporting workspaces
+ * are removed from the app (2026-10-09), so their records render with `href: null`.
  */
 function sheetItemHref(id: string): string {
   return `${creativeSheetPath}?${SHEET_SELECTION_PARAM}=${encodeURIComponent(id)}`;
-}
-function moduleHref(id: string): string {
-  return `${creativeModulesPath}?module=${encodeURIComponent(id)}`;
-}
-function folderHref(id: string): string {
-  return `${clientAssetsPath}?folder=${encodeURIComponent(id)}`;
-}
-function reportHref(id: string): string {
-  return `${creativeReportingPath}?creativeReport=${encodeURIComponent(id)}`;
 }
 
 /** A report's one-line read, both sides formatted by the reporting module's own currency rule. */
@@ -524,7 +510,7 @@ export function briefLinkedRecords(briefId: string, sources: BriefLinkSources): 
         id: row.id,
         label: row.moduleName,
         mono: false,
-        href: moduleHref(row.id),
+        href: null,
         detail: null,
         chips: [],
       })),
@@ -534,7 +520,7 @@ export function briefLinkedRecords(briefId: string, sources: BriefLinkSources): 
         id: row.id,
         label: row.name,
         mono: false,
-        href: folderHref(row.id),
+        href: null,
         detail: null,
         chips: [],
       })),
@@ -546,7 +532,7 @@ export function briefLinkedRecords(briefId: string, sources: BriefLinkSources): 
           id: row.id,
           label: row.nameAngleOffer,
           mono: false,
-          href: reportHref(row.id),
+          href: null,
           detail: cpaVsTargetLabel(row.cpa, row.targetCpa),
           chips: difference === null ? [] : [difference],
         };

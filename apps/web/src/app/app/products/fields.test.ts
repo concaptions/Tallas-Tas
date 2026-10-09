@@ -3,7 +3,7 @@ import { internalStatusFor } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import { toBriefRow } from '@/lib/briefs-source';
-import { briefPath, emailCampaignsPath, ugcPath, youtubeCopywritingPath } from '@/lib/routes';
+import { briefPath, ugcPath } from '@/lib/routes';
 
 import { internalStatusView } from '../creative-design/fields';
 import {
@@ -92,13 +92,11 @@ describe('emailCampaignLinks', () => {
       {
         id: 'ee11ee11-ee11-4e11-8e11-000000000001',
         label: 'BFCM Early Access — VIP list',
-        href: `${emailCampaignsPath}?emailCampaign=ee11ee11-ee11-4e11-8e11-000000000001`,
         chip: { label: 'Template Design', tone: 'accent' },
       },
       {
         id: 'ee11ee11-ee11-4e11-8e11-000000000003',
         label: 'Valentine couples bundle',
-        href: `${emailCampaignsPath}?emailCampaign=ee11ee11-ee11-4e11-8e11-000000000003`,
         chip: { label: 'Client: Edits Required', tone: 'warn' },
       },
     ]);
@@ -138,13 +136,11 @@ describe('youtubeCopyLinks', () => {
       {
         id: 'a1b2c3d4-0012-4012-8012-000000000001',
         label: 'Copy 1',
-        href: `${youtubeCopywritingPath}?youtube-copy=a1b2c3d4-0012-4012-8012-000000000001`,
         chip: { label: 'Approved', tone: 'ok' },
       },
       {
         id: 'a1b2c3d4-0012-4012-8012-000000000004',
         label: 'Copy 4',
-        href: `${youtubeCopywritingPath}?youtube-copy=a1b2c3d4-0012-4012-8012-000000000004`,
         chip: { label: 'Revisions Needed', tone: 'warn' },
       },
     ]);

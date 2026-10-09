@@ -233,6 +233,93 @@ export const NAV_SECTION_KEYS = [
 export type NavSectionKey = (typeof NAV_SECTION_KEYS)[number];
 
 /**
+ * The workspaces Talal retired on 2026-10-07, FOR EVERY BRAND (docs/decisions.md "2026-10-09 —
+ * Template cleanup"). Oct 7 Talal decision; undo = delete the key from this list.
+ *
+ * Retired means HIDDEN, not deleted: the page code, the Server Actions and every table and row stay
+ * exactly where they are. This one list is what the rest of the product reads —
+ *
+ * - `canSeeNavSection` / `navSectionsForRole` answer false for a retired key whatever the role, so
+ *   the sidebar, the nav-access story and every `sectionGuard` layout drop it together;
+ * - the web app's `TEMPLATE_HIDDEN_SECTION_KEYS` is derived from it, so the template brand hides
+ *   the same set plus its own two queues;
+ * - `sectionGuard` and the three guard-less list pages redirect an old URL to
+ *   `REMOVED_WORKSPACE_REDIRECTS[key]`;
+ * - every retired workspace's Server Action refuses first, through `assertWorkspaceLive`.
+ *
+ * `briefs` is Creative Design: its LIST is retired, its brief detail route stays live because the
+ * two approval queues and the client portal open briefs by id. The route tree is laid out so the
+ * list and the detail are different segments (`creative-design/page.tsx` vs
+ * `creative-design/[briefId]/`), which is why the key can be here without closing the detail page.
+ */
+export const REMOVED_WORKSPACES = [
+  'creative-modules',
+  'ai-characters',
+  'competitive-research',
+  'briefs',
+  'client-assets',
+  'youtube-copywriting',
+  'campaigns',
+  'email-campaigns',
+  'email-flows',
+  'sm-campaign-feed',
+  'performance',
+  'creative-reporting',
+  'creator-ranking',
+  'copy-types',
+  'creative-dimensions',
+] as const satisfies readonly NavSectionKey[];
+
+export type RemovedWorkspaceKey = (typeof REMOVED_WORKSPACES)[number];
+
+/**
+ * Where an old URL lands. Four targets, all of them live sections: the three that absorbed a
+ * retired workspace's job (Creative Design's list → the Creative Sheet, Client Assets → the Asset
+ * Library's client folders, YouTube Copywriting → Copywriting) and the Overview for everything
+ * whose data has no successor page. Keyed on the section, not the path, so the domain never spells
+ * a URL; `apps/web/src/lib/removed-workspaces.ts` turns a target into a route.
+ */
+export type RemovedWorkspaceRedirectTarget =
+  'creative-sheet' | 'assets' | 'copywriting' | 'overview';
+
+export const REMOVED_WORKSPACE_REDIRECTS: Readonly<
+  Record<RemovedWorkspaceKey, RemovedWorkspaceRedirectTarget>
+> = {
+  'creative-modules': 'overview',
+  'ai-characters': 'overview',
+  'competitive-research': 'overview',
+  briefs: 'creative-sheet',
+  'client-assets': 'assets',
+  'youtube-copywriting': 'copywriting',
+  campaigns: 'overview',
+  'email-campaigns': 'overview',
+  'email-flows': 'overview',
+  'sm-campaign-feed': 'overview',
+  performance: 'overview',
+  'creative-reporting': 'overview',
+  'creator-ranking': 'overview',
+  'copy-types': 'overview',
+  'creative-dimensions': 'overview',
+};
+
+/**
+ * Whether `key` names a retired workspace. Takes a plain string, like `canSeeNavSection`, because a
+ * route guard or a redirect page hands over whatever segment it was given.
+ */
+export function isRemovedWorkspace(key: string): key is RemovedWorkspaceKey {
+  return (REMOVED_WORKSPACES as readonly string[]).includes(key);
+}
+
+/**
+ * `NAV_SECTION_KEYS` less the retired workspaces: the sections anybody can still open. Every role's
+ * row in `SECTIONS_BY_ROLE` is cut from this list, never from the full catalogue, so a retired key
+ * cannot reach a sidebar or pass a guard through any role.
+ */
+const LIVE_SECTION_KEYS: readonly NavSectionKey[] = NAV_SECTION_KEYS.filter(
+  (key) => !isRemovedWorkspace(key),
+);
+
+/**
  * The sections an agency Admin keeps to themselves. PRD §11 row 1 gives the Admin "Everything, all
  * brands"; these five are the ones where "everything" is the whole POINT of the page, so nobody
  * else belongs on them:
@@ -276,6 +363,10 @@ const ADMIN_ONLY_SECTIONS: readonly NavSectionKey[] = [
  *
  * Everything else is somebody else's desk: strategy (§5.4-5.7), copy (§5.11), campaigns, reporting
  * (§13's media-buyer formula), the approval queues (§9's reviewer half) and the settings pages.
+ *
+ * The list still names `briefs`, `client-assets` and `creative-dimensions` because it describes the
+ * JOB; `SECTIONS_BY_ROLE` cuts the retired ones out, so deleting a key from `REMOVED_WORKSPACES`
+ * gives them back to the editor without a second edit here.
  */
 const EDITOR_SECTIONS: readonly NavSectionKey[] = [
   'overview',
@@ -295,7 +386,10 @@ const EDITOR_SECTIONS: readonly NavSectionKey[] = [
  * keyed `Record<ViewerRole, ...>` over both tuples), and an unresolved role is not in it at all, so
  * it falls through to nothing — see `canSeeNavSection`.
  *
- * - `admin` — every section. PRD §11: "Everything, all brands".
+ * EVERY ROW IS CUT FROM `LIVE_SECTION_KEYS`, so a workspace in `REMOVED_WORKSPACES` is nobody's,
+ * the Admin's included: "Everything" is everything the product still offers.
+ *
+ * - `admin` — every live section. PRD §11: "Everything, all brands".
  * - `csm`, `strategist`, `media_buyer` — every section except the Admin's five. §11 scopes these
  *   three by BRAND, not by module: a CSM "works across the whole client base", a strategist and a
  *   media buyer see "the brands assigned to them". Narrowing their modules would be a product
@@ -313,13 +407,13 @@ const EDITOR_SECTIONS: readonly NavSectionKey[] = [
  *   error that cannot leak a brand's data.
  */
 const SECTIONS_BY_ROLE: Readonly<Record<ViewerRole, readonly NavSectionKey[]>> = {
-  admin: NAV_SECTION_KEYS,
+  admin: LIVE_SECTION_KEYS,
   member: [],
-  csm: NAV_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
-  strategist: NAV_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
-  media_buyer: NAV_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
-  video_editor: EDITOR_SECTIONS,
-  designer: EDITOR_SECTIONS,
+  csm: LIVE_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
+  strategist: LIVE_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
+  media_buyer: LIVE_SECTION_KEYS.filter((key) => !ADMIN_ONLY_SECTIONS.includes(key)),
+  video_editor: EDITOR_SECTIONS.filter((key) => !isRemovedWorkspace(key)),
+  designer: EDITOR_SECTIONS.filter((key) => !isRemovedWorkspace(key)),
   client: [],
 };
 
@@ -331,6 +425,9 @@ const SECTIONS_BY_ROLE: Readonly<Record<ViewerRole, readonly NavSectionKey[]>> =
  * `NAV_SECTION_KEYS` gets nothing either — so a page that guards itself with a misspelled key
  * closes rather than opens. This is the opposite of `loadActiveRole`'s `?? 'admin'` fallback, which
  * is a DISPLAY default for the Overview's tiles; a fallback that widens access is not a guard.
+ *
+ * A key in `REMOVED_WORKSPACES` is false for every role, the Admin included: the table every role
+ * reads is cut from the live keys, so there is no row a retired key could be found in.
  */
 export function canSeeNavSection(
   role: ViewerRole | null | undefined,

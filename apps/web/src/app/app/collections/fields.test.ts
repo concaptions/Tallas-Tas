@@ -13,13 +13,7 @@ import { describe, expect, it } from 'vitest';
 
 import { toBriefRow } from '@/lib/briefs-source';
 import { CONCEPT_TRACK, toConceptRow } from '@/lib/concepts-source';
-import {
-  briefPath,
-  conceptPath,
-  emailCampaignsPath,
-  metaCopywritingPath,
-  youtubeCopywritingPath,
-} from '@/lib/routes';
+import { briefPath, conceptPath, metaCopywritingPath } from '@/lib/routes';
 
 import { internalStatusView as conceptInternalStatusView } from '../concepts/fields';
 import { internalStatusView } from '../creative-design/fields';
@@ -48,15 +42,13 @@ function id(row: { readonly id: string } | undefined, what: string): string {
 describe('indexEmailCampaignsByCollection', () => {
   const index = indexEmailCampaignsByCollection(demoEmailCampaigns);
 
-  it('lists the email campaign that promotes the BFCM collection, with a link to its panel', () => {
+  it('lists the email campaign that promotes the BFCM collection, by name and with no link', () => {
     const linked = index.get(id(BFCM, 'collection')) ?? [];
     const early = demoEmailCampaigns.find((row) => row.name === 'BFCM Early Access — VIP list');
 
     expect(linked.map((record) => record.label)).toEqual(['BFCM Early Access — VIP list']);
     expect(linked[0]?.id).toBe(id(early, 'email campaign'));
-    expect(linked[0]?.href).toBe(
-      `${emailCampaignsPath}?emailCampaign=${id(early, 'email campaign')}`,
-    );
+    expect(linked[0]).not.toHaveProperty('href');
   });
 
   it("carries the campaign's workflow status as the chip, label and tone from the route's vocabulary", () => {
@@ -90,13 +82,12 @@ describe('indexYoutubeCopyByCollection', () => {
     expect(linked.map((record) => record.label)).toEqual(['Copy 1', 'Copy 3']);
   });
 
-  it('links each title to the YouTube Copywriting panel by its own parameter', () => {
+  it('carries no link: the YouTube Copywriting workspace is removed from the app', () => {
     const linked = index.get(id(BFCM, 'collection')) ?? [];
     const first = demoYoutubeCopy.find((row) => row.copyNumber === 1);
 
-    expect(linked[0]?.href).toBe(
-      `${youtubeCopywritingPath}?youtube-copy=${id(first, 'youtube copy')}`,
-    );
+    expect(linked[0]?.id).toBe(id(first, 'youtube copy'));
+    expect(linked[0]).not.toHaveProperty('href');
   });
 
   it('carries the shared COPY_STATUS label and tone as the chip', () => {

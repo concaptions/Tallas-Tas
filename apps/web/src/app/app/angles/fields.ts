@@ -10,7 +10,7 @@ import {
 } from '@tas/domain/angles';
 import type { ChipTone, CreativeTrack, InternalStatusKey } from '@tas/domain/state';
 
-import { briefPath, conceptPath, creativeModulesPath } from '@/lib/routes';
+import { briefPath, conceptPath } from '@/lib/routes';
 
 import { internalStatusView as conceptInternalStatusView } from '../concepts/fields';
 import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
@@ -148,11 +148,6 @@ export interface LinkedRecord {
   readonly status?: { readonly label: string; readonly tone: ChipTone };
 }
 
-/** The Creative Modules page with this module's panel open — the same `?module=` its own rows use. */
-export function creativeModuleHref(id: string): string {
-  return `${creativeModulesPath}?module=${encodeURIComponent(id)}`;
-}
-
 /** The slice of a creative module row this page reads: `creative_module_angles`, inverted. */
 export interface CreativeModuleLinkSource {
   readonly id: string;
@@ -163,7 +158,8 @@ export interface CreativeModuleLinkSource {
 /**
  * `creative_module_angles` read from the angle's side: `angleId -> [module, …]`, each module once
  * per angle it links, alphabetical by name so the panel's order does not depend on which module
- * was edited last. An angle no module links is absent, and the caller reads that as an empty list.
+ * was edited last. No href: the Creative Modules workspace is removed from the app (2026-10-09), so
+ * the module renders as a named chip only. An angle no module links is absent, and the caller reads that as an empty list.
  * A plain object rather than a `Map` because it crosses the server → client prop boundary.
  */
 export function indexCreativeModulesByAngle(
@@ -174,7 +170,6 @@ export function indexCreativeModulesByAngle(
     const record: LinkedRecord = {
       id: creativeModule.id,
       label: creativeModule.moduleName,
-      href: creativeModuleHref(creativeModule.id),
       chip: CREATIVE_MODULE_CHIP_TONE,
     };
     for (const angleId of new Set(creativeModule.angleIds)) {

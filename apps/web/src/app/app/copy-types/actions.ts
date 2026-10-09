@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/copy-types-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { copyTypesPath } from '@/lib/routes';
 
 /**
@@ -91,6 +92,10 @@ export async function createCopyTypeAction(
   _previous: CopyTypeActionResult | null,
   formData: FormData,
 ): Promise<CopyTypeActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('copy-types');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -123,6 +128,10 @@ export async function updateCopyTypeAction(
   _previous: CopyTypeActionResult | null,
   formData: FormData,
 ): Promise<CopyTypeActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('copy-types');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

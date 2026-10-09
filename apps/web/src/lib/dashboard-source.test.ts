@@ -283,11 +283,11 @@ describe('overview metric cards (TASK 6)', () => {
     expect(only('ad_submitted')).toBe(0);
   });
 
-  it('Ads to Launch needs BOTH tracks approved, and links to exactly that pair (AI-6)', () => {
+  it('Ads to Launch needs BOTH tracks approved, and opens the Creative Sheet (AI-6)', () => {
     const cards = buildOverviewMetrics('admin', data);
     const card = cards.find((c) => c.key === 'ads_to_launch');
     expect(card?.count).toBe(1);
-    expect(card?.href).toBe('/app/creative-design?status=approved&client=approved&view=grid');
+    expect(card?.href).toBe('/app/creative-sheet');
 
     // Approved on one track only is not a launch candidate, on either side.
     const halves = {
@@ -304,23 +304,17 @@ describe('overview metric cards (TASK 6)', () => {
 
   it('the revisions cards link where they can actually land (AI-6)', () => {
     const cards = buildOverviewMetrics('admin', data);
-    // One client key, so the Briefs table can be filtered to it.
-    expect(cards.find((c) => c.key === 'client_revisions')?.href).toBe(
-      '/app/creative-design?client=revisions_needed&view=grid',
-    );
-    // TWO internal keys, one per track, and `?status=` takes one: the Internal Queue board groups
-    // by internal status, so both revision columns are visible there. Never a one-track filter.
+    // The Creative Design list is gone from the app, so the client card lands on the Creative Sheet.
+    expect(cards.find((c) => c.key === 'client_revisions')?.href).toBe('/app/creative-sheet');
+    // TWO internal keys, one per track: the Internal Queue board groups by internal status, so both
+    // revision columns are visible there. Never a one-track filter.
     expect(cards.find((c) => c.key === 'internal_revisions')?.href).toBe('/app/queue/internal');
   });
 
-  it('brief cards click through to the table already filtered by KEY, never a label', () => {
+  it('brief cards click through to the Creative Sheet, never the removed Creative Design list', () => {
     const cards = buildOverviewMetrics('admin', data);
-    expect(cards.find((c) => c.key === 'sent_to_video_editor')?.href).toBe(
-      '/app/creative-design?status=sent_to_video_editor&view=grid',
-    );
-    expect(cards.find((c) => c.key === 'awaiting_client')?.href).toBe(
-      '/app/creative-design?client=pending_for_approval&view=grid',
-    );
+    expect(cards.find((c) => c.key === 'sent_to_video_editor')?.href).toBe('/app/creative-sheet');
+    expect(cards.find((c) => c.key === 'awaiting_client')?.href).toBe('/app/creative-sheet');
   });
 
   it('scopes the set to the role: the maker sees revisions, the buyer sees launches', () => {

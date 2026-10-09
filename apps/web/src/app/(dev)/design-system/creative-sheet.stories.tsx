@@ -68,6 +68,7 @@ function sampleRow(
     clientApprovalStatus: null,
     clientApprovalNote: null,
     clientApprovalStatusUpdatedAt: null,
+    dimensions: [],
     ...overrides,
   };
 }

@@ -1,4 +1,9 @@
-import { NAV_SECTION_KEYS, navSectionsForRole } from '@tas/domain';
+import {
+  NAV_SECTION_KEYS,
+  REMOVED_WORKSPACES,
+  isRemovedWorkspace,
+  navSectionsForRole,
+} from '@tas/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -203,8 +208,32 @@ describe('navGroupsForRole', () => {
     );
   });
 
-  it('gives an admin the whole catalogue, groups and all', () => {
-    expect(navGroupsForRole('admin')).toEqual(NAV_GROUPS);
+  it('gives an admin the whole LIVE catalogue: every group less the retired workspaces, and no emptied group', () => {
+    const groups = navGroupsForRole('admin');
+    expect(groups).toEqual(
+      NAV_GROUPS.map((group) => ({
+        ...group,
+        sections: group.sections.filter((section) => !isRemovedWorkspace(section.key)),
+      })).filter((group) => group.sections.length > 0),
+    );
+    // Campaigns and Settings / Lookups held nothing but retired workspaces, so the headings go too;
+    // Copy keeps Copywriting and Reporting keeps Ad Spy, each now a one-section group.
+    expect(groups.map((group) => group.key)).toEqual([
+      'home',
+      'strategy',
+      'production',
+      'copy',
+      'reporting',
+      'approvals',
+      'settings',
+      'dev',
+    ]);
+    expect(groups.find((group) => group.key === 'copy')?.sections.map((s) => s.key)).toEqual([
+      'copywriting',
+    ]);
+    expect(groups.find((group) => group.key === 'reporting')?.sections.map((s) => s.key)).toEqual([
+      'ad-spy',
+    ]);
   });
 
   it('gives a video editor and a designer only their own sections, and drops empty groups', () => {
@@ -226,10 +255,23 @@ describe('navGroupsForRole', () => {
       expect(
         groups.map((group) => group.key),
         role,
-      ).toEqual(['home', 'production', 'lookups', 'settings']);
-      // Strategy, Copy, Campaigns, Reporting and Reference vanish entirely: every section in them
-      // is somebody else's desk, so the heading goes with them.
-      for (const gone of ['strategy', 'copy', 'campaigns-group', 'reporting', 'dev'] as const) {
+      ).toEqual(['home', 'production', 'settings']);
+      // Production is the Creative Sheet and the Asset Library: Creative Design's list and Client
+      // Assets were retired for every brand (Oct 7), and so was the Lookups group's one editor
+      // section, Creative Dimensions.
+      expect(
+        groups.find((group) => group.key === 'production')?.sections.map((s) => s.key),
+      ).toEqual(['creative-sheet', 'assets']);
+      // Strategy, Copy, Campaigns, Reporting, Lookups and Reference vanish entirely: every section
+      // in them is somebody else's desk or retired, so the heading goes with them.
+      for (const gone of [
+        'strategy',
+        'copy',
+        'campaigns-group',
+        'reporting',
+        'lookups',
+        'dev',
+      ] as const) {
         expect(
           groups.some((group) => group.key === gone),
           `${role}/${gone}`,
@@ -284,6 +326,12 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
   // On 2026-10-06/07 Upload Links was relocated to the Settings group (docs/decisions.md), so it
   // left this template-only hide set — no brand lists it as a top-level nav section any more, and
   // the one management surface lives under Settings for every brand that imports its role.
+  it('is derived from REMOVED_WORKSPACES plus the two queues, so the two lists cannot drift', () => {
+    expect([...KEYS].sort()).toEqual(
+      [...REMOVED_WORKSPACES, 'internal-queue', 'client-queue'].sort(),
+    );
+  });
+
   it('names the seventeen keys the decision covers, no more and no fewer', () => {
     expect([...KEYS].sort()).toEqual(
       [
@@ -343,12 +391,14 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
     }
   });
 
-  it('an empty group vanishes on the template too — the Settings/Lookups group loses creative-dimensions and copy-types', () => {
+  it('an empty group vanishes on the template too — Approvals goes with its two queues', () => {
     const groups = navGroupsForView('admin', true);
-    // The `lookups` group holds Copy Types, Creative Modules, Creative Dimensions, AI Characters,
-    // Competitive Research — every one of them hidden by the Oct 5 decision — so the group itself
-    // drops out of an admin's view on the template, same shape the role filter uses.
+    // The `approvals` group is the two queues, both template-hidden, so the heading drops out of an
+    // admin's view on the template — the same shape the role filter uses. (Lookups and Campaigns
+    // are already gone on every brand: see the REMOVED_WORKSPACES block below.)
+    expect(groups.some((group) => group.key === 'approvals')).toBe(false);
     expect(groups.some((group) => group.key === 'lookups')).toBe(false);
+    expect(navGroupsForView('admin', false).some((group) => group.key === 'approvals')).toBe(true);
   });
 
   /**
@@ -390,5 +440,77 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
     navGroupsForView('video_editor', false);
     expect([...KEYS].sort().join(',')).toBe(beforeKeys);
     expect(JSON.stringify(NAV_GROUPS)).toBe(beforeGroups);
+  });
+});
+
+/**
+ * The Oct 7 Talal template cleanup: fifteen workspaces hidden FOR EVERY BRAND through one list in
+ * `@tas/domain` (`REMOVED_WORKSPACES`). The nav keeps their entries — the catalogue, the typing and
+ * `activeSectionKey` are untouched, which is what the tests at the top of this file still assert —
+ * and the hide happens where every other visibility decision does, in `canSeeNavSection`.
+ */
+describe('REMOVED_WORKSPACES · hidden on every brand, for every role', () => {
+  const ROLES = [
+    'admin',
+    'csm',
+    'strategist',
+    'media_buyer',
+    'video_editor',
+    'designer',
+    'client',
+    'member',
+  ] as const;
+
+  it('every retired key is still a catalogue entry with an href, so an old URL still resolves to its section', () => {
+    const byKey = new Map(NAV_SECTIONS.map((section) => [section.key, section]));
+    for (const key of REMOVED_WORKSPACES) {
+      expect(byKey.get(key)?.href, key).toBeDefined();
+    }
+    expect(activeSectionKey('/app/creative-design')).toBe('briefs');
+    expect(activeSectionKey('/app/performance')).toBe('performance');
+  });
+
+  it('never reaches a sidebar: no role, on the template or on a child brand', () => {
+    for (const role of ROLES) {
+      for (const isTemplate of [false, true] as const) {
+        const seen = new Set(
+          navGroupsForView(role, isTemplate).flatMap((group) =>
+            group.sections.map((section) => section.key),
+          ),
+        );
+        for (const key of REMOVED_WORKSPACES) {
+          expect(seen.has(key), `${role}/${isTemplate ? 'template' : 'child'}/${key}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('a group left with nothing but retired workspaces vanishes for every role', () => {
+    for (const role of ROLES) {
+      const keys = navGroupsForRole(role).map((group) => group.key);
+      expect(keys, role).not.toContain('campaigns-group');
+      expect(keys, role).not.toContain('lookups');
+      for (const group of navGroupsForRole(role)) {
+        expect(group.sections.length, `${role}/${group.key}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('the kept workspaces are still offered to the roles that may open them', () => {
+    const admin = new Set(
+      navGroupsForRole('admin').flatMap((group) => group.sections.map((section) => section.key)),
+    );
+    for (const kept of [
+      'copywriting',
+      'ad-spy',
+      'upload-links',
+      'internal-queue',
+      'client-queue',
+      'creative-sheet',
+      'assets',
+      'ugc',
+    ] as const) {
+      expect(admin.has(kept), kept).toBe(true);
+    }
   });
 });

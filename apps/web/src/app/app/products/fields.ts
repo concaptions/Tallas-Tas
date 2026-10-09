@@ -15,20 +15,11 @@ import {
   type InternalStatusKey,
 } from '@tas/domain/state';
 
-import {
-  briefPath,
-  copywritingPath,
-  emailCampaignsPath,
-  ugcPath,
-  youtubeCopywritingPath,
-} from '@/lib/routes';
+import { briefPath, copywritingPath, ugcPath } from '@/lib/routes';
 
 import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
 import { statusView as emailCampaignStatusView } from '../email-campaigns/fields';
-import {
-  copyNumberLabel,
-  SELECTION_PARAM as YOUTUBE_COPY_PARAM,
-} from '../youtube-copywriting/fields';
+import { copyNumberLabel } from '../youtube-copywriting/fields';
 import type { ProductFieldName } from './actions';
 
 /**
@@ -128,17 +119,11 @@ export interface LinkedRecord {
 }
 
 /**
- * The query parameter the Email Campaigns page opens a row from (`params.emailCampaign` in
- * `../email-campaigns/page.tsx`); the module keeps it as a private union, so it is named here.
- */
-const EMAIL_CAMPAIGN_PARAM = 'emailCampaign';
-
-/**
  * The email campaigns that promote this product — the other side of the `email_campaign_products`
  * junction, read off each campaign's `productIds`. In the rows' order, which is newest edit first
  * as the source returns them. The chip is the Email Campaigns module's own `statusView`, so the
  * status reads here exactly as it reads there; a campaign with no status gets no chip, never a
- * blank one.
+ * blank one. No href: the Email Campaigns workspace is removed from the app (2026-10-09).
  */
 export function emailCampaignLinks(
   productId: string,
@@ -151,7 +136,6 @@ export function emailCampaignLinks(
       const record: LinkedRecord = {
         id: row.id,
         label: row.name,
-        href: `${emailCampaignsPath}?${EMAIL_CAMPAIGN_PARAM}=${encodeURIComponent(row.id)}`,
       };
       return status === null
         ? record
@@ -164,6 +148,7 @@ export function emailCampaignLinks(
  * junction, read off each row's `linkedProducts`. The label is the generated "Copy N" title from
  * the YouTube module's `copyNumberLabel` (never typed; the panel renders it in `font-mono`), and the
  * chip is the row's `COPY_STATUS` entry from `@tas/domain/state`. Same order rule as the campaigns.
+ * No href: the YouTube Copywriting workspace is removed from the app (2026-10-09).
  */
 export function youtubeCopyLinks(
   productId: string,
@@ -174,7 +159,6 @@ export function youtubeCopyLinks(
     .map((row) => ({
       id: row.id,
       label: copyNumberLabel(row.copyNumber),
-      href: `${youtubeCopywritingPath}?${YOUTUBE_COPY_PARAM}=${encodeURIComponent(row.id)}`,
       chip: { label: copyStatusLabel(row.status), tone: copyStatusTone(row.status) },
     }));
 }

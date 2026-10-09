@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/campaigns-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { campaignsPath } from '@/lib/routes';
 
 export type CampaignFieldName =
@@ -126,6 +127,10 @@ export async function createCampaignAction(
   _previous: CampaignActionResult | null,
   formData: FormData,
 ): Promise<CampaignActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('campaigns');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -155,6 +160,10 @@ export async function updateCampaignAction(
   _previous: CampaignActionResult | null,
   formData: FormData,
 ): Promise<CampaignActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('campaigns');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

@@ -263,8 +263,8 @@ export function noBrandNote(name: string): string {
 /** The empty state's way back, and the label of the button that takes it. */
 export const SHOW_ALL_LABEL = 'Show all briefs';
 
-/** Where the empty board points instead: the list the briefs themselves live on. */
-export const OPEN_BRIEFS_LABEL = 'Go to Creative Briefs';
+/** Where the empty board points instead: the Creative Sheet, where the brand's creatives are listed. */
+export const OPEN_BRIEFS_LABEL = 'Go to Creative Sheet';
 
 /**
  * The sentence a card's empty assignee shows, so an unassigned brief reads as unassigned.

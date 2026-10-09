@@ -10,6 +10,7 @@ import {
 import { z } from 'zod';
 
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { smCampaignFeedPath } from '@/lib/routes';
 import { withBrandScope } from '@/lib/sm-campaign-feed-source';
 
@@ -149,6 +150,10 @@ export async function createSmCampaignFeedTaskAction(
   _previous: SmTaskActionResult | null,
   formData: FormData,
 ): Promise<SmTaskActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('sm-campaign-feed');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -181,6 +186,10 @@ export async function updateSmCampaignFeedTaskAction(
   _previous: SmTaskActionResult | null,
   formData: FormData,
 ): Promise<SmTaskActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('sm-campaign-feed');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -217,6 +226,10 @@ export async function updateSmCampaignFeedTaskAction(
 export async function moveSmCampaignFeedTaskAction(
   input: SmTaskMoveInput,
 ): Promise<SmTaskActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('sm-campaign-feed');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

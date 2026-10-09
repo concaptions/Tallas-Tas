@@ -2,10 +2,13 @@ import {
   SECTION_NOT_PERMITTED_NOTE,
   SECTION_NOT_PERMITTED_TITLE,
   canSeeNavSection,
+  isRemovedWorkspace,
   type NavSectionKey,
 } from '@tas/domain';
+import { permanentRedirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
+import { removedWorkspaceRedirect } from '@/lib/removed-workspaces';
 import { viewerRole } from '@/lib/viewer-role';
 
 /**
@@ -47,9 +50,18 @@ function NotPermitted() {
  * `section` is typed `NavSectionKey`, so a misspelled key fails the build rather than quietly
  * guarding nothing — and `canSeeNavSection` denies an unknown key anyway, so the two failure modes
  * both close. The decision itself is `@tas/domain`'s; this component only asks and renders.
+ *
+ * A RETIRED WORKSPACE REDIRECTS BEFORE THE ROLE IS EVEN ASKED (`REMOVED_WORKSPACES`, Talal
+ * 2026-10-07). The old URL is not a refusal to explain, it is an address that moved: the whole
+ * segment — list, panels, detail routes — lands on the live page that took the job over, with a
+ * permanent redirect so a bookmark or a Slack link updates itself. The page code under the segment
+ * is untouched and never invoked.
  */
 export function sectionGuard(section: NavSectionKey) {
   return async function GuardedSection({ children }: Readonly<{ children: ReactNode }>) {
+    if (isRemovedWorkspace(section)) {
+      permanentRedirect(removedWorkspaceRedirect(section));
+    }
     if (!canSeeNavSection(await viewerRole(), section)) {
       return <NotPermitted />;
     }

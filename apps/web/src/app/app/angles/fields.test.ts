@@ -30,7 +30,6 @@ import {
   WINNING_LABEL,
   angleStatusView,
   chipLabel,
-  creativeModuleHref,
   formatChipRow,
   indexConceptsByAngle,
   indexCreativeDesignsByAngle,
@@ -321,18 +320,6 @@ describe('angle status', () => {
   });
 });
 
-describe('creativeModuleHref', () => {
-  it('opens the Creative Modules page on that module, the way its own rows do', () => {
-    expect(creativeModuleHref('1234abcd-1234-4abc-8abc-000000000001')).toBe(
-      '/app/creative-modules?module=1234abcd-1234-4abc-8abc-000000000001',
-    );
-  });
-
-  it('encodes an id that is not a uuid so it cannot smuggle a second parameter', () => {
-    expect(creativeModuleHref('a&b=c')).toBe('/app/creative-modules?module=a%26b%3Dc');
-  });
-});
-
 describe('indexCreativeModulesByAngle', () => {
   const ANGLE_A = '55555555-5555-4555-8555-00000000000a';
   const ANGLE_B = '55555555-5555-4555-8555-00000000000b';
@@ -364,15 +351,15 @@ describe('indexCreativeModulesByAngle', () => {
     expect(Object.keys(byAngle)).toEqual([ANGLE_A, ANGLE_B]);
   });
 
-  it('gives every record a href to the module panel and the module chip tone', () => {
+  it('gives every record the module chip tone and no href: the Creative Modules workspace is removed', () => {
     const [record] = indexCreativeModulesByAngle(modules)[ANGLE_B] ?? [];
 
     expect(record).toEqual({
       id: 'm-zeta',
       label: 'Zeta Hooks',
-      href: creativeModuleHref('m-zeta'),
       chip: CREATIVE_MODULE_CHIP_TONE,
     });
+    expect(record).not.toHaveProperty('href');
   });
 
   it('counts a duplicated junction row once rather than rendering the chip twice', () => {

@@ -497,13 +497,13 @@ describe('briefLinkedRecords', () => {
     ]);
   });
 
-  it('links the module and the asset folder to their own panels by name', () => {
+  it('names the module and the asset folder without a link: their workspaces are removed', () => {
     expect(linked.modules).toEqual([
       {
         id: '1234abcd-1234-4abc-8abc-000000000001',
         label: 'Problem → Solution Hooks',
         mono: false,
-        href: '/app/creative-modules?module=1234abcd-1234-4abc-8abc-000000000001',
+        href: null,
         detail: null,
         chips: [],
       },
@@ -513,7 +513,7 @@ describe('briefLinkedRecords', () => {
         id: 'f01de125-f01d-4f01-8f01-000000000002',
         label: 'Product Photography — Deep Sleep Blanket',
         mono: false,
-        href: '/app/client-assets?folder=f01de125-f01d-4f01-8f01-000000000002',
+        href: null,
         detail: null,
         chips: [],
       },
@@ -526,7 +526,7 @@ describe('briefLinkedRecords', () => {
         id: 'c0c0c0c0-c0c0-4c0c-8c0c-000000000002',
         label: 'Body Clock V2 — Shift Worker — 90-Night Trial',
         mono: false,
-        href: '/app/creative-reporting?creativeReport=c0c0c0c0-c0c0-4c0c-8c0c-000000000002',
+        href: null,
         detail: 'CPA $24.50 vs target $22.00',
         chips: [{ label: '+$2.50', tone: 'bad' }],
       },

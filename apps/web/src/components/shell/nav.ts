@@ -40,7 +40,7 @@ import {
 
 import { columnAdminPath } from '@/app/app/column-admin/fields';
 
-import { canSeeNavSection, type ViewerRole } from '@tas/domain';
+import { REMOVED_WORKSPACES, canSeeNavSection, type ViewerRole } from '@tas/domain';
 
 import type { IconName } from './icons';
 
@@ -342,37 +342,25 @@ export function navGroupsForRole(role: ViewerRole | null | undefined): readonly 
 }
 
 /**
- * Section keys the template brand's sidebar hides (Talal, 2026-10-05 — docs/decisions.md). The
- * table rows, routes, seeds and child-brand visibility are UNTOUCHED by this; the template brand
- * only shows what the TAS team authors on the TAS template itself, and the tables these keys name
- * are either client-only data (Email Campaigns, Email Flows, SM Campaign Feed, Creative Reporting,
- * Creative Modules, Ads by Creator Ranking, …) or waiting on their own sprint (Performance).
- * `briefs` = "Creative Design (Internal & Interface)" lives on the client bases where its 397
- * Gratsi rows are — hidden here, visible on Gratsi.
+ * Section keys the template brand's sidebar hides: the fifteen workspaces retired for every brand
+ * (`REMOVED_WORKSPACES`, Talal 2026-10-07 — docs/decisions.md "Template cleanup") plus the two
+ * approval queues, which the TAS template has no rows for (Talal, 2026-10-05). The table rows,
+ * routes and seeds are UNTOUCHED by this.
+ *
+ * DERIVED, not listed twice: the retired set lives in `@tas/domain` and `canSeeNavSection` already
+ * drops it for every role on every brand, so on a child brand this set only adds the two queues.
+ * It is kept as the template's own set — rather than collapsed to the two queue keys — so the
+ * template's hide stays complete on the day a key is deleted from `REMOVED_WORKSPACES` to bring a
+ * workspace back for the child brands.
  *
  * `upload-links` is NOT in this set as of 2026-10-06/07: the Upload Links management surface was
  * relocated to the Settings group (docs/decisions.md), so the template hide is no longer needed —
  * no brand lists upload-links as a top-level nav section any more.
  *
- * Keys match `NavSection.key`, so a child-brand filter can be added later without changing shape.
- * NOT a security control, same as the role filter above.
+ * Keys match `NavSection.key`. NOT a security control, same as the role filter above.
  */
 export const TEMPLATE_HIDDEN_SECTION_KEYS: ReadonlySet<string> = new Set([
-  'creative-modules',
-  'ai-characters',
-  'competitive-research',
-  'briefs',
-  'client-assets',
-  'youtube-copywriting',
-  'campaigns',
-  'email-campaigns',
-  'email-flows',
-  'sm-campaign-feed',
-  'performance',
-  'creative-reporting',
-  'creator-ranking',
-  'copy-types',
-  'creative-dimensions',
+  ...REMOVED_WORKSPACES,
   'internal-queue',
   'client-queue',
 ]);

@@ -6,7 +6,7 @@ import { Button } from '@tas/ui';
 import { groupByInternalStatus } from '@tas/domain/state';
 
 import { QueueColumnPanel, QueueStrip } from '@/components/queue/queue-strip';
-import { briefsPath } from '@/lib/routes';
+import { creativeSheetPath } from '@/lib/routes';
 
 import { QueueCard } from './queue-card';
 import {
@@ -213,7 +213,7 @@ export function InternalQueueBoard({
               </Button>
             ) : (
               <Button asChild size="sm" data-slot="queue-open-briefs">
-                <Link href={briefsPath}>{OPEN_BRIEFS_LABEL}</Link>
+                <Link href={creativeSheetPath}>{OPEN_BRIEFS_LABEL}</Link>
               </Button>
             )}
           </div>

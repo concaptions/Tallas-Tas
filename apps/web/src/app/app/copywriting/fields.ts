@@ -10,7 +10,7 @@ import {
   type CopyLimitField,
 } from '@tas/domain/copy';
 import { COPY_STATUS, type ChipTone } from '@tas/domain/state';
-import { campaignsOffersPath, collectionsPath } from '@/lib/routes';
+import { collectionsPath } from '@/lib/routes';
 
 /**
  * How the Copywriting route presents what it stores (PRD §5.11). One module, so the table, the
@@ -503,8 +503,9 @@ export const COUNTER_TONE_CLASS: Record<CounterTone, string> = {
 
 /**
  * The campaigns a copy row is linked to (`copywriting_campaigns`), as the panel lists them: the
- * campaign's generated name, linking to the Campaigns & Offers page with that panel open. Ids with
- * no live campaign (another brand's, soft-deleted) drop out rather than render blank.
+ * campaign's generated name as a plain chip (`href: null`), since the Campaigns & Offers workspace
+ * is removed from the app (2026-10-09). Ids with no live campaign (another brand's, soft-deleted)
+ * drop out rather than render blank.
  */
 export function campaignLinks(
   campaignIds: readonly string[],
@@ -514,11 +515,7 @@ export function campaignLinks(
   for (const id of campaignIds) {
     const name = campaignsById.get(id);
     if (name === undefined) continue;
-    links.push({
-      id,
-      label: name,
-      href: `${campaignsOffersPath}?campaign=${encodeURIComponent(id)}`,
-    });
+    links.push({ id, label: name, href: null });
   }
   return links;
 }

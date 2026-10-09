@@ -12,6 +12,7 @@ import { emailChannels, emailFlowStatuses } from '@tas/db/schema';
 import { z } from 'zod';
 
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { withBrandScope } from '@/lib/email-flows-source';
 import { emailFlowsPath } from '@/lib/routes';
 
@@ -153,6 +154,10 @@ export async function createEmailFlowAction(
   _previous: EmailFlowActionResult | null,
   formData: FormData,
 ): Promise<EmailFlowActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('email-flows');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -187,6 +192,10 @@ export async function updateEmailFlowAction(
   _previous: EmailFlowActionResult | null,
   formData: FormData,
 ): Promise<EmailFlowActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('email-flows');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

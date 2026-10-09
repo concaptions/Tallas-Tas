@@ -15,7 +15,13 @@ import { loadConcepts } from './concepts-source';
 import { loadCopy } from './copy-source';
 import { loadCreativeSheetItems } from './creative-sheet-source';
 import { clerkActorScope, inDemoMode, loadBrandScope } from './data-source';
-import { briefsPath, conceptsPath, copywritingPath, internalQueuePath, ugcPath } from './routes';
+import {
+  conceptsPath,
+  copywritingPath,
+  creativeSheetPath,
+  internalQueuePath,
+  ugcPath,
+} from './routes';
 import { loadUgc } from './ugc-source';
 import { requestConnection } from '@/lib/request-db';
 
@@ -80,7 +86,7 @@ function strategistItems(data: DashboardData): DashboardItem[] {
     {
       label: 'Briefs in early stages',
       count: briefsIn(briefs, ['sent_to_video_editor', 'static_design_in_progress']),
-      href: briefsPath,
+      href: creativeSheetPath,
     },
     {
       label: 'Briefs needing QA sign-off',
@@ -128,7 +134,7 @@ function designerItems(data: DashboardData): DashboardItem[] {
       label: 'Briefs without design file',
       count: briefs.filter((b) => b.designFileUrl === null && b.internalStatus !== 'launched')
         .length,
-      href: briefsPath,
+      href: creativeSheetPath,
     },
   ];
 }
@@ -166,7 +172,7 @@ function mediaBuyerItems(data: DashboardData): DashboardItem[] {
     {
       label: 'Winning creatives',
       count: briefs.filter((b) => b.performance === 'Winning').length,
-      href: briefsPath,
+      href: creativeSheetPath,
     },
   ];
 }
@@ -195,7 +201,7 @@ function adminItems(data: DashboardData): DashboardItem[] {
     {
       label: 'Briefs with spell-check flags',
       count: data.briefs.filter((brief) => hasSpellingIssues(brief.spellingFeedback)).length,
-      href: briefsPath,
+      href: creativeSheetPath,
     },
   ];
 }
@@ -237,22 +243,17 @@ export interface MetricCard {
  *
  * Three cards land on a table UNFILTERED, and each for a stated reason rather than by omission:
  * Concepts Pending and Creators Pending because pending IS those tables' resting state, and
- * Internal Revisions because it counts two internal statuses at once (one per track) while
- * `?status=` takes a single key — so it opens the Internal Queue board, which groups by internal
- * status and therefore shows both revision columns side by side. Filtering it to one track would
- * hide the other track's revisions, which is worse than not filtering.
+ * Internal Revisions because it counts two internal statuses at once (one per track) — so it opens
+ * the Internal Queue board, which groups by internal status and therefore shows both revision
+ * columns side by side.
+ *
+ * The brief cards open the Creative Sheet (2026-10-09): the Creative Design LIST page is removed
+ * from the app, and the sheet is where the brand's creatives are listed now. The sheet takes no
+ * `?status=` / `?client=` filter, so the cards land on the unfiltered sheet rather than carry dead
+ * parameters.
  */
 function allMetricCards(data: MetricsData): MetricCard[] {
   const { briefs, concepts, creators } = data;
-  /**
-   * The Briefs table, filtered. `status` is an internal key, `client` a client key, and the table
-   * ANDs them when both are present — which is what lets Ads to Launch link to exactly the briefs
-   * it counted (internally approved AND client approved) rather than to a superset.
-   */
-  const briefHref = (filters: { readonly status?: string; readonly client?: string }) =>
-    `${briefsPath}?${Object.entries(filters)
-      .map(([param, key]) => `${param}=${key}`)
-      .join('&')}&view=grid`;
   return [
     {
       key: 'concepts_pending',
@@ -280,42 +281,42 @@ function allMetricCards(data: MetricsData): MetricCard[] {
       emoji: '📹',
       label: 'Sent to Video Editor',
       count: briefsIn(briefs, ['sent_to_video_editor']),
-      href: briefHref({ status: 'sent_to_video_editor' }),
+      href: creativeSheetPath,
     },
     {
       key: 'sent_to_designer',
       emoji: '🎨',
       label: 'Sent to Designer',
       count: briefsIn(briefs, ['sent_to_designer']),
-      href: briefHref({ status: 'sent_to_designer' }),
+      href: creativeSheetPath,
     },
     {
       key: 'video_editing_in_progress',
       emoji: '⚡',
       label: 'Videos in Progress',
       count: briefsIn(briefs, ['video_editing_in_progress']),
-      href: briefHref({ status: 'video_editing_in_progress' }),
+      href: creativeSheetPath,
     },
     {
       key: 'static_design_in_progress',
       emoji: '🖌️',
       label: 'Designs in Progress',
       count: briefsIn(briefs, ['static_design_in_progress']),
-      href: briefHref({ status: 'static_design_in_progress' }),
+      href: creativeSheetPath,
     },
     {
       key: 'ad_submitted',
       emoji: '👀',
       label: 'Awaiting Internal Review',
       count: briefsIn(briefs, ['ad_submitted']),
-      href: briefHref({ status: 'ad_submitted' }),
+      href: creativeSheetPath,
     },
     {
       key: 'awaiting_client',
       emoji: '📨',
       label: 'Awaiting Client Review',
       count: briefs.filter((b) => b.clientStatus === CLIENT_PENDING).length,
-      href: briefHref({ client: CLIENT_PENDING }),
+      href: creativeSheetPath,
     },
     {
       key: 'internal_revisions',
@@ -329,7 +330,7 @@ function allMetricCards(data: MetricsData): MetricCard[] {
       emoji: '📝',
       label: 'Client Revisions',
       count: briefs.filter((b) => b.clientStatus === CLIENT_REVISIONS_NEEDED).length,
-      href: briefHref({ client: CLIENT_REVISIONS_NEEDED }),
+      href: creativeSheetPath,
     },
     {
       key: 'ads_to_launch',
@@ -338,7 +339,7 @@ function allMetricCards(data: MetricsData): MetricCard[] {
       count: briefs.filter(
         (b) => b.internalStatus === INTERNAL_APPROVED && b.clientStatus === CLIENT_APPROVED,
       ).length,
-      href: briefHref({ status: INTERNAL_APPROVED, client: CLIENT_APPROVED }),
+      href: creativeSheetPath,
     },
   ];
 }

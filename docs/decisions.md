@@ -1724,3 +1724,76 @@ app's small uploads; the re-host script cannot use it because a single signed PU
 SHA-256 up front, which means buffering the whole file — a 300 MB intro video in memory per record.
 `lib-storage`'s `Upload` does multipart from a Node stream, holding at most `partSize × queueSize`
 (8 MB × 2) in flight. No hosted service, no cost: it talks to the same R2 bucket.
+
+## 2026-10-09 — Template cleanup: 15 workspaces hidden behind `REMOVED_WORKSPACES`
+
+Oct 7 Talal decision: fifteen workspaces leave the app FOR EVERY BRAND — Creative Modules, AI
+Characters, Competitive Research, Creative Design (the LIST only), Client Assets, YouTube Copywriting,
+Campaigns & Offers, Email Campaigns, Email Flows, SM Campaign Feed, Performance, Creative Reporting,
+Creator Ranking, Copy Types, Creative Dimensions. Kept: Copywriting (`/app/copywriting`), Ad Spy,
+Upload Links (Settings), both approval queues, the Creative Sheet, the Asset Library and everything
+else.
+
+**Hidden, not deleted.** No table, row, page module, component or Server Action is removed; the
+retired page code sits unmounted beside the live code. Undo is one edit: delete the key from
+`REMOVED_WORKSPACES` in `packages/domain/src/team/access.ts`. Everything else reads that list —
+
+- `canSeeNavSection` / `navSectionsForRole` answer false for a retired key for every role, the Admin
+  included, so the sidebar (`navGroupsForRole` drops the emptied Campaigns and Settings / Lookups
+  groups), the `/design-system` role matrix and every `sectionGuard` layout follow. The web app's
+  `TEMPLATE_HIDDEN_SECTION_KEYS` is derived as `[...REMOVED_WORKSPACES, 'internal-queue',
+  'client-queue']`.
+- Old URLs redirect permanently, through `REMOVED_WORKSPACE_REDIRECTS` (domain) and
+  `removedWorkspaceRedirect` (`apps/web/src/lib/removed-workspaces.ts`, which stays out of `routes.ts`
+  so the middleware's edge bundle never imports the domain barrel): Creative Design → the Creative
+  Sheet, Client Assets → the Asset Library's Client Folders tab, YouTube Copywriting → Copywriting,
+  every other key → the Overview. `sectionGuard` redirects before it asks the role; the three segments
+  with no layout guard (`creative-design`, `client-assets`, `creative-dimensions`) redirect from their
+  `page.tsx`, keeping the visitor's query string.
+- Defence in depth: every retired workspace's Server Action (30 across 14 modules) returns
+  `assertWorkspaceLive(key)`'s refusal as its first statement, before demo mode, validation or any
+  write; the code beneath is untouched.
+
+**The Creative Design exception.** Only the list (`/app/creative-design`) is retired. The brief detail
+route (`/app/creative-design/[briefId]`), its actions and the spell-check action stay live because the
+Internal and Client queues and the client portal open briefs by id. That is why `creative-design/` has
+no segment layout guard and the page itself redirects, and why `briefs.stories.tsx` stays on
+`/design-system` while the eight list-only story modules of the other retired modules were deleted.
+
+E2E: the nine whole-file specs for retired list pages are gone, `module-parity.spec.ts` keeps the nine
+surviving modules, and `removed-workspaces.spec.ts` visits every retired address and asserts the
+landing page. The `angles`, `collections` and `products` specs still assert links INTO retired pages
+from kept pages' panels; those links are being removed in the companion change and their assertions go
+with them.
+
+## 2026-10-09 — Dimensions on the Creative Sheet: `creative_sheet_items.dimensions jsonb string[]`, the Creative Dimensions workspace retired
+
+The client is removing the Creative Dimensions workspace and wants Dimensions as a column on the
+Creative Sheet. Migration 0059 adds `creative_sheet_items.dimensions jsonb NOT NULL DEFAULT '[]'`,
+a `string[]` that mirrors `creative_briefs.dimensions` exactly, and backfills it (copying, never
+moving) from (i) the linked brief's array where the sheet row's own is empty and (ii) the names of
+`creative_dimensions` rows whose `creative_design_id` is the row's brief, appended when not already
+present. Nothing in `creative_briefs` or `creative_dimensions` is modified or deleted.
+
+**Why a jsonb array and not a single value or a junction.** One creative ships in several ratios at
+once (PRD §8's presets give a video 4:5 + 1:1 + 9:16), so a scalar was never an option. The
+vocabulary is a closed set of three keys plus a short tail of legacy Airtable placement names, which
+is precisely what the brief column already holds — so the backfill is a plain copy, the two columns
+compare without a mapping layer, and nothing needs the `creative_dimensions` table to read either.
+A junction would have given referential integrity to a table the client is retiring.
+
+**The two spellings.** Platform-created briefs store the §8 KEYS; Airtable-imported briefs store the
+NAMES of the `(Internal) Creative Dimensions` records (`'IG Story / Reel'`), because the importer
+passes a name it cannot resolve through rather than dropping data. `packages/domain/src/creatives/
+dimensions.ts` is now the one place the names are read: `normalizeCreativeDimension` maps a known
+name to its key (derived from the fixtures and the §8 pixel sizes; unknown names pass through
+trimmed), and `isKnownOrLegacyDimension` is the validator both Server Actions use — a RATIO outside
+the §8 three is still refused (closed platform vocabulary), a NAME is accepted (open Airtable
+vocabulary). This closes the "values show but select does not fire" bug: `creative-design/actions.ts`
+refused any brief re-posting an imported name, which failed every save and board move of every
+imported brief. The sheet's Dimensions field (`creative-sheet/dimensions-field.tsx`) writes on every
+pick through `updateCreativeSheetItemDimensionsAction` → `updateCreativeSheetItemDimensions`
+(`withBrand`-scoped), with no Save button in between.
+
+`apply59.mjs` applies 0059 to Railway with the hash guard the 0055–0058 scripts use and prints the
+count of sheet rows that now carry dimensions.

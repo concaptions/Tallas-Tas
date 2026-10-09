@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/creative-reporting-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { creativeReportingPath } from '@/lib/routes';
 
 import { percentTextToCtr } from './fields';
@@ -182,6 +183,10 @@ export async function createCreativeReportAction(
   _previous: CreativeReportActionResult | null,
   formData: FormData,
 ): Promise<CreativeReportActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('creative-reporting');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -214,6 +219,10 @@ export async function updateCreativeReportAction(
   _previous: CreativeReportActionResult | null,
   formData: FormData,
 ): Promise<CreativeReportActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('creative-reporting');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

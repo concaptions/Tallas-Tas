@@ -45,7 +45,7 @@ import { CLIENT_STATUS, chipTone } from '@tas/domain/state';
 import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
 
 import type { BriefActivityItem } from '@/lib/briefs-source';
-import { briefsPath, copywritingPath } from '@/lib/routes';
+import { copywritingPath, creativeSheetPath } from '@/lib/routes';
 
 import { updateBriefAction, type BriefActionResult, type BriefFieldName } from '../actions';
 import { runSpellCheckAction, type SpellCheckActionResult } from '../spell-check-action';
@@ -468,11 +468,11 @@ export function BriefDetail({
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-col gap-3">
         <Link
-          href={briefsPath}
+          href={creativeSheetPath}
           data-slot="brief-back"
           className="self-start rounded-input text-xs text-text3 underline-offset-2 hover:text-text2 hover:underline"
         >
-          ← All creative briefs
+          ← Creative Sheet
         </Link>
         <BriefName name={name} />
         {/* The editor board's stage this brief sits in, colour-coded by stage (Sprint 10); off the

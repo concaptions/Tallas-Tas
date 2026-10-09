@@ -17,6 +17,7 @@ import {
 import { z } from 'zod';
 
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
+import { assertWorkspaceLive } from '@/lib/removed-workspaces';
 import { withBrandScope } from '@/lib/email-campaigns-source';
 import { emailCampaignsPath } from '@/lib/routes';
 
@@ -216,6 +217,10 @@ export async function createEmailCampaignAction(
   _previous: EmailCampaignActionResult | null,
   formData: FormData,
 ): Promise<EmailCampaignActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('email-campaigns');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -250,6 +255,10 @@ export async function updateEmailCampaignAction(
   _previous: EmailCampaignActionResult | null,
   formData: FormData,
 ): Promise<EmailCampaignActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('email-campaigns');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }
@@ -313,6 +322,10 @@ const moveSchema = z.discriminatedUnion('field', [
 export async function moveEmailCampaignAction(
   input: MoveEmailCampaignInput,
 ): Promise<EmailCampaignActionResult> {
+  // Retired for every brand (Talal 2026-10-07): refuse before demo mode, validation or any write.
+  const retired = assertWorkspaceLive('email-campaigns');
+  if (retired) return retired;
+
   if (isDemoMode()) {
     return { ok: false, error: DEMO_WRITE_REFUSAL };
   }

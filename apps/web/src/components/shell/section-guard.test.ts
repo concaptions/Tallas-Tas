@@ -2,7 +2,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { NAV_SECTION_KEYS, brandRoles, canSeeNavSection, type ViewerRole } from '@tas/domain';
+import {
+  NAV_SECTION_KEYS,
+  REMOVED_WORKSPACES,
+  brandRoles,
+  canSeeNavSection,
+  isRemovedWorkspace,
+  type ViewerRole,
+} from '@tas/domain';
 import { describe, expect, it } from 'vitest';
 
 import { NAV_SECTIONS } from './nav';
@@ -71,6 +78,22 @@ function guardedSectionOf(segment: string): string | null {
   return /sectionGuard\('([^']+)'\)/u.exec(source)?.[1] ?? null;
 }
 
+/**
+ * A retired workspace (`REMOVED_WORKSPACES`, Talal 2026-10-07) is refused to EVERY role, and its
+ * route answers with a permanent redirect rather than a refusal. A segment layout does that through
+ * `sectionGuard`; a segment with no layout — because its detail route must stay live
+ * (`creative-design/[briefId]`), or because it never had one — redirects from its own `page.tsx`
+ * by calling `removedWorkspaceRedirect` with its own key. This reads the page to check.
+ */
+function pageRedirectsRetiredSectionOf(segment: string): string | null {
+  const file = join(APP_DIR, segment, 'page.tsx');
+  if (!existsSync(file)) {
+    return null;
+  }
+  const source = readFileSync(file, 'utf8');
+  return /removedWorkspaceRedirect\('([^']+)'/u.exec(source)?.[1] ?? null;
+}
+
 describe('section route guards', () => {
   it('every section some role is refused is closed at the route, not only in the rail', () => {
     const ungated: string[] = [];
@@ -84,12 +107,38 @@ describe('section route guards', () => {
         continue;
       }
       const segment = appSegmentOf(section.href);
-      if (segment === null || guardedSectionOf(segment) !== section.key) {
+      const closed =
+        segment !== null &&
+        (guardedSectionOf(segment) === section.key ||
+          (isRemovedWorkspace(section.key) &&
+            pageRedirectsRetiredSectionOf(segment) === section.key));
+      if (!closed) {
         ungated.push(section.key);
       }
     }
 
     expect(ungated).toEqual([]);
+  });
+
+  it('every retired workspace redirects at the route: through its layout guard, or from its own page when it has no layout', () => {
+    const byKey = new Map(NAV_SECTIONS.map((section) => [section.key, section]));
+    const pageRedirected: string[] = [];
+    for (const key of REMOVED_WORKSPACES) {
+      const segment = appSegmentOf(byKey.get(key)?.href);
+      expect(segment, key).not.toBeNull();
+      if (segment === null) continue;
+      if (guardedSectionOf(segment) === key) {
+        // `sectionGuard` redirects a retired key before it asks the role; a page redirect on top
+        // would be a second decision on the same route.
+        expect(pageRedirectsRetiredSectionOf(segment), key).toBeNull();
+        continue;
+      }
+      expect(pageRedirectsRetiredSectionOf(segment), key).toBe(key);
+      pageRedirected.push(key);
+    }
+    // Named, so a new layout-less retired segment is a decision on the record: Creative Design keeps
+    // its brief detail route live for the queues; the other two never had a layout.
+    expect(pageRedirected.sort()).toEqual(['briefs', 'client-assets', 'creative-dimensions']);
   });
 
   it('no guard names a section that is not in the catalogue, and none guards the wrong one', () => {
