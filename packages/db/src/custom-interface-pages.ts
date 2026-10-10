@@ -216,17 +216,41 @@ export async function upsertBrandCustomPageFromTemplate(
   /** The fields the child now keeps its own value for (0062 `overridden_fields`), added to any it already kept. */
   overridden: readonly string[] = [],
 ): Promise<CustomInterfacePage> {
+  // Soft-deleted rows included: `(brand_id, slug)` is unique across them too, so a brand row that
+  // "Reset to template" retired is REVIVED here, never inserted beside (SMOKE-23 — Gratsi's calendar
+  // toggle after a reset collided on the index and the page could not be saved).
   const [existing] = await db
     .select()
     .from(customInterfacePages)
     .where(
-      and(
-        eq(customInterfacePages.brandId, brandId),
-        eq(customInterfacePages.slug, template.slug),
-        isNull(customInterfacePages.deletedAt),
-      ),
+      and(eq(customInterfacePages.brandId, brandId), eq(customInterfacePages.slug, template.slug)),
     )
     .limit(1);
+  if (existing && existing.deletedAt !== null) {
+    // A revived row starts over from the template: a reset meant "forget what this brand kept".
+    const [row] = await db
+      .update(customInterfacePages)
+      .set({
+        title: overrides.title ?? template.title,
+        sourceTableKey: overrides.sourceTableKey ?? template.sourceTableKey,
+        filterConfig: overrides.filterConfig ?? template.filterConfig,
+        columnConfig: overrides.columnConfig ?? template.columnConfig,
+        sortOrder: overrides.sortOrder ?? template.sortOrder,
+        isVisible: overrides.isVisible ?? template.isVisible,
+        isInherited: overrides.isInherited ?? true,
+        pageKind: template.pageKind,
+        moduleKey: template.moduleKey,
+        templateRowId: template.id,
+        overriddenFields: [...overridden],
+        deletedAt: null,
+        updatedBy: actorId,
+        updatedAt: new Date(),
+      })
+      .where(eq(customInterfacePages.id, existing.id))
+      .returning();
+    if (!row) throw new Error('upsertBrandCustomPageFromTemplate: revive returned no row');
+    return row;
+  }
   if (existing) {
     const [row] = await db
       .update(customInterfacePages)

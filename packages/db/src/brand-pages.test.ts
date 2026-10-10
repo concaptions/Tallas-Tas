@@ -1,3 +1,4 @@
+import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,7 +8,9 @@ import {
   listTemplateCustomPages,
   setBrandPageOrder,
   setBrandPageVisibility,
+  softDeleteCustomPage,
 } from './custom-interface-pages';
+import { customInterfacePages } from './schema';
 import { seed } from './seed';
 import { testDb } from './testing';
 
@@ -71,6 +74,40 @@ describe('setBrandPageVisibility', () => {
     );
     const merged = await listMergedPages(db, brandId);
     expect(merged.find((p) => p.slug === 'concepts')?.isVisible).toBe(false);
+  });
+
+  /**
+   * SMOKE-23 (2026-10-11): "Reset to template" soft-deletes the brand row, and `(brand_id, slug)`
+   * is unique across deleted rows too — so the next toggle's INSERT collided and the page could
+   * not be saved (Gratsi's calendar row, live). The soft-deleted row is REVIVED instead: one row
+   * per (brand, slug) ever, back on the template's values plus the new override.
+   */
+  it('revives the soft-deleted brand row on a toggle after a reset, never a duplicate', async () => {
+    const { db, brandId, concepts } = await scenario();
+    const first = await setBrandPageVisibility(db, brandId, concepts, false, 'csm');
+    expect(await softDeleteCustomPage(db, first.id, brandId, 'csm')).toBe(true);
+
+    const revived = await setBrandPageVisibility(db, brandId, concepts, false, 'csm');
+
+    expect(revived).toMatchObject({
+      id: first.id,
+      brandId,
+      slug: 'concepts',
+      isVisible: false,
+      deletedAt: null,
+      templateRowId: concepts.id,
+      overriddenFields: ['is_visible'],
+    });
+    const allRows = await db
+      .select()
+      .from(customInterfacePages)
+      .where(
+        and(eq(customInterfacePages.brandId, brandId), eq(customInterfacePages.slug, 'concepts')),
+      );
+    expect(allRows).toHaveLength(1);
+    expect((await listMergedPages(db, brandId)).find((p) => p.slug === 'concepts')?.isVisible).toBe(
+      false,
+    );
   });
 
   it('updates the brand row in place on a second toggle, and a brand-own page directly', async () => {
