@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
+import { createCopyAction } from './actions';
 import { copyFunnelLabel } from '@tas/domain/copy';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
@@ -27,7 +29,6 @@ import {
 import { CopyPanel } from './copy-panel';
 import {
   EM_DASH,
-  NEW_COPY_SOON_HINT,
   NO_COPY_NOTE,
   NO_MATCH_NOTE,
   PRIMARY_COPY_PREVIEW,
@@ -380,14 +381,36 @@ export function CopywritingWorkspace({
   }, []);
 
   /**
-   * "New copy" is a write, so demo mode disables it with the standard reason. It is disabled in
-   * live mode too, with its own reason: creating a copy row is explicitly out of this ticket's
-   * scope, so the button would have nothing to submit.
+   * "New copy" creates a blank row and opens it (SMOKE-11). Demo mode disables it with the
+   * standard reason; live mode is live — the row is created through `createCopyAction`, the
+   * panel opens on it, and the list refreshes behind.
    */
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const createCopy = () => {
+    setCreateError(null);
+    setCreating(true);
+    void createCopyAction().then((result) => {
+      setCreating(false);
+      if (result.ok) {
+        select(result.id);
+        router.refresh();
+      } else {
+        setCreateError(result.error);
+      }
+    });
+  };
   const newCopy = (slot: string) => (
-    <DisabledWrite active hint={demo ? DEMO_WRITE_HINT : NEW_COPY_SOON_HINT}>
-      <Button size="sm" disabled className={disabledWriteClassName} data-slot={slot}>
-        New copy
+    <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+      <Button
+        size="sm"
+        type="button"
+        disabled={demo || creating}
+        onClick={createCopy}
+        className={disabledWriteClassName}
+        data-slot={slot}
+      >
+        {creating ? 'Creating…' : 'New copy'}
       </Button>
     </DisabledWrite>
   );
@@ -400,6 +423,11 @@ export function CopywritingWorkspace({
           <h1 className="text-2xl font-semibold tracking-tight text-text">Copywriting</h1>
           {newCopy('new-copy')}
         </div>
+        {createError === null ? null : (
+          <p className="text-xs text-bad" role="alert" data-slot="new-copy-error">
+            {createError}
+          </p>
+        )}
         <p className="text-sm text-text2">
           <span data-slot="copy-count">
             {narrowed

@@ -4,6 +4,7 @@ import { COPY_STATUS } from '@tas/domain/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  createCopyAction,
   updateCopyAction,
   updateCopyClientApproval,
   type CopyActionResult,
@@ -52,6 +53,9 @@ interface Seam {
   /** Every `setCollectionCopywritingLinkInBrand` call. */
   collectionLinks: LinkedCollection[];
   /** Every `updateCopy` patch, so a test can assert what reached the setter for the two row-side links. */
+  /** The rows `listCopy` answers with, and every `insertCopy` call (SMOKE-11). */
+  existing: { copyNumber: number | null }[];
+  inserted: Record<string, unknown>[];
   updates: {
     readonly productId?: string | null;
     readonly creativeBriefId?: string | null;
@@ -68,6 +72,8 @@ const seam = vi.hoisted<Seam>(() => ({
   productResolves: true,
   synced: [],
   collectionLinks: [],
+  existing: [],
+  inserted: [],
   updates: [],
 }));
 
@@ -87,6 +93,11 @@ vi.mock('@/lib/copy-source', () => ({
 vi.mock('@tas/db', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tas/db')>()),
   getCopyById: (): Promise<CopyListRow | null> => Promise.resolve(seam.stored),
+  listCopy: () => Promise.resolve(seam.existing),
+  insertCopy: (_db: Db, _brandId: string, values: Record<string, unknown>) => {
+    seam.inserted.push(values);
+    return Promise.resolve({ id: 'copy-new', ...values });
+  },
   getBriefById: (_db: Db, _brandId: string, id: string): Promise<{ id: string } | null> =>
     Promise.resolve(seam.briefResolves ? { id } : null),
   getCollectionById: (_db: Db, _brandId: string, id: string): Promise<{ id: string } | null> =>
@@ -208,6 +219,8 @@ afterEach(() => {
   seam.synced = [];
   seam.collectionLinks = [];
   seam.updates = [];
+  seam.inserted = [];
+  seam.existing = [];
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -599,5 +612,32 @@ describe('with Clerk configured · updateCopyClientApproval — one client vocab
 
     expect(result.ok).toBe(false);
     expect(seam.updates).toEqual([]);
+  });
+});
+
+describe('createCopyAction — "New copy" (SMOKE-11)', () => {
+  it('refuses in demo mode before any read', async () => {
+    const result = await createCopyAction();
+    expect(result.ok).toBe(false);
+    expect(seam.inserted).toEqual([]);
+  });
+
+  it("creates a blank row numbered after the brand's highest Copy #, and returns its id", async () => {
+    live();
+    seam.existing = [{ copyNumber: 3 }, { copyNumber: 7 }, { copyNumber: null }];
+
+    const result = await createCopyAction();
+
+    expect(saved(result, 'the first copy was refused').id).toBe('copy-new');
+    expect(seam.inserted).toEqual([
+      { copyNumber: 8, cta: COPY_CTAS[0].key, status: COPY_STATUS[0].key },
+    ]);
+  });
+
+  it('starts at the first number on an empty workspace', async () => {
+    live();
+    seam.existing = [];
+    await createCopyAction();
+    expect(seam.inserted[0]?.['copyNumber']).toBe(1);
   });
 });

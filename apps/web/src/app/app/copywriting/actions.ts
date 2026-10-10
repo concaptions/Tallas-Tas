@@ -6,7 +6,9 @@ import {
   getBriefById,
   getCollectionById,
   getCopyById,
+  insertCopy,
   getProductById,
+  listCopy,
   setCollectionCopywritingLinkInBrand,
   syncCopywritingCopyTypesInBrand,
   updateCopy,
@@ -18,6 +20,7 @@ import {
   COPY_CTA_INITIAL,
   isCopyCta,
   isCopyFunnel,
+  nextCopyNumber,
   validateCopyDraft,
   type CopyDraft,
   type CopyDraftField,
@@ -546,5 +549,42 @@ export async function updateCopyClientApproval(
     return outcome;
   } catch {
     return { ok: false, error: 'The copy could not be saved. Try again.' };
+  }
+}
+
+/**
+ * "New copy" (SMOKE-11, 2026-10-10): creates one blank copy row for the actor's brand and returns
+ * its id, so the workspace can open it in the panel. The Copy # is the next free number over the
+ * brand's rows (`nextCopyNumber`, non-negotiable 6: never typed); CTA and status start at their
+ * vocabularies' first entries; everything else is null until the panel saves it. The button used
+ * to be disabled in live mode with a reason only a hover could read ("ships with the CSV upload
+ * ticket") — there was never a reason to block the first copy.
+ */
+export async function createCopyAction(): Promise<CopyActionResult> {
+  if (isDemoMode()) {
+    return { ok: false, error: DEMO_WRITE_REFUSAL };
+  }
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return { ok: false, error: 'Your session has expired. Sign in again to save.' };
+    }
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const copyNumber = nextCopyNumber((await listCopy(db, brandId)).map((row) => row.copyNumber));
+      const row = await insertCopy(
+        db,
+        brandId,
+        { copyNumber, cta: COPY_CTA_INITIAL, status: COPY_STATUS_INITIAL },
+        actor,
+      );
+      return { ok: true as const, id: row.id, savedAt: Date.now(), warnings: {} };
+    });
+    if (outcome === null) {
+      return { ok: false, error: 'This workspace has no brand yet.' };
+    }
+    revalidatePath(copywritingPath);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The copy could not be created. Try again.' };
   }
 }

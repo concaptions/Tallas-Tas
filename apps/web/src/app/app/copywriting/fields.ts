@@ -472,8 +472,6 @@ export const NO_MATCH_NOTE = 'No copy matches this search. Clear it to see every
  * scope, so there is no create action for the button to submit to. One ships with the CSV upload
  * ticket; an exported Server Action nothing submits to would be dead code until then.
  */
-export const NEW_COPY_SOON_HINT = 'Creating a copy row ships with the CSV upload ticket';
-
 /** How a character counter reads: used of the guide. */
 export function counterLabel(text: string | null, field: CopyLimitField): string {
   return `${String(copyLength(text))} of ${String(copyLimitFor(field))}`;
