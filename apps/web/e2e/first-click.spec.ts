@@ -41,3 +41,36 @@ test('a "New creative" press before hydration opens the dialog once hydrated', a
   await expect(page.locator('[data-slot="new-creative-dialog"]')).toHaveCount(1);
   await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true');
 });
+
+/**
+ * SMOKE-16: the SHELL has hydrated (the replay's stamp is set) while the PAGE segment behind
+ * `loading.tsx` has not — the state a 400-row production sheet sits in for seconds after it looks
+ * settled. Only the route's own chunks are held; a press on a page-segment control in that window
+ * must still open the dialog once the segment hydrates. This probe failed before the fix: the
+ * replay stopped recording at the shell's stamp.
+ */
+test('a press after the shell hydrated but before the page segment did is not lost', async ({
+  page,
+}) => {
+  let released = false;
+  const held: (() => void)[] = [];
+  await page.route('**/_next/static/chunks/app/app/creative-sheet/**', async (route) => {
+    if (!released) await new Promise<void>((resolve) => held.push(resolve));
+    await route.continue();
+  });
+  await page.goto(creativeSheetPath, { waitUntil: 'commit' });
+  await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true', { timeout: 60_000 });
+  const button = page.locator('[data-slot="new-creative"]');
+  await button.waitFor({ state: 'visible' });
+  const hydratedTarget = await button.evaluate((element) =>
+    Object.keys(element).some((key) => key.startsWith('__reactProps$')),
+  );
+  await button.click({ noWaitAfter: true, force: true });
+  expect(hydratedTarget).toBe(false);
+
+  released = true;
+  for (const resolve of held) resolve();
+
+  await expect(page.locator('[data-slot="new-creative-dialog"]')).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('[data-slot="new-creative-dialog"]')).toHaveCount(1);
+});

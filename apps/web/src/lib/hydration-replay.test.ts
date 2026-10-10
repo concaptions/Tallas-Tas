@@ -14,12 +14,14 @@ import {
  * after it — is the Playwright spec `first-click.spec.ts`, which reproduced the loss first.
  */
 describe('HYDRATION_REPLAY_BOOT_SCRIPT', () => {
-  it('is a self-contained IIFE that records pointerdowns until the root is stamped', () => {
+  it('is a self-contained IIFE that records a pointerdown whose target is not hydrated', () => {
     expect(HYDRATION_REPLAY_BOOT_SCRIPT.startsWith('(function(){')).toBe(true);
     expect(HYDRATION_REPLAY_BOOT_SCRIPT.endsWith('})();')).toBe(true);
     expect(HYDRATION_REPLAY_BOOT_SCRIPT).toContain("addEventListener('pointerdown'");
-    expect(HYDRATION_REPLAY_BOOT_SCRIPT).toContain(`hasAttribute("${HYDRATION_REPLAY_ATTR}")`);
-    expect(HYDRATION_REPLAY_BOOT_SCRIPT).toContain('q.length>=4');
+    // Gated on the TARGET's hydration stamp, never on the shell's attribute (SMOKE-16).
+    expect(HYDRATION_REPLAY_BOOT_SCRIPT).toContain("indexOf('__reactProps$')");
+    expect(HYDRATION_REPLAY_BOOT_SCRIPT).not.toContain(HYDRATION_REPLAY_ATTR);
+    expect(HYDRATION_REPLAY_BOOT_SCRIPT).toContain('q.length>=8');
   });
 });
 

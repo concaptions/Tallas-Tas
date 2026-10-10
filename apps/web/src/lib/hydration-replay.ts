@@ -6,11 +6,14 @@
  * so no boundary ordering closes it, and the smoke test saw it on three different controls (the
  * Kanban tab, "New creative", the brand switcher). React 17 replayed these itself; 18 stopped.
  *
- * `HYDRATION_REPLAY_BOOT_SCRIPT` runs inline before any bundle: it records the first few
- * `pointerdown`s that reach the document while `document.documentElement` carries no
- * `data-hydrated`, keeping the target element and the pointer kind. `schedulePreHydrationReplay`
- * runs from the shell's first client effect: it stamps `data-hydrated`, then, as soon as each
- * recorded target has itself hydrated (React stamps a hydrated node with its props), re-dispatches
+ * `HYDRATION_REPLAY_BOOT_SCRIPT` runs inline before any bundle: it records a `pointerdown` whose
+ * TARGET React has not hydrated yet (a hydrated node carries a `__reactProps$…` property), keeping
+ * the element and the pointer kind. It is not gated on the shell: the shell hydrates seconds before
+ * a 400-row page segment behind `loading.tsx`, and a press into that segment in the meantime was
+ * lost (SMOKE-16, reproduced by holding only the segment's chunks). `schedulePreHydrationReplay`
+ * runs from the shell's first client effect: it stamps `data-hydrated` (a signal for tests, not a
+ * gate), then for thirty seconds keeps draining the queue and, as soon as each recorded target has
+ * itself hydrated, re-dispatches
  * the sequence a real press produces — pointerdown, mousedown, focus, pointerup, mouseup, click —
  * so a Radix trigger listening on any of them (Tabs: mousedown / focus; Dialog: click;
  * DropdownMenu: pointerdown) reacts exactly once. A target that is gone or disabled is skipped;
@@ -18,13 +21,13 @@
  */
 export const HYDRATION_REPLAY_ATTR = 'data-hydrated';
 const QUEUE_KEY = '__tasPreHydrationClicks';
-const MAX_QUEUED = 4;
+const MAX_QUEUED = 8;
 
 export const HYDRATION_REPLAY_BOOT_SCRIPT = `(function(){var d=document,q=[];window[${JSON.stringify(
   QUEUE_KEY,
-)}]=q;d.addEventListener('pointerdown',function(e){if(d.documentElement.hasAttribute(${JSON.stringify(
-  HYDRATION_REPLAY_ATTR,
-)}))return;if(q.length>=${String(MAX_QUEUED)})return;var t=e.target;if(t&&t.nodeType===1){q.push({target:t,pointerType:e.pointerType||'mouse'});}},true);})();`;
+)}]=q;function h(t){for(var k in t){if(k.indexOf('__reactProps$')===0)return true;}return false;}d.addEventListener('pointerdown',function(e){var t=e.target;if(!t||t.nodeType!==1)return;if(h(t))return;if(q.length>=${String(
+  MAX_QUEUED,
+)})return;q.push({target:t,pointerType:e.pointerType||'mouse'});},true);})();`;
 
 interface QueuedClick {
   readonly target: Element;
@@ -64,11 +67,13 @@ const REPLAY_POLL_MS = 50;
 export function schedulePreHydrationReplay(): () => void {
   if (typeof document === 'undefined') return () => undefined;
   document.documentElement.setAttribute(HYDRATION_REPLAY_ATTR, 'true');
-  const pending = queued().splice(0);
-  if (pending.length === 0) return () => undefined;
+  const pending: QueuedClick[] = [];
   const started = Date.now();
   let timer: number | null = null;
   const tick = (): void => {
+    // New presses keep arriving while page segments hydrate after the shell (SMOKE-16): the
+    // boot script records any press whose TARGET is not hydrated yet, for as long as this runs.
+    pending.push(...queued().splice(0));
     for (let index = pending.length - 1; index >= 0; index -= 1) {
       const item = pending[index];
       if (item === undefined) continue;
@@ -85,7 +90,7 @@ export function schedulePreHydrationReplay(): () => void {
         dispatchPress(target, pointerType);
       }
     }
-    if (pending.length > 0 && Date.now() - started < REPLAY_WINDOW_MS) {
+    if (Date.now() - started < REPLAY_WINDOW_MS) {
       timer = window.setTimeout(tick, REPLAY_POLL_MS);
     }
   };
