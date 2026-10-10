@@ -132,7 +132,8 @@ export interface ClientConcept {
   usp: string | null;
   personaName: string | null;
   hookExamples: string | null;
-  approvalStatus: string | null;
+  /** The client's approval in the ONE client vocabulary (SMOKE-18); the legacy approval_status never leaves. */
+  clientApprovalStatus: string | null;
   clientStatus: string;
 }
 
@@ -149,7 +150,7 @@ export async function clientConcepts(db: Db, brandId: string): Promise<ClientCon
           conceptStyle: concepts.conceptStyle,
           description: concepts.scriptIdea,
           hookExamples: concepts.hookExamples,
-          approvalStatus: concepts.approvalStatus,
+          clientApprovalStatus: concepts.clientApprovalStatus,
           clientStatus: concepts.clientStatus,
         })
         .from(concepts)

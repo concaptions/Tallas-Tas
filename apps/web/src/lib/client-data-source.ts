@@ -81,7 +81,7 @@ export async function loadClientConcepts(brandId: string): Promise<ClientConcept
         usp: null,
         personaName: null,
         hookExamples: c.hookExamples ?? null,
-        approvalStatus: c.approvalStatus ?? null,
+        clientApprovalStatus: c.clientApprovalStatus ?? null,
         clientStatus: c.clientStatus,
       }));
   }

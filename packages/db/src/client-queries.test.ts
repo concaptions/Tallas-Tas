@@ -62,7 +62,8 @@ const CONCEPT_ALLOWED_KEYS = [
   'usp',
   'personaName',
   'hookExamples',
-  'approvalStatus',
+  // SMOKE-18: the client's approval in the one client vocabulary; the legacy approval_status never leaves.
+  'clientApprovalStatus',
   'clientStatus',
 ];
 

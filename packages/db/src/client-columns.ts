@@ -37,7 +37,7 @@ export const CLIENT_VISIBLE_COLUMNS: Readonly<Record<string, readonly string[]>>
     'pain_points',
     'usp',
     'hook_examples',
-    'approval_status',
+    // `approval_status` is NOT here: retired by 0064/SMOKE-18, its stale values must never reach a client.
     'client_status',
     'client_comments',
     'client_approval_status',

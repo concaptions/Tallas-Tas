@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { isClientVisibleColumn } from './client-columns';
 import { agencies, brands, creativeBriefs } from './schema';
 import { testDb } from './testing';
-import { isClientVisibleColumn } from './client-columns';
 import {
   insertCustomPage,
   loadCustomPageRender,
@@ -178,5 +178,12 @@ describe('the client column allow-list (B2, the structural F1 fix)', () => {
     expect(isClientVisibleColumn('creators', 'partnership_activity')).toBe(true);
     expect(isClientVisibleColumn('creative_briefs', 'qa_designer')).toBe(false);
     expect(isClientVisibleColumn('nope', 'name')).toBe(false);
+  });
+});
+
+describe('the concepts allow-list after the duplicate-column retirement (SMOKE-18)', () => {
+  it("lets the client's approval through and never the frozen legacy column", () => {
+    expect(isClientVisibleColumn('concepts', 'client_approval_status')).toBe(true);
+    expect(isClientVisibleColumn('concepts', 'approval_status')).toBe(false);
   });
 });
