@@ -379,9 +379,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         note: "As Product: inferred angle_personas across the concept's angles",
       },
       Status: {
-        drizzleColumn: 'approvalStatus',
+        drizzleColumn: 'clientApprovalStatus',
         handler: 'select',
-        note: 'Airtable "Status" → approvalStatus. Map values to ConceptApprovalStatus',
+        note: 'Airtable "Status" → clientApprovalStatus in the one client vocabulary (SMOKE-18 / 0064 mapping); the legacy approvalStatus is frozen and never written',
       },
       Decription: {
         drizzleColumn: 'description',

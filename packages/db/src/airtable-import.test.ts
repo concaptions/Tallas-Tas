@@ -650,7 +650,10 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
       .select()
       .from(concepts)
       .where(eq(concepts.legacyAirtableId, 'g_concept_1'));
-    expect(concept?.approvalStatus).toBe('pending_client');
+    // SMOKE-18: the base's Status lands in the ONE client vocabulary on client_approval_status
+    // (0064's mapping); the legacy approval_status is frozen — the importer never writes it.
+    expect(concept?.clientApprovalStatus).toBe('pending_for_approval');
+    expect(concept?.approvalStatus).toBeNull();
     expect(concept?.productionStatus).toBe('in_progress');
 
     const [brief] = await db

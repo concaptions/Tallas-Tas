@@ -362,16 +362,19 @@ const MAPS = {
     sent_to_design: 'sent_to_design',
     editing_concept: 'in_progress',
     filming_concept: 'filming_in_progress',
-    // An approval outcome, not a production stage; `conceptApproval` has no denied-after-approval
+    // An approval outcome, not a production stage; `conceptClientApproval` has no denied-after-approval
     // state either, so the production column stays NULL and the dry run counts it.
     declined_by_client: null,
   },
-  // Concepts.'Status' → conceptApprovalStatuses. "Pending For Approval" is pending_client here —
-  // the blind normalize wrote pending_for_approval, a key the concept vocabulary never had.
-  conceptApproval: {
-    pending_for_approval: 'pending_client',
+  // Concepts.'Status' → `client_approval_status`, the ONE client vocabulary (SMOKE-18, Option B,
+  // 2026-10-11): the same three values migration 0064 mapped out of the legacy `approval_status`
+  // (pending_client → pending_for_approval, approved → approved, rejected → disapproved), read
+  // straight from the base's labels. The legacy column is frozen: the importer never writes it,
+  // so a re-import can no longer undo the backfill.
+  conceptClientApproval: {
+    pending_for_approval: 'pending_for_approval',
     approved: 'approved',
-    denied: 'rejected',
+    denied: 'disapproved',
   },
   // Creative Design.'Internal Status' → INTERNAL_VIDEO/STATIC_STATUS keys. Feriel and Nadish are
   // Gratsi's video editors; their per-person stages collapse onto the domain ladder.
@@ -1020,10 +1023,10 @@ export async function importAirtableExport(
       painPoints: str(f['Pain Points']),
       usp: str(f.USP),
       clientComments: str(f["Client's Comments"]),
-      approvalStatus: mapStatus(
+      clientApprovalStatus: mapStatus(
         w,
-        'concepts.approvalStatus',
-        MAPS.conceptApproval,
+        'concepts.clientApprovalStatus',
+        MAPS.conceptClientApproval,
         f.Status ?? f['Approval Status'],
       ),
       formatsToCreate: multiSelectArr(f['Formats to Create']),
