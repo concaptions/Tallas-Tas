@@ -39,6 +39,7 @@ import {
   filteredCopyCountLabel,
   isPendingCopyId,
   matchesQuery,
+  openCopy,
   pendingCopyAfterRows,
   pendingCopyOnCreated,
   pendingCopyOnPress,
@@ -364,9 +365,9 @@ export function CopywritingWorkspace({
     setPending((current) => pendingCopyAfterRows(current, items));
   }, [items]);
   const rows = rowsWithPending(pending, visible);
-  const open =
-    items.find((item) => item.id === selection) ??
-    (pending !== null && pending.id === selection && !isPendingCopyId(pending.id) ? pending : null);
+  // The panel opens on the pending copy at the press (SMOKE-25), read-only until its id is real.
+  const open = openCopy(items, pending, selection);
+  const creating = open !== null && isPendingCopyId(open.id);
 
   const kanbanItems: KanbanItem[] = useMemo(
     () =>
@@ -408,6 +409,8 @@ export function CopywritingWorkspace({
     setCreating(true);
     const pressed = pendingCopyOnPress(items, new Date());
     setPending(pressed);
+    // Selected at once under the provisional id — state only, the URL waits for the real id.
+    setSelection(pressed.id);
     void createCopyAction().then((result) => {
       setCreating(false);
       if (result.ok) {
@@ -416,6 +419,7 @@ export function CopywritingWorkspace({
         router.refresh();
       } else {
         setPending(null);
+        setSelection((current) => (current === pressed.id ? null : current));
         setCreateError(result.error);
       }
     });
@@ -540,8 +544,11 @@ export function CopywritingWorkspace({
 
       {open === null ? null : (
         <CopyPanel
-          key={open.id}
+          // Keyed by the copy NUMBER, stable from the press through the real id to the server's
+          // row, so the panel keeps what was typed while the id is still provisional.
+          key={`copy-${String(open.copyNumber)}`}
           item={open}
+          creating={creating}
           creatives={creatives}
           concepts={concepts}
           collections={collections}

@@ -112,9 +112,14 @@ interface CopyPanelProps {
   readonly products: readonly ProductChoice[];
   readonly copyTypes: readonly CopyTypeChoice[];
   readonly demo: boolean;
+  /** The row is still being created (SMOKE-25): shown at the press, read-only until its id is real. */
+  readonly creating?: boolean;
   readonly onClose: () => void;
   readonly onSaved: () => void;
 }
+
+/** What a disabled control says while the row is being created. */
+export const CREATING_HINT = 'Saving the new copy — editable in a moment.';
 
 /**
  * One typed field's edit, as a patch. A `switch` rather than a computed key, so the three text
@@ -172,9 +177,12 @@ export function CopyPanel({
   products,
   copyTypes,
   demo,
+  creating = false,
   onClose,
   onSaved,
 }: CopyPanelProps) {
+  // Demo mode and a row still being created lock the same controls; only the hint differs.
+  const locked = demo || creating;
   const [state, formAction, pending] = useActionState<CopyActionResult | null, FormData>(
     updateCopyAction,
     null,
@@ -263,7 +271,7 @@ export function CopyPanel({
               onValueChange={(next) => {
                 patch({ cta: next });
               }}
-              disabled={demo}
+              disabled={locked}
             >
               <SelectTrigger id={id} className="w-full" aria-label={field.label}>
                 <SelectValue placeholder={field.label} />
@@ -283,7 +291,7 @@ export function CopyPanel({
             id={id}
             name={field.name}
             value={value}
-            readOnly={demo}
+            readOnly={locked}
             aria-invalid={error !== undefined}
             aria-describedby={`${id}-hint`}
             onChange={(event) => {
@@ -333,6 +341,11 @@ export function CopyPanel({
           >
             {item.title}
           </h2>
+          {creating ? (
+            <p className="text-xs text-text3" role="status" data-slot="copy-panel-creating">
+              {CREATING_HINT}
+            </p>
+          ) : null}
         </div>
         <Button
           type="button"
@@ -385,7 +398,7 @@ export function CopyPanel({
                   onValueChange={(next) => {
                     patch({ creativeBriefId: next === NO_CREATIVE_VALUE ? null : next });
                   }}
-                  disabled={demo}
+                  disabled={locked}
                 >
                   <SelectTrigger
                     id="copy-field-creativeBriefId"
@@ -449,7 +462,7 @@ export function CopyPanel({
                   onValueChange={(next) => {
                     patch({ conceptId: next === NO_CONCEPT_VALUE ? null : next });
                   }}
-                  disabled={demo}
+                  disabled={locked}
                 >
                   <SelectTrigger
                     id="copy-field-conceptId"
@@ -495,7 +508,7 @@ export function CopyPanel({
                   onValueChange={(next) => {
                     setProductId(next === NO_PRODUCT_VALUE ? null : next);
                   }}
-                  disabled={demo}
+                  disabled={locked}
                 >
                   <SelectTrigger
                     id="copy-field-productId"
@@ -549,7 +562,7 @@ export function CopyPanel({
                   onValueChange={(next) => {
                     patch({ status: next });
                   }}
-                  disabled={demo}
+                  disabled={locked}
                 >
                   <SelectTrigger
                     id="copy-field-status"
@@ -604,7 +617,7 @@ export function CopyPanel({
                   recordId={item.id}
                   currentStatus={item.status}
                   currentNote={item.clientComment ?? null}
-                  disabled={demo}
+                  disabled={locked}
                 />
               </div>
             </section>
@@ -634,7 +647,7 @@ export function CopyPanel({
                       <button
                         key={copyType.id}
                         type="button"
-                        disabled={demo}
+                        disabled={locked}
                         aria-pressed={on}
                         data-slot="copy-type-toggle"
                         onClick={() => {
@@ -707,7 +720,7 @@ export function CopyPanel({
                   onValueChange={(next) => {
                     setLinkedCollectionId(next === NO_COLLECTION_VALUE ? null : next);
                   }}
-                  disabled={demo}
+                  disabled={locked}
                 >
                   <SelectTrigger
                     id="copy-field-collectionId"
@@ -793,7 +806,7 @@ export function CopyPanel({
                       funnel: next === NO_FUNNEL_VALUE ? null : next,
                     }));
                   }}
-                  disabled={demo}
+                  disabled={locked}
                 >
                   <SelectTrigger
                     id="copy-field-funnel"
@@ -824,7 +837,7 @@ export function CopyPanel({
                     id="copy-field-used"
                     type="checkbox"
                     checked={detailDraft.used}
-                    disabled={demo}
+                    disabled={locked}
                     onChange={(event) => {
                       setDetailDraft((current) => ({
                         ...current,
@@ -845,7 +858,7 @@ export function CopyPanel({
                     id="copy-field-winning"
                     type="checkbox"
                     checked={detailDraft.winning}
-                    disabled={demo}
+                    disabled={locked}
                     onChange={(event) => {
                       setDetailDraft((current) => ({
                         ...current,
@@ -873,7 +886,7 @@ export function CopyPanel({
                   min={1}
                   max={10}
                   value={detailDraft.metaRating ?? ''}
-                  readOnly={demo}
+                  readOnly={locked}
                   onChange={(event) => {
                     const raw = event.target.value;
                     setDetailDraft((current) => ({
@@ -943,11 +956,11 @@ export function CopyPanel({
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <DisabledWrite active={demo}>
+          <DisabledWrite active={locked} hint={creating ? CREATING_HINT : undefined}>
             <Button
               type="submit"
               size="sm"
-              disabled={demo || pending || !validation.ok}
+              disabled={locked || pending || !validation.ok}
               data-slot="copy-save"
               className={disabledWriteClassName}
             >
