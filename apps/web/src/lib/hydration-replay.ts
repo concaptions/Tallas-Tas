@@ -13,8 +13,10 @@
  * lost (SMOKE-16, reproduced by holding only the segment's chunks). `schedulePreHydrationReplay`
  * runs from the shell's first client effect: it stamps `data-hydrated` (a signal for tests, not a
  * gate), then for thirty seconds keeps draining the queue and, as soon as each recorded target has
- * itself hydrated, re-dispatches
- * the sequence a real press produces — pointerdown, mousedown, focus, pointerup, mouseup, click —
+ * itself hydrated AND committed (`isMountedNode`, React's own mounted rule — a stamped node in a
+ * still-hydrating segment is not dispatched to, SMOKE-22) and something up its tree listens
+ * (`hasHandlerUpTree` — an inert press is dropped rather than replayed late into an open menu),
+ * re-dispatches the sequence a real press produces — pointerdown, mousedown, focus, pointerup, mouseup, click —
  * so a Radix trigger listening on any of them (Tabs: mousedown / focus; Dialog: click;
  * DropdownMenu: pointerdown) reacts exactly once. A target that is gone or disabled is skipped;
  * a press whose target never hydrates within the window is dropped.
@@ -42,6 +44,75 @@ function queued(): QueuedClick[] {
 /** True once React has hydrated this node: hydration stamps every host node with its props. */
 function isHydratedNode(target: Element): boolean {
   return Object.keys(target).some((key) => key.startsWith('__reactProps$'));
+}
+
+/** What React leaves on a host node: its fiber (`__reactFiber$…`) and its props (`__reactProps$…`). */
+interface FiberLike {
+  readonly tag: number;
+  readonly flags: number;
+  readonly return: FiberLike | null;
+  readonly alternate: FiberLike | null;
+}
+
+const HOST_ROOT_TAG = 3;
+/** `Placement | Hydrating`: the fiber is in a tree React has not COMMITTED yet. */
+const NOT_YET_COMMITTED_FLAGS = 0b1000000000010;
+
+function reactKey(target: object, prefix: string): string | undefined {
+  return Object.keys(target).find((key) => key.startsWith(prefix));
+}
+
+/**
+ * True when the node's fiber sits in a committed tree — React's own `getNearestMountedFiber`
+ * rule (SMOKE-22). Hydration stamps a node's props during the RENDER phase, and a 400-row
+ * segment hydrates time-sliced over many frames before one commit at the end: a press replayed at
+ * the stamp lands in a tree React does not dispatch to yet and is lost again. A node with no
+ * fiber at all answers false; a fiber whose chain does not end at a host root answers false.
+ */
+export function isMountedNode(target: object): boolean {
+  const key = reactKey(target, '__reactFiber$');
+  if (key === undefined) return false;
+  let node = (target as Record<string, unknown>)[key] as FiberLike | null | undefined;
+  if (node === null || node === undefined) return false;
+  let fiber: FiberLike = node;
+  // Walk the not-yet-alternated chain: a Placement/Hydrating flag on the way means uncommitted.
+  for (let next: FiberLike | null = node; next !== null && next.alternate === null;) {
+    node = next;
+    if ((node.flags & NOT_YET_COMMITTED_FLAGS) !== 0) return false;
+    next = node.return;
+    if (next !== null) fiber = next;
+  }
+  for (; fiber.return !== null;) fiber = fiber.return;
+  return fiber.tag === HOST_ROOT_TAG;
+}
+
+/**
+ * True when the node, or an ancestor, carries a React handler (`on…` in its props) — a press that
+ * nothing listens to has nothing to replay, and replaying it late could dismiss the dialog or
+ * menu the user has since opened (SMOKE-22).
+ */
+export function hasHandlerUpTree(target: object): boolean {
+  let node: (object & { parentElement?: Element | null }) | null = target;
+  for (let depth = 0; node !== null && depth < 64; depth += 1) {
+    const key = reactKey(node, '__reactProps$');
+    if (key !== undefined) {
+      const props = (node as Record<string, unknown>)[key];
+      if (
+        props !== null &&
+        typeof props === 'object' &&
+        Object.keys(props).some((name) => name.startsWith('on'))
+      ) {
+        return true;
+      }
+    }
+    node = node.parentElement ?? null;
+  }
+  return false;
+}
+
+/** Replayable: hydrated, committed, and something up the tree listens. */
+function isReplayable(target: Element): boolean {
+  return isHydratedNode(target) && isMountedNode(target) && hasHandlerUpTree(target);
 }
 
 function dispatchPress(target: Element, pointerType: string): void {
@@ -85,7 +156,7 @@ export function schedulePreHydrationReplay(): () => void {
         pending.splice(index, 1);
         continue;
       }
-      if (isHydratedNode(target)) {
+      if (isReplayable(target)) {
         pending.splice(index, 1);
         dispatchPress(target, pointerType);
       }
@@ -107,7 +178,7 @@ export function replayPreHydrationClicks(): number {
   const items = queued().splice(0);
   let replayed = 0;
   for (const { target, pointerType } of items) {
-    if (!document.contains(target) || !isHydratedNode(target)) continue;
+    if (!document.contains(target) || !isReplayable(target)) continue;
     dispatchPress(target, pointerType);
     replayed += 1;
   }
