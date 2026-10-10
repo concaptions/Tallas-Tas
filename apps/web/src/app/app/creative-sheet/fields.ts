@@ -14,6 +14,7 @@ import type {
   CreativeSheetKanbanField,
   CreativeSheetStatusField,
 } from './actions';
+import type { SheetItemView } from './creative-sheet-workspace';
 
 /**
  * How the Creative Sheet route presents what it stores. One module, so the grid, the board, the
@@ -317,4 +318,72 @@ export function pendingAfterRows(
   rowIds: readonly string[],
 ): PendingCreative | null {
   return pending !== null && rowIds.includes(pending.id) ? null : pending;
+}
+
+/**
+ * The pending creative AS A GRID ROW (SMOKE-24): the sheet names the new creative in its own
+ * first column within 500 ms of the submit, not only in the status line above the grid. The row
+ * carries the creative name the dialog previewed, under the sheet's `Month-Name` spelling (the
+ * same English UTC month `creativeSheetName` in `@tas/db` uses — a formatter, not a second table),
+ * the two tracks at their starting states, and every lookup empty — exactly what the real row
+ * will read as until the refresh brings it, at which point `rowsWithPendingCreative` drops it.
+ */
+const PENDING_MONTH = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' });
+
+export function pendingSheetRow(pending: PendingCreative, now: Date): SheetItemView {
+  const name = `${PENDING_MONTH.format(now)}-${pending.name}`;
+  return {
+    item: {
+      id: pending.id,
+      brandId: '',
+      briefId: pending.id,
+      createdAt: now,
+      updatedAt: now,
+      legacyAirtableId: null,
+      name,
+      internalStatus: INTERNAL_VIDEO_STATUS[0].key,
+      status: CLIENT_STATUS[0].key,
+      qaChecklistDoc: null,
+      qaVideoEditor: false,
+      qaDesigner: false,
+      qaStrategist: false,
+      spellCheckRequested: false,
+      spellingFeedback: null,
+      dimensions: [],
+      briefName: pending.name,
+      briefType: null,
+      briefPlatform: [],
+      briefFunnel: null,
+      briefPerformance: null,
+      briefDesignFileUrl: null,
+    },
+    lookups: {
+      performance: null,
+      internalProduct: null,
+      angle: null,
+      conceptsFromAngle: null,
+      elementsWeAreTesting: null,
+      designFiles: [],
+      designLinkUrl: null,
+      collection: null,
+      platform: null,
+      funnel: null,
+      type: null,
+      proposedCopy: null,
+      creativeModule: null,
+    },
+    createdLabel: 'just now',
+    createdTitle: now.toISOString(),
+    updatedLabel: 'just now',
+    updatedTitle: now.toISOString(),
+  };
+}
+
+/** What the grid renders: the pending creative's row first, until the rows carry its id. */
+export function rowsWithPendingCreative(
+  pendingRow: SheetItemView | null,
+  rows: readonly SheetItemView[],
+): readonly SheetItemView[] {
+  if (pendingRow === null || rows.some(({ item }) => item.id === pendingRow.item.id)) return rows;
+  return [pendingRow, ...rows];
 }

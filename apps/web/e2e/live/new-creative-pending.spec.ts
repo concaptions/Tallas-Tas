@@ -20,10 +20,15 @@ test.describe('New creative on the live sheet', () => {
   }) => {
     await page.goto(creativeSheetPath);
     await page.locator('[data-slot="new-creative"]').click();
+    const preview = (await page.locator('[data-slot="new-creative-preview"]').textContent()) ?? '';
     await page.locator('[data-slot="new-creative-submit"]').click();
     await expect(page.locator('[data-slot="creative-sheet-pending"]')).toBeVisible({
       timeout: 500,
     });
+    // SMOKE-24: the GRID names it too, as its first row, within the same 500 ms.
+    const pendingRow = page.locator('[data-creative-sheet-pending="true"]');
+    await expect(pendingRow).toBeVisible({ timeout: 500 });
+    await expect(pendingRow).toContainText(preview.trim());
     await expect(page.locator('[data-slot="creative-sheet-panel"]')).toBeVisible({
       timeout: 30_000,
     });

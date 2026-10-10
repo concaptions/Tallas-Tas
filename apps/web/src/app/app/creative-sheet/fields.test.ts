@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest';
 import {
   pendingAfterRows,
   pendingOnSubmit,
+  pendingSheetRow,
+  rowsWithPendingCreative,
   applyKanbanMoves,
   countLabel,
   INTERNAL_STATUS_OPTIONS,
@@ -199,5 +201,30 @@ describe('the pending creative (SMOKE-17): shown at submit, replaced by the real
     expect(pendingAfterRows(real, ['other'])).toEqual(real);
     expect(pendingAfterRows(real, ['other', 'real-1'])).toBeNull();
     expect(pendingAfterRows(null, ['real-1'])).toBeNull();
+  });
+});
+
+describe('the pending creative as a grid row (SMOKE-24)', () => {
+  const now = new Date('2026-10-11T09:00:00Z');
+
+  it('is named under the sheet spelling, carries the creative name, and starts both tracks', () => {
+    const row = pendingSheetRow(pendingOnSubmit('TAS-TOF-V008-B1'), now);
+    expect(row.item.id).toBe('pending:TAS-TOF-V008-B1');
+    expect(row.item.name).toBe('October-TAS-TOF-V008-B1');
+    expect(row.item.briefName).toBe('TAS-TOF-V008-B1');
+    expect(row.item.internalStatus).toBe(INTERNAL_VIDEO_STATUS[0].key);
+    expect(row.item.status).toBe(CLIENT_STATUS[0].key);
+    expect(row.lookups.proposedCopy).toBeNull();
+  });
+
+  it('leads the rows until they carry its id, then steps aside', () => {
+    const pendingRow = pendingSheetRow({ id: 'real-1', name: 'TAS-TOF-V008-B1' }, now);
+    const other = pendingSheetRow({ id: 'other', name: 'X' }, now);
+    expect(rowsWithPendingCreative(pendingRow, [other]).map(({ item }) => item.id)).toEqual([
+      'real-1',
+      'other',
+    ]);
+    expect(rowsWithPendingCreative(pendingRow, [other, pendingRow])).toHaveLength(2);
+    expect(rowsWithPendingCreative(null, [other])).toEqual([other]);
   });
 });

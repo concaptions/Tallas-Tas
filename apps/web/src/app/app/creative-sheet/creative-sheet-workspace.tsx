@@ -28,6 +28,8 @@ import {
   type PendingCreative,
   pendingOnSubmit,
   pendingAfterRows,
+  pendingSheetRow,
+  rowsWithPendingCreative,
   applyKanbanMoves,
   countLabel,
   EM_DASH,
@@ -417,6 +419,12 @@ export function CreativeSheetWorkspace({
     () => (query === '' ? items : items.filter(({ item }) => matchesSearch(item, query))),
     [items, query],
   );
+  // The pending creative as a row of the grid (SMOKE-24), first until the refresh carries it.
+  const pendingRow = useMemo(
+    () => (pending === null ? null : pendingSheetRow(pending, new Date())),
+    [pending],
+  );
+  const rows = rowsWithPendingCreative(pendingRow, visible);
 
   const open = items.find(({ item }) => item.id === selection)?.item ?? null;
 
@@ -682,10 +690,14 @@ export function CreativeSheetWorkspace({
             <AirtableGrid
               tableKey={CAP.tableKey}
               columns={grid.columns}
-              rows={visible}
+              rows={rows}
               rowId={({ item }) => item.id}
               rowLabel={({ item }) => item.name}
-              rowAttributes={({ item }) => ({ 'data-creative-sheet-id': item.id })}
+              rowAttributes={({ item }) => ({
+                'data-creative-sheet-id': item.id,
+                'data-creative-sheet-pending':
+                  pendingRow !== null && item.id === pendingRow.item.id ? 'true' : undefined,
+              })}
               selectedId={selection}
               onRowClick={({ item }) => {
                 select(item.id);
