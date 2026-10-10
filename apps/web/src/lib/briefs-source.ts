@@ -4,6 +4,7 @@ import {
   getBriefById,
   countLiveBriefsByBrand,
   listBriefs,
+  peekNextBriefNumber,
   type BriefListRow,
   type Db,
   listActivity,
@@ -239,6 +240,20 @@ export async function loadBriefs(deps: BriefSourceDeps = {}): Promise<BriefListR
     const brandId = await resolveLiveBrandId(db, deps);
     const rows = brandId === null ? [] : await listBriefs(db, brandId);
     return { rows: rows.map(toBriefRow), source: 'database' };
+  });
+}
+
+/**
+ * The number the next "New creative" will get — the allocator's own rule, read without its lock
+ * (SMOKE-15): demo mode counts the fixtures; live mode asks the database, soft-deleted rows included.
+ */
+export async function loadNextBriefNumber(deps: BriefSourceDeps = {}): Promise<number> {
+  if (inDemoMode(deps)) {
+    return demoBriefs.reduce((max, row) => Math.max(max, row.briefNumber ?? 0), 0) + 1;
+  }
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    return brandId === null ? 1 : peekNextBriefNumber(db, brandId);
   });
 }
 

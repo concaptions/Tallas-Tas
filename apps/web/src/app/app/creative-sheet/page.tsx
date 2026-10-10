@@ -1,6 +1,6 @@
 import type { ViewType } from '@tas/domain';
 
-import { loadBriefs } from '@/lib/briefs-source';
+import { loadBriefs, loadNextBriefNumber } from '@/lib/briefs-source';
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeSheetColumns, loadCreativeSheetWorkspace } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
@@ -45,12 +45,14 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
     { columns, unconfigured: unconfiguredColumns },
     briefResult,
     conceptResult,
+    nextNumber,
     params,
   ] = await Promise.all([
     loadCreativeSheetWorkspace(),
     loadCreativeSheetColumns(),
     loadBriefs(),
     loadConcepts(),
+    loadNextBriefNumber(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -68,15 +70,13 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
     }),
   );
 
-  // "New creative": the Concept select and the preview's number. The server allocates the real
-  // number under the brand's lock; this is the honest guess from the briefs the page loaded.
+  // "New creative": the Concept select, and the preview's number read by the allocator's own rule
+  // (`loadNextBriefNumber`, SMOKE-15) so the dialog and the save never disagree.
   const conceptOptions: ConceptOption[] = conceptResult.rows.map(({ id, name, batch }) => ({
     id,
     name,
     batch,
   }));
-  const nextNumber =
-    briefResult.rows.reduce((max, { briefNumber }) => Math.max(max, briefNumber ?? 0), 0) + 1;
 
   const requested = params[SELECTION_PARAM];
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
