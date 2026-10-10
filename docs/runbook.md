@@ -111,6 +111,12 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   refresh. The production cleanup (brief `5dd5e834…` back to `video_editing_in_progress`,
   `ae4193d7…` soft-deleted) was applied from here on 2026-10-10 by a one-off guarded script, since
   deleted; the `activity_log` row on `5dd5e834…` names it.
+- Re-test cleanup SMOKE-21 (2026-10-10) · no migration. The tester's two Gratsi rows — creative
+  `d22d726d…` (`TAS-TOF-V003-SMOKETEST`) and the empty copy `c72542d0…` (Copy #1) — were soft-deleted
+  from here on 2026-10-10 13:21Z by a one-off guarded script, since deleted (`updated_by =
+  'ops:smoke-21'`; one transaction, Gratsi-scoped, rowcount verified: 390 live briefs, 0 copy rows
+  after). Verify: the Gratsi Creative Sheet no longer lists `TAS-TOF-V003-SMOKETEST` and Copywriting
+  shows no Copy #1.
 - Single-source cutover (2026-10-09) · `node apply61.mjs` was applied BEFORE the app push (done, verified).
   After the cutover deploy: `node audit-creative-sheet.mjs` should show the sheet view equal to the live
   briefs per brand (the old table's counts are history now), and the Creative Sheet in production should
