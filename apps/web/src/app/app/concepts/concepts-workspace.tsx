@@ -32,7 +32,7 @@ import {
 } from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
-import { ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
+import { EmptyCell, ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
 import { linkedRecordsRenderer } from '@/components/views/linked-records-cell';
 
 import { ConceptPanel } from './concept-panel';
@@ -149,7 +149,7 @@ function syncUrl(view: ConceptView, search: string): void {
  * of the removed field on screen for every brand. Hiding a column is a DATA edit in the seed, never
  * a special case here.
  */
-const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
+export const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   name: {
     render: (item) => (
       /*
@@ -203,6 +203,25 @@ const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   client_status: {
     render: (item) => <StatusChip tone={item.clientStatus.tone} label={item.clientStatus.label} />,
     sortValue: (item) => item.clientStatus.label,
+  },
+  // The client's own approval of the concept (migration 0055; CLIENT_STATUS since AUDIT-13). Seeded
+  // as "Client Approval" and never drawn until SMOKE-12 — the grid reported it as a missing renderer.
+  // PRD §5.7 Formats (the multi-select on the row). Seeded, and the second column the SMOKE-12 gate
+  // found undrawn beside Client Approval.
+  formats: {
+    render: (item) => (
+      <ChipListCell chips={item.formats.map((format) => ({ label: format, tone: 'mute' }))} />
+    ),
+    sortValue: (item) => item.formats.join(', '),
+  },
+  client_approval_status: {
+    render: (item) =>
+      item.clientApproval === null ? (
+        <EmptyCell />
+      ) : (
+        <StatusChip tone={item.clientApproval.tone} label={item.clientApproval.label} />
+      ),
+    sortValue: (item) => item.clientApproval?.label ?? '',
   },
   approval_status: {
     render: (item) => <TextCell value={item.approvalStatusLabel} />,

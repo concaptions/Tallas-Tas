@@ -16,6 +16,7 @@ import {
 } from '@tas/domain/concepts';
 
 import {
+  clientApprovalView,
   clientStatusView,
   conceptViewFromParam,
   internalStatusView,
@@ -102,6 +103,7 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     status: internalStatusView(CONCEPT_TRACK, row.internalStatus),
     href: conceptPath(row.id),
     clientStatus: clientStatusView(row.clientStatus),
+    clientApproval: clientApprovalView(row.clientApprovalStatus),
     approvalStatusLabel:
       row.approvalStatus === null ? null : conceptApprovalStatusLabel(row.approvalStatus),
     productionStatusLabel:
@@ -109,6 +111,7 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     categoryLabel: row.category === null ? null : conceptCategoryLabel(row.category),
     styleLabel: row.conceptStyle === null ? null : conceptStyleLabel(row.conceptStyle),
     formatsToCreate: row.formatsToCreate,
+    formats: row.formats,
     hookExamples: row.hookExamples,
     scriptIdea: row.scriptIdea,
     description: row.description,

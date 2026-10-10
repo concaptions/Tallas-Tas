@@ -2,6 +2,7 @@ import { INTERNAL_VIDEO_STATUS, chipTone } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import {
+  clientApprovalView,
   CONCEPT_COLUMNS,
   CONCEPT_GROUP_HEADINGS,
   CONCEPT_VIEWS,
@@ -217,5 +218,14 @@ describe('campaignLinksFor', () => {
   it('yields one link for a campaign that lists the concept twice', () => {
     const doubled = { ...bfcm, conceptIds: ['k-1', 'k-1'] };
     expect(campaignLinksFor('k-1', [doubled])).toHaveLength(1);
+  });
+});
+
+describe('clientApprovalView (SMOKE-12)', () => {
+  it('reads a CLIENT_STATUS key, maps the retired spelling, and is null until the client has answered', () => {
+    expect(clientApprovalView('approved')).toMatchObject({ key: 'approved', label: 'Approved' });
+    expect(clientApprovalView('revision_needed')).toMatchObject({ key: 'revisions_needed' });
+    expect(clientApprovalView(null)).toBeNull();
+    expect(clientApprovalView('nonsense')).toBeNull();
   });
 });

@@ -21,6 +21,7 @@ import {
   type ChipTone,
   type CreativeTrack,
   type InternalStatusKey,
+  normalizeClientApprovalStatus,
 } from '@tas/domain/state';
 
 import type { ConceptFieldName } from './actions';
@@ -188,11 +189,15 @@ export interface ConceptItem {
    * Gratsi shows it; other brands keep AI-34's hide) — the form and the panel still leave it alone.
    */
   readonly clientStatus: ConceptClientStatusView;
+  /** `client_approval_status` (migration 0055, CLIENT_STATUS since AUDIT-13), or null until set. */
+  readonly clientApproval: ConceptClientStatusView | null;
   readonly approvalStatusLabel: string | null;
   readonly productionStatusLabel: string | null;
   readonly categoryLabel: string | null;
   readonly styleLabel: string | null;
   readonly formatsToCreate: readonly string[];
+  /** PRD §5.7 Formats, the multi-select on the row (`concepts.formats`). */
+  readonly formats: readonly string[];
   readonly hookExamples: string | null;
   readonly scriptIdea: string | null;
   readonly description: string | null;
@@ -240,11 +245,13 @@ export interface ConceptClientStatusView {
 export const EMPTY_CONCEPT_RECORD: Pick<
   ConceptItem,
   | 'clientStatus'
+  | 'clientApproval'
   | 'approvalStatusLabel'
   | 'productionStatusLabel'
   | 'categoryLabel'
   | 'styleLabel'
   | 'formatsToCreate'
+  | 'formats'
   | 'hookExamples'
   | 'scriptIdea'
   | 'description'
@@ -260,11 +267,13 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   | 'performance'
 > = {
   clientStatus: { key: 'pending_for_approval', label: 'Pending for Approval', tone: 'info' },
+  clientApproval: null,
   approvalStatusLabel: null,
   productionStatusLabel: null,
   categoryLabel: null,
   styleLabel: null,
   formatsToCreate: [],
+  formats: [],
   hookExamples: null,
   scriptIdea: null,
   description: null,
@@ -284,6 +293,12 @@ export const EMPTY_CONCEPT_RECORD: Pick<
  * The view of one stored client status (`CLIENT_STATUS`, the client-facing track of CLAUDE.md
  * non-negotiable 4). Total like `internalStatusView`: an unknown key reads itself, muted.
  */
+/** The client's own approval of a concept (`client_approval_status`), one of `CLIENT_STATUS`; null until set. */
+export function clientApprovalView(key: string | null | undefined): ConceptClientStatusView | null {
+  const normalised = normalizeClientApprovalStatus(key);
+  return normalised === null ? null : clientStatusView(normalised);
+}
+
 export function clientStatusView(key: string): ConceptClientStatusView {
   const entry = CLIENT_STATUS.find((candidate) => candidate.key === key);
   return entry === undefined
