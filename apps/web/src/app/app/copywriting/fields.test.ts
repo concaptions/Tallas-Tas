@@ -29,6 +29,7 @@ import {
   matchesQuery,
   PENDING_COPY_ID_PREFIX,
   isPendingCopyId,
+  openCopy,
   pendingCopyAfterRows,
   pendingCopyOnCreated,
   pendingCopyOnPress,
@@ -361,5 +362,23 @@ describe('the pending copy row (SMOKE-19)', () => {
     expect(rowsWithPending(created, without).map((row) => row.id)).toEqual(['real-id', 'a']);
     expect(rowsWithPending(created, withIt)).toBe(withIt);
     expect(rowsWithPending(null, without)).toBe(without);
+  });
+});
+
+describe('openCopy (SMOKE-25): the panel opens on the pending copy at the press', () => {
+  const pressed = pendingCopyOnPress([], new Date());
+  const rows = [{ id: 'a' }] as unknown as readonly CopyItem[];
+
+  it('opens on the pending copy under its provisional id, then its real id, then the row', () => {
+    expect(openCopy(rows, pressed, pressed.id)).toBe(pressed);
+    const created = pendingCopyOnCreated(pressed, 'real-id');
+    expect(openCopy(rows, created, 'real-id')).toBe(created);
+    const withRow = [...rows, { id: 'real-id' }] as unknown as readonly CopyItem[];
+    expect(openCopy(withRow, created, 'real-id')).toBe(withRow[1]);
+  });
+
+  it('opens nothing without a selection, or on a selection nothing carries', () => {
+    expect(openCopy(rows, pressed, null)).toBeNull();
+    expect(openCopy(rows, null, 'gone')).toBeNull();
   });
 });

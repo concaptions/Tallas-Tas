@@ -608,3 +608,21 @@ export function rowsWithPending(
   const kept = pendingCopyAfterRows(pending, rows);
   return kept === null ? rows : [kept, ...rows];
 }
+
+/**
+ * What the panel opens on (SMOKE-25): the server's row when the rows carry the selection, else
+ * the pending copy the moment it is selected — provisional id included, so the panel is on screen
+ * at the PRESS and not after the create's round trip (3.5 s on a live library). While the id is
+ * provisional the panel is read-only (`isPendingCopyId`); it becomes editable under the real id.
+ */
+export function openCopy(
+  items: readonly CopyItem[],
+  pending: CopyItem | null,
+  selection: string | null,
+): CopyItem | null {
+  if (selection === null) return null;
+  return (
+    items.find((item) => item.id === selection) ??
+    (pending !== null && pending.id === selection ? pending : null)
+  );
+}
