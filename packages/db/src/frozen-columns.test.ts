@@ -32,6 +32,9 @@ const ALLOWED = new Set([
   'packages/db/src/schema/enums.ts',
   // The hidden column-definition rows (template + Gratsi) that keep it out of every grid.
   'packages/db/src/column-seed.ts',
+  // The demo fixtures are FULL-ROW literals (`ConceptListRow[]`), compared row for row with the
+  // seeded database, so they must spell every column — this one as `null`, never a value.
+  'packages/db/src/demo-data.ts',
 ]);
 
 const LEGACY_COLUMN = /\bapprovalStatus\b|\bapproval_status\b/;
@@ -67,6 +70,15 @@ describe('concepts.approval_status is frozen', () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('is only ever NULL in the demo fixtures (a full-row literal, not a value written)', () => {
+    const fixtures = withoutComments(
+      readFileSync(join(REPO_ROOT, 'packages/db/src/demo-data.ts'), 'utf8'),
+    );
+    const mentions = fixtures.match(/approvalStatus:\s*[^,\n]+/g) ?? [];
+    expect(mentions.length).toBeGreaterThan(0);
+    expect(mentions.every((mention) => /approvalStatus:\s*null$/.test(mention))).toBe(true);
   });
 
   it('still exists in the schema, so the data 0064 read is not dropped', () => {
