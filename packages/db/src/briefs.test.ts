@@ -6,6 +6,8 @@ import {
   countLiveBriefsByBrand,
   getBriefById,
   insertBrief,
+  listBriefSequences,
+  peekNextBriefNumber,
   listBriefs,
   updateBrief,
   updateBriefClientStatus,
@@ -846,5 +848,30 @@ describe('countLiveBriefsByBrand — the Internal Queue brand buttons (SMOKE-09)
   it('answers an empty list with an empty map and no query', async () => {
     const { db } = await seeded();
     expect((await countLiveBriefsByBrand(db, [])).size).toBe(0);
+  });
+});
+
+describe('the "New creative" number: the preview reads what the allocator will hand out (SMOKE-15)', () => {
+  it('peekNextBriefNumber counts a soft-deleted brief, exactly as allocateBriefNumber does', async () => {
+    const { db, brandId } = await seeded();
+    const brief = demoBrief();
+    await db.transaction(async (tx) => {
+      await updateBrief(tx, brandId, brief.id, { briefNumber: 1 }, 'seed');
+    });
+    await withBrand(db, brandId).softDelete(creativeBriefs, eq(creativeBriefs.id, brief.id));
+
+    const peeked = await peekNextBriefNumber(db, brandId);
+    const allocated = await db.transaction((tx) => allocateBriefNumber(tx, brandId));
+
+    expect(peeked).toBe(2);
+    expect(allocated).toBe(peeked);
+  });
+
+  it('listBriefSequences carries only the three counter inputs, scoped by brand', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const rows = await listBriefSequences(db, brandId);
+    expect(rows).toHaveLength(demoBriefs.length);
+    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['funnel', 'sequence', 'type']);
+    expect(await listBriefSequences(db, otherBrandId)).toEqual([]);
   });
 });

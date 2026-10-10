@@ -71,9 +71,16 @@ interface NewCreativeDialogProps {
   readonly conceptOptions: readonly ConceptOption[];
   /** The number the preview shows; the server allocates the real one inside the transaction. */
   readonly nextNumber: number;
+  /** Called with the created creative BEFORE the refresh, so the sheet can show it at once (SMOKE-14). */
+  readonly onCreated?: (created: { readonly id: string; readonly name: string }) => void;
 }
 
-export function NewCreativeDialog({ demo, conceptOptions, nextNumber }: NewCreativeDialogProps) {
+export function NewCreativeDialog({
+  demo,
+  conceptOptions,
+  nextNumber,
+  onCreated,
+}: NewCreativeDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<BriefActionResult | null, FormData>(
@@ -91,6 +98,7 @@ export function NewCreativeDialog({ demo, conceptOptions, nextNumber }: NewCreat
 
   useEffect(() => {
     if (state !== null && state.ok) {
+      onCreated?.({ id: state.id, name: state.name });
       setOpen(false);
       setBatch('');
       setConceptChoice(STANDALONE_VALUE);
@@ -98,7 +106,7 @@ export function NewCreativeDialog({ demo, conceptOptions, nextNumber }: NewCreat
       setManualName('');
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, router, onCreated]);
 
   const concept = useMemo(
     () =>

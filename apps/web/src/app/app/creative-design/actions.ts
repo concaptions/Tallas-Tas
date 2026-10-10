@@ -8,7 +8,7 @@ import {
   getBriefById,
   getConceptById,
   insertActivity,
-  listBriefs,
+  listBriefSequences,
   updateBrief,
   updateBriefDimensionsWith,
   type BriefInput,
@@ -615,7 +615,13 @@ export async function createBriefAction(
       // The Oct 5 formula allocates the brand-wide `brief_number` inside a transaction, so a
       // concurrent create cannot read the same `MAX`. The §7 per-funnel-and-format `sequence`
       // still exists on the row, kept consistent for the legacy formula and the Kanban drag.
-      const sequence = nextSequence(await listBriefs(db, brandId), values.funnel, values.type);
+      // Only the counter inputs (SMOKE-14): `listBriefs` read every column of every brief and the
+      // three inherited tables to pick one integer.
+      const sequence = nextSequence(
+        await listBriefSequences(db, brandId),
+        values.funnel,
+        values.type,
+      );
       const base = toInput(values, concept, sequence, internal, client);
 
       // Manual-override toggle: when `nameMode === 'manual'` AND the user typed a non-empty

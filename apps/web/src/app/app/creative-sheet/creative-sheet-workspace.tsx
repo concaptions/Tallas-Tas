@@ -366,6 +366,19 @@ export function CreativeSheetWorkspace({
    * save triggers, and on a refused save, which puts the card back where the server says it is.
    */
   const [moves, setMoves] = useState<Readonly<Record<string, string>>>({});
+  /**
+   * The creative "New creative" just made, shown as a pending row until the refresh brings the
+   * real one (SMOKE-14): the save and the refresh of a 400-row sheet take seconds in production,
+   * and the dialog closing with nothing on screen read as a hang. Cleared when the rows arrive.
+   */
+  const [pending, setPending] = useState<{ readonly id: string; readonly name: string } | null>(
+    null,
+  );
+  useEffect(() => {
+    setPending((current) =>
+      current !== null && items.some(({ item }) => item.id === current.id) ? null : current,
+    );
+  }, [items]);
   const withoutMove = (current: Readonly<Record<string, string>>, id: string) =>
     Object.fromEntries(Object.entries(current).filter(([key]) => key !== id));
   useEffect(() => {
@@ -524,8 +537,20 @@ export function CreativeSheetWorkspace({
   // "New creative" (2026-10-09, audit item 7): the ONE way a creative is added here. It creates
   // the brief — auto-named, numbered under the brand's lock — and, the sheet being a view over the
   // briefs, the creative is on the sheet at once. There is no sheet-only row to create any more.
+  const onCreated = useCallback(
+    (created: { readonly id: string; readonly name: string }) => {
+      setPending(created);
+      select(created.id);
+    },
+    [select],
+  );
   const newCreative = (
-    <NewCreativeDialog demo={demo} conceptOptions={conceptOptions} nextNumber={nextNumber} />
+    <NewCreativeDialog
+      demo={demo}
+      conceptOptions={conceptOptions}
+      nextNumber={nextNumber}
+      onCreated={onCreated}
+    />
   );
 
   return (
@@ -536,6 +561,16 @@ export function CreativeSheetWorkspace({
           <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Sheet</h1>
           {newCreative}
         </div>
+        {pending === null ? null : (
+          <p
+            className="font-mono text-xs text-text2"
+            role="status"
+            data-slot="creative-sheet-pending"
+            data-creative-id={pending.id}
+          >
+            Creating {pending.name}… it opens here the moment the sheet has it.
+          </p>
+        )}
         <p className="text-sm text-text2">
           <span data-slot="creative-sheet-count">{countLabel(items.length, visible.length)}</span> —
           the month&apos;s client-facing sheet, one row per creative, named for you.

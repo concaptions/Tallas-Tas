@@ -387,3 +387,35 @@ export async function countLiveBriefsByBrand(
     .groupBy(creativeBriefs.brandId);
   return new Map(rows.map((row) => [row.brandId, row.total]));
 }
+
+/**
+ * The §7 counter inputs only — funnel, type, sequence — for every live brief of the brand, the
+ * exact rows `nextSequence` in `@tas/domain/creatives` reads. The create path used `listBriefs`
+ * for this (SMOKE-14, 2026-10-10): every column of every brief plus the three inherited tables,
+ * to pick one integer. One narrow scoped statement instead.
+ */
+export async function listBriefSequences(
+  db: Db,
+  brandId: string,
+): Promise<readonly { funnel: string; type: string; sequence: number }[]> {
+  const rows = await withBrand(db, brandId).select(creativeBriefs);
+  return rows.map((row) => ({ funnel: row.funnel, type: row.type, sequence: row.sequence }));
+}
+
+/**
+ * The number `allocateBriefNumber` WOULD hand out next, read without the lock, for the "New
+ * creative" preview. The same rule as the allocator — MAX over every row, soft-deleted included,
+ * because a number once printed is never reused — so the preview and the save agree. The page
+ * used to count only the live rows it had loaded, which is how the 2026-10-10 smoke test
+ * previewed V001 and saved V002: a soft-deleted test creative held number 1 (SMOKE-15).
+ */
+export async function peekNextBriefNumber(db: Db, brandId: string): Promise<number> {
+  const result = await db.execute(
+    sql`SELECT COALESCE(MAX(${creativeBriefs.briefNumber}), 0) + 1 AS next
+        FROM ${creativeBriefs}
+        WHERE ${creativeBriefs.brandId} = ${brandId}`,
+  );
+  const rows = (result as { rows?: readonly { next: unknown }[] }).rows ?? [];
+  const value = Number(rows[0]?.next ?? 1);
+  return Number.isInteger(value) && value > 0 ? value : 1;
+}

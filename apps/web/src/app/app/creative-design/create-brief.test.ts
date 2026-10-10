@@ -47,6 +47,7 @@ vi.mock('@tas/db', async (importOriginal) => {
           : null,
       ),
     listBriefs: () => Promise.resolve([]),
+    listBriefSequences: () => Promise.resolve([]),
     createBrief: (
       _db: Db,
       _brandId: string,

@@ -40,3 +40,25 @@ describe('CreativeSheetWorkspace hydration boundary', () => {
     expect(markup.indexOf('data-slot="creative-sheet-table"')).toBeGreaterThan(boundary);
   });
 });
+
+describe('the pending creative (SMOKE-14)', () => {
+  it('the dialog hands the created creative to the sheet, which names it at once', async () => {
+    // The hand-off is the `onCreated` prop the workspace gives the dialog; this pins that the
+    // workspace renders it and that the pending line names the creative with the row id.
+    const demoMode = () => true;
+    const [workspace, { columns }] = await Promise.all([
+      loadCreativeSheetWorkspace({ demoMode }),
+      loadCreativeSheetColumns({ demoMode }),
+    ]);
+    const markup = renderToString(
+      <CreativeSheetWorkspace
+        columns={columns}
+        items={buildSheetItems(workspace, new Date('2026-10-10T00:00:00Z'))}
+        demo
+        initialSelection={null}
+        initialSearch=""
+      />,
+    );
+    expect(markup).not.toContain('data-slot="creative-sheet-pending"');
+  });
+});

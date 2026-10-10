@@ -54,6 +54,8 @@ export {
   updateBrief,
   updateBriefClientStatus,
   countLiveBriefsByBrand,
+  listBriefSequences,
+  peekNextBriefNumber,
   updateBriefDimensions,
   updateBriefDimensionsWith,
 } from './briefs';
