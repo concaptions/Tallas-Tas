@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyKanbanMoves,
   countLabel,
   INTERNAL_STATUS_OPTIONS,
   internalStatusView,
@@ -157,5 +158,28 @@ describe('the Kanban board', () => {
     expect(isSheetStatusField('editorStage')).toBe(false);
     expect(isSheetStatusField('status')).toBe(true);
     expect(isKanbanField('winning')).toBe(false);
+  });
+});
+
+describe('applyKanbanMoves — a dropped card moves at once (SMOKE-10)', () => {
+  const cards = [
+    { id: 'a', groupValue: 'sent_to_video_editor' },
+    { id: 'b', groupValue: 'approved' },
+  ];
+
+  it('moves the dropped card to its new column before the server has answered', () => {
+    expect(applyKanbanMoves(cards, { a: 'ad_submitted' }).map((c) => [c.id, c.groupValue])).toEqual(
+      [
+        ['a', 'ad_submitted'],
+        ['b', 'approved'],
+      ],
+    );
+  });
+
+  it('leaves the cards untouched with no pending drop, and never mutates its input', () => {
+    const before = cards.map((c) => ({ ...c }));
+    expect(applyKanbanMoves(cards, {})).toEqual(cards);
+    expect(applyKanbanMoves(cards, { a: 'ad_submitted' })).not.toBe(cards);
+    expect(cards).toEqual(before);
   });
 });

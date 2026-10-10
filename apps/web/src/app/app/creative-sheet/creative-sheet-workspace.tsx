@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useMemo, useState, useTransition } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
@@ -25,6 +25,7 @@ import { CreativeSheetPanel } from './creative-sheet-panel';
 import { editorBoardItems, offBoardLabel, type EditorBoardBrief } from './editor-board';
 import { NewCreativeDialog, type ConceptOption } from './new-creative-dialog';
 import {
+  applyKanbanMoves,
   countLabel,
   EM_DASH,
   internalStatusView,
@@ -359,6 +360,17 @@ export function CreativeSheetWorkspace({
   const [activeView, setActiveView] = useState<ViewType>(initialView);
   const [kanbanField, setKanbanField] = useState<CreativeSheetKanbanField>(initialKanbanField);
   const [, startTransition] = useTransition();
+  /**
+   * Drops the server has not confirmed yet, card id → column (SMOKE-10). Applied to the cards
+   * below so a drop moves the card at once; cleared when fresh rows arrive from the refresh the
+   * save triggers, and on a refused save, which puts the card back where the server says it is.
+   */
+  const [moves, setMoves] = useState<Readonly<Record<string, string>>>({});
+  const withoutMove = (current: Readonly<Record<string, string>>, id: string) =>
+    Object.fromEntries(Object.entries(current).filter(([key]) => key !== id));
+  useEffect(() => {
+    setMoves({});
+  }, [items, boardBriefs]);
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -411,6 +423,10 @@ export function CreativeSheetWorkspace({
           }),
     [visible, kanbanField],
   );
+  const shownKanbanItems = useMemo(
+    () => applyKanbanMoves(kanbanItems, moves),
+    [kanbanItems, moves],
+  );
 
   // The editor board's two writes (Start, a drop) each report their refusal under the board.
   const [startError, setStartError] = useState<string | null>(null);
@@ -459,23 +475,31 @@ export function CreativeSheetWorkspace({
         // which validates the stage again — a Server Action is a POST endpoint.
         if (!(EDITOR_STAGE_KEYS as readonly string[]).includes(newValue)) return;
         setMoveError(null);
+        setMoves((current) => ({ ...current, [itemId]: newValue }));
         startTransition(async () => {
           const result = await moveBriefStageAction(itemId, newValue);
           if (result.ok) {
             router.refresh();
           } else {
+            setMoves((current) => withoutMove(current, itemId));
             setMoveError(result.error);
           }
         });
         return;
       }
+      // The card moves NOW; the write and the refresh follow in the background (SMOKE-10).
+      setMoves((current) => ({ ...current, [itemId]: newValue }));
       startTransition(() => {
         const formData = new FormData();
         formData.set('id', itemId);
         formData.set('field', kanbanField);
         formData.set('value', newValue);
         void moveCreativeSheetItemAction(null, formData).then((result) => {
-          if (result.ok) router.refresh();
+          if (result.ok) {
+            router.refresh();
+          } else {
+            setMoves((current) => withoutMove(current, itemId));
+          }
         });
       });
     },
@@ -584,7 +608,7 @@ export function CreativeSheetWorkspace({
           {activeView === 'kanban' ? (
             <div className="flex flex-col gap-2">
               <KanbanBoard
-                items={editorBoard ? board.items : kanbanItems}
+                items={applyKanbanMoves(editorBoard ? board.items : shownKanbanItems, moves)}
                 columns={kanbanColumns.map((column) => column.key)}
                 columnLabels={kanbanLabels}
                 onMove={handleKanbanMove}

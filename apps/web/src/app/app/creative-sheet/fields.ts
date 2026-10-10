@@ -274,3 +274,20 @@ export function isSheetStatusField(value: string): value is CreativeSheetStatusF
 export function isKanbanField(value: string): value is CreativeSheetKanbanField {
   return isSheetStatusField(value) || value === 'editorStage';
 }
+
+/**
+ * The board's cards with the drops the server has not confirmed yet applied (SMOKE-10,
+ * 2026-10-10): a card dropped in another column moves THERE at once; the status write and the
+ * `router.refresh()` that follows run in the background, and the override is dropped when fresh
+ * rows arrive. Before this the board re-read every card from props, so a dropped card snapped back
+ * to its old column and stayed there until the refresh landed — ten seconds on the production sheet.
+ */
+export function applyKanbanMoves<Card extends { readonly id: string; readonly groupValue: string }>(
+  cards: readonly Card[],
+  moves: Readonly<Record<string, string>>,
+): readonly Card[] {
+  return cards.map((card) => {
+    const moved = moves[card.id];
+    return moved === undefined || moved === card.groupValue ? card : { ...card, groupValue: moved };
+  });
+}
