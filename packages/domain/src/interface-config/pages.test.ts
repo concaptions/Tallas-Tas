@@ -4,6 +4,7 @@ import { CLIENT_TAB_KEYS } from './custom-pages';
 import {
   STANDARD_PAGE_SLUGS,
   interfacePageKeyForSlug,
+  isQueuePageSlug,
   isStandardPageSlug,
   movePage,
 } from './pages';
@@ -25,6 +26,15 @@ describe('the standard page set', () => {
     ]);
     expect(interfacePageKeyForSlug('partnership-ads')).toBe('partnership');
     expect(interfacePageKeyForSlug('my-custom-view')).toBeNull();
+  });
+});
+
+describe('the queue page slugs', () => {
+  it('are the two queue boards and nothing a client sees (SMOKE-20)', () => {
+    expect(isQueuePageSlug('internal-queue')).toBe(true);
+    expect(isQueuePageSlug('client-queue')).toBe(true);
+    expect(isQueuePageSlug('concepts')).toBe(false);
+    expect(isQueuePageSlug('partnership-ads')).toBe(false);
   });
 });
 

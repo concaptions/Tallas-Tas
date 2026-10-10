@@ -18,6 +18,17 @@ export function isStandardPageSlug(value: string): value is StandardPageSlug {
   return (STANDARD_PAGE_SLUGS as readonly string[]).includes(value);
 }
 
+/**
+ * The two queue boards' page rows (`/app/queue/internal`, `/app/queue/client`): internal tooling
+ * that was once registered as custom pages, never a client page. The Pages list hides them so an
+ * Admin cannot switch one on for a client by accident (SMOKE-20); B6 removes the rows and routes.
+ */
+export const QUEUE_PAGE_SLUGS = ['internal-queue', 'client-queue'] as const;
+
+export function isQueuePageSlug(value: string): boolean {
+  return (QUEUE_PAGE_SLUGS as readonly string[]).includes(value);
+}
+
 export function isClientTabSlug(value: string): value is ClientTabKey {
   return (CLIENT_TAB_KEYS as readonly string[]).includes(value);
 }

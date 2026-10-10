@@ -28,6 +28,38 @@ describe('pageListItems', () => {
     ]);
   });
 
+  it('never lists the two queue boards: internal tooling, not client pages (SMOKE-20)', () => {
+    const items = pageListItems(
+      [
+        row({ id: 't1' }),
+        row({
+          id: 'q1',
+          slug: 'internal-queue',
+          title: 'Internal Queue',
+          pageKind: 'custom',
+          isVisible: false,
+        }),
+        row({
+          id: 'q2',
+          slug: 'client-queue',
+          title: 'Client Queue',
+          pageKind: 'custom',
+          isVisible: false,
+        }),
+      ],
+      [
+        row({
+          id: 'b2',
+          brandId: 'brand',
+          slug: 'client-queue',
+          pageKind: 'custom',
+          isVisible: true,
+        }),
+      ],
+    );
+    expect(items.map((i) => i.slug)).toEqual(['concepts']);
+  });
+
   it('falls back to the five standard tabs, inherited and visible, when no standard row exists', () => {
     const items = pageListItems([], []);
     expect(items.map((i) => [i.slug, i.kind, i.isVisible, i.overridden])).toEqual([

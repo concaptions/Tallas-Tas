@@ -1,4 +1,10 @@
-import { STANDARD_PAGE_SLUGS, clientTabLabel, isClientTabSlug, type PageKind } from '@tas/domain';
+import {
+  STANDARD_PAGE_SLUGS,
+  clientTabLabel,
+  isClientTabSlug,
+  isQueuePageSlug,
+  type PageKind,
+} from '@tas/domain';
 
 import type { PageListItem } from './pages-section';
 
@@ -16,7 +22,9 @@ interface PageRowLike {
  * The Pages section's list from the brand's rows: the template's and the brand's own, the brand
  * winning by slug, in order; `overridden` when the brand has its own row for the slug. With no
  * standard row at all (demo mode, or a database before migration 0063) the five standard tabs are
- * listed as inherited and visible, which is exactly what the portal shows in that state.
+ * listed as inherited and visible, which is exactly what the portal shows in that state. The two
+ * queue boards' rows are never listed (SMOKE-20): they are not client pages, so there is no switch
+ * to flip.
  */
 export function pageListItems(
   templateRows: readonly PageRowLike[],
@@ -26,6 +34,7 @@ export function pageListItems(
   for (const row of brandRows) bySlug.set(row.slug, row);
   const ownSlugs = new Set(brandRows.map((row) => row.slug));
   const items = [...bySlug.values()]
+    .filter((row) => !isQueuePageSlug(row.slug))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title))
     .map((row): PageListItem => ({
       id: row.id,
