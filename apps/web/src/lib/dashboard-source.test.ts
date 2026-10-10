@@ -173,9 +173,9 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
         brief({ internalStatus: 'launched' }),
       ],
       concepts: [
-        { id: 'c1', approvalStatus: null },
-        { id: 'c2', approvalStatus: null },
-        { id: 'c3', approvalStatus: null },
+        { id: 'c1', clientApprovalStatus: null },
+        { id: 'c2', clientApprovalStatus: null },
+        { id: 'c3', clientApprovalStatus: null },
       ],
       copy: [{ status: 'pending_for_client_review' }, { status: 'approved' }],
       creators: [{ clientStatus: 'draft' }],
@@ -240,10 +240,12 @@ describe('overview metric cards (TASK 6)', () => {
       // Internal Revisions must not count it.
       brief({ internalStatus: 'revisions_submitted', clientStatus: 'approved' }),
     ],
+    // Concepts Pending reads the ONE client vocabulary on client_approval_status (SMOKE-18): unset
+    // and pending_for_approval count, a decided concept does not.
     concepts: [
-      { id: 'c1', approvalStatus: null },
-      { id: 'c2', approvalStatus: 'pending_client' },
-      { id: 'c3', approvalStatus: 'approved' },
+      { id: 'c1', clientApprovalStatus: null },
+      { id: 'c2', clientApprovalStatus: 'pending_for_approval' },
+      { id: 'c3', clientApprovalStatus: 'approved' },
     ],
     copy: [],
     creators: [

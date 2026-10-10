@@ -45,7 +45,10 @@ export interface RoleDashboard {
  */
 export interface DashboardData {
   readonly briefs: readonly BriefListRow[];
-  readonly concepts: readonly { readonly id: string; readonly approvalStatus: string | null }[];
+  readonly concepts: readonly {
+    readonly id: string;
+    readonly clientApprovalStatus: string | null;
+  }[];
   readonly copy: readonly { readonly status: string }[];
   /** The creator's CLIENT-facing track (`client_status`), the one 'Creators Pending' counts. */
   readonly creators: readonly { readonly clientStatus: string | null }[];
@@ -259,8 +262,10 @@ function allMetricCards(data: MetricsData): MetricCard[] {
       key: 'concepts_pending',
       emoji: '💡',
       label: 'Concepts Pending',
+      // The client's approval in the ONE client vocabulary (SMOKE-18, 0064): unset or still
+      // pending counts; the legacy approval_status is frozen and read nowhere.
       count: concepts.filter(
-        (c) => c.approvalStatus === null || c.approvalStatus === 'pending_client',
+        (c) => c.clientApprovalStatus === null || c.clientApprovalStatus === 'pending_for_approval',
       ).length,
       href: conceptsPath,
     },
