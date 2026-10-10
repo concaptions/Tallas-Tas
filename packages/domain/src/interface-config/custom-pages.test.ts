@@ -253,3 +253,12 @@ describe('intersectCustomPageColumns', () => {
     expect(result[0]?.displayOrder).toBe(1);
   });
 });
+
+describe('rowMatchesFilter on a boolean column (the Partnership Ads module preset, B5)', () => {
+  it("reads a boolean cell as 'true' / 'false', so `for_partnership_ads is true` keeps only partners", () => {
+    const filter = { column: 'for_partnership_ads', op: 'is' as const, value: 'true' };
+    expect(rowMatchesFilter({ for_partnership_ads: true }, filter)).toBe(true);
+    expect(rowMatchesFilter({ for_partnership_ads: false }, filter)).toBe(false);
+    expect(rowMatchesFilter({ for_partnership_ads: null }, filter)).toBe(false);
+  });
+});

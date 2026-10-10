@@ -28,7 +28,8 @@
     "airtable-enumerate-creators": "tsx src/scripts/airtable-enumerate-creators.ts",
     "import-creators-from-airtable": "tsx src/scripts/import-creators-from-airtable.ts",
     "backfill-ig-profile-pics": "tsx src/scripts/backfill-ig-profile-pics.ts",
-    "backfill-registry-from-airtable": "tsx src/scripts/backfill-registry-from-airtable.ts"
+    "backfill-registry-from-airtable": "tsx src/scripts/backfill-registry-from-airtable.ts",
+    "seed-partnership-page": "tsx src/scripts/seed-partnership-page.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1147.0",
