@@ -5,7 +5,10 @@ import type { ReactNode } from 'react';
 
 import { clerkPublishableKey } from '@/lib/clerk-keys';
 import { appPath, signInPath, signUpPath } from '@/lib/routes';
+import { HYDRATION_REPLAY_BOOT_SCRIPT } from '@/lib/hydration-replay';
 import { DEFAULT_THEME, THEME_BOOT_SCRIPT } from '@/lib/theme';
+
+import { HydrationReplay } from '@/components/shell/hydration-replay';
 
 import './globals.css';
 
@@ -43,8 +46,13 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <head>
         {/* Applies the remembered theme before the first paint, so light never flashes dark. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        {/* Records a press that lands before hydration; HydrationReplay replays it (SMOKE-13). */}
+        <script dangerouslySetInnerHTML={{ __html: HYDRATION_REPLAY_BOOT_SCRIPT }} />
       </head>
-      <body className="min-h-screen bg-bg text-text font-sans antialiased">{children}</body>
+      <body className="min-h-screen bg-bg text-text font-sans antialiased">
+        <HydrationReplay />
+        {children}
+      </body>
     </html>
   );
 
