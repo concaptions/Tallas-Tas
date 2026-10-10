@@ -367,7 +367,7 @@ export function CopywritingWorkspace({
   const rows = rowsWithPending(pending, visible);
   // The panel opens on the pending copy at the press (SMOKE-25), read-only until its id is real.
   const open = openCopy(items, pending, selection);
-  const creating = open !== null && isPendingCopyId(open.id);
+  const panelCreating = open !== null && isPendingCopyId(open.id);
 
   const kanbanItems: KanbanItem[] = useMemo(
     () =>
@@ -548,7 +548,7 @@ export function CopywritingWorkspace({
           // row, so the panel keeps what was typed while the id is still provisional.
           key={`copy-${String(open.copyNumber)}`}
           item={open}
-          creating={creating}
+          creating={panelCreating}
           creatives={creatives}
           concepts={concepts}
           collections={collections}
