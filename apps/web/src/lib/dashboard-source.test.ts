@@ -4,6 +4,7 @@ import {
   agencies,
   brandAssignments,
   brands,
+  concepts,
   demoBriefs,
   demoConcepts,
   demoCreators,
@@ -440,6 +441,41 @@ describe('the cross-client panels (AI-09)', () => {
       const panel = panels.find((candidate) => candidate.brandName === name);
       expect(total(panel?.metrics), name).toBe(0);
     }
+  });
+
+  /**
+   * Item 14 (2026-10-11): "Concepts Pending" is the brand's OWN live rows whose client approval is
+   * unset or still pending — the DB truth per brand. The 17 the re-test expected mixed Gratsi's
+   * 13 with four other brands' NULLs (apply64 counted every brand); a soft-deleted row never counts.
+   */
+  it('Concepts Pending counts the brand’s own live unset-or-pending concepts, nothing else', async () => {
+    const { db, deps } = await seededLive('user_seed_csm');
+    const gratsi = (await db.select().from(brands)).find((brand) => brand.name === 'Gratsi');
+    if (gratsi === undefined) throw new Error('the seed has no Gratsi brand');
+    const brandId = gratsi.id;
+    await db.insert(concepts).values([
+      { brandId, name: 'P1', clientApprovalStatus: 'pending_for_approval' },
+      { brandId, name: 'P2', clientApprovalStatus: 'pending_for_approval' },
+      { brandId, name: 'N1', clientApprovalStatus: null },
+      { brandId, name: 'A1', clientApprovalStatus: 'approved' },
+      { brandId, name: 'D1', clientApprovalStatus: 'disapproved' },
+      { brandId, name: 'gone', clientApprovalStatus: null, deletedAt: new Date() },
+    ]);
+
+    const panels = await loadActorBrandPanels('csm', deps);
+    const pending = (name: string) =>
+      panels
+        .find((panel) => panel.brandName === name)
+        ?.metrics.find((card) => card.key === 'concepts_pending')?.count;
+    expect(pending('Gratsi')).toBe(3);
+    // Niagara's own count is untouched by Gratsi's rows: the demo fixtures, as before.
+    expect(pending('Niagara Sleep Solutions')).toBe(
+      buildOverviewMetrics('csm', {
+        briefs: demoBriefs.map(toBriefRow),
+        concepts: demoConcepts,
+        creators: demoCreators,
+      }).find((card) => card.key === 'concepts_pending')?.count,
+    );
   });
 
   it('threads an explicit brand list through, in its order, scoped to the given role', async () => {
