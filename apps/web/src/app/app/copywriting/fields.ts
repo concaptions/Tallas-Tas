@@ -1,15 +1,25 @@
 import {
   COPY_CTAS,
+  COPY_CTA_INITIAL,
   COPY_FIELD_LABELS,
   COPY_FUNNELS,
   COPY_LIMITS,
   copyLength,
   copyLimitFor,
+  copyTitle,
+  nextCopyNumber,
   overBy,
   type CopyDraftField,
   type CopyLimitField,
 } from '@tas/domain/copy';
-import { COPY_STATUS, type ChipTone } from '@tas/domain/state';
+import {
+  COPY_STATUS,
+  COPY_STATUS_INITIAL,
+  copyStatusLabel,
+  copyStatusTone,
+  type ChipTone,
+} from '@tas/domain/state';
+import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { collectionsPath } from '@/lib/routes';
 
 /**
@@ -516,4 +526,85 @@ export function campaignLinks(
     links.push({ id, label: name, href: null });
   }
   return links;
+}
+
+/**
+ * The pending copy row (SMOKE-19, the SMOKE-17 pattern): "New copy" shows the row the moment the
+ * button is pressed — numbered by the allocator's own rule over the rows on screen, in the initial
+ * state the server will store — under a provisional id until the server answers, then under the
+ * real id so the panel opens on it before the refreshed rows arrive, and gone once they carry it.
+ * The reducers are pure so the sequence is tested without a browser.
+ */
+export const PENDING_COPY_ID_PREFIX = 'pending:';
+
+export function isPendingCopyId(id: string): boolean {
+  return id.startsWith(PENDING_COPY_ID_PREFIX);
+}
+
+/** The row the moment "New copy" is PRESSED — before the server has answered. */
+export function pendingCopyOnPress(existing: readonly CopyItem[], now: Date): CopyItem {
+  const copyNumber = nextCopyNumber(existing.map((item) => item.copyNumber));
+  return {
+    id: `${PENDING_COPY_ID_PREFIX}${String(copyNumber)}`,
+    copyNumber,
+    title: copyTitle(copyNumber),
+    headline: null,
+    primaryCopy: null,
+    linkDescription: null,
+    cta: COPY_CTA_INITIAL,
+    status: COPY_STATUS_INITIAL,
+    statusLabel: copyStatusLabel(COPY_STATUS_INITIAL),
+    statusTone: copyStatusTone(COPY_STATUS_INITIAL),
+    creativeBriefId: null,
+    creativeName: null,
+    conceptId: null,
+    conceptName: null,
+    creativeHref: null,
+    funnel: null,
+    used: false,
+    winning: false,
+    metaRating: null,
+    spellingFeedback: null,
+    clientComment: null,
+    clientApprovalStatus: null,
+    copyTypeIds: [],
+    campaigns: [],
+    collections: [],
+    linkedCollectionId: null,
+    angleName: null,
+    productId: null,
+    productName: null,
+    productLink: null,
+    offer: null,
+    campaignNames: null,
+    campaignCodes: null,
+    collectionUrls: null,
+    collectionProducts: null,
+    copyTypeNames: [],
+    createdBy: null,
+    updatedLabel: relativeTime(now, now),
+    updatedTitle: absoluteTime(now),
+  };
+}
+
+/** The row once the server answered: the real id, everything else as pressed. */
+export function pendingCopyOnCreated(pending: CopyItem, id: string): CopyItem {
+  return { ...pending, id };
+}
+
+/** The row once rows arrived: gone when the rows carry its id, kept otherwise. */
+export function pendingCopyAfterRows(
+  pending: CopyItem | null,
+  rows: readonly CopyItem[],
+): CopyItem | null {
+  return pending !== null && rows.some((row) => row.id === pending.id) ? null : pending;
+}
+
+/** What the grid renders: the pending row first, until the rows carry it. */
+export function rowsWithPending(
+  pending: CopyItem | null,
+  rows: readonly CopyItem[],
+): readonly CopyItem[] {
+  const kept = pendingCopyAfterRows(pending, rows);
+  return kept === null ? rows : [kept, ...rows];
 }

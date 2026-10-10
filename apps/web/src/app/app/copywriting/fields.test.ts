@@ -1,6 +1,11 @@
 import { demoCollections } from '@tas/db';
-import { COPY_CTAS, COPY_LIMITS } from '@tas/domain/copy';
-import { COPY_STATUS, copyStatusLabel, copyStatusTone } from '@tas/domain/state';
+import { COPY_CTAS, COPY_CTA_INITIAL, COPY_LIMITS, copyTitle } from '@tas/domain/copy';
+import {
+  COPY_STATUS,
+  COPY_STATUS_INITIAL,
+  copyStatusLabel,
+  copyStatusTone,
+} from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import { collectionsPath } from '@/lib/routes';
@@ -22,6 +27,12 @@ import {
   counterTone,
   filteredCopyCountLabel,
   matchesQuery,
+  PENDING_COPY_ID_PREFIX,
+  isPendingCopyId,
+  pendingCopyAfterRows,
+  pendingCopyOnCreated,
+  pendingCopyOnPress,
+  rowsWithPending,
   type CopyItem,
 } from './fields';
 
@@ -312,5 +323,43 @@ describe('matchesQuery', () => {
 
   it('matches nothing it does not contain', () => {
     expect(matchesQuery(item(), 'carousel')).toBe(false);
+  });
+});
+
+describe('the pending copy row (SMOKE-19)', () => {
+  const existing = [{ copyNumber: 4 }, { copyNumber: 7 }] as unknown as readonly CopyItem[];
+
+  it('is numbered one past the rows on screen, under a provisional id, in the initial state', () => {
+    const pending = pendingCopyOnPress(existing, new Date());
+    expect(pending.id).toBe(`${PENDING_COPY_ID_PREFIX}8`);
+    expect(pending.copyNumber).toBe(8);
+    expect(pending.title).toBe(copyTitle(8));
+    expect(pending.status).toBe(COPY_STATUS_INITIAL);
+    expect(pending.statusLabel).toBe(copyStatusLabel(COPY_STATUS_INITIAL));
+    expect(pending.cta).toBe(COPY_CTA_INITIAL);
+    expect(isPendingCopyId(pending.id)).toBe(true);
+  });
+
+  it('starts at 1 on an empty library', () => {
+    expect(pendingCopyOnPress([], new Date()).copyNumber).toBe(1);
+  });
+
+  it('takes the real id once the server answered, keeping everything else', () => {
+    const pending = pendingCopyOnPress(existing, new Date());
+    const created = pendingCopyOnCreated(pending, 'real-id');
+    expect(created).toEqual({ ...pending, id: 'real-id' });
+    expect(isPendingCopyId(created.id)).toBe(false);
+  });
+
+  it('is gone once the rows carry its id, kept otherwise, and leads the rows until then', () => {
+    const created = pendingCopyOnCreated(pendingCopyOnPress(existing, new Date()), 'real-id');
+    const without = [{ id: 'a' }] as unknown as readonly CopyItem[];
+    const withIt = [{ id: 'a' }, { id: 'real-id' }] as unknown as readonly CopyItem[];
+    expect(pendingCopyAfterRows(created, without)).toBe(created);
+    expect(pendingCopyAfterRows(created, withIt)).toBeNull();
+    expect(pendingCopyAfterRows(null, without)).toBeNull();
+    expect(rowsWithPending(created, without).map((row) => row.id)).toEqual(['real-id', 'a']);
+    expect(rowsWithPending(created, withIt)).toBe(withIt);
+    expect(rowsWithPending(null, without)).toBe(without);
   });
 });

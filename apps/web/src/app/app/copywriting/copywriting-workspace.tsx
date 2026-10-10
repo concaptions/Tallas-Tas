@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -37,7 +37,12 @@ import {
   booleanChip,
   copyCountLabel,
   filteredCopyCountLabel,
+  isPendingCopyId,
   matchesQuery,
+  pendingCopyAfterRows,
+  pendingCopyOnCreated,
+  pendingCopyOnPress,
+  rowsWithPending,
   truncate,
   type CollectionChoice,
   type ConceptChoice,
@@ -351,7 +356,17 @@ export function CopywritingWorkspace({
   );
 
   const narrowed = visible.length !== items.length;
-  const open = items.find((item) => item.id === selection) ?? null;
+
+  // The pending row (SMOKE-19): on screen from the press, under the real id from the server's
+  // answer, gone once the refreshed rows carry it. The panel opens on it as soon as the id is real.
+  const [pending, setPending] = useState<CopyItem | null>(null);
+  useEffect(() => {
+    setPending((current) => pendingCopyAfterRows(current, items));
+  }, [items]);
+  const rows = rowsWithPending(pending, visible);
+  const open =
+    items.find((item) => item.id === selection) ??
+    (pending !== null && pending.id === selection && !isPendingCopyId(pending.id) ? pending : null);
 
   const kanbanItems: KanbanItem[] = useMemo(
     () =>
@@ -382,20 +397,25 @@ export function CopywritingWorkspace({
 
   /**
    * "New copy" creates a blank row and opens it (SMOKE-11). Demo mode disables it with the
-   * standard reason; live mode is live — the row is created through `createCopyAction`, the
-   * panel opens on it, and the list refreshes behind.
+   * standard reason; live mode is live — the row is on screen from the press (SMOKE-19), created
+   * through `createCopyAction`, the panel opens on it the moment the id is real, and the list
+   * refreshes behind.
    */
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const createCopy = () => {
     setCreateError(null);
     setCreating(true);
+    const pressed = pendingCopyOnPress(items, new Date());
+    setPending(pressed);
     void createCopyAction().then((result) => {
       setCreating(false);
       if (result.ok) {
+        setPending(pendingCopyOnCreated(pressed, result.id));
         select(result.id);
         router.refresh();
       } else {
+        setPending(null);
         setCreateError(result.error);
       }
     });
@@ -483,10 +503,13 @@ export function CopywritingWorkspace({
           <AirtableGrid
             tableKey="copywriting"
             columns={grid.columns}
-            rows={visible}
+            rows={rows}
             rowId={(item) => item.id}
             rowLabel={(item) => item.title}
-            rowAttributes={(item) => ({ 'data-copy-id': item.id })}
+            rowAttributes={(item) => ({
+              'data-copy-id': item.id,
+              'data-copy-pending': pending !== null && item.id === pending.id ? 'true' : undefined,
+            })}
             selectedId={selection}
             onRowClick={(item) => {
               select(item.id);
