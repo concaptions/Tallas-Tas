@@ -9,6 +9,8 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import {
+  pendingAfterRows,
+  pendingOnSubmit,
   applyKanbanMoves,
   countLabel,
   INTERNAL_STATUS_OPTIONS,
@@ -181,5 +183,21 @@ describe('applyKanbanMoves — a dropped card moves at once (SMOKE-10)', () => {
     expect(applyKanbanMoves(cards, {})).toEqual(cards);
     expect(applyKanbanMoves(cards, { a: 'ad_submitted' })).not.toBe(cards);
     expect(cards).toEqual(before);
+  });
+});
+
+describe('the pending creative (SMOKE-17): shown at submit, replaced by the real row', () => {
+  it('is named at SUBMIT time from the preview, under a provisional id', () => {
+    expect(pendingOnSubmit('TAS-TOF-V008-B1')).toEqual({
+      id: 'pending:TAS-TOF-V008-B1',
+      name: 'TAS-TOF-V008-B1',
+    });
+  });
+
+  it('is dropped once the rows carry its id, and kept while they do not', () => {
+    const real = { id: 'real-1', name: 'TAS-TOF-V008-B1' };
+    expect(pendingAfterRows(real, ['other'])).toEqual(real);
+    expect(pendingAfterRows(real, ['other', 'real-1'])).toBeNull();
+    expect(pendingAfterRows(null, ['real-1'])).toBeNull();
   });
 });

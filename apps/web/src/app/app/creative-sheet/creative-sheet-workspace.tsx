@@ -25,6 +25,9 @@ import { CreativeSheetPanel } from './creative-sheet-panel';
 import { editorBoardItems, offBoardLabel, type EditorBoardBrief } from './editor-board';
 import { NewCreativeDialog, type ConceptOption } from './new-creative-dialog';
 import {
+  type PendingCreative,
+  pendingOnSubmit,
+  pendingAfterRows,
   applyKanbanMoves,
   countLabel,
   EM_DASH,
@@ -366,24 +369,25 @@ export function CreativeSheetWorkspace({
    * save triggers, and on a refused save, which puts the card back where the server says it is.
    */
   const [moves, setMoves] = useState<Readonly<Record<string, string>>>({});
-  /**
-   * The creative "New creative" just made, shown as a pending row until the refresh brings the
-   * real one (SMOKE-14): the save and the refresh of a 400-row sheet take seconds in production,
-   * and the dialog closing with nothing on screen read as a hang. Cleared when the rows arrive.
-   */
-  const [pending, setPending] = useState<{ readonly id: string; readonly name: string } | null>(
-    null,
-  );
-  useEffect(() => {
-    setPending((current) =>
-      current !== null && items.some(({ item }) => item.id === current.id) ? null : current,
-    );
-  }, [items]);
   const withoutMove = (current: Readonly<Record<string, string>>, id: string) =>
     Object.fromEntries(Object.entries(current).filter(([key]) => key !== id));
   useEffect(() => {
     setMoves({});
   }, [items, boardBriefs]);
+  /**
+   * The creative "New creative" just made, shown as a pending row until the refresh brings the
+   * real one (SMOKE-14): the save and the refresh of a 400-row sheet take seconds in production,
+   * and the dialog closing with nothing on screen read as a hang. Cleared when the rows arrive.
+   */
+  const [pending, setPending] = useState<PendingCreative | null>(null);
+  useEffect(() => {
+    setPending((current) =>
+      pendingAfterRows(
+        current,
+        items.map(({ item }) => item.id),
+      ),
+    );
+  }, [items]);
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -537,19 +541,27 @@ export function CreativeSheetWorkspace({
   // "New creative" (2026-10-09, audit item 7): the ONE way a creative is added here. It creates
   // the brief — auto-named, numbered under the brand's lock — and, the sheet being a view over the
   // briefs, the creative is on the sheet at once. There is no sheet-only row to create any more.
+  const onPending = useCallback((previewName: string) => {
+    setPending(pendingOnSubmit(previewName));
+  }, []);
   const onCreated = useCallback(
-    (created: { readonly id: string; readonly name: string }) => {
+    (created: PendingCreative) => {
       setPending(created);
       select(created.id);
     },
     [select],
   );
+  const onFailed = useCallback(() => {
+    setPending(null);
+  }, []);
   const newCreative = (
     <NewCreativeDialog
       demo={demo}
       conceptOptions={conceptOptions}
       nextNumber={nextNumber}
+      onPending={onPending}
       onCreated={onCreated}
+      onFailed={onFailed}
     />
   );
 

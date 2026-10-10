@@ -71,15 +71,21 @@ interface NewCreativeDialogProps {
   readonly conceptOptions: readonly ConceptOption[];
   /** The number the preview shows; the server allocates the real one inside the transaction. */
   readonly nextNumber: number;
-  /** Called with the created creative BEFORE the refresh, so the sheet can show it at once (SMOKE-14). */
+  /** Called the moment the form is SUBMITTED, with the previewed name (SMOKE-17): the sheet shows it at once. */
+  readonly onPending?: (previewName: string) => void;
+  /** Called with the created creative BEFORE the refresh, so the sheet can swap in the real id (SMOKE-14). */
   readonly onCreated?: (created: { readonly id: string; readonly name: string }) => void;
+  /** Called when the server refused, so the sheet drops the pending line. */
+  readonly onFailed?: () => void;
 }
 
 export function NewCreativeDialog({
   demo,
   conceptOptions,
   nextNumber,
+  onPending,
   onCreated,
+  onFailed,
 }: NewCreativeDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -97,6 +103,9 @@ export function NewCreativeDialog({
   const [manualName, setManualName] = useState('');
 
   useEffect(() => {
+    if (state !== null && !state.ok) {
+      onFailed?.();
+    }
     if (state !== null && state.ok) {
       onCreated?.({ id: state.id, name: state.name });
       setOpen(false);
@@ -106,7 +115,7 @@ export function NewCreativeDialog({
       setManualName('');
       router.refresh();
     }
-  }, [state, router, onCreated]);
+  }, [state, router, onCreated, onFailed]);
 
   const concept = useMemo(
     () =>
@@ -144,7 +153,14 @@ export function NewCreativeDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={formAction} className="flex flex-col gap-4">
+        <form
+          action={formAction}
+          className="flex flex-col gap-4"
+          onSubmit={() => {
+            // The sheet shows the creative NOW (SMOKE-17); the action and the refresh follow.
+            onPending?.(preview);
+          }}
+        >
           <input type="hidden" name="version" value="1" />
           <input type="hidden" name="nameMode" value={nameMode} />
           {nameMode === 'manual' ? (

@@ -291,3 +291,30 @@ export function applyKanbanMoves<Card extends { readonly id: string; readonly gr
     return moved === undefined || moved === card.groupValue ? card : { ...card, groupValue: moved };
   });
 }
+
+/** A creative the dialog has submitted and the sheet does not hold yet (SMOKE-14 / SMOKE-17). */
+export interface PendingCreative {
+  /** A provisional id until the server answers, then the real one. */
+  readonly id: string;
+  readonly name: string;
+}
+
+export const PENDING_ID_PREFIX = 'pending:';
+
+/** The pending creative the moment the form is SUBMITTED — before the server has answered. */
+export function pendingOnSubmit(previewName: string): PendingCreative {
+  return { id: `${PENDING_ID_PREFIX}${previewName}`, name: previewName };
+}
+
+/** The pending creative once the server answered: the real id and the stored name. */
+export function pendingOnCreated(created: PendingCreative): PendingCreative {
+  return created;
+}
+
+/** The pending creative once rows arrived: gone when the rows carry its id, kept otherwise. */
+export function pendingAfterRows(
+  pending: PendingCreative | null,
+  rowIds: readonly string[],
+): PendingCreative | null {
+  return pending !== null && rowIds.includes(pending.id) ? null : pending;
+}
