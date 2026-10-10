@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { pageListItems } from './page-list-items';
+import { customPageRows, pageListItems } from './page-list-items';
 
 const row = (over: Partial<Parameters<typeof pageListItems>[0][number]>) => ({
   id: 'x',
@@ -69,5 +69,31 @@ describe('pageListItems', () => {
       ['copywriting', 'standard', true, false],
       ['calendar', 'standard', true, false],
     ]);
+  });
+});
+
+describe('customPageRows (SMOKE-26)', () => {
+  it('keeps visible custom and module pages; drops hidden rows, the queue boards and standard tabs', () => {
+    const rows = [
+      row({ id: 't1' }),
+      row({ id: 'w', slug: 'winners', title: 'Winners', pageKind: 'custom', isVisible: true }),
+      row({ id: 'h', slug: 'archive', title: 'Archive', pageKind: 'custom', isVisible: false }),
+      row({ id: 'm', slug: 'partnership-ads', title: 'Partnership', pageKind: 'module' }),
+      row({
+        id: 'q',
+        slug: 'internal-queue',
+        title: 'Internal Queue',
+        pageKind: 'custom',
+        isVisible: false,
+      }),
+      row({
+        id: 'q2',
+        slug: 'client-queue',
+        title: 'Client Queue',
+        pageKind: 'custom',
+        isVisible: true,
+      }),
+    ];
+    expect(customPageRows(rows).map((r) => r.slug)).toEqual(['winners', 'partnership-ads']);
   });
 });

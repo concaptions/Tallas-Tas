@@ -57,3 +57,17 @@ export function pageListItems(
   }));
   return [...fallback, ...items];
 }
+
+/**
+ * The rows the "Custom pages" section edits and pushes (SMOKE-26): custom and module pages that
+ * are VISIBLE. A hidden row is out — the two queue boards' template rows above all (hidden for
+ * F1, retired by B6), which were listed here with "Push to all clients" while the Pages section
+ * had already dropped them. The Pages section stays the one place a hidden page is switched back.
+ */
+export function customPageRows<
+  Row extends { readonly slug: string; readonly pageKind: PageKind; readonly isVisible: boolean },
+>(rows: readonly Row[]): Row[] {
+  return rows.filter(
+    (row) => row.pageKind !== 'standard' && row.isVisible && !isQueuePageSlug(row.slug),
+  );
+}

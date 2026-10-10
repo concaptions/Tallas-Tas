@@ -21,7 +21,7 @@ import {
   conceptPreview,
 } from './fields';
 import { InterfaceConfigWorkspace } from './interface-config-workspace';
-import { pageListItems } from './page-list-items';
+import { customPageRows, pageListItems } from './page-list-items';
 import { PagesSection } from './pages-section';
 import { TokenSection } from './token-section';
 
@@ -125,34 +125,30 @@ export default async function InterfaceConfigPage() {
       />
       <CustomPagesSection
         brandId={snapshot.brandId}
-        templatePages={snapshot.templatePages
-          .filter((row) => row.pageKind !== 'standard')
-          .map((row) => ({
-            id: row.id,
-            brandId: row.brandId,
-            slug: row.slug,
-            title: row.title,
-            sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
-            filterConfig: row.filterConfig,
-            columnConfig: row.columnConfig,
-            sortOrder: row.sortOrder,
-            isVisible: row.isVisible,
-            isInherited: row.isInherited,
-          }))}
-        brandPages={snapshot.brandPages
-          .filter((row) => row.pageKind !== 'standard')
-          .map((row) => ({
-            id: row.id,
-            brandId: row.brandId,
-            slug: row.slug,
-            title: row.title,
-            sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
-            filterConfig: row.filterConfig,
-            columnConfig: row.columnConfig,
-            sortOrder: row.sortOrder,
-            isVisible: row.isVisible,
-            isInherited: row.isInherited,
-          }))}
+        templatePages={customPageRows(snapshot.templatePages).map((row) => ({
+          id: row.id,
+          brandId: row.brandId,
+          slug: row.slug,
+          title: row.title,
+          sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
+          filterConfig: row.filterConfig,
+          columnConfig: row.columnConfig,
+          sortOrder: row.sortOrder,
+          isVisible: row.isVisible,
+          isInherited: row.isInherited,
+        }))}
+        brandPages={customPageRows(snapshot.brandPages).map((row) => ({
+          id: row.id,
+          brandId: row.brandId,
+          slug: row.slug,
+          title: row.title,
+          sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
+          filterConfig: row.filterConfig,
+          columnConfig: row.columnConfig,
+          sortOrder: row.sortOrder,
+          isVisible: row.isVisible,
+          isInherited: row.isInherited,
+        }))}
         resolverColumnsByTable={resolverColumnsByTable}
         demo={demo}
         disabled={!canConfigureNew}
