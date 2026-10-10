@@ -2085,3 +2085,28 @@ included — but the dialog previewed MAX over the live rows the page had loaded
 test creative holding number 1 made the dialog say V001 and the save write V002. The preview now
 reads `peekNextBriefNumber` (the same statement without the lock). Smoke-test creative `8c40ea65`
 (TAS-TOF-V002-SMOKETEST) soft-deleted on Railway with an activity row; Gratsi's next number is 3.
+
+## 2026-10-11 — Second re-test loop (SMOKE-22..28, item 14): what changed and what is open
+
+Cowork's 9/15 re-run on `886989a` closed as follows. SMOKE-28: the tester's two Gratsi rows soft-deleted
+with the reusable `packages/db/ops/soft-delete-smoke-rows.mjs` (391 → 390 live briefs, 1 → 0 copy).
+SMOKE-23 was not a client/server contract mismatch: "Reset to template" soft-deletes the brand's page
+row and `(brand_id, slug)` is unique across deleted rows, so the next toggle's INSERT collided (23505) and
+the catch-all said "could not be saved" — `upsertBrandCustomPageFromTemplate` now REVIVES the row.
+SMOKE-22: locally a single first-paint click opens all four demo-testable controls (the brand switcher
+through the replay, pre-hydration); the one nameable hole — React stamps `__reactProps$` in the
+hydration RENDER phase, before a time-sliced 400-row segment COMMITS — is closed by replaying only into
+a mounted tree (`isMountedNode`, React's own rule) that has a listener up the chain; the five-control
+first-paint specs exist in demo and live form. SMOKE-24/25: the new creative is a grid row at submit and
+the copy panel opens on the pending copy at the press, read-only until the id is real. SMOKE-26: the
+Custom pages section lists only visible custom/module pages, never the queue boards. Item 14 is not a
+bug: Gratsi has 12 pending + 1 NULL = 13, the tile's number; the "17" counted other brands' NULLs.
+**Open — SMOKE-27**: the Concepts grid's "Client Approval" is `client_approval_status` (87 approved,
+0064's backfill of Airtable's Status) while the detail rail's "Client status" is the PRD two-track
+`client_status`, `pending_for_approval` on all 102 Gratsi concepts because the import never moved the
+two-track. Two real columns, no stale read. Reconciling them is a product decision: present one of them
+differently, or migrate `client_status` from `client_approval_status` — which would move the two-track
+past its gate (non-negotiable 4) by data. Nothing shipped on it pending Talal's call. Two commits reached
+`main` red during the loop (6ba1f85, dc824bb) and were fixed within minutes; both came from gate scripts
+that did not stop on failure (`|| tail` fallbacks; `set -e` not honoured in the agent's shell) — gates are
+`&&`-chained from here.
