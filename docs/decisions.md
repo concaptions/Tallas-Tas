@@ -2061,3 +2061,27 @@ surface is /api/assets/upload, which requires a Clerk session and brand entitlem
 handed to a recipient outside the agency, a POST /u/<token> handler must be built first (creates an asset
 in the brand's library, rate-limited, token-expiry gated). Backlog ticket: UPLOAD-PUBLIC-ROUTE. Not
 blocking any current workflow.
+
+## 2026-10-10 — Pre-hydration presses are recorded and replayed (SMOKE-13)
+
+**Context.** "First click ignored" on the Kanban tab, "New creative" and the brand switcher was one
+cause: React 18+ drops a discrete event that reaches a tree it has not hydrated, and on a cold visit
+the gap is the bundle download and parse — the Oct 10 Suspense boundary helped only the sheet body.
+Reproduced with Playwright (press at +329 ms: the button takes focus, nothing opens).
+
+**Decision.** An inline boot script in the root layout records the first pointerdowns while the root
+is not stamped `data-hydrated`; `HydrationReplay` (first client effect) stamps it and replays each
+press — pointerdown, mousedown, focus, pointerup, mouseup, click, so Radix Tabs, Dialog and
+DropdownMenu each react once — only once THAT target carries React's hydration stamp
+(`__reactProps$…`), because the shell hydrates before the page segment behind `loading.tsx`.
+`first-click.spec.ts` holds the script chunks until the press and asserts the pre-hydration state.
+Rejected: rendering controls disabled until hydration (visibly inert, still a lost press) and
+shrinking bundles alone (right, but not a fix on its own).
+
+## 2026-10-10 — The "New creative" preview reads the allocator's rule (SMOKE-15)
+
+`brief_number` is never reused — `allocateBriefNumber` takes MAX over every row, soft-deleted
+included — but the dialog previewed MAX over the live rows the page had loaded, so a soft-deleted
+test creative holding number 1 made the dialog say V001 and the save write V002. The preview now
+reads `peekNextBriefNumber` (the same statement without the lock). Smoke-test creative `8c40ea65`
+(TAS-TOF-V002-SMOKETEST) soft-deleted on Railway with an activity row; Gratsi's next number is 3.
