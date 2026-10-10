@@ -213,6 +213,8 @@ export async function upsertBrandCustomPageFromTemplate(
     >
   >,
   actorId: string,
+  /** The fields the child now keeps its own value for (0062 `overridden_fields`), added to any it already kept. */
+  overridden: readonly string[] = [],
 ): Promise<CustomInterfacePage> {
   const [existing] = await db
     .select()
@@ -228,7 +230,13 @@ export async function upsertBrandCustomPageFromTemplate(
   if (existing) {
     const [row] = await db
       .update(customInterfacePages)
-      .set({ ...overrides, updatedBy: actorId, updatedAt: new Date() })
+      .set({
+        ...overrides,
+        templateRowId: existing.templateRowId ?? template.id,
+        overriddenFields: [...new Set([...existing.overriddenFields, ...overridden])],
+        updatedBy: actorId,
+        updatedAt: new Date(),
+      })
       .where(eq(customInterfacePages.id, existing.id))
       .returning();
     if (!row) throw new Error('upsertBrandCustomPageFromTemplate: update returned no row');
@@ -246,12 +254,88 @@ export async function upsertBrandCustomPageFromTemplate(
       sortOrder: overrides.sortOrder ?? template.sortOrder,
       isVisible: overrides.isVisible ?? template.isVisible,
       isInherited: overrides.isInherited ?? true,
+      pageKind: template.pageKind,
+      moduleKey: template.moduleKey,
+      templateRowId: template.id,
+      overriddenFields: [...overridden],
       createdBy: actorId,
       updatedBy: actorId,
     })
     .returning();
   if (!row) throw new Error('upsertBrandCustomPageFromTemplate: insert returned no row');
   return row;
+}
+
+// ── the brand's page list: visibility and order (Scope A, B4) ──────────────────────────────────
+
+/**
+ * The brand's page list as the portal and the admin section read it: every template row and every
+ * brand row, the brand's row winning by slug, in `sort_order` then title. The same rule as
+ * `mergeCustomPages` in `@tas/domain`, on the raw rows (which carry `page_kind`, `template_row_id`
+ * and `overridden_fields` the view type does not).
+ */
+export async function listMergedPages(db: Db, brandId: string): Promise<CustomInterfacePage[]> {
+  const [templateRows, brandRows] = await Promise.all([
+    listTemplateCustomPages(db),
+    listBrandCustomPages(db, brandId),
+  ]);
+  const bySlug = new Map(templateRows.map((row) => [row.slug, row] as const));
+  for (const row of brandRows) bySlug.set(row.slug, row);
+  return [...bySlug.values()].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title),
+  );
+}
+
+/**
+ * Show or hide one page for one brand (Admin + CSM). A TEMPLATE page gets a brand row that keeps
+ * `is_visible` (and tracks the template for everything else); a brand's OWN page is updated in
+ * place. The merged list `mergeCustomPages` reads prefers the brand row, so the portal follows.
+ */
+export async function setBrandPageVisibility(
+  db: Db,
+  brandId: string,
+  page: CustomInterfacePage,
+  isVisible: boolean,
+  actorId: string,
+): Promise<CustomInterfacePage> {
+  if (page.brandId === brandId) {
+    const row = await updateCustomPage(db, page.id, brandId, { isVisible });
+    if (row === null) throw new Error('setBrandPageVisibility: the brand page is gone');
+    return row;
+  }
+  return upsertBrandCustomPageFromTemplate(db, brandId, page, { isVisible }, actorId, [
+    'is_visible',
+  ]);
+}
+
+/**
+ * The brand's page order, whole: one `sort_order` per merged page, written to the brand's own row
+ * (created from the template where the brand had none). Written whole because a move renumbers
+ * every page (`movePage` in `@tas/domain`), so the stored orders stay dense and total.
+ */
+export async function setBrandPageOrder(
+  db: Db,
+  brandId: string,
+  pages: readonly CustomInterfacePage[],
+  order: readonly { readonly slug: string; readonly sortOrder: number }[],
+  actorId: string,
+): Promise<void> {
+  for (const entry of order) {
+    const page = pages.find((candidate) => candidate.slug === entry.slug);
+    if (page === undefined) continue;
+    if (page.brandId === brandId) {
+      await updateCustomPage(db, page.id, brandId, { sortOrder: entry.sortOrder });
+    } else {
+      await upsertBrandCustomPageFromTemplate(
+        db,
+        brandId,
+        page,
+        { sortOrder: entry.sortOrder },
+        actorId,
+        ['sort_order'],
+      );
+    }
+  }
 }
 
 // ── interface_tab_visibility ────────────────────────────────────────────────────────────────────

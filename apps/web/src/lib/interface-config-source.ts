@@ -4,7 +4,9 @@ import {
   listInterfaceConfig,
   type Db,
   type InterfacePageRow,
+  listMergedPages,
 } from '@tas/db';
+import { pageSlugForInterfacePageKey } from '@tas/domain';
 import { serverEnv } from '@tas/env';
 
 import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
@@ -102,9 +104,26 @@ export async function loadInterfaceConfig(
   }
   return withDb(deps, async (db) => {
     const brandId = await resolveLiveBrandId(db, deps);
-    const rows = brandId === null ? [] : await listInterfaceConfig(db, brandId);
-    return { rows, source: 'database' };
+    if (brandId === null) return { rows: [], source: 'database' };
+    const [rows, pages] = await Promise.all([
+      listInterfaceConfig(db, brandId),
+      listMergedPages(db, brandId),
+    ]);
+    return { rows: rows.map((row) => withPageRowEnabled(row, pages)), source: 'database' };
   });
+}
+
+/**
+ * `enabled` is READ from the brand's page row (Scope A, Talal's answer 1: one source of truth for
+ * "is this page shown"): a §10 page whose key a page row answers for takes that row's
+ * `is_visible`; a key with no page row yet keeps the stored flag.
+ */
+export function withPageRowEnabled<
+  Row extends { readonly pageKey: string; readonly enabled: boolean },
+>(row: Row, pages: readonly { readonly slug: string; readonly isVisible: boolean }[]): Row {
+  const slug = pageSlugForInterfacePageKey(row.pageKey);
+  const page = slug === null ? undefined : pages.find((candidate) => candidate.slug === slug);
+  return page === undefined ? row : { ...row, enabled: page.isVisible };
 }
 
 /** One configured page by id, or null. In demo mode the fixtures are searched; no client is built. */

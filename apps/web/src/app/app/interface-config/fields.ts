@@ -227,3 +227,16 @@ export function fieldCountLabel(visible: number, total: number): string {
 export function pageCountLabel(enabled: number, total: number): string {
   return `${String(enabled)} of ${String(total)} ${total === 1 ? 'page' : 'pages'} on`;
 }
+
+/** The "Pages" section (Scope A, B4): heading, body, the kind chips and the push dialog. */
+export const PAGES_SECTION_TITLE = 'Pages';
+export const PAGES_SECTION_BODY =
+  'Every page this brand\u2019s client sees, in order: the standard tabs, custom views and module pages. Switch a page off, move it a step, or reset a brand override to the template. An Admin can push a template page to every client, which opens a review request on the Propagation page.';
+export const PAGE_KIND_LABELS: Readonly<Record<'standard' | 'custom' | 'module', string>> = {
+  standard: 'standard tab',
+  custom: 'custom view',
+  module: 'module',
+};
+export const PUSH_DIALOG_TITLE = 'Push this page to every client?';
+export const PUSH_DIALOG_BODY =
+  'this opens a review request. Nothing reaches a client brand until an agency Admin approves it on the Propagation page; a brand that has customised the page keeps its own version.';

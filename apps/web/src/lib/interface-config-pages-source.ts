@@ -1,11 +1,9 @@
 import {
   findCustomPageBySlug,
   listBrandCustomPages,
-  listTabVisibility,
   listTemplateCustomPages,
   type CustomInterfacePage,
   type Db,
-  type InterfaceTabVisibility,
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
@@ -31,7 +29,6 @@ import { requestConnection } from '@/lib/request-db';
 export interface CustomPagesSnapshot {
   readonly templatePages: readonly CustomInterfacePage[];
   readonly brandPages: readonly CustomInterfacePage[];
-  readonly tabVisibility: readonly InterfaceTabVisibility[];
   readonly brandId: string | null;
 }
 
@@ -71,19 +68,18 @@ export async function loadCustomPagesSnapshot(
   deps: InterfacePagesSourceDeps = {},
 ): Promise<CustomPagesSnapshot> {
   if (inDemoMode(deps)) {
-    return { templatePages: [], brandPages: [], tabVisibility: [], brandId: null };
+    return { templatePages: [], brandPages: [], brandId: null };
   }
   return withDb(deps, async (db) => {
     const brandId = await resolveLiveBrandId(db, deps);
     if (brandId === null) {
-      return { templatePages: [], brandPages: [], tabVisibility: [], brandId: null };
+      return { templatePages: [], brandPages: [], brandId: null };
     }
-    const [templatePages, brandPages, tabVisibility] = await Promise.all([
+    const [templatePages, brandPages] = await Promise.all([
       listTemplateCustomPages(db),
       listBrandCustomPages(db, brandId),
-      listTabVisibility(db, brandId),
     ]);
-    return { templatePages, brandPages, tabVisibility, brandId };
+    return { templatePages, brandPages, brandId };
   });
 }
 

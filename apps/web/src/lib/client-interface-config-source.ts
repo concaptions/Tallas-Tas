@@ -1,13 +1,10 @@
 import {
   brands,
   listBrandCustomPages,
-  listTabVisibility,
   listTemplateCustomPages,
   loadCustomPageRender as dbLoadCustomPageRender,
-  resolveTemplateBrandFromAny,
   type CustomInterfacePage,
   type Db,
-  type InterfaceTabVisibility,
 } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
@@ -26,9 +23,9 @@ import { requestConnection } from '@/lib/request-db';
 
 export interface ClientInterfaceConfig {
   readonly brandId: string;
-  readonly tabRows: readonly InterfaceTabVisibility[];
-  readonly templateTabRows: readonly InterfaceTabVisibility[];
+  /** The brand's own page rows (standard overrides, custom views, module toggles). */
   readonly customPages: readonly CustomInterfacePage[];
+  /** The template's page rows, which every brand reads unless it has its own row for the slug. */
   readonly templateCustomPages: readonly CustomInterfacePage[];
 }
 
@@ -57,23 +54,14 @@ async function withDb<T>(query: (db: Db) => Promise<T>): Promise<T> {
 /** The whole config a client portal layout needs in one call. */
 export async function loadClientInterfaceConfig(brandId: string): Promise<ClientInterfaceConfig> {
   if (inDemoMode()) {
-    return {
-      brandId,
-      tabRows: [],
-      templateTabRows: [],
-      customPages: [],
-      templateCustomPages: [],
-    };
+    return { brandId, customPages: [], templateCustomPages: [] };
   }
   return withDb(async (db) => {
-    const templateBrandId = await resolveTemplateBrandFromAny(db, brandId);
-    const [tabRows, templateTabRows, customPages, templateCustomPages] = await Promise.all([
-      listTabVisibility(db, brandId),
-      templateBrandId === null ? Promise.resolve([]) : listTabVisibility(db, templateBrandId),
+    const [customPages, templateCustomPages] = await Promise.all([
       listBrandCustomPages(db, brandId),
       listTemplateCustomPages(db),
     ]);
-    return { brandId, tabRows, templateTabRows, customPages, templateCustomPages };
+    return { brandId, customPages, templateCustomPages };
   });
 }
 

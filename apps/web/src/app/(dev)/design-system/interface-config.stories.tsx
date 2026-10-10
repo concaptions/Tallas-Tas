@@ -13,6 +13,7 @@ import {
 import { ConfigToggle, ConfigTree } from '@/app/app/interface-config/config-tree';
 import { ConfigPreview } from '@/app/app/interface-config/config-preview';
 import { CONCEPT_CARD_PAGE_KEY, conceptPreview } from '@/app/app/interface-config/fields';
+import { PageRow, type PageListItem } from '@/app/app/interface-config/pages-section';
 
 /**
  * The shapes `/app/interface-config` introduces (CLAUDE.md UI governance rule 4): the switch, the
@@ -224,5 +225,67 @@ export function InterfaceConfigEmptyStory() {
         }}
       />
     </div>
+  );
+}
+
+/** The Pages section's row (Scope A, B4) in its three kinds and both inheritance states. */
+export function PagesSectionStory() {
+  const inert = () => undefined;
+  const rows: readonly PageListItem[] = [
+    {
+      id: '1',
+      slug: 'concepts',
+      title: 'Concepts',
+      kind: 'standard',
+      isVisible: true,
+      overridden: false,
+      isTemplate: true,
+    },
+    {
+      id: '2',
+      slug: 'copywriting',
+      title: 'Copywriting',
+      kind: 'standard',
+      isVisible: false,
+      overridden: true,
+      isTemplate: false,
+    },
+    {
+      id: '3',
+      slug: 'winners',
+      title: 'Winners this month',
+      kind: 'custom',
+      isVisible: true,
+      overridden: false,
+      isTemplate: true,
+    },
+    {
+      id: '4',
+      slug: 'partnership-ads',
+      title: 'Partnership Ads Tracking',
+      kind: 'module',
+      isVisible: true,
+      overridden: true,
+      isTemplate: false,
+    },
+  ];
+  return (
+    <ul className="flex flex-col gap-1">
+      {rows.map((page, index) => (
+        <PageRow
+          key={page.slug}
+          page={page}
+          canMoveUp={index > 0}
+          canMoveDown={index < rows.length - 1}
+          demo={false}
+          disabled={false}
+          canPush
+          onToggle={inert}
+          onMove={inert}
+          onReset={inert}
+          onPush={inert}
+        />
+      ))}
+    </ul>
   );
 }

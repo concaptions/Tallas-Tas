@@ -229,19 +229,24 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
-  // Oct 6/7 Agent 4: the two new sections render alongside the shipped workspace, with disabled
-  // write controls (demo mode) and the shipped set of four standard tab rows.
-  test('renders the standard-tab visibility and custom-pages sections', async ({ page }) => {
+  // Scope A (B4): the Pages section lists every page of the brand; in demo mode, with no page row
+  // at all, the five standard tabs are listed as inherited and visible, with disabled controls.
+  test('renders the Pages and custom-pages sections', async ({ page }) => {
     await page.goto(interfaceConfigPath);
 
-    const tabSection = page.locator('[data-slot="tab-visibility"]');
-    await expect(tabSection).toBeVisible();
-    await expect(tabSection.locator('[data-slot="tab-row"]')).toHaveCount(4);
-    for (const key of ['concepts', 'creative_sheet', 'ugc_management', 'copywriting']) {
-      await expect(
-        tabSection.locator(`[data-slot="tab-row"][data-tab-key="${key}"]`),
-      ).toBeVisible();
+    const pages = page.locator('[data-slot="pages-section"]');
+    await expect(pages).toBeVisible();
+    await expect(pages.locator('[data-slot="page-row"][data-page-kind="standard"]')).toHaveCount(5);
+    for (const slug of [
+      'concepts',
+      'creative_sheet',
+      'ugc_management',
+      'copywriting',
+      'calendar',
+    ]) {
+      await expect(pages.locator(`[data-slot="page-row"][data-page-slug="${slug}"]`)).toBeVisible();
     }
+    await expect(pages.locator('[data-slot="page-visibility-switch"]').first()).toBeDisabled();
 
     const pagesSection = page.locator('[data-slot="custom-pages"]');
     await expect(pagesSection).toBeVisible();

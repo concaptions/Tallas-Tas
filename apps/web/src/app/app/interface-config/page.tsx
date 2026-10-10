@@ -21,7 +21,8 @@ import {
   conceptPreview,
 } from './fields';
 import { InterfaceConfigWorkspace } from './interface-config-workspace';
-import { TabVisibilitySection } from './tab-visibility-section';
+import { pageListItems } from './page-list-items';
+import { PagesSection } from './pages-section';
 import { TokenSection } from './token-section';
 
 /**
@@ -116,46 +117,42 @@ export default async function InterfaceConfigPage() {
         demo={demo}
         concept={newest === undefined ? null : conceptPreview(newest)}
       />
-      <TabVisibilitySection
-        brandId={snapshot.brandId}
-        templateRows={snapshot.tabVisibility
-          .filter((row) => row.brandId === snapshot.brandId)
-          .map((row) => ({
-            brandId: row.brandId,
-            tabKey: row.tabKey as never,
-            isVisible: row.isVisible,
-            sortOrder: row.sortOrder,
-          }))}
-        brandRows={[]}
+      <PagesSection
+        pages={pageListItems(snapshot.templatePages, snapshot.brandPages)}
         demo={demo}
         disabled={!canConfigureNew}
+        canPush={canSeePropagationPage(actor)}
       />
       <CustomPagesSection
         brandId={snapshot.brandId}
-        templatePages={snapshot.templatePages.map((row) => ({
-          id: row.id,
-          brandId: row.brandId,
-          slug: row.slug,
-          title: row.title,
-          sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
-          filterConfig: row.filterConfig,
-          columnConfig: row.columnConfig,
-          sortOrder: row.sortOrder,
-          isVisible: row.isVisible,
-          isInherited: row.isInherited,
-        }))}
-        brandPages={snapshot.brandPages.map((row) => ({
-          id: row.id,
-          brandId: row.brandId,
-          slug: row.slug,
-          title: row.title,
-          sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
-          filterConfig: row.filterConfig,
-          columnConfig: row.columnConfig,
-          sortOrder: row.sortOrder,
-          isVisible: row.isVisible,
-          isInherited: row.isInherited,
-        }))}
+        templatePages={snapshot.templatePages
+          .filter((row) => row.pageKind !== 'standard')
+          .map((row) => ({
+            id: row.id,
+            brandId: row.brandId,
+            slug: row.slug,
+            title: row.title,
+            sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
+            filterConfig: row.filterConfig,
+            columnConfig: row.columnConfig,
+            sortOrder: row.sortOrder,
+            isVisible: row.isVisible,
+            isInherited: row.isInherited,
+          }))}
+        brandPages={snapshot.brandPages
+          .filter((row) => row.pageKind !== 'standard')
+          .map((row) => ({
+            id: row.id,
+            brandId: row.brandId,
+            slug: row.slug,
+            title: row.title,
+            sourceTableKey: row.sourceTableKey as CustomPageSourceTableKey,
+            filterConfig: row.filterConfig,
+            columnConfig: row.columnConfig,
+            sortOrder: row.sortOrder,
+            isVisible: row.isVisible,
+            isInherited: row.isInherited,
+          }))}
         resolverColumnsByTable={resolverColumnsByTable}
         demo={demo}
         disabled={!canConfigureNew}

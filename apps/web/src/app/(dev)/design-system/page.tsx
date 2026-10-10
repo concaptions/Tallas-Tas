@@ -139,6 +139,7 @@ import {
   ConfigToggleStory,
   InterfaceConfigEmptyStory,
   InterfaceConfigStory,
+  PagesSectionStory,
 } from './interface-config.stories';
 import {
   NotificationRoutingNoteStory,
@@ -1290,6 +1291,7 @@ export default function DesignSystemPage() {
               words and offers the way back
             </h3>
             <InterfaceConfigEmptyStory />
+            <PagesSectionStory />
           </div>
         </div>
       </Section>

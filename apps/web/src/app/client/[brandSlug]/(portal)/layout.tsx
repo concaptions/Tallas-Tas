@@ -7,12 +7,11 @@ import {
   type ClientTabKey,
   clientTabLabel,
   computeClientProgress,
+  isClientTabSlug,
   isTokenExpired,
   mergeCustomPages,
-  mergeTabVisibility,
   type ClientProgress,
   type CustomInterfacePageView,
-  type InterfaceTabVisibilityView,
 } from '@tas/domain';
 import { DEMO_BRAND_ID, demoBriefs, demoConcepts, findTokenByValueAndBrand } from '@tas/db';
 import { serverEnv } from '@tas/env';
@@ -25,6 +24,18 @@ import { loadClientInterfaceConfig } from '@/lib/client-interface-config-source'
 import { requestConnection } from '@/lib/request-db';
 
 import { AUX_NAV_ITEMS, auxTabHref, customPageHref, standardTabHref } from '../tabs';
+
+/** The template's rows and the brand's own, the brand winning by slug, in order (raw rows). */
+function mergePageRows<Row extends { slug: string; sortOrder: number; title: string }>(
+  templateRows: readonly Row[],
+  brandRows: readonly Row[],
+): Row[] {
+  const bySlug = new Map(templateRows.map((row) => [row.slug, row] as const));
+  for (const row of brandRows) bySlug.set(row.slug, row);
+  return [...bySlug.values()].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title),
+  );
+}
 
 interface Props {
   readonly children: ReactNode;
@@ -85,20 +96,11 @@ export default async function ClientBrandLayout({ children, params }: Props) {
   }
 
   const config = await loadClientInterfaceConfig(brand.id);
-  const mergedTabs = mergeTabVisibility(
-    config.templateTabRows.map((row) => ({
-      brandId: row.brandId,
-      tabKey: row.tabKey as ClientTabKey,
-      isVisible: row.isVisible,
-      sortOrder: row.sortOrder,
-    })) satisfies InterfaceTabVisibilityView[],
-    config.tabRows.map((row) => ({
-      brandId: row.brandId,
-      tabKey: row.tabKey as ClientTabKey,
-      isVisible: row.isVisible,
-      sortOrder: row.sortOrder,
-    })) satisfies InterfaceTabVisibilityView[],
-  );
+  // The brand's page list (Scope A): the template's rows, the brand's own winning by slug, in
+  // order. A STANDARD row (migration 0063) is one of the shipped tabs — concepts, creative_sheet,
+  // ugc_management, copywriting, calendar — and only says whether that tab is shown and where.
+  const pageRows = mergePageRows(config.templateCustomPages, config.customPages);
+  const standardRows = pageRows.filter((row) => row.pageKind === 'standard');
   // Only CUSTOM and MODULE rows are nav entries of their own; a STANDARD row (migration 0063)
   // describes one of the four tabs above, which keep their own routes.
   const customRow = (row: { readonly pageKind: string }) => row.pageKind !== 'standard';
@@ -129,11 +131,16 @@ export default async function ClientBrandLayout({ children, params }: Props) {
     })) satisfies CustomInterfacePageView[],
   );
 
-  // The four shipped tabs — only those marked visible after the merge. Fall back to every tab
-  // visible when neither the brand nor the template has configured any row (a brand created
-  // before the seed ran).
-  const standardTabs = mergedTabs.filter((row) => row.isVisible);
-  const standardFallback = standardTabs.length === 0;
+  // The shipped tabs, in the brand's order, only those visible. Fall back to every tab visible
+  // when no standard row exists at all (demo mode, or a database before migration 0063).
+  const standardFallback = standardRows.length === 0;
+  const standardTabs = standardRows
+    .filter((row) => row.isVisible && isClientTabSlug(row.slug))
+    .map((row) => ({ tabKey: row.slug as ClientTabKey, sortOrder: row.sortOrder }));
+  const calendarRow = standardRows.find((row) => row.slug === 'calendar');
+  const auxItems = AUX_NAV_ITEMS.filter(
+    (item) => item.segment !== 'calendar' || calendarRow === undefined || calendarRow.isVisible,
+  );
 
   const customTabs = mergedPages.filter((page) => page.isVisible);
 
@@ -180,7 +187,7 @@ export default async function ClientBrandLayout({ children, params }: Props) {
               </Link>
             );
           })}
-          {AUX_NAV_ITEMS.map((item) => (
+          {auxItems.map((item) => (
             <Link
               key={item.segment}
               href={auxTabHref(brandSlug, item.segment)}

@@ -2,8 +2,20 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { listTeam, setFieldVisibility, setPageEnabled, type Db } from '@tas/db';
-import { INTERFACE_PAGE_KEYS, canSeePropagationPage } from '@tas/domain';
+import {
+  getInterfacePageById,
+  listMergedPages,
+  listTeam,
+  setBrandPageVisibility,
+  setFieldVisibility,
+  setPageEnabled,
+  type Db,
+} from '@tas/db';
+import {
+  INTERFACE_PAGE_KEYS,
+  canSeePropagationPage,
+  pageSlugForInterfacePageKey,
+} from '@tas/domain';
 import { z } from 'zod';
 
 import { resolveLiveAgencyId } from '@/lib/data-source';
@@ -172,10 +184,21 @@ export async function saveInterfaceConfigAction(
         return { refusal, ids: [] as string[] };
       }
       const ids: string[] = [];
+      // A page's `enabled` lives on its PAGE ROW when one answers for the §10 key (Scope A,
+      // answer 1); the §10 row keeps the flag only for a key with no page row yet.
+      const pageRows = await listMergedPages(db, brandId);
       for (const page of parsed.data.pages) {
-        const savedPage = await setPageEnabled(db, brandId, page.id, page.enabled, actor);
-        if (savedPage !== null) {
-          ids.push(savedPage.id);
+        const current = await getInterfacePageById(db, brandId, page.id);
+        const slug = current === null ? null : pageSlugForInterfacePageKey(current.pageKey);
+        const pageRow = slug === null ? undefined : pageRows.find((row) => row.slug === slug);
+        if (pageRow !== undefined) {
+          await setBrandPageVisibility(db, brandId, pageRow, page.enabled, actor);
+          ids.push(page.id);
+        } else {
+          const savedPage = await setPageEnabled(db, brandId, page.id, page.enabled, actor);
+          if (savedPage !== null) {
+            ids.push(savedPage.id);
+          }
         }
         for (const field of page.fields) {
           const savedField = await setFieldVisibility(db, brandId, field.id, field.visible, actor);
