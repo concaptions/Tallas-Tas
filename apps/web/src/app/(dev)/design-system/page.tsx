@@ -111,6 +111,7 @@ import {
   OverviewPipelineStory,
 } from './overview.stories';
 import { AssetUploadModalStory } from './assets-upload.stories';
+import { BrandGradientStory } from './brand-gradient.stories';
 import {
   CreativeSheetChipsStory,
   CreativeSheetDimensionsStory,
@@ -360,6 +361,13 @@ export default function DesignSystemPage() {
           <PaletteColumn theme="dark" />
           <PaletteColumn theme="light" />
         </div>
+      </Section>
+
+      <Section
+        title="Brand gradient"
+        note="--accent-gradient through the .bg-brand-gradient utility, in both palettes: the top bar is the product's gradient surface (pinned to the dark palette); the mark and rule here are the text-free primitives the gradient also fits."
+      >
+        <BrandGradientStory />
       </Section>
 
       <Section
