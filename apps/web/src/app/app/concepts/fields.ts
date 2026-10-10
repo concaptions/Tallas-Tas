@@ -191,7 +191,6 @@ export interface ConceptItem {
   readonly clientStatus: ConceptClientStatusView;
   /** `client_approval_status` (migration 0055, CLIENT_STATUS since AUDIT-13), or null until set. */
   readonly clientApproval: ConceptClientStatusView | null;
-  readonly approvalStatusLabel: string | null;
   readonly productionStatusLabel: string | null;
   readonly categoryLabel: string | null;
   readonly styleLabel: string | null;
@@ -246,7 +245,6 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   ConceptItem,
   | 'clientStatus'
   | 'clientApproval'
-  | 'approvalStatusLabel'
   | 'productionStatusLabel'
   | 'categoryLabel'
   | 'styleLabel'
@@ -268,7 +266,6 @@ export const EMPTY_CONCEPT_RECORD: Pick<
 > = {
   clientStatus: { key: 'pending_for_approval', label: 'Pending for Approval', tone: 'info' },
   clientApproval: null,
-  approvalStatusLabel: null,
   productionStatusLabel: null,
   categoryLabel: null,
   styleLabel: null,

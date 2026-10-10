@@ -381,7 +381,7 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       Status: {
         drizzleColumn: 'clientApprovalStatus',
         handler: 'select',
-        note: 'Airtable "Status" → clientApprovalStatus in the one client vocabulary (SMOKE-18 / 0064 mapping); the legacy approvalStatus is frozen and never written',
+        note: 'Airtable "Status" → clientApprovalStatus in the one client vocabulary (SMOKE-18 / 0064 mapping); the legacy column is frozen and never written',
       },
       Decription: {
         drizzleColumn: 'description',

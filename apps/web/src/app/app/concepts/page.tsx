@@ -9,7 +9,6 @@ import { loadUserViews } from '@/lib/user-view-actions';
 import { briefPath, conceptPath, ugcPath } from '@/lib/routes';
 
 import {
-  conceptApprovalStatusLabel,
   conceptProductionStatusLabel,
   conceptCategoryLabel,
   conceptStyleLabel,
@@ -104,8 +103,6 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     href: conceptPath(row.id),
     clientStatus: clientStatusView(row.clientStatus),
     clientApproval: clientApprovalView(row.clientApprovalStatus),
-    approvalStatusLabel:
-      row.approvalStatus === null ? null : conceptApprovalStatusLabel(row.approvalStatus),
     productionStatusLabel:
       row.productionStatus === null ? null : conceptProductionStatusLabel(row.productionStatus),
     categoryLabel: row.category === null ? null : conceptCategoryLabel(row.category),
