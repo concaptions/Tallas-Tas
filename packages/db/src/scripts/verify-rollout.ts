@@ -33,7 +33,10 @@ const EXPECTED: readonly {
   // Campaigns & Offers, (Internal) Creative Design and the virtual Performance lookup — Gratsi 21.
   // Fidelity flip 2026-10-04: Production Status shown again for Gratsi (its base has it; AI-34
   // keeps the hide everywhere else).
-  { tableKey: 'concepts', inheriting: 21, gratsi: 22, virtual: 0 },
+  // SMOKE-18 (Option B, 2026-10-11): approval_status retired from the product (hidden parent +
+  // hidden Gratsi child; 0064 moved the data) — one fewer on both; Gratsi's slot 12 is now the
+  // platform's client_approval_status under its own label, via Gratsi's relabel-platform row.
+  { tableKey: 'concepts', inheriting: 20, gratsi: 21, virtual: 0 },
   // AI-41: Gratsi's dead second Concepts link (concept_ids) is retired; 'Concept to film' remains.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the two formula fields as virtual columns
   // (Creator's cost (USD), Notify Flag) in the live base's order — Gratsi 35.

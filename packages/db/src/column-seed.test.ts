@@ -1532,10 +1532,18 @@ describe('AI-33 · Internal Status is hidden for Gratsi alone', () => {
       gratsi.find((column) => column.columnKey === 'internal_status'),
       'internal_status resolved for Gratsi, whose base has no such field',
     ).toBeUndefined();
+    // SMOKE-18 (Option B): the legacy approval_status is hidden for Gratsi too; its slot shows
+    // the platform's client_approval_status, through Gratsi's own relabel-platform row at 12.
     expect(
-      gratsi.find((column) => column.columnKey === 'approval_status')?.displayLabel,
-      "Gratsi's own Status stands in its place",
-    ).toBe('Status');
+      gratsi.find((column) => column.columnKey === 'approval_status'),
+      'the retired approval_status resolved for Gratsi',
+    ).toBeUndefined();
+    const clientApproval = gratsi.find((column) => column.columnKey === 'client_approval_status');
+    expect(clientApproval?.displayLabel, "the client's approval stands in its place").toBe(
+      'Client Approval',
+    );
+    expect(clientApproval?.inheritedFrom).toBeNull();
+    expect(clientApproval?.displayOrder).toBe(12);
 
     const niagara = await resolveColumns(
       db,

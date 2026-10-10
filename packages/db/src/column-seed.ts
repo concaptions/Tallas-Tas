@@ -829,13 +829,28 @@ const CONCEPTS_PRODUCTION_STATUS: UpsertColumnDefinition = {
   isHidden: true,
 };
 
+/**
+ * `approval_status` — RETIRED FROM THE PRODUCT, hidden the same way as `production_status` above
+ * (SMOKE-18, Talal's Option B, 2026-10-11). Migration 0064 copied its three live values into
+ * `client_approval_status` (the ONE client vocabulary) and nothing writes the legacy column any
+ * more — the detail page's select, the importer and the client portal all moved. The data stays:
+ * NOT DROPPED, and un-hiding this row puts the legacy column back at order 8 read-only.
+ */
+const CONCEPTS_APPROVAL_STATUS_LEGACY: UpsertColumnDefinition = {
+  tableKey: 'concepts',
+  columnKey: 'approval_status',
+  displayLabel: 'Approval Status',
+  displayOrder: 8,
+  fieldType: 'singleSelect',
+  isHidden: true,
+};
+
 const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
   ...parentRows('concepts', [
     ['batch', 'Batch', 2, 'singleSelect'],
     ['concept_angles', 'Angles', 4, 'multipleRecordLinks'],
     ['category', 'Category', 6, 'singleSelect'],
     ['concept_style', 'Concept Style', 7, 'singleSelect'],
-    ['approval_status', 'Approval Status', 8, 'singleSelect'],
     ['hook_examples', 'Hook examples', 12, 'multilineText'],
     ['script_idea', 'Script idea', 13, 'multilineText'],
     ['formats_to_create', 'Formats to create', 18, 'multipleSelects'],
@@ -843,6 +858,7 @@ const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
     ['creator_concepts', 'Creator', 21, 'multipleRecordLinks'],
   ]),
   CONCEPTS_PRODUCTION_STATUS,
+  CONCEPTS_APPROVAL_STATUS_LEGACY,
 ];
 
 /**
@@ -870,7 +886,11 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   ['formats', 'Type', 8, 'custom', 'multipleSelects'],
   ['angle_products', 'Product', 10, 'relabel-platform', 'multipleRecordLinks'],
   ['angle_personas', 'Personas', 11, 'relabel-platform', 'multipleRecordLinks'],
-  ['approval_status', 'Status', 12, 'relabel', 'singleSelect'],
+  // SMOKE-18 (Option B): the base's `Status` IS the client's approval — 0064 moved the data to
+  // `client_approval_status`, so Gratsi's slot 12 shows the platform column under the platform's
+  // own label, and the legacy child row goes hidden with its parent (data kept, never dropped).
+  ['client_approval_status', 'Client Approval', 12, 'relabel-platform', 'singleSelect'],
+  ['approval_status', 'Status', 12, 'hidden', 'singleSelect'],
   ['description', 'Decription', 13, 'relabel-platform', 'multilineText'],
   ['script_idea', 'Script', 14, 'relabel', 'richText'],
   ['concept_collections', 'Collection', 15, 'relabel-platform', 'multipleRecordLinks'],

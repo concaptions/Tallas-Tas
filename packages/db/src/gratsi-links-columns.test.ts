@@ -249,10 +249,14 @@ describe('GRATSI-MATCH · concepts', () => {
 
   it('resolves exactly the Airtable list minus the named exclusions, in Airtable order', async () => {
     const resolved = await gratsiColumns('concepts');
-    expect(resolved.map((column) => column.displayLabel)).toEqual([
-      ...expectedLabels(AIRTABLE_CONCEPTS, EXCLUDED),
-      'Client Approval',
-    ]);
+    // SMOKE-18 (Talal's Option B, 2026-10-11): the base's `Status` IS the client's approval —
+    // 0064 moved the data to client_approval_status and the legacy approval_status is hidden, so
+    // Gratsi's slot shows the platform column under the platform's own label, same position.
+    expect(resolved.map((column) => column.displayLabel)).toEqual(
+      expectedLabels(AIRTABLE_CONCEPTS, EXCLUDED).map((label) =>
+        label === 'Status' ? 'Client Approval' : label,
+      ),
+    );
   });
 
   it('keys the links and the lookup to what really backs them, display-only', async () => {
