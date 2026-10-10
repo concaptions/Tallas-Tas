@@ -95,7 +95,7 @@ function filledForm(): string {
         painPoints: null,
         usp: null,
         clientComments: null,
-        approvalStatus: null,
+        clientApprovalStatus: null,
         productionStatus: 'done',
         formatsToCreate: [],
         clientStatusNote: null,

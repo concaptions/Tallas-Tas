@@ -160,7 +160,7 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
           painPoints: concept.painPoints,
           usp: concept.usp,
           clientComments: concept.clientComments,
-          approvalStatus: concept.approvalStatus,
+          clientApprovalStatus: concept.clientApprovalStatus,
           productionStatus: concept.productionStatus,
           formatsToCreate: concept.formatsToCreate,
           clientStatusNote: concept.clientStatusNote,

@@ -22,11 +22,9 @@ import { generateBriefName } from '@tas/domain/briefs';
 import { conceptNameSegment } from '@tas/domain/creatives';
 import {
   conceptName,
-  isConceptApprovalStatus,
   isConceptProductionStatus,
   isConceptStyle,
   validateConceptDraft,
-  type ConceptApprovalStatusKey,
   type ConceptDraftField,
   type ConceptProductionStatusKey,
   type ConceptStyleKey,
@@ -38,6 +36,7 @@ import {
   canTransitionInternal,
   internalStatusFor,
   isClientTrackOpen,
+  normalizeClientApprovalStatus,
   type ClientStatusKey,
   type InternalStatusKey,
   type InternalStatusOrHoldKey,
@@ -97,7 +96,7 @@ export type ConceptFieldName =
   | 'clientComments'
   | 'internalStatus'
   | 'clientStatus'
-  | 'approvalStatus'
+  | 'clientApprovalStatus'
   | 'productionStatus'
   | 'formatsToCreate'
   | 'creatorId';
@@ -215,7 +214,7 @@ const conceptSchema = z.object({
   clientComments: text,
   internalStatus,
   clientStatus,
-  approvalStatus: link,
+  clientApprovalStatus: link,
   productionStatus: link,
   formatsToCreate: z.array(z.string().trim()),
   creatorId: links,
@@ -257,7 +256,7 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     clientComments: single('clientComments'),
     internalStatus: single('internalStatus'),
     clientStatus: single('clientStatus'),
-    approvalStatus: single('approvalStatus'),
+    clientApprovalStatus: single('clientApprovalStatus'),
     productionStatus: single('productionStatus'),
     formatsToCreate: many('formatsToCreate'),
     creatorId: many('creatorId'),
@@ -353,10 +352,9 @@ function toInput(
     values.conceptStyle !== null && isConceptStyle(values.conceptStyle)
       ? values.conceptStyle
       : null;
-  const approval: ConceptApprovalStatusKey | null =
-    values.approvalStatus !== null && isConceptApprovalStatus(values.approvalStatus)
-      ? values.approvalStatus
-      : null;
+  // SMOKE-18 (Option B): the approval select writes the ONE client vocabulary to
+  // `client_approval_status`; the legacy `approval_status` is frozen and never written again.
+  const approval = normalizeClientApprovalStatus(values.clientApprovalStatus);
   const production: ConceptProductionStatusKey | null =
     values.productionStatus !== null && isConceptProductionStatus(values.productionStatus)
       ? values.productionStatus
@@ -376,7 +374,7 @@ function toInput(
     clientComments: values.clientComments,
     internalStatus: internal,
     clientStatus: client,
-    approvalStatus: approval,
+    clientApprovalStatus: approval,
     productionStatus: production,
     formatsToCreate: values.formatsToCreate.filter((entry) => entry !== ''),
   };

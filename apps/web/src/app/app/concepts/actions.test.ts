@@ -482,6 +482,45 @@ describe('with Clerk configured', () => {
     expect(onlyUpdate().patch).toMatchObject(prose);
   });
 
+  /**
+   * SMOKE-18 (Option B, 2026-10-11): the detail page's approval select writes the ONE client
+   * vocabulary to `client_approval_status`. The legacy `approval_status` is frozen — a form that
+   * still posts the old key must not reach the row with it, and the patch never carries the key.
+   */
+  it('writes the client approval to client_approval_status, never the legacy column', async () => {
+    live();
+    const result = await updateConceptAction(
+      null,
+      form(
+        {
+          ...filled,
+          id: firstConcept.id,
+          clientApprovalStatus: 'approved',
+          approvalStatus: 'rejected',
+        },
+        filledRepeated,
+      ),
+    );
+
+    expect(result).toMatchObject({ ok: true, id: firstConcept.id });
+    expect(onlyUpdate().patch.clientApprovalStatus).toBe('approved');
+    expect('approvalStatus' in onlyUpdate().patch).toBe(false);
+  });
+
+  it('drops a value outside the client vocabulary to NULL rather than storing it', async () => {
+    live();
+    const result = await updateConceptAction(
+      null,
+      form(
+        { ...filled, id: firstConcept.id, clientApprovalStatus: 'pending_client' },
+        filledRepeated,
+      ),
+    );
+
+    expect(result).toMatchObject({ ok: true });
+    expect(onlyUpdate().patch.clientApprovalStatus).toBeNull();
+  });
+
   it('refuses when the session expired between rendering the page and submitting', async () => {
     live();
     seam.actor = null;

@@ -44,7 +44,6 @@ import {
   ANGLE_FORMATS,
   BATCHES,
   CAMPAIGNS_HEADING,
-  CONCEPT_APPROVAL_STATUSES,
   CONCEPT_CATEGORIES,
   CONCEPT_GROUPS,
   CONCEPT_STYLES,
@@ -103,7 +102,7 @@ export interface ConceptFormValues {
   readonly painPoints: string | null;
   readonly usp: string | null;
   readonly clientComments: string | null;
-  readonly approvalStatus: string | null;
+  readonly clientApprovalStatus: string | null;
   readonly productionStatus: string | null;
   readonly formatsToCreate: readonly string[];
   /**
@@ -287,7 +286,9 @@ export function ConceptDetail({
   const [conceptStyle, setConceptStyle] = useState(concept?.conceptStyle ?? NONE_VALUE);
   const [formats, setFormats] = useState<readonly string[]>(concept?.formats ?? []);
   const [links, setLinks] = useState<readonly string[]>(() => linkRowsOf(concept));
-  const [approvalStatus, setApprovalStatus] = useState(concept?.approvalStatus ?? NONE_VALUE);
+  const [clientApprovalStatus, setClientApprovalStatus] = useState(
+    concept?.clientApprovalStatus ?? NONE_VALUE,
+  );
   // Read-only now that the control is gone (P2B-5): the value is kept solely so the hidden input
   // submits what is stored instead of clearing the column.
   const [productionStatus] = useState(concept?.productionStatus ?? NONE_VALUE);
@@ -546,7 +547,7 @@ export function ConceptDetail({
           {formatsToCreate.map((key) => (
             <input key={`ftc-${key}`} type="hidden" name="formatsToCreate" value={key} />
           ))}
-          <input type="hidden" name="approvalStatus" value={approvalStatus} />
+          <input type="hidden" name="clientApprovalStatus" value={clientApprovalStatus} />
           <input type="hidden" name="productionStatus" value={productionStatus} />
 
           <section className="flex flex-col gap-3" data-slot="concept-pairing">
@@ -675,11 +676,11 @@ export function ConceptDetail({
 
             <div className="grid gap-4 sm:grid-cols-2">
               {renderSelect(
-                'approvalStatus',
-                'Approval Status',
-                CONCEPT_APPROVAL_STATUSES,
-                approvalStatus,
-                setApprovalStatus,
+                'clientApprovalStatus',
+                'Client Approval',
+                CLIENT_STATUS,
+                clientApprovalStatus,
+                setClientApprovalStatus,
                 demo,
               )}
               {/*
