@@ -1,4 +1,4 @@
-import { chipTone } from '@tas/domain/state';
+import { chipTone, clientApprovalLabel } from '@tas/domain/state';
 import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@tas/ui';
 
 import { resolveClientBrand } from '@/lib/client-brand-source';
@@ -50,7 +50,11 @@ export default async function ClientConceptsPage({ params }: Props) {
                   <TableCell className="text-sm text-text2">{c.angleName ?? '—'}</TableCell>
                   <TableCell className="text-sm text-text2">{c.themeName ?? '—'}</TableCell>
                   <TableCell>
-                    <StatusChip label={c.clientStatus} tone={chipTone(c.clientStatus)} />
+                    {/* The label of the one client vocabulary, never the stored key (SMOKE-33). */}
+                    <StatusChip
+                      label={clientApprovalLabel(c.clientStatus)}
+                      tone={chipTone(clientApprovalLabel(c.clientStatus))}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
