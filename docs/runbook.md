@@ -124,6 +124,13 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
 - Re-test cleanup SMOKE-30 (2026-10-11) · no migration. Creative `f439c0bf…` (`TAS-TOF-V005-SMOKETEST`)
   and the empty copy `b9577d48…` (Copy #1) soft-deleted on Gratsi from here at 02:07Z with the same
   script (391 → 390 live briefs, 1 → 0 copy rows).
+- Re-test cleanup, Tier 6/7 (2026-10-11) · no migration. The three `smoketest@example.com` client
+  tokens: `1753972e…` was revoked on 2026-10-11 06:5xZ; `90ac8047…` and `ca2b12b2…` were created by
+  the tester AFTER that (07:58Z, 08:14Z) and were revoked at 10:22Z through `revokeToken` — the exact
+  function the Revoke button's action calls — by a one-off tsx script, since deleted (0 live
+  smoketest tokens after). Copy #1 `bc8e7eeb…` ("SMOKE headline", unlinked) soft-deleted at 10:22Z
+  with `ops/soft-delete-smoke-rows.mjs --copy <id>`, the script's new copy-only mode (390 live briefs,
+  0 copy rows after).
 - Single-source cutover (2026-10-09) · `node apply61.mjs` was applied BEFORE the app push (done, verified).
   After the cutover deploy: `node audit-creative-sheet.mjs` should show the sheet view equal to the live
   briefs per brand (the old table's counts are history now), and the Creative Sheet in production should
