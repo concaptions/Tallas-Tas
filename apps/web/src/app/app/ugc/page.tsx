@@ -67,6 +67,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
     internalCreatorStatus: row.internalCreatorStatus,
     clientStatus: row.clientStatus,
     internalAssetsStatus: row.internalAssetsStatus,
+    clientApprovalStatus: row.clientApprovalStatus,
     clientNote: row.clientNote,
     rawAssetsUrl: row.rawAssetsUrl,
     conceptIds: row.conceptIds,

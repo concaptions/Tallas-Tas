@@ -14,6 +14,7 @@ import {
   TabsTrigger,
 } from '@tas/ui';
 import { getTableCapability, type ViewType } from '@tas/domain';
+import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
 
 import {
   KanbanBoard,
@@ -205,7 +206,7 @@ function CreatorAvatar({ creator }: { readonly creator: CreatorCardRow }) {
   );
 }
 
-const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
+export const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
   name: {
     render: (creator) => (
       <span className="flex items-center gap-2">
@@ -233,6 +234,27 @@ const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
   internal_creator_status: trackRenderer('internal'),
   client_status: trackRenderer('client'),
   internal_assets_status: trackRenderer('assets'),
+  // The client's approval of the creator in the one client vocabulary (item 5c): seeded "Client
+  // Approval", drawn here like Concepts and Copywriting draw theirs; `client_status` above is the
+  // creator track's own vocabulary, not this (AUDIT-13).
+  client_approval_status: {
+    render: (creator) => (
+      <ChipCell
+        chip={
+          creator.clientApprovalStatus === null || creator.clientApprovalStatus === undefined
+            ? null
+            : {
+                label: clientApprovalLabel(creator.clientApprovalStatus),
+                tone: clientApprovalTone(creator.clientApprovalStatus),
+              }
+        }
+      />
+    ),
+    sortValue: (creator) =>
+      creator.clientApprovalStatus === null || creator.clientApprovalStatus === undefined
+        ? ''
+        : clientApprovalLabel(creator.clientApprovalStatus),
+  },
   gender: {
     render: (creator) => <TextCell value={creator.gender} />,
     sortValue: (creator) => creator.gender,

@@ -201,6 +201,11 @@ export interface CreatorCardRow extends Partial<CreatorPanelFields> {
  * render read-only; `actions.ts` leaves them out of its zod shape as it does `slackNotified`.
  */
 export interface CreatorPanelFields {
+  /**
+   * The client's approval of the creator (`creators.client_approval_status`, the one client
+   * vocabulary — item 5c, AUDIT-13): `clientStatus` is the creator track's own vocabulary, not this.
+   */
+  readonly clientApprovalStatus: string | null;
   readonly dateOfManagement: Date | null;
   readonly budgetPer60s: number | null;
   /** Gratsi "Creator's cost (USD) - Internal": what the creator charges. `costUsd` is what TAS paid. */
