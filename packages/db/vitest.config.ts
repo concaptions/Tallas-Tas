@@ -7,5 +7,8 @@ export default defineConfig({
     // testDb() boots PGlite and applies every migration; that takes 1-4 s idle and up to 10 s on a
     // loaded machine, past Vitest's 5000 ms default (TICKET-005 round 3).
     testTimeout: 30_000,
+    // A PGlite database in `beforeAll` (schema push + seed) can take over vitest's 10 s hook
+    // default when the whole suite runs at once; the same budget as a test.
+    hookTimeout: 30_000,
   },
 });

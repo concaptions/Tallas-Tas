@@ -20,5 +20,8 @@ export default defineConfig({
     // repo root, contends with every other package's suite for the CPU. `@tas/db` sets the same value
     // for the same reason; the 5s default fails those tests under load, not for being wrong.
     testTimeout: 30_000,
+    // A PGlite database in `beforeAll` (schema push + seed) can take over vitest's 10 s hook
+    // default when the whole suite runs at once; the same budget as a test.
+    hookTimeout: 30_000,
   },
 });
