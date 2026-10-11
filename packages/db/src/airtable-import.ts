@@ -1023,6 +1023,8 @@ export async function importAirtableExport(
       painPoints: str(f['Pain Points']),
       usp: str(f.USP),
       clientComments: str(f["Client's Comments"]),
+      // An imported name is the row's own (SMOKE-31): never recomputed by the formula.
+      nameMode: 'manual' as const,
       clientApprovalStatus: mapStatus(
         w,
         'concepts.clientApprovalStatus',

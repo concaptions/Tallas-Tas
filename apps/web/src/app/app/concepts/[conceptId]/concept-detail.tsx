@@ -48,6 +48,8 @@ import {
   EM_DASH,
   FROM_ANGLE,
   NAME_PART_LABELS,
+  NAME_GENERATED_NOTE,
+  STORED_NAME_NOTE,
   NO_CAMPAIGNS_NOTE,
   NONE_VALUE,
   NOT_SET,
@@ -83,6 +85,10 @@ export interface CreatorOption {
 /** The columns this page edits. `name` is absent on purpose: it is generated, never held. */
 export interface ConceptFormValues {
   readonly id: string;
+  /** `concepts.name`, read VERBATIM (SMOKE-31): the heading of an existing concept. */
+  readonly name: string;
+  /** 'auto' (formula at create) or 'manual' (imported / hand-named, never recomputed). */
+  readonly nameMode: 'auto' | 'manual';
   readonly batch: string | null;
   /** Every linked angle, first one naming the concept; every linked creator. */
   readonly angleIds: readonly string[];
@@ -225,11 +231,12 @@ function linkRowsOf(concept: ConceptFormValues | null): string[] {
  * brief and an approval rail — a page's worth of material, and a URL worth sending to the editor
  * who has to shoot it.
  *
- * THE NAME IS NOT A FIELD. It is a heading, rendered by `NamePreview` from `conceptName`, and it
- * re-renders on every change of the three dropdowns below it with no round trip. There is no input
- * holding it, hidden or otherwise, and the Server Action ignores anything a form claims it is
- * called: it re-derives the name from the angle and theme rows it reads itself. That is what makes
- * a stored name unable to drift from its parts (CLAUDE.md non-negotiable 6).
+ * THE NAME IS NOT A FIELD. On CREATE it is a heading rendered by `NamePreview` from `conceptName`,
+ * re-rendered on every change of the three dropdowns below it with no round trip; the Server Action
+ * ignores anything a form claims and derives the name itself (CLAUDE.md non-negotiable 6). On an
+ * EXISTING concept the heading is `concepts.name` VERBATIM (SMOKE-31, 2026-10-11): an imported
+ * Gratsi concept keeps its Airtable name here exactly as the grid shows it — the formula never
+ * runs on a display path, and a save keeps a 'manual' name whatever its parts now say.
  *
  * THE INHERITED BLOCK IS NOT EDITABLE. `inheritedFromAngle` from `@tas/domain/concepts` owns which
  * five fields a concept reads off its angle, so this page cannot disagree with the action about
@@ -523,7 +530,23 @@ export function ConceptDetail({
         >
           ← All concepts
         </Link>
-        <NamePreview draft={draft} />
+        {concept === null ? (
+          <NamePreview draft={draft} />
+        ) : (
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Concept name</p>
+            <h1
+              data-slot="concept-name"
+              data-name-mode={concept.nameMode}
+              className="font-mono text-xl leading-snug break-words text-text sm:text-2xl"
+            >
+              {concept.name}
+            </h1>
+            <p data-slot="concept-name-note" className="text-xs text-text3">
+              {concept.nameMode === 'manual' ? STORED_NAME_NOTE : NAME_GENERATED_NOTE}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">

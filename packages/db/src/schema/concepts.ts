@@ -53,6 +53,13 @@ export const concepts = pgTable(
       .notNull()
       .references(() => brands.id),
     name: text('name').notNull(),
+    /**
+     * Which rule `name` follows (SMOKE-31, migration 0065 — the brief ruling of 0060 on concepts):
+     * 'auto' = created here, `Batch-Angle-Theme` and the formula may re-run when a part changes;
+     * 'manual' = imported or hand-named, read VERBATIM and never recomputed. Every row that existed
+     * before 0065 is manual. Plain text + CHECK, like the two tracks — no pg enum.
+     */
+    nameMode: text('name_mode').$type<'auto' | 'manual'>().notNull().default('manual'),
     batch: text('batch'),
     category: text('category'),
     conceptStyle: text('concept_style'),

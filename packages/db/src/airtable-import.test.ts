@@ -653,6 +653,8 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
     // SMOKE-18: the base's Status lands in the ONE client vocabulary on client_approval_status
     // (0064's mapping); the legacy approval_status is frozen — the importer never writes it.
     expect(concept?.clientApprovalStatus).toBe('pending_for_approval');
+    // SMOKE-31: an imported name is the row's own, never recomputed — the row is 'manual'.
+    expect(concept?.nameMode).toBe('manual');
     expect(concept?.approvalStatus).toBeNull();
     expect(concept?.productionStatus).toBe('in_progress');
 

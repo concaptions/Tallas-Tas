@@ -146,6 +146,8 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
       ? null
       : {
           id: concept.id,
+          name: concept.name,
+          nameMode: concept.nameMode,
           batch: concept.batch,
           angleIds: concept.angleIds,
           creatorIds: concept.creatorIds,

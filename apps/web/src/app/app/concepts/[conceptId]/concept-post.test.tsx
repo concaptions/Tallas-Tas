@@ -4,7 +4,12 @@ import { REQUIRED_CONCEPT_FIELDS } from '@tas/domain/concepts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createConceptAction } from '../actions';
-import { ConceptDetail, type AngleOption, type ThemeOption } from './concept-detail';
+import {
+  ConceptDetail,
+  type AngleOption,
+  type ConceptFormValues,
+  type ThemeOption,
+} from './concept-detail';
 
 /**
  * THE BOUNDARY: what the form POSTS against what the Server Action READS.
@@ -76,11 +81,13 @@ const angle: AngleOption = firstAngle;
 const theme: ThemeOption = firstTheme;
 
 /** The create form, filled the way a strategist fills it before pressing Save. */
-function filledForm(): string {
+function filledForm(overrides: Partial<ConceptFormValues> = {}): string {
   return renderToStaticMarkup(
     <ConceptDetail
       concept={{
         id: 'unsaved',
+        name: 'B2-Not your age-Body clock',
+        nameMode: 'auto',
         batch: 'B2',
         angleIds: [angle.id],
         creatorIds: [],
@@ -99,6 +106,7 @@ function filledForm(): string {
         productionStatus: 'done',
         formatsToCreate: [],
         clientStatusNote: null,
+        ...overrides,
       }}
       creatives={[]}
       campaigns={[]}
@@ -250,5 +258,42 @@ describe('the concept rail shows Internal and Client Approval, never the two-tra
     expect(markup).toContain('data-slot="internal-track"');
     expect(markup).toContain('data-slot="concept-field-clientApprovalStatus"');
     expect(markup).toContain('Client Approval');
+  });
+});
+
+/**
+ * SMOKE-31 (2026-10-11): an existing concept's heading is `concepts.name` VERBATIM — an imported
+ * Gratsi concept keeps its Airtable name on the detail page exactly as the grid shows it. The
+ * Batch-Angle-Theme formula is previewed only on CREATE, where there is no stored name yet.
+ */
+describe('the concept heading reads the stored name, never the formula (SMOKE-31)', () => {
+  const imported = 'Oct, 2025 - Casual date night dinner at home (For Partnership Ads)';
+
+  it('renders an imported concept under its stored name, with no formula preview', () => {
+    const markup = filledForm({ name: imported, nameMode: 'manual' });
+    expect(markup).toContain('data-slot="concept-name"');
+    expect(markup).toContain(imported);
+    expect(markup).not.toContain('data-slot="concept-name-preview"');
+    expect(markup).not.toContain('Batch-Casual Hangouts-Theme');
+  });
+
+  it('previews the formula only when creating', () => {
+    const markup = renderToStaticMarkup(
+      <ConceptDetail
+        concept={null}
+        creatives={[]}
+        campaigns={[]}
+        collections={[]}
+        angles={[angle]}
+        themes={[theme]}
+        creators={[]}
+        track="video"
+        internal="sent_to_video_editor"
+        client="pending_for_approval"
+        demo={false}
+      />,
+    );
+    expect(markup).toContain('data-slot="concept-name-preview"');
+    expect(markup).not.toContain('data-slot="concept-name"');
   });
 });

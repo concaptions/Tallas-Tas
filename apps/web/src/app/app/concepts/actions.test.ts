@@ -40,6 +40,8 @@ interface Seam {
   >;
   /** Every `renameBrief` call's `{ id, name }`, in order (cascade cases). */
   renames: { id: string; name: string }[];
+  /** What `getConceptById` reports as the concept's name_mode (SMOKE-31); fixtures are 'manual'. */
+  conceptNameMode: 'auto' | 'manual';
 }
 
 const seam = vi.hoisted<Seam>(() => ({
@@ -49,6 +51,7 @@ const seam = vi.hoisted<Seam>(() => ({
   updated: [],
   briefsByConceptId: {},
   renames: [],
+  conceptNameMode: 'manual',
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -77,7 +80,11 @@ vi.mock('@tas/db', async (importOriginal) => {
       _brandId: string,
       id: string,
     ): ReturnType<typeof actual.getConceptById> =>
-      Promise.resolve(actual.demoConcepts.find((row) => row.id === id) ?? null),
+      Promise.resolve(
+        ((row) => (row === undefined ? null : { ...row, nameMode: seam.conceptNameMode }))(
+          actual.demoConcepts.find((row) => row.id === id),
+        ),
+      ),
     getAngleById: (_db: Db, _brandId: string, id: string): ReturnType<typeof actual.getAngleById> =>
       Promise.resolve(actual.demoAngles.find((row) => row.id === id) ?? null),
     getThemeById: (_db: Db, id: string): ReturnType<typeof actual.getThemeById> =>
@@ -215,6 +222,7 @@ afterEach(() => {
   seam.updated = [];
   seam.briefsByConceptId = {};
   seam.renames = [];
+  seam.conceptNameMode = 'manual';
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -521,6 +529,25 @@ describe('with Clerk configured', () => {
     expect(onlyUpdate().patch.clientApprovalStatus).toBeNull();
   });
 
+  /**
+   * SMOKE-31: the formula runs at CREATE (the row is 'auto'); a save of a 'manual' concept — every
+   * imported Gratsi row — keeps the stored name, whatever its parts now say, and renames no brief.
+   */
+  it('creates a concept as auto-named, and never rewrites a manual name on update', async () => {
+    live();
+    await createConceptAction(null, form(filled, filledRepeated));
+    expect(onlyInsert().nameMode).toBe('auto');
+
+    seam.inserted = [];
+    const result = await updateConceptAction(
+      null,
+      form({ ...filled, id: firstConcept.id, batch: 'B9' }, filledRepeated),
+    );
+    expect(result).toMatchObject({ ok: true, name: firstConcept.name });
+    expect(onlyUpdate().patch.name).toBe(firstConcept.name);
+    expect(seam.renames).toEqual([]);
+  });
+
   it('refuses when the session expired between rendering the page and submitting', async () => {
     live();
     seam.actor = null;
@@ -563,6 +590,7 @@ describe('with Clerk configured', () => {
 describe('updateConceptAction · the concept-rename cascade renames only auto-named briefs', () => {
   it('never renames an imported or hand-typed brief (name_mode manual), whatever its number', async () => {
     live();
+    seam.conceptNameMode = 'auto';
     seam.briefsByConceptId[firstConcept.id] = [
       { id: 'imported-brief', briefNumber: null, nameMode: 'manual' },
       { id: 'typed-by-hand', briefNumber: 7, nameMode: 'manual' },
@@ -581,6 +609,7 @@ describe('updateConceptAction · the concept-rename cascade renames only auto-na
 
   it('renames an auto-named brief with the create formula, its own number and the new Angle-Theme segment', async () => {
     live();
+    seam.conceptNameMode = 'auto';
     seam.briefsByConceptId[firstConcept.id] = [
       { id: 'auto-brief', briefNumber: 7, nameMode: 'auto' },
       { id: 'imported-brief', briefNumber: null, nameMode: 'manual' },

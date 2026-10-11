@@ -84,6 +84,9 @@ export const FROM_ANGLE = 'from Angle';
  */
 export const NAME_GENERATED_NOTE =
   'Generated from Batch, Angle and Theme. This name is never typed, and changes with its parts.';
+/** Under an imported or hand-named concept's heading (SMOKE-31): the name is the row's own. */
+export const STORED_NAME_NOTE =
+  'Stored as imported or typed. Changing the parts below does not rename this concept.';
 
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';

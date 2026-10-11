@@ -86,3 +86,32 @@ describe('concepts.approval_status is frozen', () => {
     expect(schema).toContain("text('approval_status')");
   });
 });
+
+/**
+ * SMOKE-31: `conceptName()` — the Batch-Angle-Theme formula — runs at CREATE and, for an 'auto'
+ * row, at update; never on a DISPLAY path. An imported concept's name is read verbatim. The two
+ * callers allowed are the Server Action (the write) and the create form's live preview; the demo
+ * fixture builder has a local helper of the same name (it builds rows, it draws nothing).
+ */
+const CONCEPT_NAME_ALLOWED = new Set([
+  // The formula's own definition.
+  'packages/domain/src/concepts/concept-name.ts',
+  'apps/web/src/app/app/concepts/actions.ts',
+  'apps/web/src/app/app/concepts/[conceptId]/name-preview.tsx',
+  'packages/db/src/demo-data.ts',
+]);
+
+describe('conceptName() is never called on a display path', () => {
+  it('is called only by the concept action and the create preview', () => {
+    const offenders: string[] = [];
+    for (const root of SCAN_ROOTS) {
+      for (const file of sourceFiles(join(REPO_ROOT, root))) {
+        const path = relative(REPO_ROOT, file);
+        if (CONCEPT_NAME_ALLOWED.has(path)) continue;
+        if (/\bconceptName\(/.test(withoutComments(readFileSync(file, 'utf8'))))
+          offenders.push(path);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

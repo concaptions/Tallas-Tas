@@ -518,10 +518,11 @@ export async function createConceptAction(
         angleName: angle.name,
         themeName: theme.name,
       });
+      // Created here: the formula owns the name ('auto'); an import or a hand-typed name is 'manual'.
       const created = await insertConcept(
         db,
         brandId,
-        toInput(parsed.values, name, internal, client),
+        { ...toInput(parsed.values, name, internal, client), nameMode: 'auto' },
         actor,
       );
       await Promise.all([
@@ -623,11 +624,16 @@ export async function updateConceptAction(
         return clientRefusal;
       }
 
-      const name = conceptName({
-        batch: parsed.values.batch,
-        angleName: angle.name,
-        themeName: theme.name,
-      });
+      // SMOKE-31 (migration 0065): a 'manual' name — every imported Gratsi concept — is kept
+      // verbatim whatever its parts now say; only an 'auto' row follows the formula.
+      const name =
+        current.nameMode === 'manual'
+          ? current.name
+          : conceptName({
+              batch: parsed.values.batch,
+              angleName: angle.name,
+              themeName: theme.name,
+            });
       const saved = await updateConcept(
         db,
         brandId,
