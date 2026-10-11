@@ -11,6 +11,7 @@ import {
   NAV_SECTIONS,
   activeSectionKey,
   navGroupsForRole,
+  NAV_HIDDEN_SECTION_KEYS,
   navGroupsForView,
   TEMPLATE_HIDDEN_SECTION_KEYS,
   pendingSections,
@@ -214,7 +215,10 @@ describe('navGroupsForRole', () => {
     expect(groups).toEqual(
       NAV_GROUPS.map((group) => ({
         ...group,
-        sections: group.sections.filter((section) => !isRemovedWorkspace(section.key)),
+        sections: group.sections.filter(
+          (section) =>
+            !isRemovedWorkspace(section.key) && !NAV_HIDDEN_SECTION_KEYS.has(section.key),
+        ),
       })).filter((group) => group.sections.length > 0),
     );
     // Campaigns and Settings / Lookups held nothing but retired workspaces, so the headings go too;
@@ -225,7 +229,6 @@ describe('navGroupsForRole', () => {
       'production',
       'copy',
       'reporting',
-      'approvals',
       'settings',
       'dev',
     ]);
@@ -399,7 +402,8 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
     // are already gone on every brand: see the REMOVED_WORKSPACES block below.)
     expect(groups.some((group) => group.key === 'approvals')).toBe(false);
     expect(groups.some((group) => group.key === 'lookups')).toBe(false);
-    expect(navGroupsForView('admin', false).some((group) => group.key === 'approvals')).toBe(true);
+    // Item 6a (2026-10-11): no brand carries the Approvals group any more — the queues left the nav.
+    expect(navGroupsForView('admin', false).some((group) => group.key === 'approvals')).toBe(false);
   });
 
   /**
@@ -505,13 +509,35 @@ describe('REMOVED_WORKSPACES · hidden on every brand, for every role', () => {
       'copywriting',
       'ad-spy',
       'upload-links',
-      'internal-queue',
-      'client-queue',
       'creative-sheet',
       'assets',
       'ugc',
     ] as const) {
       expect(admin.has(kept), kept).toBe(true);
     }
+    // The two queues are kept workspaces (their routes answer) but hidden from the nav (item 6a).
+    for (const hidden of ['internal-queue', 'client-queue'] as const) {
+      expect(isRemovedWorkspace(hidden)).toBe(false);
+      expect(admin.has(hidden), hidden).toBe(false);
+    }
   });
+});
+
+/**
+ * Item 6a (2026-10-11): the two approval queues are gone from the admin nav for every role and
+ * every brand — the routes stay until B6 deletes them, only the links go. (The client portal never
+ * listed them; this is the team sidebar.)
+ */
+describe('the approval queues are not in the nav (item 6a)', () => {
+  it.each(['admin', 'csm', 'strategist', 'video_editor', 'designer', 'media_buyer'] as const)(
+    'lists no Internal Queue or Client Queue for %s',
+    (role) => {
+      const labels = navGroupsForRole(role).flatMap((group) =>
+        group.sections.map((section) => section.label),
+      );
+      expect(labels).not.toContain('Internal Queue');
+      expect(labels).not.toContain('Client Queue');
+      expect(navGroupsForRole(role).some((group) => group.key === 'approvals')).toBe(false);
+    },
+  );
 });

@@ -334,10 +334,24 @@ export const NAV_SECTIONS: readonly NavSection[] = NAV_GROUPS.flatMap((group) =>
  * THIS IS NOT A SECURITY CONTROL. Hiding a link does not close a route. The guard that does is
  * `sectionGuard` in `./section-guard`, applied per section as a segment layout (AI-65).
  */
+/**
+ * Sections kept OUT of the sidebar for every role on every brand while their routes stay live
+ * (item 6a, 2026-10-11): the two approval boards are retired tooling that B6 deletes after the
+ * soak, and a link to them on every brand read as a feature. A nav-only hide on purpose — the
+ * domain's `REMOVED_WORKSPACES` also redirects the route, which this must not do yet. NOT a
+ * security control, same as the role filter.
+ */
+export const NAV_HIDDEN_SECTION_KEYS: ReadonlySet<string> = new Set([
+  'internal-queue',
+  'client-queue',
+]);
+
 export function navGroupsForRole(role: ViewerRole | null | undefined): readonly NavGroup[] {
   return NAV_GROUPS.map((group) => ({
     ...group,
-    sections: group.sections.filter((section) => canSeeNavSection(role, section.key)),
+    sections: group.sections.filter(
+      (section) => canSeeNavSection(role, section.key) && !NAV_HIDDEN_SECTION_KEYS.has(section.key),
+    ),
   })).filter((group) => group.sections.length > 0);
 }
 
