@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createClientTokenAction } from './token-actions';
 
 /**
- * The Client Access magic link must open the portal: `/client/<brandSlug>/auth?token=…`, because
+ * The Client Access magic link must open the portal: `/client/<brandSlug>/auth/verify?token=…`, because
  * `resolveClientBrand` resolves the portal's brand BY SLUG. The generator wrote the brand's UUID in
  * that position, so every generated link answered "Brand Not Found" (2026-10-11). Seams: the brand
  * scope, Clerk, and the two `@tas/db` reads/writes the action makes.
@@ -42,7 +42,7 @@ describe('createClientTokenAction', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.magicLinkUrl.startsWith('/client/gratsi/auth?token=')).toBe(true);
+    expect(result.magicLinkUrl.startsWith('/client/gratsi/auth/verify?token=')).toBe(true);
     expect(result.magicLinkUrl).not.toContain(BRAND_ID);
     expect(seam.inserted).toHaveLength(1);
     expect(seam.inserted[0]).toMatchObject({ brandId: BRAND_ID, email: 'client@example.com' });

@@ -95,8 +95,9 @@ export async function createClientTokenAction(
       updatedBy: actor,
     });
 
-    // The magic link, on the brand slug. The caller prefixes with the origin.
-    const magicLinkUrl = `/client/${encodeURIComponent(slug)}/auth?token=${encodeURIComponent(token)}`;
+    // The magic link, on the brand slug, landing on the verify ROUTE HANDLER (the one place the
+    // token cookie can be set). The caller prefixes with the origin.
+    const magicLinkUrl = `/client/${encodeURIComponent(slug)}/auth/verify?token=${encodeURIComponent(token)}`;
 
     return { ok: true as const, magicLinkUrl, tokenId: row.id };
   });
