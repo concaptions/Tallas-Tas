@@ -1,6 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 
 import type { Db } from './db';
+import { brands } from './schema/brands';
 import { clientAccessTokens, type ClientAccessToken } from './schema/client-access-tokens';
 
 /**
@@ -98,4 +99,18 @@ export async function insertClientToken(
   // insert always returns exactly one row
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return rows[0]!;
+}
+
+/**
+ * The slug a magic link is built on (`/client/<slug>/auth?token=…`): the client portal resolves its
+ * brand BY SLUG (`resolveClientBrand`), so the link generator must not write the id there — it did,
+ * and every link answered "Brand Not Found" (2026-10-11). Null for a missing or soft-deleted brand.
+ */
+export async function brandSlugById(db: Db, brandId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ slug: brands.slug })
+    .from(brands)
+    .where(and(eq(brands.id, brandId), isNull(brands.deletedAt)))
+    .limit(1);
+  return row?.slug ?? null;
 }

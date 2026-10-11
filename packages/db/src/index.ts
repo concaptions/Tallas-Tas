@@ -387,6 +387,7 @@ export {
   revokeToken,
   listTokensForBrand,
   insertClientToken,
+  brandSlugById,
 } from './client-token-queries';
 export {
   addRegistryCreatorToBrand,

@@ -1,7 +1,7 @@
 'use server';
 
 import { auth } from '@clerk/nextjs/server';
-import { insertClientToken, listTokensForBrand, revokeToken } from '@tas/db';
+import { brandSlugById, insertClientToken, listTokensForBrand, revokeToken } from '@tas/db';
 import { generateClientToken, defaultTokenExpiry } from '@tas/domain';
 import { z } from 'zod';
 
@@ -77,6 +77,11 @@ export async function createClientTokenAction(
       return failure('Brand mismatch.');
     }
 
+    // The portal route is keyed by SLUG (`/client/[brandSlug]`); the id in that position answered
+    // "Brand Not Found" for every link generated before 2026-10-11.
+    const slug = await brandSlugById(db, scopedBrandId);
+    if (slug === null) return failure('This brand is not available to clients.');
+
     const token = generateClientToken();
     const expiresAt = defaultTokenExpiry();
 
@@ -90,8 +95,8 @@ export async function createClientTokenAction(
       updatedBy: actor,
     });
 
-    // Build the magic link URL using the brand slug. The caller prefixes with the origin.
-    const magicLinkUrl = `/client/${encodeURIComponent(scopedBrandId)}/auth?token=${encodeURIComponent(token)}`;
+    // The magic link, on the brand slug. The caller prefixes with the origin.
+    const magicLinkUrl = `/client/${encodeURIComponent(slug)}/auth?token=${encodeURIComponent(token)}`;
 
     return { ok: true as const, magicLinkUrl, tokenId: row.id };
   });
