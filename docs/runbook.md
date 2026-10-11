@@ -121,6 +121,9 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   and the empty copy `ae904903…` (Copy #1) soft-deleted on Gratsi from here at 15:58Z with
   `packages/db/ops/soft-delete-smoke-rows.mjs` (the reusable, guarded script: one transaction,
   brand-scoped, rowcount and before/after counts verified; 391 → 390 live briefs, 1 → 0 copy rows).
+- Re-test cleanup SMOKE-30 (2026-10-11) · no migration. Creative `f439c0bf…` (`TAS-TOF-V005-SMOKETEST`)
+  and the empty copy `b9577d48…` (Copy #1) soft-deleted on Gratsi from here at 02:07Z with the same
+  script (391 → 390 live briefs, 1 → 0 copy rows).
 - Single-source cutover (2026-10-09) · `node apply61.mjs` was applied BEFORE the app push (done, verified).
   After the cutover deploy: `node audit-creative-sheet.mjs` should show the sheet view equal to the live
   briefs per brand (the old table's counts are history now), and the Creative Sheet in production should
