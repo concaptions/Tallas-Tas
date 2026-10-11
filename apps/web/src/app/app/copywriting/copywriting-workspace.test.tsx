@@ -28,6 +28,7 @@ function render(demo: boolean): string {
       demo={demo}
       initialSelection={null}
       initialSearch=""
+      userViews={{ userId: null, views: [] }}
     />,
   );
 }
@@ -46,5 +47,35 @@ describe('CopywritingWorkspace — New copy', () => {
   it('is disabled in demo mode, with the standard reason', () => {
     const tag = button(render(true));
     expect(isDisabled(tag)).toBe(true);
+  });
+});
+
+/**
+ * Item 5a (2026-10-11): the Copywriting grid has the same Group menu Concepts and UGC have, over
+ * its resolved columns — so "Group: Client Approval" is on offer once the column resolves. Before
+ * this the page mounted a bare view switcher with no Group menu at all.
+ */
+describe('CopywritingWorkspace — Group menu', () => {
+  it('mounts the Group menu over the resolved columns, Client Approval among them', () => {
+    const markup = renderToStaticMarkup(
+      <CopywritingWorkspace
+        columns={[
+          { columnKey: 'copy_number', displayLabel: 'Copy #', displayOrder: 0 },
+          { columnKey: 'client_approval_status', displayLabel: 'Client Approval', displayOrder: 1 },
+        ]}
+        items={[]}
+        creatives={[]}
+        concepts={[]}
+        collections={[]}
+        products={[]}
+        copyTypes={[]}
+        demo={false}
+        initialSelection={null}
+        initialSearch=""
+        userViews={{ userId: null, views: [] }}
+      />,
+    );
+    expect(markup).toContain('data-slot="grid-group"');
+    expect(markup).toContain('Client Approval');
   });
 });

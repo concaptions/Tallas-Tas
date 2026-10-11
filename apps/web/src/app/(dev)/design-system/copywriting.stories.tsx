@@ -61,6 +61,7 @@ export function CopywritingGridStory() {
   );
   return (
     <CopywritingWorkspace
+      userViews={{ userId: null, views: [] }}
       columns={parentColumnsFor('copywriting')}
       items={items}
       creatives={demoBriefs.map(({ id, name }) => ({ id, name }))}

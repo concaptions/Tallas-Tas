@@ -3,6 +3,7 @@ import { supportsView, type ViewType } from '@tas/domain';
 import { loadCopyColumns, loadCopyWorkspace } from '@/lib/copy-source';
 import { loadCopyTypes } from '@/lib/copy-types-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadUserViews } from '@/lib/user-view-actions';
 
 import { buildCopyItems } from './build-items';
 import { CopywritingWorkspace } from './copywriting-workspace';
@@ -38,8 +39,19 @@ interface CopywritingPageProps {
 }
 
 export default async function CopywritingPage({ searchParams }: CopywritingPageProps) {
-  const [workspace, { columns, unconfigured: unconfiguredColumns }, copyTypeResult, params] =
-    await Promise.all([loadCopyWorkspace(), loadCopyColumns(), loadCopyTypes(), searchParams]);
+  const [
+    workspace,
+    { columns, unconfigured: unconfiguredColumns },
+    copyTypeResult,
+    params,
+    userViews,
+  ] = await Promise.all([
+    loadCopyWorkspace(),
+    loadCopyColumns(),
+    loadCopyTypes(),
+    searchParams,
+    loadUserViews('copywriting'),
+  ]);
   const demo = isDemoMode();
 
   const items = buildCopyItems(
@@ -90,6 +102,7 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
       initialSelection={selection}
       initialSearch={initialSearch}
       initialView={initialView}
+      userViews={userViews}
     />
   );
 }

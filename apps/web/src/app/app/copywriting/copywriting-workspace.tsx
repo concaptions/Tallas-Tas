@@ -17,14 +17,22 @@ import {
   StatusChip,
 } from '@tas/ui';
 
-import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
+import {
+  ColumnNotices,
+  KanbanBoard,
+  useTableView,
+  ViewToolbar,
+  type KanbanItem,
+} from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { applyFilters } from '@/components/views/airtable-grid-logic';
 import { ChipListCell, TextCell } from '@/components/views/grid-cells';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
   type ResolvedColumnView,
 } from '@/components/views/resolved-columns';
+import type { UserViewsResult } from '@/lib/user-view-actions';
 
 import { CopyPanel } from './copy-panel';
 import {
@@ -86,6 +94,8 @@ interface CopywritingWorkspaceProps {
   readonly initialSelection: string | null;
   readonly initialSearch: string;
   readonly initialView?: ViewType;
+  /** The signed-in user's saved views for this table (item 5a: the same toolbar Concepts and UGC mount). */
+  readonly userViews: UserViewsResult;
 }
 
 const COPY_CAP = getTableCapability('copywriting') as NonNullable<
@@ -307,6 +317,7 @@ export function CopywritingWorkspace({
   initialSelection,
   initialSearch,
   initialView,
+  userViews,
 }: CopywritingWorkspaceProps) {
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
   const grid = useMemo(
@@ -317,10 +328,26 @@ export function CopywritingWorkspace({
       }),
     [columns],
   );
+  // The Fields / Filter / Group toolbar over the resolved columns (item 5a) — the same `useTableView`
+  // Concepts and UGC mount, so "Group: Client Approval" is on offer the moment the column resolves.
+  const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);
+  const fieldOptions = useMemo(
+    () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
+    [grid],
+  );
+  const tableView = useTableView({
+    tableKey: 'copywriting',
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: 'grid',
+    initialViewType: initialView ?? null,
+    fieldKeys,
+  });
+  const activeView = tableView.viewType;
+  const setActiveView = tableView.setViewType;
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
-  const [activeView, setActiveView] = useState<ViewType>(initialView ?? 'grid');
 
   const select = useCallback(
     (id: string | null) => {
@@ -356,7 +383,11 @@ export function CopywritingWorkspace({
     [items, query],
   );
 
-  const narrowed = visible.length !== items.length;
+  const filtered = useMemo(
+    () => applyFilters(visible, tableView.config.filters, grid.columns),
+    [visible, tableView.config.filters, grid.columns],
+  );
+  const narrowed = filtered.length !== items.length;
 
   // The pending row (SMOKE-19): on screen from the press, under the real id from the server's
   // answer, gone once the refreshed rows carry it. The panel opens on it as soon as the id is real.
@@ -364,14 +395,14 @@ export function CopywritingWorkspace({
   useEffect(() => {
     setPending((current) => pendingCopyAfterRows(current, items));
   }, [items]);
-  const rows = rowsWithPending(pending, visible);
+  const rows = rowsWithPending(pending, filtered);
   // The panel opens on the pending copy at the press (SMOKE-25), read-only until its id is real.
   const open = openCopy(items, pending, selection);
   const panelCreating = open !== null && isPendingCopyId(open.id);
 
   const kanbanItems: KanbanItem[] = useMemo(
     () =>
-      visible.map((item) => ({
+      filtered.map((item) => ({
         id: item.id,
         name: item.title,
         groupValue: item.status,
@@ -379,7 +410,7 @@ export function CopywritingWorkspace({
         chipLabel: item.statusLabel,
         chipTone: item.statusTone,
       })),
-    [visible],
+    [filtered],
   );
 
   const kanbanColumns = useMemo(
@@ -455,7 +486,7 @@ export function CopywritingWorkspace({
         <p className="text-sm text-text2">
           <span data-slot="copy-count">
             {narrowed
-              ? filteredCopyCountLabel(visible.length, items.length)
+              ? filteredCopyCountLabel(filtered.length, items.length)
               : copyCountLabel(items.length)}
           </span>{' '}
           — ad copy written separately, tied to the creative it runs against.
@@ -468,12 +499,27 @@ export function CopywritingWorkspace({
             <h2 id="copywriting-heading" className="text-sm font-medium text-text2">
               Library
             </h2>
-            <ViewSwitcher
+            <ViewToolbar
               tableKey="copywriting"
               supportedViews={[...COPY_CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
               kanbanGroupByField="status"
+              views={tableView.views}
+              activeViewId={tableView.activeView?.id ?? null}
+              onActivateView={tableView.activateView}
+              onCreateView={tableView.createView}
+              onRenameView={tableView.renameView}
+              onDeleteView={tableView.deleteView}
+              fields={fieldOptions}
+              isFieldVisible={tableView.isFieldVisible}
+              onToggleField={tableView.toggleField}
+              viewConfig={tableView.config}
+              onFreezeChange={tableView.setFrozenFields}
+              onMoveField={tableView.moveField}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
+              error={tableView.error}
             />
             <ColumnNotices
               slotPrefix="copy"
@@ -506,6 +552,7 @@ export function CopywritingWorkspace({
         ) : (
           <AirtableGrid
             tableKey="copywriting"
+            view={tableView.config}
             columns={grid.columns}
             rows={rows}
             rowId={(item) => item.id}
