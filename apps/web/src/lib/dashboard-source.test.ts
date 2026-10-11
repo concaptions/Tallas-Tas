@@ -20,6 +20,7 @@ import { toBriefRow, type BriefSourceDeps } from './briefs-source';
 import {
   brandPanelsHeader,
   buildRoleDashboard,
+  conceptsForPipeline,
   hasSpellingIssues,
   loadActorBrandPanels,
   loadActorBrands,
@@ -35,6 +36,7 @@ import {
   type MetricCard,
 } from './dashboard-source';
 import { AmbiguousBrandError } from './data-source';
+import { computePipelineSummary } from '@tas/domain';
 
 describe('hasSpellingIssues', () => {
   it('is true only for real flags, not a clean pass, blank, or null', () => {
@@ -702,5 +704,58 @@ describe('buildPipeline (TASK 6)', () => {
     ]);
     expect(steps.reduce((sum, s) => sum + s.count, 0)).toBe(briefs.length);
     expect(steps.find((s) => s.key === 'sent_to_designer')?.count).toBe(1);
+  });
+});
+
+/**
+ * SMOKE-35 (2026-10-11): the Overview's "Concepts" pipeline card read the two-track
+ * `client_status` — `pending_for_approval` on all 102 Gratsi concepts — so it showed 102 pending
+ * while 87 were approved. It reads the client's approval (`client_approval_status`) now, an unset
+ * one counting as pending; Gratsi reads 13 pending / 87 approved / 2 disapproved, as item 14's
+ * tile does.
+ */
+describe('the pipeline Concepts card counts client approval (SMOKE-35)', () => {
+  it('buckets mixed approvals by the one client vocabulary, unset as pending', () => {
+    const rows = [
+      {
+        internalStatus: 'sent_to_video_editor',
+        clientStatus: 'pending_for_approval',
+        clientApprovalStatus: 'approved',
+      },
+      {
+        internalStatus: 'sent_to_video_editor',
+        clientStatus: 'pending_for_approval',
+        clientApprovalStatus: 'approved',
+      },
+      {
+        internalStatus: 'sent_to_video_editor',
+        clientStatus: 'pending_for_approval',
+        clientApprovalStatus: 'pending_for_approval',
+      },
+      {
+        internalStatus: 'sent_to_video_editor',
+        clientStatus: 'pending_for_approval',
+        clientApprovalStatus: null,
+      },
+      {
+        internalStatus: 'approved',
+        clientStatus: 'pending_for_approval',
+        clientApprovalStatus: 'disapproved',
+      },
+    ];
+    const summary = computePipelineSummary({
+      briefs: [],
+      concepts: conceptsForPipeline(rows),
+      creativeSheet: [],
+      copywriting: [],
+      creators: [],
+    });
+    expect(summary.concepts.total).toBe(5);
+    expect(summary.concepts.byClientStatus).toEqual({
+      approved: 2,
+      pending_for_approval: 2,
+      disapproved: 1,
+    });
+    expect(summary.concepts.byInternalStatus).toEqual({ sent_to_video_editor: 4, approved: 1 });
   });
 });

@@ -477,6 +477,24 @@ export async function loadRoleDashboard(
 }
 
 /**
+ * The concepts rows the pipeline card counts (SMOKE-35, 2026-10-11): the client's approval
+ * (`client_approval_status`, the one client vocabulary) under the summary's `clientStatus` key —
+ * NOT the two-track `client_status`, which the import never moved and reads pending on every
+ * Gratsi concept. An unset approval counts as pending, as the "Concepts Pending" tile counts it.
+ */
+export function conceptsForPipeline(
+  rows: readonly {
+    readonly internalStatus: string | null;
+    readonly clientApprovalStatus: string | null;
+  }[],
+): { internalStatus: string | null; clientStatus: string | null }[] {
+  return rows.map((row) => ({
+    internalStatus: row.internalStatus,
+    clientStatus: row.clientApprovalStatus ?? 'pending_for_approval',
+  }));
+}
+
+/**
  * Everything the Overview's role-aware sections render — the role tiles, the eight metric cards
  * and the pipeline chart — over ONE load of the four tables, so the page never reads briefs twice.
  */
@@ -502,10 +520,7 @@ export async function loadOverviewPanels(
       internalStatus: b.internalStatus,
       clientStatus: b.clientStatus,
     })),
-    concepts: concepts.rows.map((c) => ({
-      internalStatus: c.internalStatus,
-      clientStatus: c.clientStatus,
-    })),
+    concepts: conceptsForPipeline(concepts.rows),
     creativeSheet: creativeSheet.rows.map((item) => ({
       internalStatus: item.internalStatus,
       status: item.status,
