@@ -18,12 +18,13 @@ export const TAB_HREF_SEGMENT: Readonly<Record<ClientTabKey, string>> = {
   copywriting: 'copywriting',
 };
 
-/** Non-standard tabs the shipped nav carries — angles / themes / calendar — are shown unconditionally. */
-export const AUX_NAV_ITEMS = [
-  { segment: 'angles', label: 'Angles' },
-  { segment: 'themes', label: 'Themes' },
-  { segment: 'calendar', label: 'Calendar' },
-] as const;
+/**
+ * The one fixed tab beside the standard and custom pages: Calendar (its own standard page row
+ * decides visibility). Angles and Themes left the portal nav on 2026-10-11 (item 6b, option B):
+ * they are internal lookups surfaced for context, not client pages, and the Interface Config Pages
+ * list — which never listed them — is the one list of what a client sees. Their routes stay.
+ */
+export const AUX_NAV_ITEMS = [{ segment: 'calendar', label: 'Calendar' }] as const;
 
 /** The segment every admin-configured custom page lives under, then its slug. */
 export const CUSTOM_PAGE_SEGMENT = 'custom';

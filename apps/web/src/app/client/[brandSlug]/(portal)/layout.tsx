@@ -138,9 +138,8 @@ export default async function ClientBrandLayout({ children, params }: Props) {
     .filter((row) => row.isVisible && isClientTabSlug(row.slug))
     .map((row) => ({ tabKey: row.slug as ClientTabKey, sortOrder: row.sortOrder }));
   const calendarRow = standardRows.find((row) => row.slug === 'calendar');
-  const auxItems = AUX_NAV_ITEMS.filter(
-    (item) => item.segment !== 'calendar' || calendarRow === undefined || calendarRow.isVisible,
-  );
+  // Calendar is the one fixed tab (item 6b); its standard page row, when there is one, decides.
+  const auxItems = calendarRow === undefined || calendarRow.isVisible ? AUX_NAV_ITEMS : [];
 
   const customTabs = mergedPages.filter((page) => page.isVisible);
 

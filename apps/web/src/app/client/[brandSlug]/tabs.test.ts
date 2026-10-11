@@ -59,3 +59,15 @@ describe('client portal tab links resolve to routes', () => {
     expect(customPageHref('gratsi', 'top ads')).toBe('/client/gratsi/custom/top%20ads');
   });
 });
+
+/**
+ * Item 6b (2026-10-11, option B): Angles and Themes are internal lookups surfaced for context, not
+ * pages the client works in the way they work in Concepts, the Creative Sheet, UGC, Copywriting,
+ * Calendar or a module page — so they are not in the portal nav, and the Interface Config Pages
+ * list (which they were never in) stays the one list of client pages. The routes stay reachable.
+ */
+describe('the fixed portal tabs (item 6b)', () => {
+  it('carry Calendar alone — Angles and Themes are not portal pages', () => {
+    expect(AUX_NAV_ITEMS.map((item) => item.segment)).toEqual(['calendar']);
+  });
+});
