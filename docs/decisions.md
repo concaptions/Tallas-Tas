@@ -2135,3 +2135,13 @@ code with their specs, which pass on every first-paint click locally.
 **Client Access magic link** was NOT wired: the generator wrote the brand UUID where the portal route
 expects the slug, so every link answered "Brand Not Found". Fixed (`brandSlugById`, b21b8e8); Cowork can
 generate a link from Interface Config → Client Access and open `/client/gratsi` without Talal's token.
+
+## 2026-10-11 — `apps/web` gains jsdom + Testing Library as dev dependencies (SMOKE-32)
+
+`@tas/web` ran every unit test in Node (`renderToStaticMarkup` + pure reducers); a defect that only
+shows under real clicks over time — a page switch eating four of ten rapid flips while a save was in
+flight (SMOKE-32) — needs a DOM with event dispatch and timers. `jsdom` (^30.0.1),
+`@testing-library/react` (^16.3.3) and `@testing-library/dom` (^10.4.2) join `apps/web`'s
+devDependencies at the versions `@tas/ui` already pins; a test opts in per file with
+`// @vitest-environment jsdom`, the default environment stays Node. Dev-only, no hosted service, no
+cost.

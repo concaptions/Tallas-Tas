@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
 import {
   Button,
   Dialog,
@@ -66,10 +66,10 @@ interface PagesSectionProps {
  * drive it as a function; this wrapper owns the action state and the dialog.
  */
 export function PagesSection({ pages, demo, disabled, canPush }: PagesSectionProps) {
-  const [toggleState, toggleAction, togglePending] = useActionState<
-    PageActionResult | null,
-    FormData
-  >(setPageVisibilityAction, null);
+  const [toggleState, toggleAction] = useActionState<PageActionResult | null, FormData>(
+    setPageVisibilityAction,
+    null,
+  );
   const [, reorderAction, reorderPending] = useActionState<PageActionResult | null, FormData>(
     reorderPageAction,
     null,
@@ -84,7 +84,23 @@ export function PagesSection({ pages, demo, disabled, canPush }: PagesSectionPro
   >(requestCustomPagePromotionAction, null);
   const [, startTransition] = useTransition();
   const [pushing, setPushing] = useState<PageListItem | null>(null);
-  const pending = togglePending || reorderPending || resetPending || pushPending;
+  /**
+   * The visibility each switch was last ASKED for, until the server's rows arrive (SMOKE-32,
+   * 2026-10-11). A switch is controlled by the server's `isVisible`, and a save takes seconds on a
+   * live brand: while it ran the switch showed the old value and every row was disabled, so rapid
+   * flips landed on a disabled control and did nothing. Now the switch shows the requested value at
+   * once and stays clickable; each click toggles from the latest request and `useActionState`
+   * queues the saves in order. Cleared when `pages` changes (the refreshed rows) or a save fails.
+   */
+  const [requested, setRequested] = useState<Readonly<Record<string, boolean>>>({});
+  useEffect(() => {
+    setRequested({});
+  }, [pages]);
+  useEffect(() => {
+    if (toggleState !== null && !toggleState.ok) setRequested({});
+  }, [toggleState]);
+  // Reorder, reset and push still lock the row; a toggle in flight does not lock the switches.
+  const pending = reorderPending || resetPending || pushPending;
 
   const submit = (action: (fd: FormData) => void, entries: Record<string, string>) => {
     const fd = new FormData();
@@ -110,13 +126,16 @@ export function PagesSection({ pages, demo, disabled, canPush }: PagesSectionPro
         {pages.map((page, index) => (
           <PageRow
             key={page.slug}
-            page={page}
+            page={
+              page.slug in requested ? { ...page, isVisible: requested[page.slug] === true } : page
+            }
             canMoveUp={index > 0}
             canMoveDown={index < pages.length - 1}
             demo={demo}
             disabled={disabled || pending}
             canPush={canPush}
             onToggle={(slug, isVisible) => {
+              setRequested((current) => ({ ...current, [slug]: isVisible }));
               submit(toggleAction, { slug, isVisible: String(isVisible) });
             }}
             onMove={(slug, direction) => {
