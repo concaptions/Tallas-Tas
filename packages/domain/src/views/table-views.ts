@@ -43,7 +43,9 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
     supportedViews: ['grid', 'kanban'],
     kanbanFields: [
       { field: 'internalStatus', label: 'Internal Status' },
-      { field: 'status', label: 'Status' },
+      // The sheet's client track in the one client vocabulary, worded as every table words it
+      // (item 5b, 2026-10-11).
+      { field: 'status', label: 'Client Approval' },
       // The editor's board, re-homed here from the retired Creative Design list (2026-10-09): the
       // three EDITOR_STAGES over the BRIEFS' internal status, cards are briefs, not sheet rows.
       { field: 'editorStage', label: 'Editing stage' },

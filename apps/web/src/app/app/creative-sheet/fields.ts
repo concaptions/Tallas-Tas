@@ -146,7 +146,7 @@ export const SHEET_CHECKS: readonly SheetCheckField[] = [...QA_CHECKS, SPELL_CHE
 /** The labels of the non-checkbox fields, so the panel and the E2E assertion read one string. */
 export const SHEET_LABELS = {
   internalStatus: 'Internal Status',
-  status: 'Status',
+  status: 'Client Approval',
   qaChecklistDoc: 'QA Checklist Doc',
   spellingFeedback: 'Spelling Feedback',
   dimensions: 'Dimensions',

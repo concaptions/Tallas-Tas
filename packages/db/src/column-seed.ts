@@ -1106,7 +1106,9 @@ const CREATIVE_MODULES_GRATSI = childRows('creative_modules', [
  */
 const CREATIVE_SHEET_ITEMS_PARENT = parentRows('creative_sheet_items', [
   ['brief_id', 'Creative Name', 2, 'singleLineText'],
-  ['status', 'Status', 9, 'singleSelect'],
+  // Item 5b (2026-10-11): the sheet IS creative_briefs since the cutover, so its status column
+  // is the client track in the one client vocabulary — worded as every other table words it.
+  ['status', 'Client Approval', 9, 'singleSelect'],
   ['client_comments', "Client's Comments", 10, 'multilineText'],
   // Field 17 of the template's own table (`docs/audits/overnight-parent-columns.md` §DONT USE
   // Creative Sheet): the one system timestamp both bases carry, `baseColumns()`'s `updated_at`
@@ -1153,6 +1155,23 @@ const CREATIVE_SHEET_ITEMS_NAME: readonly UpsertColumnDefinition[] = [
  *
  * Ordered from 18, after the parent's 17-field Airtable range, preserving Gratsi's relative order.
  */
+/**
+ * `creative_sheet_items.client_approval_status` — HIDDEN (item 5b, option B, 2026-10-11). Since the
+ * single-source cutover the sheet reads `creative_briefs`, whose client track is `client_status`
+ * (the sheet's "Status", now worded "Client Approval" like every other table); this configured
+ * column had no renderer and made the page report "configured but not drawn" on every brand. The
+ * frozen table's column stays; the row is hidden so the resolver no longer offers it.
+ */
+const CREATIVE_SHEET_ITEMS_CLIENT_APPROVAL_HIDDEN: UpsertColumnDefinition = {
+  tableKey: 'creative_sheet_items',
+  columnKey: 'client_approval_status',
+  displayLabel: 'Client Approval',
+  displayOrder: 30,
+  fieldType: 'singleSelect',
+  source: 'platform',
+  isHidden: true,
+};
+
 const CREATIVE_SHEET_ITEMS_PLATFORM = platformRows('creative_sheet_items', [
   ['internal_status', 'Internal Status', 18, 'singleSelect'],
   ['qa_checklist_doc', 'QA Checklist Doc', 19, 'multipleAttachments'],
@@ -1164,7 +1183,6 @@ const CREATIVE_SHEET_ITEMS_PLATFORM = platformRows('creative_sheet_items', [
   ['winning', 'Winning', 25, 'singleSelect'],
   ['spell_check_requested', 'Click for AI Spell Checker Again', 26, 'checkbox'],
   ['spelling_feedback', 'Spelling Feedback', 27, 'multilineText'],
-  ['client_approval_status', 'Client Approval', 30, 'singleSelect'],
   // The ratios the creative ships in (migration 0059): a stored copy of the brief's `Dimensions`
   // on the sheet row, replacing the Creative Dimensions workspace. A multi-select of §8 keys and
   // legacy placement names, not a record link — the sheet stores values, never ids.
@@ -1203,7 +1221,7 @@ const CREATIVE_SHEET_ITEMS_GRATSI = [
     // however a child words it — a child cannot make a virtual column stored.
     ['name', 'Name', 1, 'relabel', 'formula'],
     ['internal_status', 'Internal Status', 10, 'relabel-platform', 'singleSelect'],
-    ['status', 'Status', 11, 'relabel', 'singleSelect'],
+    ['status', 'Client Approval', 11, 'relabel', 'singleSelect'],
     ['qa_checklist_doc', 'QA Checklist Doc', 12, 'relabel-platform', 'multipleAttachments'],
     ['qa_video_editor', 'Video Editor QA', 13, 'relabel-platform', 'checkbox'],
     ['qa_designer', 'Graphic Designer QA', 14, 'relabel-platform', 'checkbox'],
@@ -2047,6 +2065,7 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
       ...CREATIVE_SHEET_ITEMS_PARENT,
       ...CREATIVE_SHEET_ITEMS_NAME,
       ...CREATIVE_SHEET_ITEMS_PLATFORM,
+      CREATIVE_SHEET_ITEMS_CLIENT_APPROVAL_HIDDEN,
       ...CREATORS_PARENT,
       ...CREATORS_PLATFORM,
       ...AI_CHARACTERS_PARENT,

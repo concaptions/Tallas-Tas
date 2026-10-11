@@ -759,6 +759,7 @@ describe('platform columns on concepts', () => {
         // Creative Sheet: the ten fields Gratsi's base defines on this table and the parent's does
         // not, plus client_approval_status. `name` is NOT here — the parent base really does define
         // field 1, so that column is the parent's and merely happens to be computed.
+        // Hidden since item 5b (2026-10-11), still the platform's row.
         'creative_sheet_items.client_approval_status',
         'creative_sheet_items.denied_revisions_needed',
         'creative_sheet_items.dimensions',
@@ -1204,8 +1205,9 @@ describe('the Creative Sheet column set', () => {
     // full 29-field base — the thirteen Creative Name lookups are alive THERE and seeded as
     // child-added `lookupRollup` virtuals, dead in the template only
     // (docs/decisions/overnight-dead-lookups.md).
-    expect(onNiagara).toHaveLength(17);
-    expect(onGratsi).toHaveLength(31);
+    // One fewer each since item 5b (2026-10-11) hid client_approval_status on the sheet table.
+    expect(onNiagara).toHaveLength(16);
+    expect(onGratsi).toHaveLength(30);
     // The 0059 column resolves for every brand, last, as the platform's.
     for (const set of [onNiagara, onGratsi]) {
       const dimensions = set.find((column) => column.columnKey === 'dimensions');

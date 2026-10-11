@@ -71,7 +71,8 @@ const EXPECTED: readonly {
   // lookups are alive there and seeded as child-added lookupRollup virtuals, dead in the template
   // only (docs/decisions/overnight-dead-lookups.md), plus Created/Last Modified.
   // FROZEN table (0061): + Client Approval and Dimensions rows the seed still carries, applied 2026-10-11.
-  { tableKey: 'creative_sheet_items', inheriting: 17, gratsi: 31, virtual: 1 },
+  // Item 5b (2026-10-11): client_approval_status hidden on the frozen sheet table — one fewer on both.
+  { tableKey: 'creative_sheet_items', inheriting: 16, gratsi: 30, virtual: 1 },
   // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
   // platform's own `due_date`; Gratsi hides three and adds five of its own.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the live base's remaining fields — three

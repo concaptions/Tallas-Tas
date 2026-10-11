@@ -62,3 +62,37 @@ describe('the pending creative (SMOKE-14)', () => {
     expect(markup).not.toContain('data-slot="creative-sheet-pending"');
   });
 });
+
+/**
+ * Item 5b (2026-10-11, option B): since the single-source cutover the sheet IS `creative_briefs`,
+ * whose client track is `client_status` in the one client vocabulary — the sheet's "Status". The
+ * configured `client_approval_status` column had no renderer, so the banner read "configured but
+ * not drawn" on every brand. The seed hides that row and words the sheet's status column "Client
+ * Approval" (grid header and kanban Group by alike); no renderer is added.
+ */
+describe('the sheet names its client track Client Approval (item 5b)', () => {
+  it('draws a "Client Approval" column, offers it in Group by, and reports nothing undrawn', async () => {
+    const demoMode = () => true;
+    const [workspace, { columns }] = await Promise.all([
+      loadCreativeSheetWorkspace({ demoMode }),
+      loadCreativeSheetColumns({ demoMode }),
+    ]);
+    const markup = renderToString(
+      <CreativeSheetWorkspace
+        columns={columns}
+        items={buildSheetItems(workspace, new Date('2026-10-10T00:00:00Z'))}
+        demo
+        initialSelection={null}
+        initialSearch=""
+        initialView="kanban"
+      />,
+    );
+    expect(columns.find((column) => column.columnKey === 'status')?.displayLabel).toBe(
+      'Client Approval',
+    );
+    expect(columns.some((column) => column.columnKey === 'client_approval_status')).toBe(false);
+    expect(markup).toContain('<option value="status">Client Approval</option>');
+    // The demo fixtures still leave a few sheet columns undrawn; this one is no longer among them.
+    expect(markup).not.toContain('client_approval_status');
+  });
+});

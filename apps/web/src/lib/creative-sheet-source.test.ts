@@ -90,7 +90,7 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       [8, 'design_file', 'Design File (from Creative Name)'],
       [9, 'design_link_url', 'Design Link URL'],
       [10, 'internal_status', 'Internal Status'],
-      [11, 'status', 'Status'],
+      [11, 'status', 'Client Approval'],
       [12, 'qa_checklist_doc', 'QA Checklist Doc'],
       [13, 'qa_video_editor', 'Video Editor QA'],
       [14, 'qa_designer', 'Graphic Designer QA'],
@@ -109,7 +109,6 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       [27, 'updated_at', 'Last Modified'],
       [28, 'spell_check_requested', 'Click for AI Spell Checker Again'],
       [29, 'spelling_feedback', 'Spelling Feedback'],
-      [30, 'client_approval_status', 'Client Approval'],
       // Oct 7 cleanup (migration 0059): Dimensions moved from its own workspace onto the sheet.
       [31, 'dimensions', 'Dimensions'],
     ]);
@@ -154,7 +153,8 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     if (niagara === undefined) throw new Error('the seed has no niagara brand');
 
     const resolved = await resolveColumns(db, niagara.id, 'creative_sheet_items');
-    expect(resolved).toHaveLength(17);
+    // 16 since item 5b hid client_approval_status on the sheet table (its client track is `status`).
+    expect(resolved).toHaveLength(16);
     expect(resolved.map((column) => column.columnKey)).toContain('dimensions');
     expect(resolved.map((column) => column.displayLabel)).toContain('Last Modified');
     for (const deadLookup of [
