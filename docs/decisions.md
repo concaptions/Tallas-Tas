@@ -2110,3 +2110,28 @@ past its gate (non-negotiable 4) by data. Nothing shipped on it pending Talal's 
 `main` red during the loop (6ba1f85, dc824bb) and were fixed within minutes; both came from gate scripts
 that did not stop on failure (`|| tail` fallbacks; `set -e` not honoured in the agent's shell) — gates are
 `&&`-chained from here.
+
+## 2026-10-11 — SMOKE-27 closed as Option A; SMOKE-29 open on evidence; first-click code stays defensive
+
+**SMOKE-27 → Option A (Talal), code only.** The concept page draws Internal and Client Approval and no
+longer the two-track client bar or the "Client status workflow" dropdown (`TwoTrackApproval` gained
+`internalOnly`; the column, the gate and the shared dropdown stay for the tables that drive the
+two-track). `client_approval_status` is the one client surface on a concept. Nothing migrated.
+
+**SMOKE-29 (Interface Config save answers 503, write persists) — not reproduced from here.** The
+action's FULL response is already pinned by `page-actions.test.ts` (real action, client's exact
+FormData, PGlite): `{ ok: true }` on toggle → reset → toggle. Railway's `@tas/web` service has no domain
+— it is a build mirror, production traffic is Vercel's — and the Postgres log for the re-test window
+carries no error (it does carry SMOKE-23's three `23505` collisions at 15:12–15:13Z the day before). The
+503 therefore comes from Vercel's layer, which this machine cannot read; nothing in the action follows
+the write but `revalidatePath`. Needed to close it: the Vercel request id / error code of the 503 (the
+page's code is the diagnosis — FUNCTION_THROTTLED vs NO_RESPONSE_FROM_FUNCTION vs a deployment swap
+under a stale action id during the push cadence). No code shipped on a guess.
+
+**First-click (SMOKE-16/22) was a Cowork test artifact** — background-tab throttling in the tester's
+browser — not a product defect; the pre-hydration replay and its committed-tree gate stay as defensive
+code with their specs, which pass on every first-paint click locally.
+
+**Client Access magic link** was NOT wired: the generator wrote the brand UUID where the portal route
+expects the slug, so every link answered "Brand Not Found". Fixed (`brandSlugById`, b21b8e8); Cowork can
+generate a link from Interface Config → Client Access and open `/client/gratsi` without Talal's token.
