@@ -18,7 +18,6 @@ import type {
 } from '@tas/domain/state';
 import {
   Button,
-  ClientStatusBadge,
   DEMO_WRITE_HINT,
   disabledWriteClassName,
   DisabledWrite,
@@ -33,9 +32,7 @@ import {
   Textarea,
   TwoTrackApproval,
 } from '@tas/ui';
-import { CLIENT_STATUS, chipTone } from '@tas/domain/state';
-
-import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
+import { CLIENT_STATUS } from '@tas/domain/state';
 
 import { collectionsPath, conceptPath, conceptsPath } from '@/lib/routes';
 
@@ -247,9 +244,13 @@ function linkRowsOf(concept: ConceptFormValues | null): string[] {
  * the inherited block above them on purpose: the block says what the ANGLE argues, these say what
  * THIS CONCEPT does with it, and only these are submitted.
  *
- * THE RAIL IS THE SHARED WIDGET. `TwoTrackApproval` from `@tas/ui` with `clientOnly={false}`, fed
- * this concept's two stored statuses. The gate is `isClientTrackOpen` inside that component; this
- * page does not compute it, does not dim anything itself and does not decide what "Approved" means.
+ * THE RAIL IS THE SHARED WIDGET. `TwoTrackApproval` from `@tas/ui` with `internalOnly`, fed this
+ * concept's internal status. The two-track `client_status` is stored and gated as before but NOT
+ * drawn here (SMOKE-27, Talal's Option A, 2026-10-11): on a concept the one client surface is the
+ * "Client Approval" select above and the grid column, both `client_approval_status` — the two-track
+ * read "Pending for Approval" beside an "Approved" on every imported Gratsi concept, a contradiction
+ * to the eye though both columns were right. The gate is `isClientTrackOpen` inside the component;
+ * this page does not compute it and does not decide what "Approved" means.
  *
  * Save is disabled by `validateConceptDraft` — the same function the action re-runs — and by demo
  * mode, through `DisabledWrite` + `disabledWriteClassName`, with the reason on hover.
@@ -880,37 +881,13 @@ export function ConceptDetail({
 
         <aside data-slot="concept-rail" className="flex min-w-0 flex-col gap-3">
           <h2 className="text-sm font-medium text-text2">Approval</h2>
-          <TwoTrackApproval track={track} internal={internal} client={client} clientOnly={false} />
-
           {/*
-            The Oct 5 client-status workflow (Agent 5): the badge and the dropdown live in the
-            DETAIL VIEW, not the grid, so a Gratsi hide (AI-33 follow-up, which hides
-            `client_status` from Gratsi's displayed Concepts set only) does not hide the control
-            — the record page is rendered regardless of grid-column resolution, and this is where
-            the strategist drives the status + reason.
+            Internal only (SMOKE-27, Option A): the two-track client bar and the Oct 5 "Client status
+            workflow" dropdown are gone from the concept page — `client_approval_status` is the one
+            client surface on a concept. The column, the gate and the shared dropdown stay for the
+            tables that still drive the two-track.
           */}
-          {concept === null ? null : (
-            <section
-              className="flex flex-col gap-2 border-t border-line pt-3"
-              data-slot="concept-client-status"
-            >
-              <h2 className="text-sm font-medium text-text2">Client status workflow</h2>
-              <ClientStatusBadge
-                vocabulary={CLIENT_STATUS}
-                value={client}
-                toneFor={(value) =>
-                  chipTone(CLIENT_STATUS.find((entry) => entry.key === value)?.label ?? '')
-                }
-              />
-              <ClientStatusDropdown
-                tableKey="concepts"
-                recordId={concept.id}
-                currentStatus={client}
-                currentNote={concept.clientStatusNote ?? null}
-                disabled={demo}
-              />
-            </section>
-          )}
+          <TwoTrackApproval track={track} internal={internal} client={client} internalOnly />
 
           {concept === null ? null : (
             <section className="flex flex-col gap-2 pt-2" data-slot="concept-creatives">

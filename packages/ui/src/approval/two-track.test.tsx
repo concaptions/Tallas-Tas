@@ -132,6 +132,15 @@ describe('TwoTrackApproval — the internal bar', () => {
 });
 
 describe('TwoTrackApproval — advance handlers', () => {
+  it('hides the client bar entirely with internalOnly, keeping the internal stepper (SMOKE-27)', () => {
+    const { container } = render(
+      <TwoTrackApproval track="video" internal="ad_submitted" client="approved" internalOnly />,
+    );
+    expect(container.querySelector('[data-slot="client-track"]')).toBeNull();
+    expect(container.querySelector('[data-slot="internal-track"]')).not.toBeNull();
+    expect(container.textContent).not.toContain('Client status');
+  });
+
   it('renders no buttons when no handler is given', () => {
     const { container } = render(
       <TwoTrackApproval track="video" internal="approved" client="pending_for_approval" />,

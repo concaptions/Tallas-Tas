@@ -233,3 +233,22 @@ describe('the Concept form’s required markers', () => {
     }
   });
 });
+
+/**
+ * SMOKE-27 (Talal's Option A, 2026-10-11): on a concept the ONE client surface is Client Approval
+ * (`client_approval_status`). The two-track client bar and the "Client status workflow" dropdown
+ * are not drawn — the column and the gate stay — so the page cannot show "Pending for Approval"
+ * beside an "Approved" again. The internal stepper stays.
+ */
+describe('the concept rail shows Internal and Client Approval, never the two-track client status', () => {
+  it('renders no client-track bar and no client-status workflow, keeps internal and the select', () => {
+    const markup = filledForm();
+    expect(markup).not.toContain('data-slot="client-track"');
+    expect(markup).not.toContain('data-slot="concept-client-status"');
+    expect(markup).not.toContain('data-slot="client-status-dropdown"');
+    expect(markup).not.toContain('Client status');
+    expect(markup).toContain('data-slot="internal-track"');
+    expect(markup).toContain('data-slot="concept-field-clientApprovalStatus"');
+    expect(markup).toContain('Client Approval');
+  });
+});

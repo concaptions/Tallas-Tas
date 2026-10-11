@@ -24,6 +24,12 @@ export interface TwoTrackApprovalProps {
   client: ClientStatusKey;
   /** Hides the internal bar entirely; used on the client interface. */
   clientOnly?: boolean;
+  /**
+   * Hides the client bar entirely (SMOKE-27, Option A): on a CONCEPT the one client surface is the
+   * grid's Client Approval (`client_approval_status`); the two-track `client_status` stays stored
+   * and gated but is not drawn beside it, where the two read as a contradiction.
+   */
+  internalOnly?: boolean;
   onAdvanceInternal?: () => void;
   onAdvanceClient?: () => void;
 }
@@ -54,6 +60,7 @@ export function TwoTrackApproval({
   internal,
   client,
   clientOnly = false,
+  internalOnly = false,
   onAdvanceInternal,
   onAdvanceClient,
 }: TwoTrackApprovalProps) {
@@ -106,46 +113,48 @@ export function TwoTrackApproval({
         </section>
       )}
 
-      <section
-        data-slot="client-track"
-        data-open={String(open)}
-        className={cn('rounded-card border bg-surface p-4')}
-        style={clientWrapperStyle}
-      >
-        <header className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-[11px] font-medium tracking-wide text-text3 uppercase">
-            Client status
-          </h3>
-          {open ? (
-            clientEntry === undefined ? null : (
-              <StatusChip tone={chipTone(clientEntry.label)} label={clientEntry.label} />
-            )
-          ) : (
-            <StatusChip tone="mute" label="locked" />
-          )}
-        </header>
-        <div data-slot="client-steps">
-          {CLIENT_TRACK_STEPS.map((entry, index) => (
-            <StepRow
-              key={entry.key}
-              label={entry.label}
-              tip={entry.description}
-              state={stepState(CLIENT_TRACK_STEPS, client, entry.key)}
-              isLast={index === CLIENT_TRACK_STEPS.length - 1}
-            />
-          ))}
-        </div>
-        <p data-slot="client-track-note" className="mt-3 text-[11px] leading-snug text-text3">
-          {open ? CLIENT_TRACK_LIVE_NOTE : CLIENT_TRACK_LOCKED_NOTE}
-        </p>
-        {onAdvanceClient === undefined ? null : (
-          <div className="mt-3 flex justify-end">
-            <Button size="sm" variant="secondary" onClick={onAdvanceClient} disabled={!open}>
-              Advance client
-            </Button>
+      {internalOnly ? null : (
+        <section
+          data-slot="client-track"
+          data-open={String(open)}
+          className={cn('rounded-card border bg-surface p-4')}
+          style={clientWrapperStyle}
+        >
+          <header className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-[11px] font-medium tracking-wide text-text3 uppercase">
+              Client status
+            </h3>
+            {open ? (
+              clientEntry === undefined ? null : (
+                <StatusChip tone={chipTone(clientEntry.label)} label={clientEntry.label} />
+              )
+            ) : (
+              <StatusChip tone="mute" label="locked" />
+            )}
+          </header>
+          <div data-slot="client-steps">
+            {CLIENT_TRACK_STEPS.map((entry, index) => (
+              <StepRow
+                key={entry.key}
+                label={entry.label}
+                tip={entry.description}
+                state={stepState(CLIENT_TRACK_STEPS, client, entry.key)}
+                isLast={index === CLIENT_TRACK_STEPS.length - 1}
+              />
+            ))}
           </div>
-        )}
-      </section>
+          <p data-slot="client-track-note" className="mt-3 text-[11px] leading-snug text-text3">
+            {open ? CLIENT_TRACK_LIVE_NOTE : CLIENT_TRACK_LOCKED_NOTE}
+          </p>
+          {onAdvanceClient === undefined ? null : (
+            <div className="mt-3 flex justify-end">
+              <Button size="sm" variant="secondary" onClick={onAdvanceClient} disabled={!open}>
+                Advance client
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

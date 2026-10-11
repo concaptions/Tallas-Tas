@@ -1454,9 +1454,9 @@ export default function DesignSystemPage() {
 
       <Section
         title="TwoTrackApproval"
-        note="Mounted three ways. The gate is isClientTrackOpen; no component computes it locally."
+        note="Mounted four ways. The gate is isClientTrackOpen; no component computes it locally. internalOnly is the concept detail (SMOKE-27): the grid's Client Approval is the one client surface there."
       >
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-5 lg:grid-cols-4">
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
               internal: ad_submitted
@@ -1476,6 +1476,17 @@ export default function DesignSystemPage() {
               internal="static_design_in_progress"
               client="pending_for_approval"
               clientOnly
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              internalOnly
+            </h3>
+            <TwoTrackApproval
+              track="video"
+              internal="sent_to_video_editor"
+              client="pending_for_approval"
+              internalOnly
             />
           </div>
         </div>
