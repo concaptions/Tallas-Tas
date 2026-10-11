@@ -1,4 +1,4 @@
-import { customInterfacePages, listMergedPages, seed, type Db } from '@tas/db';
+import { activityLog, customInterfacePages, listMergedPages, seed, type Db } from '@tas/db';
 import { testDb } from '@tas/db/testing';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -18,6 +18,10 @@ import { resetPageAction, setPageVisibilityAction } from './page-actions';
 const seam = vi.hoisted((): { db: Db | null; brandId: string } => ({ db: null, brandId: '' }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+vi.mock('next/headers', () => ({
+  headers: () =>
+    Promise.resolve(new Headers({ 'x-vercel-id': 'fra1::abc123-1760000000000-deadbeef' })),
+}));
 vi.mock('@clerk/nextjs/server', () => ({
   auth: (): Promise<{ userId: string | null }> => Promise.resolve({ userId: 'user_admin' }),
 }));
@@ -103,5 +107,45 @@ describe('setPageVisibilityAction with the client payload', () => {
     const on = await setPageVisibilityAction(null, post({ slug: 'calendar', isVisible: 'true' }));
     expect(on).toMatchObject({ ok: true });
     expect(await calendarRow()).toEqual({ isVisible: true, brandOwn: true });
+  });
+});
+
+/**
+ * SMOKE-29 (open): the save sometimes answered a 503 while the write persisted, and the 503 lives
+ * in Vercel's layer. So the action leaves a trace in Postgres — one `activity_log` row at START and
+ * one at OK or FAILED, both carrying the request's `x-vercel-id` — so the next 503 says whether the
+ * function finished. Keyed on the brand under `interface_config`, which no record page lists.
+ */
+describe('setPageVisibilityAction tracing', () => {
+  it('writes start and ok rows with the request id, inside the brand scope', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    if (seam.db === null) throw new Error('the test database is not open');
+    const before = (await seam.db.select().from(activityLog)).length;
+
+    const result = await setPageVisibilityAction(
+      null,
+      post({ slug: 'calendar', isVisible: 'true' }),
+    );
+    expect(result).toMatchObject({ ok: true });
+
+    const rows = (await seam.db.select().from(activityLog)).slice(before);
+    expect(
+      rows.map((row) => [row.entityType, row.entityId, row.field, row.oldValue, row.newValue]),
+    ).toEqual([
+      [
+        'interface_config',
+        seam.brandId,
+        'page_visibility:calendar',
+        'fra1::abc123-1760000000000-deadbeef',
+        'start',
+      ],
+      [
+        'interface_config',
+        seam.brandId,
+        'page_visibility:calendar',
+        'fra1::abc123-1760000000000-deadbeef',
+        'ok',
+      ],
+    ]);
   });
 });

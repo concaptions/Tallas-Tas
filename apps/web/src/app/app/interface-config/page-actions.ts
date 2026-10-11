@@ -1,8 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { auth } from '@clerk/nextjs/server';
 import {
+  insertActivity,
   listMergedPages,
   listTeam,
   setBrandPageOrder,
@@ -77,16 +79,79 @@ function entry(formData: FormData, key: string): string | undefined {
 
 type Outcome = { readonly refusal: string | null };
 
+/**
+ * A trace of the action in Postgres (SMOKE-29, open): the save sometimes answered a 503 from
+ * Vercel's layer while the write persisted, and nothing here could see it. One `activity_log` row at
+ * START and one at OK or FAILED, carrying the request's `x-vercel-id`, keyed on the brand under
+ * `interface_config` (no record page lists that entity), so the next 503 can be read against
+ * whether the function finished. Best effort: a trace that cannot be written never fails the save.
+ */
+async function trace(
+  db: Db,
+  brandId: string,
+  actor: string,
+  label: string,
+  requestId: string,
+  stage: 'start' | 'ok' | `failed: ${string}`,
+): Promise<void> {
+  try {
+    await insertActivity(
+      db,
+      brandId,
+      'interface_config',
+      brandId,
+      [{ field: label, oldValue: requestId, newValue: stage }],
+      { id: actor, name: null },
+    );
+  } catch {
+    // The trace is diagnostic only.
+  }
+}
+
+async function requestId(): Promise<string> {
+  try {
+    return (await headers()).get('x-vercel-id') ?? 'no-x-vercel-id';
+  } catch {
+    return 'no-request';
+  }
+}
+
 async function run(
   actor: string,
   body: (db: Db, brandId: string) => Promise<string | null>,
   failed: string,
+  /** When given, the action is traced to Postgres under this label (see `trace`). */
+  label?: string,
 ): Promise<PageActionResult> {
   try {
     const outcome = await withInterfacePagesScope<Outcome>(async (db, brandId) => {
       const refusal = await configRefusal(db, actor);
       if (refusal !== null) return { refusal };
-      return { refusal: await body(db, brandId) };
+      if (label === undefined) return { refusal: await body(db, brandId) };
+      const id = await requestId();
+      await trace(db, brandId, actor, label, id, 'start');
+      try {
+        const result = { refusal: await body(db, brandId) };
+        await trace(
+          db,
+          brandId,
+          actor,
+          label,
+          id,
+          result.refusal === null ? 'ok' : `failed: ${result.refusal}`,
+        );
+        return result;
+      } catch (error) {
+        await trace(
+          db,
+          brandId,
+          actor,
+          label,
+          id,
+          `failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        throw error;
+      }
     });
     if (outcome === null) return failure('This workspace has no brand yet.');
     if (outcome.refusal !== null) return failure(outcome.refusal);
@@ -121,6 +186,7 @@ export async function setPageVisibilityAction(
       return null;
     },
     'The page visibility could not be saved. Try again.',
+    `page_visibility:${parsed.data.slug}`,
   );
 }
 
