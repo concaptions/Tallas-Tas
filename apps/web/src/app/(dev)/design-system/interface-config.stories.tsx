@@ -283,6 +283,7 @@ export function PagesSectionStory() {
           onToggle={inert}
           onMove={inert}
           onReset={inert}
+          onEdit={inert}
           onPush={inert}
         />
       ))}

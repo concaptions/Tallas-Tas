@@ -12,6 +12,7 @@ vi.mock('./custom-page-actions', () => ({
 vi.mock('./custom-page-propagation-actions', () => ({
   requestCustomPagePromotionAction: vi.fn(),
 }));
+vi.mock('./page-actions', () => ({ editPageAction: vi.fn() }));
 
 /**
  * "Add custom page" did nothing (2026-10-12): `DialogTrigger asChild` wrapped `DisabledWrite`,

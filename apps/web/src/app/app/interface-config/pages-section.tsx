@@ -13,7 +13,6 @@ import {
   Switch,
   disabledWriteClassName,
 } from '@tas/ui';
-import type { PageKind } from '@tas/domain';
 
 import {
   requestCustomPagePromotionAction,
@@ -32,22 +31,15 @@ import {
   setPageVisibilityAction,
   type PageActionResult,
 } from './page-actions';
+import { PageDialog, type ResolverColumnsByTable } from './page-dialog';
+import type { PageListItem } from './page-list-item';
 
-/** One page of the brand as the section lists it, projected on the server from the merged rows. */
-export interface PageListItem {
-  readonly id: string;
-  readonly slug: string;
-  readonly title: string;
-  readonly kind: PageKind;
-  readonly isVisible: boolean;
-  /** The brand has its own row for this slug (visibility or order of its own). */
-  readonly overridden: boolean;
-  /** A template row: the one kind an Admin may push to every client. */
-  readonly isTemplate: boolean;
-}
+export type { PageListItem } from './page-list-item';
 
 interface PagesSectionProps {
   readonly pages: readonly PageListItem[];
+  /** The resolver's columns per source table, for the Edit dialog's filter and column picks. */
+  readonly resolverColumnsByTable: ResolverColumnsByTable;
   readonly demo: boolean;
   /** Admin + CSM may toggle and reorder; false for anyone else. */
   readonly disabled: boolean;
@@ -65,7 +57,13 @@ interface PagesSectionProps {
  * `movePage`, and the actions decide what writes succeed. `PageRow` is hook-free so a test can
  * drive it as a function; this wrapper owns the action state and the dialog.
  */
-export function PagesSection({ pages, demo, disabled, canPush }: PagesSectionProps) {
+export function PagesSection({
+  pages,
+  resolverColumnsByTable,
+  demo,
+  disabled,
+  canPush,
+}: PagesSectionProps) {
   const [toggleState, toggleAction] = useActionState<PageActionResult | null, FormData>(
     setPageVisibilityAction,
     null,
@@ -84,6 +82,9 @@ export function PagesSection({ pages, demo, disabled, canPush }: PagesSectionPro
   >(requestCustomPagePromotionAction, null);
   const [, startTransition] = useTransition();
   const [pushing, setPushing] = useState<PageListItem | null>(null);
+  /** The row whose Edit dialog is open, and the last row saved through it (the status line). */
+  const [editing, setEditing] = useState<PageListItem | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   /**
    * The visibility each switch was last ASKED for, until the server's rows arrive (SMOKE-32,
    * 2026-10-11). A switch is controlled by the server's `isVisible`, and a save takes seconds on a
@@ -144,6 +145,7 @@ export function PagesSection({ pages, demo, disabled, canPush }: PagesSectionPro
             onReset={(slug) => {
               submit(resetAction, { slug });
             }}
+            onEdit={setEditing}
             onPush={setPushing}
           />
         ))}
@@ -158,11 +160,30 @@ export function PagesSection({ pages, demo, disabled, canPush }: PagesSectionPro
           {pushState.error}
         </p>
       ) : null}
+      {saved !== null ? (
+        <p data-slot="pages-saved" className="text-xs text-ok" role="status">
+          {saved} saved. The client portal shows it on its next load.
+        </p>
+      ) : null}
       {pushState !== null && pushState.ok ? (
         <p data-slot="pages-pushed" className="text-xs text-ok" role="status">
           Sent to the Propagation page for an Admin to approve.
         </p>
       ) : null}
+      {editing === null ? null : (
+        <PageDialog
+          mode="edit"
+          page={editing}
+          resolverColumnsByTable={resolverColumnsByTable}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+          onSaved={(page) => {
+            setSaved(page.title);
+          }}
+        />
+      )}
       <PushReviewDialog
         page={pushing}
         pending={pushPending}
@@ -189,6 +210,8 @@ export interface PageRowProps {
   readonly onToggle: (slug: string, isVisible: boolean) => void;
   readonly onMove: (slug: string, direction: 'up' | 'down') => void;
   readonly onReset: (slug: string) => void;
+  /** Opens the Edit dialog on the row; nothing is written until it is saved. */
+  readonly onEdit: (page: PageListItem) => void;
   /** Opens the review dialog; nothing is written until it is confirmed. */
   readonly onPush: (page: PageListItem) => void;
 }
@@ -204,6 +227,7 @@ export function PageRow({
   onToggle,
   onMove,
   onReset,
+  onEdit,
   onPush,
 }: PageRowProps) {
   const inert = demo || disabled;
@@ -263,6 +287,23 @@ export function PageRow({
             </DisabledWrite>
           );
         })}
+        <DisabledWrite active={inert}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-slot="page-edit"
+            data-page-slug={page.slug}
+            disabled={inert}
+            onClick={() => {
+              onEdit(page);
+            }}
+            className={disabledWriteClassName}
+            aria-label={`Edit ${page.title}`}
+          >
+            Edit
+          </Button>
+        </DisabledWrite>
         {page.overridden ? (
           <DisabledWrite active={inert}>
             <Button

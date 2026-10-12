@@ -23,10 +23,21 @@ vi.mock('./page-actions', () => ({
   },
   reorderPageAction: vi.fn(),
   resetPageAction: vi.fn(),
+  editPageAction: vi.fn(),
 }));
 vi.mock('./custom-page-propagation-actions', () => ({
   requestCustomPagePromotionAction: vi.fn(),
 }));
+vi.mock('./custom-page-actions', () => ({ createCustomPageAction: vi.fn() }));
+
+const NO_COLUMNS = {
+  creative_briefs: [],
+  creators: [],
+  copywriting: [],
+  concepts: [],
+  collections: [],
+  products: [],
+} as const;
 
 const calendar: PageListItem = {
   id: 'cal',
@@ -49,7 +60,15 @@ afterEach(() => {
 
 describe('a page switch under rapid clicks (SMOKE-32)', () => {
   it('queues ten flips as ten alternating saves, none lost to a pending save', async () => {
-    render(<PagesSection pages={[calendar]} demo={false} disabled={false} canPush={false} />);
+    render(
+      <PagesSection
+        pages={[calendar]}
+        resolverColumnsByTable={NO_COLUMNS}
+        demo={false}
+        disabled={false}
+        canPush={false}
+      />,
+    );
     const toggle = screen.getByRole('switch', { name: 'Show Calendar' });
 
     for (let click = 0; click < 10; click += 1) {

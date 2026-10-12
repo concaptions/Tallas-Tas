@@ -119,6 +119,7 @@ export default async function InterfaceConfigPage() {
       />
       <PagesSection
         pages={pageListItems(snapshot.templatePages, snapshot.brandPages)}
+        resolverColumnsByTable={resolverColumnsByTable}
         demo={demo}
         disabled={!canConfigureNew}
         canPush={canSeePropagationPage(actor)}

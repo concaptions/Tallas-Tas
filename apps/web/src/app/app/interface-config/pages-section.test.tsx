@@ -35,6 +35,7 @@ function row(overrides: Partial<PageRowProps> = {}) {
     onToggle: vi.fn<PageRowProps['onToggle']>(),
     onMove: vi.fn<PageRowProps['onMove']>(),
     onReset: vi.fn<PageRowProps['onReset']>(),
+    onEdit: vi.fn<PageRowProps['onEdit']>(),
     onPush: vi.fn<PageRowProps['onPush']>(),
   };
   const tree = PageRow({
@@ -105,4 +106,23 @@ describe('PushReviewDialog', () => {
     expect(onConfirm).toHaveBeenCalledWith(PAGE);
     expect(findElement(tree, (e) => e.props['open'] === true)).toBeDefined();
   });
+});
+
+/**
+ * Edit (2026-10-12): every row — standard tab, module page, custom view — carries an Edit button
+ * beside the arrows and Reset; it hands the row to the section, which opens the dialog. Nothing is
+ * written on the click.
+ */
+describe('PageRow — Edit', () => {
+  it.each(['standard', 'module', 'custom'] as const)(
+    'a %s row has an Edit button that hands over the row',
+    (kind) => {
+      const page = { ...PAGE, kind };
+      const { tree, onEdit } = row({ page });
+      const button = slot(tree, 'page-edit');
+      expect(button).not.toBeUndefined();
+      (button?.props['onClick'] as () => void)();
+      expect(onEdit).toHaveBeenCalledWith(page);
+    },
+  );
 });

@@ -6,7 +6,7 @@ import {
   type PageKind,
 } from '@tas/domain';
 
-import type { PageListItem } from './pages-section';
+import type { PageListItem } from './page-list-item';
 
 interface PageRowLike {
   readonly id: string;
@@ -16,6 +16,9 @@ interface PageRowLike {
   readonly pageKind: PageKind;
   readonly sortOrder: number;
   readonly isVisible: boolean;
+  readonly sourceTableKey?: string | null;
+  readonly filterConfig?: PageListItem['filterConfig'];
+  readonly columnConfig?: PageListItem['columnConfig'];
 }
 
 /**
@@ -44,6 +47,9 @@ export function pageListItems(
       isVisible: row.isVisible,
       overridden: ownSlugs.has(row.slug),
       isTemplate: row.brandId === null,
+      sourceTableKey: row.sourceTableKey ?? null,
+      filterConfig: row.filterConfig ?? null,
+      columnConfig: row.columnConfig ?? null,
     }));
   if (items.some((item) => item.kind === 'standard')) return items;
   const fallback = STANDARD_PAGE_SLUGS.map((slug): PageListItem => ({
