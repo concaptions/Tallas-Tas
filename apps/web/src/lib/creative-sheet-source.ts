@@ -2,6 +2,7 @@ import {
   demoAngles,
   demoBriefs,
   demoCollections,
+  demoComments,
   demoConcepts,
   demoCopy,
   demoCreativeModules,
@@ -11,11 +12,13 @@ import {
   listAngles,
   listBriefs,
   listCollections,
+  listCommentsForRecordType,
   listConcepts,
   listCopy,
   listCreativeModules,
   listCreativeSheetItems,
   listProducts,
+  type ClientComment,
   type CreativeSheetItemListRow,
   type Db,
 } from '@tas/db';
@@ -72,6 +75,8 @@ export interface SheetBriefLookup {
   /** The concept-inherited fallbacks `listBriefs` already resolved, for a brief with no direct link. */
   readonly angleName: string | null;
   readonly productName: string | null;
+  /** The brief's own concept, by name, for the Oct 12 sidebar and Focus Mode; null is standalone. */
+  readonly conceptName: string | null;
 }
 
 export interface SheetNamedRow {
@@ -106,7 +111,18 @@ export interface CreativeSheetWorkspaceResult {
   readonly concepts: readonly SheetConceptLookup[];
   readonly modules: readonly SheetModuleLookup[];
   readonly copyRows: readonly SheetCopyLookup[];
+  /** Every comment filed under the briefs' record type, for Focus Mode's Feedback panel (Oct 12). */
+  readonly comments: readonly SheetCommentLookup[];
   readonly source: CreativeSheetSourceKind;
+}
+
+/** One comment on a creative, as Focus Mode lists it: who, when, what, and which creative. */
+export interface SheetCommentLookup {
+  readonly id: string;
+  readonly recordId: string;
+  readonly authorName: string;
+  readonly body: string;
+  readonly createdAt: Date;
 }
 
 export interface CreativeSheetItemResult {
@@ -178,6 +194,7 @@ function toBriefLookup(brief: {
   readonly performance: string | null;
   readonly angleName: string | null;
   readonly productName: string | null;
+  readonly conceptName: string | null;
 }): SheetBriefLookup {
   return {
     id: brief.id,
@@ -193,6 +210,20 @@ function toBriefLookup(brief: {
     performance: brief.performance,
     angleName: brief.angleName,
     productName: brief.productName,
+    conceptName: brief.conceptName,
+  };
+}
+
+/** The briefs' record type in `comments`, the table's name, as the client portal files them. */
+const BRIEF_COMMENT_RECORD_TYPE = 'creative_briefs';
+
+function toCommentLookup(row: ClientComment): SheetCommentLookup {
+  return {
+    id: row.id,
+    recordId: row.recordId,
+    authorName: row.authorName,
+    body: row.body,
+    createdAt: row.createdAt,
   };
 }
 
@@ -239,6 +270,9 @@ export async function loadCreativeSheetWorkspace(
       concepts: demoConcepts.map(toConceptLookup),
       modules: demoCreativeModules.map(toModuleLookup),
       copyRows: demoCopy.map(toCopyLookup),
+      comments: demoComments
+        .filter((comment) => comment.recordType === BRIEF_COMMENT_RECORD_TYPE)
+        .map(toCommentLookup),
       source: 'demo',
     };
   }
@@ -254,6 +288,7 @@ export async function loadCreativeSheetWorkspace(
         concepts: [],
         modules: [],
         copyRows: [],
+        comments: [],
         source: 'database' as const,
       };
     }
@@ -266,6 +301,7 @@ export async function loadCreativeSheetWorkspace(
       conceptRows,
       moduleRows,
       copyRows,
+      commentRows,
     ] = await Promise.all([
       listCreativeSheetItems(db, brandId),
       listBriefs(db, brandId),
@@ -275,6 +311,7 @@ export async function loadCreativeSheetWorkspace(
       listConcepts(db, brandId),
       listCreativeModules(db, brandId),
       listCopy(db, brandId),
+      listCommentsForRecordType(db, brandId, BRIEF_COMMENT_RECORD_TYPE),
     ]);
     return {
       rows,
@@ -285,6 +322,7 @@ export async function loadCreativeSheetWorkspace(
       concepts: conceptRows.map(toConceptLookup),
       modules: moduleRows.map(toModuleLookup),
       copyRows: copyRows.map(toCopyLookup),
+      comments: commentRows.map(toCommentLookup),
       source: 'database' as const,
     };
   });

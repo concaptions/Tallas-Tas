@@ -48,8 +48,8 @@ export const OTHER_COLUMN = 'Other';
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 
-/** The record type a creative's comments are filed under (Oct 12 Focus Mode's Feedback panel). */
-export const CREATIVE_COMMENT_RECORD_TYPE = 'creative_brief';
+/** The record type a creative's comments are filed under — the table's name, as the client portal files them, so Focus Mode's Feedback panel shows the client's comments too. */
+export const CREATIVE_COMMENT_RECORD_TYPE = 'creative_briefs';
 
 /** The `?creative-sheet=` parameter the open row lives in, and the `?q=` the filter lives in. */
 export const SELECTION_PARAM = 'creative-sheet';
@@ -171,10 +171,14 @@ export const DIMENSIONS_SAVE_LABELS = {
 
 /** The panel's section headings, in order. */
 export const SHEET_GROUPS = {
+  identity: 'Identity',
   creative: 'Creative',
-  approval: 'Approval',
-  qa: 'QA checklist',
+  approval: 'Status',
+  content: 'Content',
+  qa: 'QA',
+  assets: 'Assets',
   spelling: 'Spelling',
+  meta: 'Meta',
 } as const;
 
 /** The link from the panel's header to the creative's own page, where the rest is edited. */
@@ -359,8 +363,40 @@ export function pendingSheetRow(pending: PendingCreative, now: Date): SheetItemV
       briefFunnel: null,
       briefPerformance: null,
       briefDesignFileUrl: null,
+      detail: {
+        conceptId: null,
+        angleId: null,
+        productId: null,
+        collectionId: null,
+        batch: null,
+        source: 'TAS',
+        version: 1,
+        briefNumber: null,
+        nameMode: 'auto',
+        priority: null,
+        assignee: null,
+        dueDate: null,
+        briefToDesign: null,
+        scriptContent: null,
+        adContent: null,
+        elementsTested: null,
+        inspiration: null,
+        offer: null,
+        language: null,
+        inspoLinks: [],
+        inspirationImage: null,
+        designFile: null,
+        scriptAndBriefBreakdown: null,
+        clientStatusNote: null,
+        clientStatusUpdatedAt: null,
+        launchedAt: null,
+        createdBy: null,
+        updatedBy: null,
+      },
     },
+    comments: [],
     lookups: {
+      concept: null,
       performance: null,
       internalProduct: null,
       angle: null,

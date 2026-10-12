@@ -466,7 +466,7 @@ describe('a comment from Focus Mode', () => {
 
     expect(result).toMatchObject({ ok: true, id: 'comment-1', body: 'Slow the pour shot.' });
     expect(seam.comments).toEqual([
-      { recordType: 'creative_brief', recordId: VIDEO_ID, body: 'Slow the pour shot.' },
+      { recordType: 'creative_briefs', recordId: VIDEO_ID, body: 'Slow the pour shot.' },
     ]);
   });
 

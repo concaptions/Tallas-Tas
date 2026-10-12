@@ -113,10 +113,13 @@ import {
 import { AssetUploadModalStory } from './assets-upload.stories';
 import { BrandGradientStory } from './brand-gradient.stories';
 import {
+  BriefSidebarStory,
   CreativeSheetChipsStory,
   CreativeSheetDimensionsStory,
   CreativeSheetGridStory,
   CreativeSheetTicksStory,
+  FocusModeStory,
+  MultiSelectStory,
 } from './creative-sheet.stories';
 import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
 import { ClientStatusBadgesStory, ClientStatusDropdownDemoStory } from './client-status.stories';
@@ -1250,6 +1253,26 @@ export default function DesignSystemPage() {
               dimensions field — ratios, a legacy placement name, read-only
             </h3>
             <CreativeSheetDimensionsStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <h3 className="mb-2 font-mono text-[11px] tracking-wide text-text3 uppercase">
+              focus mode (Oct 12) — one creative, prev/next, the type-filtered QA checklist, the
+              gated buttons
+            </h3>
+            <FocusModeStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <h3 className="mb-2 font-mono text-[11px] tracking-wide text-text3 uppercase">
+              brief row sidebar (Oct 12) — a Sheet from the right, six sections, the N/A tick struck
+              through
+            </h3>
+            <BriefSidebarStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <h3 className="mb-2 font-mono text-[11px] tracking-wide text-text3 uppercase">
+              multi-select (Oct 12) — checkbox column, right-click menu, floating action bar
+            </h3>
+            <MultiSelectStory columns={parentColumnsFor('creative_sheet_items')} />
           </div>
         </div>
       </Section>

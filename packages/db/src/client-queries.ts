@@ -431,6 +431,31 @@ export interface ClientComment {
   createdAt: Date;
 }
 
+/**
+ * Every live comment of ONE record type in the brand, oldest first — the Creative Sheet's Focus
+ * Mode reads the briefs' comments in one statement for the page rather than one per row.
+ */
+export async function listCommentsForRecordType(
+  db: Db,
+  brandId: string,
+  recordType: string,
+): Promise<ClientComment[]> {
+  return db
+    .select({
+      id: comments.id,
+      recordType: comments.recordType,
+      recordId: comments.recordId,
+      parentCommentId: comments.parentCommentId,
+      authorId: comments.authorId,
+      authorName: comments.authorName,
+      body: comments.body,
+      createdAt: comments.createdAt,
+    })
+    .from(comments)
+    .where(and(brandScope(brandId).comments, eq(comments.recordType, recordType)))
+    .orderBy(asc(comments.createdAt));
+}
+
 export async function listComments(
   db: Db,
   brandId: string,

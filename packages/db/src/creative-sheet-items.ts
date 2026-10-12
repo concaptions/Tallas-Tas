@@ -3,10 +3,14 @@ import { desc, eq } from 'drizzle-orm';
 import type { Db } from './db';
 import {
   creativeBriefs,
+  type BriefNameMode,
   type CreativeBrief,
   type CreativeFunnel,
+  type CreativeLanguage,
   type CreativePerformance,
   type CreativePlatform,
+  type CreativePriority,
+  type CreativeSource,
   type CreativeType,
 } from './schema';
 import { withBrand } from './tenancy';
@@ -48,6 +52,42 @@ export interface CreativeSheetBriefFields {
 }
 
 /**
+ * The rest of the brief, as the Oct 12 Brief row sidebar and Focus Mode read it: every stored
+ * field the full page edits, grouped under one key so the row's own shape (the sheet's columns)
+ * stays what it was. Read-only here; the brief's page is where these are edited.
+ */
+export interface CreativeSheetBriefDetail {
+  readonly conceptId: string | null;
+  readonly angleId: string | null;
+  readonly productId: string | null;
+  readonly collectionId: string | null;
+  readonly batch: string | null;
+  readonly source: CreativeSource;
+  readonly version: number;
+  readonly briefNumber: number | null;
+  readonly nameMode: BriefNameMode;
+  readonly priority: CreativePriority | null;
+  readonly assignee: string | null;
+  readonly dueDate: Date | null;
+  readonly briefToDesign: string | null;
+  readonly scriptContent: string | null;
+  readonly adContent: string | null;
+  readonly elementsTested: string | null;
+  readonly inspiration: string | null;
+  readonly offer: string | null;
+  readonly language: CreativeLanguage | null;
+  readonly inspoLinks: string[];
+  readonly inspirationImage: string[] | null;
+  readonly designFile: string[] | null;
+  readonly scriptAndBriefBreakdown: string[] | null;
+  readonly clientStatusNote: string | null;
+  readonly clientStatusUpdatedAt: Date | null;
+  readonly launchedAt: Date | null;
+  readonly createdBy: string | null;
+  readonly updatedBy: string | null;
+}
+
+/**
  * One Creative Sheet row: a live brief, read for the sheet. `id` and `briefId` are both the
  * brief's id (`briefId` stays so the editor board and the brief rail keep their joins).
  * `internalStatus` and `status` carry the brief's `internal_status` and `client_status` — the two
@@ -72,11 +112,14 @@ export interface CreativeSheetItemListRow extends CreativeSheetBriefFields {
   readonly spellCheckRequested: boolean;
   readonly spellingFeedback: string | null;
   readonly dimensions: string[];
+  /** The rest of the brief, for the sidebar and Focus Mode (Oct 12). */
+  readonly detail: CreativeSheetBriefDetail;
 }
 
 /** The brief columns the view reads; `BriefListRow` and the demo fixtures both satisfy it. */
 export type CreativeSheetBriefSource = Pick<
   CreativeBrief,
+  | keyof CreativeSheetBriefDetail
   | 'id'
   | 'brandId'
   | 'createdAt'
@@ -126,6 +169,36 @@ export function sheetRowFromBrief(brief: CreativeSheetBriefSource): CreativeShee
     briefFunnel: brief.funnel,
     briefPerformance: brief.performance,
     briefDesignFileUrl: brief.designFileUrl,
+    detail: {
+      conceptId: brief.conceptId,
+      angleId: brief.angleId,
+      productId: brief.productId,
+      collectionId: brief.collectionId,
+      batch: brief.batch,
+      source: brief.source,
+      version: brief.version,
+      briefNumber: brief.briefNumber,
+      nameMode: brief.nameMode,
+      priority: brief.priority,
+      assignee: brief.assignee,
+      dueDate: brief.dueDate,
+      briefToDesign: brief.briefToDesign,
+      scriptContent: brief.scriptContent,
+      adContent: brief.adContent,
+      elementsTested: brief.elementsTested,
+      inspiration: brief.inspiration,
+      offer: brief.offer,
+      language: brief.language,
+      inspoLinks: brief.inspoLinks,
+      inspirationImage: brief.inspirationImage,
+      designFile: brief.designFile,
+      scriptAndBriefBreakdown: brief.scriptAndBriefBreakdown,
+      clientStatusNote: brief.clientStatusNote,
+      clientStatusUpdatedAt: brief.clientStatusUpdatedAt,
+      launchedAt: brief.launchedAt,
+      createdBy: brief.createdBy,
+      updatedBy: brief.updatedBy,
+    },
   };
 }
 

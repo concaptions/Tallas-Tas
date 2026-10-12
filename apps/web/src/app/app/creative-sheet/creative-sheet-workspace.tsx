@@ -6,10 +6,24 @@ import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { EDITOR_STAGE_KEYS } from '@tas/domain/state';
-import { Button, Input, StatusChip } from '@tas/ui';
+import { Button, DEMO_WRITE_HINT, Input, StatusChip } from '@tas/ui';
 
-import { ColumnNotices, KanbanBoard, ViewSwitcher, type KanbanItem } from '@/components/views';
+import {
+  ColumnNotices,
+  KanbanBoard,
+  RowContextMenu,
+  SelectionBar,
+  ViewSwitcher,
+  type ContextMenuItem,
+  type KanbanItem,
+  type SelectionAction,
+} from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import {
+  pruneSelection,
+  toggleAllSelected,
+  toggleSelected,
+} from '@/components/views/airtable-grid-logic';
 import { CountCell, TextCell } from '@/components/views/grid-cells';
 import {
   gridColumnsFrom,
@@ -18,12 +32,11 @@ import {
 } from '@/components/views/resolved-columns';
 
 import { moveBriefStageAction, startBriefAction } from '@/app/app/creative-design/actions';
-import { briefPath } from '@/lib/routes';
+import { briefPath, creativeSheetPath } from '@/lib/routes';
 
 import { moveCreativeSheetItemAction } from './actions';
 import { CreativeSheetPanel } from './creative-sheet-panel';
 import { editorBoardItems, offBoardLabel, type EditorBoardBrief } from './editor-board';
-import { NewCreativeDialog, type ConceptOption } from './new-creative-dialog';
 import {
   type PendingCreative,
   pendingOnSubmit,
@@ -33,6 +46,7 @@ import {
   applyKanbanMoves,
   countLabel,
   EM_DASH,
+  INTERNAL_STATUS_OPTIONS,
   internalStatusView,
   isKanbanField,
   kanbanColumnsFor,
@@ -42,10 +56,19 @@ import {
   QA_CHECKS,
   SEARCH_PARAM,
   SELECTION_PARAM,
+  STATUS_OPTIONS,
   statusView,
   type CreativeSheetKanbanField,
   type SheetStatusView,
 } from './fields';
+import { FocusModeView } from './focus-mode-view';
+import { NewCreativeDialog, type ConceptOption } from './new-creative-dialog';
+import {
+  bulkMoveCreativesAction,
+  deleteCreativesAction,
+  duplicateCreativesAction,
+} from './review-actions';
+import { SheetIcon } from './sheet-icons';
 
 /**
  * The Creative Sheet grid, its Kanban board and its side panel.
@@ -64,6 +87,11 @@ import {
  * `creative_briefs.internal_status`, a drop writes through `moveBriefStageAction`, Start through
  * `startBriefAction`, and a click opens the brief's own page. The two sheet groupings are untouched
  * by it: they never read a brief's status and it never reads a sheet row's.
+ *
+ * Oct 12 client sync: a THIRD view, Focus Mode (`focus-mode-view.tsx`, one creative at a time);
+ * the row panel is a shadcn Sheet (`creative-sheet-panel.tsx`); and the grid is multi-selectable —
+ * a checkbox column, a right-click menu on every row and a floating action bar over the selection
+ * (Duplicate, Change status, Delete), all writing through `review-actions.ts`.
  */
 /**
  * The thirteen `Creative Name` lookup cells (GRATSI-MATCH, 2026-10-04), each resolved on the
@@ -72,6 +100,8 @@ import {
  * nothing, which the grid renders as the muted em dash.
  */
 export interface SheetLookups {
+  /** The brief's own concept name; null is the §8 standalone (Oct 12 sidebar and Focus Mode). */
+  readonly concept: string | null;
   readonly performance: string | null;
   readonly internalProduct: string | null;
   readonly angle: string | null;
@@ -87,9 +117,21 @@ export interface SheetLookups {
   readonly creativeModule: string | null;
 }
 
+/** One comment on the creative, as Focus Mode's Feedback panel lists it. */
+export interface SheetComment {
+  readonly id: string;
+  readonly authorName: string;
+  readonly body: string;
+  /** Absolute and relative wording, computed on the server with the page's one clock. */
+  readonly at: string;
+  readonly ago: string;
+}
+
 export interface SheetItemView {
   readonly item: CreativeSheetItemListRow;
   readonly lookups: SheetLookups;
+  /** The creative's comments, oldest first (Oct 12 Focus Mode). */
+  readonly comments: readonly SheetComment[];
   /** `created_at` / `updated_at` as Airtable's `Created` / `Last Modified` display columns. */
   readonly createdLabel: string;
   readonly createdTitle: string;
@@ -365,6 +407,21 @@ export function CreativeSheetWorkspace({
   const [activeView, setActiveView] = useState<ViewType>(initialView);
   const [kanbanField, setKanbanField] = useState<CreativeSheetKanbanField>(initialKanbanField);
   const [, startTransition] = useTransition();
+  const [busy, startBulk] = useTransition();
+
+  // Multi-select (Oct 12 scope 3): the set the grid reports into, the row a right-click opened a
+  // menu on, the bar's inline Change-status picker, the Delete confirmation, and the last outcome.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [contextMenu, setContextMenu] = useState<{
+    readonly view: SheetItemView;
+    readonly position: { readonly x: number; readonly y: number };
+  } | null>(null);
+  const [statusPicker, setStatusPicker] = useState<{
+    field: 'internalStatus' | 'status';
+    value: string;
+  } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   /**
    * Drops the server has not confirmed yet, card id → column (SMOKE-10). Applied to the cards
    * below so a drop moves the card at once; cleared when fresh rows arrive from the refresh the
@@ -426,7 +483,218 @@ export function CreativeSheetWorkspace({
   );
   const rows = rowsWithPendingCreative(pendingRow, visible);
 
-  const open = items.find(({ item }) => item.id === selection)?.item ?? null;
+  const open = items.find(({ item }) => item.id === selection) ?? null;
+
+  useEffect(() => {
+    setSelected((current) => pruneSelection(current, items.map(({ item }) => item.id)));
+  }, [items]);
+
+  const clearSelection = useCallback(() => {
+    setSelected(new Set());
+    setStatusPicker(null);
+    setConfirmDelete(false);
+  }, []);
+
+  const focus = useCallback(
+    (id: string) => {
+      select(id);
+      setActiveView('focus');
+    },
+    [select],
+  );
+
+  const finish = useCallback(
+    (notice: string | null) => {
+      setBulkNotice(notice);
+      setStatusPicker(null);
+      setConfirmDelete(false);
+      router.refresh();
+    },
+    [router],
+  );
+
+  const duplicate = useCallback(
+    (ids: readonly string[]) => {
+      if (demo || ids.length === 0) return;
+      setBulkNotice(null);
+      startBulk(async () => {
+        const result = await duplicateCreativesAction(ids);
+        if (!result.ok) {
+          setBulkNotice(result.error);
+          return;
+        }
+        clearSelection();
+        finish(
+          `${String(result.created.length)} ${result.created.length === 1 ? 'copy' : 'copies'} created` +
+            (result.created.length === 1 && result.created[0] !== undefined
+              ? `: ${result.created[0].name}`
+              : '.'),
+        );
+      });
+    },
+    [clearSelection, demo, finish],
+  );
+
+  const remove = useCallback(
+    (ids: readonly string[]) => {
+      if (demo || ids.length === 0) return;
+      setBulkNotice(null);
+      startBulk(async () => {
+        const result = await deleteCreativesAction(ids);
+        if (!result.ok) {
+          setBulkNotice(result.error);
+          return;
+        }
+        if (selection !== null && result.deleted.includes(selection)) select(null);
+        clearSelection();
+        finish(
+          `${String(result.deleted.length)} ${result.deleted.length === 1 ? 'creative' : 'creatives'} deleted.`,
+        );
+      });
+    },
+    [clearSelection, demo, finish, select, selection],
+  );
+
+  const applyStatus = useCallback(() => {
+    if (demo || statusPicker === null || statusPicker.value === '' || selected.size === 0) return;
+    setBulkNotice(null);
+    const ids = [...selected];
+    startBulk(async () => {
+      const result = await bulkMoveCreativesAction(ids, statusPicker.field, statusPicker.value);
+      if (!result.ok) {
+        setBulkNotice(result.error);
+        return;
+      }
+      const refused =
+        result.refused.length === 0
+          ? ''
+          : ` ${String(result.refused.length)} refused: ${result.refused
+              .map((entry) => `${entry.name} — ${entry.reason}`)
+              .join('; ')}`;
+      finish(`${String(result.moved.length)} moved.${refused}`);
+    });
+  }, [demo, finish, selected, statusPicker]);
+
+  // ⌘D / Ctrl+D duplicates the selection, as the context menu's shortcut hint says.
+  useEffect(() => {
+    if (selected.size === 0) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.closest('input, textarea, select') !== null) {
+          return;
+        }
+        event.preventDefault();
+        duplicate([...selected]);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [duplicate, selected]);
+
+  const copyLink = useCallback((id: string) => {
+    const url = `${window.location.origin}${creativeSheetPath}?${SELECTION_PARAM}=${encodeURIComponent(id)}`;
+    void navigator.clipboard.writeText(url).then(
+      () => {
+        setBulkNotice('Link copied.');
+      },
+      () => {
+        setBulkNotice(url);
+      },
+    );
+  }, []);
+
+  const contextItems = useMemo((): readonly ContextMenuItem[] => {
+    if (contextMenu === null) return [];
+    const id = contextMenu.view.item.id;
+    return [
+      {
+        label: 'Duplicate',
+        shortcut: '⌘D',
+        icon: <SheetIcon name="copy" />,
+        disabled: demo,
+        slot: 'context-duplicate',
+        onSelect: () => {
+          duplicate([id]);
+        },
+      },
+      {
+        label: 'Open in Focus Mode',
+        icon: <SheetIcon name="focus" />,
+        slot: 'context-focus',
+        onSelect: () => {
+          focus(id);
+        },
+      },
+      {
+        label: 'Copy link',
+        icon: <SheetIcon name="link" />,
+        slot: 'context-copy-link',
+        onSelect: () => {
+          copyLink(id);
+        },
+      },
+      {
+        label: 'Delete',
+        icon: <SheetIcon name="trash" />,
+        tone: 'bad',
+        divider: true,
+        disabled: demo,
+        slot: 'context-delete',
+        onSelect: () => {
+          // Delete asks once, in the bar: the row becomes the selection and the bar confirms.
+          setSelected(new Set([id]));
+          setStatusPicker(null);
+          setConfirmDelete(true);
+        },
+      },
+    ];
+  }, [contextMenu, copyLink, demo, duplicate, focus]);
+
+  const selectionActions = useMemo((): readonly SelectionAction[] => {
+    const count = selected.size;
+    const hint = demo ? DEMO_WRITE_HINT : busy ? 'Saving…' : '';
+    const disabled = demo || busy;
+    return [
+      {
+        label: `Duplicate (${String(count)})`,
+        icon: <SheetIcon name="copy" />,
+        disabled,
+        hint,
+        slot: 'selection-duplicate',
+        onSelect: () => {
+          duplicate([...selected]);
+        },
+      },
+      {
+        label: 'Change status',
+        icon: <SheetIcon name="status" />,
+        disabled,
+        hint,
+        slot: 'selection-change-status',
+        onSelect: () => {
+          setConfirmDelete(false);
+          setStatusPicker((current) =>
+            current === null ? { field: 'internalStatus', value: '' } : null,
+          );
+        },
+      },
+      {
+        label: `Delete (${String(count)})`,
+        icon: <SheetIcon name="trash" />,
+        tone: 'bad',
+        disabled,
+        hint,
+        slot: 'selection-delete',
+        onSelect: () => {
+          setStatusPicker(null);
+          setConfirmDelete(true);
+        },
+      },
+    ];
+  }, [busy, demo, duplicate, selected]);
 
   const editorBoard = kanbanField === 'editorStage';
 
@@ -660,7 +928,9 @@ export function CreativeSheetWorkspace({
           turn hydrates that boundary synchronously and is replayed. No fallback is ever shown.
         */}
         <Suspense fallback={null}>
-          {activeView === 'kanban' ? (
+          {activeView === 'focus' ? (
+            <FocusModeView items={visible} focusedId={selection} onFocus={select} demo={demo} />
+          ) : activeView === 'kanban' ? (
             <div className="flex flex-col gap-2">
               <KanbanBoard
                 items={applyKanbanMoves(editorBoard ? board.items : shownKanbanItems, moves)}
@@ -702,6 +972,18 @@ export function CreativeSheetWorkspace({
               onRowClick={({ item }) => {
                 select(item.id);
               }}
+              selection={{
+                selected,
+                onToggle: (id) => {
+                  setSelected((current) => toggleSelected(current, id));
+                },
+                onToggleAll: (visibleIds) => {
+                  setSelected((current) => toggleAllSelected(current, visibleIds));
+                },
+              }}
+              onRowContextMenu={(view, position) => {
+                setContextMenu({ view, position });
+              }}
               tableSlot="creative-sheet-table"
               rowSlot="creative-sheet-row"
               empty={
@@ -736,15 +1018,112 @@ export function CreativeSheetWorkspace({
         </Suspense>
       </section>
 
-      {open !== null ? (
+      {open !== null && activeView !== 'focus' ? (
         <CreativeSheetPanel
           key={selection}
-          item={open}
+          item={open.item}
+          lookups={open.lookups}
           demo={demo}
           onClose={close}
           onSaved={saved}
+          onFocusMode={focus}
         />
       ) : null}
+
+      {contextMenu === null ? null : (
+        <RowContextMenu
+          position={contextMenu.position}
+          items={contextItems}
+          label={contextMenu.view.item.name}
+          onClose={() => {
+            setContextMenu(null);
+          }}
+        />
+      )}
+
+      <SelectionBar
+        count={selected.size}
+        noun="creative"
+        actions={selectionActions}
+        onClear={clearSelection}
+        notice={
+          confirmDelete ? (
+            <span className="flex items-center gap-2" data-slot="selection-delete-confirm">
+              Delete {String(selected.size)} {selected.size === 1 ? 'creative' : 'creatives'}? They
+              leave the sheet, the queues and the portal; nothing is erased.
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                disabled={demo || busy}
+                data-slot="selection-delete-confirm-yes"
+                onClick={() => {
+                  remove([...selected]);
+                }}
+              >
+                Delete
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setConfirmDelete(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </span>
+          ) : (
+            bulkNotice
+          )
+        }
+      >
+        {statusPicker === null ? null : (
+          <span className="flex items-center gap-1.5" data-slot="selection-status-picker">
+            <select
+              value={statusPicker.field}
+              onChange={(event) => {
+                const field = event.target.value === 'status' ? 'status' : 'internalStatus';
+                setStatusPicker({ field, value: '' });
+              }}
+              aria-label="Track"
+              className="h-8 rounded-input border border-line bg-surface px-2 text-xs text-text"
+            >
+              <option value="internalStatus">Internal Status</option>
+              <option value="status">Client Approval</option>
+            </select>
+            <select
+              value={statusPicker.value}
+              onChange={(event) => {
+                setStatusPicker({ field: statusPicker.field, value: event.target.value });
+              }}
+              aria-label="New status"
+              data-slot="selection-status-value"
+              className="h-8 rounded-input border border-line bg-surface px-2 text-xs text-text"
+            >
+              <option value="">Pick a status…</option>
+              {(statusPicker.field === 'internalStatus'
+                ? INTERNAL_STATUS_OPTIONS
+                : STATUS_OPTIONS
+              ).map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              size="sm"
+              disabled={demo || busy || statusPicker.value === ''}
+              onClick={applyStatus}
+              data-slot="selection-status-apply"
+            >
+              Apply
+            </Button>
+          </span>
+        )}
+      </SelectionBar>
     </div>
   );
 }

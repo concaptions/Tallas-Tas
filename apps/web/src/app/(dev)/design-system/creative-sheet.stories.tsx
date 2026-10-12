@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import type { CreativeSheetItemListRow } from '@tas/db';
-import { StatusChip } from '@tas/ui';
+import { Button, StatusChip } from '@tas/ui';
 
+import { CreativeSheetPanel } from '@/app/app/creative-sheet/creative-sheet-panel';
 import { DimensionsField } from '@/app/app/creative-sheet/dimensions-field';
+import { FocusModeView } from '@/app/app/creative-sheet/focus-mode-view';
 import {
   CREATIVE_SHEET_RENDERERS,
   QaTicks,
@@ -18,7 +20,9 @@ import {
   STATUS_OPTIONS,
   type SheetStatusView,
 } from '@/app/app/creative-sheet/fields';
+import { RowContextMenu, SelectionBar } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
+import { toggleAllSelected, toggleSelected } from '@/components/views/airtable-grid-logic';
 import { gridColumnsFrom, type ResolvedColumnView } from '@/components/views/resolved-columns';
 
 /**
@@ -57,12 +61,43 @@ function sampleRow(
     spellCheckRequested: false,
     spellingFeedback: null,
     dimensions: [],
+    detail: {
+      conceptId: null,
+      angleId: null,
+      productId: null,
+      collectionId: null,
+      batch: null,
+      source: 'TAS',
+      version: 1,
+      briefNumber: null,
+      nameMode: 'manual',
+      priority: null,
+      assignee: null,
+      dueDate: null,
+      briefToDesign: null,
+      scriptContent: null,
+      adContent: null,
+      elementsTested: null,
+      inspiration: null,
+      offer: null,
+      language: null,
+      inspoLinks: [],
+      inspirationImage: null,
+      designFile: null,
+      scriptAndBriefBreakdown: null,
+      clientStatusNote: null,
+      clientStatusUpdatedAt: null,
+      launchedAt: null,
+      createdBy: null,
+      updatedBy: null,
+    },
     ...overrides,
   };
 }
 
 /** A row with no brief resolves every lookup to nothing — the em dash, the ordinary case. */
 const NO_LOOKUPS: SheetLookups = {
+  concept: null,
   performance: null,
   internalProduct: null,
   angle: null,
@@ -92,6 +127,7 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
     }),
     // The thirteen Creative Name lookups, as `buildSheetItems` resolves them for a linked brief
     // (GRATSI-MATCH, 2026-10-04): read-only echoes, the Proposed Copy titles in the mono face.
+    comments: [],
     lookups: {
       ...NO_LOOKUPS,
       performance: 'Winning',
@@ -114,6 +150,7 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
     updatedTitle: '1 Oct 2026, 09:30',
   },
   {
+    comments: [],
     item: sampleRow({
       id: 'ds-sheet-2',
       // Airtable's formula leaves the separator when there is no brief to concatenate.
@@ -136,6 +173,7 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
       qaDesigner: true,
       qaStrategist: true,
     }),
+    comments: [],
     lookups: {
       ...NO_LOOKUPS,
       performance: 'High Potential to Iterate',
@@ -269,6 +307,172 @@ export function CreativeSheetDimensionsStory() {
           saveState={{ status: 'idle' }}
         />
       </div>
+    </div>
+  );
+}
+
+/* ── Oct 12 client sync: Focus Mode, the Brief row sidebar, multi-select ─────────────────────── */
+
+/** A video brief at Ad Submitted with one of its two required ticks set: the gated state the boards document. */
+function focusSample(): SheetItemView {
+  const base = SAMPLE_ROWS[0];
+  if (base === undefined) throw new Error('SAMPLE_ROWS is empty');
+  return {
+    ...base,
+    item: sampleRow({
+      id: 'ds-focus-1',
+      name: 'October-TV01-B3-CasualHangouts-V2',
+      briefName: 'TV01-B3-CasualHangouts-V2',
+      briefType: 'Video',
+      briefFunnel: 'TOF',
+      internalStatus: 'ad_submitted',
+      status: 'pending_for_approval',
+      qaStrategist: true,
+      detail: {
+        ...sampleRow({ id: 'x', name: 'x' }).detail,
+        batch: 'B3',
+        version: 2,
+        assignee: 'Sarah K.',
+        dueDate: new Date('2026-10-18T00:00:00.000Z'),
+        scriptContent:
+          'Hook — “What if date night didn’t need a reservation?”\nOpen on a cosy kitchen, two people unpacking a shipment. Natural light, candles lit.',
+        briefToDesign: 'Warm, intimate kitchen. Dissolves only, no hard cuts.',
+        elementsTested: 'Problem-first open against the comfort-led V1.',
+        offer: 'First box ships free.',
+        inspoLinks: ['https://www.youtube.com/watch?v=nm1TxQj9IsQ'],
+      },
+    }),
+    lookups: {
+      ...NO_LOOKUPS,
+      concept: 'Casual Hangouts',
+      angle: 'Casual date night dinner at home',
+    },
+    comments: [
+      {
+        id: 'c1',
+        authorName: 'Sarah K.',
+        body: 'Love the hook. Can we take the pour shot 2× slower?',
+        at: '10 Oct 2026, 15:42',
+        ago: '2d ago',
+      },
+      {
+        id: 'c2',
+        authorName: 'Mia D.',
+        body: 'Music confirmed and cleared. Targeting client send by 18 Oct.',
+        at: '11 Oct 2026, 09:15',
+        ago: '1d ago',
+      },
+    ],
+  };
+}
+
+/**
+ * Focus Mode (scope 1): the bar with prev/next and the three review buttons, the type-filtered
+ * QA checklist with the gate box, the content cards and the Feedback thread. Demo mode, so every
+ * write is withheld with its reason — including Submit to Client, gated on the internal track.
+ */
+export function FocusModeStory() {
+  const [focused, setFocused] = useState<string | null>('ds-focus-1');
+  const items = [focusSample(), ...SAMPLE_ROWS];
+  return <FocusModeView items={items} focusedId={focused} onFocus={setFocused} demo />;
+}
+
+/** The Brief row sidebar (scope 2): a Sheet from the right, six sections, the N/A tick struck through. */
+export function BriefSidebarStory() {
+  const [open, setOpen] = useState(false);
+  const sample = focusSample();
+  return (
+    <div className="flex flex-col gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          setOpen(true);
+        }}
+        data-slot="brief-sidebar-story-open"
+      >
+        Open the sidebar
+      </Button>
+      {open ? (
+        <CreativeSheetPanel
+          item={sample.item}
+          lookups={sample.lookups}
+          demo
+          onClose={() => {
+            setOpen(false);
+          }}
+          onSaved={() => undefined}
+          onFocusMode={() => {
+            setOpen(false);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** Multi-select (scope 3): the checkbox column with the header's indeterminate state, and the action bar. */
+export function MultiSelectStory({ columns }: CreativeSheetGridStoryProps) {
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(['ds-sheet-1']));
+  const [menu, setMenu] = useState<{ x: number; y: number; name: string } | null>(null);
+  const storyColumns = gridColumnsFrom(columns, CREATIVE_SHEET_RENDERERS, {
+    freezeFirst: true,
+    frozenMinWidth: 260,
+  }).columns;
+  return (
+    <div className="relative flex flex-col gap-3">
+      <AirtableGrid
+        tableKey="creative-sheet-multiselect-story"
+        columns={storyColumns}
+        rows={SAMPLE_ROWS}
+        rowId={({ item }) => item.id}
+        rowLabel={({ item }) => item.name}
+        selection={{
+          selected,
+          onToggle: (id) => {
+            setSelected((current) => toggleSelected(current, id));
+          },
+          onToggleAll: (ids) => {
+            setSelected((current) => toggleAllSelected(current, ids));
+          },
+        }}
+        onRowContextMenu={({ item }, position) => {
+          setMenu({ ...position, name: item.name });
+        }}
+        tableSlot="creative-sheet-multiselect-story-table"
+      />
+      <p className="text-xs text-text3">
+        Tick rows, or right-click one for the menu. The bar below is the real component, pinned to
+        the viewport while a row is selected.
+      </p>
+      {menu === null ? null : (
+        <RowContextMenu
+          position={menu}
+          label={menu.name}
+          onClose={() => {
+            setMenu(null);
+          }}
+          items={[
+            { label: 'Duplicate', shortcut: '⌘D', onSelect: () => undefined },
+            { label: 'Open in Focus Mode', onSelect: () => undefined },
+            { label: 'Copy link', onSelect: () => undefined },
+            { label: 'Delete', tone: 'bad', divider: true, onSelect: () => undefined },
+          ]}
+        />
+      )}
+      <SelectionBar
+        count={selected.size}
+        noun="creative"
+        onClear={() => {
+          setSelected(new Set());
+        }}
+        actions={[
+          { label: `Duplicate (${String(selected.size)})`, onSelect: () => undefined },
+          { label: 'Change status', onSelect: () => undefined },
+          { label: `Delete (${String(selected.size)})`, tone: 'bad', onSelect: () => undefined },
+        ]}
+      />
     </div>
   );
 }

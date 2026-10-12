@@ -208,6 +208,7 @@ export {
   demoAngles,
   demoCampaigns,
   demoCollections,
+  demoComments,
   demoCompetitiveResearch,
   demoCompetitorAds,
   demoCreativeDimensions,
@@ -245,6 +246,7 @@ export {
   clientVisibleFields,
   listAnnotations,
   listComments,
+  listCommentsForRecordType,
 } from './client-queries';
 export type {
   ClientAngle,

@@ -37,7 +37,7 @@ export const metadata = {
   title: 'Creative Sheet — TAS Creative Platform',
 };
 
-const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban']);
+const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban', 'focus']);
 
 export default async function CreativeSheetPage({ searchParams }: CreativeSheetPageProps) {
   const [

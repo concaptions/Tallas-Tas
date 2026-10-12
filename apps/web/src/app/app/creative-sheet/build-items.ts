@@ -4,7 +4,7 @@ import { copyTitle } from '@tas/domain/copy';
 import type { CreativeSheetWorkspaceResult } from '@/lib/creative-sheet-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 
-import type { SheetItemView, SheetLookups } from './creative-sheet-workspace';
+import type { SheetComment, SheetItemView, SheetLookups } from './creative-sheet-workspace';
 
 /**
  * The ONE place a sheet row's thirteen `Creative Name` lookups are computed — used by `page.tsx`
@@ -33,6 +33,7 @@ export function buildSheetItems(
     | 'concepts'
     | 'modules'
     | 'copyRows'
+    | 'comments'
   >,
   now: Date,
 ): SheetItemView[] {
@@ -49,6 +50,7 @@ export function buildSheetItems(
     const brief = briefId === null ? undefined : briefsById.get(briefId);
     if (brief === undefined) {
       return {
+        concept: null,
         performance: null,
         internalProduct: null,
         angle: null,
@@ -80,6 +82,7 @@ export function buildSheetItems(
       .filter((copy) => copy.creativeBriefId === brief.id)
       .map((copy) => copyTitle(copy.copyNumber));
     return {
+      concept: brief.conceptName,
       performance: lookupRollup([brief.performance]),
       internalProduct: lookupRollup([directProduct ?? brief.productName]),
       angle: lookupRollup([directAngle ?? brief.angleName]),
@@ -98,9 +101,23 @@ export function buildSheetItems(
     };
   };
 
+  const commentsByBrief = new Map<string, SheetComment[]>();
+  for (const comment of sources.comments) {
+    const list = commentsByBrief.get(comment.recordId) ?? [];
+    list.push({
+      id: comment.id,
+      authorName: comment.authorName,
+      body: comment.body,
+      at: absoluteTime(comment.createdAt),
+      ago: relativeTime(comment.createdAt, now),
+    });
+    commentsByBrief.set(comment.recordId, list);
+  }
+
   return sources.rows.map((item) => ({
     item,
     lookups: lookupsFor(item.briefId),
+    comments: commentsByBrief.get(item.id) ?? [],
     createdLabel: relativeTime(item.createdAt, now),
     createdTitle: absoluteTime(item.createdAt),
     updatedLabel: relativeTime(item.updatedAt, now),

@@ -254,6 +254,7 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
     const linked = items.find((view) => view.item.id === brief.id);
     if (linked === undefined) throw new Error('the linked sheet row did not come back');
     expect(linked.lookups).toEqual({
+      concept: null,
       performance: 'Winning',
       internalProduct: 'Night Reset Bundle',
       angle: 'Your Body Clock Is Not Broken',
@@ -274,6 +275,7 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
     // column defaults, because the row IS the brief now.
     const bare = items.find((view) => view.item.id === bareRow?.id);
     expect(bare?.lookups).toEqual({
+      concept: null,
       performance: null,
       internalProduct: null,
       angle: null,
