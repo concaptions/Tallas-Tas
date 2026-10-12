@@ -275,7 +275,7 @@ describe('internal status filtering', () => {
     await scope.insert(creativeBriefs, {
       name: 'NOT-APPROVED',
       source: 'TAS',
-      internalStatus: 'video_editing_in_progress',
+      internalStatus: 'under_editing_or_designing',
       clientStatus: 'pending_for_approval',
       funnel: 'TOF',
       type: 'Video',

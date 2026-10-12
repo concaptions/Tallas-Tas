@@ -13,10 +13,9 @@ import {
 import { ANGLE_FORMATS, type AngleFormatEntry, type AngleFormatKey } from '@tas/domain/angles';
 import {
   CLIENT_STATUS,
+  INTERNAL_STATUS,
   chipTone,
-  internalStatusFor,
   type ChipTone,
-  type CreativeTrack,
   type InternalStatusKey,
   normalizeClientApprovalStatus,
 } from '@tas/domain/state';
@@ -36,9 +35,9 @@ import type { ConceptFieldName } from './actions';
  *
  * `@tas/db` is deliberately absent: the workspace, the board and the detail form are client
  * components, and a runtime import of that package would drag the database driver into the browser
- * bundle. The one value that does live next to the database — which internal track a concept runs
- * on — is read once on the server (`CONCEPT_TRACK` in `@/lib/concepts-source`) and handed down as a
- * prop, which is why every function below takes the track rather than naming it.
+ * bundle. Since the Oct 12 client sync (Ticket 5, migration 0067) the internal track is ONE list
+ * for every creative, so nothing here needs a track either: `INTERNAL_STATUS` is the whole
+ * vocabulary and the board's column order.
  */
 export type { ConceptFieldName };
 export {
@@ -132,12 +131,12 @@ export interface ConceptStatusView {
 }
 
 /**
- * Every internal step of a track, in the order `internalStatusFor` returns — which is the order the
- * board's columns are in (ticket criterion 3). The tone is `chipTone` on the label, never a local
- * choice, so a status is the same colour in the table, on the board and on `/design-system`.
+ * Every internal step, in the order of `INTERNAL_STATUS` — which is the order the board's columns
+ * are in (ticket criterion 3). The tone is `chipTone` on the label, never a local choice, so a
+ * status is the same colour in the table, on the board and on `/design-system`.
  */
-export function internalStatusViews(track: CreativeTrack): readonly ConceptStatusView[] {
-  return internalStatusFor(track).map((entry) => ({
+export function internalStatusViews(): readonly ConceptStatusView[] {
+  return INTERNAL_STATUS.map((entry) => ({
     key: entry.key,
     label: entry.label,
     tone: chipTone(entry.label),
@@ -145,19 +144,12 @@ export function internalStatusViews(track: CreativeTrack): readonly ConceptStatu
 }
 
 /**
- * The view of one stored status. Total on purpose: a key this build's track does not list renders
- * its own value in the muted tone rather than an empty cell, exactly as `conceptCategoryLabel` does.
+ * The view of one stored status. Total on purpose: a key this build does not list renders its own
+ * value in the muted tone rather than an empty cell, exactly as `conceptCategoryLabel` does.
  */
-export function internalStatusView(
-  track: CreativeTrack,
-  key: InternalStatusKey,
-): ConceptStatusView {
+export function internalStatusView(key: InternalStatusKey): ConceptStatusView {
   return (
-    internalStatusViews(track).find((entry) => entry.key === key) ?? {
-      key,
-      label: key,
-      tone: 'mute',
-    }
+    internalStatusViews().find((entry) => entry.key === key) ?? { key, label: key, tone: 'mute' }
   );
 }
 
@@ -315,7 +307,7 @@ export function filteredConceptCountLabel(visible: number, total: number): strin
 /**
  * The search reads everything the table shows: the generated name, the batch, the two halves of
  * the pairing and the internal status LABEL — so "revisions" finds the row whose chip says
- * `Videos Revisions`, without this module ever writing that string.
+ * `Revisions Needed`, without this module ever writing that string.
  *
  * A plain substring match, exactly as the Angles table does it, rather than the word-start match
  * the Themes grid needs: a concept carries no prose here. Every field is a name, a batch code or a
@@ -356,14 +348,12 @@ export interface ConceptColumn {
 }
 
 /**
- * The rows grouped into one column per internal status, in track order and always all of them — an
- * empty column is a real statement about the pipeline, so it is kept and shown with its zero.
+ * The rows grouped into one column per internal status, in `INTERNAL_STATUS` order and always all
+ * of them — an empty column is a real statement about the pipeline, so it is kept and shown with
+ * its zero.
  */
-export function conceptColumns(
-  track: CreativeTrack,
-  items: readonly ConceptItem[],
-): readonly ConceptColumn[] {
-  return internalStatusViews(track).map((status) => ({
+export function conceptColumns(items: readonly ConceptItem[]): readonly ConceptColumn[] {
+  return internalStatusViews().map((status) => ({
     status,
     items: items.filter((item) => item.status.key === status.key),
   }));

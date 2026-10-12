@@ -29,19 +29,17 @@ import {
 } from '@tas/domain/concepts';
 import {
   CLIENT_STATUS,
-  ON_HOLD,
   canTransitionClient,
   canTransitionInternal,
-  internalStatusFor,
   isClientTrackOpen,
+  isInternalStatusKey,
   normalizeClientApprovalStatus,
   type ClientStatusKey,
   type InternalStatusKey,
-  type InternalStatusOrHoldKey,
 } from '@tas/domain/state';
 import { z } from 'zod';
 
-import { CONCEPT_TRACK, withBrandScope } from '@/lib/concepts-source';
+import { withBrandScope } from '@/lib/concepts-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefsPath, conceptPath, conceptsPath } from '@/lib/routes';
 
@@ -140,17 +138,7 @@ const format = z
   .refine(isAngleFormat, 'That is not one of the four formats.')
   .transform((value): AngleFormatKey => value);
 
-/** Every internal key the column may hold: the linear track plus the non-linear `on_hold` branch. */
-const internalStatusKeys: readonly string[] = [
-  ...internalStatusFor(CONCEPT_TRACK).map((entry) => entry.key),
-  ON_HOLD.key,
-];
-
 const clientStatusKeys: readonly string[] = CLIENT_STATUS.map((entry) => entry.key);
-
-function isInternalStatus(value: string): value is InternalStatusOrHoldKey {
-  return internalStatusKeys.includes(value);
-}
 
 function isClientStatus(value: string): value is ClientStatusKey {
   return clientStatusKeys.includes(value);
@@ -166,8 +154,10 @@ const internalStatus = z
   .trim()
   .transform((value) => (value === '' ? null : value))
   .nullable()
+  // The ONE internal list (Oct 12 client sync, Ticket 5 / migration 0067): `isInternalStatusKey`
+  // from the domain is the whole vocabulary: no hold siding, no track.
   .refine(
-    (value) => value === null || isInternalStatus(value),
+    (value) => value === null || isInternalStatusKey(value),
     'That is not a status on the internal track.',
   );
 
@@ -337,7 +327,7 @@ function parse(formData: FormData): ParsedConcept | ConceptActionFailure {
 function toInput(
   values: ConceptFormValues,
   name: string,
-  internal: InternalStatusOrHoldKey,
+  internal: InternalStatusKey,
   client: ClientStatusKey,
 ): ConceptInput {
   const style: ConceptStyleKey | null =
@@ -387,18 +377,17 @@ const CLIENT_GATE_SHUT = 'The client track opens once internal status reaches Ap
  *
  * This is a statement about the STATE, which is why it needs no `from` and can run before the actor
  * lookup and before a connection is opened — the refusal a tampered submission gets must not depend
- * on a database being reachable. `on_hold` is not a member of either linear list, so it can never be
- * Approved and the gate is shut for it too. The finer question ("is that the NEXT step?") is
+ * on a database being reachable. The finer question ("is that the NEXT step?") is
  * `canTransitionClient` and needs the row, so it runs later, inside the scope.
  */
 function clientGateRefusal(
-  internal: InternalStatusOrHoldKey,
+  internal: InternalStatusKey,
   client: ClientStatusKey,
 ): ConceptActionFailure | null {
   if (client === CONCEPT_CLIENT_STATUS_DEFAULT) {
     return null;
   }
-  if (isInternalStatusKey(internal) && isClientTrackOpen(internal)) {
+  if (isClientTrackOpen(internal)) {
     return null;
   }
   return { ok: false, error: NEEDS_ATTENTION, fieldErrors: { clientStatus: CLIENT_GATE_SHUT } };
@@ -406,7 +395,7 @@ function clientGateRefusal(
 
 /** Standing still is always allowed; any actual move has to be the machine's next step. */
 function clientMoveRefusal(
-  internal: InternalStatusOrHoldKey,
+  internal: InternalStatusKey,
   from: ClientStatusKey,
   to: ClientStatusKey,
 ): ConceptActionFailure | null {
@@ -417,7 +406,7 @@ function clientMoveRefusal(
   if (gate !== null) {
     return gate;
   }
-  if (!isInternalStatusKey(internal) || !canTransitionClient(internal, from, to)) {
+  if (!canTransitionClient(internal, from, to)) {
     return {
       ok: false,
       error: NEEDS_ATTENTION,
@@ -427,17 +416,12 @@ function clientMoveRefusal(
   return null;
 }
 
-/** `on_hold` is a stored value but not a step, so it is not an `InternalStatusKey`. */
-function isInternalStatusKey(value: InternalStatusOrHoldKey): value is InternalStatusKey {
-  return internalStatusFor(CONCEPT_TRACK).some((entry) => entry.key === value);
-}
-
 /** Any internal move has to be one the state machine allows; standing still always is. */
 function internalMoveRefusal(
-  from: InternalStatusOrHoldKey,
-  to: InternalStatusOrHoldKey,
+  from: InternalStatusKey,
+  to: InternalStatusKey,
 ): ConceptActionFailure | null {
-  if (to === from || canTransitionInternal(CONCEPT_TRACK, from, to)) {
+  if (to === from || canTransitionInternal(from, to)) {
     return null;
   }
   return {
@@ -594,7 +578,7 @@ export async function updateConceptAction(
       }
 
       // The row's stored strings are `text`; narrow them against the machine before asking it.
-      const wasInternal: InternalStatusOrHoldKey = isInternalStatus(current.internalStatus)
+      const wasInternal: InternalStatusKey = isInternalStatusKey(current.internalStatus)
         ? current.internalStatus
         : CONCEPT_INTERNAL_STATUS_DEFAULT;
       const wasClient: ClientStatusKey = isClientStatus(current.clientStatus)

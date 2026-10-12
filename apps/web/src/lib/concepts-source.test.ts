@@ -7,13 +7,14 @@ import {
 import { conceptName } from '@tas/domain/concepts';
 import {
   CLIENT_STATUS,
-  INTERNAL_VIDEO_STATUS,
-  internalStatusFor,
+  INTERNAL_ENTRY_STATUS,
+  INTERNAL_STATUS,
   isClientTrackOpen,
+  isInternalStatusKey,
 } from '@tas/domain/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { CONCEPT_TRACK, loadConceptById, loadConcepts, withBrandScope } from './concepts-source';
+import { loadConceptById, loadConcepts, withBrandScope } from './concepts-source';
 
 /**
  * The demo-mode guarantee, proved rather than asserted: with no Clerk key and a `DATABASE_URL` set,
@@ -107,9 +108,11 @@ describe('loadConcepts in live mode', () => {
  * in `concepts-source.ts` is silently rewriting statuses.
  */
 describe('the db copies of the domain vocabulary', () => {
-  it('starts a concept on the first step of the video track', () => {
-    expect(CONCEPT_INTERNAL_STATUS_DEFAULT).toBe(INTERNAL_VIDEO_STATUS[0].key);
-    expect(internalStatusFor(CONCEPT_TRACK)).toBe(INTERNAL_VIDEO_STATUS);
+  it('starts a concept at the internal entry state', () => {
+    // One list for every creative since the Oct 12 client sync (Ticket 5, migration 0067): the
+    // column default is the list's entry state, which is also its first step.
+    expect(CONCEPT_INTERNAL_STATUS_DEFAULT).toBe(INTERNAL_ENTRY_STATUS);
+    expect(INTERNAL_STATUS[0].key).toBe(INTERNAL_ENTRY_STATUS);
   });
 
   it('starts a concept on the first step of the client track', () => {
@@ -129,11 +132,9 @@ describe('the db copies of the domain vocabulary', () => {
 
     expect(new Set(internal).size).toBe(4);
     for (const key of internal) {
-      expect(INTERNAL_VIDEO_STATUS.some((entry) => entry.key === key)).toBe(true);
       // Narrowed the same way `toConceptRow` does, so the gate is asked the stored value itself.
-      const narrowed = internalStatusFor(CONCEPT_TRACK).find((entry) => entry.key === key)?.key;
-      expect(narrowed).toBeDefined();
-      expect(isClientTrackOpen(narrowed ?? CONCEPT_INTERNAL_STATUS_DEFAULT)).toBe(false);
+      expect(isInternalStatusKey(key)).toBe(true);
+      expect(isClientTrackOpen(key)).toBe(false);
     }
   });
 });

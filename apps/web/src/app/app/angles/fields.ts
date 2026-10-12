@@ -8,7 +8,7 @@ import {
   type AngleTypeEntry,
   type InspoLinkKind,
 } from '@tas/domain/angles';
-import type { ChipTone, CreativeTrack, InternalStatusKey } from '@tas/domain/state';
+import type { ChipTone, InternalStatusKey } from '@tas/domain/state';
 
 import { briefPath, conceptPath } from '@/lib/routes';
 
@@ -206,18 +206,15 @@ export interface ConceptLinkSource {
  * angle it is paired with and in the rows' order (newest edit first, as `loadConcepts` returns
  * them). The label is the concept's generated name (non-negotiable 6; the panel renders it in
  * `font-mono`), the link is the concept's own detail route, and the status is the Concepts module's
- * `internalStatusView` on the track concepts run on. The track is a parameter rather than an import
- * because `CONCEPT_TRACK` lives in `@/lib/concepts-source` next to `@tas/db`, which this
- * client-importable module must not reach; the page reads it once and hands it in. A plain object
- * rather than a `Map` because it crosses the server → client prop boundary.
+ * `internalStatusView` on the one internal list (Oct 12 client sync, Ticket 5 / migration 0067).
+ * A plain object rather than a `Map` because it crosses the server → client prop boundary.
  */
 export function indexConceptsByAngle(
   rows: readonly ConceptLinkSource[],
-  track: CreativeTrack,
 ): Record<string, LinkedRecord[]> {
   const byAngle: Record<string, LinkedRecord[]> = {};
   for (const row of rows) {
-    const status = conceptInternalStatusView(track, row.internalStatus);
+    const status = conceptInternalStatusView(row.internalStatus);
     const record: LinkedRecord = {
       id: row.id,
       label: row.name,
@@ -233,14 +230,14 @@ export function indexConceptsByAngle(
 
 /**
  * The minimum a brief row has to carry to be listed on an angle: the FK that makes it a reverse
- * link, the generated §7 name, and its internal status already narrowed to a key of its own track
- * by `loadBriefs` (`BriefRow` in `@/lib/briefs-source`).
+ * link, the generated §7 name, and its internal status already narrowed to a key of the one
+ * internal list by `loadBriefs` (`BriefRow` in `@/lib/briefs-source`). Structural, so a `BriefRow`
+ * — which still carries the track that decides its QA ticks — satisfies it unchanged.
  */
 export interface CreativeDesignLinkSource {
   readonly id: string;
   readonly name: string;
   readonly angleId: string | null;
-  readonly track: CreativeTrack;
   readonly internalStatus: InternalStatusKey;
 }
 
@@ -248,8 +245,8 @@ export interface CreativeDesignLinkSource {
  * `creative_briefs.angle_id` inverted: `angleId -> [brief, …]` in the rows' order (newest edit
  * first). A brief with no angle — the ordinary case for one briefed through its concept — appears
  * under no angle. The label is the brief's generated name, the link is its own detail route, and
- * the status is the Creative Design module's `internalStatusView` on the brief's track, so a static
- * and a video read their status exactly as they do on their page.
+ * the status is the Creative Design module's `internalStatusView`, so a static and a video read
+ * their status exactly as they do on their page.
  */
 export function indexCreativeDesignsByAngle(
   rows: readonly CreativeDesignLinkSource[],
@@ -257,7 +254,7 @@ export function indexCreativeDesignsByAngle(
   const byAngle: Record<string, LinkedRecord[]> = {};
   for (const row of rows) {
     if (row.angleId === null) continue;
-    const status = briefInternalStatusView(row.track, row.internalStatus);
+    const status = briefInternalStatusView(row.internalStatus);
     (byAngle[row.angleId] ??= []).push({
       id: row.id,
       label: row.name,

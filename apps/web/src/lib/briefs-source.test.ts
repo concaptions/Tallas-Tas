@@ -19,7 +19,12 @@ import {
   creativeTrack,
   dimensionsFor,
 } from '@tas/domain/creatives';
-import { CLIENT_STATUS, internalStatusFor, isClientTrackOpen } from '@tas/domain/state';
+import {
+  CLIENT_STATUS,
+  INTERNAL_ENTRY_STATUS,
+  INTERNAL_STATUS,
+  isClientTrackOpen,
+} from '@tas/domain/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { loadBriefById, loadBriefs, toBriefRow, withBrandScope } from './briefs-source';
@@ -131,11 +136,11 @@ describe('toBriefRow', () => {
     ]);
   });
 
-  it('narrows every fixture status to a step its own track really contains', async () => {
+  it('narrows every fixture status to a step the one internal list really contains', async () => {
     const { rows } = await loadBriefs({ connect });
 
     for (const row of rows) {
-      expect(internalStatusFor(row.track).map((entry) => entry.key)).toContain(row.internalStatus);
+      expect(INTERNAL_STATUS.map((entry) => entry.key)).toContain(row.internalStatus);
       expect(CLIENT_STATUS.map((entry) => entry.key)).toContain(row.clientStatus);
     }
   });
@@ -147,61 +152,52 @@ describe('toBriefRow', () => {
       (row, index) => row.internalStatus === demoBriefs[index]?.internalStatus,
     );
 
-    expect(kept).toHaveLength(6);
+    // Every fixture is on the list (the exact 0067 image), so every one is kept as stored.
+    expect(kept).toHaveLength(demoBriefs.length);
     for (const row of kept) {
-      expect(internalStatusFor(row.track).map((entry) => entry.key)).toContain(row.internalStatus);
+      expect(INTERNAL_STATUS.map((entry) => entry.key)).toContain(row.internalStatus);
     }
     expect(rows.map((row) => row.clientStatus)).toEqual(demoBriefs.map((row) => row.clientStatus));
   });
 
   /**
-   * The sixth. The carousel fixture rests on the COLUMN DEFAULT, `sent_to_video_editor`, which is a
-   * video-track literal because a Postgres default cannot look at another column
-   * (`schema/briefs.ts` says so in as many words) — yet a carousel is a set of stills and is graded
-   * on the static ladder. Rendering the stored string would put a step on the stepper that the
-   * static track does not have, so the boundary shows that track's equivalent first step instead.
+   * A stored value this build cannot place — a retired spelling 0067 moved every row off, a key a
+   * newer build wrote — falls back to `INTERNAL_ENTRY_STATUS` for a video AND for a static brief:
+   * one list, one fallback, never a per-track first step and never a legacy-key map.
    */
-  it('renders a static-track brief resting on the column default as its own track first step', async () => {
-    const { rows } = await loadBriefs({ connect });
-
-    const carousel = rows.find((row) => row.type === 'Carousel');
-    const stored = demoBriefs.find((row) => row.type === 'Carousel');
-
-    expect(stored?.internalStatus).toBe(BRIEF_INTERNAL_STATUS_DEFAULT);
-    expect(carousel?.track).toBe('static');
-    expect(carousel?.internalStatus).toBe('sent_to_designer');
-  });
-
-  it('falls back to the FIRST step of the row own track, never to the other track', () => {
+  it('falls back to INTERNAL_ENTRY_STATUS for an unplaceable value, on either track', () => {
     const [video] = demoBriefs.filter((row) => row.type === 'Video');
     const [staticBrief] = demoBriefs.filter((row) => row.type === 'Static');
     if (video === undefined || staticBrief === undefined) {
       throw new Error('the fixtures cover fewer types than the ticket requires');
     }
-    // `on_hold` is a stored value the machine knows but neither linear list contains, so it is the
-    // honest stand-in for "a status this build cannot place on the stepper".
-    const unplaceable = (row: BriefListRow): BriefListRow => ({
+    const stored = (row: BriefListRow, internalStatus: string): BriefListRow => ({
       ...row,
-      internalStatus: 'on_hold',
+      internalStatus,
     });
 
-    expect(toBriefRow(unplaceable(video)).internalStatus).toBe(BRIEF_INTERNAL_STATUS_DEFAULT);
-    expect(toBriefRow(unplaceable(staticBrief)).internalStatus).toBe(
-      internalStatusFor('static')[0]?.key,
+    expect(toBriefRow(stored(video, 'on_hold')).internalStatus).toBe(INTERNAL_ENTRY_STATUS);
+    expect(toBriefRow(stored(video, 'sent_to_video_editor')).internalStatus).toBe(
+      INTERNAL_ENTRY_STATUS,
     );
+    expect(toBriefRow(stored(staticBrief, 'on_hold')).internalStatus).toBe(INTERNAL_ENTRY_STATUS);
+    expect(toBriefRow(stored(staticBrief, 'sent_to_designer')).internalStatus).toBe(
+      INTERNAL_ENTRY_STATUS,
+    );
+    expect(BRIEF_INTERNAL_STATUS_DEFAULT).toBe(INTERNAL_ENTRY_STATUS);
     expect(toBriefRow({ ...video, clientStatus: 'invented' }).clientStatus).toBe(
       BRIEF_CLIENT_STATUS_DEFAULT,
     );
   });
 
   /**
-   * The gate, pinned against the shipped distribution (ticket `client-queue`): three fixtures are
-   * internally Approved and one has gone all the way to Launched, so FOUR rows have an open client
-   * track. Only three of them are on the client BOARD — `launched` is the media buyer's column, not an
-   * approval the client still owes — and that second half of the rule lives in `isOnClientQueue` /
-   * `clientQueueRows`, tested in `client-queue-source.test.ts`, not here.
+   * The gate, pinned against the shipped distribution (ticket `client-queue`, the 0067 image):
+   * FOUR fixtures are internally Approved, so four rows have an open client track. Only three of
+   * them are on the client BOARD — the fourth is the client's own `launched`, the media buyer's
+   * column, not an approval the client still owes — and that second half of the rule lives in
+   * `isOnClientQueue` / `clientQueueRows`, tested in `client-queue-source.test.ts`, not here.
    */
-  it('opens the client track on the three approved fixtures and the launched one', async () => {
+  it('opens the client track on the four approved fixtures, one of them launched by the client', async () => {
     const { rows } = await loadBriefs({ connect });
 
     const open = rows.filter((row) => isClientTrackOpen(row.internalStatus));
@@ -210,7 +206,7 @@ describe('toBriefRow', () => {
       'approved',
       'approved',
       'approved',
-      'launched',
+      'approved',
     ]);
     expect(open.map((row) => row.clientStatus)).toEqual([
       BRIEF_CLIENT_STATUS_DEFAULT,
@@ -292,8 +288,9 @@ describe('the @tas/domain formula and the @tas/db copy', () => {
     }
   });
 
-  it('agree that the video track starts where the column default says it does', () => {
-    expect(internalStatusFor('video')[0]?.key).toBe(BRIEF_INTERNAL_STATUS_DEFAULT);
+  it('agree that the internal track starts where the column default says it does', () => {
+    expect(INTERNAL_ENTRY_STATUS).toBe(BRIEF_INTERNAL_STATUS_DEFAULT);
+    expect(INTERNAL_STATUS[0].key).toBe('draft');
     expect(CLIENT_STATUS[0].key).toBe(BRIEF_CLIENT_STATUS_DEFAULT);
     expect(creativeTrack('Video')).toBe('video');
   });

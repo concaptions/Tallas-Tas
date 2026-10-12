@@ -17,7 +17,8 @@
  *
  * None of this is a state. Funnel, Type and Priority are kinds; the workflow states a brief moves
  * through live in `../state`, and the only thing here that touches the state machine is
- * `creativeTrack`, which answers WHICH of the two internal ladders a type is graded on.
+ * `creativeTrack`, which answers WHO builds a type and which QA ticks it needs. The internal status
+ * list itself is ONE list for both tracks since the Oct 12 consolidation (Ticket 5, migration 0067).
  */
 
 import type { ChipTone, CreativeTrack } from '../state/creative-status';
@@ -36,7 +37,7 @@ export interface CreativeTypeEntry {
   readonly label: string;
   /** The SECOND character of the PRD §7 name. */
   readonly letter: string;
-  /** Which internal ladder in `../state` this type is graded on; see `creativeTrack`. */
+  /** Which QA ticks in `../state/qa-gate` this type is graded on; see `creativeTrack`. */
   readonly track: CreativeTrack;
 }
 
@@ -76,11 +77,10 @@ export type CreativeFunnelKey = (typeof CREATIVE_FUNNELS)[number]['key'];
  * strategist is *asking for*, a brief names the asset that was *built*, and §7's letters are defined
  * over this list. `@tas/db` says the same thing at `creativeTypes`.
  *
- * `track` is the one place the two-track state machine is attached to a type. A carousel is a set of
- * stills and is graded on the static ladder; a motion image is cut like a video and is graded on the
- * video ladder. `schema/briefs.ts` notes that a column default cannot look at another column, so the
- * page moves a static brief to `sent_to_designer` — it reads the track from here rather than
- * branching on `'Static'` in a component.
+ * `track` is the one place the creative track is attached to a type. A carousel is a set of stills
+ * and is graded by the designer (`qaDesigner`); a motion image is cut like a video and is graded by
+ * the video editor (`qaVideoEditor`). The status words are the same for both tracks since Oct 12
+ * (0067); a page reads the track from here rather than branching on `'Static'` in a component.
  */
 export const CREATIVE_TYPES = [
   { key: 'Video', label: 'Video', letter: 'V', track: 'video' },
@@ -296,12 +296,14 @@ export function priorityTone(priority: string | null | undefined): ChipTone {
 }
 
 /**
- * Which internal ladder in `../state` a brief of this type is graded on, so a page calls
- * `internalStatusFor(creativeTrack(brief.type))` and nothing anywhere branches on `'Static'`.
+ * Which creative track a brief of this type is on. It feeds `requiredQaChecks` / `qaChecklistFor`
+ * in `../state/qa-gate` (who grades it, which ticks the client gate needs) and names the brief's
+ * kind, so nothing anywhere branches on `'Static'`. It no longer picks a status list: the internal
+ * track is one list for both since the Oct 12 consolidation (0067).
  *
- * Total: a type this build does not know falls back to `video`, the track whose first state is the
- * `BRIEF_INTERNAL_STATUS_DEFAULT` the column already carries, so an unknown type renders a stepper
- * rather than crashing the rail.
+ * Total: a type this build does not know falls back to `video`, the superset QA path (the video
+ * editor's tick plus the strategist's), so an unknown type asks for one tick too many rather than
+ * letting a creative past the gate unchecked.
  */
 export function creativeTrack(type: string): CreativeTrack {
   return creativeTypeEntry(type)?.track ?? 'video';

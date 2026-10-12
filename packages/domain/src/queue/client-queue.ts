@@ -26,7 +26,6 @@ import {
   canTransitionClient,
   isClientTrackOpen,
   type ClientStatusKey,
-  type InternalStatusKey,
   type StatusEntry,
 } from '../state/creative-status';
 import {
@@ -53,16 +52,14 @@ export interface ClientQueueRow extends QueueRow {
 /**
  * PRD §9's rule and nothing else: internally signed off, and not already finished on the client track.
  *
- * `isClientTrackOpen` is typed on the internal vocabulary while a stored row carries a plain string;
- * the cast is safe because the gate only compares for equality, and an unknown status falls through
- * both comparisons to `false` — an unrecognised internal status keeps a row OFF the client board,
- * which is the safe direction for a page clients see (CLAUDE.md non-negotiable 10).
+ * `isClientTrackOpen` takes the stored string as it is: the gate opens on `approved` alone and
+ * answers `false` for anything else, so an unrecognised internal status keeps a row OFF the client
+ * board, which is the safe direction for a page clients see (CLAUDE.md non-negotiable 10). An
+ * internal `launched` is one of those unrecognised values since the Oct 12 consolidation (0067):
+ * the launch is the client track's word and the brief's `launched_at`, never an internal status.
  */
 export function isOnClientQueue(row: ClientQueueRow): boolean {
-  return (
-    isClientTrackOpen(row.internalStatus as InternalStatusKey) &&
-    row.clientStatus !== OFF_QUEUE_CLIENT_STATUS
-  );
+  return isClientTrackOpen(row.internalStatus) && row.clientStatus !== OFF_QUEUE_CLIENT_STATUS;
 }
 
 /**
@@ -209,10 +206,6 @@ export function clientQueueActionsFor(
   clientStatus: string,
 ): readonly ClientQueueAction[] {
   return CLIENT_QUEUE_ACTIONS.filter((action) =>
-    canTransitionClient(
-      internalStatus as InternalStatusKey,
-      clientStatus as ClientStatusKey,
-      action.to,
-    ),
+    canTransitionClient(internalStatus, clientStatus, action.to),
   );
 }

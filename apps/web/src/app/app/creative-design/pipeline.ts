@@ -13,7 +13,7 @@ import {
  * disagree with the rows underneath it: the page loads every brief it would count. The buckets are
  * the editor board's three stages — `EDITOR_STAGES` in `@tas/domain/state` owns their words, their
  * order and their tones — plus one for the briefs that have left the board, because a count that
- * silently dropped the approved and launched ones would not add up to the number in the header.
+ * silently dropped the approved ones would not add up to the number in the header.
  *
  * It is deliberately NOT `buildPipeline` from `lib/dashboard-source.ts`. That one answers the
  * Overview's question ("what is waiting on whom, per role") and returns cards that link away to a
@@ -48,9 +48,9 @@ export interface PipelineBrief {
  * The four buckets for a set of briefs, always all four and always in `EDITOR_STAGES` order.
  *
  * An empty set yields four zeroes rather than an empty list, so the summary keeps its shape while a
- * search narrows the page to nothing. A status this build cannot place — a key written by a newer
- * build, or the non-linear `on_hold` branch that is deliberately in neither ladder — counts as off
- * the board, which is where `editorStageOf` already puts it.
+ * search narrows the page to nothing. A key this build does not know, and `draft` / `approved`
+ * (not handed over yet, signed off), count as off the board, which is where `editorStageOf`
+ * already puts them.
  */
 export function buildBriefPipeline(briefs: readonly PipelineBrief[]): BriefPipeline {
   const counts = new Map<string, number>();

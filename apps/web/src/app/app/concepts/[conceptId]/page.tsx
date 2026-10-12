@@ -4,7 +4,7 @@ import { CONCEPT_CLIENT_STATUS_DEFAULT, CONCEPT_INTERNAL_STATUS_DEFAULT } from '
 import { loadAngles } from '@/lib/angles-source';
 import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadBriefsByConceptId } from '@/lib/briefs-source';
-import { CONCEPT_TRACK, loadConceptById } from '@/lib/concepts-source';
+import { loadConceptById } from '@/lib/concepts-source';
 import { loadCreators } from '@/lib/ugc-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadPersonas } from '@/lib/personas-source';
@@ -46,8 +46,9 @@ import {
  * that null into a 404. The one id that is not a row is `new`, which is the create form — a uuid
  * can never be the word `new`, so the two share a route without a second page.
  *
- * `CONCEPT_TRACK` and the two column defaults are read here, on the server, and passed down: they
- * live beside the data source and in `@tas/db`, so no component ever names a track or a status.
+ * The two column defaults are read here, on the server, and passed down: they live in `@tas/db`,
+ * so no component ever names a status. Nothing names a track either: since the Oct 12 client sync
+ * (Ticket 5, migration 0067) the internal track is one list for every creative.
  *
  * CAMPAIGNS & OFFERS (module parity, phase 2) is the one link read from the far side: the campaign
  * panel owns `campaign_concepts` (Airtable's "Angles" field, which links to concepts despite its
@@ -88,7 +89,7 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
   // Status views are computed here so the client component never touches the state machine.
   const creativeRows = creating ? [] : (await loadBriefsByConceptId(conceptId)).rows;
   const creatives: ConceptCreativeItem[] = creativeRows.map((row) => {
-    const status = briefStatusView(row.track, row.internalStatus);
+    const status = briefStatusView(row.internalStatus);
     return {
       id: row.id,
       name: row.name,
@@ -159,7 +160,6 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
       angles={angles}
       themes={themes}
       creators={creators}
-      track={CONCEPT_TRACK}
       internal={concept?.internalStatus ?? CONCEPT_INTERNAL_STATUS_DEFAULT}
       client={concept?.clientStatus ?? CONCEPT_CLIENT_STATUS_DEFAULT}
       demo={demo}

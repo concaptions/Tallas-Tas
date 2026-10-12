@@ -1,86 +1,17 @@
 /**
  * The Internal Queue board's columns (PRD §9, ticket `internal-queue` criteria 2 and 3).
  *
- * The internal ladder in `./creative-status` is two lists, one per track, because a single brief is
- * graded on exactly one of them. The queue is the other view of the same machine: ONE board carrying
- * every brief in the brand, whatever its type, so the strip needs the two ladders merged into a
- * single left-to-right order with the four steps the tracks share (`ad_submitted`,
- * `revisions_submitted`, `approved`, `launched`) appearing once rather than twice.
- *
- * That merge is done HERE, once, and derived from `INTERNAL_STATIC_STATUS` and
- * `INTERNAL_VIDEO_STATUS` rather than retyped — a status added to a ladder shows up on the board
- * with no second edit, and a component never lists a status, compares one to a literal or orders
- * them (CLAUDE.md non-negotiable 2, criterion 2).
+ * Since the Oct 12 consolidation (`./creative-status`, migration 0067) the internal track is ONE
+ * list for both creative tracks, so the board's strip IS that list, in flow order — no merge of two
+ * ladders and no `On Hold` siding any more. A component never lists a status, compares one to a
+ * literal or orders them (CLAUDE.md non-negotiable 2, criterion 2): it reads this module.
  *
  * Pure and total: no I/O, no clock, no row type from `@tas/db`. `groupByInternalStatus` is generic
  * over anything that carries an `internalStatus` string, which is what keeps the dependency edge
  * app → domain and app → db, never domain → db.
  */
 
-import {
-  INTERNAL_STATIC_STATUS,
-  INTERNAL_VIDEO_STATUS,
-  ON_HOLD,
-  type InternalStatusKey,
-  type InternalStatusOrHoldKey,
-  type StatusEntry,
-} from './creative-status';
-
-/** The keys both ladders carry, in video-list order. Computed, so it cannot drift from the lists. */
-const SHARED_KEYS: readonly InternalStatusKey[] = INTERNAL_VIDEO_STATUS.filter((entry) =>
-  INTERNAL_STATIC_STATUS.some((other) => other.key === entry.key),
-).map((entry) => entry.key);
-
-function isShared(key: string): boolean {
-  return SHARED_KEYS.includes(key as InternalStatusKey);
-}
-
-/**
- * The two ladders merged into one sequence, each list's own relative order preserved and every
- * shared step emitted once.
- *
- * Walking the STATIC list and flushing the video-only steps that sit in front of each shared step
- * reproduces PRD §9 exactly — "Sent to Designer → Static Design in Progress / Sent to Video Editor →
- * Video Editing in Progress → … → Ad Submitted → Images Revisions / Videos Revisions → …" — because
- * §9 writes the static half of each pair first.
- */
-function mergeTracks(): readonly StatusEntry<InternalStatusKey>[] {
-  const video: readonly StatusEntry<InternalStatusKey>[] = INTERNAL_VIDEO_STATUS;
-  const merged: StatusEntry<InternalStatusKey>[] = [];
-  let cursor = 0;
-
-  const push = (entry: StatusEntry<InternalStatusKey>): void => {
-    if (!merged.some((seen) => seen.key === entry.key)) {
-      merged.push(entry);
-    }
-  };
-
-  /** Emit the video steps in front of `key`, then consume video's own copy of `key`. */
-  const flushVideoBefore = (key: string | null): void => {
-    while (cursor < video.length) {
-      const entry = video[cursor];
-      if (entry === undefined) {
-        return;
-      }
-      cursor += 1;
-      if (entry.key === key) {
-        return;
-      }
-      push(entry);
-    }
-  };
-
-  for (const entry of INTERNAL_STATIC_STATUS) {
-    if (isShared(entry.key)) {
-      flushVideoBefore(entry.key);
-    }
-    push(entry);
-  }
-  // Anything the video ladder carries past the last shared step. Empty today, correct tomorrow.
-  flushVideoBefore(null);
-
-  return merged;
-}
+import { INTERNAL_STATUS, type InternalStatusKey, type StatusEntry } from './creative-status';
 
 /**
  * The column a brief lands in when its stored status is not one this build knows.
@@ -97,37 +28,27 @@ export const QUEUE_OTHER_COLUMN = {
 } as const satisfies StatusEntry;
 
 export type QueueOtherColumnKey = typeof QUEUE_OTHER_COLUMN.key;
-export type QueueColumnKey = InternalStatusOrHoldKey | QueueOtherColumnKey;
+export type QueueColumnKey = InternalStatusKey | QueueOtherColumnKey;
 
-/**
- * Every column of the board, in PRD §9 order, with `On Hold` last.
- *
- * `On Hold` is a branch rather than a step — `./creative-status` keeps it out of both linear
- * steppers for that reason — so it cannot sit "between in-progress and Ad Submitted" in a strip that
- * reads left to right as progress. Criterion 2 puts it at the end, where it reads as the siding it
- * is instead of a stage every brief passes through.
- */
-export const INTERNAL_QUEUE_COLUMNS: readonly StatusEntry<InternalStatusOrHoldKey>[] = [
-  ...mergeTracks(),
-  ON_HOLD,
-];
+/** Every column of the board, in flow order: the internal vocabulary itself. */
+export const INTERNAL_QUEUE_COLUMNS: readonly StatusEntry<InternalStatusKey>[] = INTERNAL_STATUS;
 
-/** The board's columns. A function so a caller reads it the way it reads `internalStatusFor`. */
-export function internalQueueColumns(): readonly StatusEntry<InternalStatusOrHoldKey>[] {
+/** The board's columns. A function so a caller reads it the way it reads every other list here. */
+export function internalQueueColumns(): readonly StatusEntry<InternalStatusKey>[] {
   return INTERNAL_QUEUE_COLUMNS;
 }
 
 /** The column key a stored status belongs to: itself when the board has it, `other` when it does not. */
 export function internalQueueColumnKey(status: string): QueueColumnKey {
   return INTERNAL_QUEUE_COLUMNS.some((column) => column.key === status)
-    ? (status as InternalStatusOrHoldKey)
+    ? (status as InternalStatusKey)
     : QUEUE_OTHER_COLUMN.key;
 }
 
 /** The entry for a stored status, or `undefined` for one no column carries. */
 export function internalQueueColumnEntry(
   status: string,
-): StatusEntry<InternalStatusOrHoldKey> | undefined {
+): StatusEntry<InternalStatusKey> | undefined {
   return INTERNAL_QUEUE_COLUMNS.find((column) => column.key === status);
 }
 

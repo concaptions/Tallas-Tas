@@ -53,12 +53,12 @@ describe('StepRow', () => {
   it('renders an optional side badge next to the label', () => {
     render(
       <StepRow
-        label="Video Editing in Progress"
+        label="Under Editing / Designing"
         state="now"
-        badge={<StatusChip tone="mute" label="On Hold" />}
+        badge={<StatusChip tone="mute" label="badge" />}
       />,
     );
-    expect(screen.getByText('On Hold').dataset['slot']).toBe('status-chip');
+    expect(screen.getByText('badge').dataset['slot']).toBe('status-chip');
   });
 
   it('exposes its state for styling and assertions', () => {

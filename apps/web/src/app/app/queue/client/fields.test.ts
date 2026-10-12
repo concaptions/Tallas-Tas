@@ -5,7 +5,6 @@ import {
   CLIENT_QUEUE_ACTIONS,
   groupByClientStatus,
   isClientTrackOpen,
-  type InternalStatusKey,
 } from '@tas/domain/state';
 
 import {
@@ -82,7 +81,7 @@ describe('parseClientQueueFilter', () => {
 describe('isOnClientQueue', () => {
   it('is isClientTrackOpen and nothing else, for every internal status the fixtures carry', () => {
     for (const brief of demoBriefs) {
-      const open = isClientTrackOpen(brief.internalStatus as InternalStatusKey);
+      const open = isClientTrackOpen(brief.internalStatus);
       const onBoard = open && brief.clientStatus !== 'launched';
 
       expect(
@@ -104,7 +103,7 @@ describe('isOnClientQueue', () => {
   });
 
   it('drops a launched creative: the client owes it no further decision', () => {
-    expect(isOnClientQueue({ internalStatus: 'launched', clientStatus: 'launched' })).toBe(false);
+    expect(isOnClientQueue({ internalStatus: 'approved', clientStatus: 'launched' })).toBe(false);
     expect(isOnClientQueue({ internalStatus: 'approved', clientStatus: 'approved' })).toBe(true);
   });
 });
@@ -286,6 +285,6 @@ describe('clientQueueControlsFor — a card draws only what can succeed', () => 
 
   it('draws nothing for a stored status this build has no row for, rather than throwing', () => {
     expect(at('approved', 'awaiting_legal')).toEqual([]);
-    expect(at('static_design_in_progress', 'pending_for_approval')).toEqual([]);
+    expect(at('under_editing_or_designing', 'pending_for_approval')).toEqual([]);
   });
 });

@@ -29,17 +29,18 @@ const row = (id: string, internalStatus: string, clientStatus: string): Row => (
 
 /**
  * The seven seeded briefs as `(internalStatus, clientStatus)` pairs in `demoBriefs` order (which is
- * `updated_at desc`), copied from the `packages/db` handoff. Copied rather than imported: `@tas/domain`
- * has no dependency on `@tas/db` and must not grow one.
+ * `updated_at desc`), copied from the `packages/db` handoff after the Oct 12 consolidation (0067):
+ * the seventh was internally `launched` and is now `approved` with the client track on `launched`.
+ * Copied rather than imported: `@tas/domain` has no dependency on `@tas/db` and must not grow one.
  */
 const demoPairs: readonly (readonly [string, string])[] = [
   ['approved', 'pending_for_approval'],
-  ['static_design_in_progress', 'pending_for_approval'],
+  ['under_editing_or_designing', 'pending_for_approval'],
   ['ad_submitted', 'pending_for_approval'],
   ['approved', 'pending_for_approval'],
   ['approved', 'approved'],
-  ['sent_to_video_editor', 'pending_for_approval'],
-  ['launched', 'launched'],
+  ['sent_to_editor_or_designer', 'pending_for_approval'],
+  ['approved', 'launched'],
 ];
 
 const demoRows = demoPairs.map(([internal, client], i) => row(String(i), internal, client));
@@ -53,29 +54,27 @@ describe('isOnClientQueue', () => {
     expect(isOnClientQueue(row('a', 'approved', 'approved'))).toBe(true);
   });
 
-  it('excludes every pre-Approved internal state, on either track', () => {
+  it('excludes every pre-Approved internal state of the one list, and the retired keys', () => {
     for (const internal of [
-      'sent_to_designer',
-      'static_design_in_progress',
-      'sent_to_video_editor',
-      'video_editing_in_progress',
+      'draft',
+      'sent_to_editor_or_designer',
+      'under_editing_or_designing',
       'ad_submitted',
-      'images_revisions',
-      'videos_revisions',
+      'revisions_needed',
       'revisions_submitted',
       'on_hold',
+      'launched',
     ]) {
-      expect(isOnClientQueue(row('a', internal, 'pending_for_approval'))).toBe(false);
+      expect(isOnClientQueue(row('a', internal, 'pending_for_approval')), internal).toBe(false);
     }
   });
 
   it('excludes a row whose client track is finished, even when internal is Approved', () => {
     expect(isOnClientQueue(row('a', 'approved', 'launched'))).toBe(false);
-    expect(isOnClientQueue(row('a', 'launched', 'launched'))).toBe(false);
   });
 
-  it('keeps an internally Launched brief whose client status is still open', () => {
-    expect(isOnClientQueue(row('a', 'launched', 'approved'))).toBe(true);
+  it('excludes an internal launched value: launch is the client track’s word, not an internal status (0067)', () => {
+    expect(isOnClientQueue(row('a', 'launched', 'approved'))).toBe(false);
   });
 
   it('excludes an internal status this build does not know, rather than leaking it to the client', () => {
@@ -347,7 +346,8 @@ describe('clientQueueActionsFor — only the controls that can succeed', () => {
 
   it('offers both PRD §9 branches from Pending for Approval once internal has signed off', () => {
     expect(keys('approved', 'pending_for_approval')).toEqual(['approve', 'request_revisions']);
-    expect(keys('launched', 'pending_for_approval')).toEqual(['approve', 'request_revisions']);
+    // The retired internal `launched` opens nothing: it is not a status this build knows.
+    expect(keys('launched', 'pending_for_approval')).toEqual([]);
   });
 
   it('offers nothing on a creative the client already approved, rather than a dead Approve', () => {
@@ -360,7 +360,7 @@ describe('clientQueueActionsFor — only the controls that can succeed', () => {
 
   it('offers nothing while the internal gate is shut, whatever the client status says', () => {
     expect(keys('ad_submitted', 'pending_for_approval')).toEqual([]);
-    expect(keys('static_design_in_progress', 'pending_for_approval')).toEqual([]);
+    expect(keys('under_editing_or_designing', 'pending_for_approval')).toEqual([]);
   });
 
   it('answers with an empty list, never a throw, for statuses this build has no row for', () => {
@@ -369,7 +369,7 @@ describe('clientQueueActionsFor — only the controls that can succeed', () => {
   });
 
   it('never offers a move canTransitionClient would refuse', () => {
-    const internals = ['approved', 'launched', 'ad_submitted'];
+    const internals = ['approved', 'revisions_submitted', 'ad_submitted'];
     const clients = [
       'pending_for_approval',
       'approved',
@@ -381,13 +381,7 @@ describe('clientQueueActionsFor — only the controls that can succeed', () => {
     for (const internal of internals) {
       for (const client of clients) {
         for (const action of clientQueueActionsFor(internal, client)) {
-          expect(
-            canTransitionClient(
-              internal as Parameters<typeof canTransitionClient>[0],
-              client as Parameters<typeof canTransitionClient>[1],
-              action.to,
-            ),
-          ).toBe(true);
+          expect(canTransitionClient(internal, client, action.to)).toBe(true);
         }
       }
     }

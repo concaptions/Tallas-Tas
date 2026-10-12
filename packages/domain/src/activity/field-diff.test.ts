@@ -23,7 +23,7 @@ describe('diffFields', () => {
     readonly tags: readonly string[];
   }
   const before: Row = {
-    status: 'sent_to_video_editor',
+    status: 'sent_to_editor_or_designer',
     assignee: null,
     priority: 'High',
     tags: ['a'],
@@ -32,11 +32,15 @@ describe('diffFields', () => {
   it('lists only the fields whose printed value changed, in field order', () => {
     const changes = diffFields(
       before,
-      { status: 'video_editing_in_progress', assignee: 'Dorian Vance', priority: 'High' },
+      { status: 'under_editing_or_designing', assignee: 'Dorian Vance', priority: 'High' },
       ['status', 'assignee', 'priority', 'tags'],
     );
     expect(changes).toEqual([
-      { field: 'status', oldValue: 'sent_to_video_editor', newValue: 'video_editing_in_progress' },
+      {
+        field: 'status',
+        oldValue: 'sent_to_editor_or_designer',
+        newValue: 'under_editing_or_designing',
+      },
       { field: 'assignee', oldValue: null, newValue: 'Dorian Vance' },
     ]);
   });

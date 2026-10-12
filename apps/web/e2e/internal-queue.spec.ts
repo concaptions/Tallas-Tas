@@ -9,48 +9,38 @@ import { briefPath, internalQueuePath, propagationPath } from '../src/lib/routes
  * stands (PRD §9, §13; ticket `internal-queue.md` criterion 14).
  *
  * The middleware lets the route through, `loadInternalQueue()` serves the in-repo fixtures, and the
- * board is fully usable read-only: eleven columns in PRD §9 order, the seven seeded briefs spread
- * across five of them, the six empty columns keeping their place, a card that links to the real
- * Creative Brief page, and a `?view=` filter that survives a reload.
+ * board is fully usable read-only: seven columns in PRD §9 order (the one internal list), the seven
+ * seeded briefs spread across four of them, the three empty columns keeping their place, a card
+ * that links to the real Creative Brief page, and a `?view=` filter that survives a reload.
  *
- * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: SEVEN rows across five different
- * internal statuses and both tracks, three of them stacked in `approved`. The spread is what makes
+ * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: SEVEN rows across four different
+ * internal statuses, four of them stacked in `approved`. The spread is what makes
  * "every card in its own column, the exact count in each, zero in the rest" a real assertion rather
  * than a coincidence — and the stack is what proves a column renders more than one card.
  * `DEMO_QUEUE_ASSIGNEE` is imported rather than retyped, so renaming the seeded assignee fails here
  * instead of quietly emptying "Mine".
  */
 
-/** PRD §9, the two ladders merged: the static half of each pair first, `On Hold` last. */
+/** PRD §9 (amended 2026-10-12): the one internal list in flow order — INTERNAL_STATUS labels. */
 const COLUMNS_IN_ORDER = [
-  'Sent to Designer',
-  'Static Design in Progress',
-  'Sent to Video Editor',
-  'Video Editing in Progress',
+  'Draft',
+  'Sent to Editor / Designer',
+  'Under Editing / Designing',
   'Ad Submitted',
-  'Images Revisions',
-  'Videos Revisions',
+  'Revisions Needed',
   'Revisions Submitted',
   'Approved',
-  'Launched',
-  'On Hold',
 ];
 
 /**
- * The column each seeded brief lands in, with how many sit there. Five of the eleven columns are
- * occupied; the other six render empty. The totals below are the fixtures' own, not a guess.
- *
- * `sent_to_designer` holds the carousel, whose STORED status is `sent_to_video_editor`: it is a
- * static-track creative, so `briefs-source.ts` reads the stored value against the static ladder,
- * does not find it there and starts the row at its own track's first step rather than dropping it.
- * That normalisation is the reason this list is the board's columns and not a copy of `demoBriefs`.
+ * The column each seeded brief lands in, with how many sit there. Four of the seven columns are
+ * occupied; the other three render empty. The totals below are the fixtures' own, not a guess.
  */
 const OCCUPIED_STATUSES: ReadonlyArray<readonly [status: string, count: number]> = [
-  ['sent_to_designer', 1],
-  ['static_design_in_progress', 1],
+  ['sent_to_editor_or_designer', 1],
+  ['under_editing_or_designing', 1],
   ['ad_submitted', 1],
-  ['approved', 3],
-  ['launched', 1],
+  ['approved', 4],
 ];
 
 /** Every seeded brief, so the board's own total can never drift from the fixtures. */

@@ -26,7 +26,7 @@ describe('computePipelineSummary', () => {
       briefs: [
         { internalStatus: 'approved', clientStatus: 'pending_for_approval' },
         { internalStatus: 'approved', clientStatus: 'approved' },
-        { internalStatus: 'sent_to_video_editor', clientStatus: null },
+        { internalStatus: 'sent_to_editor_or_designer', clientStatus: null },
       ],
       concepts: [],
       creativeSheet: [],
@@ -37,7 +37,7 @@ describe('computePipelineSummary', () => {
     expect(result.briefs.total).toBe(3);
     expect(result.briefs.byInternalStatus).toEqual({
       approved: 2,
-      sent_to_video_editor: 1,
+      sent_to_editor_or_designer: 1,
     });
     expect(result.briefs.byClientStatus).toEqual({
       pending_for_approval: 1,

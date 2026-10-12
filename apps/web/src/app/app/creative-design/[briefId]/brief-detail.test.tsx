@@ -93,7 +93,7 @@ function render(brief: BriefValues): string {
       copyLinks={[]}
       linked={{ sheetItems: [], modules: [], folders: [], reports: [] }}
       track="video"
-      internal="sent_to_video_editor"
+      internal="sent_to_editor_or_designer"
       client="pending_for_approval"
       demo={false}
     />,

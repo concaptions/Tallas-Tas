@@ -2,10 +2,10 @@ import {
   CLIENT_STATUS,
   chipTone,
   EDITOR_STAGES,
-  INTERNAL_STATIC_STATUS,
-  INTERNAL_VIDEO_STATUS,
-  ON_HOLD,
+  INTERNAL_ENTRY_STATUS,
+  INTERNAL_STATUS,
   type ChipTone,
+  type InternalStatusKey,
 } from '@tas/domain/state';
 
 import type {
@@ -23,8 +23,8 @@ import type { SheetItemView } from './creative-sheet-workspace';
  *
  * Nothing here invents a vocabulary. Since the single-source cutover (2026-10-09) a sheet row IS a
  * brief, so the two selects are the two tracks of the state machine in `@tas/domain/state`:
- * `INTERNAL_VIDEO_STATUS` / `INTERNAL_STATIC_STATUS` (plus the `ON_HOLD` branch) and
- * `CLIENT_STATUS`. A component renders their LABELS and stores their KEYS, and never writes
+ * `INTERNAL_STATUS` (one list for both creative tracks since the Oct 12 consolidation, Ticket 5 /
+ * 0067) and `CLIENT_STATUS`. A component renders their LABELS and stores their KEYS, and never writes
  * `'ad_submitted'` or `'Approved'` itself. The sheet's own Airtable vocabularies are gone with the
  * frozen `creative_sheet_items` table.
  *
@@ -63,44 +63,28 @@ export interface SheetStatusView {
 }
 
 /**
- * The tone of each internal status, keyed on the KEY: in-progress steps are `info`, a hold is
- * `warn`, a submission waiting on review is `accent`, the hand-offs rest at `mute`, Approved is
- * `ok` and Launched `accent`. Where the domain's `chipTone` has a rule for the label the two
- * agree, and `fields.test.ts` pins that.
+ * The tone of each internal status, keyed on the KEY: the working step is `info`, a submission
+ * waiting on review is `accent`, the revision state is `warn`, the hand-offs (and Draft) rest at
+ * `mute`, Approved is `ok`. One entry per key of the one list (Oct 12 consolidation, Ticket 5 /
+ * 0067) — the `Record` type makes a missing key a typecheck error. Where the domain's `chipTone`
+ * has a rule for the label the two agree, and `fields.test.ts` pins that.
  */
-const INTERNAL_STATUS_TONE: Readonly<Record<string, ChipTone>> = {
-  sent_to_designer: 'mute',
-  sent_to_video_editor: 'mute',
-  static_design_in_progress: 'info',
-  video_editing_in_progress: 'info',
-  on_hold: 'warn',
+const INTERNAL_STATUS_TONE: Readonly<Record<InternalStatusKey, ChipTone>> = {
+  draft: 'mute',
+  sent_to_editor_or_designer: 'mute',
+  under_editing_or_designing: 'info',
   ad_submitted: 'accent',
-  approved: 'ok',
-  images_revisions: 'warn',
-  videos_revisions: 'warn',
+  revisions_needed: 'warn',
   revisions_submitted: 'mute',
-  launched: 'accent',
+  approved: 'ok',
 };
 
-/**
- * Every internal status a brief can hold, both tracks merged in ladder order (the video track, then
- * the static track's own three steps) and the `on_hold` branch last; the panel narrows this to the
- * open row's own track.
- */
-const INTERNAL_ENTRIES: readonly { readonly key: string; readonly label: string }[] = [
-  ...INTERNAL_VIDEO_STATUS,
-  ...INTERNAL_STATIC_STATUS,
-  ON_HOLD,
-].filter((entry, index, all) => all.findIndex((other) => other.key === entry.key) === index);
-
 /** The two dropdowns' options, in vocabulary order, each already carrying its tone. */
-export const INTERNAL_STATUS_OPTIONS: readonly SheetStatusView[] = INTERNAL_ENTRIES.map(
-  (entry) => ({
-    key: entry.key,
-    label: entry.label,
-    tone: INTERNAL_STATUS_TONE[entry.key] ?? 'mute',
-  }),
-);
+export const INTERNAL_STATUS_OPTIONS: readonly SheetStatusView[] = INTERNAL_STATUS.map((entry) => ({
+  key: entry.key,
+  label: entry.label,
+  tone: INTERNAL_STATUS_TONE[entry.key],
+}));
 export const STATUS_OPTIONS: readonly SheetStatusView[] = CLIENT_STATUS.map((entry) => ({
   key: entry.key,
   label: entry.label,
@@ -348,7 +332,7 @@ export function pendingSheetRow(pending: PendingCreative, now: Date): SheetItemV
       updatedAt: now,
       legacyAirtableId: null,
       name,
-      internalStatus: INTERNAL_VIDEO_STATUS[0].key,
+      internalStatus: INTERNAL_ENTRY_STATUS,
       status: CLIENT_STATUS[0].key,
       qaChecklistDoc: null,
       qaVideoEditor: false,

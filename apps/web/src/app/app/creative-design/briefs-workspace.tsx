@@ -7,16 +7,13 @@ import { Button, DEMO_WRITE_HINT, Input, StatusChip } from '@tas/ui';
 import { getTableCapability, type ViewType } from '@tas/domain';
 import {
   canStartBrief,
-  canTransitionInternal,
+  EDITOR_STAGE_KEYS,
   EDITOR_STAGES,
+  editorStageMoveTarget,
   editorStageOf,
   editorStageTone,
-  internalStatusFor,
-  startedStatusFor,
   type EditorStageKey,
-  type InternalStatusKey,
 } from '@tas/domain/state';
-import { creativeTrack } from '@tas/domain/creatives';
 
 import {
   ColumnNotices,
@@ -413,22 +410,12 @@ export function BriefsWorkspace({
         if (kanbanField === 'editorStage') {
           // A drop between the editor's columns is a status move on the internal track: Incoming →
           // Under Editing is Start; Under Editing → Under Review is a submission (the revision
-          // resubmission when the brief was under revisions). Anything else is not a move the
-          // machine allows, so it is ignored rather than written.
-          const track = creativeTrack(snap.type);
-          const from = snap.internalStatus;
-          const to: string | null =
-            newValue === 'under_editing' && editorStageOf(from) === 'incoming'
-              ? startedStatusFor(track)
-              : newValue === 'under_review' && editorStageOf(from) === 'under_editing'
-                ? from.endsWith('_revisions')
-                  ? 'revisions_submitted'
-                  : 'ad_submitted'
-                : null;
-          const onTrack = (value: string): value is InternalStatusKey =>
-            internalStatusFor(track).some((entry) => entry.key === value);
-          if (to === null || !onTrack(from) || !onTrack(to)) return;
-          if (!canTransitionInternal(track, from, to)) return;
+          // resubmission when the brief was under Revisions Needed). The domain helper decides
+          // the target against INTERNAL_TRANSITIONS, so anything else — a backwards drop, a
+          // skipped column, a brief off the board — is null and ignored rather than written.
+          const stage = EDITOR_STAGE_KEYS.find((key) => key === newValue);
+          const to = stage === undefined ? null : editorStageMoveTarget(snap.internalStatus, stage);
+          if (to === null) return;
           fd.set('internalStatus', to);
         } else {
           fd.set(kanbanField, newValue);
@@ -518,7 +505,7 @@ export function BriefsWorkspace({
     return [...seen];
   }, [kanbanItems, kanbanField, editorStageColumns]);
 
-  // Column headers are the domain's own status labels ("Sent to Video Editor",
+  // Column headers are the domain's own status labels ("Sent to Editor / Designer",
   // "Pending for Approval"), never a re-capitalised key: both groupable fields are
   // status tracks and every item already carries their views, so the header can
   // never drift from `@tas/domain/state`.
@@ -648,8 +635,8 @@ export function BriefsWorkspace({
             )}
             {offBoard === 0 ? null : (
               <p className="text-xs text-text3" data-slot="brief-off-board">
-                {String(offBoard)} {offBoard === 1 ? 'brief is' : 'briefs are'} approved or launched
-                and off the editor board.
+                {String(offBoard)} {offBoard === 1 ? 'brief is' : 'briefs are'} off the editor board
+                (draft or approved).
               </p>
             )}
             <KanbanBoard

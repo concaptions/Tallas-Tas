@@ -50,7 +50,7 @@ test.describe('editor board with Clerk and a database', () => {
     // action wrote at least the two activity_log rows (status, assignee) on top of what was there.
     const after = await briefGuard.inspect(id);
     expect(after.internalStatus).not.toBe(before.internalStatus);
-    expect(after.internalStatus).toMatch(/in_progress$/);
+    expect(after.internalStatus).toBe('under_editing_or_designing');
     expect(after.assignee).toBe(who);
     expect(after.activityIds.length).toBeGreaterThanOrEqual(before.activityIds.length + 2);
 
@@ -62,7 +62,9 @@ test.describe('editor board with Clerk and a database', () => {
     await expect(entry.locator('[data-slot="brief-activity-old"]')).toContainText(
       before.internalStatus,
     );
-    await expect(entry.locator('[data-slot="brief-activity-new"]')).toContainText('in_progress');
+    await expect(entry.locator('[data-slot="brief-activity-new"]')).toContainText(
+      'under_editing_or_designing',
+    );
     await expect(entry.locator('[data-slot="brief-activity-actor"]')).toHaveText(who);
     await expect(
       page.locator('[data-slot="brief-activity-entry"][data-field="assignee"]').first(),

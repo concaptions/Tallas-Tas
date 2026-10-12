@@ -1,7 +1,7 @@
 import type { CreativeSheetItemListRow } from '@tas/db';
 import {
+  INTERNAL_STATUS,
   internalMoveResetsQa,
-  internalStatusFor,
   qaChecklistFor,
   qaProgressLabel,
   submitToClientRefusal,
@@ -9,6 +9,13 @@ import {
 } from '@tas/domain/state';
 
 import { currentPosition, statusRefusal } from './status-guard';
+
+/**
+ * The one revision step Request Changes writes — `revisions_needed`, the same for both creative
+ * tracks since the Oct 12 consolidation (Ticket 5 / 0067) — derived from the QA-reset rule the
+ * action obeys, never typed.
+ */
+const REVISION_STEP = INTERNAL_STATUS.find((entry) => internalMoveResetsQa(entry.key))?.key ?? null;
 
 /**
  * Focus Mode's pure half (Oct 12 scope 1): which creative is in focus, where prev/next go, the
@@ -66,22 +73,17 @@ export function focusActions(item: CreativeSheetItemListRow): FocusActions {
     qaDesigner: item.qaDesigner,
     qaStrategist: item.qaStrategist,
   });
-  const revisionStep =
-    internalStatusFor(position.track).find((entry) => internalMoveResetsQa(entry.key))?.key ?? null;
   const requestChanges =
-    revisionStep === null
+    REVISION_STEP === null
       ? 'This creative is not waiting on an internal review.'
-      : (statusRefusal(position, revisionStep, position.client)?.message ?? null);
+      : (statusRefusal(position, REVISION_STEP, position.client)?.message ?? null);
   const approve = statusRefusal(position, 'approved', position.client)?.message ?? null;
-  const submitToClient =
-    position.internal === 'on_hold'
-      ? 'This creative is on hold.'
-      : submitToClientRefusal({ ...position, internal: position.internal });
+  const submitToClient = submitToClientRefusal(position);
   return {
     requestChanges: state(requestChanges),
     approve: state(approve),
     submitToClient: state(submitToClient),
-    revisionStep,
+    revisionStep: REVISION_STEP,
   };
 }
 

@@ -8,7 +8,7 @@ export interface StepRowProps {
   tip?: string;
   state: StepState;
   isLast?: boolean;
-  /** Side badge for a non-linear state (On Hold). Never a step of its own in the stepper. */
+  /** Side badge beside the label (a count, a note). Never a step of its own in the stepper. */
   badge?: ReactNode;
   className?: string;
 }

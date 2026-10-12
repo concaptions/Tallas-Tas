@@ -389,6 +389,9 @@ export type NotificationChannel = (typeof notificationChannels)[number];
  * Creative Sheet "Internal Status" (`creative_sheet_items.internal_status`).
  * Options pulled verbatim from the live Gratsi base `tblGC0TxnHI7lKaNQ` ("Creative Sheet" → "Internal Status") on
  * 2026-10-01; keys are the labels normalized the way the importer normalizes every select.
+ *
+ * FROZEN with the table: the Airtable sheet vocabulary, NOT the brief vocabulary (see
+ * `INTERNAL_STATUS` in `@tas/domain/state`), so the retired per-track spellings stay here verbatim.
  */
 export const creativeSheetInternalStatuses = [
   { key: 'sent_to_designer', label: 'Sent to Designer' },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS, ON_HOLD } from './creative-status';
+import { INTERNAL_STATUS } from './creative-status';
 import {
   INTERNAL_QUEUE_COLUMNS,
   QUEUE_OTHER_COLUMN,
@@ -18,35 +18,31 @@ interface Row {
 const row = (id: string, internalStatus: string): Row => ({ id, internalStatus });
 
 /**
- * The seven seeded briefs' internal statuses, in `demoBriefs` order (which is `updated_at desc`).
- * Copied from the `packages/db` client-queue handoff rather than imported: `@tas/domain` has no
- * dependency on `@tas/db` and must not grow one. Three rows are `approved` so the Client Queue board
- * has cards, and the seventh is `launched`.
+ * The seven seeded briefs' internal statuses after the Oct 12 consolidation, in `demoBriefs` order
+ * (which is `updated_at desc`). Copied from `packages/db` rather than imported: `@tas/domain` has
+ * no dependency on `@tas/db` and must not grow one. Four rows are `approved` so the Client Queue
+ * board has cards (the seventh was `launched` before 0067 mapped it to `approved`).
  */
 const demoStatuses = [
   'approved',
-  'static_design_in_progress',
+  'under_editing_or_designing',
   'ad_submitted',
   'approved',
   'approved',
-  'sent_to_video_editor',
-  'launched',
+  'sent_to_editor_or_designer',
+  'approved',
 ];
 
 describe('internalQueueColumns', () => {
-  it('lists every column in PRD §9 order with On Hold last', () => {
+  it('lists every column in flow order — the one internal list, no On Hold siding', () => {
     expect(internalQueueColumns().map((column) => column.key)).toEqual([
-      'sent_to_designer',
-      'static_design_in_progress',
-      'sent_to_video_editor',
-      'video_editing_in_progress',
+      'draft',
+      'sent_to_editor_or_designer',
+      'under_editing_or_designing',
       'ad_submitted',
-      'images_revisions',
-      'videos_revisions',
+      'revisions_needed',
       'revisions_submitted',
       'approved',
-      'launched',
-      'on_hold',
     ]);
   });
 
@@ -54,41 +50,26 @@ describe('internalQueueColumns', () => {
     expect(internalQueueColumns()).toBe(INTERNAL_QUEUE_COLUMNS);
   });
 
-  it('is the union of the two ladders plus On Hold, each shared key exactly once', () => {
+  it('is the internal vocabulary itself, each key exactly once and in its order', () => {
+    expect(INTERNAL_QUEUE_COLUMNS).toBe(INTERNAL_STATUS);
     const keys = INTERNAL_QUEUE_COLUMNS.map((column) => column.key);
-    const union = new Set<string>([
-      ...INTERNAL_VIDEO_STATUS.map((entry) => entry.key),
-      ...INTERNAL_STATIC_STATUS.map((entry) => entry.key),
-      ON_HOLD.key,
-    ]);
-    expect(new Set(keys)).toEqual(union);
-    expect(keys).toHaveLength(union.size);
-    for (const key of ['ad_submitted', 'revisions_submitted', 'approved', 'launched']) {
-      expect(keys.filter((candidate) => candidate === key)).toHaveLength(1);
-    }
-  });
-
-  it('keeps each ladder in its own order', () => {
-    const keys: string[] = INTERNAL_QUEUE_COLUMNS.map((column) => column.key);
-    for (const ladder of [INTERNAL_VIDEO_STATUS, INTERNAL_STATIC_STATUS]) {
-      const positions = ladder.map((entry) => keys.indexOf(entry.key));
-      expect(positions).not.toContain(-1);
-      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    }
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('carries the label and description straight from the status vocabulary', () => {
     const approved = internalQueueColumnEntry('approved');
-    expect(approved).toEqual(INTERNAL_VIDEO_STATUS.find((entry) => entry.key === 'approved'));
-    expect(internalQueueColumnEntry('on_hold')).toEqual(ON_HOLD);
+    expect(approved).toEqual(INTERNAL_STATUS.find((entry) => entry.key === 'approved'));
     for (const column of INTERNAL_QUEUE_COLUMNS) {
       expect(column.label.length).toBeGreaterThan(0);
       expect(column.description.length).toBeGreaterThan(0);
     }
   });
 
-  it('has no entry for a status it does not carry', () => {
+  it('has no entry for a status it does not carry, the retired keys included', () => {
     expect(internalQueueColumnEntry('pending_for_approval')).toBeUndefined();
+    expect(internalQueueColumnEntry('on_hold')).toBeUndefined();
+    expect(internalQueueColumnEntry('launched')).toBeUndefined();
+    expect(internalQueueColumnEntry('videos_revisions')).toBeUndefined();
   });
 });
 
@@ -99,8 +80,8 @@ describe('internalQueueColumnKey', () => {
     }
   });
 
-  it('sends a client status, an unknown status and an empty string to Other', () => {
-    for (const value of ['pending_for_approval', 'shipped_to_mars', '']) {
+  it('sends a client status, a retired status, an unknown status and an empty string to Other', () => {
+    for (const value of ['pending_for_approval', 'on_hold', 'launched', 'shipped_to_mars', '']) {
       expect(internalQueueColumnKey(value)).toBe(QUEUE_OTHER_COLUMN.key);
     }
   });
@@ -130,7 +111,7 @@ describe('groupByInternalStatus', () => {
 
     const filled = columns.filter((column) => column.count > 0).map((column) => column.key);
     expect(new Set(filled)).toEqual(new Set(demoStatuses));
-    // Three of the seven fixtures share the `approved` step, so the empty columns are counted
+    // Four of the seven fixtures share the `approved` step, so the empty columns are counted
     // against the DISTINCT statuses, not the row count.
     expect(columns.filter((column) => column.count === 0)).toHaveLength(
       INTERNAL_QUEUE_COLUMNS.length - new Set(demoStatuses).size,
@@ -141,12 +122,12 @@ describe('groupByInternalStatus', () => {
     const columns = groupByInternalStatus([
       row('a', 'approved'),
       row('b', 'approved'),
-      row('c', 'launched'),
+      row('c', 'revisions_needed'),
     ]);
     const approved = columns.find((column) => column.key === 'approved');
     expect(approved?.count).toBe(2);
     expect(approved?.rows.map((entry) => entry.id)).toEqual(['a', 'b']);
-    expect(columns.find((column) => column.key === 'launched')?.count).toBe(1);
+    expect(columns.find((column) => column.key === 'revisions_needed')?.count).toBe(1);
   });
 
   it('keeps the order the rows arrived in inside a column', () => {
@@ -160,11 +141,11 @@ describe('groupByInternalStatus', () => {
     ).toEqual(['newest', 'older', 'oldest']);
   });
 
-  it('holds on_hold briefs in the last column rather than in a stepper step', () => {
-    const columns = groupByInternalStatus([row('paused', ON_HOLD.key)]);
+  it('sends a brief on a retired status to Other rather than dropping it (0067 moved every live row off them)', () => {
+    const columns = groupByInternalStatus([row('paused', 'on_hold'), row('live', 'launched')]);
     const last = columns[columns.length - 1];
-    expect(last?.key).toBe(ON_HOLD.key);
-    expect(last?.rows.map((entry) => entry.id)).toEqual(['paused']);
+    expect(last?.key).toBe(QUEUE_OTHER_COLUMN.key);
+    expect(last?.rows.map((entry) => entry.id)).toEqual(['paused', 'live']);
   });
 
   it('adds an Other column for an unknown status so no card vanishes', () => {

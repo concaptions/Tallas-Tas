@@ -6,27 +6,28 @@ import {
   canTransitionClient,
   canTransitionInternal,
   clientMoveNeedsQa,
+  INTERNAL_ENTRY_STATUS,
   internalMoveNeedsQa,
-  internalStatusFor,
   isClientTrackOpen,
-  ON_HOLD,
+  isInternalStatusKey,
   qaGateReason,
   qaResetFor,
   type BriefQaTicks,
   type ClientStatusKey,
   type CreativeTrack,
   type InternalStatusKey,
-  type InternalStatusOrHoldKey,
 } from '@tas/domain/state';
 
 /**
  * The status machine as the Creative Sheet's Server Actions ask it (pure, so a test can ask it
  * too). Since the single-source cutover a sheet row IS a brief, so this narrows the brief's stored
- * strings against its own ladder and asks the domain three things before any write: is the
- * internal move legal, is the client gate open, is the client move legal — and, since the Oct 12
- * client sync, a fourth: does the move put the creative in front of the client, and if so, is every
- * QA tick its type requires set (`canSubmitToClient`, the second gate). The QA reset a move into a
- * revision state carries comes from the same module, so every writer lands it in the same patch.
+ * strings against the ONE internal list (Oct 12 client sync, Ticket 5 / migration 0067: both
+ * creative tracks share it; the track only decides the QA ticks) and asks the domain three things
+ * before any write: is the internal move legal, is the client gate open, is the client move legal
+ * — and, since the Oct 12 client sync, a fourth: does the move put the creative in front of the
+ * client, and if so, is every QA tick its type requires set (`canSubmitToClient`, the second
+ * gate). The QA reset a move into a revision state carries comes from the same module, so every
+ * writer lands it in the same patch.
  */
 
 export const NOT_NEXT_INTERNAL = 'That is not the next step on the internal track.';
@@ -39,24 +40,11 @@ export interface StatusRefusal {
 }
 
 export interface Position {
+  /** Kept on the position because the QA gate asks which ticks this creative needs. */
   readonly track: CreativeTrack;
-  readonly internal: InternalStatusOrHoldKey;
+  readonly internal: InternalStatusKey;
   readonly client: ClientStatusKey;
   readonly ticks: BriefQaTicks;
-}
-
-export function isInternalStatusOf(
-  track: CreativeTrack,
-  value: string,
-): value is InternalStatusKey {
-  return internalStatusFor(track).some((entry) => entry.key === value);
-}
-
-export function isInternalOrHold(
-  track: CreativeTrack,
-  value: string,
-): value is InternalStatusOrHoldKey {
-  return value === ON_HOLD.key || isInternalStatusOf(track, value);
 }
 
 export function isClientStatus(value: string): value is ClientStatusKey {
@@ -74,8 +62,8 @@ export function ticksOf(brief: BriefQaTicks): BriefQaTicks {
 
 /**
  * The brief's current position on both tracks, narrowed the way the brief page narrows them: a
- * stored value outside this brief's ladder reads as the ladder's first step, so a save never
- * silently moves a creative it only meant to edit.
+ * stored value outside `INTERNAL_STATUS` reads as `INTERNAL_ENTRY_STATUS` (`draft`), so a save
+ * never silently moves a creative it only meant to edit.
  */
 export function currentPosition(
   brief: {
@@ -84,12 +72,11 @@ export function currentPosition(
     readonly clientStatus: string;
   } & BriefQaTicks,
 ): Position {
-  const track = creativeTrack(brief.type);
-  const [first] = internalStatusFor(track);
-  if (first === undefined) throw new Error(`the ${track} internal track is empty`);
   return {
-    track,
-    internal: isInternalOrHold(track, brief.internalStatus) ? brief.internalStatus : first.key,
+    track: creativeTrack(brief.type),
+    internal: isInternalStatusKey(brief.internalStatus)
+      ? brief.internalStatus
+      : INTERNAL_ENTRY_STATUS,
     client: isClientStatus(brief.clientStatus) ? brief.clientStatus : BRIEF_CLIENT_STATUS_DEFAULT,
     ticks: ticksOf(brief),
   };
@@ -98,24 +85,23 @@ export function currentPosition(
 /**
  * Why the two moves a save or a drop asks for are refused, or null. Standing still is always
  * allowed; any actual move has to be the track's next step; no client move is legal while the
- * gate is shut (or the creative is on hold); and a move that puts the creative in front of the
- * client — internal → Approved, or a client resubmission — needs every required QA tick, read
- * from `ticks` (the ticks THIS write stores, when the save carries them, else the row's).
+ * gate is shut; and a move that puts the creative in front of the client — internal → Approved,
+ * or a client resubmission — needs every required QA tick, read from `ticks` (the ticks THIS
+ * write stores, when the save carries them, else the row's).
  */
 export function statusRefusal(
   position: Position,
-  internalNext: InternalStatusOrHoldKey,
+  internalNext: InternalStatusKey,
   clientNext: ClientStatusKey,
   ticks: BriefQaTicks = position.ticks,
 ): StatusRefusal | null {
   if (
     internalNext !== position.internal &&
-    !canTransitionInternal(position.track, position.internal, internalNext)
+    !canTransitionInternal(position.internal, internalNext)
   ) {
     return { field: 'internalStatus', message: NOT_NEXT_INTERNAL };
   }
   if (
-    internalNext !== ON_HOLD.key &&
     internalMoveNeedsQa(position.internal, internalNext) &&
     !canSubmitToClient(position.track, ticks)
   ) {
@@ -123,9 +109,6 @@ export function statusRefusal(
   }
   if (clientNext === position.client) {
     return null;
-  }
-  if (internalNext === ON_HOLD.key) {
-    return { field: 'status', message: CLIENT_GATE_SHUT };
   }
   if (clientNext !== BRIEF_CLIENT_STATUS_DEFAULT && !isClientTrackOpen(internalNext)) {
     return { field: 'status', message: CLIENT_GATE_SHUT };
@@ -146,10 +129,10 @@ export function statusRefusal(
  */
 export function statusPatch(
   position: Position,
-  internalNext: InternalStatusOrHoldKey,
+  internalNext: InternalStatusKey,
   clientNext: ClientStatusKey,
 ): {
-  readonly internalStatus: InternalStatusOrHoldKey;
+  readonly internalStatus: InternalStatusKey;
   readonly clientStatus: ClientStatusKey;
   readonly clientStatusUpdatedAt?: Date;
 } & Partial<BriefQaTicks> {

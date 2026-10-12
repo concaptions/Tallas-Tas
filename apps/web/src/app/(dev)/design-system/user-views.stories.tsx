@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import {
   applyUserView,
+  chipTone,
   defaultUserViewConfig,
+  internalStatusLabel,
   moveViewField,
   type UserView,
   type UserViewFilter,
@@ -22,6 +24,15 @@ import {
 } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 import { applyFilters } from '@/components/views/airtable-grid-logic';
+
+/** One status chip as the list view draws it: the label and tone the vocabulary gives the key. */
+function statusChip(key: string): {
+  readonly label: string;
+  readonly tone: ReturnType<typeof chipTone>;
+} {
+  const label = internalStatusLabel(key);
+  return { label, tone: chipTone(label) };
+}
 
 /**
  * The per-user view controls (Sprint 7, VIEWS-01; UI governance rule 4): the toolbar that sits
@@ -260,10 +271,11 @@ export function ListViewStory() {
           ],
         },
       ]}
+      // The chips read the vocabulary, so the story shows the tones a real list view draws.
       chips={{
-        l1: { label: 'Videos Revisions', tone: 'warn' },
-        l2: { label: 'Video Editing In Progress', tone: 'info' },
-        l3: { label: 'Ad Submitted', tone: 'ok' },
+        l1: statusChip('revisions_needed'),
+        l2: statusChip('under_editing_or_designing'),
+        l3: statusChip('ad_submitted'),
       }}
       onItemClick={() => {
         /* story */

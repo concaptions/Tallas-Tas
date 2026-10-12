@@ -10,12 +10,7 @@ import {
   validateConceptDraft,
   type InheritedAngle,
 } from '@tas/domain/concepts';
-import type {
-  ChipTone,
-  ClientStatusKey,
-  CreativeTrack,
-  InternalStatusKey,
-} from '@tas/domain/state';
+import type { ChipTone, ClientStatusKey, InternalStatusKey } from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -135,8 +130,6 @@ interface ConceptDetailProps {
   readonly angles: readonly AngleOption[];
   readonly themes: readonly ThemeOption[];
   readonly creators: readonly CreatorOption[];
-  /** Which internal track this concept runs on, resolved on the server beside the data source. */
-  readonly track: CreativeTrack;
   readonly internal: InternalStatusKey;
   readonly client: ClientStatusKey;
   readonly demo: boolean;
@@ -198,7 +191,6 @@ export function ConceptDetail({
   angles,
   themes,
   creators,
-  track,
   internal,
   client,
   demo,
@@ -784,7 +776,7 @@ export function ConceptDetail({
             client surface on a concept. The column, the gate and the shared dropdown stay for the
             tables that still drive the two-track.
           */}
-          <TwoTrackApproval track={track} internal={internal} client={client} internalOnly />
+          <TwoTrackApproval internal={internal} client={client} internalOnly />
 
           {concept === null ? null : (
             <section className="flex flex-col gap-2 pt-2" data-slot="concept-creatives">

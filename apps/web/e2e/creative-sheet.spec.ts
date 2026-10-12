@@ -28,6 +28,17 @@ const STORED_FIELDS = [
 
 /** The seven Niagara briefs are the seven sheet rows. */
 const ROWS = 7;
+
+/** `INTERNAL_STATUS` in flow order — the one internal list since the Oct 12 consolidation (0067). */
+const INTERNAL_STATUS_LABELS = [
+  'Draft',
+  'Sent to Editor / Designer',
+  'Under Editing / Designing',
+  'Ad Submitted',
+  'Revisions Needed',
+  'Revisions Submitted',
+  'Approved',
+];
 const DAYLIGHT_BRIEF_ID = '77777777-7777-4777-8777-000000000003';
 
 test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
@@ -177,6 +188,13 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(board).toBeVisible();
     await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(ROWS);
 
+    // The columns are the one internal list in flow order (Oct 12 client sync, Ticket 5 / 0067):
+    // seven INTERNAL_STATUS labels, empty stages kept, and no per-track pair or On Hold siding.
+    const columns = board.locator(':scope > div');
+    for (const [index, label] of INTERNAL_STATUS_LABELS.entries()) {
+      await expect(columns.nth(index), label).toContainText(label);
+    }
+
     await page.locator('[data-slot="creative-sheet-group-by"]').selectOption('status');
     await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(ROWS);
   });
@@ -215,10 +233,10 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       'Sign in required to save changes',
     );
 
-    // What is not on the board is counted: the four approved/launched briefs; every sheet row is a
-    // brief since the cutover, so none is without one.
+    // What is not on the board is counted: the four approved briefs; every sheet row is a brief
+    // since the cutover, so none is without one.
     await expect(page.locator('[data-slot="brief-off-board"]')).toHaveText(
-      '4 creatives off the board (approved, launched or on hold) · 0 sheet rows with no creative',
+      '4 creatives off the board (draft or approved) · 0 sheet rows with no creative',
     );
   });
 

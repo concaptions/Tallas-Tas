@@ -162,7 +162,7 @@ describe('updateCreativeSheetItemAction · writes the brief', () => {
 
   it('refuses an internal move the machine does not allow, and writes nothing', async () => {
     live();
-    seam.brief = brief({ internalStatus: 'sent_to_video_editor' });
+    seam.brief = brief({ internalStatus: 'sent_to_editor_or_designer' });
 
     const result = await updateCreativeSheetItemAction(
       null,
@@ -176,24 +176,25 @@ describe('updateCreativeSheetItemAction · writes the brief', () => {
     expect(seam.updates).toEqual([]);
   });
 
-  it('refuses a status from the other track’s ladder', async () => {
+  it('refuses a key outside INTERNAL_STATUS', async () => {
     live();
-    seam.brief = brief({ type: 'Static', internalStatus: 'sent_to_designer' });
+    seam.brief = brief({ type: 'Static', internalStatus: 'sent_to_editor_or_designer' });
 
     const result = await updateCreativeSheetItemAction(
       null,
       form({
         id: BRIEF_ID,
+        // A key the Oct 12 consolidation (0067) retired, kept deliberately as the unknown value:
+        // the action knows no legacy spellings, so it reads as any other string outside the list.
         internalStatus: 'video_editing_in_progress',
         status: '',
         qaChecklistDoc: '',
       }),
     );
 
-    if (result.ok) throw new Error('a video step was accepted on a static brief');
-    expect(result.fieldErrors?.internalStatus).toBe(
-      'That is not a status on this creative’s internal track.',
-    );
+    if (result.ok) throw new Error('a key outside the internal list was accepted');
+    expect(result.fieldErrors?.internalStatus).toBe('That is not a status on the internal track.');
+    expect(seam.updates).toEqual([]);
   });
 
   it('keeps the client gate: no client move while internal is below Approved', async () => {
@@ -273,7 +274,7 @@ describe('updateCreativeSheetItemDimensionsAction · the one write path', () => 
 describe('moveCreativeSheetItemAction · a drop is a brief move', () => {
   it('writes the internal track through updateBrief', async () => {
     live();
-    seam.brief = brief({ internalStatus: 'video_editing_in_progress' });
+    seam.brief = brief({ internalStatus: 'under_editing_or_designing' });
 
     const result = await moveCreativeSheetItemAction(
       null,

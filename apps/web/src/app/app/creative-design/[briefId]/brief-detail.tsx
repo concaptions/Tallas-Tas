@@ -210,7 +210,10 @@ interface BriefDetailProps {
    * creative and links out to it; editing a link belongs to the counterpart's own panel.
    */
   readonly linked: BriefLinkedRecords;
-  /** Which internal ladder this brief is graded on, carried on the row by `briefs-source`. */
+  /**
+   * Which QA checks this brief needs (video editor vs designer), carried on the row by
+   * `briefs-source`; the status list is shared by both tracks (Oct 12 client sync, Ticket 5).
+   */
   readonly track: CreativeTrack;
   readonly internal: InternalStatusKey;
   readonly client: ClientStatusKey;
@@ -413,7 +416,7 @@ export function BriefDetail({
   const keepsLegacyPerformance =
     legacyPerformance !== null && performanceChoice === legacyPerformance.key;
   const dimensions = briefDimensions(dimensionKeys, brief.type);
-  const next = nextInternalStatus(track, internal);
+  const next = nextInternalStatus(internal);
   const stage = editorStageOf(internal);
   /**
    * The QA gate on this page (Oct 12 scope 4), from the row's stored ticks: Advance to Approved
@@ -511,7 +514,7 @@ export function BriefDetail({
         </Link>
         <BriefName name={brief.name} mode={brief.nameMode} />
         {/* The editor board's stage this brief sits in, colour-coded by stage (Sprint 10); off the
-            board once approved or launched. */}
+            board once approved. */}
         <span className="flex items-center gap-2" data-slot="brief-stage" data-stage={stage ?? ''}>
           <span className="text-[11px] tracking-wide text-text3 uppercase">
             {BRIEF_HEADINGS.stage}
@@ -956,12 +959,7 @@ export function BriefDetail({
         >
           <h2 className="text-sm font-medium text-text2">{BRIEF_HEADINGS.approval}</h2>
           <div data-slot="brief-rail">
-            <TwoTrackApproval
-              track={track}
-              internal={internal}
-              client={client}
-              clientOnly={false}
-            />
+            <TwoTrackApproval internal={internal} client={client} clientOnly={false} />
           </div>
 
           {/*

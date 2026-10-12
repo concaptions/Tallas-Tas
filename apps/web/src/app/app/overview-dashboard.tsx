@@ -9,8 +9,7 @@ import {
   creatorStatusLabel,
   creatorStatusTone,
   CLIENT_STATUS,
-  INTERNAL_VIDEO_STATUS,
-  INTERNAL_STATIC_STATUS,
+  INTERNAL_STATUS,
   type ChipTone,
 } from '@tas/domain/state';
 import { StatusChip } from '@tas/ui';
@@ -18,14 +17,12 @@ import { StatusChip } from '@tas/ui';
 import { conceptsPath, copywritingPath, creativeSheetPath, ugcPath } from '@/lib/routes';
 
 /**
- * A lookup for all internal status keys → { label, tone }. Merges video and static tracks so every
- * internal key resolves in one map. The map is built once at module load and used purely for display.
+ * A lookup for every internal status key → { label, tone }: the one list for both tracks (Oct 12
+ * client sync, Ticket 5). Built once at module load and used purely for display.
  */
 const INTERNAL_STATUS_MAP = new Map<string, { label: string; tone: ChipTone }>();
-for (const entry of [...INTERNAL_VIDEO_STATUS, ...INTERNAL_STATIC_STATUS]) {
-  if (!INTERNAL_STATUS_MAP.has(entry.key)) {
-    INTERNAL_STATUS_MAP.set(entry.key, { label: entry.label, tone: chipTone(entry.label) });
-  }
+for (const entry of INTERNAL_STATUS) {
+  INTERNAL_STATUS_MAP.set(entry.key, { label: entry.label, tone: chipTone(entry.label) });
 }
 
 const CLIENT_STATUS_MAP = new Map<string, { label: string; tone: ChipTone }>();

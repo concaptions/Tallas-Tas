@@ -47,7 +47,7 @@ function itemOf(overrides: Partial<BriefItem> = {}): BriefItem {
     typeLabel: creativeTypeLabel(first.type),
     priority: priorityView(first.priority),
     assignee: first.assignee,
-    status: internalStatusView('video', 'approved'),
+    status: internalStatusView('approved'),
     clientStatus: clientStatusView(first.clientStatus),
     performance: performanceView(first.performance),
     stage: briefStageView(first.internalStatus),
@@ -144,7 +144,7 @@ describe('BRIEF_RENDERERS', () => {
   });
 
   it('colours the primary cell by the editor stage, through the shared chip', () => {
-    const incoming = itemOf({ stage: briefStageView('sent_to_video_editor') });
+    const incoming = itemOf({ stage: briefStageView('sent_to_editor_or_designer') });
     const markup = markupOf('name', incoming);
 
     expect(markup).toContain('data-slot="status-chip"');

@@ -1,5 +1,5 @@
 import { demoBriefs, demoCreators, demoEmailCampaigns, demoYoutubeCopy } from '@tas/db';
-import { internalStatusFor } from '@tas/domain/state';
+import { INTERNAL_STATUS } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import { toBriefRow } from '@/lib/briefs-source';
@@ -194,7 +194,7 @@ describe('creativeDesignLinks', () => {
 
     expect(links).toEqual(
       briefed.map((row) => {
-        const status = internalStatusView(row.track, row.internalStatus);
+        const status = internalStatusView(row.internalStatus);
         return {
           id: row.id,
           label: row.name,
@@ -207,17 +207,15 @@ describe('creativeDesignLinks', () => {
     expect(links[0]?.href).toBe(`/app/creative-design/${links[0]?.id ?? ''}`);
   });
 
-  it('grades a static brief on the static track, as its own page does', () => {
+  it('reads the status on the one internal list, as the brief page does', () => {
     const [link, ...more] = creativeDesignLinks(MASK_ID, rows);
-    const entry = internalStatusFor('static').find(
-      (step) => step.key === standalone.internalStatus,
-    );
+    const entry = INTERNAL_STATUS.find((step) => step.key === standalone.internalStatus);
 
     expect(more).toEqual([]);
     expect(link?.id).toBe(standalone.id);
     expect(link?.chip).toEqual({
       label: entry?.label,
-      tone: internalStatusView('static', standalone.internalStatus).tone,
+      tone: internalStatusView(standalone.internalStatus).tone,
     });
     expect(link?.chip?.label).toBe('Approved');
   });

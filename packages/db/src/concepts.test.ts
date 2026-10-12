@@ -84,7 +84,7 @@ describe('migration 0005 on PGlite', () => {
         column_name: 'internal_status',
         data_type: 'text',
         is_nullable: 'NO',
-        column_default: `'sent_to_video_editor'::text`,
+        column_default: `'draft'::text`,
       },
     ]);
   });
@@ -115,7 +115,7 @@ describe('migration 0005 on PGlite', () => {
       clientStatus: CONCEPT_CLIENT_STATUS_DEFAULT,
       batch: null,
     });
-    expect(CONCEPT_INTERNAL_STATUS_DEFAULT).toBe('sent_to_video_editor');
+    expect(CONCEPT_INTERNAL_STATUS_DEFAULT).toBe('draft');
     expect(CONCEPT_CLIENT_STATUS_DEFAULT).toBe('pending_for_approval');
     // Junction arrays are empty when no links have been inserted yet.
     const full = await getConceptById(db, brandId, row.id);
@@ -167,17 +167,18 @@ describe('concept fixtures', () => {
   it('sits each concept in a different pre-Approved internal status, client track shut', () => {
     const internal = demoConcepts.map((row) => row.internalStatus);
 
-    // The four states of the video track before sign-off, one each (`@tas/domain/state` keys).
+    // Four pre-Approved states of INTERNAL_STATUS, one each (`@tas/domain/state` keys, Oct 12
+    // Ticket 5).
     expect(internal).toEqual([
-      'video_editing_in_progress',
-      'videos_revisions',
+      'under_editing_or_designing',
+      'revisions_needed',
       'ad_submitted',
-      'sent_to_video_editor',
+      'sent_to_editor_or_designer',
     ]);
     expect(new Set(internal).size).toBe(4);
-    // None is `approved` or `launched`, so `isClientTrackOpen` is false on all four and the client
-    // bar is closed on every demo row (PRD §9).
-    expect(internal.some((key) => key === 'approved' || key === 'launched')).toBe(false);
+    // None is `approved`, the only state that opens the client track, so `isClientTrackOpen` is
+    // false on all four and the client bar is closed on every demo row (PRD §9).
+    expect(internal.some((key) => key === 'approved')).toBe(false);
     expect(demoConcepts.every((row) => row.clientStatus === 'pending_for_approval')).toBe(true);
   });
 

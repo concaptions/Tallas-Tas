@@ -579,6 +579,26 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
           Concept: ['g_concept_1'],
         },
       },
+      // Three more briefs, one per 0067 rule the map has to honour (Oct 12 Ticket 5): the hold
+      // lands on draft, the static revision on revisions_needed, and Launched on approved — the
+      // internal track has no launch any more.
+      {
+        id: 'g_brief_2',
+        fields: { Name: 'TAS-TV2-B1-On hold-V1', 'Internal Status': 'Video Editing on Hold' },
+      },
+      {
+        id: 'g_brief_3',
+        fields: { Name: 'TAS-TS1-B1-Images revisions-V1', 'Internal Status': 'Images Revisions' },
+      },
+      {
+        id: 'g_brief_4',
+        fields: { Name: 'TAS-TV3-B1-Launched-V1', 'Internal Status': 'Launched' },
+      },
+      // A base whose option is spelled exactly like a retired key must still land on the list.
+      {
+        id: 'g_brief_5',
+        fields: { Name: 'TAS-TV4-B1-Sent-V1', 'Internal Status': 'Sent to Video Editor' },
+      },
     ],
     Creators: [
       {
@@ -629,8 +649,20 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
       .select()
       .from(creativeBriefs)
       .where(eq(creativeBriefs.legacyAirtableId, 'g_brief_1'));
-    expect(brief?.internalStatus).toBe('video_editing_in_progress');
+    expect(brief?.internalStatus).toBe('under_editing_or_designing');
     expect(brief?.clientStatus).toBe('pending_for_approval');
+    // The 0067 rules, applied at import: no retired key is minted, whatever the base's option says.
+    const internalOf = async (legacyId: string) =>
+      (
+        await db
+          .select({ internalStatus: creativeBriefs.internalStatus })
+          .from(creativeBriefs)
+          .where(eq(creativeBriefs.legacyAirtableId, legacyId))
+      )[0]?.internalStatus;
+    expect(await internalOf('g_brief_2')).toBe('draft');
+    expect(await internalOf('g_brief_3')).toBe('revisions_needed');
+    expect(await internalOf('g_brief_4')).toBe('approved');
+    expect(await internalOf('g_brief_5')).toBe('sent_to_editor_or_designer');
     expect(brief?.type).toBe('Static');
     expect(brief?.priority).toBe('Static Average');
     expect(brief?.language).toBe('English');

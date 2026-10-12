@@ -43,7 +43,7 @@ const filled = {
   briefToDesign: 'Cut the V2 from the 14 September rushes.',
   scriptContent: 'NURSE: Six years of nights.',
   elementsTested: 'Naming the rota as the broken thing.',
-  internalStatus: 'sent_to_video_editor',
+  internalStatus: 'sent_to_editor_or_designer',
   clientStatus: 'pending_for_approval',
 };
 
@@ -284,20 +284,20 @@ describe('with Clerk configured', () => {
     );
   });
 
-  it('refuses a video-track status on a brief graded on the static ladder', async () => {
+  it('refuses a key outside INTERNAL_STATUS', async () => {
     configured();
 
+    // A retired spelling (0067 moved every stored row off it) is just a key this build does not
+    // know: there is no legacy map, so it is refused the way any other unknown key is.
     const result = await createBriefAction(
       null,
-      form({ ...filled, type: 'Carousel', internalStatus: 'video_editing_in_progress' }),
+      form({ ...filled, internalStatus: 'sent_to_video_editor' }),
     );
 
     if (result.ok) {
-      throw new Error('a video-track status was accepted on a carousel');
+      throw new Error('a key outside the internal list was accepted');
     }
-    expect(result.fieldErrors?.internalStatus).toBe(
-      'That is not a status on this creative’s internal track.',
-    );
+    expect(result.fieldErrors?.internalStatus).toBe('That is not a status on the internal track.');
   });
 
   it('rejects a board drop on a column that is not one of the three stages', async () => {

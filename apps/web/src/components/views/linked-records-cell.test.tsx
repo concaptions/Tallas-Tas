@@ -52,18 +52,15 @@ describe('LinkedRecordsCell', () => {
 
   it('carries the concept NAMES onto an angle row, through the page’s own index', () => {
     // The reverse side of `concept_angles`, exactly as the angles page builds it for its panel.
-    const byAngle = indexConceptsByAngle(
-      [
-        {
-          id: 'c1',
-          name: 'B1-Hydration-Morning',
-          angleIds: ['angle-1'],
-          internalStatus: 'approved',
-        },
-        { id: 'c2', name: 'B2-Hydration-Night', angleIds: ['angle-1'], internalStatus: 'approved' },
-      ],
-      'video',
-    );
+    const byAngle = indexConceptsByAngle([
+      {
+        id: 'c1',
+        name: 'B1-Hydration-Morning',
+        angleIds: ['angle-1'],
+        internalStatus: 'approved',
+      },
+      { id: 'c2', name: 'B2-Hydration-Night', angleIds: ['angle-1'], internalStatus: 'approved' },
+    ]);
     const renderer = linkedRecordsRenderer(
       (row: { readonly id: string }) => byAngle[row.id] ?? [],
       { mono: true },

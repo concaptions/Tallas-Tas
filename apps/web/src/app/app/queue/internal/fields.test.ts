@@ -138,8 +138,8 @@ describe('queueItem', () => {
   });
 
   it('carries the stored status through untouched, so grouping stays the domain’s job', () => {
-    expect(queueItem(rowWith({ internalStatus: 'images_revisions' }), '/x').internalStatus).toBe(
-      'images_revisions',
+    expect(queueItem(rowWith({ internalStatus: 'revisions_needed' }), '/x').internalStatus).toBe(
+      'revisions_needed',
     );
   });
 });
@@ -176,8 +176,7 @@ describe('queueColumnView', () => {
       internalQueueColumns().map((entry) => entry.label),
     );
     expect(columns.find((column) => column.key === 'approved')?.tone).toBe('ok');
-    expect(columns.find((column) => column.key === 'launched')?.tone).toBe('accent');
-    expect(columns.find((column) => column.key === 'images_revisions')?.tone).toBe('warn');
+    expect(columns.find((column) => column.key === 'revisions_needed')?.tone).toBe('warn');
     expect(columns.every((column) => column.description !== '')).toBe(true);
   });
 });

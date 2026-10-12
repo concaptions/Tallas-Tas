@@ -52,7 +52,7 @@ function sampleRow(
     briefFunnel: null,
     briefPerformance: null,
     briefDesignFileUrl: null,
-    internalStatus: 'sent_to_video_editor',
+    internalStatus: 'sent_to_editor_or_designer',
     status: 'pending_for_approval',
     qaChecklistDoc: null,
     qaVideoEditor: false,
@@ -153,7 +153,7 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
       id: 'ds-sheet-2',
       // Airtable's formula leaves the separator when there is no brief to concatenate.
       name: 'October-',
-      internalStatus: 'sent_to_designer',
+      internalStatus: 'sent_to_editor_or_designer',
     }),
     lookups: NO_LOOKUPS,
     createdLabel: '4h ago',

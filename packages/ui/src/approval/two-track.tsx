@@ -5,11 +5,10 @@ import {
   CLIENT_STATUS,
   CLIENT_TRACK_STEPS,
   chipTone,
-  internalStatusFor,
+  INTERNAL_STATUS,
   isClientTrackOpen,
   stepState,
   type ClientStatusKey,
-  type CreativeTrack,
   type InternalStatusKey,
 } from '@tas/domain/state';
 
@@ -19,7 +18,6 @@ import { StatusChip } from '../status/status-chip';
 import { StepRow } from '../status/step-row';
 
 export interface TwoTrackApprovalProps {
-  track: CreativeTrack;
   internal: InternalStatusKey;
   client: ClientStatusKey;
   /** Hides the internal bar entirely; used on the client interface. */
@@ -52,11 +50,14 @@ const TRANSITION = 'opacity 500ms ease, border-color 500ms ease, filter 500ms ea
  * THE CLIENT STEPPER WALKS `CLIENT_TRACK_STEPS`, NOT `CLIENT_STATUS`. `revisions_needed` is PRD §9's
  * branch off the client decision, not a fourth stage: placed in a linear stepper it would draw
  * Approved as `done` on a creative the client had just sent back. The domain keeps it out of the
- * walked list, exactly as `on_hold` is kept out of the internal ones, and the header chip — which
- * still resolves against the full `CLIENT_STATUS` — is what names it while the branch is current.
+ * walked list, and the header chip — which still resolves against the full `CLIENT_STATUS` — is
+ * what names it while the branch is current.
+ *
+ * THE INTERNAL STEPPER WALKS `INTERNAL_STATUS`, THE ONE LIST FOR BOTH TRACKS (Oct 12 client sync,
+ * Ticket 5 / migration 0067). The creative's track (video or static) decides its QA ticks, never its
+ * status words, so this widget takes no track.
  */
 export function TwoTrackApproval({
-  track,
   internal,
   client,
   clientOnly = false,
@@ -64,7 +65,7 @@ export function TwoTrackApproval({
   onAdvanceInternal,
   onAdvanceClient,
 }: TwoTrackApprovalProps) {
-  const internalSteps = internalStatusFor(track);
+  const internalSteps = INTERNAL_STATUS;
   const internalEntry = internalSteps.find((entry) => entry.key === internal);
   const clientEntry = CLIENT_STATUS.find((entry) => entry.key === client);
 
@@ -78,7 +79,7 @@ export function TwoTrackApproval({
   };
 
   return (
-    <div data-slot="two-track-approval" data-track={track} className="flex flex-col gap-3">
+    <div data-slot="two-track-approval" className="flex flex-col gap-3">
       {clientOnly ? null : (
         <section
           data-slot="internal-track"

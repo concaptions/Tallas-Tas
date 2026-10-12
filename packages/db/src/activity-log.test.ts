@@ -20,8 +20,8 @@ describe('activity log', () => {
       [
         {
           field: 'internalStatus',
-          oldValue: 'sent_to_video_editor',
-          newValue: 'video_editing_in_progress',
+          oldValue: 'sent_to_editor_or_designer',
+          newValue: 'under_editing_or_designing',
         },
         { field: 'assignee', oldValue: null, newValue: 'Dorian Vance' },
       ],

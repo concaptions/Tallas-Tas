@@ -90,8 +90,9 @@ export interface CreativeSheetBriefDetail {
 /**
  * One Creative Sheet row: a live brief, read for the sheet. `id` and `briefId` are both the
  * brief's id (`briefId` stays so the editor board and the brief rail keep their joins).
- * `internalStatus` and `status` carry the brief's `internal_status` and `client_status` — the two
- * tracks of the state machine in `@tas/domain/state`, no sheet vocabulary of its own any more —
+ * `internalStatus` and `status` carry the brief's `internal_status` and `client_status` — the
+ * `INTERNAL_STATUS` and `CLIENT_STATUS` keys of `@tas/domain/state`, no sheet vocabulary of its own
+ * any more —
  * and `spellCheckRequested` is the brief's `click_for_ai_spell_checker`. `demoCreativeSheetItems`
  * is built by the same function over the demo briefs, so fixtures and rows share one shape.
  */

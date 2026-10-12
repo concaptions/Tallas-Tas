@@ -715,11 +715,12 @@ const ninetyMinutes = demoAngle(ANGLE_NINETY_MINUTES_ID);
 
 /**
  * Four concepts for Niagara Sleep Solutions (PRD §5.7): each one angle paired with one theme, each
- * pairing distinct, spread across three batches and across all four of the pre-Approved internal
- * states of the video track — `videos_revisions`, `video_editing_in_progress`, `ad_submitted` and
- * `sent_to_video_editor`, in `@tas/domain/state` terms. None of them is `approved` or `launched`, so
- * `isClientTrackOpen` is false on all four and the client bar stays shut on every demo row; each
- * therefore also sits at the first client status, `pending_for_approval`.
+ * pairing distinct, spread across three batches and across four of the pre-Approved states of the
+ * one `INTERNAL_STATUS` list — `under_editing_or_designing`, `revisions_needed`, `ad_submitted` and
+ * `sent_to_editor_or_designer`, in `@tas/domain/state` terms (Oct 12 client sync, Ticket 5). None
+ * of them is `approved`, the only state at which `isClientTrackOpen` is true, so the client bar
+ * stays shut on every demo row; each therefore also sits at the first client status,
+ * `pending_for_approval`.
  *
  * `angleName`, `themeName`, `personaName`, `productName`, `angleDescription`, `anglePainPoints` and
  * `angleUsp` are what `listConcepts` inherits from the angle, so the fixtures satisfy
@@ -764,7 +765,7 @@ export const demoConcepts = [
       'Wakes at the same hour every night. Has been told it is just her age. Dreads the ceiling more than the alarm.',
     usp: 'Quilted pressure channels that settle the body without heat, so the 3am wake-up has nothing to feed on.',
     clientComments: null,
-    internalStatus: 'video_editing_in_progress',
+    internalStatus: 'under_editing_or_designing',
     clientStatus: 'pending_for_approval',
     approvalStatus: null,
     nameMode: 'manual',
@@ -802,7 +803,7 @@ export const demoConcepts = [
       'Cannot fall asleep in daylight. Wakes every ninety minutes. Treats exhaustion as a character flaw.',
     usp: 'Breathable weight that signals sleep by pressure instead of sedation, so nothing lingers into the next shift.',
     clientComments: 'Client: keep the hospital footage generic, no identifiable uniforms.',
-    internalStatus: 'videos_revisions',
+    internalStatus: 'revisions_needed',
     clientStatus: 'pending_for_approval',
     approvalStatus: null,
     nameMode: 'manual',
@@ -862,7 +863,7 @@ export const demoConcepts = [
     painPoints: 'Partner runs hot, she runs cold. Every blanket is a compromise one of them loses.',
     usp: 'Two weights in one bundle so neither sleeper gives anything up.',
     clientComments: null,
-    internalStatus: 'sent_to_video_editor',
+    internalStatus: 'sent_to_editor_or_designer',
     clientStatus: 'pending_for_approval',
     approvalStatus: null,
     nameMode: 'manual',
@@ -1050,35 +1051,36 @@ const ninetyMinutesConcept = demoConcept(CONCEPT_NINETY_MINUTES_ID);
  * Queue groups by `clientStatus` and shows a row only when `isClientTrackOpen(internalStatus)` is
  * true AND `clientStatus !== 'launched'`. Which fixture sits where, and why:
  *
- * | # | fixture                        | internal                    | client               | boards |
- * |---|--------------------------------|-----------------------------|----------------------|--------|
- * | 1 | TV1 night-shift nurse video    | `approved`                  | `pending_for_approval` | both |
- * | 2 | TS1 r/Menopause thread static  | `static_design_in_progress` | `pending_for_approval` | internal |
- * | 3 | AM1 lux-meter motion image     | `ad_submitted`              | `pending_for_approval` | internal |
- * | 4 | TV2 ninety-minutes video       | `approved`                  | `pending_for_approval` | both |
- * | 5 | RS1 Night Reset bundle static  | `approved`                  | `approved`           | both |
- * | 6 | TC1 ninety-minutes carousel    | `sent_to_video_editor`      | `pending_for_approval` | internal |
- * | 7 | TV3 driveway control video     | `launched`                  | `launched`           | NEITHER (client), internal only |
+ * | # | fixture                        | internal                     | client               | boards |
+ * |---|--------------------------------|------------------------------|----------------------|--------|
+ * | 1 | TV1 night-shift nurse video    | `approved`                   | `pending_for_approval` | both |
+ * | 2 | TS1 r/Menopause thread static  | `under_editing_or_designing` | `pending_for_approval` | internal |
+ * | 3 | AM1 lux-meter motion image     | `ad_submitted`               | `pending_for_approval` | internal |
+ * | 4 | TV2 ninety-minutes video       | `approved`                   | `pending_for_approval` | both |
+ * | 5 | RS1 Night Reset bundle static  | `approved`                   | `approved`           | both |
+ * | 6 | TC1 ninety-minutes carousel    | `sent_to_editor_or_designer` | `pending_for_approval` | internal |
+ * | 7 | TV3 driveway control video     | `approved`                   | `launched`           | NEITHER (client), internal only |
  *
- * Reading the table down the columns:
+ * Reading the table down the columns (the one `INTERNAL_STATUS` list of the Oct 12 client sync,
+ * Ticket 5 — the exact image migration 0067 left in production):
  *
- *   - THREE rows are internally `approved`, so the client board has something to show and both of
+ *   - FOUR rows are internally `approved`, so the client board has something to show and both of
  *     its columns are populated: two in Pending for Approval (1 and 4) and one the client has
  *     already signed off (5). Row 5 is the honest one to carry `clientStatus: 'approved'` — its
  *     brief exists because the client marked up V2, so V3 coming back approved is the real
  *     sequence, and it is also the STANDALONE row, so the client board renders a card whose
  *     concept, angle and product all join null (PRD §8).
  *   - THREE rows stay in pre-Approved internal states — 2, 3 and 6 — so the Internal Queue board
- *     keeps cards in Static Design in Progress, Ad Submitted and Sent to Video Editor, one early,
- *     one mid, one per track. Neither board is empty and neither is a copy of the other.
- *   - Row 7 is the exclusion rule made visible: `launched` / `launched` passes `isClientTrackOpen`
- *     and is still kept OFF the client board by the `launched` client status (PRD §9 — the media
- *     buyer has it live, there is nothing left to approve). It is the only row in the Internal
- *     Queue's Launched column, and the only one carrying `performance: 'Winning'`.
+ *     keeps cards in Under Editing / Designing, Ad Submitted and Sent to Editor / Designer — early,
+ *     late and mid. Neither board is empty and neither is a copy of the other.
+ *   - Row 7 is the exclusion rule made visible: it is internally `approved` (0067 folded the old
+ *     internal Launched into Approved; no internal Launched column exists) and is kept OFF the
+ *     client board only by its CLIENT `launched` status (PRD §9 — the media buyer has it live,
+ *     there is nothing left to approve). It is the only one carrying `performance: 'Winning'`.
  *
- * `isClientTrackOpen` is therefore true on four rows (three `approved` plus the `launched` one) and
- * false on the other three, so the client bar on a brief page is visibly open on some and shut on
- * others (CLAUDE.md non-negotiable 4).
+ * `isClientTrackOpen` is therefore true on four rows (all four `approved`) and false on the other
+ * three, so the client bar on a brief page is visibly open on some and shut on others (CLAUDE.md
+ * non-negotiable 4).
  *
  * All four types are covered (three Video, one Static, one Carousel, one Motion Image, plus the
  * standalone Static), and one row — the retargeting bundle static — has `conceptId: null`: the PRD §8
@@ -1195,7 +1197,7 @@ export const demoBriefs = [
     scriptAndBriefBreakdown: null,
     language: null,
     offer: null,
-    internalStatus: 'static_design_in_progress',
+    internalStatus: 'under_editing_or_designing',
     clientStatus: 'pending_for_approval',
     performance: null,
     launchedAt: null,
@@ -1423,17 +1425,18 @@ export const demoBriefs = [
     scriptAndBriefBreakdown: null,
     language: null,
     offer: null,
-    internalStatus: 'sent_to_video_editor',
+    internalStatus: 'sent_to_editor_or_designer',
     clientStatus: 'pending_for_approval',
     performance: null,
     launchedAt: null,
     launchPriority: null,
   },
   {
-    // PRD §9's exclusion rule, made visible. `isClientTrackOpen('launched')` is true, so this row
-    // is past internal sign-off — and it is still kept OFF the Client Queue board because its
-    // CLIENT status is `launched`: the media buyer has it live and there is nothing left for the
-    // client to approve. It is the only row in the Internal Queue's Launched column, and the only
+    // PRD §9's exclusion rule, made visible. Internally `approved` (0067 folded the old internal
+    // Launched into Approved, Oct 12 Ticket 5), so `isClientTrackOpen` is true — and the row is
+    // still kept OFF the Client Queue board because its CLIENT status is `launched`: the media
+    // buyer has it live and there is nothing left for the client to approve. The launch itself
+    // lives in `launched_at` and the client track, never in the internal one. It is the only
     // fixture carrying `performance: 'Winning'`.
     ...propagationBase(
       BRIEF_BODY_CLOCK_LAUNCHED_ID,
@@ -1482,7 +1485,7 @@ export const demoBriefs = [
     scriptAndBriefBreakdown: null,
     language: null,
     offer: null,
-    internalStatus: 'launched',
+    internalStatus: 'approved',
     clientStatus: 'launched',
     performance: 'Winning',
     launchedAt: null,

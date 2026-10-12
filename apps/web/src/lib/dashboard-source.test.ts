@@ -153,8 +153,13 @@ describe('roleDashboard', () => {
  */
 function brief(overrides: Partial<BriefListRow>): BriefListRow {
   return {
-    internalStatus: 'sent_to_video_editor',
+    internalStatus: 'sent_to_editor_or_designer',
     clientStatus: 'pending_for_approval',
+    // The launch lives on the client track and in `launched_at` since 0067 (`isLive`), and the
+    // designer's tile reads the type's track: both columns have to be on the stand-in, or a
+    // partial fixture reads `undefined !== null` as "live" and `creativeTrack(undefined)` as video.
+    launchedAt: null,
+    type: 'Video',
     conceptId: null,
     qaStrategist: false,
     qaVideoEditor: false,
@@ -173,7 +178,9 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
     const data = {
       briefs: [
         brief({ internalStatus: 'approved', clientStatus: 'approved' }),
-        brief({ internalStatus: 'launched' }),
+        // Live: internally approved (0067 folded the old internal Launched into Approved) and
+        // launched on the CLIENT track, which is the only place a launch is a status now.
+        brief({ internalStatus: 'approved', clientStatus: 'launched' }),
       ],
       concepts: [
         { id: 'c1', clientApprovalStatus: null },
@@ -212,6 +219,63 @@ describe('buildRoleDashboard counts over the data it is handed', () => {
       expect(item.count).toBe(0);
     }
   });
+
+  /**
+   * O1 of the Oct 12 consolidation: "live" is the client's `launched` OR a set `launched_at`, never
+   * an internal status. An internally approved creative still waiting on the client is NOT live, so
+   * it keeps counting as work on every "not yet live" QA tile; the two live shapes drop out of them
+   * and into Currently live.
+   */
+  it('reads the launch from the client track and launched_at, never from the internal status', () => {
+    const data = {
+      briefs: [
+        brief({ internalStatus: 'approved', clientStatus: 'pending_for_approval' }),
+        brief({ internalStatus: 'approved', clientStatus: 'launched' }),
+        brief({
+          internalStatus: 'approved',
+          clientStatus: 'approved',
+          launchedAt: new Date('2026-10-01T00:00:00.000Z'),
+        }),
+      ],
+      concepts: [],
+      copy: [],
+      creators: [],
+    };
+
+    const buyer = buildRoleDashboard('media_buyer', data);
+    expect(buyer.items.find((i) => i.label === 'Currently live')?.count).toBe(2);
+
+    const strategist = buildRoleDashboard('strategist', data);
+    expect(strategist.items.find((i) => i.label === 'Creatives needing QA sign-off')?.count).toBe(
+      1,
+    );
+    const editor = buildRoleDashboard('video_editor', data);
+    expect(editor.items.find((i) => i.label === 'Needing editor QA')?.count).toBe(1);
+    const designer = buildRoleDashboard('designer', data);
+    expect(designer.items.find((i) => i.label === 'Needing designer QA')?.count).toBe(1);
+    expect(designer.items.find((i) => i.label === 'Creatives without design file')?.count).toBe(1);
+  });
+
+  it('Design in progress counts statics only: one working step, the type decides the track', () => {
+    const data = {
+      briefs: [
+        brief({ internalStatus: 'under_editing_or_designing', type: 'Static' }),
+        brief({ internalStatus: 'under_editing_or_designing', type: 'Carousel' }),
+        brief({ internalStatus: 'under_editing_or_designing', type: 'Video' }),
+        brief({ internalStatus: 'under_editing_or_designing', type: 'Motion Image' }),
+        brief({ internalStatus: 'sent_to_editor_or_designer', type: 'Static' }),
+      ],
+      concepts: [],
+      copy: [],
+      creators: [],
+    };
+
+    const designer = buildRoleDashboard('designer', data);
+    expect(designer.items.find((i) => i.label === 'Design in progress')?.count).toBe(2);
+    // The editor's production tile reads the same step without a track split.
+    const editor = buildRoleDashboard('video_editor', data);
+    expect(editor.items.find((i) => i.label === 'Creatives in production')?.count).toBe(5);
+  });
 });
 
 describe('loadRoleDashboard', () => {
@@ -226,18 +290,32 @@ describe('overview metric cards (TASK 6)', () => {
     briefs: [
       // clientStatus pinned off the pending value: the fixture default IS pending_for_approval,
       // and the awaiting_client card must count exactly the one brief the test marks.
-      brief({ internalStatus: 'sent_to_video_editor', clientStatus: 'approved' }),
-      brief({ internalStatus: 'sent_to_designer', clientStatus: 'approved' }),
-      brief({ internalStatus: 'video_editing_in_progress', clientStatus: 'approved' }),
-      brief({ internalStatus: 'static_design_in_progress', clientStatus: 'approved' }),
+      // Two per working card: the one list has no per-track pair any more, so each card counts
+      // both a video and a static resting on the same key.
+      brief({ internalStatus: 'sent_to_editor_or_designer', clientStatus: 'approved' }),
+      brief({
+        internalStatus: 'sent_to_editor_or_designer',
+        clientStatus: 'approved',
+        type: 'Static',
+      }),
+      brief({ internalStatus: 'under_editing_or_designing', clientStatus: 'approved' }),
+      brief({
+        internalStatus: 'under_editing_or_designing',
+        clientStatus: 'approved',
+        type: 'Static',
+      }),
       brief({ internalStatus: 'ad_submitted', clientStatus: 'approved' }),
       brief({ internalStatus: 'approved', clientStatus: 'pending_for_approval' }),
-      // The three cards action item 6 added. One revision per track, so a card that counted only
-      // the video key would read 1 instead of 2; one client revision; one brief approved on BOTH
-      // tracks, which is the only thing Ads to Launch may count (the `approved`/pending brief above
-      // is internally approved and must not be in it).
-      brief({ internalStatus: 'videos_revisions', clientStatus: 'approved' }),
-      brief({ internalStatus: 'images_revisions', clientStatus: 'revisions_needed' }),
+      // The three cards action item 6 added. Two internal revisions (a video and a static, on the
+      // ONE `revisions_needed` key); one client revision; one brief approved on BOTH tracks, which
+      // is the only thing Ads to Launch may count (the `approved`/pending brief above is internally
+      // approved and must not be in it).
+      brief({ internalStatus: 'revisions_needed', clientStatus: 'approved' }),
+      brief({
+        internalStatus: 'revisions_needed',
+        clientStatus: 'revisions_needed',
+        type: 'Static',
+      }),
       brief({ internalStatus: 'approved', clientStatus: 'approved' }),
       // Sits one step PAST revisions: the editor has re-uploaded, so it is waiting on a reviewer.
       // Internal Revisions must not count it.
@@ -259,31 +337,28 @@ describe('overview metric cards (TASK 6)', () => {
     ],
   };
 
-  it('admin sees all eleven reference cards, counted with the domain keys', () => {
+  it('admin sees all nine cards — the reference eleven with the per-track pairs merged — counted with the domain keys', () => {
     const cards = buildOverviewMetrics('admin', data);
     expect(cards.map((c) => c.key)).toEqual([
       'concepts_pending',
       'creators_pending',
-      'sent_to_video_editor',
-      'sent_to_designer',
-      'video_editing_in_progress',
-      'static_design_in_progress',
+      'sent_to_editor_or_designer',
+      'under_editing_or_designing',
       'ad_submitted',
       'awaiting_client',
       'internal_revisions',
       'client_revisions',
       'ads_to_launch',
     ]);
-    expect(cards.map((c) => c.count)).toEqual([2, 3, 1, 1, 1, 1, 1, 1, 2, 1, 1]);
+    expect(cards.map((c) => c.count)).toEqual([2, 3, 2, 2, 1, 1, 2, 1, 1]);
   });
 
-  it('counts both tracks of internal revisions, and never a re-upload (AI-6)', () => {
+  it('counts the one revision state of the internal list, and never a re-upload (AI-6)', () => {
     const only = (internalStatus: string) =>
       buildOverviewMetrics('admin', { ...data, briefs: [brief({ internalStatus })] }).find(
         (c) => c.key === 'internal_revisions',
       )?.count;
-    expect(only('videos_revisions')).toBe(1);
-    expect(only('images_revisions')).toBe(1);
+    expect(only('revisions_needed')).toBe(1);
     expect(only('revisions_submitted')).toBe(0);
     expect(only('ad_submitted')).toBe(0);
   });
@@ -311,32 +386,29 @@ describe('overview metric cards (TASK 6)', () => {
     const cards = buildOverviewMetrics('admin', data);
     // The Creative Design list is gone from the app, so the client card lands on the Creative Sheet.
     expect(cards.find((c) => c.key === 'client_revisions')?.href).toBe('/app/creative-sheet');
-    // TWO internal keys, one per track: the Internal Queue board groups by internal status, so both
-    // revision columns are visible there. Never a one-track filter.
+    // The Internal Queue board groups by internal status, so the Revisions Needed column is visible
+    // there in its place on the strip.
     expect(cards.find((c) => c.key === 'internal_revisions')?.href).toBe('/app/queue/internal');
   });
 
   it('brief cards click through to the Creative Sheet, never the removed Creative Design list', () => {
     const cards = buildOverviewMetrics('admin', data);
-    expect(cards.find((c) => c.key === 'sent_to_video_editor')?.href).toBe('/app/creative-sheet');
+    expect(cards.find((c) => c.key === 'sent_to_editor_or_designer')?.href).toBe(
+      '/app/creative-sheet',
+    );
     expect(cards.find((c) => c.key === 'awaiting_client')?.href).toBe('/app/creative-sheet');
   });
 
-  it('scopes the set to the role: the maker sees revisions, the buyer sees launches', () => {
-    expect(buildOverviewMetrics('video_editor', data).map((c) => c.key)).toEqual([
-      'sent_to_video_editor',
-      'video_editing_in_progress',
+  it('scopes the set to the role: both makers see the one production list, the buyer sees launches', () => {
+    const production = [
+      'sent_to_editor_or_designer',
+      'under_editing_or_designing',
       'ad_submitted',
       'internal_revisions',
       'client_revisions',
-    ]);
-    expect(buildOverviewMetrics('designer', data).map((c) => c.key)).toEqual([
-      'sent_to_designer',
-      'static_design_in_progress',
-      'ad_submitted',
-      'internal_revisions',
-      'client_revisions',
-    ]);
+    ];
+    expect(buildOverviewMetrics('video_editor', data).map((c) => c.key)).toEqual(production);
+    expect(buildOverviewMetrics('designer', data).map((c) => c.key)).toEqual(production);
     expect(buildOverviewMetrics('media_buyer', data).map((c) => c.key)).toEqual([
       'ad_submitted',
       'awaiting_client',
@@ -347,8 +419,8 @@ describe('overview metric cards (TASK 6)', () => {
   /**
    * Non-negotiable 10: a client sees no internal data. `revisions_needed` is a member of
    * `CLIENT_STATUS`, so the Client Revisions card is the client's OWN status and belongs to them;
-   * `internal_revisions` counts two statuses whose descriptions say the client never sees them, so
-   * it must not reach the client set however the role lists are reshuffled.
+   * `internal_revisions` counts a status whose description says the client never sees it, so it
+   * must not reach the client set however the role lists are reshuffled.
    */
   it('gives the client their own revisions and no internal one', () => {
     expect(buildOverviewMetrics('client', data).map((c) => c.key)).toEqual([
@@ -357,8 +429,8 @@ describe('overview metric cards (TASK 6)', () => {
     ]);
   });
 
-  it('renders over the demo fixtures without throwing, eleven cards for admin', () => {
-    expect(overviewMetrics('admin')).toHaveLength(11);
+  it('renders over the demo fixtures without throwing, nine cards for admin', () => {
+    expect(overviewMetrics('admin')).toHaveLength(9);
     // The counts the fixtures actually hold. `demoBriefs` has one brief approved on both tracks
     // (the launch candidate) and NO brief in any revisions state — the same shape production is in
     // — so both revision cards read 0. Asserted rather than skipped: a card that reads 0 over data
@@ -421,9 +493,9 @@ describe('the cross-client panels (AI-09)', () => {
       'Mattress Central',
       'Niagara Sleep Solutions',
     ]);
-    // A CSM scans the whole pipeline: all eleven cards, per brand.
+    // A CSM scans the whole pipeline: all nine cards, per brand.
     for (const panel of panels) {
-      expect(panel.metrics).toHaveLength(11);
+      expect(panel.metrics).toHaveLength(9);
     }
     // Only Niagara is seeded with content, and its panel counts exactly the rows the single-brand
     // Overview counts over the same data (`toBriefRow` is the same narrowing `loadBriefs` applies).
@@ -491,7 +563,7 @@ describe('the cross-client panels (AI-09)', () => {
     const panels = await loadBrandPanels('media_buyer', [niagara, gratsi], deps);
 
     expect(panels.map((panel) => panel.brandName)).toEqual(['Niagara Sleep Solutions', 'Gratsi']);
-    // The media buyer's three cards, not the CSM's eleven — the role travels with the list.
+    // The media buyer's three cards, not the CSM's nine — the role travels with the list.
     for (const panel of panels) {
       expect(panel.metrics.map((card) => card.key)).toEqual([
         'ad_submitted',
@@ -683,27 +755,24 @@ describe('the cross-client card derivations (AI-06)', () => {
 });
 
 describe('buildPipeline (TASK 6)', () => {
-  it('walks the video ladder then the static-only steps, and the counts sum to the briefs', () => {
+  it('walks the one internal list in flow order, and the counts sum to the briefs', () => {
     const briefs = [
-      brief({ internalStatus: 'sent_to_video_editor' }),
-      brief({ internalStatus: 'sent_to_designer' }),
-      brief({ internalStatus: 'launched' }),
+      brief({ internalStatus: 'sent_to_editor_or_designer' }),
+      brief({ internalStatus: 'sent_to_editor_or_designer', type: 'Static' }),
+      brief({ internalStatus: 'approved' }),
     ];
     const steps = buildPipeline(briefs);
     expect(steps.map((s) => s.key)).toEqual([
-      'sent_to_video_editor',
-      'video_editing_in_progress',
+      'draft',
+      'sent_to_editor_or_designer',
+      'under_editing_or_designing',
       'ad_submitted',
-      'videos_revisions',
+      'revisions_needed',
       'revisions_submitted',
       'approved',
-      'launched',
-      'sent_to_designer',
-      'static_design_in_progress',
-      'images_revisions',
     ]);
     expect(steps.reduce((sum, s) => sum + s.count, 0)).toBe(briefs.length);
-    expect(steps.find((s) => s.key === 'sent_to_designer')?.count).toBe(1);
+    expect(steps.find((s) => s.key === 'sent_to_editor_or_designer')?.count).toBe(2);
   });
 });
 
@@ -718,22 +787,22 @@ describe('the pipeline Concepts card counts client approval (SMOKE-35)', () => {
   it('buckets mixed approvals by the one client vocabulary, unset as pending', () => {
     const rows = [
       {
-        internalStatus: 'sent_to_video_editor',
+        internalStatus: 'sent_to_editor_or_designer',
         clientStatus: 'pending_for_approval',
         clientApprovalStatus: 'approved',
       },
       {
-        internalStatus: 'sent_to_video_editor',
+        internalStatus: 'sent_to_editor_or_designer',
         clientStatus: 'pending_for_approval',
         clientApprovalStatus: 'approved',
       },
       {
-        internalStatus: 'sent_to_video_editor',
+        internalStatus: 'sent_to_editor_or_designer',
         clientStatus: 'pending_for_approval',
         clientApprovalStatus: 'pending_for_approval',
       },
       {
-        internalStatus: 'sent_to_video_editor',
+        internalStatus: 'sent_to_editor_or_designer',
         clientStatus: 'pending_for_approval',
         clientApprovalStatus: null,
       },
@@ -756,6 +825,9 @@ describe('the pipeline Concepts card counts client approval (SMOKE-35)', () => {
       pending_for_approval: 2,
       disapproved: 1,
     });
-    expect(summary.concepts.byInternalStatus).toEqual({ sent_to_video_editor: 4, approved: 1 });
+    expect(summary.concepts.byInternalStatus).toEqual({
+      sent_to_editor_or_designer: 4,
+      approved: 1,
+    });
   });
 });

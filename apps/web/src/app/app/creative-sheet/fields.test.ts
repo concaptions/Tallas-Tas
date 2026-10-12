@@ -2,9 +2,8 @@ import {
   CLIENT_STATUS,
   chipTone,
   EDITOR_STAGES,
-  INTERNAL_STATIC_STATUS,
-  INTERNAL_VIDEO_STATUS,
-  ON_HOLD,
+  INTERNAL_ENTRY_STATUS,
+  INTERNAL_STATUS,
 } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
@@ -31,11 +30,9 @@ import {
 } from './fields';
 
 describe('the two select vocabularies', () => {
-  it('are the state machine’s own tracks: both internal ladders merged, then CLIENT_STATUS', () => {
-    const merged = [...INTERNAL_VIDEO_STATUS, ...INTERNAL_STATIC_STATUS, ON_HOLD]
-      .map(({ key, label }) => ({ key, label }))
-      .filter((entry, index, all) => all.findIndex((other) => other.key === entry.key) === index);
-    expect(INTERNAL_STATUS_OPTIONS.map(({ key, label }) => ({ key, label }))).toEqual(merged);
+  it('are the state machine’s own lists: INTERNAL_STATUS, then CLIENT_STATUS', () => {
+    const expected = INTERNAL_STATUS.map(({ key, label }) => ({ key, label }));
+    expect(INTERNAL_STATUS_OPTIONS.map(({ key, label }) => ({ key, label }))).toEqual(expected);
     expect(STATUS_OPTIONS.map(({ key, label }) => ({ key, label }))).toEqual(
       CLIENT_STATUS.map(({ key, label }) => ({ key, label })),
     );
@@ -49,18 +46,18 @@ describe('the two select vocabularies', () => {
       }
     }
     expect(internalStatusView('approved')?.tone).toBe(chipTone('Approved'));
-    expect(internalStatusView('images_revisions')?.tone).toBe(chipTone('Images Revisions'));
+    expect(internalStatusView('revisions_needed')?.tone).toBe(chipTone('Revisions Needed'));
     expect(internalStatusView('revisions_submitted')?.tone).toBe(chipTone('Revisions Submitted'));
     expect(statusView('launched')?.tone).toBe(chipTone('Launched'));
     expect(statusView('revisions_needed')?.tone).toBe(chipTone('Revisions Needed'));
     expect(statusView('disapproved')?.tone).toBe(chipTone('Disapproved'));
   });
 
-  it('give the in-progress, hold and submitted steps the tones the label map cannot', () => {
+  it('give the in-progress and submitted steps the tones the label map cannot', () => {
     expect(statusView('pending_for_approval')?.tone).toBe('info');
     expect(internalStatusView('ad_submitted')?.tone).toBe('accent');
-    expect(internalStatusView('video_editing_in_progress')?.tone).toBe('info');
-    expect(internalStatusView('on_hold')?.tone).toBe('warn');
+    expect(internalStatusView('under_editing_or_designing')?.tone).toBe('info');
+    expect(internalStatusView('draft')?.tone).toBe('mute');
   });
 
   it('are total: null is no chip, an unknown key renders itself muted', () => {
@@ -167,7 +164,7 @@ describe('the Kanban board', () => {
 
 describe('applyKanbanMoves — a dropped card moves at once (SMOKE-10)', () => {
   const cards = [
-    { id: 'a', groupValue: 'sent_to_video_editor' },
+    { id: 'a', groupValue: 'sent_to_editor_or_designer' },
     { id: 'b', groupValue: 'approved' },
   ];
 
@@ -212,7 +209,7 @@ describe('the pending creative as a grid row (SMOKE-24)', () => {
     expect(row.item.id).toBe('pending:TAS-TOF-V008-B1');
     expect(row.item.name).toBe('October-TAS-TOF-V008-B1');
     expect(row.item.briefName).toBe('TAS-TOF-V008-B1');
-    expect(row.item.internalStatus).toBe(INTERNAL_VIDEO_STATUS[0].key);
+    expect(row.item.internalStatus).toBe(INTERNAL_ENTRY_STATUS);
     expect(row.item.status).toBe(CLIENT_STATUS[0].key);
     expect(row.lookups.proposedCopy).toBeNull();
   });

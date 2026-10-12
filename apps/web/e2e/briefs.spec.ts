@@ -16,13 +16,13 @@ import { briefPath, briefsPath } from '../src/lib/routes';
  * Internal and Client queues and the client portal open briefs by id, which is what this file
  * proves.
  *
- * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: seven rows spread across both
- * tracks of the internal ladder. Four of them are past internal sign-off (three `approved`, one
- * `launched`), so `isClientTrackOpen` is true on those four and false on the other three — which is
- * what makes "open here, shut there" a real assertion rather than a coincidence.
+ * The fixtures are `demoBriefs` in `packages/db/src/demo-data.ts`: seven rows on the one internal
+ * list. Four of them are internally `approved`, so `isClientTrackOpen` (approved only) is true on
+ * those four and false on the other three — which is what makes "open here, shut there" a real
+ * assertion rather than a coincidence.
  */
 const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
-/** `static_design_in_progress`: the one the client track is still shut on. */
+/** `under_editing_or_designing`: the one the client track is still shut on. */
 const NOT_YOUR_AGE_STATIC = '77777777-7777-4777-8777-000000000002';
 const BUNDLE_STANDALONE = '77777777-7777-4777-8777-000000000005';
 /** Cited by one creative module and by nothing else — the rail's empty states, three at once. */
@@ -144,7 +144,7 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     await expect(rail.locator('[data-slot="internal-track"]')).toBeVisible();
     await expect(rail.locator('[data-slot="client-track"]')).toHaveAttribute('data-open', 'true');
 
-    // `static_design_in_progress`, so `isClientTrackOpen` is false: the client bar is shut and says
+    // `under_editing_or_designing`, so `isClientTrackOpen` is false: the client bar is shut and says
     // so in a chip instead of rendering a stepper the client has not reached yet.
     await page.goto(briefPath(NOT_YOUR_AGE_STATIC));
     const shut = page.locator('[data-slot="brief-rail"] [data-slot="client-track"]');

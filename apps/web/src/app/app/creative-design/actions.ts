@@ -39,10 +39,11 @@ import {
 } from '@tas/domain/creatives';
 import {
   CLIENT_STATUS,
+  INTERNAL_ENTRY_STATUS,
   canTransitionClient,
   canTransitionInternal,
-  internalStatusFor,
   isClientTrackOpen,
+  isInternalStatusKey,
   type ClientStatusKey,
   type CreativeTrack,
   type InternalStatusKey,
@@ -55,11 +56,11 @@ import {
   canSubmitToClient,
   clientMoveNeedsQa,
   EDITOR_STAGE_KEYS,
+  EDITOR_STARTED_STATUS,
   editorStageMoveTarget,
   internalMoveNeedsQa,
   qaGateReason,
   qaResetFor,
-  startedStatusFor,
   type BriefQaTicks,
   type EditorStageKey,
 } from '@tas/domain/state';
@@ -81,7 +82,7 @@ import { briefPath, briefsPath, creativeSheetPath } from '@/lib/routes';
  * 3. go through the domain functions for everything that is a rule — `generateBriefName` for the
  *    Oct 5 CREATE name, `allocateBriefNumber` for the brand-wide counter it reads, `nextSequence`
  *    for the row's own `sequence`, `dimensionsFor` for the §8 defaults, `creativeTrack` for which
- *    ladder the brief is graded on, and `isClientTrackOpen` / `canTransition*` for the two-track
+ *    QA ticks the brief needs, and `isClientTrackOpen` / `canTransition*` for the two-track
  *    gate. No rule is restated here;
  * 4. write through the scoped `@tas/db` functions, which put `brand_id` on every statement;
  * 5. revalidate both routes and return a typed result. None of them ever throws to the client.
@@ -105,8 +106,9 @@ import { briefPath, briefsPath, creativeSheetPath } from '@/lib/routes';
  * THE CLIENT TRACK IS GATED. A brief reaches the client track only once its internal status is
  * Approved (CLAUDE.md non-negotiable 6, PRD §9). The gate is `isClientTrackOpen` /
  * `canTransitionClient`; this file never compares a status to a literal and never re-states which
- * internal states open it. Which LADDER those statuses belong to comes from the brief's own type
- * through `creativeTrack`, so nothing here branches on `'Static'`.
+ * internal states open it. The internal status list is ONE list for both creative tracks (Oct 12
+ * client sync, Ticket 5 / migration 0067); the brief's type decides only its QA ticks, through
+ * `creativeTrack`, so nothing here branches on `'Static'`.
  */
 
 /** The fields the page can show a message under. */
@@ -257,10 +259,10 @@ const dimension = z
 
 /**
  * A submitted status, shape only. Absent means "leave it where it is", which is why both are
- * nullable rather than defaulted here: only the write path knows whether "where it is" is the
- * track's first step (create) or the row's current value (update). WHICH keys are legal depends on
- * the brief's type, so membership is checked against the track further down, not with a `z.enum`
- * over one of the two ladders.
+ * nullable rather than defaulted here: only the write path knows whether "where it is" is
+ * `INTERNAL_ENTRY_STATUS` (create, the `draft` the column defaults to) or the row's current value
+ * (update). Membership is checked further down through `isInternalStatusKey`, the domain's own
+ * guard, not with a `z.enum` copy of the list.
  */
 const status = text;
 
@@ -397,19 +399,6 @@ function parse(formData: FormData): { values: BriefFormValues } | BriefActionFai
   return parsed.success ? { values: parsed.data } : failureFrom(parsed.error);
 }
 
-/** The step a brief of this track rests at before anything has happened to it. */
-function trackStart(track: CreativeTrack): InternalStatusKey {
-  const [first] = internalStatusFor(track);
-  if (first === undefined) {
-    throw new Error(`the ${track} internal track is empty`);
-  }
-  return first.key;
-}
-
-function isInternalStatusOf(track: CreativeTrack, value: string): value is InternalStatusKey {
-  return internalStatusFor(track).some((entry) => entry.key === value);
-}
-
 function isClientStatus(value: string): value is ClientStatusKey {
   return CLIENT_STATUS.some((entry) => entry.key === value);
 }
@@ -475,33 +464,31 @@ function qaGateRefusal(
   return null;
 }
 
-/** Any internal move has to be one the state machine allows on this brief's own ladder. */
+/** Any internal move has to be one the state machine allows on the internal track. */
 function internalMoveRefusal(
-  track: CreativeTrack,
   from: InternalStatusKey,
   to: InternalStatusKey,
 ): BriefActionFailure | null {
-  if (to === from || canTransitionInternal(track, from, to)) {
+  if (to === from || canTransitionInternal(from, to)) {
     return null;
   }
   return fieldFailure({ internalStatus: 'That is not the next step on the internal track.' });
 }
 
 /**
- * A submitted status narrowed against this brief's own ladder, or a refusal. `null` in means "leave
- * it where it is", so `fallback` is returned untouched.
+ * A submitted status narrowed against `INTERNAL_STATUS`, or a refusal. `null` in means "leave it
+ * where it is", so `fallback` is returned untouched.
  */
 function internalStatusOr(
-  track: CreativeTrack,
   submitted: string | null,
   fallback: InternalStatusKey,
 ): InternalStatusKey | BriefActionFailure {
   if (submitted === null) {
     return fallback;
   }
-  return isInternalStatusOf(track, submitted)
+  return isInternalStatusKey(submitted)
     ? submitted
-    : fieldFailure({ internalStatus: 'That is not a status on this creative’s internal track.' });
+    : fieldFailure({ internalStatus: 'That is not a status on the internal track.' });
 }
 
 function clientStatusOr(
@@ -613,12 +600,11 @@ export async function createBriefAction(
   }
   const { values } = parsed;
 
-  // A new brief starts at the first step of its own ladder — which is why this is computed from the
-  // type rather than taken from the column default, a video-track literal a static brief could not
-  // rest on. Both statuses are therefore known without a database, so the gate is checked here,
-  // before the actor lookup and before a connection, exactly as the demo refusal is.
-  const track = creativeTrack(values.type);
-  const internal = internalStatusOr(track, values.internalStatus, trackStart(track));
+  // A new brief starts at INTERNAL_ENTRY_STATUS (draft), the column default — one list for both
+  // tracks since the Oct 12 client sync. Both statuses are therefore known without a database, so
+  // the gate is checked here, before the actor lookup and before a connection, exactly as the demo
+  // refusal is.
+  const internal = internalStatusOr(values.internalStatus, INTERNAL_ENTRY_STATUS);
   if (isFailure(internal)) {
     return internal;
   }
@@ -735,7 +721,7 @@ export async function updateBriefAction(
   // before the actor lookup and before a connection. When either is left out, "where it is" is the
   // row's, and the same check runs inside the scope below.
   if (values.internalStatus !== null && values.clientStatus !== null) {
-    const internal = internalStatusOr(track, values.internalStatus, trackStart(track));
+    const internal = internalStatusOr(values.internalStatus, INTERNAL_ENTRY_STATUS);
     if (isFailure(internal)) {
       return internal;
     }
@@ -770,18 +756,18 @@ export async function updateBriefAction(
         return fieldFailure({ conceptId: 'That concept is no longer available.' });
       }
 
-      // The row's stored strings are `text`; narrow them against this brief's ladder before asking
-      // the machine anything. A row resting on the column default — a video-track literal a static
-      // brief cannot be on — is read as its own track's first step, the same reading the page gets
-      // from `briefs-source.ts`, so a save never silently moves a brief it only meant to edit.
-      const wasInternal: InternalStatusKey = isInternalStatusOf(track, current.internalStatus)
+      // The row's stored strings are `text`; narrow them against the internal list before asking
+      // the machine anything. A stored value this build does not know is read as
+      // INTERNAL_ENTRY_STATUS, the same reading the page gets from `briefs-source.ts`, so a save
+      // never silently moves a brief it only meant to edit.
+      const wasInternal: InternalStatusKey = isInternalStatusKey(current.internalStatus)
         ? current.internalStatus
-        : trackStart(track);
+        : INTERNAL_ENTRY_STATUS;
       const wasClient: ClientStatusKey = isClientStatus(current.clientStatus)
         ? current.clientStatus
         : BRIEF_CLIENT_STATUS_DEFAULT;
 
-      const internal = internalStatusOr(track, values.internalStatus, wasInternal);
+      const internal = internalStatusOr(values.internalStatus, wasInternal);
       if (isFailure(internal)) {
         return internal;
       }
@@ -790,7 +776,7 @@ export async function updateBriefAction(
         return client;
       }
 
-      const internalRefusal = internalMoveRefusal(track, wasInternal, internal);
+      const internalRefusal = internalMoveRefusal(wasInternal, internal);
       if (internalRefusal !== null) {
         return internalRefusal;
       }
@@ -1041,10 +1027,11 @@ export interface StartBriefSuccess {
 export type StartBriefResult = StartBriefSuccess | BriefActionFailure;
 
 /**
- * Start (Sprint 10, EDIT-02): an editor claims an Incoming brief. One click moves it to the track's
- * in-progress status — the move `INTERNAL_*_TRANSITIONS` already allows, checked again here, never
- * invented — and sets the signed-in user as assignee. Both changes are logged. Refused in demo
- * mode, without a session, for a brief that is not Incoming, and for a brief outside the brand.
+ * Start (Sprint 10, EDIT-02): an editor claims an Incoming brief. One click moves it to the
+ * working step, Under Editing / Designing — the move `INTERNAL_TRANSITIONS` already allows,
+ * checked again here, never invented — and sets the signed-in user as assignee. Both changes are
+ * logged. Refused in demo mode, without a session, for a brief that is not Incoming, and for a
+ * brief outside the brand.
  */
 export async function startBriefAction(briefId: string): Promise<StartBriefResult> {
   if (isDemoMode()) {
@@ -1068,12 +1055,11 @@ export async function startBriefAction(briefId: string): Promise<StartBriefResul
       if (!canStartBrief(current.internalStatus)) {
         return { ok: false as const, error: 'Only an Incoming creative can be started.' };
       }
-      const track = creativeTrack(current.type);
-      const next = startedStatusFor(track);
-      const from: InternalStatusKey = isInternalStatusOf(track, current.internalStatus)
+      const next = EDITOR_STARTED_STATUS;
+      const from: InternalStatusKey = isInternalStatusKey(current.internalStatus)
         ? current.internalStatus
-        : trackStart(track);
-      if (!canTransitionInternal(track, from, next)) {
+        : INTERNAL_ENTRY_STATUS;
+      if (!canTransitionInternal(from, next)) {
         return { ok: false as const, error: 'That is not the next step on the internal track.' };
       }
       const patch = { internalStatus: next, assignee: actorName };
@@ -1120,8 +1106,8 @@ function isEditorStage(value: string): value is EditorStageKey {
 /**
  * A card dropped in another column of the editor board (the Creative Sheet's "Editing stage"
  * grouping, 2026-10-09). The status it writes is `editorStageMoveTarget`'s — Incoming → Under
- * Editing is the track's in-progress step, Under Editing → Under Review is the submission — and a
- * drop the machine refuses is refused here too, never written. Only `internal_status` changes:
+ * Editing is the working step, Under Editing → Under Review is the submission — and a drop the
+ * machine refuses is refused here too, never written. Only `internal_status` changes:
  * the assignee is Start's business, not a drag's. Refused in demo mode, for a stage that is not
  * one of the three, without a session, and for a brief outside the brand.
  */
@@ -1150,11 +1136,7 @@ export async function moveBriefStageAction(
       if (current === null) {
         return { ok: false as const, error: 'That creative is no longer available.' };
       }
-      const next = editorStageMoveTarget(
-        current.internalStatus,
-        creativeTrack(current.type),
-        stage,
-      );
+      const next = editorStageMoveTarget(current.internalStatus, stage);
       if (next === null) {
         return { ok: false as const, error: 'That is not the next step on the internal track.' };
       }

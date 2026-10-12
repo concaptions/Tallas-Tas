@@ -1,9 +1,19 @@
 /**
- * The two-track approval state machine (PRD §8, design handoff 2026-09-16).
+ * The two-track approval state machine (PRD §8, design handoff 2026-09-16; internal track
+ * consolidated 2026-10-12, Oct 12 client sync Ticket 5 / migration 0067).
  *
  * Labels and descriptions here are the source of truth for tooltips, notifications and analytics
  * labels. The UI never writes a status string of its own, never recomputes the client gate and never
  * decides a chip colour locally: it imports from this module.
+ *
+ * ONE INTERNAL LIST FOR BOTH TRACKS. Until 2026-10-12 the internal track was two lists — a video
+ * ladder (`sent_to_video_editor`, `video_editing_in_progress`, `videos_revisions`, …) and a static
+ * one (`sent_to_designer`, `static_design_in_progress`, `images_revisions`, …) — plus an `on_hold`
+ * branch and a `launched` terminal. Talal's Oct 12 ruling collapsed them: the creative's TRACK
+ * (`CreativeTrack`, video or static) still decides who builds it and which QA ticks it needs, but
+ * the status words are the same for both. `launched` is no longer an internal state: the media
+ * buyer's launch is the brief's `launched_at` and the CLIENT track's own `launched`. `on_hold` was
+ * never used in production and is gone. Migration 0067 moved every stored row onto this list.
  */
 
 export interface StatusEntry<Key extends string = string> {
@@ -12,85 +22,48 @@ export interface StatusEntry<Key extends string = string> {
   readonly description: string;
 }
 
-export const INTERNAL_VIDEO_STATUS = [
-  {
-    key: 'sent_to_video_editor',
-    label: 'Sent to Video Editor',
-    description: 'Set when the strategist submits the brief and assigns an editor.',
-  },
-  {
-    key: 'video_editing_in_progress',
-    label: 'Video Editing in Progress',
-    description: 'Editor opened the brief and claimed it.',
-  },
-  {
-    key: 'ad_submitted',
-    label: 'Ad Submitted',
-    description: 'Editor uploaded a cut and marked the brief submitted.',
-  },
-  {
-    key: 'videos_revisions',
-    label: 'Videos Revisions',
-    description: 'Internal reviewer left revisions. Client never sees this state.',
-  },
-  {
-    key: 'revisions_submitted',
-    label: 'Revisions Submitted',
-    description: 'Editor re-uploaded against the revision notes.',
-  },
-  {
-    key: 'approved',
-    label: 'Approved',
-    description: 'Internal sign-off. This is the gate that opens the client track.',
-  },
-  {
-    key: 'launched',
-    label: 'Launched',
-    description: 'Media buyer confirmed the ad is live.',
-  },
-] as const;
-
 /**
- * Same shape as the video track. `Ad Submitted`, `Revisions Submitted`, `Approved` and `Launched`
- * are unchanged from the video list, description included; only the three track-specific entries
- * differ (handoff: "INTERNAL_STATIC_STATUS is the same shape with ... in place of the three video
- * entries").
+ * The internal track, in flow order. `revisions_submitted` keeps the plural spelling every stored
+ * row carries (17 live briefs on 2026-10-12); the Oct 12 brief wrote it singular — a one-line
+ * rename migration and this one entry are what the singular would take.
  */
-export const INTERNAL_STATIC_STATUS = [
+export const INTERNAL_STATUS = [
   {
-    key: 'sent_to_designer',
-    label: 'Sent to Designer',
-    description: 'Set when the strategist submits the brief and assigns a designer.',
+    key: 'draft',
+    label: 'Draft',
+    description:
+      'The brief exists and nobody has been asked to build it yet. Every new brief starts here.',
   },
   {
-    key: 'static_design_in_progress',
-    label: 'Static Design in Progress',
-    description: 'Designer opened the brief and claimed it.',
+    key: 'sent_to_editor_or_designer',
+    label: 'Sent to Editor / Designer',
+    description:
+      'The strategist submitted the brief and handed it to the editor (video) or the designer (static).',
+  },
+  {
+    key: 'under_editing_or_designing',
+    label: 'Under Editing / Designing',
+    description: 'The editor or designer opened the brief and claimed it.',
   },
   {
     key: 'ad_submitted',
     label: 'Ad Submitted',
-    description: 'Editor uploaded a cut and marked the brief submitted.',
+    description: 'The editor or designer uploaded a cut and marked the brief submitted.',
   },
   {
-    key: 'images_revisions',
-    label: 'Images Revisions',
+    key: 'revisions_needed',
+    label: 'Revisions Needed',
     description: 'Internal reviewer left revisions. Client never sees this state.',
   },
   {
     key: 'revisions_submitted',
     label: 'Revisions Submitted',
-    description: 'Editor re-uploaded against the revision notes.',
+    description: 'The editor or designer re-uploaded against the revision notes.',
   },
   {
     key: 'approved',
     label: 'Approved',
     description: 'Internal sign-off. This is the gate that opens the client track.',
-  },
-  {
-    key: 'launched',
-    label: 'Launched',
-    description: 'Media buyer confirmed the ad is live.',
   },
 ] as const;
 
@@ -130,38 +103,42 @@ export const CLIENT_STATUS = [
 ] as const;
 
 /**
- * A branchable, non-linear state between `*_in_progress` and `ad_submitted`. It is rendered as a side
- * badge on the current step row, never as a step in the linear stepper, so it is deliberately not a
- * member of either internal list.
+ * Which kind of creative a brief is: decides who builds it (editor or designer) and which QA ticks
+ * it needs (`@tas/domain/state/qa-gate`). It no longer decides a status list.
  */
-export const ON_HOLD = {
-  key: 'on_hold',
-  label: 'On Hold',
-  description:
-    'Branchable non-linear state between in-progress and Ad Submitted. Rendered as a side badge on the current step row, never as a step in the linear stepper.',
-} as const;
-
 export type CreativeTrack = 'video' | 'static';
 
-export type InternalVideoStatusKey = (typeof INTERNAL_VIDEO_STATUS)[number]['key'];
-export type InternalStaticStatusKey = (typeof INTERNAL_STATIC_STATUS)[number]['key'];
-export type InternalStatusKey = InternalVideoStatusKey | InternalStaticStatusKey;
+export type InternalStatusKey = (typeof INTERNAL_STATUS)[number]['key'];
 export type ClientStatusKey = (typeof CLIENT_STATUS)[number]['key'];
-export type OnHoldStatusKey = typeof ON_HOLD.key;
-/** Every value the stored internal status column can hold, including the non-linear branch. */
-export type InternalStatusOrHoldKey = InternalStatusKey | OnHoldStatusKey;
+
+/** Where every new brief — and every duplicate — starts: the first step of the list. */
+export const INTERNAL_ENTRY_STATUS: InternalStatusKey = 'draft';
+
+/** Whether a stored string is one of `INTERNAL_STATUS`'s keys. */
+export function isInternalStatusKey(value: string): value is InternalStatusKey {
+  return INTERNAL_STATUS.some((entry) => entry.key === value);
+}
+
+/** Whether a stored string is one of `CLIENT_STATUS`'s keys. */
+export function isClientStatusKey(value: string): value is ClientStatusKey {
+  return CLIENT_STATUS.some((entry) => entry.key === value);
+}
+
+/** The label of an internal status; a stored value this build has no row for reads as itself. */
+export function internalStatusLabel(key: string): string {
+  return INTERNAL_STATUS.find((entry) => entry.key === key)?.label ?? key;
+}
 
 /**
  * The client track's LINEAR path: `CLIENT_STATUS` without the branches.
  *
  * PRD §9 writes the client track as "Pending for Approval → Approved / Revisions Needed → Launched",
  * and the Oct 6 Talal ruling added `disapproved` as a second terminal branch alongside
- * `revisions_needed`. Both are BRANCHES off the client's decision, the way `on_hold` branches off the
- * internal track, and a linear stepper cannot honestly place them: drawn as third or fourth rows
- * they would mark Approved as `done` on a creative the client had just rejected or sent back. So a
- * stepper walks this list and renders the branches with the status chip instead, which is the
- * treatment `ON_HOLD` gets. `CLIENT_STATUS` itself is untouched — it is the vocabulary of the
- * stored column.
+ * `revisions_needed`. Both are BRANCHES off the client's decision, and a linear stepper cannot
+ * honestly place them: drawn as third or fourth rows they would mark Approved as `done` on a
+ * creative the client had just rejected or sent back. So a stepper walks this list and renders the
+ * branches with the status chip instead. `CLIENT_STATUS` itself is untouched — it is the vocabulary
+ * of the stored column.
  */
 export const CLIENT_TRACK_STEPS: readonly StatusEntry<ClientStatusKey>[] = CLIENT_STATUS.filter(
   (entry) =>
@@ -175,24 +152,16 @@ export type ChipTone = 'ok' | 'warn' | 'bad' | 'info' | 'accent' | 'mute';
 
 /**
  * The gate. Every UI that renders the client track imports this. No component computes it itself.
+ * Total over any stored string: a value this build has no row for keeps the gate shut.
  */
-export function isClientTrackOpen(internal: InternalStatusKey): boolean {
-  return internal === 'approved' || internal === 'launched';
-}
-
-/** Whether a stored string is one of `CLIENT_STATUS`'s keys. */
-export function isClientStatusKey(value: string): value is ClientStatusKey {
-  return CLIENT_STATUS.some((entry) => entry.key === value);
-}
-
-/** The linear internal stepper for a track, in order. */
-export function internalStatusFor(track: CreativeTrack): readonly StatusEntry<InternalStatusKey>[] {
-  return track === 'video' ? INTERNAL_VIDEO_STATUS : INTERNAL_STATIC_STATUS;
+export function isClientTrackOpen(internal: string): boolean {
+  return internal === 'approved';
 }
 
 /**
  * Where `key` sits relative to `current` in a linear stepper. A `current` that is not in the list
- * (`on_hold`, or a client status handed the internal list) leaves every step upcoming.
+ * (a client status handed the internal list, a value this build has no row for) leaves every step
+ * upcoming.
  */
 export function stepState(list: readonly StatusEntry[], current: string, key: string): StepState {
   const currentIndex = list.findIndex((entry) => entry.key === current);
@@ -208,10 +177,12 @@ export function stepState(list: readonly StatusEntry[], current: string, key: st
 
 /**
  * Tone for a status chip, keyed on the human label (the handoff's map). `Revisions Submitted` holds
- * both words, so the `Submitted` exclusion keeps it out of `warn` and it lands on `mute`.
+ * both words, so the `Submitted` exclusion keeps it out of `warn` and it lands on `mute`, where
+ * `Draft` and the two working steps sit too.
  *
  * `Disapproved` is the Oct 6 Talal addition: the client-track terminal refusal, matching
- * `COPY_STATUS`'s and `CREATOR_STATUS`'s existing `disapproved` → `bad` reading.
+ * `COPY_STATUS`'s and `CREATOR_STATUS`'s existing `disapproved` → `bad` reading. `Launched` is the
+ * client track's terminal state (the internal track has no launch since 2026-10-12).
  */
 export function chipTone(label: string): ChipTone {
   if (label === 'Approved') {
@@ -235,32 +206,19 @@ export function chipTone(label: string): ChipTone {
 type TransitionTable<Key extends string> = Readonly<Record<Key, readonly Key[]>>;
 
 /**
- * Internal transitions. `on_hold` branches off the in-progress step and rejoins at either the step it
- * left or `ad_submitted`; `launched` is terminal.
+ * Internal transitions, one table for both tracks. Linear through the working steps, a revision
+ * loop between Ad Submitted / Revisions Submitted and Revisions Needed, and `approved` terminal:
+ * the launch is the media buyer's `launched_at` and the client track's `launched`, never an
+ * internal move.
  */
-export const INTERNAL_VIDEO_TRANSITIONS: TransitionTable<InternalVideoStatusKey | OnHoldStatusKey> =
-  {
-    sent_to_video_editor: ['video_editing_in_progress'],
-    video_editing_in_progress: ['ad_submitted', 'on_hold'],
-    on_hold: ['video_editing_in_progress', 'ad_submitted'],
-    ad_submitted: ['videos_revisions', 'approved'],
-    videos_revisions: ['revisions_submitted'],
-    revisions_submitted: ['videos_revisions', 'approved'],
-    approved: ['launched'],
-    launched: [],
-  };
-
-export const INTERNAL_STATIC_TRANSITIONS: TransitionTable<
-  InternalStaticStatusKey | OnHoldStatusKey
-> = {
-  sent_to_designer: ['static_design_in_progress'],
-  static_design_in_progress: ['ad_submitted', 'on_hold'],
-  on_hold: ['static_design_in_progress', 'ad_submitted'],
-  ad_submitted: ['images_revisions', 'approved'],
-  images_revisions: ['revisions_submitted'],
-  revisions_submitted: ['images_revisions', 'approved'],
-  approved: ['launched'],
-  launched: [],
+export const INTERNAL_TRANSITIONS: TransitionTable<InternalStatusKey> = {
+  draft: ['sent_to_editor_or_designer'],
+  sent_to_editor_or_designer: ['under_editing_or_designing'],
+  under_editing_or_designing: ['ad_submitted'],
+  ad_submitted: ['revisions_needed', 'approved'],
+  revisions_needed: ['revisions_submitted'],
+  revisions_submitted: ['revisions_needed', 'approved'],
+  approved: [],
 };
 
 /**
@@ -281,40 +239,25 @@ export const CLIENT_TRANSITIONS: TransitionTable<ClientStatusKey> = {
   launched: [],
 };
 
-export function internalTransitionsFor(
-  track: CreativeTrack,
-): Readonly<Record<string, readonly string[]>> {
-  return track === 'video' ? INTERNAL_VIDEO_TRANSITIONS : INTERNAL_STATIC_TRANSITIONS;
-}
-
-/** `false` for a step that belongs to the other track, for an unknown key and for any skip. */
-export function canTransitionInternal(
-  track: CreativeTrack,
-  from: InternalStatusOrHoldKey,
-  to: InternalStatusOrHoldKey,
-): boolean {
-  const allowed = internalTransitionsFor(track)[from];
+/**
+ * `false` for an unknown key, for any skip and for the terminal state. Total over stored strings:
+ * the table is read with a widened index, so a value written by a newer build answers `false`
+ * rather than throwing — refusing withholds a control, it never invents a move.
+ */
+export function canTransitionInternal(from: string, to: string): boolean {
+  const table: Readonly<Record<string, readonly string[]>> = INTERNAL_TRANSITIONS;
+  const allowed = table[from];
   return allowed !== undefined && allowed.includes(to);
 }
 
 /**
  * Client transitions are refused whenever the gate is closed: with internal earlier than Approved the
- * client track does not exist yet, so no client move is legal.
- *
- * Total over its inputs, including a stored status this build has no row for: the table is read with
- * `?.`, so a value written by a newer build answers `false` rather than throwing. Refusing is the safe
- * direction — it withholds a control, it never invents a move.
+ * client track does not exist yet, so no client move is legal. Total over its inputs the same way.
  */
-export function canTransitionClient(
-  internal: InternalStatusKey,
-  from: ClientStatusKey,
-  to: ClientStatusKey,
-): boolean {
+export function canTransitionClient(internal: string, from: string, to: string): boolean {
   if (!isClientTrackOpen(internal)) {
     return false;
   }
-  // Widened to a stored string exactly as `canTransitionInternal` reads its table: the compiler sees
-  // a total record, a database row does not have to be one.
   const table: Readonly<Record<string, readonly string[]>> = CLIENT_TRANSITIONS;
   const allowed = table[from];
   return allowed !== undefined && allowed.includes(to);

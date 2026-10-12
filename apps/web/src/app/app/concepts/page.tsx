@@ -2,7 +2,7 @@ import { conceptPerformance } from '@tas/db';
 
 import { loadBriefs } from '@/lib/briefs-source';
 import { loadCampaigns } from '@/lib/campaigns-source';
-import { CONCEPT_TRACK, loadConceptColumns, loadConcepts } from '@/lib/concepts-source';
+import { loadConceptColumns, loadConcepts } from '@/lib/concepts-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadUgc } from '@/lib/ugc-source';
 import { loadUserViews } from '@/lib/user-view-actions';
@@ -29,13 +29,13 @@ import { ConceptsWorkspace } from './concepts-workspace';
  * otherwise; the page does not know which and does not branch on it. It renders into the shell's
  * `<main>` and therefore owns no frame, padding or background of its own.
  *
- * THE STATUS IS RESOLVED HERE, ONCE. `CONCEPT_TRACK` lives next to the data source because that is
- * where the stored strings are narrowed, and `@/lib/concepts-source` imports `@tas/db` — so it can
- * only ever be read on the server. Each row is therefore handed down as a `ConceptItem` carrying
- * its label and chip tone already looked up through `@tas/domain/state`, which is what keeps the
- * database driver out of the browser bundle AND keeps every status decision in one module. The
- * track is read ONLY here now: the Kanban board that also needed it left the data tables with
- * action item 18, so the client component no longer takes a `track` prop.
+ * THE STATUS IS RESOLVED HERE, ONCE, from `INTERNAL_STATUS` — the one internal list every creative
+ * shares since the Oct 12 client sync (Ticket 5, migration 0067), so no track is read or named.
+ * The stored strings are narrowed next to the data source (`@/lib/concepts-source`, which imports
+ * `@tas/db` and so can only ever run on the server), and each row is handed down as a
+ * `ConceptItem` carrying its label and chip tone already looked up through `@tas/domain/state`,
+ * which is what keeps the database driver out of the browser bundle AND keeps every status
+ * decision in one module.
  *
  * Both pieces of list state are query parameters — `?view=table` or `?view=gallery` for the toggle
  * and `?q=` for the search, the same key the Products, Angles and Themes pages use — so a refresh
@@ -95,7 +95,7 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     personaName: row.personaName,
     productName: row.productName,
     themeName: row.themeName,
-    status: internalStatusView(CONCEPT_TRACK, row.internalStatus),
+    status: internalStatusView(row.internalStatus),
     href: conceptPath(row.id),
     clientStatus: clientStatusView(row.clientStatus),
     clientApproval: clientApprovalView(row.clientApprovalStatus),

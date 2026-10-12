@@ -1,7 +1,6 @@
 import type { CreateBriefValues, CreativeBrief } from '@tas/db';
 import { BRIEF_CLIENT_STATUS_DEFAULT } from '@tas/db/schema';
-import { creativeTrack } from '@tas/domain/creatives';
-import { internalEntryStatus, QA_RESET } from '@tas/domain/state';
+import { INTERNAL_ENTRY_STATUS, QA_RESET } from '@tas/domain/state';
 
 /** The managed, identity and propagation columns a copy never inherits. */
 const NEVER_COPIED = new Set<keyof CreativeBrief>([
@@ -22,9 +21,10 @@ const NEVER_COPIED = new Set<keyof CreativeBrief>([
 
 /**
  * What a duplicate stores (scope 3's copy and reset rules): every field of the source, the version
- * one up, the three QA ticks false, the internal track at its ENTRY state (there is no `draft`
- * key: `sent_to_video_editor` or `sent_to_designer`), the client track at its default with no
- * stamp, note, launch or priority. `performance` is the source ad's and is not copied.
+ * one up, the three QA ticks false, the internal track at its ENTRY state (`draft`, the one list's
+ * first step for both creative tracks since the Oct 12 consolidation, Ticket 5 / 0067), the
+ * client track at its default with no stamp, note, launch or priority. `performance` is the
+ * source ad's and is not copied.
  */
 export function duplicateValues(source: CreativeBrief): CreateBriefValues {
   const copied: Record<string, unknown> = {};
@@ -35,7 +35,7 @@ export function duplicateValues(source: CreativeBrief): CreateBriefValues {
     ...(copied as CreateBriefValues),
     version: source.version + 1,
     ...QA_RESET,
-    internalStatus: internalEntryStatus(creativeTrack(source.type)),
+    internalStatus: INTERNAL_ENTRY_STATUS,
     clientStatus: BRIEF_CLIENT_STATUS_DEFAULT,
     clientStatusUpdatedAt: null,
     clientStatusNote: null,

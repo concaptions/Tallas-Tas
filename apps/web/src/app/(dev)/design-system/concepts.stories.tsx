@@ -24,9 +24,7 @@ import { NamePreview } from '@/app/app/concepts/[conceptId]/name-preview';
  * statuses come from `internalStatusView`, which reads `@tas/domain/state`, so a tone shown here is
  * the tone the board shows.
  */
-const TRACK = 'video' as const;
-
-/** Four rows across four steps of the track, so every tone on the board is on this page. */
+/** Four rows across four steps of the list, so every tone on the board is on this page. */
 const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
   {
     ...EMPTY_CONCEPT_RECORD,
@@ -37,7 +35,7 @@ const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
     personaName: 'Denise — peri-menopausal, awake at 3am with night sweats',
     productName: 'Niagara Deep Sleep Weighted Blanket',
     themeName: 'Green Screen',
-    status: internalStatusView(TRACK, 'video_editing_in_progress'),
+    status: internalStatusView('under_editing_or_designing'),
     href: '#',
   },
   {
@@ -49,7 +47,7 @@ const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
     personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
     productName: 'Niagara Deep Sleep Weighted Blanket',
     themeName: 'Problem/Solution',
-    status: internalStatusView(TRACK, 'videos_revisions'),
+    status: internalStatusView('revisions_needed'),
     href: '#',
   },
   {
@@ -61,7 +59,7 @@ const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
     personaName: 'Marcus — the rotating-shift nurse who cannot switch off',
     productName: 'Niagara Cooling Blackout Sleep Mask',
     themeName: 'POV: X vs Y',
-    status: internalStatusView(TRACK, 'ad_submitted'),
+    status: internalStatusView('ad_submitted'),
     href: '#',
   },
   {
@@ -73,7 +71,7 @@ const SAMPLE_CONCEPTS: readonly ConceptItem[] = [
     personaName: 'Priya — the new parent running on broken sleep',
     productName: 'Niagara Cooling Blackout Sleep Mask',
     themeName: 'Yapper Style',
-    status: internalStatusView(TRACK, 'approved'),
+    status: internalStatusView('approved'),
     href: '#',
   },
 ];
@@ -90,11 +88,11 @@ export function ConceptsViewToggleStory() {
   );
 }
 
-/** The board: one column per internal step, an empty column kept, the count on the status chip. */
+/** The board: one column per internal step (seven), an empty column kept, the count on the status chip. */
 export function ConceptsBoardStory() {
   return (
     <ConceptBoard
-      columns={conceptColumns(TRACK, SAMPLE_CONCEPTS)}
+      columns={conceptColumns(SAMPLE_CONCEPTS)}
       onOpen={() => {
         // A story has nowhere to navigate to; the product pushes `/app/concepts/<id>`.
       }}

@@ -50,7 +50,7 @@ describe('the three buttons follow the guard the actions re-run', () => {
   it('Ad Submitted with QA incomplete: Request Changes on, Approve and Submit off with the reasons', () => {
     const actions = focusActions(row({ qaStrategist: true }));
 
-    expect(actions.revisionStep).toBe('videos_revisions');
+    expect(actions.revisionStep).toBe('revisions_needed');
     expect(actions.requestChanges).toEqual({ enabled: true, hint: null });
     expect(actions.approve).toEqual({
       enabled: false,
@@ -68,7 +68,7 @@ describe('the three buttons follow the guard the actions re-run', () => {
     );
     const staticRow = row({ briefType: 'Static', qaDesigner: true, qaStrategist: true });
     expect(focusActions(staticRow).approve.enabled).toBe(true);
-    expect(focusActions(staticRow).revisionStep).toBe('images_revisions');
+    expect(focusActions(staticRow).revisionStep).toBe('revisions_needed');
     expect(
       focusActions(row({ briefType: 'Static', qaVideoEditor: true, qaStrategist: true })).approve
         .hint,
@@ -87,9 +87,6 @@ describe('the three buttons follow the guard the actions re-run', () => {
     const pending = row({ internalStatus: 'approved', qaVideoEditor: true, qaStrategist: true });
     expect(focusActions(pending).submitToClient.hint).toBe(
       'This creative is already with the client.',
-    );
-    expect(focusActions(row({ internalStatus: 'on_hold' })).submitToClient.hint).toBe(
-      'This creative is on hold.',
     );
   });
 });

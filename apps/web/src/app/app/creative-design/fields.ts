@@ -17,14 +17,13 @@ import type { InspoLinkKind } from '@tas/domain/angles';
 import { inheritedFromAngle } from '@tas/domain/concepts';
 import {
   CLIENT_STATUS,
+  INTERNAL_STATUS,
+  INTERNAL_TRANSITIONS,
   chipTone,
   editorStageLabel,
   editorStageOf,
   editorStageTone,
-  internalStatusFor,
-  internalTransitionsFor,
   type ChipTone,
-  type CreativeTrack,
   type EditorStageKey,
   type InternalStatusKey,
 } from '@tas/domain/state';
@@ -176,11 +175,12 @@ export interface BriefStatusView {
 }
 
 /**
- * The view of one stored internal status on its own track. Total on purpose: a key this build's
- * track does not list renders its own value in the muted tone rather than an empty cell.
+ * The view of one stored internal status (one list for both tracks since the Oct 12 client sync,
+ * Ticket 5 / migration 0067). Total on purpose: a key this build does not list renders its own
+ * value in the muted tone rather than an empty cell.
  */
-export function internalStatusView(track: CreativeTrack, key: InternalStatusKey): BriefStatusView {
-  const entry = internalStatusFor(track).find((step) => step.key === key);
+export function internalStatusView(key: InternalStatusKey): BriefStatusView {
+  const entry = INTERNAL_STATUS.find((step) => step.key === key);
   return entry === undefined
     ? { key, label: key, tone: 'mute' }
     : { key: entry.key, label: entry.label, tone: chipTone(entry.label) };
@@ -595,7 +595,7 @@ export function filteredBriefCountLabel(visible: number, total: number): string 
 /**
  * The search reads everything the table shows: the generated name, the concept, the type label, the
  * priority, the assignee and the internal status LABEL — so "revisions" finds the row whose chip
- * says `Images Revisions` without this module ever writing that string, and "standalone" finds the
+ * says `Revisions Needed` without this module ever writing that string, and "standalone" finds the
  * brief with no concept because that cell renders the slug. `query` arrives lowercased and trimmed.
  */
 export function matchesQuery(item: BriefItem, query: string): boolean {
@@ -781,19 +781,18 @@ export const BRIEF_DIMENSIONS_SAVE_LABELS = {
 } as const;
 
 /**
- * The next step on this brief's own internal ladder, or `null` at the end of it.
+ * The next step on the internal track, or `null` at the end of it.
  *
- * Read from the state machine's transition table, never from a list written here. `on_hold` is
- * skipped on purpose: it is the non-linear branch the handoff renders as a side badge, so it is not
- * what "advance" means, and the button offers the linear next step the stepper can draw.
+ * Read from `INTERNAL_TRANSITIONS`, never from a list written here. The first allowed target in
+ * `INTERNAL_STATUS` order is what Advance offers: from `ad_submitted` and `revisions_submitted`
+ * that is `revisions_needed` — Approve is the QA-gated action, not Advance.
  */
-export function nextInternalStatus(
-  track: CreativeTrack,
-  current: InternalStatusKey,
-): BriefStatusView | null {
-  const allowed = internalTransitionsFor(track)[current] ?? [];
-  const next = internalStatusFor(track).find((entry) => allowed.includes(entry.key));
-  return next === undefined ? null : internalStatusView(track, next.key);
+export function nextInternalStatus(current: InternalStatusKey): BriefStatusView | null {
+  // Read with a widened index, as the domain reads its own table: total over any key.
+  const table: Readonly<Record<string, readonly string[]>> = INTERNAL_TRANSITIONS;
+  const allowed = table[current] ?? [];
+  const next = INTERNAL_STATUS.find((entry) => allowed.includes(entry.key));
+  return next === undefined ? null : internalStatusView(next.key);
 }
 
 /** What the advance button says, so the label and the step it moves to cannot disagree. */

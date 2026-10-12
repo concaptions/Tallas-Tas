@@ -2,12 +2,8 @@ import type { BriefListRow, Db } from '@tas/db';
 import { demoBriefs, demoConcepts, demoCopy, demoCreators, listBrandsForActor } from '@tas/db';
 import type { BrandRole } from '@tas/domain';
 import { BRAND_ROLE_LABELS, computePipelineSummary, type PipelineSummary } from '@tas/domain';
-import {
-  INTERNAL_STATIC_STATUS,
-  INTERNAL_VIDEO_STATUS,
-  type ClientStatusKey,
-  type InternalStatusKey,
-} from '@tas/domain/state';
+import { creativeTrack } from '@tas/domain/creatives';
+import { INTERNAL_STATUS, type ClientStatusKey, type InternalStatusKey } from '@tas/domain/state';
 import { serverEnv } from '@tas/env';
 
 import { loadBriefs, type BriefSourceDeps, type DbConnection } from './briefs-source';
@@ -65,18 +61,28 @@ function briefsIn(briefs: readonly BriefListRow[], statuses: readonly string[]):
  * here, typed, moves that check to one place — rename a key in `@tas/domain/state` and this module
  * fails to compile instead of quietly counting zero (UI governance rule 2).
  *
- * `INTERNAL_REVISION_KEYS` is the pair of track-specific revision steps, one per ladder.
+ * `INTERNAL_REVISION_KEYS` is the one revision step of the one internal list (Oct 12 client sync).
  * `revisions_submitted` is deliberately NOT one of them: that step is the editor's re-upload, which
- * is waiting on a reviewer, not on revisions, and it is shared by both ladders.
+ * is waiting on a reviewer, not on revisions.
  */
-const INTERNAL_REVISION_KEYS: readonly InternalStatusKey[] = [
-  'videos_revisions',
-  'images_revisions',
-];
+const INTERNAL_REVISION_KEYS: readonly InternalStatusKey[] = ['revisions_needed'];
+const INTERNAL_WORKING: InternalStatusKey = 'under_editing_or_designing';
 const INTERNAL_APPROVED: InternalStatusKey = 'approved';
 const CLIENT_PENDING: ClientStatusKey = 'pending_for_approval';
 const CLIENT_APPROVED: ClientStatusKey = 'approved';
 const CLIENT_REVISIONS_NEEDED: ClientStatusKey = 'revisions_needed';
+const CLIENT_LAUNCHED: ClientStatusKey = 'launched';
+
+/**
+ * Whether the ad is live. The launch is NOT an internal status since the Oct 12 client sync
+ * (Ticket 5 / migration 0067 folded the old internal `launched` into `approved`): it is the CLIENT
+ * track's own `launched`, set by the media buyer, and the brief's `launched_at` timestamp. Every
+ * "not yet live" tile below excludes exactly this, so an internally approved creative still
+ * waiting on the client keeps counting as work.
+ */
+function isLive(b: BriefListRow): boolean {
+  return b.clientStatus === CLIENT_LAUNCHED || b.launchedAt !== null;
+}
 
 function strategistItems(data: DashboardData): DashboardItem[] {
   const { briefs, concepts } = data;
@@ -88,12 +94,12 @@ function strategistItems(data: DashboardData): DashboardItem[] {
     },
     {
       label: 'Creatives in early stages',
-      count: briefsIn(briefs, ['sent_to_video_editor', 'static_design_in_progress']),
+      count: briefsIn(briefs, ['draft', 'sent_to_editor_or_designer']),
       href: creativeSheetPath,
     },
     {
       label: 'Creatives needing QA sign-off',
-      count: briefs.filter((b) => !b.qaStrategist && b.internalStatus !== 'launched').length,
+      count: briefs.filter((b) => !b.qaStrategist && !isLive(b)).length,
       href: internalQueuePath,
     },
   ];
@@ -104,12 +110,16 @@ function editorItems(data: DashboardData): DashboardItem[] {
   return [
     {
       label: 'Creatives in production',
-      count: briefsIn(briefs, ['sent_to_video_editor', 'in_review', 'ad_submitted']),
+      count: briefsIn(briefs, [
+        'sent_to_editor_or_designer',
+        'under_editing_or_designing',
+        'ad_submitted',
+      ]),
       href: internalQueuePath,
     },
     {
       label: 'Needing editor QA',
-      count: briefs.filter((b) => !b.qaVideoEditor && b.internalStatus !== 'launched').length,
+      count: briefs.filter((b) => !b.qaVideoEditor && !isLive(b)).length,
       href: internalQueuePath,
     },
     {
@@ -125,18 +135,21 @@ function designerItems(data: DashboardData): DashboardItem[] {
   return [
     {
       label: 'Design in progress',
-      count: briefsIn(briefs, ['static_design_in_progress']),
+      // The working step is one status for both tracks; the designer's tile keeps counting only
+      // the static track, which the brief's type decides through `creativeTrack`.
+      count: briefs.filter(
+        (b) => b.internalStatus === INTERNAL_WORKING && creativeTrack(b.type) === 'static',
+      ).length,
       href: internalQueuePath,
     },
     {
       label: 'Needing designer QA',
-      count: briefs.filter((b) => !b.qaDesigner && b.internalStatus !== 'launched').length,
+      count: briefs.filter((b) => !b.qaDesigner && !isLive(b)).length,
       href: internalQueuePath,
     },
     {
       label: 'Creatives without design file',
-      count: briefs.filter((b) => b.designFileUrl === null && b.internalStatus !== 'launched')
-        .length,
+      count: briefs.filter((b) => b.designFileUrl === null && !isLive(b)).length,
       href: creativeSheetPath,
     },
   ];
@@ -151,12 +164,9 @@ function designerItems(data: DashboardData): DashboardItem[] {
  */
 function csmItems(data: DashboardData): DashboardItem[] {
   const { briefs } = data;
-  const pending = briefs.filter(
-    (b) => b.internalStatus !== 'approved' && b.internalStatus !== 'launched',
-  );
-  const clientReady = briefs.filter(
-    (b) => b.internalStatus === 'approved' || b.internalStatus === 'launched',
-  );
+  // Internal Approved is the team's finish line: everything before it is still in progress.
+  const pending = briefs.filter((b) => b.internalStatus !== INTERNAL_APPROVED);
+  const clientReady = briefs.filter((b) => b.internalStatus === INTERNAL_APPROVED);
   return [
     { label: 'Creatives in progress', count: pending.length, href: internalQueuePath },
     { label: 'Ready for client', count: clientReady.length, href: internalQueuePath },
@@ -166,9 +176,9 @@ function csmItems(data: DashboardData): DashboardItem[] {
 function mediaBuyerItems(data: DashboardData): DashboardItem[] {
   const { briefs } = data;
   const launchReady = briefs.filter(
-    (b) => b.internalStatus === 'approved' && b.clientStatus === 'approved',
+    (b) => b.internalStatus === INTERNAL_APPROVED && b.clientStatus === CLIENT_APPROVED,
   );
-  const launched = briefs.filter((b) => b.internalStatus === 'launched');
+  const launched = briefs.filter(isLive);
   return [
     { label: 'Ads to launch', count: launchReady.length, href: internalQueuePath },
     { label: 'Currently live', count: launched.length, href: internalQueuePath },
@@ -237,18 +247,20 @@ export interface MetricCard {
 }
 
 /**
- * The ELEVEN pipeline cards of Talal's reference dashboard, counted with the domain's own KEYS —
- * never a label string — and each linking to the table view already filtered to what it counted
- * (`?status=` / `?client=` on the Briefs table, which filters on both when both are given).
+ * The NINE pipeline cards — Talal's reference dashboard had eleven, and the Oct 12 client sync
+ * (Ticket 5 / migration 0067) merged its two per-track pairs (Sent to Video Editor / Sent to
+ * Designer, Videos in Progress / Designs in Progress) into the one list's Sent to Editor /
+ * Designer and Under Editing / Designing — counted with the domain's own KEYS, never a label
+ * string, and each linking to the table view already filtered to what it counted (`?status=` /
+ * `?client=` on the Briefs table, which filters on both when both are given).
  *
- * Three of the eleven were missing until action item 6: Internal Revisions, Client Revisions and
- * Ads to Launch. All three count data that was already stored; none introduces a new column.
+ * Three of them were missing until action item 6: Internal Revisions, Client Revisions and Ads to
+ * Launch. All three count data that was already stored; none introduces a new column.
  *
  * Three cards land on a table UNFILTERED, and each for a stated reason rather than by omission:
  * Concepts Pending and Creators Pending because pending IS those tables' resting state, and
- * Internal Revisions because it counts two internal statuses at once (one per track) — so it opens
- * the Internal Queue board, which groups by internal status and therefore shows both revision
- * columns side by side.
+ * Internal Revisions because it opens the Internal Queue board, which groups by internal status
+ * and so shows the Revisions Needed column in its place on the strip.
  *
  * The brief cards open the Creative Sheet (2026-10-09): the Creative Design LIST page is removed
  * from the app, and the sheet is where the brand's creatives are listed now. The sheet takes no
@@ -282,31 +294,17 @@ function allMetricCards(data: MetricsData): MetricCard[] {
       href: ugcPath,
     },
     {
-      key: 'sent_to_video_editor',
+      key: 'sent_to_editor_or_designer',
       emoji: '📹',
-      label: 'Sent to Video Editor',
-      count: briefsIn(briefs, ['sent_to_video_editor']),
+      label: 'Sent to Editor / Designer',
+      count: briefsIn(briefs, ['sent_to_editor_or_designer']),
       href: creativeSheetPath,
     },
     {
-      key: 'sent_to_designer',
-      emoji: '🎨',
-      label: 'Sent to Designer',
-      count: briefsIn(briefs, ['sent_to_designer']),
-      href: creativeSheetPath,
-    },
-    {
-      key: 'video_editing_in_progress',
+      key: 'under_editing_or_designing',
       emoji: '⚡',
-      label: 'Videos in Progress',
-      count: briefsIn(briefs, ['video_editing_in_progress']),
-      href: creativeSheetPath,
-    },
-    {
-      key: 'static_design_in_progress',
-      emoji: '🖌️',
-      label: 'Designs in Progress',
-      count: briefsIn(briefs, ['static_design_in_progress']),
+      label: 'Under Editing / Designing',
+      count: briefsIn(briefs, ['under_editing_or_designing']),
       href: creativeSheetPath,
     },
     {
@@ -350,7 +348,20 @@ function allMetricCards(data: MetricsData): MetricCard[] {
 }
 
 /**
- * Which of the eleven cards each role scans for. Admin, CSM and strategist run the whole pipeline.
+ * The maker's cards: the editor's and the designer's are the SAME list since the Oct 12 client
+ * sync, because the statuses are — the brief's type decides who builds it, not which words it
+ * carries. Hoisted so the two role lists cannot drift.
+ */
+const PRODUCTION_CARD_KEYS: readonly string[] = [
+  'sent_to_editor_or_designer',
+  'under_editing_or_designing',
+  'ad_submitted',
+  'internal_revisions',
+  'client_revisions',
+];
+
+/**
+ * Which of the nine cards each role scans for. Admin, CSM and strategist run the whole pipeline.
  *
  * The three cards action item 6 added are routed by WHOSE DESK the work lands on, not by which
  * table they read. Both revision cards reach the editor and the designer, because a brief sent back
@@ -359,33 +370,21 @@ function allMetricCards(data: MetricsData): MetricCard[] {
  *
  * `client_revisions` is the only one of the three a CLIENT may see, and it is safe BY DEFINITION:
  * `revisions_needed` is a member of `CLIENT_STATUS`, so it is the client's own status rather than
- * internal data (non-negotiable 10). `internal_revisions` counts two statuses whose descriptions
- * say "Client never sees this state", so it reaches no client-facing set.
+ * internal data (non-negotiable 10). `internal_revisions` counts a status whose description says
+ * "Client never sees this state", so it reaches no client-facing set.
  */
 const CARD_KEYS_BY_ROLE: Record<BrandRole | 'admin', readonly string[] | 'all'> = {
   admin: 'all',
   csm: 'all',
   strategist: 'all',
-  video_editor: [
-    'sent_to_video_editor',
-    'video_editing_in_progress',
-    'ad_submitted',
-    'internal_revisions',
-    'client_revisions',
-  ],
-  designer: [
-    'sent_to_designer',
-    'static_design_in_progress',
-    'ad_submitted',
-    'internal_revisions',
-    'client_revisions',
-  ],
+  video_editor: PRODUCTION_CARD_KEYS,
+  designer: PRODUCTION_CARD_KEYS,
   media_buyer: ['ad_submitted', 'awaiting_client', 'ads_to_launch'],
   client: ['awaiting_client', 'client_revisions'],
 };
 
 /**
- * What the eleven cards actually read: everything but `copy`, which only the editor's role TILE
+ * What the nine cards actually read: everything but `copy`, which only the editor's role TILE
  * counts. Named so the per-brand panel loader (below) can skip the one table the cards never touch
  * instead of feeding them an empty array that would lie if a copy card ever appeared.
  * `DashboardData` satisfies it, so every existing caller passes unchanged.
@@ -408,22 +407,14 @@ export interface PipelineStep {
 }
 
 /**
- * Briefs per internal status, in ladder order: the video track's seven steps, with the static
- * track's track-specific steps merged in after their video analogues (the rest are shared).
- * Every brief rests at exactly one step, so the counts sum to the brief count.
+ * Briefs per internal status, in `INTERNAL_STATUS` flow order: the one list for both tracks (Oct
+ * 12 client sync). Every brief on the list rests at exactly one step, so the counts sum to the
+ * brief count; a stored value this build does not know is in no step.
  */
 export function buildPipeline(briefs: readonly BriefListRow[]): PipelineStep[] {
-  const seen = new Set<string>();
-  const ladder: { key: string; label: string }[] = [];
-  for (const track of [INTERNAL_VIDEO_STATUS, INTERNAL_STATIC_STATUS]) {
-    for (const step of track) {
-      if (seen.has(step.key)) continue;
-      seen.add(step.key);
-      ladder.push({ key: step.key, label: step.label });
-    }
-  }
-  return ladder.map((step) => ({
-    ...step,
+  return INTERNAL_STATUS.map((step) => ({
+    key: step.key,
+    label: step.label,
     count: briefs.filter((b) => b.internalStatus === step.key).length,
   }));
 }
@@ -495,8 +486,8 @@ export function conceptsForPipeline(
 }
 
 /**
- * Everything the Overview's role-aware sections render — the role tiles, the eight metric cards
- * and the pipeline chart — over ONE load of the four tables, so the page never reads briefs twice.
+ * Everything the Overview's role-aware sections render — the role tiles, the metric cards and the
+ * pipeline chart — over ONE load of the four tables, so the page never reads briefs twice.
  */
 export async function loadOverviewPanels(
   role: BrandRole | 'admin',

@@ -147,7 +147,17 @@ What is live in production (Railway Postgres, Vercel on every push to `main`):
   Funky Painting. The stray `test` brand is soft-deleted. No FIXD / KillenFrog / Killen Academy brand
   exists yet; `custom_field_schemas` is empty; `propagation_runs` was empty until B3 — nothing has
   ever propagated to a client brand, and nothing is scheduled to (no cron, no job runner package).
-- **Migrations applied on Railway**: through 0062 (`custom_interface_pages.page_kind / module_key /
+- **Internal status (2026-10-12, Oct 12 client sync Ticket 5)**: ONE list for both tracks —
+  `draft → sent_to_editor_or_designer → under_editing_or_designing → ad_submitted → revisions_needed →
+  revisions_submitted → approved` (`INTERNAL_STATUS` in `@tas/domain/state`; `revisions_submitted` keeps
+  the stored plural spelling). `launched` is CLIENT-track only (plus `launched_at`); `on_hold` is gone.
+  Migration 0067 moved the briefs (approved 373, revisions_submitted 17, under_editing_or_designing 5,
+  sent_to_editor_or_designer 2, ad_submitted 1); 0068 sets both column defaults to `draft` and moves
+  the concept rows (`concepts.internal_status` shares the vocabulary) — apply it with `apply68.mjs`.
+- **Migrations applied on Railway**: through 0067 (0066 dropped `copywriting.used / winning /
+  meta_rating / client_comment` and `concepts.formats_to_create / production_status`; both applied by
+  hand on 2026-10-12, `apply66.mjs` / `apply67.mjs` record their hashes); 0068 is written and PENDING.
+  Earlier: 0062 (`custom_interface_pages.page_kind / module_key /
   template_row_id / overridden_fields`). Apply scripts are `packages/db/applyNN.mjs`, never
   `db:migrate`.
 
@@ -188,8 +198,8 @@ Every UI ticket after TICKET-DS-01..05 must, in this order, and the reviewer rej
 1. Import colours, fonts and radii from the token layer (`packages/ui/src/styles/tokens.css` through the
    Tailwind semantic classes `bg-surface`, `text-text2`, `border-line`, `bg-accent`, `text-ok`, `font-mono`,
    `rounded-input`, `rounded-card`, …). Never a hex value, never `rounded-full` on a button.
-2. Import status values from `@tas/domain/state` (`INTERNAL_VIDEO_STATUS`, `INTERNAL_STATIC_STATUS`,
-   `CLIENT_STATUS`, `isClientTrackOpen`, `chipTone`, `stepState`). Never a magic string.
+2. Import status values from `@tas/domain/state` (`INTERNAL_STATUS`, `CLIENT_STATUS`,
+   `isClientTrackOpen`, `chipTone`, `stepState`). Never a magic string.
 3. Import `StatusChip` and `StepRow` from `@tas/ui` (`packages/ui/src/status/`). Never re-implement a
    status pill or a stepper row.
 4. Render every new primitive or status-bearing component on the `/design-system` page (as a story in a

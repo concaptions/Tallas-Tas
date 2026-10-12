@@ -365,22 +365,38 @@ const MAPS = {
     approved: 'approved',
     denied: 'disapproved',
   },
-  // Creative Design.'Internal Status' → INTERNAL_VIDEO/STATIC_STATUS keys. Feriel and Nadish are
-  // Gratsi's video editors; their per-person stages collapse onto the domain ladder.
+  // Creative Design.'Internal Status' → INTERNAL_STATUS keys (one list, Oct 12 Ticket 5). Feriel
+  // and Nadish are Gratsi's video editors; their per-person stages collapse onto the one ladder
+  // with the 0067 rules. The KEYS are the base's option labels, normalized — not brief keys.
   briefInternal: {
-    sent_to_designer: 'sent_to_designer',
-    sent_to_feriel: 'sent_to_video_editor',
-    sent_to_nadish: 'sent_to_video_editor',
-    video_editing_in_progress_feriel: 'video_editing_in_progress',
-    video_editing_in_progress_nadish: 'video_editing_in_progress',
-    video_editing_on_hold: 'on_hold',
-    video_revision_feriel: 'videos_revisions',
-    video_revision_nadish: 'videos_revisions',
+    sent_to_designer: 'sent_to_editor_or_designer',
+    sent_to_feriel: 'sent_to_editor_or_designer',
+    sent_to_nadish: 'sent_to_editor_or_designer',
+    video_editing_in_progress_feriel: 'under_editing_or_designing',
+    video_editing_in_progress_nadish: 'under_editing_or_designing',
+    // 0067's on_hold → draft, made explicit so the hold never mints a retired key.
+    video_editing_on_hold: 'draft',
+    video_revision_feriel: 'revisions_needed',
+    video_revision_nadish: 'revisions_needed',
     ad_submitted: 'ad_submitted',
     approved: 'approved',
-    images_revisions: 'images_revisions',
+    images_revisions: 'revisions_needed',
     revisions_submitted: 'revisions_submitted',
     design_submitted: 'ad_submitted',
+    // Guard and identity entries: the miss path below stores the normalized label verbatim, so a
+    // base option spelled like a retired key or like a current key must land on the list, never
+    // mint 'launched' / 'on_hold' (0067 folded them into approved / draft).
+    launched: 'approved',
+    on_hold: 'draft',
+    // The retired per-track spellings themselves, in case a base names an option exactly so.
+    sent_to_video_editor: 'sent_to_editor_or_designer',
+    video_editing_in_progress: 'under_editing_or_designing',
+    static_design_in_progress: 'under_editing_or_designing',
+    videos_revisions: 'revisions_needed',
+    draft: 'draft',
+    sent_to_editor_or_designer: 'sent_to_editor_or_designer',
+    under_editing_or_designing: 'under_editing_or_designing',
+    revisions_needed: 'revisions_needed',
   },
   // Creative Design.'Client Status' → CLIENT_STATUS: the four labels normalize onto the keys 1:1.
   briefClient: {

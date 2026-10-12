@@ -110,7 +110,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     const revisions = page
       .locator(`[data-concept-id="${BODY_CLOCK}"] [data-slot="status-chip"]`)
       .first();
-    await expect(revisions).toHaveText('Videos Revisions');
+    await expect(revisions).toHaveText('Revisions Needed');
     await expect(revisions).toHaveAttribute('data-tone', 'warn');
   });
 
@@ -225,7 +225,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(panel).toContainText('Problem/Solution');
     const chips = panel.locator('[data-slot="status-chip"]');
     await expect(chips).toHaveCount(2);
-    await expect(chips.first()).toHaveText('Videos Revisions');
+    await expect(chips.first()).toHaveText('Revisions Needed');
 
     // A click on another row SWITCHES the panel to that concept rather than closing it.
     await page.locator(`[data-slot="concept-row"][data-concept-id="${NOT_YOUR_AGE}"]`).click();
@@ -371,7 +371,6 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(rail).toBeVisible();
 
     const widget = rail.locator('[data-slot="two-track-approval"]');
-    await expect(widget).toHaveAttribute('data-track', 'video');
     // clientOnly is false, so BOTH bars render.
     await expect(widget.locator('[data-slot="internal-track"]')).toBeVisible();
 

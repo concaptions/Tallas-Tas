@@ -1,10 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import {
-  CLIENT_TRACK_STEPS,
-  INTERNAL_STATIC_STATUS,
-  INTERNAL_VIDEO_STATUS,
-} from '@tas/domain/state';
+import { CLIENT_TRACK_STEPS, INTERNAL_STATUS } from '@tas/domain/state';
 
 import { CLIENT_TRACK_LIVE_NOTE, CLIENT_TRACK_LOCKED_NOTE, TwoTrackApproval } from './two-track';
 
@@ -36,7 +32,7 @@ function clientTrack(container: HTMLElement): HTMLElement {
 describe('TwoTrackApproval — the gate', () => {
   it('dims the client bar and reads locked while internal is earlier than Approved', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="ad_submitted" client="pending_for_approval" />,
+      <TwoTrackApproval internal="ad_submitted" client="pending_for_approval" />,
     );
     const track = clientTrack(container);
 
@@ -51,7 +47,7 @@ describe('TwoTrackApproval — the gate', () => {
 
   it('goes live at Approved: full opacity and saturation, accent border, live note', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="approved" client="pending_for_approval" />,
+      <TwoTrackApproval internal="approved" client="pending_for_approval" />,
     );
     const track = clientTrack(container);
 
@@ -63,16 +59,14 @@ describe('TwoTrackApproval — the gate', () => {
     expect(screen.queryByText('locked')).toBeNull();
   });
 
-  it('stays live at Launched', () => {
-    const { container } = render(
-      <TwoTrackApproval track="video" internal="launched" client="launched" />,
-    );
+  it('stays live at Approved with client Launched', () => {
+    const { container } = render(<TwoTrackApproval internal="approved" client="launched" />);
     expect(clientTrack(container).dataset['open']).toBe('true');
   });
 
   it('carries the 500ms CSS transition on the client bar wrapper', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="ad_submitted" client="pending_for_approval" />,
+      <TwoTrackApproval internal="ad_submitted" client="pending_for_approval" />,
     );
     const transition = clientTrack(container).style.transition;
     expect(transition).toContain('opacity 500ms ease');
@@ -82,40 +76,41 @@ describe('TwoTrackApproval — the gate', () => {
 });
 
 describe('TwoTrackApproval — the internal bar', () => {
-  it('renders the video stepper with the current step marked now', () => {
+  it('renders the internal stepper with the current step marked now', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="ad_submitted" client="pending_for_approval" />,
+      <TwoTrackApproval internal="ad_submitted" client="pending_for_approval" />,
     );
     const steps = container.querySelectorAll('[data-slot="internal-steps"] [data-slot="step-row"]');
-    expect(steps).toHaveLength(INTERNAL_VIDEO_STATUS.length);
-    // `Launched` and `Approved` appear in both steppers, so every lookup is scoped to one bar.
-    expect(stepStateOf(container, 'internal-steps', 'Sent to Video Editor')).toBe('done');
+    expect(steps).toHaveLength(INTERNAL_STATUS.length);
+    // `Approved` appears in both steppers, so every lookup is scoped to one bar.
+    expect(stepStateOf(container, 'internal-steps', 'Sent to Editor / Designer')).toBe('done');
     expect(stepStateOf(container, 'internal-steps', 'Ad Submitted')).toBe('now');
-    expect(stepStateOf(container, 'internal-steps', 'Launched')).toBe('next');
+    expect(stepStateOf(container, 'internal-steps', 'Approved')).toBe('next');
     expect(stepStateOf(container, 'client-steps', 'Pending for Approval')).toBe('now');
   });
 
-  it('renders the static stepper on the static track', () => {
+  /**
+   * One list for both tracks (Oct 12 client sync, Ticket 5 / 0067): a static brief walks the same
+   * seven steps as a video one, and no track-specific label exists any more.
+   */
+  it('renders the same seven steps for a static brief', () => {
     const { container } = render(
-      <TwoTrackApproval
-        track="static"
-        internal="static_design_in_progress"
-        client="pending_for_approval"
-      />,
+      <TwoTrackApproval internal="under_editing_or_designing" client="pending_for_approval" />,
     );
     const steps = container.querySelectorAll('[data-slot="internal-steps"] [data-slot="step-row"]');
-    expect(steps).toHaveLength(INTERNAL_STATIC_STATUS.length);
-    expect(screen.getByText('Sent to Designer')).toBeDefined();
+    expect(steps).toHaveLength(INTERNAL_STATUS.length);
+    expect(steps).toHaveLength(7);
+    expect(screen.getByText('Sent to Editor / Designer')).toBeDefined();
     // Twice: once as the step row, once as the header chip for the current status.
-    expect(screen.getAllByText('Static Design in Progress')).toHaveLength(2);
+    expect(screen.getAllByText('Under Editing / Designing')).toHaveLength(2);
     expect(screen.queryByText('Sent to Video Editor')).toBeNull();
+    expect(screen.queryByText('Sent to Designer')).toBeNull();
   });
 
   it('hides the internal bar entirely and never dims the client bar with clientOnly', () => {
     const { container } = render(
       <TwoTrackApproval
-        track="video"
-        internal="video_editing_in_progress"
+        internal="under_editing_or_designing"
         client="pending_for_approval"
         clientOnly
       />,
@@ -127,14 +122,14 @@ describe('TwoTrackApproval — the internal bar', () => {
     expect(track.style.opacity).toBe('1');
     expect(screen.getByText(CLIENT_TRACK_LIVE_NOTE)).toBeDefined();
     // Internal step labels must never reach a client screen.
-    expect(screen.queryByText('Video Editing in Progress')).toBeNull();
+    expect(screen.queryByText('Under Editing / Designing')).toBeNull();
   });
 });
 
 describe('TwoTrackApproval — advance handlers', () => {
   it('hides the client bar entirely with internalOnly, keeping the internal stepper (SMOKE-27)', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="ad_submitted" client="approved" internalOnly />,
+      <TwoTrackApproval internal="ad_submitted" client="approved" internalOnly />,
     );
     expect(container.querySelector('[data-slot="client-track"]')).toBeNull();
     expect(container.querySelector('[data-slot="internal-track"]')).not.toBeNull();
@@ -143,7 +138,7 @@ describe('TwoTrackApproval — advance handlers', () => {
 
   it('renders no buttons when no handler is given', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="approved" client="pending_for_approval" />,
+      <TwoTrackApproval internal="approved" client="pending_for_approval" />,
     );
     expect(container.querySelectorAll('button')).toHaveLength(0);
   });
@@ -152,7 +147,6 @@ describe('TwoTrackApproval — advance handlers', () => {
     const noop = (): void => undefined;
     const { container: closed } = render(
       <TwoTrackApproval
-        track="video"
         internal="ad_submitted"
         client="pending_for_approval"
         onAdvanceInternal={noop}
@@ -166,12 +160,7 @@ describe('TwoTrackApproval — advance handlers', () => {
     ).toBe(true);
 
     const { container: open } = render(
-      <TwoTrackApproval
-        track="video"
-        internal="approved"
-        client="pending_for_approval"
-        onAdvanceClient={noop}
-      />,
+      <TwoTrackApproval internal="approved" client="pending_for_approval" onAdvanceClient={noop} />,
     );
     expect(
       open.querySelector<HTMLButtonElement>('[data-slot="client-track"] button')?.disabled,
@@ -182,7 +171,7 @@ describe('TwoTrackApproval — advance handlers', () => {
 describe('TwoTrackApproval — the client branch', () => {
   it('walks the linear client path only: Revisions Needed is never a step row', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="approved" client="pending_for_approval" />,
+      <TwoTrackApproval internal="approved" client="pending_for_approval" />,
     );
     const steps = container.querySelectorAll('[data-slot="client-steps"] [data-slot="step-row"]');
 
@@ -196,7 +185,7 @@ describe('TwoTrackApproval — the client branch', () => {
    */
   it('marks nothing done while the creative sits on the Revisions Needed branch', () => {
     const { container } = render(
-      <TwoTrackApproval track="video" internal="approved" client="revisions_needed" />,
+      <TwoTrackApproval internal="approved" client="revisions_needed" />,
     );
 
     expect(stepStateOf(container, 'client-steps', 'Pending for Approval')).toBe('next');
@@ -205,8 +194,13 @@ describe('TwoTrackApproval — the client branch', () => {
   });
 
   it('names the branch with the header chip instead, in the domain\u2019s own warn tone', () => {
-    render(<TwoTrackApproval track="video" internal="approved" client="revisions_needed" />);
+    const { container } = render(
+      <TwoTrackApproval internal="approved" client="revisions_needed" />,
+    );
 
-    expect(screen.getByText('Revisions Needed').dataset['tone']).toBe('warn');
+    // Scoped to the client bar: the one internal list (0067) carries its own Revisions Needed step.
+    expect(within(clientTrack(container)).getByText('Revisions Needed').dataset['tone']).toBe(
+      'warn',
+    );
   });
 });

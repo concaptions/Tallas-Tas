@@ -1,5 +1,4 @@
 import type { CreativeSheetItemListRow } from '@tas/db';
-import { creativeTrack } from '@tas/domain/creatives';
 import { canStartBrief, type InternalStatusKey } from '@tas/domain/state';
 import { DEMO_WRITE_HINT } from '@tas/ui';
 
@@ -39,7 +38,7 @@ export type EditorBoardSheetRow = Pick<CreativeSheetItemListRow, 'id' | 'name' |
 
 export interface EditorBoardItems {
   readonly items: readonly KanbanItem[];
-  /** Briefs whose stage is null — approved, launched, on hold — and so not on the board. */
+  /** Briefs whose stage is null — draft or approved — and so not on the board. */
   readonly offBoardBriefs: number;
   /** Sheet rows with `brief_id = null`: no brief, so no card to sit under. */
   readonly unlinkedSheetRows: number;
@@ -77,7 +76,7 @@ export function editorBoardItems(
       offBoardBriefs += 1;
       continue;
     }
-    const status = internalStatusView(creativeTrack(brief.type), brief.internalStatus);
+    const status = internalStatusView(brief.internalStatus);
     const priority = priorityView(brief.priority);
     const names = linked.get(brief.id) ?? [];
     items.push({
@@ -121,7 +120,7 @@ export function editorBoardItems(
 
 /** The one line under the board that accounts for what is not on it. Singular at one. */
 export function offBoardLabel(offBoardBriefs: number, unlinkedSheetRows: number): string {
-  const briefs = `${String(offBoardBriefs)} ${offBoardBriefs === 1 ? 'creative' : 'creatives'} off the board (approved, launched or on hold)`;
+  const briefs = `${String(offBoardBriefs)} ${offBoardBriefs === 1 ? 'creative' : 'creatives'} off the board (draft or approved)`;
   const rows = `${String(unlinkedSheetRows)} sheet ${unlinkedSheetRows === 1 ? 'row' : 'rows'} with no creative`;
   return `${briefs} · ${rows}`;
 }

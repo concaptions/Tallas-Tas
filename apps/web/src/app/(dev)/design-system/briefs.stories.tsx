@@ -50,7 +50,7 @@ export function BriefNameStory() {
 export function BriefChipsStory() {
   const high = priorityView('Static High');
   const average = priorityView('Video Average');
-  const status = internalStatusView('static', 'images_revisions');
+  const status = internalStatusView('revisions_needed');
 
   return (
     <div className="flex flex-wrap items-center gap-3">

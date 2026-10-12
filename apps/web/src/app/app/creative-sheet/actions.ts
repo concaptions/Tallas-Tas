@@ -11,7 +11,11 @@ import {
 } from '@tas/db';
 import { diffFields } from '@tas/domain';
 import { isKnownOrLegacyDimension, normalizeCreativeDimensions } from '@tas/domain/creatives';
-import type { ClientStatusKey, InternalStatusOrHoldKey } from '@tas/domain/state';
+import {
+  isInternalStatusKey,
+  type ClientStatusKey,
+  type InternalStatusKey,
+} from '@tas/domain/state';
 import { z } from 'zod';
 
 import { currentActor } from '@/lib/actor';
@@ -23,7 +27,6 @@ import { moveBriefTrack } from './move-brief';
 import {
   currentPosition,
   isClientStatus,
-  isInternalOrHold,
   statusPatch,
   statusRefusal,
   type StatusRefusal,
@@ -39,8 +42,9 @@ import {
  * 2. validate with zod: the two selects accept only KEYS of the state machine's vocabularies, the
  *    four checkboxes coerce from the panel's hidden `'true'` / `''` inputs, and the QA checklist is
  *    one `http(s)` URL per line;
- * 3. ask the domain whether the move is legal (`status-guard.ts`): `canTransitionInternal` on the
- *    brief's own track, the client gate, `canTransitionClient`, and since the Oct 12 client sync
+ * 3. ask the domain whether the move is legal (`status-guard.ts`): `canTransitionInternal` over
+ *    the ONE internal list both creative tracks share (Oct 12 client sync, Ticket 5 / 0067), the
+ *    client gate, `canTransitionClient`, and since the Oct 12 client sync
  *    the QA gate — a move that puts the creative in front of the client needs every tick its type
  *    requires — exactly as the brief page does, so the sheet can never put a creative where its
  *    page could not. A move into a revision state clears the three ticks in the same write;
@@ -246,11 +250,11 @@ export async function updateCreativeSheetItemAction(
       }
       const position = currentPosition(current);
 
-      let internalNext: InternalStatusOrHoldKey = position.internal;
+      let internalNext: InternalStatusKey = position.internal;
       if (values.internalStatus !== null) {
-        if (!isInternalOrHold(position.track, values.internalStatus)) {
+        if (!isInternalStatusKey(values.internalStatus)) {
           return fieldFailure({
-            internalStatus: 'That is not a status on this creative’s internal track.',
+            internalStatus: 'That is not a status on the internal track.',
           });
         }
         internalNext = values.internalStatus;

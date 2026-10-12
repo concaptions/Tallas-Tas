@@ -17,21 +17,22 @@ function at(internalStatus: string, clientStatus = 'pending_for_approval', ticks
 }
 
 describe('currentPosition', () => {
-  it('narrows a stored status outside the ladder to the track’s first step, and reads the ticks', () => {
+  it('narrows a stored status outside INTERNAL_STATUS to the entry state (draft), and reads the ticks', () => {
     expect(at('nonsense', 'nonsense')).toEqual({
       track: 'video',
-      internal: 'sent_to_video_editor',
+      internal: 'draft',
       client: 'pending_for_approval',
       ticks: NONE,
     });
+    // One list for both tracks (Oct 12 / 0067): a static keeps a key the old static ladder lacked.
     expect(
       currentPosition({
         type: 'Static',
-        internalStatus: 'on_hold',
+        internalStatus: 'revisions_submitted',
         clientStatus: 'approved',
         ...VIDEO_DONE,
       }).internal,
-    ).toBe('on_hold');
+    ).toBe('revisions_submitted');
   });
 });
 
@@ -39,9 +40,11 @@ describe('statusRefusal — the machine, then the two client gates', () => {
   it('allows standing still and the ladder’s next step; refuses a skip', () => {
     expect(statusRefusal(at('ad_submitted'), 'ad_submitted', 'pending_for_approval')).toBeNull();
     expect(
-      statusRefusal(at('ad_submitted'), 'videos_revisions', 'pending_for_approval'),
+      statusRefusal(at('ad_submitted'), 'revisions_needed', 'pending_for_approval'),
     ).toBeNull();
-    expect(statusRefusal(at('sent_to_video_editor'), 'approved', 'pending_for_approval')).toEqual({
+    expect(
+      statusRefusal(at('sent_to_editor_or_designer'), 'approved', 'pending_for_approval'),
+    ).toEqual({
       field: 'internalStatus',
       message: NOT_NEXT_INTERNAL,
     });
@@ -80,12 +83,14 @@ describe('statusRefusal — the machine, then the two client gates', () => {
     ).toBeNull();
   });
 
-  it('keeps the first gate: no client move below Approved, none while on hold', () => {
+  it('keeps the first gate: no client move below Approved', () => {
     expect(statusRefusal(at('ad_submitted'), 'ad_submitted', 'approved')).toEqual({
       field: 'status',
       message: CLIENT_GATE_SHUT,
     });
-    expect(statusRefusal(at('video_editing_in_progress'), 'on_hold', 'approved')).toEqual({
+    expect(
+      statusRefusal(at('under_editing_or_designing'), 'under_editing_or_designing', 'approved'),
+    ).toEqual({
       field: 'status',
       message: CLIENT_GATE_SHUT,
     });
@@ -125,11 +130,11 @@ describe('statusPatch — the status write, the client stamp and the QA reset in
     expect(
       statusPatch(
         at('ad_submitted', 'pending_for_approval', VIDEO_DONE),
-        'videos_revisions',
+        'revisions_needed',
         'pending_for_approval',
       ),
     ).toEqual({
-      internalStatus: 'videos_revisions',
+      internalStatus: 'revisions_needed',
       clientStatus: 'pending_for_approval',
       qaVideoEditor: false,
       qaDesigner: false,
@@ -158,9 +163,9 @@ describe('statusPatch — the status write, the client stamp and the QA reset in
       internalStatus: 'approved',
       clientStatus: 'pending_for_approval',
     });
-    expect(statusPatch(at('videos_revisions'), 'videos_revisions', 'pending_for_approval')).toEqual(
+    expect(statusPatch(at('revisions_needed'), 'revisions_needed', 'pending_for_approval')).toEqual(
       {
-        internalStatus: 'videos_revisions',
+        internalStatus: 'revisions_needed',
         clientStatus: 'pending_for_approval',
       },
     );

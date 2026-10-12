@@ -111,8 +111,7 @@ function filledForm(overrides: Partial<ConceptFormValues> = {}): string {
       angles={[angle]}
       themes={[theme]}
       creators={demoCreators.map((row) => ({ id: row.id, name: row.name }))}
-      track="video"
-      internal="sent_to_video_editor"
+      internal="sent_to_editor_or_designer"
       client="pending_for_approval"
       demo={false}
     />,
@@ -283,8 +282,7 @@ describe('the concept heading reads the stored name, never the formula (SMOKE-31
         angles={[angle]}
         themes={[theme]}
         creators={[]}
-        track="video"
-        internal="sent_to_video_editor"
+        internal="sent_to_editor_or_designer"
         client="pending_for_approval"
         demo={false}
       />,

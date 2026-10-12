@@ -15,7 +15,7 @@ import {
 const INCOMING: EditorBoardBrief = {
   id: '77777777-7777-4777-8777-000000000006',
   name: 'TC1-B1-90 Minutes-Problem/Solution-V1',
-  internalStatus: 'sent_to_video_editor',
+  internalStatus: 'sent_to_editor_or_designer',
   type: 'Video',
   priority: 'Video Average',
   assignee: 'Imogen Bardsley',
@@ -24,7 +24,7 @@ const INCOMING: EditorBoardBrief = {
 const EDITING: EditorBoardBrief = {
   id: '77777777-7777-4777-8777-000000000002',
   name: 'TS1-B2-Not Your Age-Green Screen-V1',
-  internalStatus: 'static_design_in_progress',
+  internalStatus: 'under_editing_or_designing',
   type: 'Static',
   priority: null,
   assignee: 'Rhiannon Okafor',
@@ -40,7 +40,8 @@ const REVIEW: EditorBoardBrief = {
 };
 
 const APPROVED: EditorBoardBrief = { ...REVIEW, id: 'approved-1', internalStatus: 'approved' };
-const LAUNCHED: EditorBoardBrief = { ...REVIEW, id: 'launched-1', internalStatus: 'launched' };
+// Draft is off the board since the Oct 12 consolidation: the brief has not reached an editor yet.
+const DRAFT: EditorBoardBrief = { ...REVIEW, id: 'draft-1', internalStatus: 'draft' };
 
 const SHEET_ROWS: readonly EditorBoardSheetRow[] = [
   { id: 'row-1', name: 'September-TM1-B1-Daylight-Problem/Solution-V2', briefId: REVIEW.id },
@@ -76,7 +77,7 @@ describe('editorBoardItems', () => {
 
   it('counts the creatives that are off the board and the sheet rows with no creative', () => {
     const result = editorBoardItems(
-      [INCOMING, APPROVED, LAUNCHED, REVIEW],
+      [INCOMING, APPROVED, DRAFT, REVIEW],
       SHEET_ROWS,
       false,
       vi.fn(),
@@ -111,15 +112,12 @@ describe('editorBoardItems', () => {
 
     for (const [index, brief] of [INCOMING, EDITING, REVIEW].entries()) {
       const stage = briefStageView(brief.internalStatus);
-      const status = internalStatusView(
-        brief.type === 'Static' ? 'static' : 'video',
-        brief.internalStatus,
-      );
+      const status = internalStatusView(brief.internalStatus);
       expect(items[index]?.accentTone).toBe(stage?.tone);
       expect(items[index]?.chipLabel).toBe(status.label);
       expect(items[index]?.chipTone).toBe(status.tone);
     }
-    expect(items[0]?.chipLabel).toBe('Sent to Video Editor');
+    expect(items[0]?.chipLabel).toBe('Sent to Editor / Designer');
     expect(items[0]?.assignee).toBe('Imogen Bardsley');
     expect(items[0]?.badges?.map((badge) => badge.label)).toEqual(['Video Average', 'Video']);
     expect(items[1]?.badges?.map((badge) => badge.label)).toEqual(['Static']);
@@ -129,10 +127,10 @@ describe('editorBoardItems', () => {
 describe('offBoardLabel', () => {
   it('counts both, singular at one', () => {
     expect(offBoardLabel(4, 1)).toBe(
-      '4 creatives off the board (approved, launched or on hold) · 1 sheet row with no creative',
+      '4 creatives off the board (draft or approved) · 1 sheet row with no creative',
     );
     expect(offBoardLabel(1, 0)).toBe(
-      '1 creative off the board (approved, launched or on hold) · 0 sheet rows with no creative',
+      '1 creative off the board (draft or approved) · 0 sheet rows with no creative',
     );
   });
 });

@@ -32,10 +32,10 @@ describe('buildBriefPipeline', () => {
   it('counts each brief into the stage its stored status sits in', () => {
     const { stages } = buildBriefPipeline(
       briefs(
-        'sent_to_video_editor',
-        'sent_to_designer',
-        'video_editing_in_progress',
-        'images_revisions',
+        'sent_to_editor_or_designer',
+        'sent_to_editor_or_designer',
+        'under_editing_or_designing',
+        'revisions_needed',
         'ad_submitted',
       ),
     );
@@ -48,8 +48,10 @@ describe('buildBriefPipeline', () => {
     ]);
   });
 
-  it('counts approved, launched and on hold as off the board, never as a stage', () => {
-    const { stages } = buildBriefPipeline(briefs('approved', 'launched', 'on_hold'));
+  it('counts approved, draft and an unknown key as off the board, never as a stage', () => {
+    // `draft` has not reached the editor; `approved` has left; `on_hold` is a retired spelling
+    // this build does not know (0067 moved every stored row off it), so it is off the board too.
+    const { stages } = buildBriefPipeline(briefs('approved', 'draft', 'on_hold'));
 
     expect(stages.find((stage) => stage.key === OFF_BOARD_KEY)?.count).toBe(3);
     for (const stage of EDITOR_STAGES) {

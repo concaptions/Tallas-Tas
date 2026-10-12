@@ -17,7 +17,7 @@
 | Copy # / Copywriting | copywriting | Ad copy tied to a creative (PRD §5.11) |
 | UGC / Creator | creator | Hired content creator, client-approved (PRD §5.8) |
 | Partnership Ads | partnership | Whitelisted ads from a creator's handle; sub-fields on creator (PRD §5.8.1) |
-| Internal Status | internal_status | Team-only track (PRD §9) |
+| Internal Status | internal_status | Team-only track (PRD §9). One list since 2026-10-12: draft, sent_to_editor_or_designer, under_editing_or_designing, ad_submitted, revisions_needed, revisions_submitted, approved |
 | Client Status / Approval Status | client_status | Client-facing track (PRD §9) |
 | Interface | client interface | Per-brand client-facing pages (PRD §10) |
 | Parent interface / child interface | interface template | Interface config is itself templated and propagated |
@@ -25,7 +25,7 @@
 | Override | overridden_fields | Fields a child edited locally; propagation skips them |
 | CSM | csm | Client Success Manager role |
 | Creative Strategist | strategist | Role |
-| Media Buyer | media_buyer | Role that downloads, launches and marks Launched |
+| Media Buyer | media_buyer | Role that downloads, launches and marks Launched (client track + `launched_at`; not an internal status since 2026-10-12) |
 | Funnel codes | T / R / A | Top of funnel / Retargeting / All funnels (PRD §7) |
 | Format codes | V / S / C / M | Video / Static / Carousel / Motion Image (PRD §7) |
 | Creative name | creative name formula | `{FUNNEL}{FORMAT}{NUMBER}-BATCH-CONCEPT-VERSION(-PRODUCT)`; number increments per funnel+format within a brand |

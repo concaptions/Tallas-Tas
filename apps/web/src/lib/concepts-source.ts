@@ -9,9 +9,8 @@ import {
 } from '@tas/db';
 import {
   CLIENT_STATUS,
-  internalStatusFor,
+  isInternalStatusKey,
   type ClientStatusKey,
-  type CreativeTrack,
   type InternalStatusKey,
 } from '@tas/domain/state';
 import { serverEnv } from '@tas/env';
@@ -45,13 +44,6 @@ import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-colu
  * status to a literal.
  */
 export type ConceptSourceKind = 'database' | 'demo';
-
-/**
- * Concepts run on the VIDEO internal track (PRD §5.7 briefs a video editor; `concepts.internal_status`
- * defaults to the first entry of `INTERNAL_VIDEO_STATUS`). Exported so the page, the board columns
- * and the Server Actions all ask `internalStatusFor(CONCEPT_TRACK)` instead of each writing `'video'`.
- */
-export const CONCEPT_TRACK: CreativeTrack = 'video';
 
 /**
  * A concept as the pages render it: the `@tas/db` row with its two status columns narrowed from
@@ -93,21 +85,19 @@ export interface ConceptSourceDeps extends BrandResolverDeps {
 }
 
 /**
- * The stored internal status, narrowed to a key of this concept's track.
+ * The stored internal status, narrowed to a key of the ONE internal list.
  *
  * `concepts.internal_status` is plain `text` on purpose (the state machine in `@tas/domain/state`
  * owns the vocabulary, not a pg enum), so the row type says `string` and the narrowing has to
- * happen exactly once, here at the boundary. A value this build does not know — a key written by a
- * newer build, or the non-linear `on_hold` branch, which is deliberately not a member of either
- * linear list — falls back to the column's own default rather than being rendered as a step the
- * stepper cannot place. `CONCEPT_INTERNAL_STATUS_DEFAULT` comes from `@tas/db`, and
- * `concepts-source.test.ts` asserts it is the same string as the first entry of the track.
+ * happen exactly once, here at the boundary. Since the Oct 12 client sync (Ticket 5, migration
+ * 0067) there is one list for every creative, so a concept no longer names a track: a value this
+ * build cannot place — a key written by a newer build, a hand-edited row — falls back to the
+ * column's own default rather than being rendered as a step the stepper cannot place.
+ * `CONCEPT_INTERNAL_STATUS_DEFAULT` comes from `@tas/db`, and `concepts-source.test.ts` asserts it
+ * is the same string as the list's entry state.
  */
 function internalStatusOf(stored: string): InternalStatusKey {
-  return (
-    internalStatusFor(CONCEPT_TRACK).find((entry) => entry.key === stored)?.key ??
-    CONCEPT_INTERNAL_STATUS_DEFAULT
-  );
+  return isInternalStatusKey(stored) ? stored : CONCEPT_INTERNAL_STATUS_DEFAULT;
 }
 
 /** The stored client status, narrowed the same way and for the same reason. */

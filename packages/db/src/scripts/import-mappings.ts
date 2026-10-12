@@ -501,7 +501,7 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       'Internal Status': {
         drizzleColumn: 'internalStatus',
         handler: 'select',
-        note: 'Map Airtable select values to domain state keys',
+        note: 'Map Airtable select values to INTERNAL_STATUS keys (MAPS.briefInternal)',
       },
       'Client Status': {
         drizzleColumn: 'clientStatus',

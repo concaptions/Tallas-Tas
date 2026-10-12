@@ -1,9 +1,7 @@
 import {
   CLIENT_STATUS,
-  INTERNAL_STATIC_STATUS,
-  INTERNAL_VIDEO_STATUS,
+  INTERNAL_STATUS,
   chipTone,
-  internalStatusFor,
   isClientTrackOpen,
   type ClientStatusKey,
   type CreativeTrack,
@@ -27,8 +25,9 @@ import {
  *
  * QA IS INVALIDATED by any move into a revision state — a creative sent back for changes is no
  * longer the creative that was QA'd. The invalidating keys are DERIVED from the vocabularies, not
- * hand-listed: the internal ladders' `warn`-toned entries (`videos_revisions`, `images_revisions`)
- * and the client track's (`revisions_needed`). The reset lands in the same write as the status.
+ * hand-listed: the internal list's `warn`-toned entry (`revisions_needed`, one entry for both
+ * tracks since the Oct 12 consolidation) and the client track's (`revisions_needed`). The reset
+ * lands in the same write as the status.
  */
 
 export const BRIEF_QA_CHECKS = ['qaVideoEditor', 'qaDesigner', 'qaStrategist'] as const;
@@ -120,7 +119,8 @@ export function clientSubmissionTarget(client: ClientStatusKey): ClientStatusKey
 
 export interface SubmitToClientPosition {
   readonly track: CreativeTrack | null;
-  readonly internal: InternalStatusKey;
+  /** The stored internal status — any string, so a row this build has no row for still answers. */
+  readonly internal: string;
   readonly client: ClientStatusKey;
   readonly ticks: BriefQaTicks;
 }
@@ -144,7 +144,7 @@ export function submitToClientRefusal(position: SubmitToClientPosition): string 
  * (`revisions_needed` → `revisions_submitted` or back to `pending_for_approval`). Every other
  * move — editing steps, revisions, the client's own decisions, launch — is not a submission.
  */
-export function internalMoveNeedsQa(from: string, to: InternalStatusKey): boolean {
+export function internalMoveNeedsQa(from: string, to: string): boolean {
   return to === 'approved' && from !== 'approved';
 }
 
@@ -154,14 +154,10 @@ export function clientMoveNeedsQa(from: ClientStatusKey, to: ClientStatusKey): b
   );
 }
 
-/** A `warn`-toned step on either internal ladder: the revision states, derived, never typed. */
-export const QA_INVALIDATING_INTERNAL: readonly InternalStatusKey[] = [
-  ...INTERNAL_VIDEO_STATUS,
-  ...INTERNAL_STATIC_STATUS,
-]
-  .filter((entry) => chipTone(entry.label) === 'warn')
-  .map((entry) => entry.key)
-  .filter((key, index, all) => all.indexOf(key) === index);
+/** The `warn`-toned step of the internal list: the revision state, derived, never typed. */
+export const QA_INVALIDATING_INTERNAL: readonly InternalStatusKey[] = INTERNAL_STATUS.filter(
+  (entry) => chipTone(entry.label) === 'warn',
+).map((entry) => entry.key);
 
 /** The client track's revision state, derived the same way. */
 export const QA_INVALIDATING_CLIENT: readonly ClientStatusKey[] = CLIENT_STATUS.filter(
@@ -203,14 +199,4 @@ export function qaResetFor(move: {
     move.clientTo !== move.clientFrom &&
     clientMoveResetsQa(move.clientTo);
   return internalMoved || clientMoved ? { ...QA_RESET } : {};
-}
-
-/**
- * The first step of a track's ladder — where a duplicated creative starts (Oct 12 scope 3). There
- * is no `draft` key; the entry state is `sent_to_video_editor` or `sent_to_designer`.
- */
-export function internalEntryStatus(track: CreativeTrack): InternalStatusKey {
-  const [first] = internalStatusFor(track);
-  if (first === undefined) throw new Error(`the ${track} internal track is empty`);
-  return first.key;
 }

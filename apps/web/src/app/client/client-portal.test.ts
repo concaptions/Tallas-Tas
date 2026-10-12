@@ -12,10 +12,10 @@ describe('client portal data', () => {
     expect(rows.length + withheld).toBe(demoBriefs.length);
   });
 
-  it('all loaded rows have approved or launched internal status', async () => {
+  it('all loaded rows have approved internal status', async () => {
     const { rows } = await loadClientQueue({ demoMode: () => true });
     for (const row of rows) {
-      expect(['approved', 'launched']).toContain(row.internalStatus);
+      expect(row.internalStatus).toBe('approved');
     }
   });
 

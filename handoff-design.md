@@ -69,6 +69,13 @@ The tokens are exposed as utilities: `bg-bg`, `bg-surface`, `bg-surface2`, `bg-s
 
 ## Status values (verbatim; source of truth for tooltips, notifications, analytics labels)
 
+> **Internal track superseded 2026-10-12** (Oct 12 client sync, Ticket 5; migration 0067): the two
+> per-track lists, `on_hold` and the internal `launched` below are history. The live vocabulary is
+> `INTERNAL_STATUS` in `packages/domain/src/state/creative-status.ts` — `draft`,
+> `sent_to_editor_or_designer`, `under_editing_or_designing`, `ad_submitted`, `revisions_needed`,
+> `revisions_submitted`, `approved` — and PRD §9. The client track, the gate and the widget below
+> are unchanged.
+
 ```ts
 export const INTERNAL_VIDEO_STATUS = [
   {

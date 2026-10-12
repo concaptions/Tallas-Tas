@@ -1,4 +1,5 @@
 import type { BriefInput, CreateBriefValues, CreativeBrief, Db } from '@tas/db';
+import { INTERNAL_ENTRY_STATUS } from '@tas/domain/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { duplicateValues } from './duplicate-values';
@@ -212,7 +213,7 @@ describe('Approve — the QA gate on the step that opens the client track (scope
     live();
     seam.briefs = [
       brief({
-        internalStatus: 'video_editing_in_progress',
+        internalStatus: 'under_editing_or_designing',
         qaVideoEditor: true,
         qaStrategist: true,
       }),
@@ -225,18 +226,18 @@ describe('Approve — the QA gate on the step that opens the client track (scope
 });
 
 describe('Request Changes — the reset lands in the SAME write (scope 5)', () => {
-  it('moves a video to Videos Revisions and clears all three ticks in one patch', async () => {
+  it('moves the creative to Revisions Needed and clears all three ticks in one patch', async () => {
     live();
     seam.briefs = [brief({ qaVideoEditor: true, qaDesigner: true, qaStrategist: true })];
 
     const result = await requestChangesAction(VIDEO_ID);
 
-    expect(result).toMatchObject({ ok: true, internalStatus: 'videos_revisions' });
+    expect(result).toMatchObject({ ok: true, internalStatus: 'revisions_needed' });
     expect(seam.updates).toEqual([
       {
         id: VIDEO_ID,
         patch: {
-          internalStatus: 'videos_revisions',
+          internalStatus: 'revisions_needed',
           clientStatus: 'pending_for_approval',
           qaVideoEditor: false,
           qaDesigner: false,
@@ -246,15 +247,15 @@ describe('Request Changes — the reset lands in the SAME write (scope 5)', () =
     ]);
   });
 
-  it('uses the static ladder’s own key for a static, and refuses a creative not under review', async () => {
+  it('sends a static at Revisions Submitted to the same step, and refuses a creative not under review', async () => {
     live();
     seam.briefs = [
       brief({ id: STATIC_ID, type: 'Static', internalStatus: 'revisions_submitted' }),
-      brief({ internalStatus: 'sent_to_video_editor' }),
+      brief({ internalStatus: 'sent_to_editor_or_designer' }),
     ];
 
     expect(await requestChangesAction(STATIC_ID)).toMatchObject({
-      internalStatus: 'images_revisions',
+      internalStatus: 'revisions_needed',
     });
     expect(await requestChangesAction(VIDEO_ID)).toEqual({
       ok: false,
@@ -329,7 +330,7 @@ describe('Duplicate — copy and reset rules (scope 3)', () => {
       qaVideoEditor: false,
       qaDesigner: false,
       qaStrategist: false,
-      internalStatus: 'sent_to_video_editor',
+      internalStatus: 'draft',
       clientStatus: 'pending_for_approval',
       clientStatusUpdatedAt: null,
       clientStatusNote: null,
@@ -349,7 +350,7 @@ describe('Duplicate — copy and reset rules (scope 3)', () => {
     ]) {
       expect(values).not.toHaveProperty(key);
     }
-    expect(duplicateValues(brief({ type: 'Static' })).internalStatus).toBe('sent_to_designer');
+    expect(duplicateValues(brief({ type: 'Static' })).internalStatus).toBe(INTERNAL_ENTRY_STATUS);
   });
 
   it('names an auto-named copy through the formula with its NEW number, keeping name_mode auto', async () => {
@@ -365,7 +366,7 @@ describe('Duplicate — copy and reset rules (scope 3)', () => {
     });
     expect(seam.created[0]).toMatchObject({
       nameMode: 'auto',
-      values: { version: 3, internalStatus: 'sent_to_video_editor' },
+      values: { version: 3, internalStatus: 'draft' },
     });
   });
 

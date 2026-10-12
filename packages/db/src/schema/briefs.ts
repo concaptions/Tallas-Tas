@@ -29,16 +29,16 @@ import type {
 } from './enums';
 
 /**
- * The value `internal_status` starts at: the FIRST entry of `INTERNAL_VIDEO_STATUS` in
- * `@tas/domain/state`, verbatim — a brief is handed to whoever builds it before anything exists.
- * A static brief is moved to `sent_to_designer` by the page, which reads the track from the brief's
- * `type`; the column default cannot, because a default cannot look at another column.
+ * The value `internal_status` starts at: `INTERNAL_ENTRY_STATUS` ('draft') of the ONE
+ * `INTERNAL_STATUS` list in `@tas/domain/state`, verbatim — a brief exists before anybody is asked
+ * to build it, whichever track it is on (Oct 12 client sync, Ticket 5; migration 0068 set the
+ * column default, 0067 moved the stored rows).
  *
  * The literals are repeated here rather than imported for the reason `schema/concepts.ts` gives at
  * length: `@tas/db` does not depend on `@tas/domain`, the edge runs the other way everywhere in this
  * repo, and `apps/web` is where the two are asserted equal.
  */
-export const BRIEF_INTERNAL_STATUS_DEFAULT = 'sent_to_video_editor';
+export const BRIEF_INTERNAL_STATUS_DEFAULT = 'draft';
 
 /** The first entry of `CLIENT_STATUS` in `@tas/domain/state`; see the note above on the literal. */
 export const BRIEF_CLIENT_STATUS_DEFAULT = 'pending_for_approval';
@@ -67,11 +67,12 @@ export const BRIEF_CLIENT_STATUS_DEFAULT = 'pending_for_approval';
  * §8 defaults for the brief's type ("4:5", "1:1", "9:16" for video; "1:1", "9:16" for statics),
  * editable per row, and the vocabulary of ratios lives in `packages/domain/src/creatives`.
  *
- * `internal_status` and `client_status` are plain `text` carrying the KEYS of the two-track state
- * machine, the arrangement `schema/concepts.ts` documents: the machine in `packages/domain/src/state`
- * owns the set of states, the transitions and the client gate (`isClientTrackOpen`, which opens the
- * client track only at `approved` — PRD §9, CLAUDE.md non-negotiable 4). The three QA flags are
- * NOT NULL false, so a checklist renders three unticked boxes on a fresh row rather than three nulls.
+ * `internal_status` and `client_status` are plain `text` carrying the KEYS of `INTERNAL_STATUS` and
+ * `CLIENT_STATUS`, the arrangement `schema/concepts.ts` documents: the machine in
+ * `packages/domain/src/state` owns the set of states, the transitions and the client gate
+ * (`isClientTrackOpen`, which opens the client track at `approved` only — PRD §9, CLAUDE.md
+ * non-negotiable 4). The three QA flags are NOT NULL false, so a checklist renders three unticked
+ * boxes on a fresh row rather than three nulls.
  */
 export const creativeBriefs = pgTable(
   'creative_briefs',

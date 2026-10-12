@@ -86,7 +86,10 @@ export function sameClientQueueFilter(a: ClientQueueFilter, b: ClientQueueFilter
  *
  * It is `isOnClientQueue` from `@tas/domain/state` — `isClientTrackOpen(row.internalStatus)` and not
  * already finished on the client track — delegated rather than restated, so this route has no second
- * opinion about who may see a creative. `client-queue-source.ts` applies the same predicate at the
+ * opinion about who may see a creative. The gate reads the STORED string as it is (one internal list
+ * for both tracks since the Oct 12 client sync, Ticket 5 / migration 0067; `isClientTrackOpen` is
+ * total over any string), so nothing here narrows a status to a key first, and a value this build
+ * has no row for keeps the gate shut. `client-queue-source.ts` applies the same predicate at the
  * loader, so an ineligible row never reaches this module at all; re-applying it here is a deliberate
  * no-op that keeps the rule impossible to forget when a future caller builds an item list by hand.
  */

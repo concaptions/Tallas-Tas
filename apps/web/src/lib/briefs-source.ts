@@ -12,7 +12,8 @@ import {
 import { creativeTrack } from '@tas/domain/creatives';
 import {
   CLIENT_STATUS,
-  internalStatusFor,
+  INTERNAL_ENTRY_STATUS,
+  isInternalStatusKey,
   type ClientStatusKey,
   type CreativeTrack,
   type InternalStatusKey,
@@ -51,14 +52,13 @@ export type BriefSourceKind = 'database' | 'demo';
 
 /**
  * A brief as the pages render it: the `@tas/db` row with its two status columns narrowed from
- * `string` to the state machine's key types, plus the track those statuses are graded on.
+ * `string` to the state machine's key types, plus the track that decides its QA ticks.
  *
- * `track` is derived, not stored. Unlike a concept — which is always on the video ladder, hence the
- * single `CONCEPT_TRACK` constant next door — a brief's ladder depends on its own `type`: a
- * carousel is a set of stills and is graded on the static track, a motion image is cut like a video
- * and is graded on the video track. Carrying it on the row is what makes the narrowing below and
- * the rail the page renders agree by construction; the mapping itself is `creativeTrack` in
- * `@tas/domain/creatives`, never a branch written here.
+ * `track` is derived, not stored, and since the Oct 12 client sync (Ticket 5 / migration 0067) it
+ * decides WHO builds the brief and WHICH QA ticks it needs — never a status list, which is one
+ * list for both tracks. It depends on the brief's own `type`: a carousel is a set of stills and is
+ * the designer's, a motion image is cut like a video and is the editor's. The mapping itself is
+ * `creativeTrack` in `@tas/domain/creatives`, never a branch written here.
  */
 export type BriefRow = Omit<BriefListRow, 'internalStatus' | 'clientStatus'> & {
   readonly internalStatus: InternalStatusKey;
@@ -96,42 +96,19 @@ export interface BriefSourceDeps extends BrandResolverDeps {
 }
 
 /**
- * The state a brief of this track rests at before anything has happened to it: the FIRST entry of
- * its own ladder. For the video track that is `BRIEF_INTERNAL_STATUS_DEFAULT`, the literal
- * `schema/briefs.ts` gives the column — `briefs-source.test.ts` asserts the two are the same
- * string. The static track starts somewhere else, which is exactly why this is a function of the
- * track and not the column default: a column default cannot look at another column, so a static
- * brief whose stored status this build cannot place must fall back to the static track's own first
- * step rather than to a video state the stepper could never render.
- */
-function trackStart(track: CreativeTrack): InternalStatusKey {
-  const [first] = internalStatusFor(track);
-  if (first === undefined) {
-    throw new Error(`the ${track} internal track is empty`);
-  }
-  return first.key;
-}
-
-/**
- * The stored internal status, narrowed to a key of THIS brief's track.
+ * The stored internal status, narrowed to a key of the ONE internal list (Oct 12 client sync,
+ * Ticket 5 / migration 0067).
  *
  * `creative_briefs.internal_status` is plain `text` on purpose (the state machine in
  * `@tas/domain/state` owns the vocabulary, not a pg enum), so the row type says `string` and the
- * narrowing has to happen exactly once, here at the boundary. A value this track cannot place — a
- * key written by a newer build, the non-linear `on_hold` branch, which is deliberately not a member
- * of either linear list, or a key belonging to the OTHER track — falls back to this track's first
- * step rather than being rendered as a step the stepper cannot place.
- *
- * That last case is not an error path, it is the ordinary one for a fresh static brief.
- * `creative_briefs.internal_status` defaults to `BRIEF_INTERNAL_STATUS_DEFAULT`, a video-track
- * literal, because — as `schema/briefs.ts` says — a column default cannot look at another column;
- * a Static or Carousel brief nobody has moved yet therefore rests on a key its own ladder does not
- * contain, and the same sentence in that file names the answer: the page reads the track from the
- * brief's `type` and shows `sent_to_designer`. This function is where that happens, once, instead
- * of in the rail and again in the list.
+ * narrowing has to happen exactly once, here at the boundary. A value this build cannot place — a
+ * key written by a newer build, a hand-edited row, a spelling 0067 retired — falls back to
+ * `INTERNAL_ENTRY_STATUS`, the `draft` the column itself defaults to (`briefs-source.test.ts`
+ * asserts the two are the same string), rather than being rendered as a step the stepper cannot
+ * place. There is no per-track fallback any more: the list is the same for a video and a static.
  */
-function internalStatusOf(stored: string, track: CreativeTrack): InternalStatusKey {
-  return internalStatusFor(track).find((entry) => entry.key === stored)?.key ?? trackStart(track);
+function internalStatusOf(stored: string): InternalStatusKey {
+  return isInternalStatusKey(stored) ? stored : INTERNAL_ENTRY_STATUS;
 }
 
 /** The stored client status, narrowed the same way and for the same reason. */
@@ -145,11 +122,10 @@ function clientStatusOf(stored: string): ClientStatusKey {
  * standalone case, PRD §8), and ordering is the query's.
  */
 export function toBriefRow(row: BriefListRow): BriefRow {
-  const track = creativeTrack(row.type);
   return {
     ...row,
-    track,
-    internalStatus: internalStatusOf(row.internalStatus, track),
+    track: creativeTrack(row.type),
+    internalStatus: internalStatusOf(row.internalStatus),
     clientStatus: clientStatusOf(row.clientStatus),
   };
 }

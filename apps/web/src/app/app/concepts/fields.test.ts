@@ -1,4 +1,4 @@
-import { INTERNAL_VIDEO_STATUS, chipTone } from '@tas/domain/state';
+import { INTERNAL_STATUS, chipTone, type InternalStatusKey } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -23,7 +23,7 @@ import {
 } from './fields';
 
 /** One list item in the shape the page builds, with only the fields a test cares about set. */
-function item(id: string, status: (typeof INTERNAL_VIDEO_STATUS)[number]['key']): ConceptItem {
+function item(id: string, status: InternalStatusKey): ConceptItem {
   return {
     ...EMPTY_CONCEPT_RECORD,
     id,
@@ -33,7 +33,7 @@ function item(id: string, status: (typeof INTERNAL_VIDEO_STATUS)[number]['key'])
     personaName: null,
     productName: null,
     themeName: 'Theme',
-    status: internalStatusView('video', status),
+    status: internalStatusView(status),
     href: `/app/concepts/${id}`,
   };
 }
@@ -57,9 +57,9 @@ describe('conceptViewFromParam', () => {
 });
 
 describe('internalStatusViews', () => {
-  it('is the track in order, with the state machine own labels and tones', () => {
-    expect(internalStatusViews('video')).toEqual(
-      INTERNAL_VIDEO_STATUS.map((entry) => ({
+  it('is the one internal list in order, with the state machine own labels and tones', () => {
+    expect(internalStatusViews()).toEqual(
+      INTERNAL_STATUS.map((entry) => ({
         key: entry.key,
         label: entry.label,
         tone: chipTone(entry.label),
@@ -67,14 +67,15 @@ describe('internalStatusViews', () => {
     );
   });
 
-  it('puts Approved on the ok tone and Videos Revisions on warn, straight from chipTone', () => {
-    expect(internalStatusView('video', 'approved').tone).toBe('ok');
-    expect(internalStatusView('video', 'videos_revisions').tone).toBe('warn');
+  it('puts Approved on the ok tone and Revisions Needed on warn, straight from chipTone', () => {
+    expect(internalStatusView('approved').tone).toBe('ok');
+    expect(internalStatusView('revisions_needed').tone).toBe('warn');
   });
 
-  it('renders a key the track does not list rather than an empty label', () => {
-    // A static-track key handed to the video track: the label falls back to the stored value.
-    expect(internalStatusView('video', 'sent_to_designer')).toEqual({
+  it('renders a key the list does not carry rather than an empty label', () => {
+    // A retired key (migration 0067 moved every stored row off it), cast on purpose: the label
+    // falls back to the stored value.
+    expect(internalStatusView('sent_to_designer' as InternalStatusKey)).toEqual({
       key: 'sent_to_designer',
       label: 'sent_to_designer',
       tone: 'mute',
@@ -83,19 +84,19 @@ describe('internalStatusViews', () => {
 });
 
 describe('conceptColumns', () => {
-  it('keeps one column per step of the track, in track order, empties included', () => {
-    const columns = conceptColumns('video', [item('a', 'ad_submitted')]);
+  it('keeps one column per step of the list, in INTERNAL_STATUS order, empties included', () => {
+    const columns = conceptColumns([item('a', 'ad_submitted')]);
 
     expect(columns.map((column) => column.status.key)).toEqual(
-      INTERNAL_VIDEO_STATUS.map((entry) => entry.key),
+      INTERNAL_STATUS.map((entry) => entry.key),
     );
     expect(columns.find((column) => column.status.key === 'ad_submitted')?.items).toHaveLength(1);
     expect(columns.find((column) => column.status.key === 'approved')?.items).toHaveLength(0);
   });
 
   it('puts every row in exactly one column', () => {
-    const items = [item('a', 'ad_submitted'), item('b', 'ad_submitted'), item('c', 'launched')];
-    const columns = conceptColumns('video', items);
+    const items = [item('a', 'ad_submitted'), item('b', 'ad_submitted'), item('c', 'approved')];
+    const columns = conceptColumns(items);
 
     expect(columns.flatMap((column) => column.items.map((entry) => entry.id))).toEqual([
       'a',
@@ -130,7 +131,7 @@ describe('filteredConceptCountLabel', () => {
 describe('matchesQuery', () => {
   /** One row of the shape the table renders, with the four searchable fields set. */
   function row(overrides: Partial<ConceptItem> = {}): ConceptItem {
-    return { ...item('a', 'videos_revisions'), ...overrides };
+    return { ...item('a', 'revisions_needed'), ...overrides };
   }
 
   it('keeps every row when there is no query', () => {
@@ -153,7 +154,7 @@ describe('matchesQuery', () => {
 
   it('reads the status LABEL, so the chip a reader can see is searchable', () => {
     expect(matchesQuery(row(), 'revisions')).toBe(true);
-    expect(matchesQuery(row(), 'videos_revisions')).toBe(false);
+    expect(matchesQuery(row(), 'revisions_needed')).toBe(false);
   });
 
   it('treats an unpaired row as empty text rather than matching everything', () => {

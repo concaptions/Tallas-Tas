@@ -35,14 +35,15 @@ test.describe('the Overview in demo mode (no Clerk publishable key)', () => {
     ).toHaveCount(1);
   });
 
-  test('the pipeline shows all eleven reference metrics, revisions and launches included (AI-6)', async ({
+  test('the pipeline shows all nine reference metrics, revisions and launches included (AI-6)', async ({
     page,
   }) => {
     await page.goto(appPath);
 
-    // Eleven for the demo visitor, who resolves to admin and therefore scans the whole pipeline.
+    // Nine for the demo visitor, who resolves to admin and therefore scans the whole pipeline: the
+    // per-track pairs merged into the one internal list (Oct 12 client sync, Ticket 5 / 0067).
     const cards = page.locator('[data-slot="overview-metric"]');
-    await expect(cards).toHaveCount(11);
+    await expect(cards).toHaveCount(9);
 
     // The three action item 6 added, by KEY — a label rename must not be able to satisfy this.
     const metric = (key: string) =>
@@ -72,8 +73,8 @@ test.describe('the Overview in demo mode (no Clerk publishable key)', () => {
     // The reference dashboard has no such element: the TwoTrackApproval block with its literal
     // statuses no longer renders on the landing page...
     await expect(page.locator('[data-slot="two-track-approval"]')).toHaveCount(0);
-    // ...and nothing else moved: the eleven pipeline cards still render over the fixtures.
-    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(11);
+    // ...and nothing else moved: the nine pipeline cards still render over the fixtures.
+    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(9);
 
     // The cross-client shell stays OFF here too — the demo workspace is a single brand, the same
     // fallback a signed-in actor with fewer than two assignments gets. The signed-in multi-brand

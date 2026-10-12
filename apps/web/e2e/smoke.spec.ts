@@ -39,17 +39,21 @@ test.describe('demo mode (no Clerk publishable key)', () => {
   }) => {
     await page.goto(appPath);
 
-    // Eight cards for the demo visitor (admin scope), and the chart below them.
-    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(11);
+    // Nine cards for the demo visitor (admin scope) — the one internal list since the Oct 12
+    // consolidation — and the chart below them.
+    await expect(page.locator('[data-slot="overview-metric"]')).toHaveCount(9);
     await expect(page.locator('[data-slot="overview-pipeline"]')).toBeVisible();
 
     // The card carries the fixture count and lands on the Briefs table already filtered.
-    const card = page.locator('[data-slot="overview-metric"][data-metric="sent_to_video_editor"]');
+    const card = page.locator(
+      '[data-slot="overview-metric"][data-metric="sent_to_editor_or_designer"]',
+    );
     const count = Number(await card.locator('[data-slot="overview-metric-count"]').innerText());
     await card.click();
-    await expect(page).toHaveURL(/\/app\/creative-design\?status=sent_to_video_editor&view=grid$/, {
-      timeout: 45_000,
-    });
+    await expect(page).toHaveURL(
+      /\/app\/creative-design\?status=sent_to_editor_or_designer&view=grid$/,
+      { timeout: 45_000 },
+    );
     await expect(page.locator('[data-slot="brief-row"]')).toHaveCount(count, { timeout: 45_000 });
   });
 

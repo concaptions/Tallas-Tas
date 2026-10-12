@@ -117,17 +117,18 @@ describe('updateBriefAction · the QA gate and reset on the full page', () => {
     expect(seam.updates[0]).not.toHaveProperty('qaVideoEditor');
   });
 
-  it('clears the three ticks in the same patch as a move to Videos Revisions', async () => {
+  it('clears the three ticks in the same patch as a move to Revisions Needed', async () => {
     vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    // The seam brief starts at `ad_submitted`, the step `revisions_needed` is reachable from.
     seam.brief = brief({ qaVideoEditor: true, qaStrategist: true });
 
     await updateBriefAction(
       null,
-      form({ ...filled, internalStatus: 'videos_revisions', clientStatus: 'pending_for_approval' }),
+      form({ ...filled, internalStatus: 'revisions_needed', clientStatus: 'pending_for_approval' }),
     );
 
     expect(seam.updates[0]).toMatchObject({
-      internalStatus: 'videos_revisions',
+      internalStatus: 'revisions_needed',
       qaVideoEditor: false,
       qaDesigner: false,
       qaStrategist: false,

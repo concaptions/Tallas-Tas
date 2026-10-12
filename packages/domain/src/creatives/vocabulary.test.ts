@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS, internalStatusFor } from '../state/index';
+import { requiredQaChecks } from '../state/index';
 import {
   CREATIVE_DIMENSION_KEYS,
   CREATIVE_DIMENSIONS,
@@ -186,7 +186,7 @@ describe('priorityTone · every priority', () => {
   });
 });
 
-describe('creativeTrack · which internal ladder a type is graded on', () => {
+describe('creativeTrack · which QA track a type is graded on', () => {
   it('sends video and motion image down the video track', () => {
     expect(creativeTrack('Video')).toBe('video');
     expect(creativeTrack('Motion Image')).toBe('video');
@@ -203,14 +203,16 @@ describe('creativeTrack · which internal ladder a type is graded on', () => {
     }
   });
 
-  it('feeds `internalStatusFor` so no component branches on the type itself', () => {
-    expect(internalStatusFor(creativeTrack('Carousel'))).toBe(INTERNAL_STATIC_STATUS);
-    expect(internalStatusFor(creativeTrack('Motion Image'))).toBe(INTERNAL_VIDEO_STATUS);
+  it('feeds `requiredQaChecks` so no component branches on the type itself', () => {
+    expect(requiredQaChecks(creativeTrack('Carousel'))).toEqual(['qaDesigner', 'qaStrategist']);
+    expect(requiredQaChecks(creativeTrack('Motion Image'))).toEqual([
+      'qaVideoEditor',
+      'qaStrategist',
+    ]);
   });
 
-  it('falls back to the track whose first state is the stored column default', () => {
+  it('falls back to the video QA track', () => {
     expect(creativeTrack('Gif')).toBe('video');
-    expect(internalStatusFor(creativeTrack('Gif'))[0]?.key).toBe('sent_to_video_editor');
   });
 });
 

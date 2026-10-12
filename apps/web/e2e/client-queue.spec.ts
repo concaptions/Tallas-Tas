@@ -16,10 +16,10 @@ import { briefPath, clientQueuePath, propagationPath } from '../src/lib/routes';
  * and explaining themselves.
  *
  * WHAT THE FIXTURES GIVE THIS BOARD (`demoBriefs` in `packages/db/src/demo-data.ts`, seven rows):
- * three are internally Approved and not yet Launched, so three cards reach the board — two in
- * Pending for Approval, one in Approved — and the launched/launched row is excluded, which is what
+ * four are internally Approved; one of those is client-Launched, so three cards reach the board —
+ * two in Pending for Approval, one in Approved — and the launched row is excluded, which is what
  * makes "eligible rows appear, ineligible ones do not" a real assertion rather than a coincidence.
- * The remaining four sit in pre-Approved internal states and are withheld by the gate.
+ * The remaining three sit in pre-Approved internal states and are withheld by the gate.
  *
  * TICKET DRIFT, noted rather than asserted around: criteria 5 and 12 were written against the older
  * six-fixture set and say "exactly one card". The db handoff that this page was built on changed
@@ -51,10 +51,10 @@ const BODY_CLOCK = '77777777-7777-4777-8777-000000000001';
 // `creativeName` in `packages/db/src/demo-data.ts`, so the generated name now starts with it.
 const BODY_CLOCK_NAME = 'TAS-TV1-B1-Your Body Clock Is Not Broken-Problem/Solution-V2';
 
-/** Internally launched and client-launched: the client owes it nothing, so it must not appear. */
+/** Internally Approved and client-launched: the client owes it nothing, so it must not appear. */
 const LAUNCHED = '77777777-7777-4777-8777-000000000007';
 
-/** Still in `static_design_in_progress`: the gate holds it back, so it must not appear either. */
+/** Still in `under_editing_or_designing`: the gate holds it back, so it must not appear either. */
 const NOT_APPROVED = '77777777-7777-4777-8777-000000000002';
 
 test.describe('client queue in demo mode (no Clerk publishable key)', () => {
@@ -124,7 +124,7 @@ test.describe('client queue in demo mode (no Clerk publishable key)', () => {
 
     // Criterion 4: internal status is team-only and is never rendered on this page.
     await expect(page.locator('[data-slot="client-queue-board"]')).not.toContainText(
-      'Static Design in Progress',
+      'Under Editing / Designing',
     );
   });
 

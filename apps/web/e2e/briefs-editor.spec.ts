@@ -19,7 +19,7 @@ import { briefPath } from '../src/lib/routes';
  * `e2e/live/briefs-start.spec.ts`, which runs in the `live` Playwright project against a Clerk dev
  * instance and the E2E database and skips itself without them (D-008).
  */
-/** `demoBriefs`: the one first-stage fixture (sent_to_video_editor), a carousel on the video track. */
+/** `demoBriefs`: the one first-stage fixture (`sent_to_editor_or_designer`), a carousel. */
 const NINETY_MINUTES_CAROUSEL = '77777777-7777-4777-8777-000000000006';
 
 test.describe('editor view of a brief in demo mode (no Clerk publishable key)', () => {
@@ -45,8 +45,8 @@ test.describe('editor view of a brief in demo mode (no Clerk publishable key)', 
     await expect(facts.locator('dt')).toHaveText(['Batch', 'Angle', 'Persona', 'Product']);
     await expect(page.locator('[data-slot="brief-persona"]')).not.toHaveText('');
 
-    // Colour-coded by stage: the chip carries the stage and its tone. `sent_to_video_editor` is the
-    // first stage of the editor's ladder, which `editorStageOf` names `incoming`.
+    // Colour-coded by stage: the chip carries the stage and its tone. `sent_to_editor_or_designer`
+    // is the first stage of the editor's board, which `editorStageOf` names `incoming`.
     const stage = page.locator('[data-slot="brief-stage"]');
     await expect(stage).toHaveAttribute('data-stage', 'incoming');
     await expect(stage.locator('[data-slot="status-chip"]')).toHaveText('Sent to Editor/Designer');

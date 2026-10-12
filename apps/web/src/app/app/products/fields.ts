@@ -11,7 +11,6 @@ import {
   creatorInternalStatusLabel,
   creatorInternalStatusTone,
   type ChipTone,
-  type CreativeTrack,
   type InternalStatusKey,
 } from '@tas/domain/state';
 
@@ -36,7 +35,7 @@ import type { ProductFieldName } from './actions';
  * briefs whose `creative_briefs.product_id` is the product, and the creators booked for it through
  * `creator_products`. They borrow the sibling modules' own presentation — the email status chip from
  * `../email-campaigns/fields`, the generated "Copy N" title from `../youtube-copywriting/fields`,
- * the brief's internal status on its own track from `../creative-design/fields` — rather than
+ * the brief's internal status (the one `INTERNAL_STATUS` list) from `../creative-design/fields` — rather than
  * restating any of it, so a record reads the same from both ends of its link.
  */
 export type { ProductFieldName };
@@ -166,15 +165,14 @@ export function youtubeCopyLinks(
 
 /**
  * The minimum a brief row has to carry to be listed on a product: the FK that makes it a reverse
- * link, the generated §7 name, and its internal status already narrowed to a key of its own track
- * by `loadBriefs` (`BriefRow` in `@/lib/briefs-source`). Structural, so nothing is re-narrowed here
- * and the fixtures a test builds need no more than these five fields.
+ * link, the generated §7 name, and its internal status already narrowed to a key of the one
+ * internal list by `loadBriefs` (`BriefRow` in `@/lib/briefs-source`). Structural, so nothing is
+ * re-narrowed here and the fixtures a test builds need no more than these four fields.
  */
 export interface CreativeDesignSource {
   readonly id: string;
   readonly name: string;
   readonly productId: string | null;
-  readonly track: CreativeTrack;
   readonly internalStatus: InternalStatusKey;
 }
 
@@ -183,7 +181,8 @@ export interface CreativeDesignSource {
  * the rows' order (newest edit first, as `loadBriefs` returns them). The label is the brief's
  * auto-generated name (non-negotiable 6; the panel renders it in `font-mono`), the link is the
  * brief's own detail route, and the chip is the Creative Design module's `internalStatusView` on
- * the brief's track, so a static and a video read their status exactly as they do on their page.
+ * the one internal list (Oct 12 client sync, Ticket 5 / migration 0067), so a static and a video
+ * read their status exactly as they do on their page.
  */
 export function creativeDesignLinks(
   productId: string,
@@ -192,7 +191,7 @@ export function creativeDesignLinks(
   return rows
     .filter((row) => row.productId === productId)
     .map((row) => {
-      const status = briefInternalStatusView(row.track, row.internalStatus);
+      const status = briefInternalStatusView(row.internalStatus);
       return {
         id: row.id,
         label: row.name,

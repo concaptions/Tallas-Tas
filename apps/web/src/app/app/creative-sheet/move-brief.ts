@@ -6,9 +6,9 @@ import {
   type Db,
 } from '@tas/db';
 import { diffFields } from '@tas/domain';
-import { qaResetFor } from '@tas/domain/state';
+import { isInternalStatusKey, qaResetFor } from '@tas/domain/state';
 
-import { currentPosition, isClientStatus, isInternalOrHold, statusRefusal } from './status-guard';
+import { currentPosition, isClientStatus, statusRefusal } from './status-guard';
 
 /**
  * ONE track move on ONE brief, as a Kanban drop and the multi-select "Change status" both ask for
@@ -45,7 +45,7 @@ export async function moveBriefTrack(
   const position = currentPosition(current);
 
   if (field === 'internalStatus') {
-    if (!isInternalOrHold(position.track, value)) return { ok: false, error: UNKNOWN_COLUMN };
+    if (!isInternalStatusKey(value)) return { ok: false, error: UNKNOWN_COLUMN };
     const refusal = statusRefusal(position, value, position.client);
     if (refusal !== null) return { ok: false, error: refusal.message };
     const patch = {

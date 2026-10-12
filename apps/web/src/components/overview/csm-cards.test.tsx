@@ -58,10 +58,11 @@ describe('CsmCards', () => {
     const heading = [...elements(tree)].find((element) => element.props.id === 'csm-cards-heading');
     expect(heading?.props.children).toBe(brandPanelsHeader('csm', PANELS));
 
-    // A CSM's card carries the whole eleven-metric pipeline, keyed, per brand.
+    // A CSM's card carries the whole nine-metric pipeline, keyed, per brand (eleven until the Oct
+    // 12 client sync merged the two per-track pairs into the one internal list's two steps).
     const rows = bySlot(tree, 'csm-card-metric');
-    expect(rows).toHaveLength(22);
-    expect(new Set(rows.map((row) => row.props['data-metric'])).size).toBe(11);
+    expect(rows).toHaveLength(18);
+    expect(new Set(rows.map((row) => row.props['data-metric'])).size).toBe(9);
   });
 
   it('dims a zero count the way the reference dims "0 Designs in Progress"', () => {
@@ -69,8 +70,8 @@ describe('CsmCards', () => {
 
     const rows = bySlot(tree, 'csm-card-metric');
     const zeroes = rows.filter((row) => row.props['data-zero'] === true);
-    // The empty brand's eleven rows are all zero; the fixture brand has at least one non-zero.
-    expect(zeroes.length).toBeGreaterThanOrEqual(11);
+    // The empty brand's nine rows are all zero; the fixture brand has at least one non-zero.
+    expect(zeroes.length).toBeGreaterThanOrEqual(9);
     expect(zeroes.length).toBeLessThan(rows.length);
   });
 });

@@ -390,7 +390,7 @@ describe('with Clerk configured', () => {
         {
           ...filled,
           id: firstConcept.id,
-          internalStatus: 'video_editing_in_progress',
+          internalStatus: 'under_editing_or_designing',
           clientStatus: 'launched',
         },
         filledRepeated,

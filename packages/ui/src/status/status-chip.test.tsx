@@ -41,7 +41,7 @@ describe('StatusChip', () => {
   }
 
   it('never carries a colour of its own: the tone always comes from chipTone', () => {
-    render(<StatusChip tone={chipTone('Videos Revisions')} label="Videos Revisions" />);
-    expect(screen.getByText('Videos Revisions').dataset['tone']).toBe('warn');
+    render(<StatusChip tone={chipTone('Revisions Needed')} label="Revisions Needed" />);
+    expect(screen.getByText('Revisions Needed').dataset['tone']).toBe('warn');
   });
 });

@@ -1,6 +1,6 @@
 import { loadAngleColumns, loadAngles } from '@/lib/angles-source';
 import { loadBriefs } from '@/lib/briefs-source';
-import { CONCEPT_TRACK, loadConcepts } from '@/lib/concepts-source';
+import { loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeModules } from '@/lib/creative-modules-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadUserViews } from '@/lib/user-view-actions';
@@ -38,8 +38,8 @@ import {
  * - `loadCreativeModules()` for `creative_module_angles` — a module links its angles, and
  *   `indexCreativeModulesByAngle` lists each angle the modules that link it.
  * - `loadConcepts()` for `concept_angles` — a concept is paired with its angles, and
- *   `indexConceptsByAngle` lists each angle its concepts, with their status read on the track
- *   concepts run on (`CONCEPT_TRACK`, read here because `fields.ts` must stay client-importable).
+ *   `indexConceptsByAngle` lists each angle its concepts, with their status read off the one
+ *   internal list (Oct 12 client sync, Ticket 5 / migration 0067).
  * - `loadBriefs()` for `creative_briefs.angle_id` — `indexCreativeDesignsByAngle` lists each angle
  *   the briefs that point straight at it.
  *
@@ -88,7 +88,7 @@ export default async function AnglesPage({ searchParams }: AnglesPageProps) {
   const products: LinkOption[] = productRows.rows.map(({ id, name }) => ({ id, name }));
   const conceptOptions: LinkOption[] = conceptRows.rows.map(({ id, name }) => ({ id, name }));
   const creativeModulesByAngle = indexCreativeModulesByAngle(creativeModuleRows.rows);
-  const conceptsByAngle = indexConceptsByAngle(conceptRows.rows, CONCEPT_TRACK);
+  const conceptsByAngle = indexConceptsByAngle(conceptRows.rows);
   const creativeDesignsByAngle = indexCreativeDesignsByAngle(briefRows.rows);
 
   const requested = params.angle;

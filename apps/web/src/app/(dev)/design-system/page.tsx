@@ -50,13 +50,7 @@ import {
   Textarea,
   TwoTrackApproval,
 } from '@tas/ui';
-import {
-  CLIENT_STATUS,
-  INTERNAL_VIDEO_STATUS,
-  ON_HOLD,
-  chipTone,
-  type ChipTone,
-} from '@tas/domain/state';
+import { CLIENT_STATUS, INTERNAL_STATUS, chipTone, type ChipTone } from '@tas/domain/state';
 import { brandRoles, brandStatuses } from '@tas/domain';
 
 import {
@@ -488,7 +482,7 @@ export default function DesignSystemPage() {
             </TableHeader>
             <TableBody>
               {brandStatuses.map((status, index) => {
-                const entry = INTERNAL_VIDEO_STATUS[index + 2] ?? INTERNAL_VIDEO_STATUS[0];
+                const entry = INTERNAL_STATUS[index + 2] ?? INTERNAL_STATUS[0];
                 return (
                   <TableRow key={status}>
                     <TableCell className="font-mono text-xs text-text2">
@@ -580,7 +574,7 @@ export default function DesignSystemPage() {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
-            {[...INTERNAL_VIDEO_STATUS, ...CLIENT_STATUS, ON_HOLD].map((entry, index) => (
+            {[...INTERNAL_STATUS, ...CLIENT_STATUS].map((entry, index) => (
               <StatusChip
                 key={`${entry.key}-${String(index)}`}
                 tone={chipTone(entry.label)}
@@ -857,17 +851,26 @@ export default function DesignSystemPage() {
 
       <Section
         title="StepRow"
-        note="Done, now and next, plus the optional side badge that carries a non-linear state."
+        note="Done, now and next, plus the optional side badge. The labels are INTERNAL_STATUS entries, the one list for both tracks (Oct 12 client sync, Ticket 5 / 0067)."
       >
         <div className="max-w-md rounded-card border border-line bg-surface p-5">
-          <StepRow label="Sent to Video Editor" tip="Assigned to an editor." state="done" />
           <StepRow
-            label="Video Editing in Progress"
-            tip="Editor opened the brief and claimed it."
-            state="now"
-            badge={<StatusChip tone={chipTone(ON_HOLD.label)} label={ON_HOLD.label} />}
+            label={INTERNAL_STATUS[1].label}
+            tip="Handed to the editor or designer."
+            state="done"
           />
-          <StepRow label="Ad Submitted" tip="Editor uploaded a cut." state="next" isLast />
+          <StepRow
+            label={INTERNAL_STATUS[2].label}
+            tip="Editor or designer opened the brief and claimed it."
+            state="now"
+            badge={<StatusChip tone="mute" label="badge" />}
+          />
+          <StepRow
+            label={INTERNAL_STATUS[3].label}
+            tip="Editor or designer uploaded a cut."
+            state="next"
+            isLast
+          />
         </div>
       </Section>
 
@@ -1492,19 +1495,18 @@ export default function DesignSystemPage() {
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
               internal: ad_submitted
             </h3>
-            <TwoTrackApproval track="video" internal="ad_submitted" client="pending_for_approval" />
+            <TwoTrackApproval internal="ad_submitted" client="pending_for_approval" />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
               internal: approved
             </h3>
-            <TwoTrackApproval track="video" internal="approved" client="pending_for_approval" />
+            <TwoTrackApproval internal="approved" client="pending_for_approval" />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">clientOnly</h3>
             <TwoTrackApproval
-              track="static"
-              internal="static_design_in_progress"
+              internal="under_editing_or_designing"
               client="pending_for_approval"
               clientOnly
             />
@@ -1514,8 +1516,7 @@ export default function DesignSystemPage() {
               internalOnly
             </h3>
             <TwoTrackApproval
-              track="video"
-              internal="sent_to_video_editor"
+              internal="sent_to_editor_or_designer"
               client="pending_for_approval"
               internalOnly
             />

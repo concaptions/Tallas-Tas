@@ -1,10 +1,5 @@
 import { angleStatuses } from '@tas/db/schema';
-import {
-  chipTone,
-  internalStatusFor,
-  type CreativeTrack,
-  type InternalStatusKey,
-} from '@tas/domain/state';
+import { INTERNAL_STATUS, chipTone, type InternalStatusKey } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import { briefPath, conceptPath } from '@/lib/routes';
@@ -38,12 +33,11 @@ import {
   overflowLabel,
 } from './fields';
 
-/** The first step of each internal track, past `noUncheckedIndexedAccess`. */
-function firstStep(track: CreativeTrack): { key: InternalStatusKey; label: string } {
-  const [entry] = internalStatusFor(track);
-  if (entry === undefined) throw new Error(`the ${track} track is empty`);
-  return entry;
-}
+/**
+ * The first step of the ONE internal list (Oct 12 client sync, Ticket 5 / migration 0067): a video
+ * and a static read the same word since then. `INTERNAL_STATUS` is a tuple, so `[0]` is exact.
+ */
+const FIRST: { key: InternalStatusKey; label: string } = INTERNAL_STATUS[0];
 
 describe('formatChipRow', () => {
   it('keeps the vocabulary order whatever order the row stored', () => {
@@ -160,7 +154,7 @@ describe('parity labels (Gratsi "Angles", verbatim)', () => {
 describe('indexConceptsByAngle', () => {
   const ANGLE_A = '55555555-5555-4555-8555-00000000000a';
   const ANGLE_B = '55555555-5555-4555-8555-00000000000b';
-  const step = firstStep('video');
+  const step = FIRST;
 
   const concepts = [
     {
@@ -179,7 +173,7 @@ describe('indexConceptsByAngle', () => {
   ] as const;
 
   it('inverts the junction: every angle lists each concept paired with it, in the rows’ order', () => {
-    const byAngle = indexConceptsByAngle(concepts, 'video');
+    const byAngle = indexConceptsByAngle(concepts);
 
     expect(byAngle[ANGLE_A]?.map((record) => record.id)).toEqual(['c-newest', 'c-older']);
     expect(byAngle[ANGLE_B]?.map((record) => record.id)).toEqual(['c-older']);
@@ -187,7 +181,7 @@ describe('indexConceptsByAngle', () => {
   });
 
   it('links each record to the concept’s own page, with its internal status as the chip', () => {
-    const [record] = indexConceptsByAngle(concepts, 'video')[ANGLE_B] ?? [];
+    const [record] = indexConceptsByAngle(concepts)[ANGLE_B] ?? [];
 
     expect(record).toEqual({
       id: 'c-older',
@@ -198,46 +192,26 @@ describe('indexConceptsByAngle', () => {
   });
 
   it('counts a duplicated junction row once rather than rendering the row twice', () => {
-    const byAngle = indexConceptsByAngle(
-      [{ id: 'c-dup', name: 'Twice', angleIds: [ANGLE_A, ANGLE_A], internalStatus: step.key }],
-      'video',
-    );
+    const byAngle = indexConceptsByAngle([
+      { id: 'c-dup', name: 'Twice', angleIds: [ANGLE_A, ANGLE_A], internalStatus: step.key },
+    ]);
 
     expect(byAngle[ANGLE_A]).toHaveLength(1);
   });
 
   it('is empty for no concepts at all', () => {
-    expect(indexConceptsByAngle([], 'video')).toEqual({});
+    expect(indexConceptsByAngle([])).toEqual({});
   });
 });
 
 describe('indexCreativeDesignsByAngle', () => {
   const ANGLE_A = '55555555-5555-4555-8555-00000000000a';
-  const video = firstStep('video');
-  const still = firstStep('static');
+  const step = FIRST;
 
   const briefs = [
-    {
-      id: 'b-video',
-      name: 'TV01-B2-BodyClock-V1',
-      angleId: ANGLE_A,
-      track: 'video',
-      internalStatus: video.key,
-    },
-    {
-      id: 'b-static',
-      name: 'TS01-B2-BodyClock-V1',
-      angleId: ANGLE_A,
-      track: 'static',
-      internalStatus: still.key,
-    },
-    {
-      id: 'b-standalone',
-      name: 'TS02-B2-Standalone-V1',
-      angleId: null,
-      track: 'static',
-      internalStatus: still.key,
-    },
+    { id: 'b-video', name: 'TV01-B2-BodyClock-V1', angleId: ANGLE_A, internalStatus: step.key },
+    { id: 'b-static', name: 'TS01-B2-BodyClock-V1', angleId: ANGLE_A, internalStatus: step.key },
+    { id: 'b-standalone', name: 'TS02-B2-Standalone-V1', angleId: null, internalStatus: step.key },
   ] as const;
 
   it('lists the briefs whose angle_id is the angle, in the rows’ order, and none for a null link', () => {
@@ -247,16 +221,17 @@ describe('indexCreativeDesignsByAngle', () => {
     expect(Object.keys(byAngle)).toEqual([ANGLE_A]);
   });
 
-  it('links each record to the brief’s own page, with its status read on its own track', () => {
+  it('links each record to the brief’s own page, with its status read off the one list', () => {
     const records = indexCreativeDesignsByAngle(briefs)[ANGLE_A] ?? [];
 
     expect(records[0]).toEqual({
       id: 'b-video',
       label: 'TV01-B2-BodyClock-V1',
       href: briefPath('b-video'),
-      status: { label: video.label, tone: chipTone(video.label) },
+      status: { label: step.label, tone: chipTone(step.label) },
     });
-    expect(records[1]?.status).toEqual({ label: still.label, tone: chipTone(still.label) });
+    // A static reads the same word as a video: one list for both tracks since Oct 12.
+    expect(records[1]?.status).toEqual({ label: step.label, tone: chipTone(step.label) });
   });
 
   it('is empty for no briefs at all', () => {

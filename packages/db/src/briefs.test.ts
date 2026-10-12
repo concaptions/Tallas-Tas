@@ -119,7 +119,7 @@ describe('migration 0006 on PGlite', () => {
         column_name: 'internal_status',
         data_type: 'text',
         is_nullable: 'NO',
-        column_default: `'sent_to_video_editor'::text`,
+        column_default: `'draft'::text`,
       },
       // Nullable: a creative has no performance until it has run (PRD §5.10).
       {
@@ -187,7 +187,7 @@ describe('migration 0006 on PGlite', () => {
       clientStatus: BRIEF_CLIENT_STATUS_DEFAULT,
       performance: null,
     });
-    expect(BRIEF_INTERNAL_STATUS_DEFAULT).toBe('sent_to_video_editor');
+    expect(BRIEF_INTERNAL_STATUS_DEFAULT).toBe('draft');
     expect(BRIEF_CLIENT_STATUS_DEFAULT).toBe('pending_for_approval');
   });
 
@@ -278,41 +278,41 @@ describe('brief fixtures', () => {
    * The status spread feeds TWO boards off these same rows, so it is pinned here rather than left
    * to whichever page happens to read it. The Internal Queue groups by `internalStatus`; the Client
    * Queue groups by `clientStatus` and admits a row only when the internal status opens the client
-   * track (`isClientTrackOpen` in `@tas/domain/state`: `approved` or `launched`) AND the client
-   * status is not `launched` (PRD §9). Three rows stay pre-Approved so the internal board keeps
-   * cards, three are internally Approved so the client board has both its columns filled, and the
-   * launched row is on the internal board and off the client one.
+   * track (`isClientTrackOpen` in `@tas/domain/state`: `approved` only, since the Oct 12 client
+   * sync Ticket 5 / 0067 retired the internal `launched`) AND the client status is not `launched`
+   * (PRD §9). Three rows stay pre-Approved so the internal board keeps cards, four are internally
+   * Approved so the client board has both its columns filled, and row 7 is off the client board by
+   * its CLIENT `launched` alone.
    */
-  it('spreads the internal statuses across both boards, three of them Approved', () => {
+  it('spreads the internal statuses across both boards, four of them Approved', () => {
     const internal = demoBriefs.map((row) => row.internalStatus);
 
     expect(internal).toEqual([
       'approved',
-      'static_design_in_progress',
+      'under_editing_or_designing',
       'ad_submitted',
       'approved',
       'approved',
-      'sent_to_video_editor',
-      'launched',
+      'sent_to_editor_or_designer',
+      'approved',
     ]);
     // Three pre-Approved rows in three different states, so the Internal Queue board is populated
-    // early, mid and per track rather than collapsing into one column.
-    const preApproved = internal.filter((key) => key !== 'approved' && key !== 'launched');
+    // early, mid and late rather than collapsing into one column.
+    const preApproved = internal.filter((key) => key !== 'approved');
     expect(preApproved).toEqual([
-      'static_design_in_progress',
+      'under_editing_or_designing',
       'ad_submitted',
-      'sent_to_video_editor',
+      'sent_to_editor_or_designer',
     ]);
     expect(new Set(preApproved).size).toBe(3);
-    // At least one sits before Ad Submitted, so the stepper is visibly early somewhere.
-    expect(internal).toContain('sent_to_video_editor');
+    // At least one sits before Under Editing / Designing, so the stepper is visibly early somewhere.
+    expect(internal).toContain('sent_to_editor_or_designer');
   });
 
   it('pairs the client statuses so the client board fills and Launched is excluded', () => {
     // The gate, spelled out rather than imported: `@tas/db` does not depend on `@tas/domain`, and
     // this is the truth table `isClientTrackOpen` implements.
-    const trackOpen = (internal: string): boolean =>
-      internal === 'approved' || internal === 'launched';
+    const trackOpen = (internal: string): boolean => internal === 'approved';
     const onClientBoard = demoBriefs.filter(
       (row) => trackOpen(row.internalStatus) && row.clientStatus !== 'launched',
     );
@@ -343,10 +343,11 @@ describe('brief fixtures', () => {
       angleName: null,
       productName: null,
     });
-    // Exactly one launched creative, and it never reaches the client board.
-    const launched = demoBriefs.filter((row) => row.internalStatus === 'launched');
+    // Exactly one launched creative — launched on the CLIENT track, internally approved (the
+    // internal track has no launch since 0067) — and it never reaches the client board.
+    const launched = demoBriefs.filter((row) => row.clientStatus === 'launched');
     expect(launched).toHaveLength(1);
-    expect(launched[0]).toMatchObject({ clientStatus: 'launched', performance: 'Winning' });
+    expect(launched[0]).toMatchObject({ internalStatus: 'approved', performance: 'Winning' });
     expect(onClientBoard.map((row) => row.id)).not.toContain(launched[0]?.id);
   });
 

@@ -15,7 +15,7 @@ async function startedBrief() {
   const brief = await insertBrief(
     db,
     childBrand.id,
-    { name: 'TV9-B9-Reset-V1', internalStatus: 'sent_to_video_editor' },
+    { name: 'TV9-B9-Reset-V1', internalStatus: 'sent_to_editor_or_designer' },
     'user_seed',
   );
   await insertActivity(
@@ -31,7 +31,7 @@ async function startedBrief() {
     db,
     childBrand.id,
     brief.id,
-    { internalStatus: 'video_editing_in_progress', assignee: ACTOR.name },
+    { internalStatus: 'under_editing_or_designing', assignee: ACTOR.name },
     ACTOR.id,
   );
   await insertActivity(
@@ -42,8 +42,8 @@ async function startedBrief() {
     [
       {
         field: 'internalStatus',
-        oldValue: 'sent_to_video_editor',
-        newValue: 'video_editing_in_progress',
+        oldValue: 'sent_to_editor_or_designer',
+        newValue: 'under_editing_or_designing',
       },
       { field: 'assignee', oldValue: null, newValue: ACTOR.name },
     ],
@@ -56,7 +56,7 @@ describe('snapshotBrief / restoreBrief (live E2E teardown)', () => {
   it('captures status, assignee and the activity rows that already exist', async () => {
     const { brief, snapshot } = await startedBrief();
     expect(snapshot.id).toBe(brief.id);
-    expect(snapshot.internalStatus).toBe('sent_to_video_editor');
+    expect(snapshot.internalStatus).toBe('sent_to_editor_or_designer');
     expect(snapshot.assignee).toBeNull();
     expect(snapshot.activityIds).toHaveLength(1);
   });
@@ -66,7 +66,7 @@ describe('snapshotBrief / restoreBrief (live E2E teardown)', () => {
     await restoreBrief(db, snapshot);
 
     const row = await getBriefById(db, brandId, brief.id);
-    expect(row?.internalStatus).toBe('sent_to_video_editor');
+    expect(row?.internalStatus).toBe('sent_to_editor_or_designer');
     expect(row?.assignee).toBeNull();
     const activity = await listActivity(db, brandId, 'creative_brief', brief.id);
     expect(activity.map((entry) => entry.field)).toEqual(['priority']);

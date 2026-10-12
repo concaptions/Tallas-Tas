@@ -282,11 +282,7 @@ export type RemovedWorkspaceKey = (typeof REMOVED_WORKSPACES)[number];
  * a URL; `apps/web/src/lib/removed-workspaces.ts` turns a target into a route.
  */
 export type RemovedWorkspaceRedirectTarget =
-  | 'creative-sheet'
-  | 'assets'
-  | 'copywriting'
-  | 'products'
-  | 'overview';
+  'creative-sheet' | 'assets' | 'copywriting' | 'products' | 'overview';
 
 export const REMOVED_WORKSPACE_REDIRECTS: Readonly<
   Record<RemovedWorkspaceKey, RemovedWorkspaceRedirectTarget>
@@ -356,7 +352,7 @@ const ADMIN_ONLY_SECTIONS: readonly NavSectionKey[] = [
  * them" and says nothing about modules, so the module list is read off the two sections that
  * describe their actual job:
  *
- * - §9's internal track is theirs from "Sent to Designer / Sent to Video Editor" to "Ad Submitted",
+ * - §9's internal track is theirs from "Sent to Editor / Designer" to "Ad Submitted",
  *   and §12's first trigger is "Brief assigned to an editor/designer → DM the assignee". That is
  *   `briefs` (Creative Design) and `creative-sheet`, which §5.10 names as the same artefact
  *   ("Creative Briefs (which is called in our Airtable: Creative Sheet)").

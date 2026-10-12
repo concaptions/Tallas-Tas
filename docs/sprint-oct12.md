@@ -53,33 +53,58 @@ order they were worked; blockers and the decisions the human owns are at the bot
   Copywriting, Concepts and Creative Sheet pages report them as "configured but not drawn" — a
   notice, not a failure.
 
-### Ticket 5 — Internal status values cleanup — BLOCKED
+### Ticket 5 — Internal status values cleanup — DONE (code on main; 0068 pending on Railway)
 
-- **Blocker 1 (infrastructure)**: the data migration the ticket requires (every old
-  `internal_status` key rewritten on 397 live briefs) must be applied to Railway BEFORE the code that
-  reads the new keys is pushed (CLAUDE.md release rule). Railway is unreachable from this session:
-  `iriguchi.proxy.rlwy.net:48139` answers `ECONNREFUSED` through the container's network policy
-  (tested 2026-10-12 with `pg` from `packages/db`). The operator applies it:
-  `cd packages/db && DATABASE_URL=… node apply66.mjs` once 0066 exists.
-- **Blocker 2 (decision, Talal)**: two stored values have no target in the final list
-  (`draft`, `ad_submitted`, `sent_to_editor_or_designer`, `under_editing_or_designing`,
-  `revisions_needed`, `revision_submitted`, `approved`):
-  - `launched` (internal, "media buyer confirmed the ad is live"; the client track keeps its own
-    `launched`). Map to `approved`, or keep `launched` as an eighth internal value?
-  - `on_hold` (the non-linear branch off in-progress). Map to `under_editing_or_designing`?
-  The operator can size both first:
-  `select internal_status, count(*) from creative_briefs where deleted_at is null group by 1 order by 2 desc;`
-- **Proposed mapping, ready to write as 0066 once the two answers are in**:
-  `sent_to_video_editor`, `sent_to_designer` → `sent_to_editor_or_designer`;
-  `video_editing_in_progress`, `static_design_in_progress` → `under_editing_or_designing`;
-  `videos_revisions`, `images_revisions` → `revisions_needed`; `revisions_submitted` →
-  `revision_submitted`; `ad_submitted`, `approved` unchanged; `draft` is new (nothing maps to it).
-- **Scope note**: this is the two-track machine (`INTERNAL_VIDEO_STATUS` / `INTERNAL_STATIC_STATUS`,
-  `docs/decisions.md` 2026-10-01 editor board) collapsing to one list — 60+ files reference the old
-  keys (state machine, QA gate derivation, editor Kanban columns, the status guard, the portal gate on
-  `launched`, demo fixtures, e2e). Expect two commits: the vocabulary + machine, then the surfaces.
+- **Migration 0067** (applied to Railway by hand on 2026-10-12; sha256
+  `aac0e647a86c817a63b161661521277dbf3595d73a380386905c1e36af3fdb26`, recorded by `apply67.mjs`):
+  `video_editing_in_progress` / `static_design_in_progress` → `under_editing_or_designing` (7 rows),
+  `sent_to_video_editor` / `sent_to_designer` → `sent_to_editor_or_designer` (5), `images_revisions` /
+  `videos_revisions` → `revisions_needed` (0), `launched` → `approved` (1), `on_hold` → `draft` (0).
+  Live now: approved 373, revisions_submitted 17, under_editing_or_designing 5,
+  sent_to_editor_or_designer 2, ad_submitted 1.
+- **One list** in `@tas/domain/state` (`INTERNAL_STATUS`): `draft → sent_to_editor_or_designer →
+  under_editing_or_designing → ad_submitted → revisions_needed → revisions_submitted → approved`;
+  `INTERNAL_TRANSITIONS` (approved terminal), `INTERNAL_ENTRY_STATUS = 'draft'` (a new brief and a
+  duplicate start there), `isClientTrackOpen` opens at `approved` only, `QA_INVALIDATING_INTERNAL`
+  derives to `revisions_needed`. The two per-track lists, `on_hold`, the internal `launched` and every
+  track-keyed helper (`internalStatusFor`, `internalTransitionsFor`, `startedStatusFor`,
+  `internalEntryStatus`) are deleted; the Internal Queue has the seven columns; the editor board maps
+  `sent_to_editor_or_designer` → Incoming, `under_editing_or_designing` + `revisions_needed` → Under
+  Editing, `ad_submitted` + `revisions_submitted` → Under Review, `draft` and `approved` off the board.
+- **Spelling kept on purpose**: the brief wrote `revision_submitted`; 17 live rows carry
+  `revisions_submitted` (0067 did not touch them), so the key stays plural (label "Revisions
+  Submitted"). The singular is one UPDATE plus one constant if Talal wants it.
+- **Dashboards**: the launch is not an internal status; the overview reads "live" as the client
+  track's `launched` or a `launched_at` timestamp, never `internal_status = 'launched'`.
+- **Migration 0068** (written, NOT applied — Railway is unreachable from this session): both
+  `internal_status` column defaults → `draft`, and `concepts.internal_status` (which shares the brief
+  vocabulary; ~103 production concepts sat on the old default `sent_to_video_editor`) moved with the
+  0067 rules. `cd packages/db && DATABASE_URL=… node apply68.mjs`. Until then those concepts render
+  as Draft (the fallback for an unknown stored key).
+- **Review** (four adversarial lenses, every finding verified by two skeptics): 21 findings, 6 held
+  and fixed before the push — the importer could still store four retired spellings verbatim from an
+  Airtable option (guarded, with a fixture); the editor board's off-board sentence called drafts
+  "approved"; the 0067/0068 PGlite test covered one concept key (now every key, and the seeded rows
+  are proved untouched); a design-system story hand-typed chip tones; a stale "on its own track"
+  comment; the root `handoff-design.md` now carries a dated superseded note. The 15 refuted ones
+  were pre-existing or by design; three of them are worth a follow-up ticket (below).
+- **Follow-ups surfaced by the review (pre-existing, not changed here)**: the shared client-status
+  dropdown action (`apps/web/src/lib/client-status-actions.ts`) checks the QA gate but neither the
+  internal gate nor `canTransitionClient` (the UI only offers it when the gate is open); the Client
+  Queue's Request Revisions action writes `revisions_needed` without the QA reset the brief page
+  applies; `createBriefAction` accepts a submitted internal status on create (the form sends the
+  entry state, so nothing mints anything today). Each is a one-function fix in a domain-gated action.
+- **Playwright (demo mode, nine specs, 86 tests)**: 64 pass, 22 fail — and the same 20 fail on the
+  previous head (`cbaa207`, run in a throwaway checkout, same first failing assertion on each), so
+  none is this change's. The two extras were `page.goto` cold-compile timeouts in
+  `removed-workspaces.spec.ts` (50.9 s and 52.9 s alone against a 60 s budget; both pass when the
+  spec runs by itself). The 20 are stale specs from earlier sprints, listed under follow-ups below;
+  the specs touched here (`internal-queue`, `creative-sheet`, `overview`, `smoke`, `client-queue`,
+  `concepts`, `briefs-editor`, `briefs`, `live/briefs-start`) carry the new vocabulary and fail, where
+  they fail, for those older reasons only.
+- **Files**: see commit `refactor(briefs): consolidate internal_status vocabulary per Oct 12 decisions`.
 
-### Ticket 15 — Copywriting field cleanup — PARTIAL (form done; column drops blocked)
+### Ticket 15 — Copywriting field cleanup — DONE
 
 - **Done**: Used, Winning, Meta Rating and the Client's Comment section are off the Copywriting
   panel; `updateCopyAction` no longer reads or writes them; the four grid renderers are gone and the
@@ -87,13 +112,12 @@ order they were worked; blockers and the decisions the human owns are at the bot
   `meta_rating`) are hidden on every brand. A copy links to a Creative and a Product only (Ticket 1
   took Collection). `client_approval_status` is on `copywriting` already (migration 0055; the panel's
   "Client Approval" select writes it).
-- **Blocked — the drop migration**: "after confirming no production data" needs the counts, and
-  Railway is unreachable from here (see Ticket 5). The operator runs
-  `select count(*) filter (where used), count(*) filter (where winning), count(meta_rating), count(client_comment) from copywriting where deleted_at is null;`
-  and, if all four are zero, a 0066/0067 `ALTER TABLE copywriting DROP COLUMN …` migration follows.
-- **Keep `client_comment` out of the drop until Talal confirms**: it is the client's own note, written
-  by the portal's `updateClientStatus` path and shown on `/client/<brand>/copywriting`. Dropping it
-  removes the client's comment from the portal, not just from the internal form.
+- **Migration 0066** (applied to Railway by hand on 2026-10-12; sha256
+  `212a5f9c8283046e988bf37937bbedb3913f14e854ccf26b333be76c85af8720`, recorded by `apply66.mjs`)
+  dropped `used`, `winning`, `meta_rating` and `client_comment`; the schema, the importer, the seed
+  rows, the demo fixtures and the tests followed in commit `refactor(copywriting,concepts): drop
+  retired columns from schema and code`. The client's note on a copy row is `client_approval_note`
+  (AUDIT-13): `updateCopyStatus` writes it, the portal reads it, the interface-config default names it.
 - **Vocabulary (decision, Talal)**: the brief's four values (`pending_client_approval`, `approved`,
   `disapproved`, `revision_needed`) conflict with AUDIT-13 (`docs/decisions.md` 2026-10-10: ONE
   client vocabulary, `CLIENT_STATUS`, six keys, on briefs, concepts and copywriting). Left on
@@ -102,7 +126,7 @@ order they were worked; blockers and the decisions the human owns are at the bot
   `packages/db/src/column-seed.ts` (`RETIRED_COLUMNS`), `packages/db/src/scripts/verify-rollout.ts`,
   tests and specs alongside.
 
-### Ticket 2 — Concepts table finalisation — DONE (code); two items for Talal
+### Ticket 2 — Concepts table finalisation — DONE; one item for Talal
 
 - **Done**: Batch, Angle and Theme are the only required fields (Category is optional, still a closed
   vocabulary when chosen; `REQUIRED_CONCEPT_FIELDS` drives the form's Required marks and the Server
@@ -118,25 +142,50 @@ order they were worked; blockers and the decisions the human owns are at the bot
   hyphen, and the creative name formula slices the batch off it. The hyphen stays until he rules;
   `concept-name.test.ts` pins it.
 - **`blind_approval`**: no such column or field exists on `concepts` (nothing to make optional).
-- **Blocked — the two column drops** (`formats_to_create`, `production_status`, 73 stored values on
-  the latter): production data check and migration apply need the operator (see Ticket 5).
+- **Migration 0066** (same hash as above) dropped `formats_to_create` and `production_status`; the
+  schema, the concept production vocabulary, the importer, the seed rows and the tests followed.
 - **Files**: `packages/domain/src/concepts/validate-concept-draft.ts` (+test), `concept-name.test.ts`,
   `apps/web/src/app/app/concepts/{[conceptId]/concept-detail.tsx,[conceptId]/page.tsx,actions.ts,fields.ts,concepts-workspace.tsx}`,
   `packages/db/src/column-seed.ts`, `packages/db/src/scripts/verify-rollout.ts`, tests and specs alongside.
 
 ## Blockers and decisions the human owns
 
-- **Ticket 1** · the Campaigns & Offers page still shows its read-only "Collections" reverse-link
-  column and panel list (the ticket names the Copywriting form and the brief/concept pickers only).
-  Drop it too? One commit if yes.
-- **Ticket 1** · `seed-columns --apply` on Railway (above) is a production write; it needs the
-  operator.
-- **Ticket 5** · see its entry above: Railway unreachable from here; `launched` / `on_hold` mapping.
-- **Tickets 15 / 16** · the four-value client vocabulary in the brief conflicts with the AUDIT-13
-  decision (ONE client vocabulary, `CLIENT_STATUS`, six keys, on briefs, concepts and copywriting).
-  Needs Talal's call before either ticket changes a status enum.
-- **Ticket 2** · the concept name separator (see its entry above).
-- **Ticket 3** · an internal `draft` status does not exist in the schema; the entry statuses are
-  `sent_to_video_editor` / `sent_to_designer`.
-- **Column drops** (Tickets 5, 15) · production data counts cannot be checked from this session
-  (no `DATABASE_URL` here); the operator confirms before any `DROP COLUMN` migration.
+- **Apply on Railway (operator, in this order)**: `cd packages/db && DATABASE_URL=… node apply66.mjs
+  && node apply67.mjs` (record the two hashes; nothing re-runs), then `node apply68.mjs` (column
+  defaults → `draft`, concept rows onto the one list; prints the concept counts before/after), then
+  `pnpm --filter @tas/db seed-columns -- --apply` (retires the dropped columns' `column_definitions`
+  rows and hides the Collections rows). `docs/runbook.md` has the verification steps.
+- **Ticket 5 · `revisions_submitted` spelling**: kept plural to match the 17 stored rows; say the word
+  and it becomes `revision_submitted` (one UPDATE, one constant).
+- **Ticket 5 · concepts in 0068**: the ~103 never-touched concepts move to `sent_to_editor_or_designer`
+  (the 0067 rule for their old default). If they should land on `draft` instead, change the UPDATE
+  in `0068_internal_status_defaults.sql` BEFORE `apply68.mjs` runs (the hash is recorded on apply).
+- **Ticket 5 · draft is off the editor board**: a new brief and a duplicate start at `draft`, which the
+  editor's board does not show; a strategist advances it to `sent_to_editor_or_designer` from the
+  brief page, the sheet or the bulk picker. A "Send to editor/designer" button and the PRD §12 "Brief
+  assigned" DM are not in this ticket.
+- **Ticket 2 · the concept name separator**: the brief writes `${batch} - ${angle} - ${theme}`; PRD
+  §7 / CLAUDE.md non-negotiable 6 write `Batch-Angle-Theme` and every live concept carries the
+  hyphen. The hyphen stays until Talal rules.
+- **Ticket 16 · vocabulary**: keep the six-key `CLIENT_STATUS` (AUDIT-13, 2026-10-10) or switch to the
+  brief's four values (`pending_client_approval`, `approved`, `disapproved`, `revision_needed`). Not
+  changed.
+- **Ticket 1 · Campaigns & Offers** still shows its read-only "Collections" reverse-link column and
+  panel list (not named in the ticket). Drop it too?
+
+## Follow-ups (not in Phase A)
+
+- **Stale Playwright specs (20 tests, pre-existing on `cbaa207`)**, one repair session, no product
+  code expected: `internal-queue` and `client-queue` look for sidebar links the F1 containment hid
+  and count "briefs" where the board says "creatives" (d81330c); `client-queue` expects four
+  columns, the board has five since `disapproved` (a66b7ec); `concepts`, `copywriting` and
+  `creative-sheet` pin header lists from before the "Client Approval" relabel, the Dimensions column
+  and the select-all checkbox column; `concepts` expects a `concept-name-preview` on a manual-named
+  concept, a client bar on a rail that is `internalOnly`, and a `concept-client-status` slot that no
+  longer exists; `copywriting` expects a `copy-client-status` slot the panel deliberately dropped;
+  `creative-sheet` searches for a "Daylight" brief the fixtures renamed, and its panel / multi-select
+  clicks land before hydration under two workers; `overview` and `smoke` expect the pipeline cards to
+  land on `/app/creative-design?status=…` while the cards link to the Creative Sheet (the
+  `creative-design` list route redirects there since the single-source cutover — decide which is
+  right); `removed-workspaces` expects `?q=hook` to survive the `youtube-copywriting` redirect and
+  the redirect drops it (a real, small bug in the redirect chain, pre-existing).

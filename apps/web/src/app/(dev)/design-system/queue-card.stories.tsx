@@ -43,7 +43,7 @@ const SAMPLE_ROWS: readonly QueueSourceRow[] = [
   {
     id: 'ds-queue-2',
     name: 'MS2-B2-It Is Not Just Your Age-Yapper Style-V1',
-    internalStatus: 'static_design_in_progress',
+    internalStatus: 'under_editing_or_designing',
     brandId: BRAND,
     assignee: 'Rhiannon Okafor',
     priority: 'Static High',
@@ -53,7 +53,7 @@ const SAMPLE_ROWS: readonly QueueSourceRow[] = [
   {
     id: 'ds-queue-3',
     name: 'RS1-B4-Standalone-V3-NIGHT RESET BUNDLE',
-    internalStatus: 'images_revisions',
+    internalStatus: 'revisions_needed',
     brandId: BRAND,
     assignee: null,
     priority: null,

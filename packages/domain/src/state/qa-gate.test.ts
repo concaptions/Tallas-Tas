@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CLIENT_STATUS, INTERNAL_STATIC_STATUS, INTERNAL_VIDEO_STATUS } from './creative-status';
+import { CLIENT_STATUS, INTERNAL_ENTRY_STATUS, INTERNAL_STATUS } from './creative-status';
 import {
   BRIEF_QA_CHECKS,
   INTERNAL_GATE_REASON,
@@ -12,7 +12,6 @@ import {
   clientMoveNeedsQa,
   clientMoveResetsQa,
   clientSubmissionTarget,
-  internalEntryStatus,
   internalMoveNeedsQa,
   internalMoveResetsQa,
   missingQaChecks,
@@ -78,10 +77,19 @@ describe('canSubmitToClient', () => {
 
 describe('submitToClientRefusal composes the two gates, internal first', () => {
   it('refuses while the internal track has not reached Approved, whatever QA says', () => {
+    for (const internal of INTERNAL_STATUS.map((entry) => entry.key).filter(
+      (k) => k !== 'approved',
+    )) {
+      expect(
+        submitToClientRefusal({ track: 'video', internal, client: 'revisions_needed', ticks: ALL }),
+        internal,
+      ).toBe(INTERNAL_GATE_REASON);
+    }
+    // The retired internal `launched` no longer opens anything: it is not a status this build knows.
     expect(
       submitToClientRefusal({
         track: 'video',
-        internal: 'ad_submitted',
+        internal: 'launched',
         client: 'revisions_needed',
         ticks: ALL,
       }),
@@ -111,7 +119,7 @@ describe('submitToClientRefusal composes the two gates, internal first', () => {
     expect(
       submitToClientRefusal({
         track: 'static',
-        internal: 'launched',
+        internal: 'approved',
         client: 'revisions_needed',
         ticks: ALL,
       }),
@@ -126,8 +134,8 @@ describe('submitToClientRefusal composes the two gates, internal first', () => {
     expect(internalMoveNeedsQa('ad_submitted', 'approved')).toBe(true);
     expect(internalMoveNeedsQa('revisions_submitted', 'approved')).toBe(true);
     expect(internalMoveNeedsQa('approved', 'approved')).toBe(false);
-    expect(internalMoveNeedsQa('approved', 'launched')).toBe(false);
-    expect(internalMoveNeedsQa('ad_submitted', 'videos_revisions')).toBe(false);
+    expect(internalMoveNeedsQa('ad_submitted', 'revisions_needed')).toBe(false);
+    expect(internalMoveNeedsQa('draft', 'sent_to_editor_or_designer')).toBe(false);
     expect(clientMoveNeedsQa('revisions_needed', 'revisions_submitted')).toBe(true);
     expect(clientMoveNeedsQa('revisions_needed', 'pending_for_approval')).toBe(true);
     expect(clientMoveNeedsQa('pending_for_approval', 'approved')).toBe(false);
@@ -136,24 +144,26 @@ describe('submitToClientRefusal composes the two gates, internal first', () => {
 });
 
 describe('QA auto-reset on revisions (Oct 12 scope 5)', () => {
-  it('derives exactly the three revision keys from the vocabularies — never the client key on the internal side', () => {
-    expect([...QA_INVALIDATING_INTERNAL].sort()).toEqual(['images_revisions', 'videos_revisions']);
+  it('derives exactly the one internal revision key and the one client key from the vocabularies', () => {
+    expect(QA_INVALIDATING_INTERNAL).toEqual(['revisions_needed']);
     expect(QA_INVALIDATING_CLIENT).toEqual(['revisions_needed']);
-    expect(internalMoveResetsQa('revisions_needed')).toBe(false);
+    expect(internalMoveResetsQa('revisions_needed')).toBe(true);
     expect(internalMoveResetsQa('revisions_submitted')).toBe(false);
+    expect(internalMoveResetsQa('videos_revisions')).toBe(false);
+    expect(internalMoveResetsQa('images_revisions')).toBe(false);
     expect(clientMoveResetsQa('revisions_submitted')).toBe(false);
-    // Every key is a real step of its ladder.
-    const internalKeys = [...INTERNAL_VIDEO_STATUS, ...INTERNAL_STATIC_STATUS].map((e) => e.key);
+    // Every key is a real step of the list.
+    const internalKeys = INTERNAL_STATUS.map((e) => e.key);
     for (const key of QA_INVALIDATING_INTERNAL) expect(internalKeys).toContain(key);
   });
 
   it('clears all three ticks on a move INTO a revision state on either track', () => {
-    expect(qaResetFor({ internalFrom: 'ad_submitted', internalTo: 'videos_revisions' })).toEqual(
+    expect(qaResetFor({ internalFrom: 'ad_submitted', internalTo: 'revisions_needed' })).toEqual(
       QA_RESET,
     );
-    expect(qaResetFor({ internalFrom: 'ad_submitted', internalTo: 'images_revisions' })).toEqual(
-      QA_RESET,
-    );
+    expect(
+      qaResetFor({ internalFrom: 'revisions_submitted', internalTo: 'revisions_needed' }),
+    ).toEqual(QA_RESET);
     expect(
       qaResetFor({ clientFrom: 'pending_for_approval', clientTo: 'revisions_needed' }),
     ).toEqual(QA_RESET);
@@ -162,7 +172,7 @@ describe('QA auto-reset on revisions (Oct 12 scope 5)', () => {
 
   it('leaves the ticks alone when standing still on a revision state or moving anywhere else', () => {
     expect(
-      qaResetFor({ internalFrom: 'videos_revisions', internalTo: 'videos_revisions' }),
+      qaResetFor({ internalFrom: 'revisions_needed', internalTo: 'revisions_needed' }),
     ).toEqual({});
     expect(qaResetFor({ internalFrom: 'ad_submitted', internalTo: 'approved' })).toEqual({});
     expect(qaResetFor({ clientFrom: 'revisions_needed', clientTo: 'revisions_submitted' })).toEqual(
@@ -173,9 +183,9 @@ describe('QA auto-reset on revisions (Oct 12 scope 5)', () => {
   });
 });
 
-describe('internalEntryStatus (duplicate resets to the entry state, there is no draft key)', () => {
-  it('is the first step of each ladder', () => {
-    expect(internalEntryStatus('video')).toBe('sent_to_video_editor');
-    expect(internalEntryStatus('static')).toBe('sent_to_designer');
+describe('the entry state (a new brief and a duplicate start here)', () => {
+  it('is draft, the first step of the one list, for a video and a static brief alike', () => {
+    expect(INTERNAL_ENTRY_STATUS).toBe('draft');
+    expect(INTERNAL_STATUS[0].key).toBe(INTERNAL_ENTRY_STATUS);
   });
 });

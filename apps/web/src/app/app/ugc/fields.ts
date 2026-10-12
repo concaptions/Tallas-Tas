@@ -251,7 +251,7 @@ export interface StatusChoice {
 /**
  * The entries a status Select offers from `current`: the whole vocabulary of the track, because
  * `@tas/domain/state/creator-status` defines the three tracks as independent lists with no
- * transition table (unlike a creative's `INTERNAL_VIDEO_TRANSITIONS`), so the only thing the
+ * transition table (unlike a creative's `INTERNAL_TRANSITIONS`), so the only thing the
  * domain forbids is a value outside the list — which is what the action refuses. A stored value
  * this build does not know is offered first, in its own words, so the trigger is never blank and
  * a save that touches another field never silently rewrites it.

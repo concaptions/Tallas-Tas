@@ -5,16 +5,16 @@ import { brands } from './brands';
 import type { AngleFormat, ClientApprovalStatusKey, ConceptApprovalStatus } from './enums';
 
 /**
- * The value `internal_status` starts at: the FIRST entry of `INTERNAL_VIDEO_STATUS` in
- * `@tas/domain/state`, verbatim. A concept is briefed to a video editor before anything else exists,
- * so a fresh row is already "Sent to Video Editor".
+ * The value `internal_status` starts at: 'draft', the entry (`INTERNAL_ENTRY_STATUS`) of the ONE
+ * `INTERNAL_STATUS` list in `@tas/domain/state`, verbatim. Concepts follow the brief vocabulary
+ * (Oct 12 client sync, Ticket 5); migration 0068 rewrote the stored rows and this default.
  *
  * The literal is repeated here rather than imported because `@tas/db` does not depend on
  * `@tas/domain` — the edge runs the other way round everywhere else in this repo (see
  * `packages/domain/src/angles/vocabulary.ts`, which copies this package's storage vocabulary for
  * exactly the same reason). `apps/web` depends on both and is where the two are asserted equal.
  */
-export const CONCEPT_INTERNAL_STATUS_DEFAULT = 'sent_to_video_editor';
+export const CONCEPT_INTERNAL_STATUS_DEFAULT = 'draft';
 
 /** The first entry of `CLIENT_STATUS` in `@tas/domain/state`; see the note above on the literal. */
 export const CONCEPT_CLIENT_STATUS_DEFAULT = 'pending_for_approval';

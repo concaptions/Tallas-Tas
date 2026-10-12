@@ -36,7 +36,7 @@ const BRIEFS: readonly EditorBoardBrief[] = [
   {
     id: 'incoming-1',
     name: 'TAS-TC1-B1-90 Minutes-Carousel-V1',
-    internalStatus: 'sent_to_designer',
+    internalStatus: 'sent_to_editor_or_designer',
     type: 'Carousel',
     priority: 'Video Average',
     assignee: null,
@@ -44,7 +44,7 @@ const BRIEFS: readonly EditorBoardBrief[] = [
   {
     id: 'editing-1',
     name: 'TAS-TS1-B2-Not Your Age-Green Screen-V1',
-    internalStatus: 'static_design_in_progress',
+    internalStatus: 'under_editing_or_designing',
     type: 'Static',
     priority: 'Static Average',
     assignee: 'Rhiannon Okafor',
@@ -64,6 +64,16 @@ const BRIEFS: readonly EditorBoardBrief[] = [
     type: 'Video',
     priority: 'Video High',
     assignee: 'Dorian Vance',
+  },
+  // A draft has not reached the editor's desk, so it is the other off-board case beside approved
+  // (Oct 12 client sync, Ticket 5 / 0067: `draft` is the entry step of the one internal list).
+  {
+    id: 'draft-1',
+    name: 'TAS-TS2-B3-Sleep In The Ninety Minutes-Yapper Style-V1',
+    internalStatus: 'draft',
+    type: 'Static',
+    priority: 'Static Average',
+    assignee: null,
   },
 ];
 

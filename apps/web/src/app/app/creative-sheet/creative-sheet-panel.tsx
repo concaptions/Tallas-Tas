@@ -4,7 +4,6 @@ import { useActionState, useEffect, useState, useTransition, type ReactNode } fr
 import Link from 'next/link';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { creativeTrack } from '@tas/domain/creatives';
-import { internalStatusFor, ON_HOLD } from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -38,6 +37,7 @@ import {
   BRIEF_LOOKUP_LABELS,
   DEMO_FOOTER_NOTICE,
   EM_DASH,
+  INTERNAL_STATUS_OPTIONS,
   internalStatusView,
   joinUrlLines,
   NAME_GENERATED_NOTE,
@@ -100,18 +100,6 @@ function Group({ heading, children }: { heading: string; children: ReactNode }) 
 }
 
 /**
- * The internal-status options for ONE row: its own track's ladder, from the state machine, plus
- * the `on_hold` branch when the row is on it — never the other track's steps, which the server
- * would refuse anyway.
- */
-function internalOptionsFor(item: CreativeSheetItemListRow): readonly SheetStatusView[] {
-  const track = creativeTrack(item.briefType ?? 'Video');
-  const ladder = internalStatusFor(track).map((entry) => internalStatusView(entry.key));
-  const onHold = item.internalStatus === ON_HOLD.key ? [internalStatusView(ON_HOLD.key)] : [];
-  return [...ladder, ...onHold].filter((view): view is SheetStatusView => view !== null);
-}
-
-/**
  * The Brief row sidebar (Oct 12 scope 2): a shadcn/ui Sheet, `side="right"`, in place of the old
  * fixed quick-look panel. It dims the grid behind it, traps focus, closes on Escape, its close
  * button and a press on the overlay; the open row still lives in `?creative-sheet=`. Six sections
@@ -120,7 +108,8 @@ function internalOptionsFor(item: CreativeSheetItemListRow): readonly SheetStatu
  * (Focus Mode hides it). The footer opens the same creative in Focus Mode or on its full page.
  *
  * Since the single-source cutover (2026-10-09) the row IS the brief, so every control here edits
- * `creative_briefs`: the two status tracks (the internal select is the row's own ladder), the
+ * `creative_briefs`: the two status tracks (the internal select is the one `INTERNAL_STATUS` list,
+ * the same for both creative tracks since the Oct 12 consolidation, Ticket 5 / 0067), the
  * three QA ticks, the QA checklist links and the spell-check trigger, and the Dimensions field,
  * which saves on pick. Read-only on purpose: the NAME, which is the month formula, the spelling
  * feedback the AI check wrote, and the brief's own lookups (type, platform, funnel, performance,
@@ -146,7 +135,7 @@ export function CreativeSheetPanel({
   const [internalStatus, setInternalStatus] = useState(item.internalStatus);
   const [status, setStatus] = useState(item.status);
   const [checks, setChecks] = useState<Checks>(() => checksOf(item));
-  const internalOptions = internalOptionsFor(item);
+  const internalOptions = INTERNAL_STATUS_OPTIONS;
 
   // The Dimensions field saves ON PICK, outside the form: its own array, its own transition and
   // its own state, so a pick is one write and the footer's Save never has to be pressed for it.

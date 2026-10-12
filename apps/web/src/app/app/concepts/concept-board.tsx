@@ -13,9 +13,9 @@ interface ConceptBoardProps {
 /**
  * The same concepts, grouped by internal status (ticket criterion 3).
  *
- * One column per step of the track, in the order `internalStatusFor` returns and always all of
- * them — an empty column says "nothing is waiting here", which is the single most useful thing a
- * pipeline board tells a strategist, so it is rendered with its zero rather than dropped.
+ * One column per step of the internal list, in `INTERNAL_STATUS` order and always all of them — an
+ * empty column says "nothing is waiting here", which is the single most useful thing a pipeline
+ * board tells a strategist, so it is rendered with its zero rather than dropped.
  *
  * The column heading is the status LABEL and its `StatusChip` carries the count: the chip is the
  * status, so the count rides on it rather than on a second pill of a colour this file chose. Every

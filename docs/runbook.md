@@ -104,7 +104,20 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
-- Oct 12 client sync, Tickets 2 and 15 (2026-10-12) · no migration yet. The same
+- Oct 12 client sync, Phase A finalisation (2026-10-12) · 0066 and 0067 were applied to Railway BY HAND
+  before their files existed; record their hashes so a future migrate run stays consistent (both
+  scripts are record-aware: they verify the end state and insert the hash only, nothing is re-run):
+  `cd packages/db && DATABASE_URL=… node apply66.mjs && node apply67.mjs`. Then apply 0068 (both
+  `internal_status` column defaults → `draft`, the concept rows onto the one-list vocabulary):
+  `node apply68.mjs` — it prints the concepts count by status before/after (expected: ~103 rows
+  `sent_to_video_editor` → `sent_to_editor_or_designer`). Until 0068 runs, those concepts render as
+  Draft (the fallback for a stored key the build does not know) and a raw INSERT without a status
+  would mint `sent_to_video_editor`; the app always sets the status explicitly, so only the display
+  is affected. Finally `pnpm --filter @tas/db seed-columns -- --apply` retires the six dropped
+  columns' `column_definitions` rows. Verify: `/app/concepts` shows no "Draft" concept that was
+  "Sent to Video Editor" before; the Internal Queue has seven columns; a new brief starts at Draft.
+- Oct 12 client sync, Tickets 2 and 15 (2026-10-12) · superseded by the entry above (0066 dropped the
+  columns). The same
   `pnpm --filter @tas/db seed-columns -- --apply` hides `concepts.formats_to_create`,
   `concepts.production_status` (Gratsi included) and the Copywriting `used`, `winning`, `meta_rating`,
   `client_comment` rows. The column DROPS the two tickets ask for are not written: the operator first

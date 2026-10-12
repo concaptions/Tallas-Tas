@@ -2229,3 +2229,36 @@ dropped without Talal's word. The four-value client vocabulary in the brief is n
 **Mechanism.** One list, `RETIRED_COLUMNS` in `packages/db/src/column-seed.ts`, hides every retired
 column on every brand through the seed (Tickets 1, 2 and 15); `seed-columns --apply` carries it to
 Railway (`docs/runbook.md`, pending). `verify-rollout.ts` carries the new counts.
+
+## 2026-10-12 — Oct 12 client sync, Phase A finalisation: migrations 0066–0068 and the one-list internal status
+
+**What the operator applied by hand (before the files existed).** 0066 dropped `copywriting.used`,
+`winning`, `meta_rating`, `client_comment` and `concepts.formats_to_create`, `production_status`;
+0067 rewrote `creative_briefs.internal_status` onto the Oct 12 vocabulary (7 + 5 + 0 + 1 + 0 rows).
+The repo caught up in three commits: the migration files with record-aware apply scripts (they verify
+the end state and record the hash, nothing re-runs), the schema and code without the six columns,
+and the status consolidation below.
+
+**The internal status is ONE list (Talal, Oct 12 client sync, Ticket 5).** `draft →
+sent_to_editor_or_designer → under_editing_or_designing → ad_submitted → revisions_needed →
+revisions_submitted → approved`, for a video and a static brief alike; the creative's track decides
+who builds it and which QA ticks it needs, never a status word. The two per-track lists, `on_hold` and
+the internal `launched` are gone from the code: the launch is the client track's `launched` and the
+brief's `launched_at` (the dashboards read "live" from those, never from `internal_status`);
+`approved` is the end of the internal track and the one key that opens the client gate. A new brief
+and a duplicate start at `draft`, which is off the editor's board until a strategist sends it on.
+
+**Two decisions the brief did not make.** (1) `launched → approved` and `on_hold → draft` were the
+operator's mapping in 0067 and stand. (2) The brief spelled the sixth key `revision_submitted`;
+production carries 17 live rows as `revisions_submitted`, which 0067 left alone, so the code keeps the
+plural (label "Revisions Submitted") — matching the data is the zero-risk choice, and the singular is
+one UPDATE plus one constant if Talal wants it.
+
+**What 0067 did not reach, and 0068 does.** Both `internal_status` columns still default to
+`sent_to_video_editor` on Railway, and `concepts.internal_status` — which has always carried the brief
+vocabulary (`CONCEPT_TRACK`) — sat on that default for ~103 of 106 production concepts. 0068 sets
+both defaults to `draft` and moves the concept rows with the 0067 rules; until the operator applies
+it those concepts render as Draft (the fallback for a stored key the build does not know), and
+nothing writes the retired key because every app insert sets the status explicitly. The concept
+mapping (→ `sent_to_editor_or_designer`, not `draft`) is flagged in `docs/sprint-oct12.md` for Talal
+and must be decided before `apply68.mjs` runs.

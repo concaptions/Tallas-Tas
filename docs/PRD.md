@@ -214,13 +214,26 @@ Full dimension sets are produced only *after* the client approves the first ad, 
 
 ## 9. The two approval tracks
 This is what makes us different from an in-house team, and it has to stay separate.
-**Internal Status** (our team only, client never sees it):
+**Internal Status** (our team only, client never sees it) — ONE list for video and static since the
+Oct 12 client sync (Talal, 2026-10-12; migration 0067; `docs/decisions.md` 2026-10-12):
+Draft → Sent to Editor / Designer → Under Editing / Designing → Ad Submitted
+→ Revisions Needed → Revisions Submitted → Approved
+
+The creative's track (video or static) still decides who builds it and which QA ticks it needs; it no
+longer decides the status words. Approved is the end of the internal track: the launch is the brief's
+`launched_at` and the client track's Launched, set by the media buyer once the ad is live. On Hold is
+gone (it was never used).
+
+<details><summary>Before 2026-10-12 (kept for the record)</summary>
+
 Sent to Designer → Static Design in Progress
 Sent to Video Editor → Video Editing in Progress → (On Hold)
 → Ad Submitted → Images Revisions / Videos Revisions
 → Revisions Submitted → Approved → LAUNCHED
 
 Launched needs to exist on the internal track too, not only the client one — the media buyer sets it once the ad is live, and that’s how our team knows a creative is finished.
+
+</details>
 **Client Status** (only visible/actionable once we’ve internally approved):
 Pending for Approval → Approved / Revisions Needed → Launched
 

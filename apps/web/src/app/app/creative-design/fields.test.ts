@@ -82,7 +82,7 @@ function item(overrides: Partial<BriefItem> = {}): BriefItem {
     typeLabel: 'Video',
     priority: priorityView('Video High'),
     assignee: 'Dorian Vance',
-    status: internalStatusView('video', 'approved'),
+    status: internalStatusView('approved'),
     clientStatus: clientStatusView('pending_for_approval'),
     performance: null,
     stage: briefStageView('approved'),
@@ -128,12 +128,12 @@ const BODY_CLOCK_LAUNCHED = '77777777-7777-4777-8777-000000000007';
  */
 describe('briefStageView', () => {
   it('reads the label and the tone from EDITOR_STAGES, never from this file', () => {
-    expect(briefStageView('sent_to_video_editor')).toEqual({
+    expect(briefStageView('sent_to_editor_or_designer')).toEqual({
       key: 'incoming',
       label: 'Sent to Editor/Designer',
       tone: 'info',
     });
-    expect(briefStageView('static_design_in_progress')).toEqual({
+    expect(briefStageView('under_editing_or_designing')).toEqual({
       key: 'under_editing',
       label: 'Under Editing',
       tone: 'warn',
@@ -146,16 +146,14 @@ describe('briefStageView', () => {
   });
 
   it('puts revisions back under Editing, where the editor holds the work again', () => {
-    expect(briefStageView('videos_revisions')?.key).toBe('under_editing');
-    expect(briefStageView('images_revisions')?.key).toBe('under_editing');
+    expect(briefStageView('revisions_needed')?.key).toBe('under_editing');
     expect(briefStageView('revisions_submitted')?.key).toBe('under_review');
   });
 
-  it('is null once the brief has left the editor board, so the cell shows no stage at all', () => {
+  it('is null before the brief reaches the board and once it has left it, so the cell shows no stage', () => {
+    // A draft has not been handed to an editor yet; an approved brief has been signed off.
+    expect(briefStageView('draft')).toBeNull();
     expect(briefStageView('approved')).toBeNull();
-    expect(briefStageView('launched')).toBeNull();
-    // Not a member of either linear ladder on purpose, so it is off the board too.
-    expect(briefStageView('on_hold')).toBeNull();
   });
 
   it('is null for a status this build does not know, rather than guessing a stage', () => {
@@ -218,17 +216,17 @@ describe('linkedName', () => {
 
 describe('internalStatusView', () => {
   it('reads the label and the tone from the state machine', () => {
-    expect(internalStatusView('video', 'approved')).toEqual({
+    expect(internalStatusView('approved')).toEqual({
       key: 'approved',
       label: 'Approved',
       tone: 'ok',
     });
   });
 
-  it('places a static brief on its own ladder', () => {
-    expect(internalStatusView('static', 'images_revisions')).toEqual({
-      key: 'images_revisions',
-      label: 'Images Revisions',
+  it('reads the one revision state of the shared list, toned as a warning', () => {
+    expect(internalStatusView('revisions_needed')).toEqual({
+      key: 'revisions_needed',
+      label: 'Revisions Needed',
       tone: 'warn',
     });
   });
@@ -382,25 +380,30 @@ describe('briefDimensions', () => {
 });
 
 describe('nextInternalStatus', () => {
-  it('offers the next linear step of the brief own ladder', () => {
-    expect(nextInternalStatus('static', 'sent_to_designer')?.key).toBe('static_design_in_progress');
-    expect(nextInternalStatus('video', 'sent_to_video_editor')?.key).toBe(
-      'video_editing_in_progress',
+  it('offers the next linear step of the one internal list', () => {
+    expect(nextInternalStatus('draft')?.key).toBe('sent_to_editor_or_designer');
+    expect(nextInternalStatus('sent_to_editor_or_designer')?.key).toBe(
+      'under_editing_or_designing',
     );
   });
 
-  it('never offers the non-linear on_hold branch', () => {
-    expect(nextInternalStatus('video', 'video_editing_in_progress')?.key).toBe('ad_submitted');
+  it('offers the submission from the working step', () => {
+    expect(nextInternalStatus('under_editing_or_designing')?.key).toBe('ad_submitted');
   });
 
-  it('is null at the end of the track', () => {
-    expect(nextInternalStatus('video', 'launched')).toBeNull();
+  it('is null at the end of the track: approved is terminal, the launch is the client track', () => {
+    expect(nextInternalStatus('approved')).toBeNull();
   });
 
   it('labels the button with the step it moves to', () => {
-    const next = nextInternalStatus('video', 'approved');
+    const next = nextInternalStatus('revisions_needed');
     expect(next).not.toBeNull();
-    expect(next === null ? '' : advanceLabel(next)).toBe('Advance to Launched');
+    expect(next === null ? '' : advanceLabel(next)).toBe('Advance to Revisions Submitted');
+  });
+
+  it('offers Revisions Needed from a submission: Approve is the QA-gated action, not Advance', () => {
+    expect(nextInternalStatus('ad_submitted')?.key).toBe('revisions_needed');
+    expect(nextInternalStatus('revisions_submitted')?.key).toBe('revisions_needed');
   });
 });
 

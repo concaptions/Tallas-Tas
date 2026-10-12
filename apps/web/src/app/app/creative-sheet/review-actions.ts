@@ -20,10 +20,9 @@ import { duplicateManualName, generateBriefName } from '@tas/domain/briefs';
 import { conceptNameSegment } from '@tas/domain/creatives';
 import {
   clientSubmissionTarget,
+  INTERNAL_STATUS,
   internalMoveResetsQa,
-  internalStatusFor,
   submitToClientRefusal,
-  type CreativeTrack,
   type InternalStatusKey,
 } from '@tas/domain/state';
 import { z } from 'zod';
@@ -110,12 +109,12 @@ function reviewed(brief: CreativeBrief): ReviewSuccess {
 }
 
 /**
- * The internal-track revision state of a brief's own ladder — `videos_revisions` or
- * `images_revisions`, found by the same derivation the reset uses, never typed.
+ * The one revision step of the internal track — `revisions_needed`, the same for both creative
+ * tracks since the Oct 12 consolidation (Ticket 5 / 0067) — derived from the QA-reset rule the
+ * write obeys, never typed.
  */
-function revisionStepFor(track: CreativeTrack): InternalStatusKey | null {
-  return internalStatusFor(track).find((entry) => internalMoveResetsQa(entry.key))?.key ?? null;
-}
+const REVISION_STEP: InternalStatusKey | null =
+  INTERNAL_STATUS.find((entry) => internalMoveResetsQa(entry.key))?.key ?? null;
 
 type Decision = { readonly ok: true; readonly saved: CreativeBrief } | ReviewFailure;
 
@@ -160,13 +159,13 @@ async function reviewOne(
 
 /**
  * Request Changes: the internal reviewer sends the cut back — `ad_submitted` /
- * `revisions_submitted` → the track's revision state. The three QA ticks are cleared in the same
- * write (scope 5).
+ * `revisions_submitted` → `revisions_needed`. The three QA ticks are cleared in the same write
+ * (scope 5).
  */
 export async function requestChangesAction(id: string): Promise<ReviewResult> {
   return reviewOne(id, async (db, brandId, current, actor) => {
     const position = currentPosition(current);
-    const target = revisionStepFor(position.track);
+    const target = REVISION_STEP;
     if (target === null) return { ok: false, error: NO_REVISION_STEP };
     const refusal = statusRefusal(position, target, position.client);
     if (refusal !== null) return { ok: false, error: refusal.message };
@@ -210,8 +209,7 @@ export async function approveCreativeAction(id: string): Promise<ReviewResult> {
 export async function submitToClientAction(id: string): Promise<ReviewResult> {
   return reviewOne(id, async (db, brandId, current, actor) => {
     const position = currentPosition(current);
-    if (position.internal === 'on_hold') return { ok: false, error: 'This creative is on hold.' };
-    const reason = submitToClientRefusal({ ...position, internal: position.internal });
+    const reason = submitToClientRefusal(position);
     if (reason !== null) return { ok: false, error: reason };
     const target = clientSubmissionTarget(position.client);
     if (target === null) return { ok: false, error: 'This creative is already with the client.' };
