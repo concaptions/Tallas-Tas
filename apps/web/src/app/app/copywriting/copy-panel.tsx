@@ -6,7 +6,6 @@ import {
   Button,
   disabledWriteClassName,
   DisabledWrite,
-  Input,
   Label,
   Select,
   SelectContent,
@@ -24,7 +23,6 @@ import { briefPath, productsPath } from '@/lib/routes';
 import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './actions';
 import {
   CAMPAIGNS_READ_ONLY_NOTE,
-  CLIENT_COMMENT_NOTE,
   COPY_FIELDS,
   COPY_HEADINGS,
   COPY_TYPES_HINT,
@@ -140,21 +138,17 @@ function draftOf(item: CopyItem): CopyDraft {
   };
 }
 
-/** The detail fields that live alongside the domain draft but are not validated by it. */
+/**
+ * The detail fields that live alongside the domain draft but are not validated by it. Used,
+ * Winning, Meta Rating and the Client's Comment left the form on Oct 12 (client sync, Ticket 15);
+ * their columns stay until the drop migration is applied.
+ */
 interface DetailDraft {
   funnel: string | null;
-  used: boolean;
-  winning: boolean;
-  metaRating: number | null;
 }
 
 function detailDraftOf(item: CopyItem): DetailDraft {
-  return {
-    funnel: item.funnel,
-    used: item.used,
-    winning: item.winning,
-    metaRating: item.metaRating,
-  };
+  return { funnel: item.funnel };
 }
 
 export function CopyPanel({
@@ -676,7 +670,6 @@ export function CopyPanel({
               <p className="text-xs text-text3">{CAMPAIGNS_READ_ONLY_NOTE}</p>
             </section>
 
-
             <section className="flex flex-col gap-3">
               <h3
                 data-slot="copy-group-heading"
@@ -725,76 +718,6 @@ export function CopyPanel({
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <label htmlFor="copy-field-used" className="flex cursor-pointer items-center gap-2">
-                  <input
-                    id="copy-field-used"
-                    type="checkbox"
-                    checked={detailDraft.used}
-                    disabled={locked}
-                    onChange={(event) => {
-                      setDetailDraft((current) => ({
-                        ...current,
-                        used: event.target.checked,
-                      }));
-                    }}
-                    className="accent-accent"
-                  />
-                  <span className="text-[11px] tracking-wide text-text3 uppercase">Used</span>
-                </label>
-                <input type="hidden" name="used" value={String(detailDraft.used)} />
-
-                <label
-                  htmlFor="copy-field-winning"
-                  className="flex cursor-pointer items-center gap-2"
-                >
-                  <input
-                    id="copy-field-winning"
-                    type="checkbox"
-                    checked={detailDraft.winning}
-                    disabled={locked}
-                    onChange={(event) => {
-                      setDetailDraft((current) => ({
-                        ...current,
-                        winning: event.target.checked,
-                      }));
-                    }}
-                    className="accent-accent"
-                  />
-                  <span className="text-[11px] tracking-wide text-text3 uppercase">Winning</span>
-                </label>
-                <input type="hidden" name="winning" value={String(detailDraft.winning)} />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label
-                  htmlFor="copy-field-metaRating"
-                  className="text-[11px] tracking-wide text-text3 uppercase"
-                >
-                  Meta Rating
-                </Label>
-                <Input
-                  id="copy-field-metaRating"
-                  name="metaRating"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={detailDraft.metaRating ?? ''}
-                  readOnly={locked}
-                  onChange={(event) => {
-                    const raw = event.target.value;
-                    setDetailDraft((current) => ({
-                      ...current,
-                      metaRating: raw === '' ? null : Number.parseInt(raw, 10),
-                    }));
-                  }}
-                  className="w-24"
-                />
-                <p className="text-xs text-text3">
-                  Meta&apos;s ad quality score (1 to 10), if available.
-                </p>
-              </div>
-
               {item.spellingFeedback === null ? null : (
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-[11px] tracking-wide text-text3 uppercase">
@@ -811,25 +734,6 @@ export function CopyPanel({
                   </p>
                 </div>
               )}
-            </section>
-
-            {/* Always present: the heading is the field's label (Gratsi "Client's Comment"); an
-                unanswered copy shows the dash, not a missing section. */}
-            <section className="flex flex-col gap-3">
-              <h3
-                data-slot="copy-group-heading"
-                className="border-b border-line pb-1 text-sm font-medium text-text2"
-              >
-                {COPY_HEADINGS.clientComment}
-              </h3>
-              <p
-                data-slot="copy-client-comment"
-                data-empty={item.clientComment === null ? 'true' : undefined}
-                className="rounded-card border border-line bg-surface2 px-3 py-2.5 text-sm leading-relaxed whitespace-pre-line text-text2"
-              >
-                {item.clientComment ?? EM_DASH}
-              </p>
-              <p className="text-xs text-text3">{CLIENT_COMMENT_NOTE}</p>
             </section>
           </div>
         </div>

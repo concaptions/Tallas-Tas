@@ -51,7 +51,6 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       'Headline',
       'News Feed / Link Description',
       'CTA',
-      'USED',
     ]);
 
     // The title is the auto-generated Copy #, in font-mono, never an input.
@@ -61,9 +60,9 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       await expect(title).toHaveText(/^Copy #\d+$/);
     }
 
-    // Every status is the shared chip, never a bare string. Eight chips, counted exactly: the four
-    // Status chips and the four USED Yes/No chips (the Collections chip left with Ticket 1).
-    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(8);
+    // Every status is the shared chip, never a bare string. Four chips, counted exactly: the four
+    // Status chips (the USED chips left with Ticket 15, the Collections chip with Ticket 1).
+    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(4);
 
     // Three rows link to a creative; the unattached one shows the muted em dash (criterion 4).
     await expect(page.locator('[data-slot="copy-row-creative"]')).toHaveCount(3);

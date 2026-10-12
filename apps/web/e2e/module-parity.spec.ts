@@ -147,13 +147,8 @@ const MODULES: readonly ModuleEntry[] = [
       { gratsi: 'Campaign Code', label: 'Campaigns & Offers' },
       { gratsi: 'Funnel', label: 'Funnel' },
       { gratsi: 'Copy Type', label: 'Copy Types' },
-      // gap: the panel renders this section only when the row carries a comment; the first fixture
-      // row (Copy 1, newest edit) has none, so the label is absent although the field exists.
-      { gratsi: "Client's Comment", label: "Client's Comment" },
       { gratsi: 'Creative', label: 'Linked Creative' },
-      { gratsi: 'USED', label: 'Used' },
-      { gratsi: 'Winning', label: 'Winning' },
-      { gratsi: 'Meta Rating', label: 'Meta Rating' },
+      // Client's Comment, USED, Winning and Meta Rating left the form on Oct 12 (Ticket 15).
     ],
     excluded: [
       {

@@ -2,11 +2,7 @@ import { lookupRollup, type CopyListRow } from '@tas/db';
 import { copyTitle } from '@tas/domain/copy';
 import { copyStatusLabel, copyStatusTone } from '@tas/domain/state';
 
-import type {
-  CopyBriefLookup,
-  CopyLookupCampaign,
-  CopyLookupProduct,
-} from '@/lib/copy-source';
+import type { CopyBriefLookup, CopyLookupCampaign, CopyLookupProduct } from '@/lib/copy-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { briefPath } from '@/lib/routes';
 
@@ -68,11 +64,7 @@ export function buildCopyItems(sources: CopyItemSources, now: Date): CopyItem[] 
       conceptId: row.conceptId,
       conceptName: row.conceptName,
       funnel: row.funnel,
-      used: row.used,
-      winning: row.winning,
-      metaRating: row.metaRating,
       spellingFeedback: row.spellingFeedback,
-      clientComment: row.clientComment,
       clientApprovalStatus: row.clientApprovalStatus,
       copyTypeIds,
       campaigns: campaignLinks(row.campaignIds, campaignNamesById),

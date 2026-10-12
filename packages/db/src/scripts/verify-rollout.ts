@@ -37,8 +37,9 @@ const EXPECTED: readonly {
   // hidden Gratsi child; 0064 moved the data) and the platform's client_approval_status row —
   // seeded 2026-10-08, first applied to production with this change — takes its place on both
   // (Gratsi: slot 12 via its relabel-platform row). Net count unchanged on each.
-  // Collections retired 2026-10-12 (Ticket 1): `concept_collections` hidden on both — one fewer each.
-  { tableKey: 'concepts', inheriting: 20, gratsi: 21, virtual: 0 },
+  // Oct 12 client sync: `concept_collections` hidden on both (Ticket 1), `formats_to_create` on the
+  // inheriting set and Gratsi's `production_status` fidelity row (Ticket 2) — 19 / 20.
+  { tableKey: 'concepts', inheriting: 19, gratsi: 20, virtual: 0 },
   // AI-41: Gratsi's dead second Concepts link (concept_ids) is retired; 'Concept to film' remains.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the two formula fields as virtual columns
   // (Creator's cost (USD), Notify Flag) in the live base's order — Gratsi 35.
@@ -64,8 +65,9 @@ const EXPECTED: readonly {
   // `collections.copywriting_id`.
   // + Client Approval (client_approval_status platform row, seeded 2026-10-08, applied 2026-10-11).
   // Collections retired 2026-10-12 (Ticket 1): the `collections` virtual and Gratsi's two collection
-  // lookups are hidden — inheriting 10 (no virtual left), Gratsi 23.
-  { tableKey: 'copywriting', inheriting: 10, gratsi: 23, virtual: 0 },
+  // lookups are hidden. Ticket 15 hid USED on both and Client's Comment, Winning, Meta Rating on
+  // Gratsi — inheriting 9 (no virtual left), Gratsi 19.
+  { tableKey: 'copywriting', inheriting: 9, gratsi: 19, virtual: 0 },
   { tableKey: 'creative_modules', inheriting: 4, gratsi: 4, virtual: 0 },
   { tableKey: 'client_asset_folders', inheriting: 4, gratsi: 4, virtual: 0 },
   // The name is virtual on both bases: Gratsi relabels it and the formula is read from the parent.

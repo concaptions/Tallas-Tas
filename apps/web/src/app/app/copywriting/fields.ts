@@ -93,16 +93,8 @@ export interface CopyItem {
   readonly creativeHref: string | null;
   /** A `COPY_FUNNELS` key, or `null` when not yet assigned. */
   readonly funnel: string | null;
-  /** Whether this copy has been used in a live ad. */
-  readonly used: boolean;
-  /** Whether this copy is a proven winner. */
-  readonly winning: boolean;
-  /** Meta's ad quality rating (1–10), or `null` when not yet scored. */
-  readonly metaRating: number | null;
   /** AI-generated spelling feedback, read-only. */
   readonly spellingFeedback: string | null;
-  /** The client writes this, we never do. Read-only wherever it appears. */
-  readonly clientComment: string | null;
   /** The client-facing approval status, one of the six `CLIENT_STATUS` keys or null. */
   readonly clientApprovalStatus: string | null;
   /**
@@ -307,12 +299,7 @@ export const COPY_HEADINGS = {
   copyTypes: 'Copy Types',
   campaigns: 'Campaigns & Offers',
   details: 'Details',
-  clientComment: "Client's Comment",
 } as const;
-
-/** The one sentence under the read-only client comment, so nobody hunts for the missing input. */
-export const CLIENT_COMMENT_NOTE =
-  'Written by the client in their approval interface. Read-only here.';
 
 /** Under the Copy Types picker: which side owns the link, so nobody looks for it on the other. */
 export const COPY_TYPES_HINT =
@@ -367,11 +354,6 @@ export function matchesQuery(item: CopyItem, query: string): boolean {
     item.campaignCodes ?? '',
     ...item.copyTypeNames,
   ].some((value) => value.toLowerCase().includes(query));
-}
-
-/** The Yes/No chip a checkbox column renders: `ok` when set, muted otherwise. */
-export function booleanChip(value: boolean): { readonly label: string; readonly tone: ChipTone } {
-  return value ? { label: 'Yes', tone: 'ok' } : { label: 'No', tone: 'mute' };
 }
 
 /**
@@ -468,11 +450,7 @@ export function pendingCopyOnPress(existing: readonly CopyItem[], now: Date): Co
     conceptName: null,
     creativeHref: null,
     funnel: null,
-    used: false,
-    winning: false,
-    metaRating: null,
     spellingFeedback: null,
-    clientComment: null,
     clientApprovalStatus: null,
     copyTypeIds: [],
     campaigns: [],

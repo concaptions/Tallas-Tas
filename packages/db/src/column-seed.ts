@@ -2115,25 +2115,33 @@ const COLUMN_SEED_SOURCE: readonly BrandColumnSeed[] = [
 ];
 
 /**
- * The columns that read the retired `collections` table (Oct 12 client sync, Ticket 1): the
- * Copywriting link and its two lookups, the brief's and the concept's link, and the sheet's lookup.
- * Each row stays in the seed — the Postgres columns and junctions are untouched, the table is
- * frozen, not dropped — but is HIDDEN on every brand, template and child alike, so the resolver
- * never offers a column the pages no longer draw (the same move as item 5b's hidden sheet row).
+ * The columns the Oct 12 client sync retired from the pages. Each row stays in the seed — the
+ * Postgres columns and junctions are untouched until their drop migrations are applied — but is
+ * HIDDEN on every brand, template and child alike, so the resolver never offers a column the pages
+ * no longer draw (the same move as item 5b's hidden sheet row).
+ *
+ * - Ticket 1: the six columns that read the frozen `collections` table.
+ * - Ticket 15: the Copywriting form's Used, Winning, Meta Rating and Client's Comment.
+ * - Ticket 2: the concept's duplicate `formats_to_create` and `production_status` (Gratsi's
+ *   fidelity row too; the parent row was already hidden by AI-34).
  */
-const RETIRED_COLLECTION_COLUMNS: ReadonlySet<string> = new Set([
+const RETIRED_COLUMNS: ReadonlySet<string> = new Set([
   'copywriting.collections',
   'copywriting.collection_url',
   'copywriting.products_from_collections',
   'creative_briefs.collection_id',
   'concepts.concept_collections',
   'creative_sheet_items.collection',
+  'copywriting.used',
+  'copywriting.winning',
+  'copywriting.meta_rating',
+  'copywriting.client_comment',
+  'concepts.formats_to_create',
+  'concepts.production_status',
 ]);
 
 function hideRetiredColumn(row: UpsertColumnDefinition): UpsertColumnDefinition {
-  return RETIRED_COLLECTION_COLUMNS.has(`${row.tableKey}.${row.columnKey}`)
-    ? { ...row, isHidden: true }
-    : row;
+  return RETIRED_COLUMNS.has(`${row.tableKey}.${row.columnKey}`) ? { ...row, isHidden: true } : row;
 }
 
 export const COLUMN_SEED: readonly BrandColumnSeed[] = COLUMN_SEED_SOURCE.map((group) => ({

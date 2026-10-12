@@ -42,7 +42,6 @@ import {
   PRIMARY_COPY_PREVIEW,
   SEARCH_PARAM,
   SELECTION_PARAM,
-  booleanChip,
   copyCountLabel,
   filteredCopyCountLabel,
   isPendingCopyId,
@@ -236,31 +235,9 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
     ),
     sortValue: (item) => item.copyTypeNames.length,
   },
-  client_comment: {
-    render: (item) => <TextCell value={item.clientComment} maxWidth={260} />,
-    sortValue: (item) => item.clientComment,
-  },
   link_from_product: {
     render: (item) => <TextCell value={item.productLink} maxWidth={240} />,
     sortValue: (item) => item.productLink,
-  },
-  used: {
-    render: (item) => <StatusChip {...booleanChip(item.used)} />,
-    sortValue: (item) => (item.used ? 1 : 0),
-  },
-  winning: {
-    render: (item) => <StatusChip {...booleanChip(item.winning)} />,
-    sortValue: (item) => (item.winning ? 1 : 0),
-  },
-  meta_rating: {
-    render: (item) =>
-      item.metaRating === null ? (
-        dash(null)
-      ) : (
-        <span className="font-mono text-xs">{String(item.metaRating)}</span>
-      ),
-    sortValue: (item) => item.metaRating,
-    align: 'right',
   },
   created_by: {
     render: (item) =>

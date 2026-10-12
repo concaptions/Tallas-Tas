@@ -250,12 +250,8 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
       [13, 'code_from_campaign', 'Code (from Campaign)'],
       [14, 'funnel', 'Funnel'],
       [15, 'copywriting_copy_types', 'Copy Type'],
-      [16, 'client_comment', "Client's Comment"],
       [17, 'creative_brief_id', 'Creative'],
       [19, 'link_from_product', 'Link (from Product)'],
-      [20, 'used', 'USED'],
-      [21, 'winning', 'Winning'],
-      [22, 'meta_rating', 'Meta Rating'],
       [24, 'created_by', 'Created By'],
       [27, 'internal_product', '(Internal) Product'],
     ]);
@@ -293,7 +289,6 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
       [7, 'Headline'],
       [8, 'News Feed / Link Description'],
       [9, 'CTA'],
-      [10, 'USED'],
       [12, 'Client Approval'],
     ]);
   });

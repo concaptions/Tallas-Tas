@@ -124,23 +124,6 @@ const optionalText = z
  */
 const optionalKey = z.string().trim().optional();
 
-/** A submitted boolean: present as "true" or "false" string; absent means `undefined`. */
-const optionalBool = z
-  .string()
-  .transform((value) => value === 'true')
-  .optional();
-
-/** A submitted integer: present as a string, parsed to int or `null` for empty; absent means `undefined`. */
-const optionalInt = z
-  .string()
-  .trim()
-  .transform((value) => {
-    if (value === '') return null;
-    const n = Number.parseInt(value, 10);
-    return Number.isNaN(n) ? null : n;
-  })
-  .optional();
-
 /**
  * Shape only. Every rule is `validateCopyDraft`'s. `copyNumber` is absent on purpose -- it is
  * generated, never submitted -- and so is `clientComment`, which the client writes, not us.
@@ -155,9 +138,6 @@ const copySchema = z.object({
   cta: optionalKey,
   status: optionalKey,
   funnel: optionalKey,
-  used: optionalBool,
-  winning: optionalBool,
-  metaRating: optionalInt,
   copyTypeIds: z.array(z.string().min(1)).optional(),
 });
 
@@ -183,9 +163,6 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     'cta',
     'status',
     'funnel',
-    'used',
-    'winning',
-    'metaRating',
   ]) {
     if (formData.has(key)) {
       const value = formData.get(key);
@@ -228,9 +205,6 @@ function parse(formData: FormData): { values: CopyFormValues } | CopyActionFailu
  */
 interface DetailFields {
   readonly funnel: string | null;
-  readonly used: boolean;
-  readonly winning: boolean;
-  readonly metaRating: number | null;
   readonly productId: string | null;
 }
 
@@ -264,9 +238,6 @@ function draftFrom(values: CopyFormValues, current: CopyListRow | null): DraftWi
   const rawFunnel = keep(values.funnel, current?.funnel ?? null);
   const details: DetailFields = {
     funnel: rawFunnel === '' || rawFunnel === null ? null : rawFunnel,
-    used: keep(values.used, current?.used ?? false),
-    winning: keep(values.winning, current?.winning ?? false),
-    metaRating: keep(values.metaRating, current?.metaRating ?? null),
     productId: keep(values.productId, current?.productId ?? null),
   };
 
@@ -309,9 +280,6 @@ function check(draft: CopyDraft, details: DetailFields): CheckedCopy | CopyActio
       cta: draft.cta,
       status: draft.status,
       funnel: details.funnel,
-      used: details.used,
-      winning: details.winning,
-      metaRating: details.metaRating,
     },
   };
 }
