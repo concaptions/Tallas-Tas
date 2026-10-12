@@ -246,11 +246,21 @@ describe('intersectCustomPageColumns', () => {
     expect(result.map((c) => c.columnKey)).toStrictEqual(['name']);
   });
 
-  it('reads label and order from the resolver, not the pick (admin rename flows through)', () => {
-    const picks = [{ columnKey: 'name', displayLabel: 'OLD', displayOrder: 99 }];
-    const result = intersectCustomPageColumns(resolver, picks);
-    expect(result[0]?.displayLabel).toBe('Name');
-    expect(result[0]?.displayOrder).toBe(1);
+  /**
+   * Part A (2026-10-12): the pick's label IS the page's label — an admin renames a column for one
+   * page in the Edit dialog, and the portal shows that name. A pick with no label of its own
+   * falls back to the resolver's; the order is the pick's.
+   */
+  it('reads label and order from the pick; a blank pick label falls back to the resolver', () => {
+    const renamed = intersectCustomPageColumns(resolver, [
+      { columnKey: 'name', displayLabel: 'Creative', displayOrder: 99 },
+    ]);
+    expect(renamed[0]?.displayLabel).toBe('Creative');
+    expect(renamed[0]?.displayOrder).toBe(99);
+    const blank = intersectCustomPageColumns(resolver, [
+      { columnKey: 'name', displayLabel: '   ', displayOrder: 2 },
+    ]);
+    expect(blank[0]?.displayLabel).toBe('Name');
   });
 });
 

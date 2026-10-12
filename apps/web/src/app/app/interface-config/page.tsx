@@ -4,6 +4,7 @@ import {
   canSeePropagationPage,
   type CustomPageSourceTableKey,
 } from '@tas/domain';
+import { isClientVisibleColumn } from '@tas/db';
 
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadInterfaceConfig } from '@/lib/interface-config-source';
@@ -101,10 +102,11 @@ export default async function InterfaceConfigPage() {
 
   const resolverColumnsByTable = CUSTOM_PAGE_SOURCE_TABLE_KEYS.reduce(
     (acc, key) => {
-      acc[key] = parentColumnsFor(key).map((col) => ({
-        columnKey: col.columnKey,
-        displayLabel: col.displayLabel,
-      }));
+      // Only the client-visible columns are ever offered (non-negotiable 10); the actions refuse
+      // the rest regardless.
+      acc[key] = parentColumnsFor(key)
+        .filter((col) => isClientVisibleColumn(key, col.columnKey))
+        .map((col) => ({ columnKey: col.columnKey, displayLabel: col.displayLabel }));
       return acc;
     },
     {} as Record<CustomPageSourceTableKey, readonly { columnKey: string; displayLabel: string }[]>,

@@ -234,3 +234,48 @@ describe('editPageAction with the client payload', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+/**
+ * Part A (2026-10-12): the column picks a page may carry are the CLIENT-VISIBLE ones only. An
+ * internal column posted for a page (here `internal_status` on creative_briefs) is refused by the
+ * action whatever the dialog offered; labels are trimmed.
+ */
+describe('editPageAction column picks', () => {
+  it('refuses an internal column and trims a label', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    const refused = await editPageAction(
+      null,
+      post({
+        slug: 'winners',
+        title: 'Top ads',
+        isVisible: 'true',
+        columnConfig: JSON.stringify([
+          { columnKey: 'name', displayLabel: 'Name', displayOrder: 0 },
+          { columnKey: 'internal_status', displayLabel: 'Internal', displayOrder: 1 },
+        ]),
+      }),
+    );
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.error).toContain('internal_status');
+
+    const trimmed = await editPageAction(
+      null,
+      post({
+        slug: 'winners',
+        title: 'Top ads',
+        isVisible: 'true',
+        columnConfig: JSON.stringify([
+          { columnKey: 'name', displayLabel: '  Creative  ', displayOrder: 0 },
+        ]),
+      }),
+    );
+    expect(trimmed).toMatchObject({ ok: true });
+    if (seam.db === null) throw new Error('the test database is not open');
+    const row = (await seam.db.select().from(customInterfacePages)).find(
+      (r) => r.slug === 'winners' && r.brandId === seam.brandId,
+    );
+    expect(row?.columnConfig).toEqual([
+      { columnKey: 'name', displayLabel: 'Creative', displayOrder: 0 },
+    ]);
+  });
+});

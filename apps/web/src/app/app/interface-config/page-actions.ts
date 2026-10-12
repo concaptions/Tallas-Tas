@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { auth } from '@clerk/nextjs/server';
 import {
   insertActivity,
+  isClientVisibleColumn,
   listMergedPages,
   listTeam,
   setBrandPageOrder,
@@ -22,7 +23,7 @@ import { withInterfacePagesScope } from '@/lib/interface-config-pages-source';
 import { interfaceConfigPath } from '@/lib/routes';
 import { teamPageActorFrom } from '@/lib/team-actor';
 
-import { editPageSchema, filterValid, readJsonEntry } from './page-schema';
+import { editPageSchema, filterValid, firstInternalColumn, readJsonEntry } from './page-schema';
 
 /**
  * Server Actions for the Interface Config "Pages" section (Scope A, B4): every page of the brand —
@@ -284,6 +285,12 @@ export async function editPageAction(
         (row) => row.slug === parsed.data.slug,
       );
       if (page === undefined) return 'That page is no longer available.';
+      const internal = firstInternalColumn(parsed.data.columnConfig, (key) =>
+        isClientVisibleColumn(page.sourceTableKey, key),
+      );
+      if (internal !== null) {
+        return `“${internal}” is an internal column and cannot be shown to a client.`;
+      }
       await setBrandPageOverrides(
         db,
         brandId,

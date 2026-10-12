@@ -288,9 +288,21 @@ export function intersectCustomPageColumns(
 ): readonly ResolvedColumnInput[] {
   if (columnConfig.length === 0) return resolverColumns;
   const resolverByKey = new Map(resolverColumns.map((col) => [col.columnKey, col] as const));
+  // The pick's label and order are the page's own (an admin renames and reorders a column for
+  // one page in the Edit dialog); a blank pick label falls back to the resolver's.
   return columnConfig
     .slice()
     .sort((a, b) => a.displayOrder - b.displayOrder)
-    .map((pick) => resolverByKey.get(pick.columnKey))
-    .filter((col): col is ResolvedColumnInput => col !== undefined);
+    .flatMap((pick) => {
+      const resolved = resolverByKey.get(pick.columnKey);
+      if (resolved === undefined) return [];
+      const label = pick.displayLabel.trim();
+      return [
+        {
+          ...resolved,
+          displayLabel: label === '' ? resolved.displayLabel : label,
+          displayOrder: pick.displayOrder,
+        },
+      ];
+    });
 }

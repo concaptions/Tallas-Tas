@@ -93,3 +93,23 @@ describe('PageForm', () => {
     expect(toKebab('Top Ads  2026!')).toBe('top-ads-2026');
   });
 });
+
+/**
+ * Part A (2026-10-12): the Columns section lists the client-visible columns of the page's table,
+ * each with a checkbox, a label input pre-filled with the page's own label (the resolver's for an
+ * unpicked column) and up/down buttons; picked columns come first, in the page's order.
+ */
+describe('PageForm — Columns', () => {
+  it('pre-fills picked columns first with their labels, then the rest unticked', () => {
+    const markup = form(custom);
+    const rows = [...markup.matchAll(/data-slot="column-row" data-column-key="([a-z_]+)"/g)].map(
+      (m) => m[1],
+    );
+    expect(rows).toEqual(['client_status', 'name']);
+    expect(markup).toMatch(
+      /data-slot="column-label"[^>]*data-column-key="client_status"[^>]*value="Client Approval"/,
+    );
+    expect(markup).toMatch(/data-slot="column-label"[^>]*data-column-key="name"[^>]*value="Name"/);
+    expect(markup).toContain('data-slot="column-move"');
+  });
+});

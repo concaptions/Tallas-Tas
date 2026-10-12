@@ -18,7 +18,8 @@ export const columnConfigSchema = z
   .array(
     z.object({
       columnKey: z.string().min(1).max(128),
-      displayLabel: z.string().min(1).max(128),
+      // The page's own label for the column: trimmed, 1 to 128 characters.
+      displayLabel: z.string().trim().min(1).max(128),
       displayOrder: z.number().int().min(0).max(999),
     }),
   )
@@ -86,4 +87,16 @@ export function readJsonEntry(formData: FormData, key: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The column keys a client page may carry are the client-visible ones of its source table
+ * (non-negotiable 10). Returns the first key that is not, or null when every pick is allowed.
+ */
+export function firstInternalColumn(
+  picks: readonly { readonly columnKey: string }[] | undefined,
+  isVisible: (columnKey: string) => boolean,
+): string | null {
+  if (picks === undefined) return null;
+  return picks.find((pick) => !isVisible(pick.columnKey))?.columnKey ?? null;
 }

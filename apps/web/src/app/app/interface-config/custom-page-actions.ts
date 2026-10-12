@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
   insertCustomPage,
+  isClientVisibleColumn,
   listTeam,
   softDeleteCustomPage,
   updateCustomPage,
@@ -23,6 +24,7 @@ import {
   createPageSchema,
   filterConfigSchema,
   filterValid,
+  firstInternalColumn,
   pageSlugSchema,
   pageTitleSchema,
   readJsonEntry,
@@ -115,6 +117,12 @@ export async function createCustomPageAction(
   if (!parsed.success) return failure('Could not read the page.');
   if (!filterValid(parsed.data.filterConfig)) {
     return failure('A filter with the chosen operator needs a value.');
+  }
+  const internal = firstInternalColumn(parsed.data.columnConfig, (key) =>
+    isClientVisibleColumn(parsed.data.sourceTableKey, key),
+  );
+  if (internal !== null) {
+    return failure(`“${internal}” is an internal column and cannot be shown to a client.`);
   }
 
   // `CUSTOM_PAGE_FILTER_OPS` is the single source of the op union; a drift would fail the build

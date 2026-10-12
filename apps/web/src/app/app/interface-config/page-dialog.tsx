@@ -172,8 +172,8 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
     'value' in initialFilter ? initialFilter.value : '',
   );
   const [visible, setVisible] = useState(page?.isVisible ?? true);
-  const [picked, setPicked] = useState<readonly string[]>(
-    (page?.columnConfig ?? []).map((column) => column.columnKey),
+  const [columns, setColumns] = useState<readonly ColumnRow[]>(() =>
+    columnRowsFor(page, resolverColumnsByTable[initialSource(page)]),
   );
   const titleId = useId();
   const slugId = useId();
@@ -193,9 +193,17 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
   };
 
   const toggleColumn = (key: string) => {
-    setPicked((current) =>
-      current.includes(key) ? current.filter((c) => c !== key) : [...current, key],
+    setColumns((current) =>
+      current.map((row) => (row.columnKey === key ? { ...row, picked: !row.picked } : row)),
     );
+  };
+  const relabelColumn = (key: string, label: string) => {
+    setColumns((current) =>
+      current.map((row) => (row.columnKey === key ? { ...row, label } : row)),
+    );
+  };
+  const moveColumn = (key: string, direction: 'up' | 'down') => {
+    setColumns((current) => moveRow(current, key, direction));
   };
 
   const buildFormData = (): FormData => {
@@ -213,19 +221,7 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
             : { column: filterColumn, op: filterOp };
       }
       fd.append('filterConfig', JSON.stringify(filterConfig));
-      fd.append(
-        'columnConfig',
-        JSON.stringify(
-          picked.map((columnKey, index) => {
-            const match = resolverColumns.find((c) => c.columnKey === columnKey);
-            return {
-              columnKey,
-              displayLabel: match?.displayLabel ?? columnKey,
-              displayOrder: index,
-            };
-          }),
-        ),
-      );
+      fd.append('columnConfig', JSON.stringify(pickedColumnConfig(columns)));
     }
     return fd;
   };
@@ -276,7 +272,9 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
             value={source}
             onValueChange={(next) => {
               setSource(next as CustomPageSourceTableKey);
-              setPicked([]);
+              setColumns(
+                columnRowsFor(null, resolverColumnsByTable[next as CustomPageSourceTableKey]),
+              );
               setFilterColumn('');
             }}
           >
@@ -346,34 +344,67 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
               ) : null}
             </div>
           </div>
-          <fieldset className="flex flex-col gap-1">
+          <fieldset className="flex flex-col gap-1" data-slot="page-form-columns">
             <legend className="text-sm font-medium text-text2">Columns</legend>
-            <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-input border border-line bg-surface2 p-2">
-              {resolverColumns.length === 0 ? (
+            <div className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-input border border-line bg-surface2 p-2">
+              {columns.length === 0 ? (
                 <p className="text-xs text-text3">
-                  No resolver columns configured for this source table.
+                  No client-visible columns are configured for this source table.
                 </p>
               ) : (
-                resolverColumns.map((c) => (
-                  <label key={c.columnKey} className="flex items-center gap-2 text-xs text-text2">
+                columns.map((row, index) => (
+                  <div
+                    key={row.columnKey}
+                    data-slot="column-row"
+                    data-column-key={row.columnKey}
+                    className="flex items-center gap-2"
+                  >
                     <input
                       type="checkbox"
                       data-slot="column-pick"
-                      data-column-key={c.columnKey}
-                      checked={picked.includes(c.columnKey)}
+                      data-column-key={row.columnKey}
+                      aria-label={`Show ${row.resolverLabel}`}
+                      checked={row.picked}
                       onChange={() => {
-                        toggleColumn(c.columnKey);
+                        toggleColumn(row.columnKey);
                       }}
                     />
-                    <span>{c.displayLabel}</span>
-                    <span className="font-mono text-[10px] text-text4">{c.columnKey}</span>
-                  </label>
+                    <Input
+                      data-slot="column-label"
+                      data-column-key={row.columnKey}
+                      aria-label={`Label for ${row.resolverLabel}`}
+                      value={row.label}
+                      onChange={(e) => {
+                        relabelColumn(row.columnKey, e.target.value);
+                      }}
+                      className="h-7 flex-1 text-xs"
+                    />
+                    <span className="font-mono text-[10px] text-text4">{row.columnKey}</span>
+                    {(['up', 'down'] as const).map((direction) => (
+                      <Button
+                        key={direction}
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        data-slot="column-move"
+                        data-direction={direction}
+                        data-column-key={row.columnKey}
+                        aria-label={`Move ${row.resolverLabel} ${direction}`}
+                        disabled={direction === 'up' ? index === 0 : index === columns.length - 1}
+                        onClick={() => {
+                          moveColumn(row.columnKey, direction);
+                        }}
+                      >
+                        {direction === 'up' ? '↑' : '↓'}
+                      </Button>
+                    ))}
+                  </div>
                 ))
               )}
             </div>
             <p className="text-[11px] text-text3">
-              Pick at least one column: an empty set would show the client every column of the
-              table. Order follows pick order.
+              Tick what the client sees, name it as the client should read it, order it with the
+              arrows. At least one column is required.
             </p>
           </fieldset>
         </>
@@ -404,4 +435,83 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
       </DialogFooter>
     </form>
   );
+}
+
+/** One row of the Columns section: a client-visible column, picked or not, under the page's label. */
+export interface ColumnRow {
+  readonly columnKey: string;
+  /** The resolver's own label — what the client sees when the page keeps no label of its own. */
+  readonly resolverLabel: string;
+  readonly label: string;
+  readonly picked: boolean;
+}
+
+function initialSource(page: PageListItem | null): CustomPageSourceTableKey {
+  return (page?.sourceTableKey as CustomPageSourceTableKey | null | undefined) ?? 'creative_briefs';
+}
+
+/**
+ * The Columns section's rows: the page's picks first, in the page's order and under the page's
+ * labels, then every other client-visible column of the table, unticked under the resolver's label.
+ */
+export function columnRowsFor(
+  page: PageListItem | null,
+  resolverColumns: readonly { columnKey: string; displayLabel: string }[] | undefined,
+): readonly ColumnRow[] {
+  const resolver = resolverColumns ?? [];
+  const resolverByKey = new Map(resolver.map((column) => [column.columnKey, column] as const));
+  const picks = (page?.columnConfig ?? [])
+    .slice()
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .flatMap((pick) => {
+      const resolved = resolverByKey.get(pick.columnKey);
+      if (resolved === undefined) return [];
+      return [
+        {
+          columnKey: pick.columnKey,
+          resolverLabel: resolved.displayLabel,
+          label: pick.displayLabel.trim() === '' ? resolved.displayLabel : pick.displayLabel,
+          picked: true,
+        },
+      ];
+    });
+  const pickedKeys = new Set(picks.map((row) => row.columnKey));
+  const rest = resolver
+    .filter((column) => !pickedKeys.has(column.columnKey))
+    .map((column) => ({
+      columnKey: column.columnKey,
+      resolverLabel: column.displayLabel,
+      label: column.displayLabel,
+      picked: false,
+    }));
+  return [...picks, ...rest];
+}
+
+/** Swaps the row with its neighbour; the edges stay put. */
+export function moveRow(
+  rows: readonly ColumnRow[],
+  columnKey: string,
+  direction: 'up' | 'down',
+): readonly ColumnRow[] {
+  const index = rows.findIndex((row) => row.columnKey === columnKey);
+  const target = direction === 'up' ? index - 1 : index + 1;
+  if (index < 0 || target < 0 || target >= rows.length) return rows;
+  const next = rows.slice();
+  const [row] = next.splice(index, 1);
+  if (row === undefined) return rows;
+  next.splice(target, 0, row);
+  return next;
+}
+
+/** What the page stores: the picked rows, in their order, under their labels. */
+export function pickedColumnConfig(
+  rows: readonly ColumnRow[],
+): { columnKey: string; displayLabel: string; displayOrder: number }[] {
+  return rows
+    .filter((row) => row.picked)
+    .map((row, index) => ({
+      columnKey: row.columnKey,
+      displayLabel: row.label.trim() === '' ? row.resolverLabel : row.label.trim(),
+      displayOrder: index,
+    }));
 }
