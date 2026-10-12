@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import { PageForm, pageHasStructure, toKebab } from './page-dialog';
+import { PageForm, pageHasFilter, toKebab } from './page-dialog';
 import type { PageListItem } from './page-list-item';
 
 vi.mock('./custom-page-actions', () => ({ createCustomPageAction: vi.fn() }));
@@ -9,9 +9,9 @@ vi.mock('./page-actions', () => ({ editPageAction: vi.fn() }));
 
 /**
  * The one page form (2026-10-12), rendered statically (a dialog's content lives in a portal). In
- * edit mode it is PRE-FILLED from the row: title, slug (read-only), visibility, and — for a custom
- * or module page — the filter and the column picks; a standard tab gets no structure fields. In
- * create mode it offers the source table.
+ * edit mode it is PRE-FILLED from the row: title, slug (read-only), visibility, the column picks
+ * (every kind, Part A) and — for a custom or module page — the filter; a standard tab gets no
+ * filter and no source. In create mode it offers the source table.
  */
 const COLUMNS = {
   creative_briefs: [
@@ -23,6 +23,10 @@ const COLUMNS = {
   concepts: [],
   collections: [],
   products: [],
+  campaigns_offers: [
+    { columnKey: 'name', displayLabel: 'Name' },
+    { columnKey: 'holiday', displayLabel: 'Holiday' },
+  ],
 } as const;
 
 const standard: PageListItem = {
@@ -35,7 +39,7 @@ const standard: PageListItem = {
   isTemplate: true,
   sourceTableKey: 'campaigns_offers',
   filterConfig: {},
-  columnConfig: [],
+  columnConfig: [{ columnKey: 'holiday', displayLabel: 'Occasion', displayOrder: 0 }],
 };
 
 const custom: PageListItem = {
@@ -55,7 +59,7 @@ const form = (page: PageListItem | null) =>
   renderToStaticMarkup(<PageForm page={page} resolverColumnsByTable={COLUMNS} />);
 
 describe('PageForm', () => {
-  it('pre-fills a standard tab: title, read-only slug, visibility; no source, filter or columns', () => {
+  it('pre-fills a standard tab: title, read-only slug, visibility, its columns; no source or filter', () => {
     const markup = form(standard);
     expect(markup).toContain('data-editing="true"');
     expect(markup).toMatch(/name="title"[^>]*value="Calendar"/);
@@ -64,8 +68,17 @@ describe('PageForm', () => {
     expect(visibleSwitch).toContain('data-slot="page-form-visible"');
     expect(visibleSwitch).toContain('aria-checked="false"');
     expect(markup).not.toContain('data-slot="source-select"');
-    expect(markup).not.toContain('data-slot="column-pick"');
     expect(markup).not.toContain('data-slot="filter-op-select"');
+    // Part A2: the tab's client-visible columns, the shown ones ticked under the brand's label.
+    const rows = [...markup.matchAll(/data-slot="column-row" data-column-key="([a-z_]+)"/g)].map(
+      (m) => m[1],
+    );
+    expect(rows).toEqual(['holiday', 'name']);
+    expect(markup).toMatch(/data-column-key="holiday"[^>]*checked/);
+    expect(markup).not.toMatch(/data-column-key="name"[^>]*checked/);
+    expect(markup).toMatch(
+      /data-slot="column-label"[^>]*data-column-key="holiday"[^>]*value="Occasion"/,
+    );
   });
 
   it('pre-fills a custom view with its filter value and its column picks ticked', () => {
@@ -86,10 +99,10 @@ describe('PageForm', () => {
     expect(markup).toContain('data-slot="column-pick"');
   });
 
-  it('knows which pages carry structure, and kebab-cases a typed title', () => {
-    expect(pageHasStructure(standard)).toBe(false);
-    expect(pageHasStructure(custom)).toBe(true);
-    expect(pageHasStructure({ ...custom, kind: 'module' })).toBe(true);
+  it('knows which pages carry a filter, and kebab-cases a typed title', () => {
+    expect(pageHasFilter(standard)).toBe(false);
+    expect(pageHasFilter(custom)).toBe(true);
+    expect(pageHasFilter({ ...custom, kind: 'module' })).toBe(true);
     expect(toKebab('Top Ads  2026!')).toBe('top-ads-2026');
   });
 });

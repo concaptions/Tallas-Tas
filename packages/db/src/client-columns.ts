@@ -80,6 +80,9 @@ export const CLIENT_VISIBLE_COLUMNS: Readonly<Record<string, readonly string[]>>
   ],
   collections: ['name', 'url'],
   products: ['name', 'link', 'collection_link'],
+  // The Calendar tab (Part A2, 2026-10-12): what the portal's calendar showed before it read the
+  // resolver — never the offer, code, country or the internal planning text.
+  campaigns_offers: ['name', 'holiday', 'official_date', 'ads_launch_date', 'ads_end_date'],
 };
 
 /** The allowed column names of one source table, `id` included; empty for an unknown table. */

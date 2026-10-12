@@ -14,6 +14,15 @@ export type PageKind = (typeof PAGE_KINDS)[number];
 export const STANDARD_PAGE_SLUGS = [...CLIENT_TAB_KEYS, 'calendar'] as const;
 export type StandardPageSlug = (typeof STANDARD_PAGE_SLUGS)[number];
 
+/** The source table each standard tab renders (what migration 0063 wrote as `source_table_key`). */
+export const STANDARD_PAGE_SOURCE_TABLE: Readonly<Record<StandardPageSlug, string>> = {
+  concepts: 'concepts',
+  creative_sheet: 'creative_briefs',
+  ugc_management: 'creators',
+  copywriting: 'copywriting',
+  calendar: 'campaigns_offers',
+};
+
 export function isStandardPageSlug(value: string): value is StandardPageSlug {
   return (STANDARD_PAGE_SLUGS as readonly string[]).includes(value);
 }

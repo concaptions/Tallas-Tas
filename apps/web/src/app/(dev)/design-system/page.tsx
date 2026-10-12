@@ -142,6 +142,7 @@ import {
   InterfaceConfigStory,
   PagesSectionStory,
 } from './interface-config.stories';
+import { StandardTabStory } from './standard-tab.stories';
 import {
   NotificationRoutingNoteStory,
   NotificationTableDemoStory,
@@ -1300,6 +1301,13 @@ export default function DesignSystemPage() {
             </h3>
             <InterfaceConfigEmptyStory />
             <PagesSectionStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              client portal standard tab — the brand&apos;s resolved columns under the brand&apos;s
+              labels (Gratsi reads &quot;Approval&quot;), the client vocabulary in a chip
+            </h3>
+            <StandardTabStory />
           </div>
         </div>
       </Section>

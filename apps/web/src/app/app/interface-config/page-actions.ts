@@ -4,17 +4,25 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auth } from '@clerk/nextjs/server';
 import {
+  brandTabColumns,
   insertActivity,
   isClientVisibleColumn,
   listMergedPages,
   listTeam,
+  reattachBrandTabColumns,
   setBrandPageOrder,
   setBrandPageOverrides,
   setBrandPageVisibility,
+  setBrandTabColumns,
   softDeleteCustomPage,
   type Db,
 } from '@tas/db';
-import { canConfigureInterface, movePage } from '@tas/domain';
+import {
+  STANDARD_PAGE_SOURCE_TABLE,
+  canConfigureInterface,
+  isStandardPageSlug,
+  movePage,
+} from '@tas/domain';
 import { z } from 'zod';
 
 import { resolveLiveAgencyId } from '@/lib/data-source';
@@ -23,7 +31,13 @@ import { withInterfacePagesScope } from '@/lib/interface-config-pages-source';
 import { interfaceConfigPath } from '@/lib/routes';
 import { teamPageActorFrom } from '@/lib/team-actor';
 
-import { editPageSchema, filterValid, firstInternalColumn, readJsonEntry } from './page-schema';
+import {
+  editPageSchema,
+  filterValid,
+  firstInternalColumn,
+  readJsonEntry,
+  tabColumnWrites,
+} from './page-schema';
 
 /**
  * Server Actions for the Interface Config "Pages" section (Scope A, B4): every page of the brand —
@@ -242,6 +256,11 @@ export async function resetPageAction(
         return 'This page has no brand override to reset.';
       }
       await softDeleteCustomPage(db, page.id, brandId, actor);
+      // A standard tab's columns are the brand's column definitions (Part A2): Reset reattaches
+      // the tab's client-visible columns to the template too, through Column Admin's own path.
+      if (page.pageKind === 'standard' && isStandardPageSlug(page.slug)) {
+        await reattachBrandTabColumns(db, brandId, STANDARD_PAGE_SOURCE_TABLE[page.slug], actor);
+      }
       return null;
     },
     'The page could not be reset. Try again.',
@@ -290,6 +309,29 @@ export async function editPageAction(
       );
       if (internal !== null) {
         return `“${internal}” is an internal column and cannot be shown to a client.`;
+      }
+      if (page.pageKind === 'standard' && isStandardPageSlug(page.slug)) {
+        // A standard tab (Part A2): the picks are the brand's column definition rows — label,
+        // order, hidden — written through the writer Column Admin uses; the page row keeps only
+        // the title and visibility, so `column_config` stays the template's '[]'.
+        if (parsed.data.columnConfig !== undefined) {
+          const tableKey = STANDARD_PAGE_SOURCE_TABLE[page.slug];
+          await setBrandTabColumns(
+            db,
+            brandId,
+            tableKey,
+            tabColumnWrites(await brandTabColumns(db, brandId, tableKey), parsed.data.columnConfig),
+            actor,
+          );
+        }
+        await setBrandPageOverrides(
+          db,
+          brandId,
+          page,
+          { title: parsed.data.title, isVisible: parsed.data.isVisible },
+          actor,
+        );
+        return null;
       }
       await setBrandPageOverrides(
         db,

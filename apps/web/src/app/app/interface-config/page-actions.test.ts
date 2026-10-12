@@ -1,9 +1,13 @@
 import {
   activityLog,
+  brandTabColumns,
+  brands,
   customInterfacePages,
   insertCustomPage,
   listMergedPages,
+  resolveColumns,
   seed,
+  seedColumnDefinitions,
   type Db,
 } from '@tas/db';
 import { testDb } from '@tas/db/testing';
@@ -67,6 +71,23 @@ async function calendarRow(): Promise<{ isVisible: boolean; brandOwn: boolean } 
 beforeAll(async () => {
   const db = await testDb();
   const { childBrand } = await seed(db);
+  await seedColumnDefinitions(db);
+  // The template's standard Concepts row (migration 0063): a standard tab's columns are the
+  // brand's column definitions, not `column_config`.
+  await db.insert(customInterfacePages).values({
+    brandId: null,
+    slug: 'concepts',
+    title: 'Concepts',
+    sourceTableKey: 'concepts',
+    filterConfig: {},
+    columnConfig: [],
+    sortOrder: 1,
+    isVisible: true,
+    isInherited: true,
+    pageKind: 'standard',
+    createdBy: 'migration:0063',
+    updatedBy: 'migration:0063',
+  });
   // The template's standard Calendar row exactly as migration 0063 wrote it (column_config '[]').
   await db.insert(customInterfacePages).values({
     brandId: null,
@@ -277,5 +298,82 @@ describe('editPageAction column picks', () => {
     expect(row?.columnConfig).toEqual([
       { columnKey: 'name', displayLabel: 'Creative', displayOrder: 0 },
     ]);
+  });
+});
+
+/**
+ * Part A2 (2026-10-12): a STANDARD tab's columns are the brand's column definitions. The dialog
+ * posts the shown columns (label, order); the action writes them through the same writer Column
+ * Admin uses, for the scope's brand only. Gratsi renames "Client Approval" to "Approval": Gratsi
+ * resolves "Approval", Niagara and the template still read "Client Approval", and Reset on the page
+ * row reattaches the tab's columns to the template.
+ */
+describe('editPageAction on a standard tab', () => {
+  it("renames Concepts' Client Approval to Approval for Gratsi only, and Reset restores it", async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    if (seam.db === null) throw new Error('the test database is not open');
+    const db = seam.db;
+    const all = await db.select().from(brands);
+    const idOf = (slug: string): string => {
+      const row = all.find((brand) => brand.slug === slug);
+      if (row === undefined) throw new Error(`no brand ${slug}`);
+      return row.id;
+    };
+    const gratsi = idOf('gratsi');
+    const niagara = seam.brandId;
+    const templateId = all.find((brand) => brand.templateBrandId === null)?.id ?? '';
+    const labelOf = async (brandId: string): Promise<string | undefined> =>
+      (await resolveColumns(db, brandId, 'concepts')).find(
+        (c) => c.columnKey === 'client_approval_status',
+      )?.displayLabel;
+    expect(await labelOf(gratsi)).toBe('Client Approval');
+
+    seam.brandId = gratsi;
+    try {
+      const shown = (await brandTabColumns(db, gratsi, 'concepts')).filter((c) => !c.hidden);
+      const edited = await editPageAction(
+        null,
+        post({
+          slug: 'concepts',
+          title: 'Concepts',
+          isVisible: 'true',
+          columnConfig: JSON.stringify(
+            shown.map((column, index) => ({
+              columnKey: column.columnKey,
+              displayLabel:
+                column.columnKey === 'client_approval_status' ? 'Approval' : column.label,
+              displayOrder: index,
+            })),
+          ),
+        }),
+      );
+      expect(edited).toMatchObject({ ok: true });
+      expect(await labelOf(gratsi)).toBe('Approval');
+      expect(await labelOf(niagara)).toBe('Client Approval');
+      expect(await labelOf(templateId)).toBe('Client Approval');
+
+      expect(await resetPageAction(null, post({ slug: 'concepts' }))).toMatchObject({ ok: true });
+      expect(await labelOf(gratsi)).toBe('Client Approval');
+    } finally {
+      seam.brandId = niagara;
+    }
+  });
+
+  it('refuses an internal column on a standard tab', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    const refused = await editPageAction(
+      null,
+      post({
+        slug: 'concepts',
+        title: 'Concepts',
+        isVisible: 'true',
+        columnConfig: JSON.stringify([
+          { columnKey: 'name', displayLabel: 'Name', displayOrder: 0 },
+          { columnKey: 'internal_status', displayLabel: 'Internal', displayOrder: 1 },
+        ]),
+      }),
+    );
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.error).toContain('internal_status');
   });
 });

@@ -17,6 +17,7 @@ import {
   type InterfaceTabVisibility,
   type NewCustomInterfacePage,
   type NewInterfaceTabVisibility,
+  campaignsOffers,
 } from './schema';
 import { clientVisibleColumns } from './client-columns';
 
@@ -629,6 +630,7 @@ const SOURCE_TABLES: Readonly<Record<string, PgTable>> = {
   concepts,
   collections,
   products,
+  campaigns_offers: campaignsOffers,
 };
 
 /**

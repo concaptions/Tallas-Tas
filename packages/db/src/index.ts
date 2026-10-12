@@ -379,6 +379,7 @@ export * from './column-definitions';
 export * from './column-seed';
 export * from './client-columns';
 export * from './custom-interface-pages';
+export * from './brand-tab-columns';
 export * from './propagation-runs';
 export {
   findTokenByValue,

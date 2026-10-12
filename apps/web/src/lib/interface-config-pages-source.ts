@@ -4,7 +4,14 @@ import {
   listTemplateCustomPages,
   type CustomInterfacePage,
   type Db,
+  brandTabColumns,
+  type BrandTabColumn,
 } from '@tas/db';
+import {
+  STANDARD_PAGE_SLUGS,
+  STANDARD_PAGE_SOURCE_TABLE,
+  type StandardPageSlug,
+} from '@tas/domain';
 import { serverEnv } from '@tas/env';
 
 import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
@@ -61,6 +68,36 @@ async function withDb<T>(
   } finally {
     await connection.close();
   }
+}
+
+/**
+ * Each standard tab's editable columns for the live brand (Part A2): what the Edit dialog
+ * pre-fills and what the tab renders. Empty per tab in demo mode or without a brand.
+ */
+export async function loadBrandTabColumns(
+  deps: InterfacePagesSourceDeps = {},
+): Promise<Readonly<Record<StandardPageSlug, readonly BrandTabColumn[]>>> {
+  const empty = tabRecord(STANDARD_PAGE_SLUGS.map((slug) => [slug, []]));
+  if (inDemoMode(deps)) return empty;
+  return withDb(deps, async (db) => {
+    const brandId = await resolveLiveBrandId(db, deps);
+    if (brandId === null) return empty;
+    const entries = await Promise.all(
+      STANDARD_PAGE_SLUGS.map(
+        async (slug) =>
+          [slug, await brandTabColumns(db, brandId, STANDARD_PAGE_SOURCE_TABLE[slug])] as const,
+      ),
+    );
+    return tabRecord(entries);
+  });
+}
+
+function tabRecord(
+  entries: readonly (readonly [StandardPageSlug, readonly BrandTabColumn[]])[],
+): Record<StandardPageSlug, readonly BrandTabColumn[]> {
+  const record = {} as Record<StandardPageSlug, readonly BrandTabColumn[]>;
+  for (const [slug, columns] of entries) record[slug] = columns;
+  return record;
 }
 
 /** The admin page's whole data read in one call. Falls through to an empty snapshot in demo mode. */

@@ -5,6 +5,9 @@ import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableR
 
 import { resolveClientBrand } from '@/lib/client-brand-source';
 import { loadClientCopywriting } from '@/lib/client-data-source';
+import { loadStandardTabRender } from '@/lib/client-interface-config-source';
+
+import { StandardTab } from '../standard-tab';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +28,13 @@ export default async function ClientCopywritingPage({ params }: Props) {
   const { brandSlug } = await params;
   const brand = await resolveClientBrand(brandSlug);
   if (!brand) notFound();
+
+  // Live: the brand's resolved, client-visible columns under the brand's labels (Part A2) — what
+  // the Interface Config Edit dialog shaped. Demo mode has no resolver and keeps the fixed table.
+  const render = await loadStandardTabRender(brand.id, 'copywriting');
+  if (render !== null) {
+    return <StandardTab title="Copywriting" noun="copy" emptyNote="No copy yet." render={render} />;
+  }
 
   const copies = await loadClientCopywriting(brand.id);
 

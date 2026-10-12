@@ -3,6 +3,9 @@ import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableR
 
 import { resolveClientBrand } from '@/lib/client-brand-source';
 import { loadClientCreators } from '@/lib/client-data-source';
+import { loadStandardTabRender } from '@/lib/client-interface-config-source';
+
+import { StandardTab } from '../standard-tab';
 
 import { notFound } from 'next/navigation';
 
@@ -16,6 +19,20 @@ export default async function ClientUgcPage({ params }: Props) {
   const { brandSlug } = await params;
   const brand = await resolveClientBrand(brandSlug);
   if (!brand) notFound();
+
+  // Live: the brand's resolved, client-visible columns under the brand's labels (Part A2) — what
+  // the Interface Config Edit dialog shaped. Demo mode has no resolver and keeps the fixed table.
+  const render = await loadStandardTabRender(brand.id, 'ugc_management');
+  if (render !== null) {
+    return (
+      <StandardTab
+        title="UGC Creators"
+        noun="creator"
+        emptyNote="No creators assigned yet."
+        render={render}
+      />
+    );
+  }
 
   const creators = await loadClientCreators(brand.id);
 

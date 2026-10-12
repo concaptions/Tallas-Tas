@@ -3,9 +3,12 @@ import {
   listBrandCustomPages,
   listTemplateCustomPages,
   loadCustomPageRender as dbLoadCustomPageRender,
+  loadStandardTabRender as dbLoadStandardTabRender,
   type CustomInterfacePage,
   type Db,
+  type StandardTabRender,
 } from '@tas/db';
+import { STANDARD_PAGE_SOURCE_TABLE, type StandardPageSlug } from '@tas/domain';
 import { serverEnv } from '@tas/env';
 
 import { inDemoMode } from './data-source';
@@ -75,6 +78,19 @@ export async function loadCustomPageRender(
 }> {
   if (inDemoMode()) return null;
   return withDb((db) => dbLoadCustomPageRender(db, brandId, slug));
+}
+
+/**
+ * A standard tab's columns and rows for the brand (Part A2, 2026-10-12): the brand's resolved,
+ * client-visible, stored columns of the tab's table, as the Interface Config Edit dialog shaped
+ * them. Null in demo mode, where the tab keeps its shipped fixed table.
+ */
+export async function loadStandardTabRender(
+  brandId: string,
+  slug: StandardPageSlug,
+): Promise<StandardTabRender | null> {
+  if (inDemoMode()) return null;
+  return withDb((db) => dbLoadStandardTabRender(db, brandId, STANDARD_PAGE_SOURCE_TABLE[slug]));
 }
 
 export { brands };

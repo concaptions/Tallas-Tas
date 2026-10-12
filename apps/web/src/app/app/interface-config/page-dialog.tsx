@@ -50,8 +50,9 @@ import type { PageListItem } from './page-list-item';
  * The form is its own exported component (`PageForm`) so a test can render it statically; a Radix
  * dialog's content lives in a portal and never reaches server markup.
  */
+/** Client-visible columns per source table — the custom-page tables and the standard tabs'. */
 export type ResolverColumnsByTable = Readonly<
-  Record<CustomPageSourceTableKey, readonly { columnKey: string; displayLabel: string }[]>
+  Record<string, readonly { columnKey: string; displayLabel: string }[]>
 >;
 
 type PageDialogProps =
@@ -82,8 +83,8 @@ export function toKebab(input: string): string {
 
 type Result = CustomPageActionResult | PageActionResult;
 
-/** Whether the filter and column picks apply: a custom or module page, never a standard tab. */
-export function pageHasStructure(page: PageListItem | null): boolean {
+/** Whether the FILTER applies: a custom or module page, never a standard tab (a shipped route). */
+export function pageHasFilter(page: PageListItem | null): boolean {
   return page === null || page.kind !== 'standard';
 }
 
@@ -155,7 +156,7 @@ interface PageFormProps {
 /** The one form. Pre-filled from `page` in edit mode; empty in create mode. */
 export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: PageFormProps) {
   const editing = page !== null;
-  const structure = pageHasStructure(page);
+  const filterable = pageHasFilter(page);
   const initialFilter: CustomPageFilterConfig = page?.filterConfig ?? {};
   const [title, setTitle] = useState(page?.title ?? '');
   const [slug, setSlug] = useState(page?.slug ?? '');
@@ -185,7 +186,7 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
     if (state !== null && state.ok) onSaved?.();
   }, [state, onSaved]);
 
-  const resolverColumns = resolverColumnsByTable[source];
+  const resolverColumns = resolverColumnsByTable[source] ?? [];
 
   const onTitleChange = (next: string) => {
     setTitle(next);
@@ -212,7 +213,7 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
     fd.append('slug', slug);
     fd.append('isVisible', String(visible));
     if (!editing) fd.append('sourceTableKey', source);
-    if (structure) {
+    if (filterable) {
       let filterConfig: CustomPageFilterConfig = {};
       if (filterOp !== 'none') {
         filterConfig =
@@ -221,8 +222,10 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
             : { column: filterColumn, op: filterOp };
       }
       fd.append('filterConfig', JSON.stringify(filterConfig));
-      fd.append('columnConfig', JSON.stringify(pickedColumnConfig(columns)));
     }
+    // Columns are edited on every kind of page (Part A): a custom or module page's picks, or a
+    // standard tab's brand-level column rows.
+    fd.append('columnConfig', JSON.stringify(pickedColumnConfig(columns)));
     return fd;
   };
 
@@ -291,7 +294,7 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
           </Select>
         </div>
       ) : null}
-      {structure ? (
+      {filterable ? (
         <>
           <div className="flex flex-col gap-1">
             <Label>Filter</Label>
@@ -344,71 +347,71 @@ export function PageForm({ page, resolverColumnsByTable, onSaved, onCancel }: Pa
               ) : null}
             </div>
           </div>
-          <fieldset className="flex flex-col gap-1" data-slot="page-form-columns">
-            <legend className="text-sm font-medium text-text2">Columns</legend>
-            <div className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-input border border-line bg-surface2 p-2">
-              {columns.length === 0 ? (
-                <p className="text-xs text-text3">
-                  No client-visible columns are configured for this source table.
-                </p>
-              ) : (
-                columns.map((row, index) => (
-                  <div
-                    key={row.columnKey}
-                    data-slot="column-row"
-                    data-column-key={row.columnKey}
-                    className="flex items-center gap-2"
-                  >
-                    <input
-                      type="checkbox"
-                      data-slot="column-pick"
-                      data-column-key={row.columnKey}
-                      aria-label={`Show ${row.resolverLabel}`}
-                      checked={row.picked}
-                      onChange={() => {
-                        toggleColumn(row.columnKey);
-                      }}
-                    />
-                    <Input
-                      data-slot="column-label"
-                      data-column-key={row.columnKey}
-                      aria-label={`Label for ${row.resolverLabel}`}
-                      value={row.label}
-                      onChange={(e) => {
-                        relabelColumn(row.columnKey, e.target.value);
-                      }}
-                      className="h-7 flex-1 text-xs"
-                    />
-                    <span className="font-mono text-[10px] text-text4">{row.columnKey}</span>
-                    {(['up', 'down'] as const).map((direction) => (
-                      <Button
-                        key={direction}
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        data-slot="column-move"
-                        data-direction={direction}
-                        data-column-key={row.columnKey}
-                        aria-label={`Move ${row.resolverLabel} ${direction}`}
-                        disabled={direction === 'up' ? index === 0 : index === columns.length - 1}
-                        onClick={() => {
-                          moveColumn(row.columnKey, direction);
-                        }}
-                      >
-                        {direction === 'up' ? '↑' : '↓'}
-                      </Button>
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
-            <p className="text-[11px] text-text3">
-              Tick what the client sees, name it as the client should read it, order it with the
-              arrows. At least one column is required.
-            </p>
-          </fieldset>
         </>
       ) : null}
+      <fieldset className="flex flex-col gap-1" data-slot="page-form-columns">
+        <legend className="text-sm font-medium text-text2">Columns</legend>
+        <div className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-input border border-line bg-surface2 p-2">
+          {columns.length === 0 ? (
+            <p className="text-xs text-text3">
+              No client-visible columns are configured for this source table.
+            </p>
+          ) : (
+            columns.map((row, index) => (
+              <div
+                key={row.columnKey}
+                data-slot="column-row"
+                data-column-key={row.columnKey}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="checkbox"
+                  data-slot="column-pick"
+                  data-column-key={row.columnKey}
+                  aria-label={`Show ${row.resolverLabel}`}
+                  checked={row.picked}
+                  onChange={() => {
+                    toggleColumn(row.columnKey);
+                  }}
+                />
+                <Input
+                  data-slot="column-label"
+                  data-column-key={row.columnKey}
+                  aria-label={`Label for ${row.resolverLabel}`}
+                  value={row.label}
+                  onChange={(e) => {
+                    relabelColumn(row.columnKey, e.target.value);
+                  }}
+                  className="h-7 flex-1 text-xs"
+                />
+                <span className="font-mono text-[10px] text-text4">{row.columnKey}</span>
+                {(['up', 'down'] as const).map((direction) => (
+                  <Button
+                    key={direction}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    data-slot="column-move"
+                    data-direction={direction}
+                    data-column-key={row.columnKey}
+                    aria-label={`Move ${row.resolverLabel} ${direction}`}
+                    disabled={direction === 'up' ? index === 0 : index === columns.length - 1}
+                    onClick={() => {
+                      moveColumn(row.columnKey, direction);
+                    }}
+                  >
+                    {direction === 'up' ? '↑' : '↓'}
+                  </Button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+        <p className="text-[11px] text-text3">
+          Tick what the client sees, name it as the client should read it, order it with the arrows.
+          At least one column is required.
+        </p>
+      </fieldset>
       <div className="flex items-center gap-2">
         <Switch
           checked={visible}

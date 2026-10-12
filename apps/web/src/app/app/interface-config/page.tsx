@@ -1,14 +1,16 @@
 import {
   CUSTOM_PAGE_SOURCE_TABLE_KEYS,
+  STANDARD_PAGE_SOURCE_TABLE,
   canConfigureInterface,
   canSeePropagationPage,
+  isStandardPageSlug,
   type CustomPageSourceTableKey,
 } from '@tas/domain';
 import { isClientVisibleColumn } from '@tas/db';
 
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadInterfaceConfig } from '@/lib/interface-config-source';
-import { loadCustomPagesSnapshot } from '@/lib/interface-config-pages-source';
+import { loadBrandTabColumns, loadCustomPagesSnapshot } from '@/lib/interface-config-pages-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { parentColumnsFor } from '@/lib/resolved-columns-source';
 import { currentTeamActor } from '@/lib/team-actor';
@@ -81,11 +83,12 @@ function NotAdmin() {
 }
 
 export default async function InterfaceConfigPage() {
-  const [{ rows }, { rows: concepts }, { rows: team }, snapshot] = await Promise.all([
+  const [{ rows }, { rows: concepts }, { rows: team }, snapshot, tabColumns] = await Promise.all([
     loadInterfaceConfig(),
     loadConcepts(),
     loadTeam(),
     loadCustomPagesSnapshot(),
+    loadBrandTabColumns(),
   ]);
 
   const actor = await currentTeamActor(team);
@@ -100,16 +103,42 @@ export default async function InterfaceConfigPage() {
   const demo = isDemoMode();
   const newest = concepts[0];
 
-  const resolverColumnsByTable = CUSTOM_PAGE_SOURCE_TABLE_KEYS.reduce(
-    (acc, key) => {
-      // Only the client-visible columns are ever offered (non-negotiable 10); the actions refuse
-      // the rest regardless.
-      acc[key] = parentColumnsFor(key)
-        .filter((col) => isClientVisibleColumn(key, col.columnKey))
-        .map((col) => ({ columnKey: col.columnKey, displayLabel: col.displayLabel }));
-      return acc;
-    },
-    {} as Record<CustomPageSourceTableKey, readonly { columnKey: string; displayLabel: string }[]>,
+  // Every source table a page can render — the custom-page tables and the standard tabs' —
+  // narrowed to the client-visible columns (non-negotiable 10); the actions refuse the rest
+  // regardless.
+  const sourceTables = [
+    ...new Set<string>([
+      ...CUSTOM_PAGE_SOURCE_TABLE_KEYS,
+      ...Object.values(STANDARD_PAGE_SOURCE_TABLE),
+    ]),
+  ];
+  const resolverColumnsByTable = {} as Record<
+    CustomPageSourceTableKey,
+    readonly { columnKey: string; displayLabel: string }[]
+  > &
+    Record<string, readonly { columnKey: string; displayLabel: string }[]>;
+  for (const key of sourceTables) {
+    resolverColumnsByTable[key] = parentColumnsFor(key)
+      .filter((col) => isClientVisibleColumn(key, col.columnKey))
+      .map((col) => ({ columnKey: col.columnKey, displayLabel: col.displayLabel }));
+  }
+
+  // A standard tab's Edit dialog pre-fills from the brand's effective columns (Part A2): the shown
+  // ones as picks in the brand's order under the brand's labels; the hidden ones come unticked.
+  const pages = pageListItems(snapshot.templatePages, snapshot.brandPages).map((item) =>
+    item.kind === 'standard' && isStandardPageSlug(item.slug)
+      ? {
+          ...item,
+          sourceTableKey: STANDARD_PAGE_SOURCE_TABLE[item.slug],
+          columnConfig: tabColumns[item.slug]
+            .filter((column) => !column.hidden)
+            .map((column, index) => ({
+              columnKey: column.columnKey,
+              displayLabel: column.label,
+              displayOrder: index,
+            })),
+        }
+      : item,
   );
 
   return (
@@ -120,7 +149,7 @@ export default async function InterfaceConfigPage() {
         concept={newest === undefined ? null : conceptPreview(newest)}
       />
       <PagesSection
-        pages={pageListItems(snapshot.templatePages, snapshot.brandPages)}
+        pages={pages}
         resolverColumnsByTable={resolverColumnsByTable}
         demo={demo}
         disabled={!canConfigureNew}
