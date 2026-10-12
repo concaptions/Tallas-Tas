@@ -16,6 +16,7 @@ import { cn } from '@tas/ui';
 import {
   cycleSort,
   groupRows,
+  headerSelectionState,
   readHiddenColumns,
   sameOffsets,
   sortRows,
@@ -68,6 +69,21 @@ export interface AirtableGridProps<Row> {
    */
   readonly view?: UserViewConfig;
   readonly onSortChange?: (sort: UserViewSort | null) => void;
+  /**
+   * Multi-select (Oct 12 scope 3). When given, a checkbox column leads every row and the header
+   * carries the none / some / all state over the rows on screen. The grid owns no selection: it
+   * reports a row's toggle and the header's, and the page keeps the set.
+   */
+  readonly selection?: {
+    readonly selected: ReadonlySet<string>;
+    readonly onToggle: (id: string) => void;
+    readonly onToggleAll: (visibleIds: readonly string[]) => void;
+  };
+  /** A right-click on a row, with the pointer position the page opens its menu at. */
+  readonly onRowContextMenu?: (
+    row: Row,
+    position: { readonly x: number; readonly y: number },
+  ) => void;
 }
 
 /**
@@ -104,12 +120,15 @@ export function AirtableGrid<Row>({
   rowLabel,
   view,
   onSortChange,
+  selection,
+  onRowContextMenu,
 }: AirtableGridProps<Row>) {
   const [localSort, setLocalSort] = useState<SortState | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [frozenLefts, setFrozenLefts] = useState<Readonly<Record<string, number>>>({});
   const headRowRef = useRef<HTMLTableRowElement | null>(null);
   const controlled = view !== undefined;
+  const selectionColumn = selection === undefined ? 0 : 1;
 
   // Read the remembered hidden columns after mount only — localStorage is a client store, and reading
   // it during render would desync server and client HTML. A controlled grid reads its view instead.
@@ -175,17 +194,21 @@ export function AirtableGrid<Row>({
     const row = headRowRef.current;
     if (row === null) return;
     const measure = (): void => {
+      // The selection column, when present, is the first cell and is pinned at 0 itself; the
+      // frozen data columns start after it and are offset by its width like any frozen cell.
       const cells = [...row.children];
       const frozen = visibleColumns.flatMap((column, index) =>
-        column.frozen === true ? [{ key: column.key, index }] : [],
+        column.frozen === true ? [{ key: column.key, index: index + selectionColumn }] : [],
       );
+      const selectWidth =
+        selectionColumn === 1 && cells[0] instanceof HTMLElement ? cells[0].offsetWidth : 0;
       const widths = frozen.map((entry) => {
         const cell = cells[entry.index];
         return cell instanceof HTMLElement ? cell.offsetWidth : 0;
       });
       const offsets = stickyOffsets(widths);
       const next = Object.fromEntries(
-        frozen.map((entry, order) => [entry.key, offsets[order] ?? 0]),
+        frozen.map((entry, order) => [entry.key, (offsets[order] ?? 0) + selectWidth]),
       );
       // A new object every callback would re-render the grid on every observer tick, including the
       // one the observer fires just for starting; `sameOffsets` keeps the old value when nothing moved.
@@ -202,7 +225,17 @@ export function AirtableGrid<Row>({
     return () => {
       observer.disconnect();
     };
-  }, [visibleColumns]);
+  }, [visibleColumns, selectionColumn]);
+
+  const visibleIds = useMemo(() => sortedRows.map(rowId), [sortedRows, rowId]);
+  const headerState =
+    selection === undefined ? 'none' : headerSelectionState(selection.selected, visibleIds);
+  const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (headerCheckboxRef.current !== null) {
+      headerCheckboxRef.current.indeterminate = headerState === 'some';
+    }
+  }, [headerState]);
 
   const onToggleColumn = useCallback(
     (key: string) => {
@@ -224,16 +257,26 @@ export function AirtableGrid<Row>({
           onRowClick(row);
         }
       : undefined;
+    const checked = selection?.selected.has(id) === true;
     return (
       <tr
         key={id}
         data-slot={rowSlot}
         data-state={id === selectedId ? 'selected' : undefined}
+        data-checked={selection === undefined ? undefined : checked ? 'true' : 'false'}
         {...rowAttributes?.(row)}
         role={clickable ? 'button' : undefined}
         tabIndex={clickable ? 0 : undefined}
         aria-label={rowLabel ? rowLabel(row) : clickable ? id : undefined}
         onClick={activate}
+        onContextMenu={
+          onRowContextMenu === undefined
+            ? undefined
+            : (event) => {
+                event.preventDefault();
+                onRowContextMenu(row, { x: event.clientX, y: event.clientY });
+              }
+        }
         onKeyDown={
           clickable
             ? (event) => {
@@ -247,8 +290,33 @@ export function AirtableGrid<Row>({
         className={cn(
           'border-b border-line/60 last:border-b-0 data-[state=selected]:bg-accent-soft',
           clickable && 'cursor-pointer hover:bg-surface3',
+          checked && 'bg-accent-soft/60 shadow-[inset_3px_0_0_var(--accent)]',
         )}
       >
+        {selection === undefined ? null : (
+          <td
+            data-column="__select"
+            className="sticky left-0 z-10 w-9 border-r border-line bg-surface px-2 py-1.5 text-center"
+            onClick={(event) => {
+              // The checkbox is not a row click: ticking a row never opens it.
+              event.stopPropagation();
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              aria-label={`Select ${rowLabel ? rowLabel(row) : id}`}
+              data-slot="row-select"
+              onChange={() => {
+                selection.onToggle(id);
+              }}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+              }}
+              className="size-4 rounded-input border border-line2 bg-surface2 accent-[var(--accent)]"
+            />
+          </td>
+        )}
         {visibleColumns.map((column) => (
           <td
             key={column.key}
@@ -297,6 +365,30 @@ export function AirtableGrid<Row>({
             frozen body cells (`z-10` below), which is the only thing the header has to beat. */}
           <thead className="sticky top-0 z-20 bg-surface">
             <tr className="border-b border-line" ref={headRowRef}>
+              {selection === undefined ? null : (
+                <th
+                  scope="col"
+                  data-column="__select"
+                  className="sticky left-0 z-20 w-9 border-r border-line bg-surface px-2 py-2 text-center"
+                >
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={headerState === 'all'}
+                    aria-label={
+                      headerState === 'all'
+                        ? 'Clear the rows on screen'
+                        : 'Select every row on screen'
+                    }
+                    data-slot="select-all"
+                    data-state={headerState}
+                    onChange={() => {
+                      selection.onToggleAll(visibleIds);
+                    }}
+                    className="size-4 rounded-input border border-line2 bg-surface2 accent-[var(--accent)]"
+                  />
+                </th>
+              )}
               {visibleColumns.map((column) => (
                 <th
                   key={column.key}
@@ -341,7 +433,7 @@ export function AirtableGrid<Row>({
             {sortedRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={visibleColumns.length}
+                  colSpan={visibleColumns.length + selectionColumn}
                   className="px-3 py-12 text-center text-sm text-text3"
                   data-slot="grid-empty"
                 >
@@ -358,7 +450,7 @@ export function AirtableGrid<Row>({
                     data-group={group.value}
                     className="border-b border-line bg-surface2"
                   >
-                    <td colSpan={visibleColumns.length} className="p-0">
+                    <td colSpan={visibleColumns.length + selectionColumn} className="p-0">
                       <div className="sticky left-0 flex w-fit max-w-full items-baseline gap-2 px-3 py-1.5">
                         <span className="text-xs font-medium text-text2">{group.label}</span>
                         <span className="font-mono text-[10px] text-text3" data-slot="group-count">

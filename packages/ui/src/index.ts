@@ -60,6 +60,19 @@ export {
   SelectTrigger,
   SelectValue,
 } from './components/select';
+export {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetOverlay,
+  SheetPortal,
+  SheetTitle,
+  SheetTrigger,
+  sheetVariants,
+} from './components/sheet';
 export { Switch } from './components/switch';
 export {
   Table,

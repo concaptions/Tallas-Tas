@@ -5,6 +5,10 @@ import {
   cycleSort,
   EMPTY_GROUP_LABEL,
   groupRows,
+  headerSelectionState,
+  pruneSelection,
+  toggleAllSelected,
+  toggleSelected,
   sameOffsets,
   sortRows,
   stickyOffsets,
@@ -256,5 +260,40 @@ describe('groupRows', () => {
 
   it('groups nothing into nothing', () => {
     expect(groupRows([], 'status', FILTER_COLUMNS)).toEqual([]);
+  });
+});
+
+describe('multi-select (Oct 12 scope 3)', () => {
+  it('reads the header checkbox as none, some or all over the rows ON SCREEN', () => {
+    expect(headerSelectionState(new Set(), ['a', 'b'])).toBe('none');
+    expect(headerSelectionState(new Set(['a']), ['a', 'b'])).toBe('some');
+    expect(headerSelectionState(new Set(['a', 'b']), ['a', 'b'])).toBe('all');
+    // A hidden selected row does not make a visible page "some".
+    expect(headerSelectionState(new Set(['hidden']), ['a', 'b'])).toBe('none');
+    expect(headerSelectionState(new Set(['a']), [])).toBe('none');
+  });
+
+  it('toggles one row without touching the rest, returning a new set', () => {
+    const start = new Set(['a']);
+    const added = toggleSelected(start, 'b');
+    expect([...added].sort()).toEqual(['a', 'b']);
+    expect([...toggleSelected(added, 'a')]).toEqual(['b']);
+    expect([...start]).toEqual(['a']);
+  });
+
+  it('header: selects every visible row, or clears every visible row when all are in, keeping hidden ones', () => {
+    const all = toggleAllSelected(new Set(['hidden']), ['a', 'b']);
+    expect([...all].sort()).toEqual(['a', 'b', 'hidden']);
+    const cleared = toggleAllSelected(all, ['a', 'b']);
+    expect([...cleared]).toEqual(['hidden']);
+    // Some in: the header completes the page rather than clearing it.
+    expect([...toggleAllSelected(new Set(['a']), ['a', 'b'])].sort()).toEqual(['a', 'b']);
+  });
+
+  it('prunes a selection to the rows that still exist, keeping the same set when nothing changed', () => {
+    const selected = new Set(['a', 'gone']);
+    expect([...pruneSelection(selected, ['a', 'b'])]).toEqual(['a']);
+    const same = new Set(['a']);
+    expect(pruneSelection(same, ['a', 'b'])).toBe(same);
   });
 });

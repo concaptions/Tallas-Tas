@@ -15,6 +15,7 @@ const VIEW_LABELS: Record<ViewType, string> = {
   gallery: 'Gallery',
   timeline: 'Timeline',
   list: 'List',
+  focus: 'Focus Mode',
 };
 
 interface ViewSwitcherProps {

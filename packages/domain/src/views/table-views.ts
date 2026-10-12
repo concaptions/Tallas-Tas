@@ -1,4 +1,9 @@
-export type ViewType = 'grid' | 'kanban' | 'gallery' | 'timeline' | 'list';
+/**
+ * `focus` (Oct 12 client sync, scope 1): one record at a time, full screen, with prev/next — the
+ * Creative Sheet's third view beside the grid and the board. A view type like the others so the
+ * switcher, the saved view preference and `?view=` carry it the same way.
+ */
+export type ViewType = 'grid' | 'kanban' | 'gallery' | 'timeline' | 'list' | 'focus';
 
 export interface KanbanFieldOption {
   readonly field: string;
@@ -40,7 +45,7 @@ export const TABLE_VIEW_CAPABILITIES: Record<string, TableViewCapability> = {
   'creative-sheet': {
     tableKey: 'creative-sheet',
     label: 'Creative Sheet',
-    supportedViews: ['grid', 'kanban'],
+    supportedViews: ['grid', 'kanban', 'focus'],
     kanbanFields: [
       { field: 'internalStatus', label: 'Internal Status' },
       // The sheet's client track in the one client vocabulary, worded as every table words it

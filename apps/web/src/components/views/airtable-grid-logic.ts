@@ -260,3 +260,51 @@ export function writeHiddenColumns(tableKey: string, hidden: ReadonlySet<string>
     /* private windows / disabled storage — the grid still works, it just won't remember. */
   }
 }
+
+/** The header checkbox's reading of a selection over the rows on screen (Oct 12 scope 3). */
+export type HeaderSelectionState = 'none' | 'some' | 'all';
+
+export function headerSelectionState(
+  selected: ReadonlySet<string>,
+  visibleIds: readonly string[],
+): HeaderSelectionState {
+  if (visibleIds.length === 0) return 'none';
+  const count = visibleIds.filter((id) => selected.has(id)).length;
+  return count === 0 ? 'none' : count === visibleIds.length ? 'all' : 'some';
+}
+
+/** One row's checkbox: in or out, the rest of the selection untouched. */
+export function toggleSelected(selected: ReadonlySet<string>, id: string): ReadonlySet<string> {
+  const next = new Set(selected);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+/**
+ * The header checkbox: every row on screen in, unless every one already is, in which case every
+ * row on screen out. A selection made before a search narrowed the grid keeps its hidden rows —
+ * only what is on screen is ever toggled.
+ */
+export function toggleAllSelected(
+  selected: ReadonlySet<string>,
+  visibleIds: readonly string[],
+): ReadonlySet<string> {
+  const next = new Set(selected);
+  if (headerSelectionState(selected, visibleIds) === 'all') {
+    for (const id of visibleIds) next.delete(id);
+  } else {
+    for (const id of visibleIds) next.add(id);
+  }
+  return next;
+}
+
+/** The selection with the rows that are gone (deleted, or filtered out of `ids`) dropped. */
+export function pruneSelection(
+  selected: ReadonlySet<string>,
+  ids: readonly string[],
+): ReadonlySet<string> {
+  const live = new Set(ids);
+  const next = new Set([...selected].filter((id) => live.has(id)));
+  return next.size === selected.size ? selected : next;
+}
