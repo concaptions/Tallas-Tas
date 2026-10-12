@@ -2145,3 +2145,39 @@ flight (SMOKE-32) — needs a DOM with event dispatch and timers. `jsdom` (^30.0
 devDependencies at the versions `@tas/ui` already pins; a test opts in per file with
 `// @vitest-environment jsdom`, the default environment stays Node. Dev-only, no hosted service, no
 cost.
+## 2026-10-12 — Oct 12 client sync: Focus Mode, Brief row sidebar, multi-select, QA gate and auto-reset
+
+Six design boards (`tas-ui-overhaul.zip`, "pure UI, component and minor logic changes: no new tables,
+no migrations"), built on the Creative Sheet — the briefs' live home since the Creative Design list was
+retired (2026-10-07) and the sheet became a view over `creative_briefs` (2026-10-09). Ticket:
+`docs/tickets/in-progress/sprint-oct12-ui-overhaul.md`.
+
+1. **Focus Mode** is a `ViewType` (`'focus'`) like the others, so the switcher, the saved preference and
+   `?view=` carry it; the creative in focus is the sidebar's own `?creative-sheet=`. One creative at a
+   time, prev/next over the rows the search left on screen.
+2. **The sidebar is a shadcn/ui Sheet** (`@tas/ui/components/sheet.tsx`, radix Dialog, no new
+   dependency): it dims the grid, traps focus, closes on Escape and the overlay. Every control the fixed
+   panel had is kept, under six sections, plus the brief's content and assets read from a new
+   `detail` block on the sheet row (`CreativeSheetBriefDetail`, read-only; the page edits).
+3. **The QA gate guards what puts a creative in front of the client.** `client_status` is NOT NULL and
+   starts at `pending_for_approval`, and the portal lists a creative as soon as `isClientTrackOpen`
+   (internal Approved) — there is no "unsubmitted" client state to flip. So `canSubmitToClient()` is
+   re-run by every writer on internal → Approved and on the client resubmission
+   (`revisions_needed` → `revisions_submitted` / `pending_for_approval`), and nowhere else. Board 1 drew
+   Approve enabled with QA incomplete; here Approve is gated, because Approve IS the submission. Making
+   `client_status` nullable so the two could be separate steps would be a migration plus a portal
+   change, which the handoff rules out. Revisit if Talal wants an explicit "with the client" flag.
+4. **QA auto-reset on three transitions**, the two internal revision keys and the client's
+   `revisions_needed` (board 5's open question answered "yes": the asset is re-cut either way). The
+   keys are derived from the vocabularies' `warn` tone, never typed, and the reset rides the status
+   statement (`updateBriefClientStatus` takes the columns to carry alongside).
+5. **Duplicate** (`createBrief` under the brand's number lock): every field, version +1, QA false, both
+   tracks at their entry states — `sent_to_video_editor` / `sent_to_designer`; the brief's `draft` does
+   not exist — `name_mode` kept, the name through the Oct 5 formula with the NEW number for an auto row
+   and by bumping the `V1`–`V9` segment for a manual one (`V007` is the number, never bumped). Not
+   copied: `performance`, `legacy_airtable_id`, the template columns, the client stamp/note/launch.
+6. **Delete is a soft delete** (`softDeleteBriefs`, `deleted_at`), logged; the row leaves the sheet, the
+   queues and the portal in one write and is recoverable.
+7. **Comments on a creative** use the `comments` table under `recordType = 'creative_briefs'`, the
+   portal's own filing, so Focus Mode's Feedback panel shows the client's comments beside the team's.
+   One brand-wide read per page (`listCommentsForRecordType`), never one per row.

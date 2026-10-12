@@ -4,7 +4,16 @@ import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { applyDimensionChange, dimensionsFor, type DimensionChange } from '@tas/domain/creatives';
-import { editorStageLabel, editorStageOf, editorStageTone } from '@tas/domain/state';
+import {
+  canSubmitToClient,
+  clientMoveNeedsQa,
+  editorStageLabel,
+  editorStageOf,
+  editorStageTone,
+  internalMoveNeedsQa,
+  isClientStatusKey,
+  qaGateReason,
+} from '@tas/domain/state';
 import type {
   ChipTone,
   ClientStatusKey,
@@ -408,6 +417,25 @@ export function BriefDetail({
   const dimensions = briefDimensions(dimensionKeys, brief.type);
   const next = nextInternalStatus(track, internal);
   const stage = editorStageOf(internal);
+  /**
+   * The QA gate on this page (Oct 12 scope 4), from the row's stored ticks: Advance to Approved
+   * opens the client track, and a client resubmission puts the creative back in front of the
+   * client; neither may run until every tick the type requires is set. The checklist's own writes
+   * land on the row and this page re-reads them on the next render; the Server Actions re-run the
+   * gate regardless, so this is the hint, not the boundary.
+   */
+  const ticks = {
+    qaVideoEditor: brief.qaVideoEditor,
+    qaDesigner: brief.qaDesigner,
+    qaStrategist: brief.qaStrategist,
+  };
+  const qaReason = canSubmitToClient(track, ticks) ? null : qaGateReason(track, ticks);
+  const advanceGated =
+    next !== null && qaReason !== null && internalMoveNeedsQa(internal, next.key);
+  const clientRefusalFor = (candidate: string): string | null =>
+    qaReason !== null && isClientStatusKey(candidate) && clientMoveNeedsQa(client, candidate)
+      ? qaReason
+      : null;
 
   // The Scripts table (EDIT-04): the brief's own script, then every Meta Copywriting row written
   // for it — the rows under the details an editor reads before cutting.
@@ -963,11 +991,15 @@ export function BriefDetail({
               currentStatus={client}
               currentNote={brief.clientStatusNote ?? null}
               disabled={demo}
+              refusalFor={clientRefusalFor}
             />
           </section>
 
           {next === null ? null : (
-            <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
+            <DisabledWrite
+              active={demo || advanceGated}
+              hint={demo ? DEMO_WRITE_HINT : (qaReason ?? '')}
+            >
               <Button
                 type="submit"
                 form={FORM_ID}
@@ -975,8 +1007,9 @@ export function BriefDetail({
                 value={next.key}
                 size="sm"
                 variant="secondary"
-                disabled={demo || pending}
+                disabled={demo || pending || advanceGated}
                 data-slot="brief-advance"
+                data-gated={advanceGated ? 'true' : undefined}
                 className={disabledWriteClassName}
               >
                 {advanceLabel(next)}

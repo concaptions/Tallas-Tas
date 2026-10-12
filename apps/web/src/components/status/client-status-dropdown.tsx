@@ -55,6 +55,12 @@ export interface ClientStatusDropdownProps {
    * revalidates the matching paths.
    */
   readonly onStatusChange?: (next: UpdateClientStatusResult) => void;
+  /**
+   * Why the chosen status may not be saved yet, or null (Oct 12 scope 4). The brief page hands
+   * in the QA gate; Save is held with the reason as its tooltip. A hint only: the shared action
+   * re-runs the same gate before it writes.
+   */
+  readonly refusalFor?: (next: string) => string | null;
 }
 
 /**
@@ -102,6 +108,7 @@ export function ClientStatusDropdown({
   currentNote,
   disabled,
   onStatusChange,
+  refusalFor,
 }: ClientStatusDropdownProps) {
   const vocabulary = VOCABULARIES[tableKey];
   const [status, setStatus] = useState<string>(currentStatus);
@@ -113,6 +120,7 @@ export function ClientStatusDropdown({
     status !== currentStatus ||
     (clientStatusRequiresNote(tableKey, status) && note !== (currentNote ?? ''));
   const noteBlocking = clientStatusRequiresNote(tableKey, status) && note.trim() === '';
+  const gateRefusal = changed ? (refusalFor?.(status) ?? null) : null;
 
   const handleSave = () => {
     setError(null);
@@ -168,6 +176,18 @@ export function ClientStatusDropdown({
               disabled
               className={disabledWriteClassName}
               aria-label="Save client status"
+            >
+              Save
+            </Button>
+          </DisabledWrite>
+        ) : gateRefusal !== null ? (
+          <DisabledWrite hint={gateRefusal}>
+            <Button
+              size="sm"
+              disabled
+              className={disabledWriteClassName}
+              aria-label="Save client status"
+              data-slot="client-status-gated"
             >
               Save
             </Button>

@@ -222,6 +222,137 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     );
   });
 
+  /* ── Oct 12 client sync: Focus Mode, the Sheet sidebar, multi-select ───────────────────────── */
+
+  test('Focus Mode is the third view: one creative, prev/next, the type-filtered QA list and the gated buttons', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+
+    await page.getByRole('tab', { name: 'Focus Mode' }).click();
+    const focus = page.locator('[data-slot="focus-mode"]');
+    await expect(focus).toBeVisible();
+    await expect(focus.locator('[data-slot="focus-counter"]')).toHaveText(`1 / ${String(ROWS)}`);
+    await expect(focus.locator('[data-slot="focus-name"]')).toHaveClass(/font-mono/);
+
+    // Next moves the counter and the creative in focus into the URL; Prev at the start is inert.
+    await expect(focus.locator('[data-slot="focus-prev"]')).toBeDisabled();
+    await focus.locator('[data-slot="focus-next"]').click();
+    await expect(focus.locator('[data-slot="focus-counter"]')).toHaveText(`2 / ${String(ROWS)}`);
+    await expect(page).toHaveURL(/\?creative-sheet=/);
+
+    // The QA checklist never lists the other track's tick: two rows, the strategist always one.
+    await expect(focus.locator('[data-slot="focus-qa-check"]')).toHaveCount(2);
+    await expect(
+      focus.locator('[data-slot="focus-qa-check"][data-check="qaStrategist"]'),
+    ).toHaveCount(1);
+    await expect(focus.locator('[data-slot="focus-qa-gate"]')).toContainText(
+      'required checks complete',
+    );
+
+    // Demo: every review button is withheld with a reason.
+    for (const slot of ['focus-request-changes', 'focus-approve', 'focus-submit']) {
+      await expect(focus.locator(`[data-slot="${slot}"]`), slot).toBeDisabled();
+    }
+    await expect(focus.locator('[data-slot="focus-comment-post"]')).toBeDisabled();
+  });
+
+  test('?view=focus opens Focus Mode on the creative the URL names', async ({ page }) => {
+    await page.goto(`${creativeSheetPath}?view=focus&creative-sheet=${DAYLIGHT_BRIEF_ID}`);
+
+    const focus = page.locator('[data-slot="focus-mode"]');
+    await expect(focus).toHaveAttribute('data-focus-id', DAYLIGHT_BRIEF_ID);
+    // In demo mode the demo hint wins; the gate's own wording is pinned by focus-mode.test.ts.
+    await expect(focus.locator('[data-slot="focus-submit"]')).toBeDisabled();
+    await expect(page.locator('[data-slot="creative-sheet-panel"]')).toHaveCount(0);
+  });
+
+  test('the row panel is a Sheet with its sections, the brief name as its title and the N/A tick struck through', async ({
+    page,
+  }) => {
+    await page.goto(`${creativeSheetPath}?creative-sheet=${DAYLIGHT_BRIEF_ID}`);
+
+    const panel = page.locator('[data-slot="creative-sheet-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute('role', 'dialog');
+    await expect(panel).toHaveAttribute('data-side', 'right');
+    await expect(panel.locator('[data-slot="creative-sheet-panel-title"]')).toHaveClass(
+      /font-mono/,
+    );
+    await expect(panel.locator('[data-slot="creative-sheet-group-heading"]')).toHaveText([
+      'Identity',
+      'Creative',
+      'Status',
+      'Content',
+      'QA',
+      'Assets',
+      'Spelling',
+      'Meta',
+    ]);
+    // A video brief: the designer's tick is listed, struck through, tagged N/A.
+    const designer = panel.locator('[data-slot="creative-sheet-field-qaDesigner"]');
+    await expect(designer).toHaveAttribute('data-applicable', 'false');
+    await expect(designer).toContainText('N/A');
+    await expect(panel.locator('[data-slot="creative-sheet-field-qaVideoEditor"]')).toHaveAttribute(
+      'data-applicable',
+      'true',
+    );
+    await expect(panel.locator('[data-slot="creative-sheet-open-full"]')).toHaveAttribute(
+      'href',
+      new RegExp(DAYLIGHT_BRIEF_ID),
+    );
+
+    // Focus Mode from the footer swaps the view and keeps the creative.
+    await panel.locator('[data-slot="creative-sheet-focus-mode"]').click();
+    await expect(page.locator('[data-slot="focus-mode"]')).toHaveAttribute(
+      'data-focus-id',
+      DAYLIGHT_BRIEF_ID,
+    );
+    await expect(page.locator('[data-slot="creative-sheet-panel"]')).toHaveCount(0);
+  });
+
+  test('multi-select: the checkbox column, the header state, the action bar and the right-click menu', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+
+    const rows = page.locator('[data-slot="creative-sheet-row"]');
+    await expect(page.locator('[data-slot="selection-bar"]')).toHaveCount(0);
+
+    // Ticking a row selects it without opening it.
+    await rows.nth(0).locator('[data-slot="row-select"]').check();
+    await expect(rows.nth(0)).toHaveAttribute('data-checked', 'true');
+    await expect(page.locator('[data-slot="creative-sheet-panel"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'some');
+
+    const bar = page.locator('[data-slot="selection-bar"]');
+    await expect(bar).toBeVisible();
+    await expect(bar.locator('[data-slot="selection-count"]')).toHaveText('1');
+    await expect(bar.locator('[data-slot="selection-duplicate"]')).toBeDisabled();
+    await expect(bar.locator('[data-slot="selection-delete"]')).toBeDisabled();
+
+    // The header selects every row on screen, then clears them.
+    await page.locator('[data-slot="select-all"]').click();
+    await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'all');
+    await expect(bar.locator('[data-slot="selection-count"]')).toHaveText(String(ROWS));
+    await page.locator('[data-slot="select-all"]').click();
+    await expect(page.locator('[data-slot="selection-bar"]')).toHaveCount(0);
+
+    // Right-click opens the menu with the four actions; Open in Focus Mode switches the view.
+    await rows.nth(1).click({ button: 'right' });
+    const menu = page.locator('[data-slot="row-context-menu"]');
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('[role="menuitem"]')).toHaveText([
+      /Duplicate/,
+      'Open in Focus Mode',
+      'Copy link',
+      'Delete',
+    ]);
+    await expect(menu.locator('[data-slot="context-duplicate"]')).toBeDisabled();
+    await menu.locator('[data-slot="context-focus"]').click();
+    await expect(page.locator('[data-slot="focus-mode"]')).toBeVisible();
+  });
+
   test('search reads the name, the brief and the status labels', async ({ page }) => {
     await page.goto(creativeSheetPath);
 

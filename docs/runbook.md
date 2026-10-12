@@ -131,6 +131,13 @@ Items whose acceptance criteria are gated on credentials (see D-008). Each line 
   smoketest tokens after). Copy #1 `bc8e7eeb…` ("SMOKE headline", unlinked) soft-deleted at 10:22Z
   with `ops/soft-delete-smoke-rows.mjs --copy <id>`, the script's new copy-only mode (390 live briefs,
   0 copy rows after).
+- Oct 12 UI overhaul (2026-10-12) · no migration. Locally: `pnpm test:e2e -- creative-sheet.spec.ts briefs.spec.ts`
+  (the Focus Mode tab, the sidebar's sections, the selection checkbox, bar and context menu were written
+  but not run in the cloud session). Live, on Gratsi: a video brief at Ad Submitted with no ticks holds
+  Approve with "Video Editor QA must be ticked…"; both ticks → Approve; Revisions Needed from the portal
+  clears the ticks; re-tick → Submit to Client → Revisions Submitted. Select two rows → Duplicate (2) →
+  two copies at the ladder's first step, version +1, QA clear; Delete → soft-deleted (`deleted_at` set).
+
 - Single-source cutover (2026-10-09) · `node apply61.mjs` was applied BEFORE the app push (done, verified).
   After the cutover deploy: `node audit-creative-sheet.mjs` should show the sheet view equal to the live
   briefs per brand (the old table's counts are history now), and the Creative Sheet in production should
