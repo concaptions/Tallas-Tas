@@ -37,7 +37,7 @@ interface TableCase {
 
 const TABLES: readonly TableCase[] = [
   {
-    label: 'Products',
+    label: 'Products / Landing Pages',
     path: productsPath,
     tableSlot: 'products-table',
     // NOT `updated`: Products now reads its columns from the resolver, and `Updated` is platform

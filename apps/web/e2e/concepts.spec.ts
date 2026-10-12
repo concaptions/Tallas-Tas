@@ -75,7 +75,6 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Product',
       'Persona',
       'Client Comments',
-      'Collection',
     ]);
     /*
      * Production Status is GONE, not reported missing.

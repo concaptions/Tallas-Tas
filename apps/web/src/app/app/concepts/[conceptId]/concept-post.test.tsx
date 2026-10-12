@@ -110,7 +110,6 @@ function filledForm(overrides: Partial<ConceptFormValues> = {}): string {
       }}
       creatives={[]}
       campaigns={[]}
-      collections={[]}
       angles={[angle]}
       themes={[theme]}
       creators={demoCreators.map((row) => ({ id: row.id, name: row.name }))}
@@ -283,7 +282,6 @@ describe('the concept heading reads the stored name, never the formula (SMOKE-31
         concept={null}
         creatives={[]}
         campaigns={[]}
-        collections={[]}
         angles={[angle]}
         themes={[theme]}
         creators={[]}

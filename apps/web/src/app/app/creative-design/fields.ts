@@ -352,7 +352,6 @@ export interface BriefItem {
   /** The names behind the brief's own foreign keys, resolved on the server; null when absent. */
   readonly angleName: string | null;
   readonly productName: string | null;
-  readonly collectionName: string | null;
   readonly campaignOfferName: string | null;
   readonly assetName: string | null;
   /** Funnel and Source as the sidebar shows them; Source is stored display-ready ("TAS"/"Client"). */
@@ -660,7 +659,6 @@ export const BRIEF_HEADINGS = {
   funnel: 'Funnel',
   platform: 'Platform',
   designLinkUrl: 'Design Link URL',
-  collection: 'Collection',
   asset: 'Assets',
   metaCopywriting: 'Copywriting',
   version: 'Version',

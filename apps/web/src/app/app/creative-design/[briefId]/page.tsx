@@ -6,7 +6,6 @@ import { loadAngles } from '@/lib/angles-source';
 import { loadAssets } from '@/lib/assets-source';
 import { loadBriefActivity, loadBriefById } from '@/lib/briefs-source';
 import { loadClientAssetFolders } from '@/lib/client-assets-source';
-import { loadCollections } from '@/lib/collections-source';
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadCopy } from '@/lib/copy-source';
 import { loadCreativeModules } from '@/lib/creative-modules-source';
@@ -45,7 +44,6 @@ export default async function BriefPage({ params }: BriefPageProps) {
     conceptRows,
     angleRows,
     productRows,
-    collectionRows,
     assetRows,
     copyRows,
     sheetItems,
@@ -60,7 +58,6 @@ export default async function BriefPage({ params }: BriefPageProps) {
     // concept card's inherited pair comes from `briefs-source` and is a different thing.
     loadAngles(),
     loadProducts(),
-    loadCollections(),
     loadAssets(),
     loadCopy(),
     // The four tables that point at a brief (module parity, phase 2), each through its own
@@ -119,12 +116,8 @@ export default async function BriefPage({ params }: BriefPageProps) {
     new Map(personaRows.rows.map((row) => [row.id, row.name])),
   );
 
-  // TABLE 7 parity (TASK 8): the linked collection's and asset's names, and the Meta Copywriting
-  // rows whose creative_brief_id points here — all resolved on the server, views precomputed.
-  const collectionName =
-    brief.collectionId === null
-      ? null
-      : (collectionRows.rows.find((row) => row.id === brief.collectionId)?.name ?? null);
+  // TABLE 7 parity (TASK 8): the linked asset's name and the Meta Copywriting rows whose
+  // creative_brief_id points here — all resolved on the server, views precomputed.
   const assetName =
     brief.assetId === null
       ? null
@@ -208,7 +201,6 @@ export default async function BriefPage({ params }: BriefPageProps) {
       angleName={angleName}
       productName={productName}
       personaName={personaName}
-      collectionName={collectionName}
       assetName={assetName}
       copyLinks={copyLinks}
       linked={linked}

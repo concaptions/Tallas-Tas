@@ -1,4 +1,3 @@
-import { demoCollections } from '@tas/db';
 import { COPY_CTAS, COPY_CTA_INITIAL, COPY_LIMITS, copyTitle } from '@tas/domain/copy';
 import {
   COPY_STATUS,
@@ -8,11 +7,8 @@ import {
 } from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
-import { collectionsPath } from '@/lib/routes';
-
 import {
   CAMPAIGNS_READ_ONLY_NOTE,
-  COLLECTIONS_READ_ONLY_NOTE,
   COPY_FIELDS,
   COPY_HEADINGS,
   COUNTER_TONE_CLASS,
@@ -20,7 +16,6 @@ import {
   NO_CREATIVE_LABEL,
   NO_CREATIVE_VALUE,
   STATUS_OPTIONS,
-  collectionsByCopy,
   copyCountLabel,
   copyTypeIdsByCopy,
   counterLabel,
@@ -64,8 +59,6 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     clientComment: null,
     copyTypeIds: ['c0b7a1d3-0013-4013-8013-000000000001'],
     campaigns: [],
-    collections: [],
-    linkedCollectionId: null,
     angleName: null,
     productId: null,
     productName: null,
@@ -73,8 +66,6 @@ function item(overrides: Partial<CopyItem> = {}): CopyItem {
     offer: null,
     campaignNames: null,
     campaignCodes: null,
-    collectionUrls: null,
-    collectionProducts: null,
     copyTypeNames: ['Problem / Agitate / Solve'],
     clientApprovalStatus: null,
     createdBy: 'seed',
@@ -123,60 +114,18 @@ describe('copyTypeIdsByCopy', () => {
   });
 });
 
-describe('the three record-link sections', () => {
+describe('the two record-link sections', () => {
   it('names them the way Airtable does, so the E2E assertions and the panel agree', () => {
     expect(COPY_HEADINGS.copyTypes).toBe('Copy Types');
     expect(COPY_HEADINGS.campaigns).toBe('Campaigns & Offers');
-    expect(COPY_HEADINGS.collections).toBe('Collections');
   });
 
   it('says why the campaigns list has no picker rather than leaving the gap unexplained', () => {
     expect(CAMPAIGNS_READ_ONLY_NOTE).toContain('ships with');
   });
 
-  it('says where the collection link is made instead of offering a picker for a link it does not own', () => {
-    expect(COLLECTIONS_READ_ONLY_NOTE).toContain('Copywriting ID');
-  });
-});
-
-describe('collectionsByCopy', () => {
-  /**
-   * Run over the collection fixtures the page serves in demo mode: BFCM points at Copy #1 through
-   * its `copywritingId`, the summer collection points at nothing. Read by name, so a renumbered
-   * fixture cannot silently pass.
-   */
-  const bfcm = demoCollections.find((row) => row.name === 'BFCM 2026 Collection');
-  const summer = demoCollections.find((row) => row.name === 'Summer Cooling Collection');
-  if (bfcm === undefined || summer === undefined)
-    throw new Error('demo collection fixture missing');
-  const byCopy = collectionsByCopy(demoCollections);
-
-  it('lists the BFCM collection on the Meta copy its copywriting_id points at, linking to its panel', () => {
-    expect(bfcm.copywritingId).not.toBeNull();
-    expect(byCopy.get(bfcm.copywritingId ?? '')).toEqual([
-      {
-        id: bfcm.id,
-        label: 'BFCM 2026 Collection',
-        href: `${collectionsPath}?collection=${bfcm.id}`,
-      },
-    ]);
-  });
-
-  it('gives a copy no collection points at no entry, so the panel renders the em dash', () => {
-    expect(summer.copywritingId).toBeNull();
-    const listed = [...byCopy.values()].flat().map((record) => record.id);
-    expect(listed).not.toContain(summer.id);
-    expect(byCopy.has('88888888-8888-4888-8888-000000000099')).toBe(false);
-  });
-
-  it('keeps the order the collections arrived in when two point at the same copy', () => {
-    const copyId = bfcm.copywritingId ?? '';
-    const twice = collectionsByCopy([
-      { id: summer.id, name: summer.name, copywritingId: copyId },
-      { id: bfcm.id, name: bfcm.name, copywritingId: copyId },
-    ]);
-
-    expect(twice.get(copyId)?.map((record) => record.id)).toEqual([summer.id, bfcm.id]);
+  it('has no Collections section any more (Oct 12 client sync, Ticket 1)', () => {
+    expect(Object.keys(COPY_HEADINGS)).not.toContain('collections');
   });
 });
 

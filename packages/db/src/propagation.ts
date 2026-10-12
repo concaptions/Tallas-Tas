@@ -231,9 +231,11 @@ export const PROPAGATION_TABLES: Record<string, BrandedTable> = {
  * Admin and the custom-field actions key the known tables off it — but the engine never WRITES
  * them: no seed from the template, no row propagation, no resync. `creative_sheet_items` is a
  * view over `creative_briefs` now and `creative_dimensions` has no reader; their drop is a later
- * migration after Talal confirms.
+ * migration after Talal confirms. `collections` joined them on 2026-10-12 (client sync, Ticket 1):
+ * the workspace is retired and no app page reads the table.
  */
 export const FROZEN_PROPAGATION_TABLES: ReadonlySet<string> = new Set([
+  'collections',
   'creative_dimensions',
   'creative_sheet_items',
 ]);

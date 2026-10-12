@@ -20,7 +20,6 @@ import {
   type ChipTone,
 } from '@tas/domain/state';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
-import { collectionsPath } from '@/lib/routes';
 
 /**
  * How the Copywriting route presents what it stores (PRD §5.11). One module, so the table, the
@@ -117,26 +116,11 @@ export interface CopyItem {
    */
   readonly campaigns: readonly LinkedCampaign[];
   /**
-   * The collections whose `collections.copywriting_id` is this row (Airtable "Collections", the
-   * inverse of the Collections panel's Copywriting ID). The panel renders them as chip-links
-   * (reverse read), AND Oct 5 added an editable Linked Collection single-select (owner-side write);
-   * the Linked Collection control resolves to the first entry here, which is what the UI pre-fills.
-   */
-  readonly collections: readonly LinkedCollection[];
-  /**
-   * The current single Linked Collection — the first id of `collections`, or `null` when no
-   * collection points at this copy. Oct 5 ruling: one collection per copy (the many-to-many case is
-   * deferred); the Linked Collection control writes `collections.copywriting_id` through
-   * `setCollectionCopywritingLinkInBrand`.
-   */
-  readonly linkedCollectionId: string | null;
-  /**
    * The Airtable LOOKUP cells (GRATSI-MATCH, 2026-10-04), each resolved on the server by
    * `page.tsx` through the row's links with `lookupRollup` — never stored, never editable, and
    * `null` wherever the link points at nothing, which the grid renders as the muted em dash.
    * `angleName` is the linked brief's angle; `productName`/`productLink` read the row's
-   * `product_id`; the three campaign strings read the rows `copywriting_campaigns` links; the two
-   * collection strings read the collections whose `copywriting_id` is this row.
+   * `product_id`; the three campaign strings read the rows `copywriting_campaigns` links.
    *
    * `productId` is the Oct 5 Linked Product control's own value — the stored FK — so the panel
    * can pre-fill its select. It is NOT a lookup rollup; it is the row's own column.
@@ -148,8 +132,6 @@ export interface CopyItem {
   readonly offer: string | null;
   readonly campaignNames: string | null;
   readonly campaignCodes: string | null;
-  readonly collectionUrls: string | null;
-  readonly collectionProducts: string | null;
   /** The names behind `copyTypeIds`, for the Copy Type grid cell's chips. */
   readonly copyTypeNames: readonly string[];
   /** The shared `created_by` audit column, surfaced as Airtable's "Created By" (annotation 3). */
@@ -169,56 +151,6 @@ export interface LinkedCampaign {
   readonly id: string;
   readonly label: string;
   readonly href: string | null;
-}
-
-/** One collection that points at a copy row, as the panel lists it: its typed name and a link. */
-export interface LinkedCollection {
-  readonly id: string;
-  /** The collection's hand-typed name — not system output, so the panel does not set `font-mono`. */
-  readonly label: string;
-  /** The Collections page with its panel open on this collection. */
-  readonly href: string;
-}
-
-/**
- * The URL parameter the Collections workspace keeps its open row in. It is the key that module's
- * `syncUrl` writes (a literal there), restated here so the panel can deep-link into the page.
- */
-export const COLLECTION_SELECTION_PARAM = 'collection';
-
-export function collectionHref(id: string): string {
-  return `${collectionsPath}?${COLLECTION_SELECTION_PARAM}=${encodeURIComponent(id)}`;
-}
-
-/** A collection row as the inversion reads it: its id, its name and the Meta copy it points at. */
-export interface CollectionLinkSource {
-  readonly id: string;
-  readonly name: string;
-  readonly copywritingId: string | null;
-}
-
-/**
- * `copyId -> collections`, inverted from `collections.copywriting_id`: every collection that points
- * at a copy row, in the order the collections arrive (newest edit first). A collection with no Meta
- * copy contributes nothing, and a copy no collection points at has no entry, so the page falls back
- * to an empty list and the panel renders the em dash. The collection owns the link (its Copywriting
- * ID field), which is why nothing here is a writer.
- */
-export function collectionsByCopy(
-  rows: readonly CollectionLinkSource[],
-): Map<string, LinkedCollection[]> {
-  const byCopy = new Map<string, LinkedCollection[]>();
-  for (const row of rows) {
-    if (row.copywritingId === null) continue;
-    const record: LinkedCollection = { id: row.id, label: row.name, href: collectionHref(row.id) };
-    const existing = byCopy.get(row.copywritingId);
-    if (existing === undefined) {
-      byCopy.set(row.copywritingId, [record]);
-    } else {
-      existing.push(record);
-    }
-  }
-  return byCopy;
 }
 
 /**
@@ -286,19 +218,6 @@ export interface ConceptChoice {
 
 export const NO_CONCEPT_VALUE = 'none';
 export const NO_CONCEPT_LABEL = 'No concept';
-
-/**
- * One option of the panel's Linked Collection `<select>` (Oct 5 ruling in `docs/decisions.md`): a
- * brand collection's id and hand-typed name. The owner-side FK (`collections.copywriting_id`)
- * stores the pick, and this list is the whole brand so the picker can offer an unassigned one.
- */
-export interface CollectionChoice {
-  readonly id: string;
-  readonly name: string;
-}
-
-export const NO_COLLECTION_VALUE = 'none';
-export const NO_COLLECTION_LABEL = 'No collection';
 
 /** The four copy fields of ticket criterion 6, and how each one is rendered. */
 export interface CopyField {
@@ -387,7 +306,6 @@ export const COPY_HEADINGS = {
   creative: 'Creative & Status',
   copyTypes: 'Copy Types',
   campaigns: 'Campaigns & Offers',
-  collections: 'Collections',
   details: 'Details',
   clientComment: "Client's Comment",
 } as const;
@@ -414,16 +332,6 @@ export const NO_CAMPAIGNS_NOTE = 'No campaign is linked to this copy yet.';
  */
 export const CAMPAIGNS_READ_ONLY_NOTE =
   'Linking a campaign from this panel ships with the campaign-links writer.';
-
-/**
- * What the Collections section says under the read-only chip list. Oct 5 ruling
- * (`docs/decisions.md`): the Linked Collection single-select above WRITES the owner-side FK on
- * `collections.copywriting_id`, so a reader expects to see editing happen here — but a copy row can
- * be pointed at by more than one legacy collection and the chip list is the whole truth, not the
- * one entry the control pre-fills with.
- */
-export const COLLECTIONS_READ_ONLY_NOTE =
-  'Every collection whose Copywriting ID points at this row. The Linked Collection control above writes the owner-side FK.';
 
 /** How the header counts what is on screen. Singular at one, never "1 copies". */
 export function copyCountLabel(count: number): string {
@@ -457,7 +365,6 @@ export function matchesQuery(item: CopyItem, query: string): boolean {
     item.angleName ?? '',
     item.productName ?? '',
     item.campaignCodes ?? '',
-    ...item.collections.map((collection) => collection.label),
     ...item.copyTypeNames,
   ].some((value) => value.toLowerCase().includes(query));
 }
@@ -569,8 +476,6 @@ export function pendingCopyOnPress(existing: readonly CopyItem[], now: Date): Co
     clientApprovalStatus: null,
     copyTypeIds: [],
     campaigns: [],
-    collections: [],
-    linkedCollectionId: null,
     angleName: null,
     productId: null,
     productName: null,
@@ -578,8 +483,6 @@ export function pendingCopyOnPress(existing: readonly CopyItem[], now: Date): Co
     offer: null,
     campaignNames: null,
     campaignCodes: null,
-    collectionUrls: null,
-    collectionProducts: null,
     copyTypeNames: [],
     createdBy: null,
     updatedLabel: relativeTime(now, now),

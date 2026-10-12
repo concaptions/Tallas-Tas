@@ -404,7 +404,6 @@ export function pendingSheetRow(pending: PendingCreative, now: Date): SheetItemV
       elementsWeAreTesting: null,
       designFiles: [],
       designLinkUrl: null,
-      collection: null,
       platform: null,
       funnel: null,
       type: null,

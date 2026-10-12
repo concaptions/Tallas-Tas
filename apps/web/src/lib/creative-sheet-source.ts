@@ -1,7 +1,6 @@
 import {
   demoAngles,
   demoBriefs,
-  demoCollections,
   demoComments,
   demoConcepts,
   demoCopy,
@@ -11,7 +10,6 @@ import {
   getCreativeSheetItemById,
   listAngles,
   listBriefs,
-  listCollections,
   listCommentsForRecordType,
   listConcepts,
   listCopy,
@@ -107,7 +105,6 @@ export interface CreativeSheetWorkspaceResult {
   readonly briefLookups: readonly SheetBriefLookup[];
   readonly angleNames: readonly SheetNamedRow[];
   readonly productNames: readonly SheetNamedRow[];
-  readonly collectionNames: readonly SheetNamedRow[];
   readonly concepts: readonly SheetConceptLookup[];
   readonly modules: readonly SheetModuleLookup[];
   readonly copyRows: readonly SheetCopyLookup[];
@@ -266,7 +263,6 @@ export async function loadCreativeSheetWorkspace(
       briefLookups: demoBriefs.map(toBriefLookup),
       angleNames: demoAngles.map(toNamedRow),
       productNames: demoProducts.map(toNamedRow),
-      collectionNames: demoCollections.map(toNamedRow),
       concepts: demoConcepts.map(toConceptLookup),
       modules: demoCreativeModules.map(toModuleLookup),
       copyRows: demoCopy.map(toCopyLookup),
@@ -284,7 +280,6 @@ export async function loadCreativeSheetWorkspace(
         briefLookups: [],
         angleNames: [],
         productNames: [],
-        collectionNames: [],
         concepts: [],
         modules: [],
         copyRows: [],
@@ -297,7 +292,6 @@ export async function loadCreativeSheetWorkspace(
       briefs,
       angleRows,
       productRows,
-      collectionRows,
       conceptRows,
       moduleRows,
       copyRows,
@@ -307,7 +301,6 @@ export async function loadCreativeSheetWorkspace(
       listBriefs(db, brandId),
       listAngles(db, brandId),
       listProducts(db, brandId),
-      listCollections(db, brandId),
       listConcepts(db, brandId),
       listCreativeModules(db, brandId),
       listCopy(db, brandId),
@@ -318,7 +311,6 @@ export async function loadCreativeSheetWorkspace(
       briefLookups: briefs.map(toBriefLookup),
       angleNames: angleRows.map(toNamedRow),
       productNames: productRows.map(toNamedRow),
-      collectionNames: collectionRows.map(toNamedRow),
       concepts: conceptRows.map(toConceptLookup),
       modules: moduleRows.map(toModuleLookup),
       copyRows: copyRows.map(toCopyLookup),

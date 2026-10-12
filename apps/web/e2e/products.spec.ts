@@ -21,7 +21,7 @@ test.describe('products in demo mode (no Clerk publishable key)', () => {
   }) => {
     await page.goto(productsPath);
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Products');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Products / Landing Pages');
     await expect(page.locator('[data-slot="product-row"]')).toHaveCount(3);
     await expect(page.locator('[data-slot="product-count"]')).toContainText('3 products');
 

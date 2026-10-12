@@ -24,7 +24,6 @@ function markup(clientApprovalStatus: string | null): string {
       item={item}
       creatives={[]}
       concepts={[]}
-      collections={[]}
       products={[]}
       copyTypes={[]}
       demo={false}

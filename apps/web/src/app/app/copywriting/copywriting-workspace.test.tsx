@@ -22,7 +22,6 @@ function render(demo: boolean): string {
       items={[]}
       creatives={[]}
       concepts={[]}
-      collections={[]}
       products={[]}
       copyTypes={[]}
       demo={demo}
@@ -66,7 +65,6 @@ describe('CopywritingWorkspace — Group menu', () => {
         items={[]}
         creatives={[]}
         concepts={[]}
-        collections={[]}
         products={[]}
         copyTypes={[]}
         demo={false}

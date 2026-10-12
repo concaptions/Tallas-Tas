@@ -109,7 +109,6 @@ export interface SheetLookups {
   readonly elementsWeAreTesting: string | null;
   readonly designFiles: readonly string[];
   readonly designLinkUrl: string | null;
-  readonly collection: string | null;
   readonly platform: string | null;
   readonly funnel: string | null;
   readonly type: string | null;
@@ -330,10 +329,6 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   design_link_url: {
     render: ({ lookups }) => <TextCell value={lookups.designLinkUrl} maxWidth={240} />,
     sortValue: ({ lookups }) => lookups.designLinkUrl,
-  },
-  collection: {
-    render: ({ lookups }) => <TextCell value={lookups.collection} maxWidth={200} />,
-    sortValue: ({ lookups }) => lookups.collection,
   },
   platform: {
     render: ({ lookups }) => <TextCell value={lookups.platform} maxWidth={180} />,

@@ -54,7 +54,6 @@ function itemOf(overrides: Partial<BriefItem> = {}): BriefItem {
     row: first,
     angleName: first.angleName,
     productName: first.productName,
-    collectionName: null,
     campaignOfferName: null,
     assetName: null,
     funnelLabel: first.funnel,

@@ -53,7 +53,6 @@ import {
   pendingCopyOnPress,
   rowsWithPending,
   truncate,
-  type CollectionChoice,
   type ConceptChoice,
   type CopyItem,
   type CopyTypeChoice,
@@ -84,8 +83,6 @@ interface CopywritingWorkspaceProps {
   readonly items: readonly CopyItem[];
   readonly creatives: readonly CreativeChoice[];
   readonly concepts: readonly ConceptChoice[];
-  /** The brand's collections, for the panel's Linked Collection single-select (Oct 5). */
-  readonly collections: readonly CollectionChoice[];
   /** The brand's products, for the panel's Linked Product single-select (Oct 5). */
   readonly products: readonly ProductChoice[];
   /** The brand's copy types, for the panel's picker; the page resolved them, this file never does. */
@@ -170,14 +167,6 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
     render: (item) => <StatusChip tone={item.statusTone} label={item.statusLabel} />,
     sortValue: (item) => item.statusLabel,
   },
-  collections: {
-    render: (item) => (
-      <ChipListCell
-        chips={item.collections.map((entry) => ({ label: entry.label, tone: 'info' }))}
-      />
-    ),
-    sortValue: (item) => item.collections.length,
-  },
   product_id: {
     render: (item) => <TextCell value={item.productName} maxWidth={200} />,
     sortValue: (item) => item.productName,
@@ -251,10 +240,6 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
     render: (item) => <TextCell value={item.clientComment} maxWidth={260} />,
     sortValue: (item) => item.clientComment,
   },
-  collection_url: {
-    render: (item) => <TextCell value={item.collectionUrls} maxWidth={240} />,
-    sortValue: (item) => item.collectionUrls,
-  },
   link_from_product: {
     render: (item) => <TextCell value={item.productLink} maxWidth={240} />,
     sortValue: (item) => item.productLink,
@@ -276,10 +261,6 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
       ),
     sortValue: (item) => item.metaRating,
     align: 'right',
-  },
-  products_from_collections: {
-    render: (item) => <TextCell value={item.collectionProducts} maxWidth={220} />,
-    sortValue: (item) => item.collectionProducts,
   },
   created_by: {
     render: (item) =>
@@ -310,7 +291,6 @@ export function CopywritingWorkspace({
   items,
   creatives,
   concepts,
-  collections,
   products,
   copyTypes,
   demo,
@@ -598,7 +578,6 @@ export function CopywritingWorkspace({
           creating={panelCreating}
           creatives={creatives}
           concepts={concepts}
-          collections={collections}
           products={products}
           copyTypes={copyTypes}
           demo={demo}

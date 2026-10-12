@@ -89,7 +89,6 @@ function render(brief: BriefValues): string {
       angleName={null}
       productName={null}
       personaName={null}
-      collectionName={null}
       assetName={null}
       copyLinks={[]}
       linked={{ sheetItems: [], modules: [], folders: [], reports: [] }}

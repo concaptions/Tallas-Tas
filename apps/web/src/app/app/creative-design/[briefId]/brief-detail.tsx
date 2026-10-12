@@ -195,8 +195,7 @@ interface BriefDetailProps {
    * `inheritedFromAngle`.
    */
   readonly personaName: string | null;
-  /** The linked collection's and asset's names, resolved on the server; null when unlinked. */
-  readonly collectionName: string | null;
+  /** The linked asset's name, resolved on the server; null when unlinked. */
   readonly assetName: string | null;
   /** The Meta Copywriting rows tied to this brief, precomputed views (TABLE 7 parity). */
   readonly copyLinks: readonly {
@@ -334,7 +333,6 @@ export function BriefDetail({
   angleName,
   productName,
   personaName,
-  collectionName,
   assetName,
   copyLinks,
   linked,
@@ -846,7 +844,6 @@ export function BriefDetail({
               </span>
             </div>
 
-            {fact(BRIEF_HEADINGS.collection, collectionName, 'brief-collection')}
             {fact(BRIEF_HEADINGS.asset, assetName, 'brief-asset')}
           </section>
 

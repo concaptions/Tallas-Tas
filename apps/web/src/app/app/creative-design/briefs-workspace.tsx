@@ -87,7 +87,6 @@ const BRIEF_TEXT_COLUMNS: Readonly<Record<string, (item: BriefItem) => string | 
   type: (item) => item.typeLabel,
   angle_id: (item) => item.angleName,
   product_id: (item) => item.productName,
-  collection_id: (item) => item.collectionName,
   campaign_offer_id: (item) => item.campaignOfferName,
   asset_id: (item) => item.assetName,
   assignee: (item) => item.assignee,

@@ -80,7 +80,15 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     key: 'strategy',
     label: 'Strategy',
     sections: [
-      { key: 'products', label: 'Products', icon: 'products', emoji: '📦', href: productsPath },
+      {
+        key: 'products',
+        label: 'Products / Landing Pages',
+        icon: 'products',
+        emoji: '📦',
+        href: productsPath,
+      },
+      // Retired 2026-10-12 (Oct 12 client sync, Ticket 1): hidden on every brand by
+      // `REMOVED_WORKSPACES`; the entry stays so the old URL still resolves to its section.
       {
         key: 'collections',
         label: 'Collections',

@@ -37,7 +37,8 @@ const EXPECTED: readonly {
   // hidden Gratsi child; 0064 moved the data) and the platform's client_approval_status row —
   // seeded 2026-10-08, first applied to production with this change — takes its place on both
   // (Gratsi: slot 12 via its relabel-platform row). Net count unchanged on each.
-  { tableKey: 'concepts', inheriting: 21, gratsi: 22, virtual: 0 },
+  // Collections retired 2026-10-12 (Ticket 1): `concept_collections` hidden on both — one fewer each.
+  { tableKey: 'concepts', inheriting: 20, gratsi: 21, virtual: 0 },
   // AI-41: Gratsi's dead second Concepts link (concept_ids) is retired; 'Concept to film' remains.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the two formula fields as virtual columns
   // (Creator's cost (USD), Notify Flag) in the live base's order — Gratsi 35.
@@ -62,7 +63,9 @@ const EXPECTED: readonly {
   // The one virtual on the inheriting set is `collections` (lookupRollup) — the reverse side of
   // `collections.copywriting_id`.
   // + Client Approval (client_approval_status platform row, seeded 2026-10-08, applied 2026-10-11).
-  { tableKey: 'copywriting', inheriting: 11, gratsi: 26, virtual: 1 },
+  // Collections retired 2026-10-12 (Ticket 1): the `collections` virtual and Gratsi's two collection
+  // lookups are hidden — inheriting 10 (no virtual left), Gratsi 23.
+  { tableKey: 'copywriting', inheriting: 10, gratsi: 23, virtual: 0 },
   { tableKey: 'creative_modules', inheriting: 4, gratsi: 4, virtual: 0 },
   { tableKey: 'client_asset_folders', inheriting: 4, gratsi: 4, virtual: 0 },
   // The name is virtual on both bases: Gratsi relabels it and the formula is read from the parent.
@@ -72,14 +75,16 @@ const EXPECTED: readonly {
   // only (docs/decisions/overnight-dead-lookups.md), plus Created/Last Modified.
   // FROZEN table (0061): + Client Approval and Dimensions rows the seed still carries, applied 2026-10-11.
   // Item 5b (2026-10-11): client_approval_status hidden on the frozen sheet table — one fewer on both.
-  { tableKey: 'creative_sheet_items', inheriting: 16, gratsi: 30, virtual: 1 },
+  // Collections retired 2026-10-12 (Ticket 1): Gratsi's `Collection` lookup hidden — 29.
+  { tableKey: 'creative_sheet_items', inheriting: 16, gratsi: 29, virtual: 1 },
   // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
   // platform's own `due_date`; Gratsi hides three and adds five of its own.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the live base's remaining fields — three
   // reverse links, the Last Modified/Created displays and the Concepts (from Angles) lookup —
   // minus the four decision-register exclusions; Due Date stays per AI-49. Gratsi 39.
   // Fidelity flip 2026-10-04: Ads Copywriting copy shown fidelity-empty (virtual). Gratsi 40.
-  { tableKey: 'creative_briefs', inheriting: 31, gratsi: 40, virtual: 0 },
+  // Collections retired 2026-10-12 (Ticket 1): `collection_id` hidden on both — one fewer each.
+  { tableKey: 'creative_briefs', inheriting: 30, gratsi: 39, virtual: 0 },
   // GRATSI-MATCH campaigns_offers (2026-10-04, WIRING cluster): absent from this script until that
   // run, because the page was not resolver-driven. 13 of the template's 14 fields (`Design
   // attached` is register-excluded); Gratsi = its 20 fields minus the `Product` lookup and

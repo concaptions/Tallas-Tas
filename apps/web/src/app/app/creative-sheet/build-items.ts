@@ -7,16 +7,16 @@ import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import type { SheetComment, SheetItemView, SheetLookups } from './creative-sheet-workspace';
 
 /**
- * The ONE place a sheet row's thirteen `Creative Name` lookups are computed — used by `page.tsx`
+ * The ONE place a sheet row's twelve `Creative Name` lookups are computed — used by `page.tsx`
  * over the loaders and by the `/design-system` story over fixture-shaped data, so the two cannot
  * drift. A SERVER module on purpose: it calls `lookupRollup` from `@tas/db`, which must never
  * reach a client bundle.
  *
  * The resolution map is the schema's own (`schema/creative-sheet-items.ts`): one hop into the
  * linked brief for `Performance`, `Elements we are Testing`, `Design File`, `Design Link URL`,
- * `Platform`, `Funnel` and `Type`; one hop further for `(Internal) Product`, `Angle` and
- * `Collection` (the brief's own links, with the concept-inherited name as the fallback
- * `listBriefs` already resolved); two hops for `Concepts (from Angle)` (the concepts whose angle
+ * `Platform`, `Funnel` and `Type`; one hop further for `(Internal) Product` and `Angle` (the
+ * brief's own links, with the concept-inherited name as the fallback `listBriefs` already
+ * resolved); two hops for `Concepts (from Angle)` (the concepts whose angle
  * is the brief's) and `Creative Module` (the modules whose briefs include it); and the REVERSE
  * read for `Proposed Copy` — the Meta copy rows whose `creative_brief_id` is the brief, shown by
  * their generated titles (CLAUDE.md non-negotiable 6; `copyTitle`, never typed). A sheet row with
@@ -29,7 +29,6 @@ export function buildSheetItems(
     | 'briefLookups'
     | 'angleNames'
     | 'productNames'
-    | 'collectionNames'
     | 'concepts'
     | 'modules'
     | 'copyRows'
@@ -41,9 +40,6 @@ export function buildSheetItems(
   const angleNamesById = new Map(sources.angleNames.map((angle) => [angle.id, angle.name]));
   const productNamesById = new Map(
     sources.productNames.map((product) => [product.id, product.name]),
-  );
-  const collectionNamesById = new Map(
-    sources.collectionNames.map((collection) => [collection.id, collection.name]),
   );
 
   const lookupsFor = (briefId: string | null): SheetLookups => {
@@ -58,7 +54,6 @@ export function buildSheetItems(
         elementsWeAreTesting: null,
         designFiles: [],
         designLinkUrl: null,
-        collection: null,
         platform: null,
         funnel: null,
         type: null,
@@ -90,9 +85,6 @@ export function buildSheetItems(
       elementsWeAreTesting: lookupRollup([brief.elementsTested]),
       designFiles: brief.designFile ?? [],
       designLinkUrl: lookupRollup([brief.designFileUrl]),
-      collection: lookupRollup([
-        brief.collectionId === null ? null : collectionNamesById.get(brief.collectionId),
-      ]),
       platform: lookupRollup(brief.platform),
       funnel: lookupRollup([brief.funnel]),
       type: lookupRollup([brief.type]),

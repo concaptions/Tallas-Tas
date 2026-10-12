@@ -115,7 +115,6 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     painPoints: row.painPoints,
     usp: row.usp,
     clientComments: row.clientComments,
-    collectionName: row.collectionName,
     creatorCount: row.creatorIds.length,
     adInspoCount: row.adInspoLinks.length,
     creators: row.creatorIds.flatMap((id) => {

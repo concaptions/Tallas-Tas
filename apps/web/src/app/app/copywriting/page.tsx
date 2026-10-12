@@ -14,7 +14,7 @@ import { CopywritingWorkspace } from './copywriting-workspace';
  * A server component, shaped exactly like the YouTube Copywriting page since the Gratsi column
  * match (2026-10-04, `docs/audits/gratsi-column-diff-2026-10-04.md`): the brand's ordered,
  * labelled, visible columns come from `loadCopyColumns` (THE shared resolver loader), and the rows
- * plus every linked table the grid's lookup columns read — campaigns, collections, products, each
+ * plus every linked table the grid's lookup columns read — campaigns, products, each
  * brief's angle — come from `loadCopyWorkspace()` on one connection: fixtures in demo mode, the
  * brand-scoped queries otherwise. The page does not know which and does not branch on it.
  *
@@ -27,12 +27,8 @@ import { CopywritingWorkspace } from './copywriting-workspace';
  * TWO RECORD LINKS THE COPY SIDE OWNS. Copy Types come from `loadCopyTypes()` and are inverted
  * into `copyTypeIds` per row; the panel's picker writes them back through `updateCopyAction`.
  * Campaigns & Offers (`copywriting_campaigns`) still has no writer in `@tas/db`, so the panel
- * renders the list read-only and says so.
- *
- * ONE LINK THE COLLECTION SIDE OWNS. Airtable's "Collections" on a copy row is the inverse of
- * `collections.copywriting_id`, inverted once into `collections` per row; the panel lists them
- * read-only, because the Copywriting ID field on the collection's panel is where that link is
- * made.
+ * renders the list read-only and says so. Collections left with its workspace (Oct 12 client
+ * sync, Ticket 1): a copy links to a Creative and to a Product only.
  */
 interface CopywritingPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -58,7 +54,6 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
     {
       rows: workspace.rows,
       campaigns: workspace.campaigns,
-      collections: workspace.collections,
       products: workspace.products,
       briefLookups: workspace.briefLookups,
       copyTypes: copyTypeResult.rows,
@@ -86,10 +81,6 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
       items={items}
       creatives={workspace.creatives.map((creative) => ({ id: creative.id, name: creative.name }))}
       concepts={workspace.concepts.map((concept) => ({ id: concept.id, name: concept.name }))}
-      collections={workspace.collections.map((collection) => ({
-        id: collection.id,
-        name: collection.name,
-      }))}
       products={workspace.products.map((product) => ({
         id: product.id,
         name: product.name,

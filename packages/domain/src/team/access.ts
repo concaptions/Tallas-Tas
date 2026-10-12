@@ -268,19 +268,25 @@ export const REMOVED_WORKSPACES = [
   'creator-ranking',
   'copy-types',
   'creative-dimensions',
+  // Oct 12 client sync (Ticket 1): Collections is retired; its job is the Products / Landing Pages page.
+  'collections',
 ] as const satisfies readonly NavSectionKey[];
 
 export type RemovedWorkspaceKey = (typeof REMOVED_WORKSPACES)[number];
 
 /**
- * Where an old URL lands. Four targets, all of them live sections: the three that absorbed a
+ * Where an old URL lands. Five targets, all of them live sections: the four that absorbed a
  * retired workspace's job (Creative Design's list → the Creative Sheet, Client Assets → the Asset
- * Library's client folders, YouTube Copywriting → Copywriting) and the Overview for everything
- * whose data has no successor page. Keyed on the section, not the path, so the domain never spells
+ * Library's client folders, YouTube Copywriting → Copywriting, Collections → Products / Landing
+ * Pages) and the Overview for everything whose data has no successor page. Keyed on the section, not the path, so the domain never spells
  * a URL; `apps/web/src/lib/removed-workspaces.ts` turns a target into a route.
  */
 export type RemovedWorkspaceRedirectTarget =
-  'creative-sheet' | 'assets' | 'copywriting' | 'overview';
+  | 'creative-sheet'
+  | 'assets'
+  | 'copywriting'
+  | 'products'
+  | 'overview';
 
 export const REMOVED_WORKSPACE_REDIRECTS: Readonly<
   Record<RemovedWorkspaceKey, RemovedWorkspaceRedirectTarget>
@@ -300,6 +306,7 @@ export const REMOVED_WORKSPACE_REDIRECTS: Readonly<
   'creator-ranking': 'overview',
   'copy-types': 'overview',
   'creative-dimensions': 'overview',
+  collections: 'products',
 };
 
 /**

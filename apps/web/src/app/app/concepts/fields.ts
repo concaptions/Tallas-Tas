@@ -206,7 +206,6 @@ export interface ConceptItem {
   readonly painPoints: string | null;
   readonly usp: string | null;
   readonly clientComments: string | null;
-  readonly collectionName: string | null;
   readonly creatorCount: number;
   readonly adInspoCount: number;
   /**
@@ -259,7 +258,6 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   | 'painPoints'
   | 'usp'
   | 'clientComments'
-  | 'collectionName'
   | 'creatorCount'
   | 'adInspoCount'
   | 'creators'
@@ -280,7 +278,6 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   painPoints: null,
   usp: null,
   clientComments: null,
-  collectionName: null,
   creatorCount: 0,
   adInspoCount: 0,
   creators: [],

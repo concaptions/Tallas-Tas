@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
-import { collectionsPath, copywritingPath, propagationPath } from '../src/lib/routes';
+import { copywritingPath, propagationPath } from '../src/lib/routes';
 
 /**
  * The Copywriting route with no environment variables at all — the Vercel deployment as it stands.
@@ -14,16 +14,12 @@ import { collectionsPath, copywritingPath, propagationPath } from '../src/lib/ro
  * picker must show pressed, and `copywriting_campaigns` has no fixture — nor a writer — so the
  * Campaigns & Offers list is the read-only empty state with its reason.
  *
- * The Collections list is the inverse of `collections.copywriting_id`: the BFCM collection fixture
- * points at Copy #1 and the summer one points at nothing, so Copy #1 lists one collection and
- * Copy #2 shows the em dash.
+ * Collections left the panel with its workspace (Oct 12 client sync, Ticket 1): a copy links to a
+ * Creative and to a Product only, and the seeded `Collection` column is hidden on every brand.
  */
 const COPY_BODY_CLOCK_ID = '88888888-8888-4888-8888-000000000001';
-const COPY_NOT_YOUR_AGE_ID = '88888888-8888-4888-8888-000000000002';
 /** The unattached copy fixture — PRD §5.11's nullable `creative_brief_id` case. */
 const COPY_BUNDLE_UNATTACHED_ID = '88888888-8888-4888-8888-000000000004';
-/** The collection fixture whose `copywriting_id` is Copy #1. */
-const BFCM_COLLECTION_ID = '11223344-1122-4334-8556-000000000001';
 
 test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
   test.skip(
@@ -42,7 +38,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
      * The resolver's labels, in the template's order, and FOUR MORE than the hand-written array
      * drew (GRATSI-MATCH, 2026-10-04, docs/audits/gratsi-column-diff-2026-10-04.md): demo mode is
      * an inheriting base, so this is the template base's own full ten-field Copywriting set —
-     * `Copy #` and the reverse-link `Collection` column included, both freshly seeded. Gratsi's
+     * `Copy #` included, freshly seeded (the `Collection` column is hidden since Oct 12). Gratsi's
      * thirty-field order is asserted against the resolver in `copy-source.test.ts`, where the
      * seeded database is Gratsi's.
      */
@@ -50,7 +46,6 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       'Copy #',
       'Creative',
       'Status',
-      'Collection',
       'Product',
       'Primary Copy',
       'Headline',
@@ -66,11 +61,9 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       await expect(title).toHaveText(/^Copy #\d+$/);
     }
 
-    // Every status is the shared chip, never a bare string. Nine chips, counted exactly: the four
-    // Status chips, the four USED Yes/No chips, and the ONE Collections chip — only the BFCM
-    // fixture collection points its `copywriting_id` at a copy row (Copy #1), so the reverse-read
-    // Collection column renders one chip and three em dashes.
-    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(9);
+    // Every status is the shared chip, never a bare string. Eight chips, counted exactly: the four
+    // Status chips and the four USED Yes/No chips (the Collections chip left with Ticket 1).
+    await expect(page.locator('[data-slot="copy-table"] [data-slot="status-chip"]')).toHaveCount(8);
 
     // Three rows link to a creative; the unattached one shows the muted em dash (criterion 4).
     await expect(page.locator('[data-slot="copy-row-creative"]')).toHaveCount(3);
@@ -242,7 +235,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="copy-creative-chip"]')).toHaveCount(0);
   });
 
-  test('the panel carries the Copy Types picker with the fixture tag pressed, and the read-only campaigns and collections lists', async ({
+  test('the panel carries the Copy Types picker with the fixture tag pressed, the read-only campaigns list and no Collections section', async ({
     page,
   }) => {
     await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
@@ -282,60 +275,12 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     await expect(campaigns.locator('input, textarea, select, [role="combobox"]')).toHaveCount(0);
     await expect(panel).toContainText('ships with the campaign-links writer');
 
-    // "Collections" (the inverse of `collections.copywriting_id`): the BFCM collection points at
-    // this copy, so its hand-typed name links to the Collections page with that row open — and the
-    // list is read-only here because the collection owns the link.
-    const collections = panel.locator('[data-slot="copy-collections"]');
-    await expect(collections).toBeVisible();
-    const collectionLinks = collections.locator('[data-slot="copy-collection-link"]');
-    await expect(collectionLinks).toHaveText(['BFCM 2026 Collection']);
-    await expect(collectionLinks).toHaveAttribute(
-      'href',
-      `${collectionsPath}?collection=${BFCM_COLLECTION_ID}`,
-    );
-    await expect(collections.locator('input, textarea, select, [role="combobox"]')).toHaveCount(0);
-  });
-
-  test('the Collections list shows the em dash on a copy no collection points at', async ({
-    page,
-  }) => {
-    await page.goto(`${copywritingPath}?copy=${COPY_NOT_YOUR_AGE_ID}`);
-
-    const panel = page.locator('[data-slot="copy-panel"]');
-    await expect(panel.locator('[data-slot="copy-panel-title"]')).toHaveText('Copy #2');
-
-    // No fixture collection's `copywriting_id` is Copy #2, so the section renders the module's
-    // empty-state dash rather than a blank, and still no link.
-    const collections = panel.locator('[data-slot="copy-collections"]');
-    await expect(collections).toHaveText('—');
-    await expect(collections.locator('[data-slot="copy-collection-link"]')).toHaveCount(0);
-  });
-
-  test('the Linked Collection single-select pre-fills from the owner-side FK (Oct 5)', async ({
-    page,
-  }) => {
-    // Copy #1 is pointed at by the BFCM collection (`collections.copywriting_id`), so the Linked
-    // Collection control pre-fills with its name AND renders the chip-link.
-    await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
-
-    const panel = page.locator('[data-slot="copy-panel"]');
-    const select = panel.locator('[data-slot="copy-collection-select"]');
-    await expect(select).toHaveRole('combobox');
-    await expect(select).toContainText('BFCM 2026 Collection');
-
-    const chip = panel.locator('[data-slot="copy-collection-chip"]');
-    await expect(chip).toContainText('Open BFCM 2026 Collection');
-    await expect(chip).toHaveAttribute(
-      'href',
-      `${collectionsPath}?collection=${BFCM_COLLECTION_ID}`,
-    );
-
-    // Copy #2 has no collection pointing at it, so the control falls back to "No collection".
-    await page.goto(`${copywritingPath}?copy=${COPY_NOT_YOUR_AGE_ID}`);
-    await expect(page.locator('[data-slot="copy-collection-select"]')).toContainText(
-      'No collection',
-    );
-    await expect(page.locator('[data-slot="copy-collection-chip"]')).toHaveCount(0);
+    // Collections is retired (Oct 12 client sync, Ticket 1): no section, no select, no chip.
+    await expect(
+      panel.locator('[data-slot="copy-group-heading"]', { hasText: 'Collections' }),
+    ).toHaveCount(0);
+    await expect(panel.locator('[data-slot="copy-collections"]')).toHaveCount(0);
+    await expect(panel.locator('[data-slot="copy-collection-select"]')).toHaveCount(0);
   });
 
   test('the Linked Product single-select renders on every row (Oct 5)', async ({ page }) => {
@@ -375,7 +320,6 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     );
     await expect(panel.locator('#copy-field-headline')).toHaveAttribute('readonly', '');
     await expect(panel.locator('[data-slot="copy-creative-select"]')).toBeDisabled();
-    await expect(panel.locator('[data-slot="copy-collection-select"]')).toBeDisabled();
     await expect(panel.locator('[data-slot="copy-status-select"]')).toBeDisabled();
 
     // The New copy button is a write too, so it is disabled everywhere it appears.

@@ -4,7 +4,6 @@ import { CONCEPT_CLIENT_STATUS_DEFAULT, CONCEPT_INTERNAL_STATUS_DEFAULT } from '
 import { loadAngles } from '@/lib/angles-source';
 import { loadCampaigns } from '@/lib/campaigns-source';
 import { loadBriefsByConceptId } from '@/lib/briefs-source';
-import { loadCollections } from '@/lib/collections-source';
 import { CONCEPT_TRACK, loadConceptById } from '@/lib/concepts-source';
 import { loadCreators } from '@/lib/ugc-source';
 import { isDemoMode } from '@/lib/demo-mode';
@@ -19,7 +18,6 @@ import { NEW_CONCEPT, type ConceptCampaignLink } from '../fields';
 import {
   ConceptDetail,
   type AngleOption,
-  type ConceptCollectionItem,
   type ConceptFormValues,
   type ConceptCreativeItem,
   type CreatorOption,
@@ -60,11 +58,7 @@ import {
  * it — so until that reader ships the rail is handed the empty list and renders its empty state,
  * which says where the link is made. The shape is the one this page fills then.
  *
- * COLLECTIONS (Gratsi "Collection", module parity 2026-10-01) is read the same way: the concept row
- * carries its `concept_collections` ids, this page names them from the brand's collections
- * (demo-aware, through the one Collections loader) and the rail lists them read-only after the
- * campaigns. Only the id and the name travel down; the deep link into the collection's panel is
- * built in the client component, which owns the Collections workspace's query key.
+ * COLLECTIONS left the rail with the Collections workspace (Oct 12 client sync, Ticket 1).
  */
 interface ConceptPageProps {
   readonly params: Promise<{ conceptId: string }>;
@@ -104,22 +98,13 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
     };
   });
 
-  // The campaigns linked through `campaign_concepts` and the collections linked through
-  // `concept_collections`, each read from the concept row's own ids and named from the brand's
-  // rows (demo-aware); the two reads are independent, so they run together.
-  const [campaignRows, collectionRows] = await Promise.all([loadCampaigns(), loadCollections()]);
+  // The campaigns linked through `campaign_concepts`, read from the concept row's own ids and
+  // named from the brand's rows (demo-aware).
+  const campaignRows = await loadCampaigns();
   const campaignNames = new Map(campaignRows.rows.map((c) => [c.id, c.name]));
   const campaigns: ConceptCampaignLink[] = (concept?.campaignIds ?? []).flatMap((id) => {
     const label = campaignNames.get(id);
     return label === undefined ? [] : [{ id, label }];
-  });
-
-  // A collection id the brand's scope cannot see (another brand's, or soft-deleted) resolves to no
-  // name and is dropped, never rendered as a bare id.
-  const collectionNames = new Map(collectionRows.rows.map((c) => [c.id, c.name]));
-  const collections: ConceptCollectionItem[] = (concept?.collectionIds ?? []).flatMap((id) => {
-    const name = collectionNames.get(id);
-    return name === undefined ? [] : [{ id, name }];
   });
 
   const angles: AngleOption[] = angleRows.rows.map((row) => ({
@@ -173,7 +158,6 @@ export default async function ConceptPage({ params }: ConceptPageProps) {
       concept={values}
       creatives={creatives}
       campaigns={campaigns}
-      collections={collections}
       angles={angles}
       themes={themes}
       creators={creators}

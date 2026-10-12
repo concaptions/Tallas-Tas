@@ -250,10 +250,6 @@ export const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   pain_points: { render: (item) => <TextCell value={item.painPoints} /> },
   usp: { render: (item) => <TextCell value={item.usp} /> },
   client_comments: { render: (item) => <TextCell value={item.clientComments} /> },
-  concept_collections: {
-    render: (item) => <TextCell value={item.collectionName} />,
-    sortValue: (item) => item.collectionName,
-  },
   // GRATSI-MATCH 2026-10-04: the base's `UGC Management` link is this junction, so the cell reads
   // as Airtable does — the linked creators' NAMES, through the one shared linked-records cell.
   creator_concepts: linkedRecordsRenderer((item: ConceptItem) => item.creators),

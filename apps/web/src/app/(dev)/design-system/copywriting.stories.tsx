@@ -2,7 +2,6 @@ import Link from 'next/link';
 import {
   demoBriefs,
   demoCampaigns,
-  demoCollections,
   demoCopy,
   demoCopyTypes,
   demoProducts,
@@ -46,13 +45,6 @@ export function CopywritingGridStory() {
         code,
         discountOffer,
       })),
-      collections: demoCollections.map(({ id, name, url, productName, copywritingId }) => ({
-        id,
-        name,
-        url,
-        productName,
-        copywritingId,
-      })),
       products: demoProducts.map(({ id, name, link }) => ({ id, name, link })),
       briefLookups: demoBriefs.map(({ id, angleName }) => ({ id, angleName })),
       copyTypes: demoCopyTypes,
@@ -66,7 +58,6 @@ export function CopywritingGridStory() {
       items={items}
       creatives={demoBriefs.map(({ id, name }) => ({ id, name }))}
       concepts={[]}
-      collections={demoCollections.map(({ id, name }) => ({ id, name }))}
       products={demoProducts.map(({ id, name }) => ({ id, name }))}
       copyTypes={demoCopyTypes.map(({ id, name }) => ({ id, name }))}
       demo

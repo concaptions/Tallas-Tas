@@ -104,6 +104,14 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Oct 12 client sync, Ticket 1 (2026-10-12, `docs/tickets/in-progress/sprint-oct12-client-sync.md`) ·
+  no migration. Collections is retired and its six seeded columns (`copywriting.collections`,
+  `copywriting.collection_url`, `copywriting.products_from_collections`, `creative_briefs.collection_id`,
+  `concepts.concept_collections`, `creative_sheet_items.collection`) are hidden in the seed; the hide
+  reaches production only with `pnpm --filter @tas/db seed-columns -- --apply` (a prod write, usual
+  approval). Until then those pages show the "configured but not drawn" notice for them. Verify after:
+  `/app/collections` lands on `/app/products` with the "Products / Landing Pages" heading, and the
+  Copywriting panel has no Collections section.
 - Smoke-test fixes (2026-10-10, `docs/tickets/in-progress/sprint-oct10-smoke-fixes.md`) · no migration.
   After the deploy: `/client/gratsi` with no client cookie must land on `/client/gratsi/auth` ("Invalid
   Link", one 307, then 200) — the redirect loop is the route tree, so demo mode cannot show it; and on

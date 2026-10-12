@@ -543,7 +543,7 @@ describe('platform columns on concepts', () => {
     'angle_products',
     'angle_personas',
     'client_comments',
-    'concept_collections',
+    // `concept_collections` is still the platform's row but hidden since Collections retired (Oct 12).
   ];
 
   async function brandIdBySlug(
@@ -1206,8 +1206,9 @@ describe('the Creative Sheet column set', () => {
     // child-added `lookupRollup` virtuals, dead in the template only
     // (docs/decisions/overnight-dead-lookups.md).
     // One fewer each since item 5b (2026-10-11) hid client_approval_status on the sheet table.
+    // One fewer on Gratsi since Collections retired (2026-10-12): its `Collection` lookup is hidden.
     expect(onNiagara).toHaveLength(16);
-    expect(onGratsi).toHaveLength(30);
+    expect(onGratsi).toHaveLength(29);
     // The 0059 column resolves for every brand, last, as the platform's.
     for (const set of [onNiagara, onGratsi]) {
       const dimensions = set.find((column) => column.columnKey === 'dimensions');
@@ -1421,8 +1422,9 @@ describe('the Creative Design column set', () => {
     );
     const onGratsi = await resolveColumns(db, await brandFor(db, 'gratsi'), 'creative_briefs');
 
-    // Thirty parent fields plus the platform's `due_date`.
-    expect(onNiagara).toHaveLength(31);
+    // Thirty parent fields plus the platform's `due_date`, minus the hidden `Collection` link
+    // (Collections retired 2026-10-12).
+    expect(onNiagara).toHaveLength(30);
     /*
      * GRATSI-MATCH (2026-10-04): the live base's 42 fields minus the four decision-register
      * exclusions (`Created 2`, `(Internal) Collections 2`, `Ads Copywriting copy`, the `Angles`
@@ -1430,11 +1432,15 @@ describe('the Creative Design column set', () => {
      * visible. Three reverse links, the two system-field displays and the one virtual lookup are
      * all Gratsi child rows; the parent set above is untouched.
      */
-    expect(onGratsi).toHaveLength(40);
+    // 39 since Collections retired (2026-10-12): `(Internal) Collections 3` → collection_id is hidden.
+    expect(onGratsi).toHaveLength(39);
     for (const hidden of ['ad_content', 'campaign_offer_id', 'asset_id']) {
       expect(onGratsi.map((column) => column.columnKey)).not.toContain(hidden);
       expect(onNiagara.map((column) => column.columnKey)).toContain(hidden);
     }
+    // The retired Collections link is hidden for EVERY brand, template and child alike.
+    expect(onGratsi.map((column) => column.columnKey)).not.toContain('collection_id');
+    expect(onNiagara.map((column) => column.columnKey)).not.toContain('collection_id');
     for (const own of [
       'batch',
       'language',

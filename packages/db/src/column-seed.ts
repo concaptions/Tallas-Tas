@@ -2047,7 +2047,7 @@ const CREATIVE_REPORTING_GRATSI_VIRTUAL: readonly UpsertColumnDefinition[] = [
  * Twenty-one of the twenty-one `PROPAGATION_TABLES` keys appear here. `themes` does not, and cannot
  * until the owner rules on its `table_key`; it is global by constraint, not per-brand.
  */
-export const COLUMN_SEED: readonly BrandColumnSeed[] = [
+const COLUMN_SEED_SOURCE: readonly BrandColumnSeed[] = [
   {
     target: { kind: 'parent' },
     rows: [
@@ -2113,6 +2113,33 @@ export const COLUMN_SEED: readonly BrandColumnSeed[] = [
     ],
   },
 ];
+
+/**
+ * The columns that read the retired `collections` table (Oct 12 client sync, Ticket 1): the
+ * Copywriting link and its two lookups, the brief's and the concept's link, and the sheet's lookup.
+ * Each row stays in the seed — the Postgres columns and junctions are untouched, the table is
+ * frozen, not dropped — but is HIDDEN on every brand, template and child alike, so the resolver
+ * never offers a column the pages no longer draw (the same move as item 5b's hidden sheet row).
+ */
+const RETIRED_COLLECTION_COLUMNS: ReadonlySet<string> = new Set([
+  'copywriting.collections',
+  'copywriting.collection_url',
+  'copywriting.products_from_collections',
+  'creative_briefs.collection_id',
+  'concepts.concept_collections',
+  'creative_sheet_items.collection',
+]);
+
+function hideRetiredColumn(row: UpsertColumnDefinition): UpsertColumnDefinition {
+  return RETIRED_COLLECTION_COLUMNS.has(`${row.tableKey}.${row.columnKey}`)
+    ? { ...row, isHidden: true }
+    : row;
+}
+
+export const COLUMN_SEED: readonly BrandColumnSeed[] = COLUMN_SEED_SOURCE.map((group) => ({
+  ...group,
+  rows: group.rows.map(hideRetiredColumn),
+}));
 
 export interface ColumnSeedResult {
   readonly brand: string;

@@ -1,7 +1,6 @@
 import {
   angles,
   brands,
-  collections,
   conceptAngles,
   concepts,
   copywriting,
@@ -58,7 +57,7 @@ describe('loadCreativeSheetWorkspace in demo mode', () => {
  * GRATSI-MATCH QA (2026-10-04, `docs/audits/gratsi-column-diff-2026-10-04.md`): Gratsi's resolved
  * Creative Sheet column set equals the Gratsi base's 29 Airtable fields — ordered and labelled
  * exactly as the base spells them — minus NOTHING: no field of this table is decision-doc-flagged.
- * The thirteen `Creative Name` lookups are alive in Gratsi's base (its `Creative Name` is a real
+ * The twelve `Creative Name` lookups are alive in Gratsi's base (its `Creative Name` is a real
  * link); only the TEMPLATE's twelve copies are dead, seed nothing for the parent, and keep every
  * inheriting brand at the template's own fifteen (docs/decisions/overnight-dead-lookups.md).
  */
@@ -96,7 +95,6 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       [14, 'qa_designer', 'Graphic Designer QA'],
       [15, 'qa_strategist', 'Creative Strategist QA'],
       [16, 'client_comments', "Client's Comments"],
-      [17, 'collection', 'Collection'],
       [18, 'platform', 'Platform'],
       [19, 'funnel', 'Funnel'],
       [20, 'type', 'Type'],
@@ -114,14 +112,13 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     ]);
   });
 
-  it('keeps all thirteen lookups VIRTUAL (lookupRollup) and the two timestamps stored', async () => {
+  it('keeps all twelve lookups VIRTUAL (lookupRollup) and the two timestamps stored', async () => {
     const { db, gratsi } = await seededColumns();
     const resolved = await resolveColumns(db, gratsi.id, 'creative_sheet_items');
     const virtual = resolved.filter((column) => column.formula !== null);
 
     expect(virtual.map((column) => column.columnKey).sort()).toEqual([
       'angle',
-      'collection',
       'concepts_from_angle',
       'creative_module',
       'design_file',
@@ -160,7 +157,6 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     for (const deadLookup of [
       'performance',
       'angle',
-      'collection',
       'proposed_copy',
       'creative_module',
     ]) {
@@ -171,7 +167,7 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
 
 /**
  * The lookup cells, proved over a live-shaped read: a Gratsi sheet row linked to a brief — which
- * carries an angle, a product, a collection, a module, two Meta copies and its own stored fields —
+ * carries an angle, a product, a module, two Meta copies and its own stored fields —
  * reads every looked-up value through `loadCreativeSheetWorkspace` + `buildSheetItems`, the exact
  * pipeline the page runs.
  */
@@ -201,10 +197,6 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       .insert(products)
       .values({ brandId: gratsi.id, name: 'Night Reset Bundle', link: 'https://gratsi.test/nrb' })
       .returning();
-    const [collection] = await db
-      .insert(collections)
-      .values({ brandId: gratsi.id, name: 'BFCM 2026 Collection' })
-      .returning();
     const [concept] = await db
       .insert(concepts)
       .values({ brandId: gratsi.id, name: 'B1-Body Clock-Sleep Science' })
@@ -220,7 +212,6 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
         name: 'TV1-B1-Body Clock-V2',
         angleId: angleRow?.id,
         productId: product?.id,
-        collectionId: collection?.id,
         elementsTested: 'Hook: circadian framing',
         designFile: ['r2://design/tv1-b1-v2.mp4', 'r2://design/tv1-b1-v2.jpg'],
         designFileUrl: 'https://drive.gratsi.test/tv1-b1-v2',
@@ -262,7 +253,6 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       elementsWeAreTesting: 'Hook: circadian framing',
       designFiles: ['r2://design/tv1-b1-v2.mp4', 'r2://design/tv1-b1-v2.jpg'],
       designLinkUrl: 'https://drive.gratsi.test/tv1-b1-v2',
-      collection: 'BFCM 2026 Collection',
       platform: 'Meta, TikTok',
       funnel: 'Retargeting',
       type: 'Video',
@@ -283,7 +273,6 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       elementsWeAreTesting: null,
       designFiles: [],
       designLinkUrl: null,
-      collection: null,
       platform: null,
       funnel: 'TOF',
       type: 'Video',

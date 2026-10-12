@@ -1,24 +1,18 @@
-import {
-  demoCollections,
-  getCollectionById,
-  listCollections,
-  type CollectionListRow,
-  type Db,
-} from '@tas/db';
+import { demoCollections, listCollections, type CollectionListRow, type Db } from '@tas/db';
 import { serverEnv } from '@tas/env';
 
 import { inDemoMode, resolveLiveBrandId, type BrandResolverDeps } from './data-source';
-import { DEMO_MUTATION_REFUSED } from './demo-mode';
 import { requestConnection } from '@/lib/request-db';
-import { loadResolvedColumns, type ResolvedColumnsResult } from './resolved-columns-source';
+
+/**
+ * The ONE read left on the retired `collections` table (Oct 12 client sync, Ticket 1): the
+ * Campaigns & Offers page names the collections whose `campaign_id` points at a campaign. The
+ * workspace, its column loader and its writers left with the route; the table is frozen, not
+ * dropped.
+ */
 
 export interface CollectionListResult {
   readonly rows: CollectionListRow[];
-  readonly source: 'database' | 'demo';
-}
-
-export interface CollectionResult {
-  readonly collection: CollectionListRow | null;
   readonly source: 'database' | 'demo';
 }
 
@@ -50,23 +44,6 @@ async function withDb<T>(deps: CollectionSourceDeps, query: (db: Db) => Promise<
   }
 }
 
-const COLLECTIONS_TABLE_KEY = 'collections';
-
-/**
- * THE ordered, labelled, visible Collections columns of the working brand, through the ONE loader
- * every resolver-driven page shares (`lib/resolved-columns-source.ts`). Same shape as
- * `loadClientAssetColumns` — GRATSI-MATCH collections (2026-10-04).
- */
-export async function loadCollectionColumns(
-  deps: CollectionSourceDeps = {},
-): Promise<ResolvedColumnsResult> {
-  return loadResolvedColumns(COLLECTIONS_TABLE_KEY, {
-    ...deps,
-    demoMode: () => inDemoMode(deps),
-    withDb: (query) => withDb(deps, query),
-  });
-}
-
 export async function loadCollections(
   deps: CollectionSourceDeps = {},
 ): Promise<CollectionListResult> {
@@ -78,27 +55,3 @@ export async function loadCollections(
   });
 }
 
-export async function loadCollection(
-  id: string,
-  deps: CollectionSourceDeps = {},
-): Promise<CollectionResult> {
-  if (inDemoMode(deps)) {
-    return { collection: demoCollections.find((r) => r.id === id) ?? null, source: 'demo' };
-  }
-  return withDb(deps, async (db) => {
-    const brandId = await resolveLiveBrandId(db, deps);
-    const collection = brandId === null ? null : await getCollectionById(db, brandId, id);
-    return { collection, source: 'database' };
-  });
-}
-
-export async function withBrandScope<T>(
-  run: (db: Db, brandId: string) => Promise<T>,
-  deps: CollectionSourceDeps = {},
-): Promise<T | null> {
-  if (inDemoMode(deps)) throw new Error(DEMO_MUTATION_REFUSED);
-  return withDb(deps, async (db) => {
-    const brandId = await resolveLiveBrandId(db, deps);
-    return brandId === null ? null : run(db, brandId);
-  });
-}

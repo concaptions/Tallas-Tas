@@ -2,7 +2,6 @@ import {
   demoAngles,
   demoBriefs,
   demoCampaigns,
-  demoCollections,
   demoConcepts,
   demoCopy,
   demoProducts,
@@ -10,7 +9,6 @@ import {
   listAngles,
   listBriefs,
   listCampaigns,
-  listCollections,
   listConcepts,
   listCopy,
   listProducts,
@@ -88,9 +86,6 @@ export interface ConceptOption {
  *
  * - `Offer` / `Campaign (from Campaign)` / `Code (from Campaign)` read `discountOffer` / `name` /
  *   `code` off the rows `copywriting_campaigns` links.
- * - `Collections` / `Collection URL` / `Products (from Collections)` read the collections whose
- *   `copywriting_id` IS this row (the collection owns the link) — name, url, and the linked
- *   product's name.
  * - `Link (from Product)` / `(Internal) Product` read `link` / `name` off the row's `product_id`.
  * - `Angle` reads the linked brief's angle name — the datum `docs/decisions.md` records for the
  *   base's dead text remnant ("the angle is the brief's angle_id").
@@ -100,15 +95,6 @@ export interface CopyLookupCampaign {
   readonly name: string;
   readonly code: string | null;
   readonly discountOffer: string | null;
-}
-
-export interface CopyLookupCollection {
-  readonly id: string;
-  readonly name: string;
-  readonly url: string | null;
-  readonly productName: string | null;
-  /** The owning side of Airtable's "Collections": the Meta copy this collection points at. */
-  readonly copywritingId: string | null;
 }
 
 export interface CopyLookupProduct {
@@ -128,7 +114,6 @@ export interface CopyWorkspaceResult {
   readonly creatives: CreativeOption[];
   readonly concepts: ConceptOption[];
   readonly campaigns: readonly CopyLookupCampaign[];
-  readonly collections: readonly CopyLookupCollection[];
   readonly products: readonly CopyLookupProduct[];
   readonly briefLookups: readonly CopyBriefLookup[];
   readonly source: CopySourceKind;
@@ -195,22 +180,6 @@ function toLookupCampaign(row: {
   return { id: row.id, name: row.name, code: row.code, discountOffer: row.discountOffer };
 }
 
-function toLookupCollection(row: {
-  readonly id: string;
-  readonly name: string;
-  readonly url: string | null;
-  readonly productName: string | null;
-  readonly copywritingId: string | null;
-}): CopyLookupCollection {
-  return {
-    id: row.id,
-    name: row.name,
-    url: row.url,
-    productName: row.productName,
-    copywritingId: row.copywritingId,
-  };
-}
-
 function toLookupProduct(row: {
   readonly id: string;
   readonly name: string;
@@ -274,8 +243,8 @@ export async function loadCreativeOptions(deps: CopySourceDeps = {}): Promise<Cr
 }
 
 /**
- * The whole page in one read: the rows, the panel's pickers, and the four linked tables the grid's
- * lookup columns read through (campaigns, collections, products, and each brief's angle). In live
+ * The whole page in one read: the rows, the panel's pickers, and the three linked tables the grid's
+ * lookup columns read through (campaigns, products, and each brief's angle). In live
  * mode every query shares one connection and the brand is resolved once; in demo mode every half
  * is a fixture and nothing is opened. One read per linked TABLE, joined per row by the page —
  * never a query per row.
@@ -288,7 +257,6 @@ export async function loadCopyWorkspace(deps: CopySourceDeps = {}): Promise<Copy
       creatives: demoBriefs.map(toCreativeOption),
       concepts: demoConcepts.map(toConceptOption),
       campaigns: demoCampaigns.map(toLookupCampaign),
-      collections: demoCollections.map(toLookupCollection),
       products: demoProducts.map(toLookupProduct),
       briefLookups: demoBriefs.map((brief) => toBriefLookup(brief, demoAngleNames)),
       source: 'demo',
@@ -302,29 +270,25 @@ export async function loadCopyWorkspace(deps: CopySourceDeps = {}): Promise<Copy
         creatives: [],
         concepts: [],
         campaigns: [],
-        collections: [],
         products: [],
         briefLookups: [],
         source: 'database' as const,
       };
     }
-    const [rows, briefs, conceptRows, campaignRows, collectionRows, productRows, angleRows] =
-      await Promise.all([
-        listCopy(db, brandId),
-        listBriefs(db, brandId),
-        listConcepts(db, brandId),
-        listCampaigns(db, brandId),
-        listCollections(db, brandId),
-        listProducts(db, brandId),
-        listAngles(db, brandId),
-      ]);
+    const [rows, briefs, conceptRows, campaignRows, productRows, angleRows] = await Promise.all([
+      listCopy(db, brandId),
+      listBriefs(db, brandId),
+      listConcepts(db, brandId),
+      listCampaigns(db, brandId),
+      listProducts(db, brandId),
+      listAngles(db, brandId),
+    ]);
     const angleNamesById = new Map(angleRows.map((angle) => [angle.id, angle.name]));
     return {
       rows,
       creatives: briefs.map(toCreativeOption),
       concepts: conceptRows.map(toConceptOption),
       campaigns: campaignRows.map(toLookupCampaign),
-      collections: collectionRows.map(toLookupCollection),
       products: productRows.map(toLookupProduct),
       briefLookups: briefs.map((brief) => toBriefLookup(brief, angleNamesById)),
       source: 'database' as const,

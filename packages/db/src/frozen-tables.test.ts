@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { FROZEN_PROPAGATION_TABLES, PROPAGATION_TABLES } from './propagation';
 
 /**
- * `creative_sheet_items` and `creative_dimensions` are FROZEN (single-source cutover, 2026-10-09):
+ * `creative_sheet_items` and `creative_dimensions` are FROZEN (single-source cutover, 2026-10-09), and
+ * `collections` since the Oct 12 client sync (Ticket 1; scanned over APP code only, because the
+ * query layer, the junction reads and the importer still join it inside `packages/db`):
  * the Creative Sheet is a view over `creative_briefs`, a creative's ratios live in
  * `creative_briefs.dimensions` (a jsonb string[] the UI reads straight off the brief, no join),
  * and nothing may read or write either old table again until Talal decides their drop. This
@@ -20,7 +22,7 @@ import { FROZEN_PROPAGATION_TABLES, PROPAGATION_TABLES } from './propagation';
  */
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
-const SCAN_ROOTS = [
+const ALL_ROOTS = [
   'apps/web/src',
   'packages/db/src',
   'packages/domain/src',
@@ -29,10 +31,22 @@ const SCAN_ROOTS = [
   'packages/env/src',
 ].filter((dir) => existsSync(join(REPO_ROOT, dir)));
 
-/** Each frozen table: the Drizzle symbol a file would import, and its schema module's path. */
+/** The roots outside the query layer: where a retired table must never be imported again. */
+const APP_ROOTS = ALL_ROOTS.filter((dir) => dir !== 'packages/db/src');
+
+/** Each frozen table: the Drizzle symbol a file would import, its schema module's path, and where to look. */
 const FROZEN_TABLES = {
-  creative_sheet_items: { symbol: 'creativeSheetItems', module: 'schema/creative-sheet-items' },
-  creative_dimensions: { symbol: 'creativeDimensions', module: 'schema/creative-dimensions' },
+  creative_sheet_items: {
+    symbol: 'creativeSheetItems',
+    module: 'schema/creative-sheet-items',
+    roots: ALL_ROOTS,
+  },
+  creative_dimensions: {
+    symbol: 'creativeDimensions',
+    module: 'schema/creative-dimensions',
+    roots: ALL_ROOTS,
+  },
+  collections: { symbol: 'collections', module: 'schema/collections', roots: APP_ROOTS },
 } as const;
 
 type FrozenTable = keyof typeof FROZEN_TABLES;
@@ -57,6 +71,7 @@ const ALLOWED: Readonly<Record<FrozenTable, ReadonlySet<string>>> = {
     // it leaves with the table.
     'packages/db/src/creative-dimensions.ts',
   ]),
+  collections: new Set(),
 };
 
 function sourceFiles(dir: string): string[] {
@@ -77,7 +92,10 @@ function sourceFiles(dir: string): string[] {
 /** Every `import … from '…'` statement of a file, with its specifier list and module path. */
 function imports(source: string): readonly { readonly names: string; readonly from: string }[] {
   const found: { names: string; from: string }[] = [];
-  const pattern = /import\s+(type\s+)?([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/g;
+  // A real import clause only — `{ … }`, `* as x`, or a default (with an optional `{ … }`) — so a
+  // doc comment that says "imports nothing from `apps/web`" can never span to a later statement.
+  const pattern =
+    /import\s+(type\s+)?(\{[^}]*\}|\*\s+as\s+\w+|\w+(?:\s*,\s*\{[^}]*\})?)\s+from\s+['"]([^'"]+)['"]/g;
   for (const match of source.matchAll(pattern)) {
     found.push({ names: match[2] ?? '', from: match[3] ?? '' });
   }
@@ -101,7 +119,7 @@ function frozenTablesImportedBy(source: string): readonly FrozenTable[] {
 /** Every non-test source file that imports the table, outside its allowlist. */
 function offenders(table: FrozenTable): string[] {
   const out: string[] = [];
-  for (const root of SCAN_ROOTS) {
+  for (const root of FROZEN_TABLES[table].roots) {
     for (const file of sourceFiles(join(REPO_ROOT, root))) {
       const rel = relative(REPO_ROOT, file).split('\\').join('/');
       if (ALLOWED_EVERYWHERE.has(rel) || ALLOWED[table].has(rel)) continue;
@@ -146,6 +164,28 @@ describe('the frozen-table import scanner', () => {
     // A mention outside an import statement is not an import.
     expect(frozenTablesImportedBy(`// creativeDimensions used to hold these\n`)).toEqual([]);
   });
+
+  it('catches the collections table by its bare symbol but not the demo fixtures or the query helpers', () => {
+    expect(frozenTablesImportedBy(`import { collections } from '@tas/db/schema';\n`)).toEqual([
+      'collections',
+    ]);
+    expect(
+      frozenTablesImportedBy(`import { collections as rows, products } from '@tas/db';\n`),
+    ).toEqual(['collections']);
+    expect(
+      frozenTablesImportedBy(
+        `import { demoCollections, listCollections, type CollectionListRow } from '@tas/db';\n`,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe('collections is frozen: the workspace is retired (Oct 12 client sync, Ticket 1)', () => {
+  it('is imported by no app code — the web app, the domain, the UI and the integrations', () => {
+    expect(offenders('collections'), 'app files importing the frozen collections table').toEqual(
+      [],
+    );
+  });
 });
 
 describe('creative_sheet_items is frozen', () => {
@@ -174,6 +214,7 @@ describe('creative_dimensions is frozen: dimensions is a COLUMN on the brief, no
     // The registry is also Column Admin's list of known tables, so the entries stay; the engine's
     // three write paths skip FROZEN_PROPAGATION_TABLES.
     expect([...FROZEN_PROPAGATION_TABLES].sort()).toEqual([
+      'collections',
       'creative_dimensions',
       'creative_sheet_items',
     ]);

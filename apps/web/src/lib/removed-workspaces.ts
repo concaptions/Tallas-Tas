@@ -6,7 +6,7 @@ import {
   type RemovedWorkspaceRedirectTarget,
 } from '@tas/domain';
 
-import { appPath, assetsPath, copywritingPath, creativeSheetPath } from './routes';
+import { appPath, assetsPath, copywritingPath, creativeSheetPath, productsPath } from './routes';
 
 /**
  * THE WEB APP'S READING OF `REMOVED_WORKSPACES` (Talal, 2026-10-07 — docs/decisions.md
@@ -23,6 +23,8 @@ const TARGET_PATHS: Readonly<Record<RemovedWorkspaceRedirectTarget, string>> = {
   'creative-sheet': creativeSheetPath,
   assets: `${assetsPath}?tab=client-folders`,
   copywriting: copywritingPath,
+  // Collections (retired 2026-10-12, Ticket 1): a product's landing page is what a collection was.
+  products: productsPath,
   overview: appPath,
 };
 

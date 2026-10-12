@@ -2181,3 +2181,29 @@ retired (2026-10-07) and the sheet became a view over `creative_briefs` (2026-10
 7. **Comments on a creative** use the `comments` table under `recordType = 'creative_briefs'`, the
    portal's own filing, so Focus Mode's Feedback panel shows the client's comments beside the team's.
    One brand-wide read per page (`listCommentsForRecordType`), never one per row.
+
+## 2026-10-12 — Collections retired; Products becomes "Products / Landing Pages" (Oct 12 client sync, Ticket 1)
+
+**Decision (Talal, Oct 12 client sync).** The Collections module leaves the product. A client's landing
+pages are what a collection was, so the Products page carries both ("Products / Landing Pages"; the
+name field "Product Name / Landing Page Name") and `/app/collections` permanently redirects there
+through `REMOVED_WORKSPACES` — the same mechanism as the fifteen Oct 7 retirements, with a new redirect
+target `products`. Ticket: `docs/tickets/in-progress/sprint-oct12-client-sync.md`.
+
+**What changed in the app.** The Copywriting panel's Linked Collection control (Oct 5 ruling, above)
+and its reverse-read chip list are gone, with the three lookup columns they fed; a copy links to a
+Creative and to a Product only. The brief page's Collection fact, the concept rail's Collections
+section and the Creative Sheet's Collection lookup are gone. The workspace, its panel, actions and
+column loader are deleted (not hidden): nothing in `apps/web` reads the table any more except the
+Campaigns & Offers grid's read-only reverse link, which the ticket did not name and which is flagged
+in `docs/sprint-oct12.md` for a separate call.
+
+**What did NOT change.** The `collections` table, its FKs (`creative_briefs.collection_id`,
+`collections.copywriting_id`, …) and its junctions stay, with the production rows in them: the table
+is FROZEN on the `creative_sheet_items` pattern — deprecation comment in the schema,
+`FROZEN_PROPAGATION_TABLES` (no seed, no propagation, no resync for new brands), the six seeded
+columns that read it `is_hidden` on every brand (`RETIRED_COLLECTION_COLUMNS` in `column-seed.ts`),
+and `frozen-tables.test.ts` failing the suite on a new import of the table from app code. The query
+layer and the importer keep their joins. The drop is a later migration after Talal confirms. No
+migration ships with this change; the hidden rows reach Railway with `seed-columns --apply`
+(`docs/runbook.md`, pending).

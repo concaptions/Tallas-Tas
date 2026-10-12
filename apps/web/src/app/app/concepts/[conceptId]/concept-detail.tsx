@@ -34,7 +34,7 @@ import {
 } from '@tas/ui';
 import { CLIENT_STATUS } from '@tas/domain/state';
 
-import { collectionsPath, conceptPath, conceptsPath } from '@/lib/routes';
+import { conceptPath, conceptsPath } from '@/lib/routes';
 
 import { createConceptAction, updateConceptAction, type ConceptActionResult } from '../actions';
 import {
@@ -124,70 +124,6 @@ export interface ConceptCreativeItem {
   readonly href: string;
 }
 
-/**
- * One collection this concept belongs to (`concept_collections`, Gratsi "Collection"), named on the
- * server from the brand's collections. The id alone, no href: the deep link is `collectionHref`,
- * built here on the client, because a function exported by this `'use client'` module cannot be
- * called from the server page that hands the items down.
- */
-export interface ConceptCollectionItem {
-  readonly id: string;
-  readonly name: string;
-}
-
-/**
- * The URL parameter the Collections workspace keeps its open row in — the key its `syncUrl` writes
- * and its page reads back as `params.collection` — restated here so the rail can deep-link into the
- * collection's own panel.
- */
-const COLLECTION_SELECTION_PARAM = 'collection';
-
-/** The Collections page with its panel open on this collection. */
-export function collectionHref(id: string): string {
-  return `${collectionsPath}?${COLLECTION_SELECTION_PARAM}=${encodeURIComponent(id)}`;
-}
-
-interface ConceptCollectionsSectionProps {
-  readonly collections: readonly ConceptCollectionItem[];
-}
-
-/**
- * The concept's collections (`concept_collections`; Gratsi module parity 2026-10-01): the third
- * read-only list in the rail, after Campaigns & Offers. Named and linked, never edited here — the
- * junction is written by the importer, and a collection's own panel is where it is curated. The
- * heading is the Gratsi field's name and is rendered whether or not the concept is in a collection,
- * with the module's em dash as the empty value, so the label never disappears with the data. A
- * collection's name is TYPED, not generated, so unlike the creative and campaign names above it is
- * not monospace.
- */
-export function ConceptCollectionsSection({ collections }: ConceptCollectionsSectionProps) {
-  return (
-    <section className="flex flex-col gap-2 pt-2" data-slot="concept-collections">
-      <h2 className="text-sm font-medium text-text2">Collections</h2>
-      {collections.length === 0 ? (
-        <p className="text-sm text-text4" data-slot="concept-collections-empty">
-          {EM_DASH}
-        </p>
-      ) : (
-        <ol className="flex flex-col gap-1.5" data-slot="concept-collections-list">
-          {collections.map((collection) => (
-            <li key={collection.id}>
-              <Link
-                href={collectionHref(collection.id)}
-                data-slot="concept-collection"
-                data-collection-id={collection.id}
-                className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface2 px-3 py-2 transition-colors hover:border-accent-line hover:bg-surface3"
-              >
-                <span className="text-xs font-medium break-words text-text">{collection.name}</span>
-              </Link>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
-  );
-}
-
 interface ConceptDetailProps {
   /** `null` while creating: the same form, submitted to `createConceptAction`. */
   readonly concept: ConceptFormValues | null;
@@ -198,11 +134,6 @@ interface ConceptDetailProps {
    * creating. Read-only: the link is made from the campaign's panel, never from this page.
    */
   readonly campaigns: readonly ConceptCampaignLink[];
-  /**
-   * The collections whose `concept_collections` rows point here, named on the server, empty while
-   * creating. Read-only, like the campaigns: nothing on this page writes the junction.
-   */
-  readonly collections: readonly ConceptCollectionItem[];
   readonly angles: readonly AngleOption[];
   readonly themes: readonly ThemeOption[];
   readonly creators: readonly CreatorOption[];
@@ -266,7 +197,6 @@ export function ConceptDetail({
   concept,
   creatives,
   campaigns,
-  collections,
   angles,
   themes,
   creators,
@@ -982,8 +912,6 @@ export function ConceptDetail({
               )}
             </section>
           )}
-
-          {concept === null ? null : <ConceptCollectionsSection collections={collections} />}
         </aside>
       </div>
     </div>

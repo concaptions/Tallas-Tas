@@ -313,13 +313,14 @@ describe('canSeeNavSection / navSectionsForRole', () => {
  * to redirect to.
  */
 describe('REMOVED_WORKSPACES (Oct 7 Talal template cleanup)', () => {
-  it('names the fifteen retired workspaces, each a real section key, none twice', () => {
+  it('names the sixteen retired workspaces, each a real section key, none twice', () => {
     expect([...REMOVED_WORKSPACES].sort()).toEqual(
       [
         'ai-characters',
         'briefs',
         'campaigns',
         'client-assets',
+        'collections',
         'competitive-research',
         'copy-types',
         'creative-dimensions',
@@ -385,13 +386,20 @@ describe('REMOVED_WORKSPACES (Oct 7 Talal template cleanup)', () => {
     }
   });
 
-  it('maps every retired key to a redirect target, and only the three that have a successor page leave the Overview', () => {
+  it('maps every retired key to a redirect target, and only the four that have a successor page leave the Overview', () => {
     expect(Object.keys(REMOVED_WORKSPACE_REDIRECTS).sort()).toEqual([...REMOVED_WORKSPACES].sort());
     expect(REMOVED_WORKSPACE_REDIRECTS.briefs).toBe('creative-sheet');
     expect(REMOVED_WORKSPACE_REDIRECTS['client-assets']).toBe('assets');
     expect(REMOVED_WORKSPACE_REDIRECTS['youtube-copywriting']).toBe('copywriting');
+    expect(REMOVED_WORKSPACE_REDIRECTS.collections).toBe('products');
     for (const key of REMOVED_WORKSPACES) {
-      if (key === 'briefs' || key === 'client-assets' || key === 'youtube-copywriting') continue;
+      if (
+        key === 'briefs' ||
+        key === 'client-assets' ||
+        key === 'youtube-copywriting' ||
+        key === 'collections'
+      )
+        continue;
       expect(REMOVED_WORKSPACE_REDIRECTS[key], key).toBe('overview');
     }
     // A target is always a LIVE section, never another retired one — no redirect chains.

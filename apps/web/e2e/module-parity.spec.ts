@@ -4,7 +4,6 @@ import { clerkKeys } from '../src/lib/clerk-keys';
 import {
   anglesPath,
   appPath,
-  collectionsPath,
   conceptsPath,
   creativeSheetPath,
   metaCopywritingPath,
@@ -18,7 +17,8 @@ import {
  * Airtable module parity (Prompt 4, item 1 of the module-parity work, 2026-10-01).
  *
  * One table, nine rows: every sidebar section that still stands in for a Gratsi base table — the
- * four surviving modules of the Prompt 4 list (Copywriting, Creative Sheet, Products, Collections),
+ * three surviving modules of the Prompt 4 list (Copywriting, Creative Sheet, Products; Collections
+ * retired 2026-10-12),
  * then the five tables the sidebar already stood in for (Angles, Concepts, Personas, Themes, UGC
  * Management). The other twelve rows this table held — Creative Design's list, Creative Modules,
  * SM Campaign Feed, Campaigns & Offers, Client Assets, Email Campaigns, Email Flows, YouTube
@@ -140,8 +140,6 @@ const MODULES: readonly ModuleEntry[] = [
     fields: [
       { gratsi: 'Copy #', slot: 'copy-panel-title' },
       { gratsi: 'Status', label: 'Status' },
-      // gap: the inverse of collections.copywriting_id; the Meta panel lists no collections yet.
-      { gratsi: 'Collections', label: 'Collections' },
       { gratsi: 'Descriptions', label: 'Primary Copy' },
       { gratsi: 'Headline', label: 'Headline' },
       { gratsi: 'News Feed', label: 'News Feed / Link Description' },
@@ -224,13 +222,13 @@ const MODULES: readonly ModuleEntry[] = [
     excluded: [],
   },
   {
-    label: 'Products',
+    label: 'Products / Landing Pages',
     path: productsPath,
-    heading: 'Products',
+    heading: 'Products / Landing Pages',
     rowSlot: 'product-row',
     opens: { panelSlot: 'product-panel' },
     fields: [
-      { gratsi: 'Product Name / Landing Page Name', label: 'Product Name' },
+      { gratsi: 'Product Name / Landing Page Name', label: 'Product Name / Landing Page Name' },
       { gratsi: 'Link', label: 'Landing Page URL' },
       { gratsi: 'Angles', label: 'Linked angles' },
       // "Table 17" links Email Campaigns Management (audit §1 row 7).
@@ -259,49 +257,6 @@ const MODULES: readonly ModuleEntry[] = [
         field: '(Internal) Creative Design 2',
         reason:
           'residual single-line text; the structured link is "(Internal) Creative Design" (docs/decisions.md "Airtable field exclusion register" (2026-10-01))',
-      },
-    ],
-  },
-  {
-    label: 'Collections',
-    path: collectionsPath,
-    heading: 'Collections',
-    rowSlot: 'collection-row',
-    opens: { panelSlot: 'collection-panel' },
-    fields: [
-      { gratsi: 'Main Collection', label: 'Collection Name' },
-      { gratsi: 'URL', label: 'URL' },
-      // "Copywriting" (→ Youtube Copywriting) is collections.copywriting_id (audit §2.8).
-      // gap: "Copywriting" links YOUTUBE copy in Gratsi (youtube_copy_collections); no list on the panel yet.
-      { gratsi: 'Copywriting', label: 'YouTube copy' },
-      { gratsi: 'Campaigns & Offers', label: 'Campaign' },
-      // gap: despite its name "Angles" links CONCEPTS in Gratsi (concept_collections); no list on the panel yet.
-      { gratsi: 'Angles', label: 'Concepts' },
-      // Gratsi stores loose text where Drizzle has product_id; same datum (audit §2.8).
-      { gratsi: '(Internal) Product', label: 'Product ID' },
-      { gratsi: '(Internal) Creative Design', label: 'Creatives' },
-      // The text variant plausibly maps to creative_design_note (audit §2.8).
-      { gratsi: '(Internal) Creative Design 2', label: 'Creative Design Note' },
-      // "Table 17" links Email Campaigns Management (audit §1 row 8).
-      { gratsi: 'Table 17', label: 'Email campaigns' },
-      // The Copywriting link is collections.copywriting_id, shown as the panel's "Copywriting".
-      { gratsi: 'Ads Copywriting copy', label: 'Copywriting' },
-    ],
-    excluded: [
-      {
-        field: 'Email Campaigns Management copy (2nd)',
-        reason:
-          'the second field of that name (docs/decisions.md "Airtable field exclusion register" (2026-10-01))',
-      },
-      {
-        field: 'Email Campaigns Management copy',
-        reason:
-          'residual single-line text, twice-named; email campaigns arrive through "Table 17" (docs/decisions.md "Airtable field exclusion register" (2026-10-01))',
-      },
-      {
-        field: 'Creative Sheet',
-        reason:
-          'residual single-line text left by a converted link (docs/decisions.md "Airtable field exclusion register" (2026-10-01))',
       },
     ],
   },
@@ -462,8 +417,6 @@ const MODULES: readonly ModuleEntry[] = [
       // The live base's own spelling of the field (import-mappings).
       { gratsi: 'Decription', label: 'Description' },
       { gratsi: 'Script', label: 'Script idea' },
-      // gap: the concept_collections junction is not listed on the detail page.
-      { gratsi: 'Collection', label: 'Collections' },
       { gratsi: 'Pain Points', label: 'Pain Points' },
       { gratsi: 'USP', label: 'USP' },
       { gratsi: 'Hooks', label: 'Hook examples' },

@@ -60,7 +60,7 @@ import { SheetIcon } from './sheet-icons';
 
 interface CreativeSheetPanelProps {
   readonly item: CreativeSheetItemListRow;
-  /** The brief's resolved lookups (concept, angle, product, collection…), for the Identity section. */
+  /** The brief's resolved lookups (concept, angle, product…), for the Identity section. */
   readonly lookups?: SheetLookups;
   readonly demo: boolean;
   readonly onClose: () => void;
@@ -389,7 +389,6 @@ export function CreativeSheetPanel({
                   {row('Funnel', item.briefFunnel ?? dash)}
                   {row('Version', <span className="font-mono">V{String(detail.version)}</span>)}
                   {row('Product', lookups?.internalProduct ?? dash)}
-                  {row('Collection', lookups?.collection ?? dash)}
                 </div>
               </Group>
 

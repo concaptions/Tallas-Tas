@@ -2,7 +2,6 @@ import {
   angles,
   brands,
   campaignsOffers,
-  collections,
   copywriting,
   copywritingCampaigns,
   creativeBriefs,
@@ -238,7 +237,6 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
     ).toEqual([
       [1, 'copy_number', 'Copy #'],
       [2, 'status', 'Status'],
-      [3, 'collections', 'Collections'],
       [4, 'product_id', 'Product'],
       [5, 'angle', 'Angle'],
       [6, 'primary_copy', 'Descriptions'],
@@ -254,12 +252,10 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
       [15, 'copywriting_copy_types', 'Copy Type'],
       [16, 'client_comment', "Client's Comment"],
       [17, 'creative_brief_id', 'Creative'],
-      [18, 'collection_url', 'Collection URL'],
       [19, 'link_from_product', 'Link (from Product)'],
       [20, 'used', 'USED'],
       [21, 'winning', 'Winning'],
       [22, 'meta_rating', 'Meta Rating'],
-      [23, 'products_from_collections', 'Products (from Collections)'],
       [24, 'created_by', 'Created By'],
       [27, 'internal_product', '(Internal) Product'],
     ]);
@@ -274,17 +270,14 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
       'angle',
       'campaign_from_campaign',
       'code_from_campaign',
-      'collection_url',
-      'collections',
       'internal_product',
       'link_from_product',
       'offer',
-      'products_from_collections',
     ]);
     expect(virtual.every((column) => column.formula === 'lookupRollup')).toBe(true);
   });
 
-  it('resolves the template to its own full eleven-field base, Copy # and the reverse-link Collection included', async () => {
+  it('resolves the template to its own base fields, Copy # included and the retired Collection hidden', async () => {
     const { db } = await seededColumns();
     const brandRows = await db.select().from(brands);
     const template = brandRows.find((brand) => brand.isTemplate);
@@ -295,7 +288,6 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
       [1, 'Copy #'],
       [2, 'Creative'],
       [3, 'Status'],
-      [4, 'Collection'],
       [5, 'Product'],
       [6, 'Primary Copy'],
       [7, 'Headline'],
@@ -309,7 +301,7 @@ describe('the Gratsi Meta Copywriting column set (GRATSI-MATCH 2026-10-04)', () 
 
 /**
  * The lookup cells, proved over a live-shaped read: a Gratsi copy row linked to a campaign, a
- * product, a brief (with an angle) and a collection reads every looked-up value through
+ * product and a brief (with an angle) reads every looked-up value through
  * `loadCopyWorkspace` + `buildCopyItems` — the exact pipeline the page runs.
  */
 describe('the Meta Copywriting lookup cells over PGlite (GRATSI-MATCH 2026-10-04)', () => {
@@ -369,13 +361,6 @@ describe('the Meta Copywriting lookup cells over PGlite (GRATSI-MATCH 2026-10-04
     await db
       .insert(copywritingCampaigns)
       .values({ copyId: copyRow.id, campaignOfferId: campaign.id });
-    await db.insert(collections).values({
-      brandId: gratsi.id,
-      name: 'BFCM 2026 Collection',
-      url: 'https://gratsi.test/collections/bfcm',
-      productId: product?.id,
-      copywritingId: copyRow.id,
-    });
 
     const workspace = await loadCopyWorkspace(liveDeps(db, gratsi.id));
     expect(workspace.source).toBe('database');
@@ -383,7 +368,6 @@ describe('the Meta Copywriting lookup cells over PGlite (GRATSI-MATCH 2026-10-04
       {
         rows: workspace.rows,
         campaigns: workspace.campaigns,
-        collections: workspace.collections,
         products: workspace.products,
         briefLookups: workspace.briefLookups,
         copyTypes: [],
@@ -399,11 +383,6 @@ describe('the Meta Copywriting lookup cells over PGlite (GRATSI-MATCH 2026-10-04
     expect(item.offer).toBe('20%OFF');
     expect(item.campaignNames).toBe('BFCM-20%OFF-BFCM26');
     expect(item.campaignCodes).toBe('BFCM26');
-    expect(item.collections.map((collection) => collection.label)).toEqual([
-      'BFCM 2026 Collection',
-    ]);
-    expect(item.collectionUrls).toBe('https://gratsi.test/collections/bfcm');
-    expect(item.collectionProducts).toBe('Reset Bundle');
     expect(item.title).toBe('Copy #7');
 
     // An unlinked row resolves every lookup to null — the em dash, never a leak from a neighbour.
@@ -416,7 +395,6 @@ describe('the Meta Copywriting lookup cells over PGlite (GRATSI-MATCH 2026-10-04
       {
         rows: second.rows,
         campaigns: second.campaigns,
-        collections: second.collections,
         products: second.products,
         briefLookups: second.briefLookups,
         copyTypes: [],
@@ -431,9 +409,6 @@ describe('the Meta Copywriting lookup cells over PGlite (GRATSI-MATCH 2026-10-04
       offer: null,
       campaignNames: null,
       campaignCodes: null,
-      collectionUrls: null,
-      collectionProducts: null,
-      collections: [],
     });
   });
 });

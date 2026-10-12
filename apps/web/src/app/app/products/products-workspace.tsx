@@ -332,9 +332,13 @@ export function ProductsWorkspace({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Products</p>
+        <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+          Products / Landing Pages
+        </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">Products</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-text">
+            Products / Landing Pages
+          </h1>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"

@@ -21,7 +21,7 @@ describe('NAV_SECTIONS', () => {
   it('lists every module in sidebar order (regrouped 2026-10-01 for Airtable parity)', () => {
     expect(NAV_SECTIONS.map((section) => section.label)).toEqual([
       'Overview',
-      'Products',
+      'Products / Landing Pages',
       'Collections',
       'Personas',
       'Angles',
@@ -98,7 +98,7 @@ describe('NAV_SECTIONS', () => {
 
     expect(linked.map((section) => [section.label, section.href])).toEqual([
       ['Overview', '/app'],
-      ['Products', '/app/products'],
+      ['Products / Landing Pages', '/app/products'],
       ['Collections', '/app/collections'],
       ['Personas', '/app/personas'],
       ['Angles', '/app/angles'],
@@ -334,7 +334,7 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
     );
   });
 
-  it('names the seventeen keys the decision covers, no more and no fewer', () => {
+  it('names the eighteen keys the decision covers, no more and no fewer', () => {
     expect([...KEYS].sort()).toEqual(
       [
         'ai-characters',
@@ -342,6 +342,7 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
         'campaigns',
         'client-assets',
         'client-queue',
+        'collections',
         'competitive-research',
         'copy-types',
         'creative-dimensions',

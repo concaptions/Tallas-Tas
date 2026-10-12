@@ -53,7 +53,8 @@ export interface ProductField {
 export const PRODUCT_FIELDS: readonly ProductField[] = [
   {
     name: 'name',
-    label: 'Product Name',
+    // Oct 12 client sync (Ticket 1): a product row is a landing page as often as a product.
+    label: 'Product Name / Landing Page Name',
     placeholder: 'Niagara Deep Sleep Weighted Blanket',
     required: true,
   },

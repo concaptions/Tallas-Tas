@@ -19,13 +19,12 @@ import {
 import { validateCopyDraft, type CopyDraft } from '@tas/domain/copy';
 import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
 
-import { briefPath, collectionsPath, productsPath } from '@/lib/routes';
+import { briefPath, productsPath } from '@/lib/routes';
 
 import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './actions';
 import {
   CAMPAIGNS_READ_ONLY_NOTE,
   CLIENT_COMMENT_NOTE,
-  COLLECTIONS_READ_ONLY_NOTE,
   COPY_FIELDS,
   COPY_HEADINGS,
   COPY_TYPES_HINT,
@@ -35,8 +34,6 @@ import {
   EM_DASH,
   FUNNEL_OPTIONS,
   NO_CAMPAIGNS_NOTE,
-  NO_COLLECTION_LABEL,
-  NO_COLLECTION_VALUE,
   NO_CONCEPT_LABEL,
   NO_CONCEPT_VALUE,
   NO_COPY_TYPES_NOTE,
@@ -47,10 +44,8 @@ import {
   NO_PRODUCT_LABEL,
   NO_PRODUCT_VALUE,
   STATUS_OPTIONS,
-  COLLECTION_SELECTION_PARAM,
   counterLabel,
   counterTone,
-  type CollectionChoice,
   type ConceptChoice,
   type CopyField,
   type CopyItem,
@@ -92,19 +87,15 @@ import {
  * there is no picker (`CAMPAIGNS_READ_ONLY_NOTE`) rather than offering a toggle with nothing to
  * submit to.
  *
- * COLLECTIONS IS A READ-ONLY LIST THE COLLECTION SIDE OWNS. Airtable's "Collections" on a copy row
- * is the inverse of `collections.copywriting_id`: the page inverts the brand's collections once and
- * the panel lists the ones that point at this row, each a link to the Collections page with that
- * panel open, and the em dash when none does. The link is edited there, in the collection's
- * Copywriting ID field (`COLLECTIONS_READ_ONLY_NOTE`), never here.
+ * COLLECTIONS IS GONE (Oct 12 client sync, Ticket 1): the Linked Collection control and the
+ * reverse-read chip list were retired with the Collections workspace. A copy links to a Creative
+ * and to a Product, nothing else.
  */
 
 interface CopyPanelProps {
   readonly item: CopyItem;
   readonly creatives: readonly CreativeChoice[];
   readonly concepts: readonly ConceptChoice[];
-  /** The brand's live collections, for the Linked Collection single-select. Empty on a brand with none. */
-  readonly collections: readonly CollectionChoice[];
   /** The brand's products, for the Oct 5 Linked Product single-select. Empty on a brand with none. */
   readonly products: readonly ProductChoice[];
   readonly copyTypes: readonly CopyTypeChoice[];
@@ -170,7 +161,6 @@ export function CopyPanel({
   item,
   creatives,
   concepts,
-  collections,
   products,
   copyTypes,
   demo,
@@ -188,9 +178,6 @@ export function CopyPanel({
   const [detailDraft, setDetailDraft] = useState<DetailDraft>(() => detailDraftOf(item));
   const [selectedCopyTypeIds, setSelectedCopyTypeIds] = useState<readonly string[]>(
     item.copyTypeIds,
-  );
-  const [linkedCollectionId, setLinkedCollectionId] = useState<string | null>(
-    item.linkedCollectionId,
   );
   const [productId, setProductId] = useState<string | null>(item.productId);
 
@@ -226,16 +213,13 @@ export function CopyPanel({
 
   /**
    * A message under a field: the save's own error first, then the draft's own rule. The validation
-   * tracks only the domain's `CopyDraft` fields; the cross-table link fields (`collectionId`,
-   * `productId`) are only in the server-returned error map, so the fallback is only consulted for
-   * a draft field.
+   * tracks only the domain's `CopyDraft` fields; the link field (`productId`) is only in the
+   * server-returned error map, so the fallback is only consulted for a draft field.
    */
   const errorFor = (name: CopyFieldName): string | undefined => {
     const fromState = state !== null && !state.ok ? state.fieldErrors?.[name] : undefined;
     if (fromState !== undefined) return fromState;
-    return name === 'collectionId' || name === 'productId'
-      ? undefined
-      : validation.fieldErrors[name];
+    return name === 'productId' ? undefined : validation.fieldErrors[name];
   };
 
   const renderCopyField = (field: CopyField) => {
@@ -489,7 +473,7 @@ export function CopyPanel({
               {/*
                * The Linked Product control (Oct 5): a single-select over the brand's products that
                * writes `copywriting.product_id` directly through `updateCopy` (the FK is on this
-               * row, so no cross-table setter is needed, unlike Linked Collection). The chip under
+               * row, so no cross-table setter is needed). The chip under
                * the select opens the product's panel on the Products page, same shape as the
                * Linked Creative chip above.
                */}
@@ -692,95 +676,6 @@ export function CopyPanel({
               <p className="text-xs text-text3">{CAMPAIGNS_READ_ONLY_NOTE}</p>
             </section>
 
-            <section className="flex flex-col gap-3">
-              <h3
-                data-slot="copy-group-heading"
-                className="border-b border-line pb-1 text-sm font-medium text-text2"
-              >
-                {COPY_HEADINGS.collections}
-              </h3>
-
-              {/*
-               * The Linked Collection single-select (Oct 5 ruling in `docs/decisions.md`): writes
-               * the OWNER-SIDE FK on `collections.copywriting_id` through
-               * `setCollectionCopywritingLinkInBrand`. The reverse-read list below still renders
-               * every collection currently pointing at this copy as a chip-link, so the panel
-               * never loses the way to the collection(s) it belongs to.
-               */}
-              <div className="flex flex-col gap-1.5">
-                <Label
-                  htmlFor="copy-field-collectionId"
-                  className="text-[11px] tracking-wide text-text3 uppercase"
-                >
-                  Linked Collection
-                </Label>
-                <Select
-                  value={linkedCollectionId ?? NO_COLLECTION_VALUE}
-                  onValueChange={(next) => {
-                    setLinkedCollectionId(next === NO_COLLECTION_VALUE ? null : next);
-                  }}
-                  disabled={locked}
-                >
-                  <SelectTrigger
-                    id="copy-field-collectionId"
-                    className="w-full"
-                    aria-label="Linked Collection"
-                    data-slot="copy-collection-select"
-                  >
-                    <SelectValue placeholder={NO_COLLECTION_LABEL} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_COLLECTION_VALUE}>{NO_COLLECTION_LABEL}</SelectItem>
-                    {collections.map((collection) => (
-                      <SelectItem key={collection.id} value={collection.id}>
-                        {collection.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <input
-                  type="hidden"
-                  name="collectionId"
-                  value={linkedCollectionId ?? ''}
-                  data-slot="copy-collection-value"
-                />
-                {linkedCollectionId === null ? null : (
-                  <Link
-                    href={`${collectionsPath}?${COLLECTION_SELECTION_PARAM}=${encodeURIComponent(linkedCollectionId)}`}
-                    data-slot="copy-collection-chip"
-                    data-collection-id={linkedCollectionId}
-                    className="inline-flex self-start rounded-input border border-line bg-surface2 px-1.5 py-0.5 text-[11px] text-text2 hover:border-accent-line hover:text-accent"
-                  >
-                    Open{' '}
-                    {collections.find((collection) => collection.id === linkedCollectionId)?.name ??
-                      linkedCollectionId}
-                  </Link>
-                )}
-                {errorFor('collectionId') === undefined ? null : (
-                  <p data-slot="copy-error" className="text-xs text-bad">
-                    {errorFor('collectionId')}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2" data-slot="copy-collections">
-                {item.collections.length === 0 ? (
-                  <span className="text-sm text-text3">{EM_DASH}</span>
-                ) : (
-                  item.collections.map((collection) => (
-                    <Link
-                      key={collection.id}
-                      href={collection.href}
-                      data-slot="copy-collection-link"
-                      className="inline-flex rounded-input border border-line bg-surface2 px-1.5 py-0.5 text-[11px] text-text2 hover:border-accent-line hover:text-accent"
-                    >
-                      {collection.label}
-                    </Link>
-                  ))
-                )}
-              </div>
-              <p className="text-xs text-text3">{COLLECTIONS_READ_ONLY_NOTE}</p>
-            </section>
 
             <section className="flex flex-col gap-3">
               <h3

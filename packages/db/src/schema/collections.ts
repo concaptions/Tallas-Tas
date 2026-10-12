@@ -7,6 +7,13 @@ import { campaignsOffers } from './campaigns';
 import { products } from './products';
 
 /**
+ * DEPRECATED as of Oct 12 (client sync, Ticket 1): the Collections workspace is retired and nothing in
+ * `apps/web` reads this table any more except the Campaigns & Offers reverse link. FROZEN like
+ * `creative_sheet_items`: the table and its FKs stay, propagation skips it
+ * (`FROZEN_PROPAGATION_TABLES`), its seeded columns are hidden on every brand, and
+ * `frozen-tables.test.ts` fails the suite on a new import from app code. The drop is a later
+ * migration after Talal confirms.
+ *
  * Collections: groupings of creatives and campaigns. Branded, propagation-enabled.
  *
  * Link fields: Campaigns & Offers, Angles, Product, and two Creative Design links

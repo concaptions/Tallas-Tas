@@ -16,7 +16,7 @@ import { isKanbanField, SEARCH_PARAM, SELECTION_PARAM } from './fields';
  * creative, each named by the month it was created and the creative it links to.
  *
  * A server component, shaped exactly like the Products page. The rows and every linked table the
- * thirteen `Creative Name` lookup columns read — briefs, angles, products, collections, concepts,
+ * `Creative Name` lookup columns read — briefs, angles, products, concepts,
  * modules and the Meta copy rows — come from `loadCreativeSheetWorkspace()` on one connection
  * (GRATSI-MATCH, 2026-10-04): fixtures in demo mode, the brand-scoped queries otherwise; the page
  * does not know which and does not branch on it. The computed name arrives on the row from the

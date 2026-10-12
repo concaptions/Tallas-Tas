@@ -89,7 +89,6 @@ function item(overrides: Partial<BriefItem> = {}): BriefItem {
     row: FIXTURE_ROW,
     angleName: null,
     productName: null,
-    collectionName: null,
     campaignOfferName: null,
     assetName: null,
     funnelLabel: 'TOF',

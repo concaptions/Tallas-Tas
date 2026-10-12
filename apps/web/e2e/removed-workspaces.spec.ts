@@ -10,6 +10,7 @@ import {
   briefPath,
   campaignsOffersPath,
   clientAssetsPath,
+  collectionsPath,
   competitiveResearchPath,
   copyTypesPath,
   creativeDesignPath,
@@ -27,7 +28,8 @@ import {
 } from '../src/lib/routes';
 
 /**
- * The fifteen workspaces retired for every brand on 2026-10-07 (Talal; `REMOVED_WORKSPACES` in
+ * The fifteen workspaces retired for every brand on 2026-10-07, plus Collections on 2026-10-12
+ * (Talal; `REMOVED_WORKSPACES` in
  * `@tas/domain`, docs/decisions.md "2026-10-09 — Template cleanup"). Nothing was deleted: the page
  * code and the tables stay, the sidebar link is gone and the old URL lands on the live page that
  * took the job over. This file is the end-to-end proof of the second half — one visit per retired
@@ -54,6 +56,7 @@ const ADDRESS: Readonly<Record<RemovedWorkspaceKey, string>> = {
   'creator-ranking': creatorRankingPath,
   'copy-types': copyTypesPath,
   'creative-dimensions': creativeDimensionsPath,
+  collections: collectionsPath,
 };
 
 /** A brief the fixtures carry (`demoBriefs`), to prove the detail route survived the list's retirement. */
