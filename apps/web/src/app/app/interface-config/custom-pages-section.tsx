@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId, useMemo, useState, useTransition } from 'react';
+import { useActionState, useEffect, useId, useMemo, useState, useTransition } from 'react';
 import {
   Button,
   Dialog,
@@ -259,6 +259,11 @@ function AddPageDialog({ resolverColumnsByTable, demo, disabled }: AddPageDialog
     createCustomPageAction,
     null,
   );
+  // A saved page closes the dialog; the action's revalidatePath brings it into the list and the
+  // portal's nav on the next render. A failed save keeps the dialog open with the error shown.
+  useEffect(() => {
+    if (state !== null && state.ok) setOpen(false);
+  }, [state]);
 
   const resolverColumns = resolverColumnsByTable[source];
 
@@ -321,8 +326,14 @@ function AddPageDialog({ resolverColumnsByTable, demo, disabled }: AddPageDialog
         }
       }}
     >
-      <DialogTrigger asChild>
-        <DisabledWrite active={demo || disabled}>
+      {/*
+        The trigger wraps the BUTTON, and the hint wraps the trigger (2026-10-12). The other way
+        round — `DialogTrigger asChild` around `DisabledWrite` — handed Radix's onClick / aria-* /
+        data-state to `DisabledWrite`, which keeps none of them and, when inactive, renders its
+        child untouched: the button looked live and did nothing.
+      */}
+      <DisabledWrite active={demo || disabled}>
+        <DialogTrigger asChild>
           <Button
             type="button"
             variant="outline"
@@ -333,8 +344,8 @@ function AddPageDialog({ resolverColumnsByTable, demo, disabled }: AddPageDialog
           >
             Add custom page
           </Button>
-        </DisabledWrite>
-      </DialogTrigger>
+        </DialogTrigger>
+      </DisabledWrite>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add custom page</DialogTitle>
