@@ -463,6 +463,20 @@
       "when": 1791990900000,
       "tag": "0065_concept_name_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1791991000000,
+      "tag": "0066_drop_retired_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1791991100000,
+      "tag": "0067_consolidate_internal_status",
+      "breakpoints": true
     }
   ]
 }
