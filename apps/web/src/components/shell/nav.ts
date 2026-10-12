@@ -335,15 +335,20 @@ export const NAV_SECTIONS: readonly NavSection[] = NAV_GROUPS.flatMap((group) =>
  * `sectionGuard` in `./section-guard`, applied per section as a segment layout (AI-65).
  */
 /**
- * Sections kept OUT of the sidebar for every role on every brand while their routes stay live
- * (item 6a, 2026-10-11): the two approval boards are retired tooling that B6 deletes after the
- * soak, and a link to them on every brand read as a feature. A nav-only hide on purpose — the
- * domain's `REMOVED_WORKSPACES` also redirects the route, which this must not do yet. NOT a
+ * Sections kept OUT of the sidebar for every role on every brand while their files stay in place:
+ * - the two approval boards (item 6a, 2026-10-11): retired tooling that B6 deletes after the soak;
+ *   their routes still answer;
+ * - `ad-spy` (2026-10-12): hidden on purpose, to be brought back later; its route redirects to the
+ *   dashboard (`app/ad-spy/layout.tsx`) so the link alone is not what keeps it closed. It was the
+ *   Reporting group's only live section, so the "Reporting" heading goes with it — an emptied
+ *   group is never rendered.
+ * A nav-only hide on purpose — the domain's `REMOVED_WORKSPACES` is the heavier retirement. NOT a
  * security control, same as the role filter.
  */
 export const NAV_HIDDEN_SECTION_KEYS: ReadonlySet<string> = new Set([
   'internal-queue',
   'client-queue',
+  'ad-spy',
 ]);
 
 export function navGroupsForRole(role: ViewerRole | null | undefined): readonly NavGroup[] {

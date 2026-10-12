@@ -222,22 +222,20 @@ describe('navGroupsForRole', () => {
       })).filter((group) => group.sections.length > 0),
     );
     // Campaigns and Settings / Lookups held nothing but retired workspaces, so the headings go too;
-    // Copy keeps Copywriting and Reporting keeps Ad Spy, each now a one-section group.
+    // Copy keeps Copywriting as a one-section group. Reporting kept Ad Spy alone until Ad Spy was
+    // hidden (2026-10-12), so that heading goes as well — never an empty group.
     expect(groups.map((group) => group.key)).toEqual([
       'home',
       'strategy',
       'production',
       'copy',
-      'reporting',
       'settings',
       'dev',
     ]);
     expect(groups.find((group) => group.key === 'copy')?.sections.map((s) => s.key)).toEqual([
       'copywriting',
     ]);
-    expect(groups.find((group) => group.key === 'reporting')?.sections.map((s) => s.key)).toEqual([
-      'ad-spy',
-    ]);
+    expect(groups.some((group) => group.key === 'reporting')).toBe(false);
   });
 
   it('gives a video editor and a designer only their own sections, and drops empty groups', () => {
@@ -381,9 +379,10 @@ describe('navGroupsForView · the template brand hides a set of sections (Oct 5 
     for (const key of KEYS) {
       expect(seen.has(key), `template admin still sees ${key}`).toBe(false);
     }
-    // And every other admin section is still there — the hide is additive to the role filter.
+    // And every other admin section is still there — the hide is additive to the role filter
+    // (less the sections hidden for every brand, `NAV_HIDDEN_SECTION_KEYS`).
     for (const section of NAV_SECTIONS) {
-      if (KEYS.has(section.key)) continue;
+      if (KEYS.has(section.key) || NAV_HIDDEN_SECTION_KEYS.has(section.key)) continue;
       expect(seen.has(section.key), `template admin lost ${section.key}`).toBe(true);
     }
   });
@@ -507,7 +506,6 @@ describe('REMOVED_WORKSPACES · hidden on every brand, for every role', () => {
     );
     for (const kept of [
       'copywriting',
-      'ad-spy',
       'upload-links',
       'creative-sheet',
       'assets',
@@ -515,8 +513,8 @@ describe('REMOVED_WORKSPACES · hidden on every brand, for every role', () => {
     ] as const) {
       expect(admin.has(kept), kept).toBe(true);
     }
-    // The two queues are kept workspaces (their routes answer) but hidden from the nav (item 6a).
-    for (const hidden of ['internal-queue', 'client-queue'] as const) {
+    // The two queues (item 6a) and Ad Spy (2026-10-12) are kept workspaces hidden from the nav.
+    for (const hidden of ['internal-queue', 'client-queue', 'ad-spy'] as const) {
       expect(isRemovedWorkspace(hidden)).toBe(false);
       expect(admin.has(hidden), hidden).toBe(false);
     }
@@ -538,6 +536,23 @@ describe('the approval queues are not in the nav (item 6a)', () => {
       expect(labels).not.toContain('Internal Queue');
       expect(labels).not.toContain('Client Queue');
       expect(navGroupsForRole(role).some((group) => group.key === 'approvals')).toBe(false);
+    },
+  );
+});
+
+/**
+ * Ad Spy hidden on purpose (2026-10-12): no role sees the entry, and since it was the Reporting
+ * group's only live section, no role sees a "Reporting" heading either. The route is closed by
+ * `app/ad-spy/layout.tsx`; the files stay for a later return.
+ */
+describe('Ad Spy is hidden from the nav', () => {
+  it.each(['admin', 'csm', 'strategist', 'video_editor', 'designer', 'media_buyer'] as const)(
+    'lists no Ad Spy entry and no Reporting heading for %s',
+    (role) => {
+      const groups = navGroupsForRole(role);
+      expect(groups.flatMap((group) => group.sections.map((s) => s.label))).not.toContain('Ad Spy');
+      expect(groups.some((group) => group.key === 'reporting')).toBe(false);
+      expect(groups.every((group) => group.sections.length > 0)).toBe(true);
     },
   );
 });
