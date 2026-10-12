@@ -49,7 +49,8 @@ import {
  *
  * NOTE DISPATCH: three of the four tables already have a note column on this track —
  * `concepts.client_status_note`, `creative_briefs.client_status_note` (both added by migration
- * 0050), `creators.client_note` (PRD §5.8), and `copywriting.client_comment` (PRD §5.11). The
+ * 0050), `creators.client_note` (PRD §5.8), and `copywriting.client_approval_note` (the
+ * copy's one note column since 0066 dropped `client_comment`). The
  * writers map `note` onto the right column for each table so the caller never has to know.
  *
  * EVERY EXPORT IN THIS FILE IS AN ASYNC FUNCTION. Next.js refuses to compile a `'use server'`

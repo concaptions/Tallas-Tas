@@ -46,36 +46,6 @@ export function conceptApprovalStatusLabel(value: string | null | undefined): st
   return CONCEPT_APPROVAL_STATUSES.find((entry) => entry.key === value)?.label ?? value;
 }
 
-export interface ConceptProductionStatusEntry {
-  readonly key: ConceptProductionStatusKey;
-  readonly label: string;
-}
-
-export const CONCEPT_PRODUCTION_STATUSES = [
-  { key: 'to_do', label: 'To Do' },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'filming_in_progress', label: 'Filming in Progress' },
-  { key: 'sent_to_design', label: 'Sent to Design' },
-  { key: 'done', label: 'Done' },
-  { key: 'launched', label: 'Launched' },
-] as const satisfies readonly { key: string; label: string }[];
-
-export type ConceptProductionStatusKey = (typeof CONCEPT_PRODUCTION_STATUSES)[number]['key'];
-
-export const CONCEPT_PRODUCTION_STATUS_KEYS: readonly ConceptProductionStatusKey[] =
-  CONCEPT_PRODUCTION_STATUSES.map((entry) => entry.key);
-
-export function isConceptProductionStatus(value: string): value is ConceptProductionStatusKey {
-  return CONCEPT_PRODUCTION_STATUS_KEYS.includes(value as ConceptProductionStatusKey);
-}
-
-export function conceptProductionStatusLabel(value: string | null | undefined): string {
-  if (value === null || value === undefined || value === '') {
-    return '—';
-  }
-  return CONCEPT_PRODUCTION_STATUSES.find((entry) => entry.key === value)?.label ?? value;
-}
-
 export interface ConceptCategoryEntry {
   /** The value stored in `concepts.category`, verbatim. */
   readonly key: ConceptCategoryKey;

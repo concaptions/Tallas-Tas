@@ -126,7 +126,7 @@ const optionalKey = z.string().trim().optional();
 
 /**
  * Shape only. Every rule is `validateCopyDraft`'s. `copyNumber` is absent on purpose -- it is
- * generated, never submitted -- and so is `clientComment`, which the client writes, not us.
+ * generated, never submitted -- and so is the client's note, which the client writes, not us.
  */
 const copySchema = z.object({
   creativeBriefId: optionalText,

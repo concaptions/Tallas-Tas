@@ -103,7 +103,7 @@ describe('migration 0010 on PGlite', () => {
       'creatives.client_status',
       'creatives.client_comments',
       'copywriting.client_status',
-      'copywriting.client_comment',
+      'copywriting.client_approval_note',
       'ugc.client_status',
       'ugc.client_note',
       'ugc.tracking_number',

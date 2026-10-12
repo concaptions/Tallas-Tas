@@ -164,8 +164,9 @@ export async function updateCopy(
  * Moves one copy row's `status` track in one write (Oct 5 Talal sync). Named after the COLUMN
  * (`status`), not after the shape ("client status"), because copy has one track that is already
  * client-facing — COPY_STATUS owns the vocabulary, including the distinct `revisions_needed` and
- * `disapproved` terminal — and the schema column is `status`. The `note` writes to the EXISTING
- * `client_comment` column; a parallel note column would be a second notepad to keep in step.
+ * `disapproved` terminal — and the schema column is `status`. The `note` writes to
+ * `client_approval_note` — the one note column on the row since migration 0066 dropped
+ * `client_comment` (Oct 12 client sync, Ticket 15).
  */
 export async function updateCopyStatus(
   db: Db,
@@ -182,7 +183,7 @@ export async function updateCopyStatus(
       {
         status,
         statusUpdatedAt: now,
-        clientComment: note,
+        clientApprovalNote: note,
         updatedBy: actorId,
         updatedAt: now,
       },

@@ -2,15 +2,12 @@ import {
   BATCHES,
   CONCEPT_APPROVAL_STATUSES,
   CONCEPT_CATEGORIES,
-  CONCEPT_PRODUCTION_STATUSES,
   CONCEPT_STYLES,
   conceptApprovalStatusLabel,
-  conceptProductionStatusLabel,
   INHERITED_ANGLE_FIELDS,
   type BatchKey,
   type ConceptApprovalStatusKey,
   type ConceptCategoryKey,
-  type ConceptProductionStatusKey,
   type ConceptStyleKey,
 } from '@tas/domain/concepts';
 import { ANGLE_FORMATS, type AngleFormatEntry, type AngleFormatKey } from '@tas/domain/angles';
@@ -48,10 +45,8 @@ export {
   BATCHES,
   CONCEPT_APPROVAL_STATUSES,
   CONCEPT_CATEGORIES,
-  CONCEPT_PRODUCTION_STATUSES,
   CONCEPT_STYLES,
   conceptApprovalStatusLabel,
-  conceptProductionStatusLabel,
   ANGLE_FORMATS,
   INHERITED_ANGLE_FIELDS,
 };
@@ -61,7 +56,6 @@ export type {
   BatchKey,
   ConceptApprovalStatusKey,
   ConceptCategoryKey,
-  ConceptProductionStatusKey,
   ConceptStyleKey,
 };
 

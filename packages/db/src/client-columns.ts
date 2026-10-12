@@ -50,7 +50,7 @@ export const CLIENT_VISIBLE_COLUMNS: Readonly<Record<string, readonly string[]>>
     'cta',
     'funnel',
     'status',
-    'client_comment',
+    'client_approval_note',
     'client_approval_status',
   ],
   creators: [

@@ -8,11 +8,7 @@ import { loadUgc } from '@/lib/ugc-source';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { briefPath, conceptPath, ugcPath } from '@/lib/routes';
 
-import {
-  conceptProductionStatusLabel,
-  conceptCategoryLabel,
-  conceptStyleLabel,
-} from '@tas/domain/concepts';
+import { conceptCategoryLabel, conceptStyleLabel } from '@tas/domain/concepts';
 
 import {
   clientApprovalView,
@@ -103,11 +99,8 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
     href: conceptPath(row.id),
     clientStatus: clientStatusView(row.clientStatus),
     clientApproval: clientApprovalView(row.clientApprovalStatus),
-    productionStatusLabel:
-      row.productionStatus === null ? null : conceptProductionStatusLabel(row.productionStatus),
     categoryLabel: row.category === null ? null : conceptCategoryLabel(row.category),
     styleLabel: row.conceptStyle === null ? null : conceptStyleLabel(row.conceptStyle),
-    formatsToCreate: row.formatsToCreate,
     formats: row.formats,
     hookExamples: row.hookExamples,
     scriptIdea: row.scriptIdea,

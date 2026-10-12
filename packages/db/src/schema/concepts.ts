@@ -2,12 +2,7 @@ import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-cor
 
 import { baseColumns, propagationColumns } from '../columns';
 import { brands } from './brands';
-import type {
-  AngleFormat,
-  ClientApprovalStatusKey,
-  ConceptApprovalStatus,
-  ConceptProductionStatus,
-} from './enums';
+import type { AngleFormat, ClientApprovalStatusKey, ConceptApprovalStatus } from './enums';
 
 /**
  * The value `internal_status` starts at: the FIRST entry of `INTERNAL_VIDEO_STATUS` in
@@ -74,8 +69,6 @@ export const concepts = pgTable(
     usp: text('usp'),
     clientComments: text('client_comments'),
     approvalStatus: text('approval_status').$type<ConceptApprovalStatus>(),
-    formatsToCreate: jsonb('formats_to_create').$type<string[]>().notNull().default([]),
-    productionStatus: text('production_status').$type<ConceptProductionStatus>(),
     internalStatus: text('internal_status').notNull().default(CONCEPT_INTERNAL_STATUS_DEFAULT),
     clientStatus: text('client_status').notNull().default(CONCEPT_CLIENT_STATUS_DEFAULT),
     /**

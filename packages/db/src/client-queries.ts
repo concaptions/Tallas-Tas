@@ -262,7 +262,8 @@ export async function clientCopywriting(db: Db, brandId: string): Promise<Client
       cta: copywriting.cta,
       funnel: copywriting.funnel,
       status: copywriting.status,
-      clientComment: copywriting.clientComment,
+      // The client's own note, in `client_approval_note` since 0066 dropped `client_comment`.
+      clientComment: copywriting.clientApprovalNote,
     })
     .from(copywriting)
     .where(brandScope(brandId).copywriting)

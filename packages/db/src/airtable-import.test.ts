@@ -302,7 +302,6 @@ describe('importAirtableExport', () => {
     expect(copy?.creativeBriefId).toBe(brief?.id);
     expect(copy?.conceptId).toBe(concept?.id);
     expect(copy?.productId).toBe(product?.id);
-    expect(copy?.winning).toBe(true);
   });
 
   it('wires creatorConcepts and creatorProducts junction tables', async () => {
@@ -369,37 +368,6 @@ describe('importAirtableExport', () => {
     expect(results.themes?.updated).toBe(1);
     expect(results.campaignsOffers?.updated).toBe(1);
     expect((await db.select({ id: products.id }).from(products)).length).toBe(before);
-  });
-
-  it('an upsert heals a field the first run mapped wrong', async () => {
-    const db = await seeded();
-    await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
-    // Simulate the first import's damage: a blindly-normalized status key on the stored row.
-    const [row] = await db
-      .select({ id: concepts.id })
-      .from(concepts)
-      .where(eq(concepts.legacyAirtableId, 'at_concept_1'));
-    if (!row) throw new Error('concept missing');
-    await db
-      .update(concepts)
-      .set({ productionStatus: 'filming_concept' as never })
-      .where(eq(concepts.id, row.id));
-
-    const withStatus: AirtableExport = {
-      ...FIXTURE,
-      Concepts: [
-        {
-          id: 'at_concept_1',
-          fields: { ...FIXTURE.Concepts?.[0]?.fields, 'Production Status': 'Filming Concept' },
-        },
-      ],
-    };
-    await importAirtableExport(db, withStatus, DEMO_BRAND_ID, 'migration-actor');
-    const [healed] = await db
-      .select({ productionStatus: concepts.productionStatus })
-      .from(concepts)
-      .where(eq(concepts.id, row.id));
-    expect(healed?.productionStatus).toBe('filming_in_progress');
   });
 
   it('handles empty export gracefully', async () => {
@@ -656,7 +624,6 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
     // SMOKE-31: an imported name is the row's own, never recomputed — the row is 'manual'.
     expect(concept?.nameMode).toBe('manual');
     expect(concept?.approvalStatus).toBeNull();
-    expect(concept?.productionStatus).toBe('in_progress');
 
     const [brief] = await db
       .select()
@@ -768,29 +735,6 @@ describe('Gratsi live-base shapes (Sprint 2026-09-29)', () => {
 });
 
 describe('a re-import follows the base, it never keeps stale values (2026-10-01)', () => {
-  it('a value cleared in Airtable becomes NULL on a nullable column', async () => {
-    const db = await seeded();
-    const withStatus: AirtableExport = {
-      ...FIXTURE,
-      Concepts: [
-        {
-          id: 'at_concept_1',
-          fields: { ...FIXTURE.Concepts?.[0]?.fields, 'Production Status': 'Done' },
-        },
-      ],
-    };
-    await importAirtableExport(db, withStatus, DEMO_BRAND_ID, 'migration-actor');
-    let [row] = await db
-      .select()
-      .from(concepts)
-      .where(eq(concepts.legacyAirtableId, 'at_concept_1'));
-    expect(row?.productionStatus).toBe('done');
-
-    await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');
-    [row] = await db.select().from(concepts).where(eq(concepts.legacyAirtableId, 'at_concept_1'));
-    expect(row?.productionStatus).toBeNull();
-  });
-
   it('a junk label on a NOT NULL column is overwritten with the column default on update', async () => {
     const db = await seeded();
     await importAirtableExport(db, FIXTURE, DEMO_BRAND_ID, 'migration-actor');

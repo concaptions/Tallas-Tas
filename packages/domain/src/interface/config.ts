@@ -152,7 +152,7 @@ export const DEFAULT_INTERFACE_PAGES: readonly InterfacePageDefault[] = [
     label: 'Copywriting',
     fields: [
       { fieldName: 'client_status', label: 'Status', clientEditable: true },
-      { fieldName: 'client_comment', label: "Client's Comment", clientEditable: true },
+      { fieldName: 'client_approval_note', label: "Client's Comment", clientEditable: true },
     ],
   },
   {

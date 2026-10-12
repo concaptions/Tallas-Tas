@@ -469,7 +469,7 @@ const COPYWRITING_PARENT = [
     ['headline', 'Headline', 7, 'multilineText'],
     ['link_description', 'News Feed / Link Description', 8, 'multilineText'],
     ['cta', 'CTA', 9, 'singleSelect'],
-    ['used', 'USED', 10, 'checkbox'],
+    // `used` (10) dropped by 0066 (Oct 12 client sync, Ticket 15).
   ]),
 ] as const satisfies readonly UpsertColumnDefinition[];
 
@@ -504,11 +504,8 @@ const COPYWRITING_GRATSI = [
     ['copywriting_campaigns', 'Campaign Code', 10, 'custom', 'multipleRecordLinks'],
     ['funnel', 'Funnel', 14, 'custom', 'singleSelect'],
     ['copywriting_copy_types', 'Copy Type', 15, 'custom', 'multipleRecordLinks'],
-    ['client_comment', "Client's Comment", 16, 'custom', 'multilineText'],
     ['creative_brief_id', 'Creative', 17, 'relabel', 'multipleRecordLinks'],
-    ['used', 'USED', 20, 'relabel', 'checkbox'],
-    ['winning', 'Winning', 21, 'custom', 'checkbox'],
-    ['meta_rating', 'Meta Rating', 22, 'custom', 'rating'],
+    // Client's Comment (16), USED (20), Winning (21), Meta Rating (22): dropped by 0066 (Oct 12).
     ['created_by', 'Created By', 24, 'custom', 'createdBy'],
     [
       UNMAPPED_COLUMN_KEY,
@@ -801,35 +798,6 @@ const CONCEPTS_PLATFORM: readonly UpsertColumnDefinition[] = [
 ];
 
 /**
- * `production_status` — the one PARENT row this seed writes hidden, and the only way to take the
- * column out of the product without taking it out of the database.
- *
- * Talal, 2026-09-28: "take it out" (docs/decisions.md, "hidden, not dropped"). The form control and
- * the grid renderer were removed then, but the `column_definitions` row stayed visible, and once the
- * Concepts page started resolving its columns that became WORSE than leaving the column in: with no
- * entry in `CONCEPT_RENDERERS`, the resolver hands the key back as `missing` and `ColumnNotices`
- * prints "Configured for this brand but not drawn here: production_status" on the page, for every
- * brand. Hiding it here is what actually removes it — the resolver drops a hidden row (rule 5 in
- * `column-definitions.ts`), so nothing resolves it, nothing reports it missing and the notice goes
- * away, on the signed-in path and in the `COLUMN_SEED`-derived demo fallback alike.
- *
- * NOT DROPPED. 73 of 106 live concepts carry a value, the importer still writes it
- * (`airtable-import.ts`) and `concepts.production_status` round-trips through a hidden input on the
- * detail page, so the data is intact and un-hiding this one row puts the column back at order 19
- * where the template base has it. A brand that wants it visible again gets its own un-hidden child
- * row; `parentRows` deliberately has no hidden path, because a hidden PARENT row is a statement
- * about the whole product and should not be a fifth tuple element in a list of eleven.
- */
-const CONCEPTS_PRODUCTION_STATUS: UpsertColumnDefinition = {
-  tableKey: 'concepts',
-  columnKey: 'production_status',
-  displayLabel: 'Production Status',
-  displayOrder: 19,
-  fieldType: 'singleSelect',
-  isHidden: true,
-};
-
-/**
  * `approval_status` — RETIRED FROM THE PRODUCT, hidden the same way as `production_status` above
  * (SMOKE-18, Talal's Option B, 2026-10-11). Migration 0064 copied its three live values into
  * `client_approval_status` (the ONE client vocabulary) and nothing writes the legacy column any
@@ -853,11 +821,10 @@ const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
     ['concept_style', 'Concept Style', 7, 'singleSelect'],
     ['hook_examples', 'Hook examples', 12, 'multilineText'],
     ['script_idea', 'Script idea', 13, 'multilineText'],
-    ['formats_to_create', 'Formats to create', 18, 'multipleSelects'],
+    // `formats_to_create` (18) dropped by 0066 (Oct 12 client sync, Ticket 2).
     ['ad_inspo_links', 'Ad Inspo', 20, 'multilineText'],
     ['creator_concepts', 'Creator', 21, 'multipleRecordLinks'],
   ]),
-  CONCEPTS_PRODUCTION_STATUS,
   CONCEPTS_APPROVAL_STATUS_LEGACY,
 ];
 
@@ -873,9 +840,7 @@ const CONCEPTS_PARENT: readonly UpsertColumnDefinition[] = [
  * decision, not a column one.
  */
 const CONCEPTS_GRATSI = childRows('concepts', [
-  // Fidelity flip 2026-10-04: the live base HAS Production Status (field 7), so Gratsi shows it
-  // — a visible child row over the AI-34-hidden parent row; every other brand keeps the hide.
-  ['production_status', 'Production Status', 7, 'relabel', 'singleSelect'],
+  // Production Status (7): the column was dropped by 0066 (Oct 12 client sync, Ticket 2).
   // GRATSI-MATCH 2026-10-04: the base's own primary-field wording. The platform row says
   // 'Concept Name'; Gratsi's base says `Name` (diff relabel candidate) — a child relabel only,
   // so the template and every inheriting brand keep the platform's wording.
@@ -907,7 +872,6 @@ const CONCEPTS_GRATSI = childRows('concepts', [
   // `creative_briefs.concept_id` read backwards (diff annotation 6 — display, no storage).
   ['campaign_concepts', 'Campaigns & Offers', 21, 'custom', 'multipleRecordLinks'],
   ['creative_briefs', '(Internal) Creative Design', 22, 'custom', 'multipleRecordLinks'],
-  ['formats_to_create', 'Formats to create', 18, 'hidden', 'multipleSelects'],
   ['ad_inspo_links', 'Ad Inspo', 20, 'hidden', 'multilineText'],
   // Talal ruling 2026-10-04 (AI-33): Gratsi's base has Status, never Internal Status — the
   // platform column stays on the parent and every inheriting brand; only Gratsi hides it.
@@ -2120,10 +2084,9 @@ const COLUMN_SEED_SOURCE: readonly BrandColumnSeed[] = [
  * HIDDEN on every brand, template and child alike, so the resolver never offers a column the pages
  * no longer draw (the same move as item 5b's hidden sheet row).
  *
- * - Ticket 1: the six columns that read the frozen `collections` table.
- * - Ticket 15: the Copywriting form's Used, Winning, Meta Rating and Client's Comment.
- * - Ticket 2: the concept's duplicate `formats_to_create` and `production_status` (Gratsi's
- *   fidelity row too; the parent row was already hidden by AI-34).
+ * - Ticket 1: the six columns that read the frozen `collections` table. (Tickets 2 and 15's six
+ *   columns were DROPPED by migration 0066; their rows left the seed with them, and
+ *   `retireUnseededRows` soft-deletes the stored rows on the next `seed-columns --apply`.)
  */
 const RETIRED_COLUMNS: ReadonlySet<string> = new Set([
   'copywriting.collections',
@@ -2132,12 +2095,6 @@ const RETIRED_COLUMNS: ReadonlySet<string> = new Set([
   'creative_briefs.collection_id',
   'concepts.concept_collections',
   'creative_sheet_items.collection',
-  'copywriting.used',
-  'copywriting.winning',
-  'copywriting.meta_rating',
-  'copywriting.client_comment',
-  'concepts.formats_to_create',
-  'concepts.production_status',
 ]);
 
 function hideRetiredColumn(row: UpsertColumnDefinition): UpsertColumnDefinition {

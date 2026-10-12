@@ -76,7 +76,6 @@ describe('migration 0007 on PGlite', () => {
       'client_approval_note',
       'client_approval_status',
       'client_approval_status_updated_at',
-      'client_comment',
       'collection_id',
       'concept_id',
       'copy_number',
@@ -91,7 +90,6 @@ describe('migration 0007 on PGlite', () => {
       'id',
       'legacy_airtable_id',
       'link_description',
-      'meta_rating',
       'overridden_fields',
       'primary_copy',
       'product_id',
@@ -101,8 +99,6 @@ describe('migration 0007 on PGlite', () => {
       'template_row_id',
       'updated_at',
       'updated_by',
-      'used',
-      'winning',
     ]);
   });
 
@@ -118,14 +114,14 @@ describe('migration 0007 on PGlite', () => {
       sql`select column_name, data_type, is_nullable, column_default
           from information_schema.columns
           where table_name = 'copywriting'
-            and column_name in ('status', 'cta', 'copy_number', 'primary_copy', 'client_comment')
+            and column_name in ('status', 'cta', 'copy_number', 'primary_copy', 'client_approval_note')
           order by column_name`,
     );
 
     expect(rows).toEqual([
-      // Null on every row the client has not written back on.
+      // Null on every row the client has not written back on (the one note column since 0066).
       {
-        column_name: 'client_comment',
+        column_name: 'client_approval_note',
         data_type: 'text',
         is_nullable: 'YES',
         column_default: null,
@@ -190,16 +186,14 @@ describe('demoCopy fixtures', () => {
     expect(unattachedCopy().creativeName).toBeNull();
   });
 
-  it('spreads across statuses and carries a client comment on the edited row only', () => {
+  it('spreads across statuses, the edited-by-client row included', () => {
     const statuses = demoCopy.map((row) => row.status);
 
     expect(new Set(statuses).size).toBeGreaterThanOrEqual(3);
     expect(statuses).toContain('edited_by_client');
-
-    const commented = demoCopy.filter((row) => row.clientComment !== null);
-    expect(commented).toHaveLength(1);
-    expect(commented[0]?.status).toBe('edited_by_client');
-    expect((commented[0]?.clientComment ?? '').length).toBeGreaterThan(80);
+    // `client_comment` was dropped by 0066; the client's note is `client_approval_note`, which no
+    // fixture carries.
+    expect(demoCopy.every((row) => row.clientApprovalNote === null)).toBe(true);
   });
 });
 
@@ -320,7 +314,7 @@ describe('insertCopy and updateCopy', () => {
       creativeBriefId: null,
       status: COPY_STATUS_DEFAULT,
       cta: COPY_CTA_DEFAULT,
-      clientComment: null,
+      clientApprovalNote: null,
       createdBy: 'user_test',
       updatedBy: 'user_test',
     });
@@ -350,7 +344,7 @@ describe('insertCopy and updateCopy', () => {
     expect(detached?.updatedAt.getTime()).toBeGreaterThan(unattachedCopy().updatedAt.getTime());
   });
 
-  it('records the client’s comment with the edited_by_client status', async () => {
+  it('records the client’s note (client_approval_note since 0066) with the edited_by_client status', async () => {
     const { db, brandId } = await seeded();
     const id = newestCopy().id;
 
@@ -358,13 +352,16 @@ describe('insertCopy and updateCopy', () => {
       db,
       brandId,
       id,
-      { status: 'edited_by_client', clientComment: 'Headline is ours now, the rest can stay.' },
+      {
+        status: 'edited_by_client',
+        clientApprovalNote: 'Headline is ours now, the rest can stay.',
+      },
       'user_client',
     );
 
     expect(row).toMatchObject({
       status: 'edited_by_client',
-      clientComment: 'Headline is ours now, the rest can stay.',
+      clientApprovalNote: 'Headline is ours now, the rest can stay.',
       updatedBy: 'user_client',
     });
   });
@@ -379,7 +376,7 @@ describe('types', () => {
     expectTypeOf<CopyListRow>().toExtend<Copy>();
     expectTypeOf<CopyListRow['creativeBriefId']>().toEqualTypeOf<string | null>();
     expectTypeOf<CopyListRow['creativeName']>().toEqualTypeOf<string | null>();
-    expectTypeOf<CopyListRow['clientComment']>().toEqualTypeOf<string | null>();
+    expectTypeOf<CopyListRow['clientApprovalNote']>().toEqualTypeOf<string | null>();
     // `brand_id` and the audit columns are the scope's, never the panel's.
     expectTypeOf<CopyInput>().not.toHaveProperty('brandId');
     expectTypeOf<CopyInput>().not.toHaveProperty('createdBy');
@@ -390,7 +387,7 @@ describe('types', () => {
     expectTypeOf<CopyInput>().toHaveProperty('linkDescription');
     expectTypeOf<CopyInput>().toHaveProperty('cta');
     expectTypeOf<CopyInput>().toHaveProperty('status');
-    expectTypeOf<CopyInput>().toHaveProperty('clientComment');
+    expectTypeOf<CopyInput>().toHaveProperty('clientApprovalNote');
     // `funnel` was re-added as a nullable column for Airtable parity.
     expectTypeOf<CopyInput>().toHaveProperty('funnel');
     // PRD §5.11 dropped copy type, so it must not reappear as a column.
@@ -417,7 +414,7 @@ describe('updateCopyStatus — the shared Oct 5 client-status writer (`status` i
     if (saved === null) throw new Error('updateCopyStatus returned null');
 
     expect(saved.status).toBe('revisions_needed');
-    expect(saved.clientComment).toBe('Soften the headline — too direct for this persona.');
+    expect(saved.clientApprovalNote).toBe('Soften the headline — too direct for this persona.');
     expect(saved.statusUpdatedAt).not.toBeNull();
     expect(saved.statusUpdatedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
   });

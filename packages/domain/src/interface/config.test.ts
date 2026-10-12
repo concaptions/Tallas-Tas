@@ -75,7 +75,7 @@ const EDITABLE_BY_PRD = [
   'creatives.client_status',
   'creatives.client_comments',
   'copywriting.client_status',
-  'copywriting.client_comment',
+  'copywriting.client_approval_note',
   'ugc.client_status',
   'ugc.client_note',
   'ugc.tracking_number',
@@ -161,7 +161,7 @@ describe('DEFAULT_INTERFACE_PAGES', () => {
       );
 
     expect(fieldsOf('creatives')).toEqual(['client_status', 'client_comments']);
-    expect(fieldsOf('copywriting')).toEqual(['client_status', 'client_comment']);
+    expect(fieldsOf('copywriting')).toEqual(['client_status', 'client_approval_note']);
     expect(fieldsOf('ugc')).toEqual(['client_status', 'client_note', 'tracking_number']);
     expect(fieldsOf('partnership')).toEqual([
       'creator_name',
@@ -254,7 +254,7 @@ describe('visibleFields', () => {
       label: 'Copywriting',
       enabled: false,
       position: 2,
-      fields: [field('client_status'), field('client_comment', { clientEditable: true })],
+      fields: [field('client_status'), field('client_approval_note', { clientEditable: true })],
     };
 
     expect(visibleFields(page)).toEqual([]);

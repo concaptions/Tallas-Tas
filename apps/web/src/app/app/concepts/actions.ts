@@ -347,7 +347,7 @@ function toInput(
   // SMOKE-18 (Option B): the approval select writes the ONE client vocabulary to
   // `client_approval_status`; the legacy `approval_status` is frozen and never written again.
   const approval = normalizeClientApprovalStatus(values.clientApprovalStatus);
-  // `production_status` and `formats_to_create` are no longer written (Oct 12 client sync,
+  // `production_status` and `formats_to_create` were dropped by migration 0066 (Oct 12 client sync,
   // Ticket 2): the columns keep their stored values until the drop migration is applied.
   return {
     name,

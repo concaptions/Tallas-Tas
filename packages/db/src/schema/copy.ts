@@ -52,8 +52,9 @@ export const COPY_CTA_DEFAULT: CopyCta = 'Shop Now';
  *
  * `status` is plain `text` carrying a KEY of `COPY_STATUS` in `@tas/domain/state`, the arrangement
  * `schema/briefs.ts` documents at length: the domain owns the set of states and their labels, this
- * column only stores which one the row is in. `client_comment` is what the client wrote back when
- * they moved the row to `edited_by_client`; null on every other row.
+ * column only stores which one the row is in. The client's note on a row is `client_approval_note`
+ * (AUDIT-13); `client_comment`, `used`, `winning` and `meta_rating` were dropped by migration 0066
+ * (Oct 12 client sync, Ticket 15).
  */
 export const copywriting = pgTable(
   'copywriting',
@@ -73,13 +74,9 @@ export const copywriting = pgTable(
     linkDescription: text('link_description'),
     cta: text('cta').$type<CopyCta>().notNull().default(COPY_CTA_DEFAULT),
     funnel: text('funnel').$type<CopyFunnel>(),
-    used: boolean('used').notNull().default(false),
-    winning: boolean('winning').notNull().default(false),
-    metaRating: integer('meta_rating'),
     clickForAiSpellChecker: boolean('click_for_ai_spell_checker').notNull().default(false),
     spellingFeedback: text('spelling_feedback'),
     status: text('status').notNull().default(COPY_STATUS_DEFAULT),
-    clientComment: text('client_comment'),
     /**
      * When the (single, client-facing) `status` track last moved (Oct 5 Talal sync). Nullable: a
      * row that was never stepped out of `pending_for_client_review` has no recorded move-moment.
@@ -88,7 +85,7 @@ export const copywriting = pgTable(
      * is already client-facing (COPY_STATUS; `copy-status.ts` documents it at length) — the column
      * is `status`, not `client_status`, and the timestamp names the column it describes rather
      * than a hypothetical parallel column. The shared `updateClientStatus` writer sets this
-     * alongside `client_comment` (the existing note column).
+     * alongside `client_approval_note` (the one note column since 0066).
      */
     statusUpdatedAt: timestamp('status_updated_at', { withTimezone: true }),
     clientApprovalStatus: text('client_approval_status').$type<ClientApprovalStatusKey>(),

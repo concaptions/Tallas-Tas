@@ -352,9 +352,9 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       Category: { drizzleColumn: 'category', handler: 'select' },
       Style: { drizzleColumn: 'conceptStyle', handler: 'select' },
       'Production Status': {
-        drizzleColumn: 'productionStatus',
-        handler: 'select',
-        note: 'Map to ConceptProductionStatus enum values',
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Column dropped by 0066 (Oct 12 client sync, Ticket 2)',
       },
       Type: {
         drizzleColumn: 'formats',
@@ -677,7 +677,11 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
         junctionTable: 'copywritingCopyTypes',
         note: 'Resolve copy-type IDs in Pass 2 (rows live in copy_types)',
       },
-      "Client's Comment": { drizzleColumn: 'clientComment', handler: 'text' },
+      "Client's Comment": {
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Column dropped by 0066 (Oct 12, Ticket 15); the client note is client_approval_note',
+      },
       Creative: {
         drizzleColumn: 'creativeBriefId',
         handler: 'singleLink',
@@ -690,12 +694,12 @@ export const TABLE_MAPPINGS: Record<string, TableMapping> = {
       },
       'Collection URL': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
       'Link (from Product)': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
-      USED: { drizzleColumn: 'used', handler: 'checkbox' },
-      Winning: { drizzleColumn: 'winning', handler: 'checkbox' },
+      USED: { drizzleColumn: null, handler: 'skip', note: 'Column dropped by 0066 (Oct 12)' },
+      Winning: { drizzleColumn: null, handler: 'skip', note: 'Column dropped by 0066 (Oct 12)' },
       'Meta Rating': {
-        drizzleColumn: 'metaRating',
-        handler: 'number',
-        note: 'Rating field (1-5) → integer',
+        drizzleColumn: null,
+        handler: 'skip',
+        note: 'Column dropped by 0066 (Oct 12)',
       },
       'Products (from Collections)': { drizzleColumn: null, handler: 'skip', note: 'Lookup' },
       'Created By': { drizzleColumn: null, handler: 'skip', note: 'Use createdBy from audit cols' },
@@ -1316,7 +1320,7 @@ export const DRIZZLE_COLUMNS_WITHOUT_AIRTABLE_SOURCE = {
     'triggerWords',
   ],
   angles: ['type', 'painPoints', 'usp'],
-  concepts: ['adInspoLinks', 'formatsToCreate', 'internalStatus', 'clientStatus'],
+  concepts: ['adInspoLinks', 'internalStatus', 'clientStatus'],
   collections: ['productId', 'creativeDesign2Id'],
   creativeBriefs: [
     'campaignOfferId',

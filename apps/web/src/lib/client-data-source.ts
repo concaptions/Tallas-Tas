@@ -108,7 +108,8 @@ export async function loadClientCopywriting(brandId: string): Promise<ClientCopy
         cta: c.cta,
         funnel: c.funnel ?? null,
         status: c.status,
-        clientComment: c.clientComment ?? null,
+        // The client's note: `client_approval_note` since 0066 dropped `client_comment`.
+        clientComment: c.clientApprovalNote ?? null,
       }));
   }
   return withDb((db) => clientCopywriting(db, brandId));

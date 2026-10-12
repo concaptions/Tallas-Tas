@@ -355,17 +355,6 @@ function vocabularyMap(vocabulary: Vocabulary): StatusMap {
 }
 
 const MAPS = {
-  // Concepts.'Production Status' → conceptProductionStatuses (to_do…launched, TASK 2b).
-  conceptProduction: {
-    done: 'done',
-    filming_in_progress: 'filming_in_progress',
-    sent_to_design: 'sent_to_design',
-    editing_concept: 'in_progress',
-    filming_concept: 'filming_in_progress',
-    // An approval outcome, not a production stage; `conceptClientApproval` has no denied-after-approval
-    // state either, so the production column stays NULL and the dry run counts it.
-    declined_by_client: null,
-  },
   // Concepts.'Status' → `client_approval_status`, the ONE client vocabulary (SMOKE-18, Option B,
   // 2026-10-11): the same three values migration 0064 mapped out of the legacy `approval_status`
   // (pending_client → pending_for_approval, approved → approved, rejected → disapproved), read
@@ -1031,13 +1020,7 @@ export async function importAirtableExport(
         MAPS.conceptClientApproval,
         f.Status ?? f['Approval Status'],
       ),
-      formatsToCreate: multiSelectArr(f['Formats to Create']),
-      productionStatus: mapStatus(
-        w,
-        'concepts.productionStatus',
-        MAPS.conceptProduction,
-        f['Production Status'],
-      ),
+      // 'Formats to Create' and 'Production Status': dropped by 0066 (Oct 12), not imported.
     }),
     actorId,
   );
@@ -1155,13 +1138,10 @@ export async function importAirtableExport(
       linkDescription: str(f['Link Description'] ?? f['News Feed']),
       cta: str(f.CTA),
       funnel: mapCopyFunnel(w, f.Funnel),
-      used: bool(f.USED ?? f.Used),
-      winning: bool(f.Winning),
-      metaRating: num(f['Meta Rating']),
       clickForAiSpellChecker: bool(f['Click for AI Spell Checker Again']),
       spellingFeedback: str(f['Spelling Feedback']),
       status: mapStatus(w, 'copywriting.status', MAPS.copyStatus, f.Status, COPY_STATUS_DEFAULT),
-      clientComment: str(f["Client's Comment"] ?? f['Client Comment']),
+      // USED, Winning, Meta Rating and Client's Comment: dropped by 0066 (Oct 12), not imported.
     }),
     actorId,
   );
