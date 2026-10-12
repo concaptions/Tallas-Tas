@@ -52,9 +52,15 @@ import { z } from 'zod';
 import { diffFields } from '@tas/domain';
 import {
   canStartBrief,
+  canSubmitToClient,
+  clientMoveNeedsQa,
   EDITOR_STAGE_KEYS,
   editorStageMoveTarget,
+  internalMoveNeedsQa,
+  qaGateReason,
+  qaResetFor,
   startedStatusFor,
+  type BriefQaTicks,
   type EditorStageKey,
 } from '@tas/domain/state';
 
@@ -443,6 +449,32 @@ function clientMoveRefusal(
   );
 }
 
+/**
+ * The second gate on the client track (Oct 12 scope 4): internal → Approved opens the track, a
+ * client resubmission puts the creative back in front of the client, and neither may happen until
+ * every QA tick the brief's type requires is set. Refused under the field whose move it blocks.
+ */
+function qaGateRefusal(
+  track: CreativeTrack,
+  ticks: BriefQaTicks,
+  internalFrom: InternalStatusKey,
+  internalTo: InternalStatusKey,
+  clientFrom: ClientStatusKey,
+  clientTo: ClientStatusKey,
+): BriefActionFailure | null {
+  if (canSubmitToClient(track, ticks)) {
+    return null;
+  }
+  const reason = qaGateReason(track, ticks) ?? '';
+  if (internalMoveNeedsQa(internalFrom, internalTo)) {
+    return fieldFailure({ internalStatus: reason });
+  }
+  if (clientMoveNeedsQa(clientFrom, clientTo)) {
+    return fieldFailure({ clientStatus: reason });
+  }
+  return null;
+}
+
 /** Any internal move has to be one the state machine allows on this brief's own ladder. */
 function internalMoveRefusal(
   track: CreativeTrack,
@@ -766,11 +798,28 @@ export async function updateBriefAction(
       if (clientRefusal !== null) {
         return clientRefusal;
       }
+      // The QA gate (Oct 12 scope 4), re-run on the server against the row's stored ticks: the
+      // move that opens the client track, and a client resubmission, need every tick the type
+      // requires. The page's checklist writes ticks through `toggleQaAction`, so this form never
+      // carries them and the row's are the truth.
+      const qaRefusal = qaGateRefusal(track, current, wasInternal, internal, wasClient, client);
+      if (qaRefusal !== null) {
+        return qaRefusal;
+      }
 
       // The paste's rule for the Oct 5 formula: UPDATE never overwrites `name`. `toInput`
       // returns `Omit<BriefInput, 'name'>`, so the patch below carries every other field but
-      // leaves the stored string exactly as it was.
-      const input = toInput(values, concept, current.sequence, internal, client);
+      // leaves the stored string exactly as it was. A move into a revision state on either
+      // track clears the three QA ticks in this same statement (Oct 12 scope 5).
+      const input = {
+        ...toInput(values, concept, current.sequence, internal, client),
+        ...qaResetFor({
+          internalFrom: wasInternal,
+          internalTo: internal,
+          clientFrom: wasClient,
+          clientTo: client,
+        }),
+      };
       const saved = await updateBrief(db, brandId, id, input, actor);
       if (saved === null) {
         return { ok: false as const, error: 'That creative is no longer available.' };
@@ -961,6 +1010,9 @@ const BRIEF_ENTITY = 'creative_brief';
 const BRIEF_ACTIVITY_FIELDS = [
   'internalStatus',
   'clientStatus',
+  'qaVideoEditor',
+  'qaDesigner',
+  'qaStrategist',
   'assignee',
   'priority',
   'dueDate',

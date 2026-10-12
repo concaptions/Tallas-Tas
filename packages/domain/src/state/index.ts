@@ -1,5 +1,6 @@
 export * from './client-approval-status';
 export * from './creative-status';
+export * from './qa-gate';
 export * from './editor-board';
 export * from './copy-status';
 export * from './creator-status';

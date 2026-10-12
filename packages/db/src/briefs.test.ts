@@ -9,6 +9,8 @@ import {
   listBriefSequences,
   peekNextBriefNumber,
   listBriefs,
+  listBriefsByIds,
+  softDeleteBriefs,
   updateBrief,
   updateBriefClientStatus,
   updateBriefDimensionsWith,
@@ -873,5 +875,71 @@ describe('the "New creative" number: the preview reads what the allocator will h
     expect(rows).toHaveLength(demoBriefs.length);
     expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['funnel', 'sequence', 'type']);
     expect(await listBriefSequences(db, otherBrandId)).toEqual([]);
+  });
+});
+
+describe('the Oct 12 multi-select writers', () => {
+  it('updateBriefClientStatus lands the columns it is handed in the SAME statement as the status', async () => {
+    const { db, brandId } = await seeded();
+    const [existing] = await listBriefs(db, brandId);
+    if (existing === undefined) throw new Error('seeded briefs are empty');
+    await updateBrief(
+      db,
+      brandId,
+      existing.id,
+      { qaVideoEditor: true, qaDesigner: true, qaStrategist: true },
+      'user_test',
+    );
+
+    const saved = await updateBriefClientStatus(
+      db,
+      brandId,
+      existing.id,
+      'revisions_needed',
+      'Re-cut the ending.',
+      'user_test',
+      { qaVideoEditor: false, qaDesigner: false, qaStrategist: false },
+    );
+
+    expect(saved).toMatchObject({
+      clientStatus: 'revisions_needed',
+      qaVideoEditor: false,
+      qaDesigner: false,
+      qaStrategist: false,
+    });
+  });
+
+  it('listBriefsByIds reads the selection in one statement and drops another brand’s id', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const rows = await listBriefs(db, brandId);
+    const [first, second] = rows;
+    if (first === undefined || second === undefined) throw new Error('need two seeded briefs');
+    const foreign = await insertBrief(db, otherBrandId, { name: 'Other-TOF-V001' }, 'user_test');
+
+    const picked = await listBriefsByIds(db, brandId, [first.id, second.id, foreign.id]);
+
+    expect(picked.map((row) => row.id).sort()).toEqual([first.id, second.id].sort());
+    expect(await listBriefsByIds(db, brandId, [])).toEqual([]);
+  });
+
+  it('softDeleteBriefs marks only the brand’s live rows, never DELETEs, and reports what it marked', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const rows = await listBriefs(db, brandId);
+    const [first] = rows;
+    if (first === undefined) throw new Error('seeded briefs are empty');
+    const foreign = await insertBrief(db, otherBrandId, { name: 'Other-TOF-V001' }, 'user_test');
+
+    const marked = await softDeleteBriefs(db, brandId, [first.id, foreign.id], 'user_test');
+
+    expect(marked).toEqual([first.id]);
+    expect(await getBriefById(db, brandId, first.id)).toBeNull();
+    expect(await listBriefs(db, brandId)).toHaveLength(rows.length - 1);
+    // The row still exists, soft-deleted: a count without the scope finds it.
+    const [raw] = await db.select().from(creativeBriefs).where(eq(creativeBriefs.id, first.id));
+    expect(raw?.deletedAt).not.toBeNull();
+    // Already deleted: a second call marks nothing.
+    expect(await softDeleteBriefs(db, brandId, [first.id], 'user_test')).toEqual([]);
+    // The other brand's row is untouched.
+    expect(await getBriefById(db, otherBrandId, foreign.id)).not.toBeNull();
   });
 });

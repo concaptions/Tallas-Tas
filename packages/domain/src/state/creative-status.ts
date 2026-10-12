@@ -180,6 +180,11 @@ export function isClientTrackOpen(internal: InternalStatusKey): boolean {
   return internal === 'approved' || internal === 'launched';
 }
 
+/** Whether a stored string is one of `CLIENT_STATUS`'s keys. */
+export function isClientStatusKey(value: string): value is ClientStatusKey {
+  return CLIENT_STATUS.some((entry) => entry.key === value);
+}
+
 /** The linear internal stepper for a track, in order. */
 export function internalStatusFor(track: CreativeTrack): readonly StatusEntry<InternalStatusKey>[] {
   return track === 'video' ? INTERNAL_VIDEO_STATUS : INTERNAL_STATIC_STATUS;

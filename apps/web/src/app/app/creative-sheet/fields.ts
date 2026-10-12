@@ -48,6 +48,9 @@ export const OTHER_COLUMN = 'Other';
 /** What the demo footer says instead of offering a save. */
 export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 
+/** The record type a creative's comments are filed under (Oct 12 Focus Mode's Feedback panel). */
+export const CREATIVE_COMMENT_RECORD_TYPE = 'creative_brief';
+
 /** The `?creative-sheet=` parameter the open row lives in, and the `?q=` the filter lives in. */
 export const SELECTION_PARAM = 'creative-sheet';
 export const SEARCH_PARAM = 'q';

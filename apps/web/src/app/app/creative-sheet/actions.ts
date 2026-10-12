@@ -3,38 +3,31 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
-  BRIEF_CLIENT_STATUS_DEFAULT,
   getBriefById,
   insertActivity,
   updateBrief,
-  updateBriefClientStatus,
   updateBriefDimensions,
   type BriefInput,
 } from '@tas/db';
 import { diffFields } from '@tas/domain';
-import {
-  creativeTrack,
-  isKnownOrLegacyDimension,
-  normalizeCreativeDimensions,
-} from '@tas/domain/creatives';
-import {
-  CLIENT_STATUS,
-  canTransitionClient,
-  canTransitionInternal,
-  internalStatusFor,
-  isClientTrackOpen,
-  ON_HOLD,
-  type ClientStatusKey,
-  type CreativeTrack,
-  type InternalStatusKey,
-  type InternalStatusOrHoldKey,
-} from '@tas/domain/state';
+import { isKnownOrLegacyDimension, normalizeCreativeDimensions } from '@tas/domain/creatives';
+import type { ClientStatusKey, InternalStatusOrHoldKey } from '@tas/domain/state';
 import { z } from 'zod';
 
 import { currentActor } from '@/lib/actor';
 import { withBrandScope } from '@/lib/creative-sheet-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefPath, creativeSheetPath } from '@/lib/routes';
+
+import { moveBriefTrack } from './move-brief';
+import {
+  currentPosition,
+  isClientStatus,
+  isInternalOrHold,
+  statusPatch,
+  statusRefusal,
+  type StatusRefusal,
+} from './status-guard';
 
 /**
  * The Creative Sheet route's mutations. Since the single-source cutover (2026-10-09) a sheet row IS
@@ -46,9 +39,11 @@ import { briefPath, creativeSheetPath } from '@/lib/routes';
  * 2. validate with zod: the two selects accept only KEYS of the state machine's vocabularies, the
  *    four checkboxes coerce from the panel's hidden `'true'` / `''` inputs, and the QA checklist is
  *    one `http(s)` URL per line;
- * 3. ask the domain whether the move is legal — `canTransitionInternal` on the brief's own track,
- *    the client gate and `canTransitionClient` — exactly as the brief page does, so the sheet can
- *    never put a creative where its page could not;
+ * 3. ask the domain whether the move is legal (`status-guard.ts`): `canTransitionInternal` on the
+ *    brief's own track, the client gate, `canTransitionClient`, and since the Oct 12 client sync
+ *    the QA gate — a move that puts the creative in front of the client needs every tick its type
+ *    requires — exactly as the brief page does, so the sheet can never put a creative where its
+ *    page could not. A move into a revision state clears the three ticks in the same write;
  * 4. write through the scoped `@tas/db` functions, log the activity, revalidate the sheet and the
  *    brief's page, and return a typed result. None of them ever throws to the client.
  *
@@ -108,9 +103,6 @@ const SESSION_EXPIRED = 'Your session has expired. Sign in again to save.';
 const NOT_IDENTIFIED = 'This creative could not be identified.';
 const GONE = 'That creative is no longer available.';
 const NEEDS_ATTENTION = 'Some fields need attention.';
-const CLIENT_GATE_SHUT = 'The client track opens once internal status reaches Approved.';
-const NOT_NEXT_INTERNAL = 'That is not the next step on the internal track.';
-const NOT_NEXT_CLIENT = 'That is not the next step on the client track.';
 const UNKNOWN_COLUMN = 'That column is not a status this sheet knows.';
 
 /** An `http(s)` URL, or a message a strategist can act on. */
@@ -211,73 +203,9 @@ function revalidateSheetRow(id: string): void {
   revalidatePath(briefPath(id));
 }
 
-function isInternalStatusOf(track: CreativeTrack, value: string): value is InternalStatusKey {
-  return internalStatusFor(track).some((entry) => entry.key === value);
-}
-
-function isInternalOrHold(track: CreativeTrack, value: string): value is InternalStatusOrHoldKey {
-  return value === ON_HOLD.key || isInternalStatusOf(track, value);
-}
-
-function isClientStatus(value: string): value is ClientStatusKey {
-  return CLIENT_STATUS.some((entry) => entry.key === value);
-}
-
-interface Position {
-  readonly track: CreativeTrack;
-  readonly internal: InternalStatusOrHoldKey;
-  readonly client: ClientStatusKey;
-}
-
-/**
- * The brief's current position on both tracks, narrowed the way the brief page narrows them: a
- * stored value outside this brief's ladder reads as the ladder's first step, so a save never
- * silently moves a creative it only meant to edit.
- */
-function currentPosition(brief: {
-  readonly type: string;
-  readonly internalStatus: string;
-  readonly clientStatus: string;
-}): Position {
-  const track = creativeTrack(brief.type);
-  const [first] = internalStatusFor(track);
-  if (first === undefined) throw new Error(`the ${track} internal track is empty`);
-  return {
-    track,
-    internal: isInternalOrHold(track, brief.internalStatus) ? brief.internalStatus : first.key,
-    client: isClientStatus(brief.clientStatus) ? brief.clientStatus : BRIEF_CLIENT_STATUS_DEFAULT,
-  };
-}
-
-/**
- * The two moves a save or a drop asks for, checked against the machine exactly as the brief page
- * checks them: standing still is always allowed; any actual move has to be the track's next step,
- * and no client move is legal while the gate is shut (or the creative is on hold).
- */
-function statusRefusal(
-  position: Position,
-  internalNext: InternalStatusOrHoldKey,
-  clientNext: ClientStatusKey,
-): CreativeSheetActionFailure | null {
-  if (
-    internalNext !== position.internal &&
-    !canTransitionInternal(position.track, position.internal, internalNext)
-  ) {
-    return fieldFailure({ internalStatus: NOT_NEXT_INTERNAL });
-  }
-  if (clientNext === position.client) {
-    return null;
-  }
-  if (internalNext === ON_HOLD.key) {
-    return fieldFailure({ status: CLIENT_GATE_SHUT });
-  }
-  if (clientNext !== BRIEF_CLIENT_STATUS_DEFAULT && !isClientTrackOpen(internalNext)) {
-    return fieldFailure({ status: CLIENT_GATE_SHUT });
-  }
-  if (!canTransitionClient(internalNext, position.client, clientNext)) {
-    return fieldFailure({ status: NOT_NEXT_CLIENT });
-  }
-  return null;
+/** A guard's refusal as the panel reads it: under the field it names. */
+function refusalFailure(refusal: StatusRefusal): CreativeSheetActionFailure {
+  return fieldFailure({ [refusal.field]: refusal.message });
 }
 
 /**
@@ -334,20 +262,24 @@ export async function updateCreativeSheetItemAction(
         }
         clientNext = values.status;
       }
-      const refusal = statusRefusal(position, internalNext, clientNext);
-      if (refusal !== null) {
-        return refusal;
-      }
-
-      const patch: Partial<BriefInput> = {
-        internalStatus: internalNext,
-        clientStatus: clientNext,
-        ...(clientNext === position.client ? {} : { clientStatusUpdatedAt: new Date() }),
+      // The gate reads the ticks THIS save stores: ticking and approving in one save is legal.
+      const ticks = {
         qaVideoEditor: values.qaVideoEditor,
         qaDesigner: values.qaDesigner,
         qaStrategist: values.qaStrategist,
+      };
+      const refusal = statusRefusal(position, internalNext, clientNext, ticks);
+      if (refusal !== null) {
+        return refusalFailure(refusal);
+      }
+
+      // The submitted ticks, then the reset over them when either track moves into revisions —
+      // a save that sends a creative back cannot also re-tick it (Oct 12 scope 5).
+      const patch: Partial<BriefInput> = {
+        ...ticks,
         clickForAiSpellChecker: values.spellCheckRequested,
         qaChecklistDoc: values.qaChecklistDoc,
+        ...statusPatch(position, internalNext, clientNext),
       };
       const saved = await updateBrief(db, brandId, id, patch, actor);
       if (saved === null) {
@@ -476,51 +408,11 @@ export async function moveCreativeSheetItemAction(
       if (current === null) {
         return { ok: false as const, error: GONE };
       }
-      const position = currentPosition(current);
-
-      if (field === 'internalStatus') {
-        if (!isInternalOrHold(position.track, value)) {
-          return { ok: false as const, error: UNKNOWN_COLUMN };
-        }
-        if (statusRefusal(position, value, position.client) !== null) {
-          return { ok: false as const, error: NOT_NEXT_INTERNAL };
-        }
-        const patch = { internalStatus: value };
-        const saved = await updateBrief(db, brandId, id, patch, actor);
-        if (saved === null) {
-          return { ok: false as const, error: GONE };
-        }
-        await insertActivity(
-          db,
-          brandId,
-          BRIEF_ENTITY,
-          saved.id,
-          diffFields(current, patch, ['internalStatus']),
-          { id: actor, name: actorName },
-        );
-        return { ok: true as const, id: saved.id, savedAt: Date.now() };
-      }
-
-      if (!isClientStatus(value)) {
-        return { ok: false as const, error: UNKNOWN_COLUMN };
-      }
-      const refusal = statusRefusal(position, position.internal, value);
-      if (refusal !== null) {
-        return { ok: false as const, error: refusal.fieldErrors?.status ?? NOT_NEXT_CLIENT };
-      }
-      const saved = await updateBriefClientStatus(db, brandId, id, value, null, actor);
-      if (saved === null) {
-        return { ok: false as const, error: GONE };
-      }
-      await insertActivity(
-        db,
-        brandId,
-        BRIEF_ENTITY,
-        saved.id,
-        diffFields(current, { clientStatus: value }, ['clientStatus']),
-        { id: actor, name: actorName },
-      );
-      return { ok: true as const, id: saved.id, savedAt: Date.now() };
+      const moved = await moveBriefTrack(db, brandId, current, field, value, {
+        id: actor,
+        name: actorName,
+      });
+      return moved.ok ? { ok: true as const, id: moved.id, savedAt: Date.now() } : moved;
     });
     if (outcome === null) {
       return { ok: false, error: 'This workspace has no brand yet.' };

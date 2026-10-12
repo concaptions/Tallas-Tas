@@ -3,12 +3,21 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
+  getBriefById,
   updateBriefClientStatus,
   updateConceptClientStatus,
   updateCopyStatus,
   updateCreatorClientStatus,
   type Db,
 } from '@tas/db';
+import { creativeTrack } from '@tas/domain/creatives';
+import {
+  canSubmitToClient,
+  clientMoveNeedsQa,
+  isClientStatusKey,
+  qaGateReason,
+  qaResetFor,
+} from '@tas/domain/state';
 
 import {
   clientStatusRequiresNote,
@@ -81,9 +90,16 @@ const SAVE_FAILED = 'The status could not be saved. Try again.';
 
 /**
  * The one writer map. Internal: `updateClientStatus` resolves `tableKey` here, hands it the row
- * id, the key, the (possibly null) note and the actor, and the writer returns the fresh row —
- * or null if the id belongs to another brand.
+ * id, the key, the (possibly null) note and the actor, and the writer answers `saved` (false when
+ * the id belongs to another brand) or a refusal of its own.
+ *
+ * `creative_briefs` carries the Oct 12 client-sync rules: a resubmission (`revisions_needed` →
+ * `revisions_submitted` / `pending_for_approval`) is refused until every QA tick the brief's type
+ * requires is set — the server re-runs the gate, the dropdown only hints at it — and a move into
+ * `revisions_needed` clears the three ticks in the SAME statement as the status (scope 5).
  */
+type DispatchOutcome = { readonly saved: boolean } | { readonly refused: string };
+
 type ClientStatusDispatch = (
   db: Db,
   brandId: string,
@@ -91,17 +107,43 @@ type ClientStatusDispatch = (
   newStatus: string,
   note: string | null,
   actorId: string,
-) => Promise<{ clientStatus?: string; status?: string } | null>;
+) => Promise<DispatchOutcome>;
 
 const DISPATCH: Record<ClientStatusTableKey, ClientStatusDispatch> = {
-  concepts: async (db, brandId, id, status, note, actorId) =>
-    updateConceptClientStatus(db, brandId, id, status, note, actorId),
-  creative_briefs: async (db, brandId, id, status, note, actorId) =>
-    updateBriefClientStatus(db, brandId, id, status, note, actorId),
-  creators: async (db, brandId, id, status, note, actorId) =>
-    updateCreatorClientStatus(db, brandId, id, status, note, actorId),
-  copywriting: async (db, brandId, id, status, note, actorId) =>
-    updateCopyStatus(db, brandId, id, status, note, actorId),
+  concepts: async (db, brandId, id, status, note, actorId) => ({
+    saved: (await updateConceptClientStatus(db, brandId, id, status, note, actorId)) !== null,
+  }),
+  creative_briefs: async (db, brandId, id, status, note, actorId) => {
+    const current = await getBriefById(db, brandId, id);
+    if (current === null) return { saved: false };
+    const track = creativeTrack(current.type);
+    const from = isClientStatusKey(current.clientStatus) ? current.clientStatus : null;
+    const to = isClientStatusKey(status) ? status : null;
+    if (
+      from !== null &&
+      to !== null &&
+      clientMoveNeedsQa(from, to) &&
+      !canSubmitToClient(track, current)
+    ) {
+      return { refused: qaGateReason(track, current) ?? BAD_STATUS };
+    }
+    const saved = await updateBriefClientStatus(
+      db,
+      brandId,
+      id,
+      status,
+      note,
+      actorId,
+      qaResetFor({ clientFrom: current.clientStatus, clientTo: status }),
+    );
+    return { saved: saved !== null };
+  },
+  creators: async (db, brandId, id, status, note, actorId) => ({
+    saved: (await updateCreatorClientStatus(db, brandId, id, status, note, actorId)) !== null,
+  }),
+  copywriting: async (db, brandId, id, status, note, actorId) => ({
+    saved: (await updateCopyStatus(db, brandId, id, status, note, actorId)) !== null,
+  }),
 };
 
 /** Which paths to revalidate once the write lands, per table. */
@@ -161,8 +203,11 @@ export async function updateClientStatus(
 
     const outcome = await withBrandScope(async (db, brandId) => {
       const dispatcher = DISPATCH[tableKey];
-      const saved = await dispatcher(db, brandId, recordId, newStatus, noteValue, userId);
-      if (saved === null) {
+      const result = await dispatcher(db, brandId, recordId, newStatus, noteValue, userId);
+      if ('refused' in result) {
+        return { ok: false as const, error: result.refused };
+      }
+      if (!result.saved) {
         return { ok: false as const, error: UNKNOWN_RECORD };
       }
       return { ok: true as const };

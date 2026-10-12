@@ -192,12 +192,19 @@ export async function updateBriefClientStatus(
   status: string,
   note: string | null,
   actorId: string,
+  /**
+   * Columns that must land in the SAME statement as the status (Oct 12 scope 5): the QA reset a
+   * move into `revisions_needed` carries, so there is no window where the status reads revisions
+   * and QA still reads passed. The caller computes it with `qaResetFor` in `@tas/domain/state`.
+   */
+  alongside: Partial<BriefInput> = {},
 ): Promise<CreativeBrief | null> {
   const now = new Date();
   const [row] = await withBrand(db, brandId)
     .update(
       creativeBriefs,
       {
+        ...alongside,
         clientStatus: status,
         clientStatusUpdatedAt: now,
         clientStatusNote: note,
@@ -418,4 +425,42 @@ export async function peekNextBriefNumber(db: Db, brandId: string): Promise<numb
   const rows = (result as { rows?: readonly { next: unknown }[] }).rows ?? [];
   const value = Number(rows[0]?.next ?? 1);
   return Number.isInteger(value) && value > 0 ? value : 1;
+}
+
+/**
+ * The live briefs of the brand among `ids`, in no particular order; an id of another brand or of a
+ * soft-deleted row is simply absent. One statement, so a multi-select action (Oct 12 scope 3) reads
+ * its selection without a query per row. Raw rows: the callers need the columns a duplicate copies
+ * and the statuses a bulk move checks, not the inherited names.
+ */
+export async function listBriefsByIds(
+  db: Db,
+  brandId: string,
+  ids: readonly string[],
+): Promise<CreativeBrief[]> {
+  if (ids.length === 0) return [];
+  return withBrand(db, brandId).select(creativeBriefs, inArray(creativeBriefs.id, [...ids]));
+}
+
+/**
+ * Soft-deletes the live briefs of the brand among `ids` and returns the ids it actually marked
+ * (CLAUDE.md: soft delete only, never `DELETE FROM`). The scope keeps another brand's id and an
+ * already-deleted row out of the statement, so the count is honest. The Creative Sheet being a view
+ * over the briefs, the rows leave the sheet, the queues and the portal in the same write.
+ */
+export async function softDeleteBriefs(
+  db: Db,
+  brandId: string,
+  ids: readonly string[],
+  actorId: string,
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await withBrand(db, brandId)
+    .update(
+      creativeBriefs,
+      { deletedAt: new Date(), updatedBy: actorId, updatedAt: new Date() },
+      inArray(creativeBriefs.id, [...ids]),
+    )
+    .returning();
+  return rows.map((row) => row.id);
 }
