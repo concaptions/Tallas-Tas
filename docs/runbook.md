@@ -104,6 +104,15 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Oct 12 client sync, Tickets 2 and 15 (2026-10-12) · no migration yet. The same
+  `pnpm --filter @tas/db seed-columns -- --apply` hides `concepts.formats_to_create`,
+  `concepts.production_status` (Gratsi included) and the Copywriting `used`, `winning`, `meta_rating`,
+  `client_comment` rows. The column DROPS the two tickets ask for are not written: the operator first
+  runs `select count(*) filter (where used), count(*) filter (where winning), count(meta_rating),
+  count(client_comment) from copywriting where deleted_at is null;` and
+  `select count(*) filter (where production_status is not null), count(*) filter (where
+  formats_to_create <> '[]'::jsonb) from concepts where deleted_at is null;`, then Talal rules on
+  `client_comment` (the portal's own note) — only then does a drop migration get a number.
 - Oct 12 client sync, Ticket 1 (2026-10-12, `docs/tickets/in-progress/sprint-oct12-client-sync.md`) ·
   no migration. Collections is retired and its six seeded columns (`copywriting.collections`,
   `copywriting.collection_url`, `copywriting.products_from_collections`, `creative_briefs.collection_id`,

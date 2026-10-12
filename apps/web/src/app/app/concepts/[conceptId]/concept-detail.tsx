@@ -106,8 +106,6 @@ export interface ConceptFormValues {
   readonly usp: string | null;
   readonly clientComments: string | null;
   readonly clientApprovalStatus: string | null;
-  readonly productionStatus: string | null;
-  readonly formatsToCreate: readonly string[];
   /**
    * The short reason the strategist typed on the last `revisions_needed` move (Oct 5 Talal
    * sync). Null everywhere else: the dropdown opens with it as its default context.
@@ -227,12 +225,6 @@ export function ConceptDetail({
   const [clientApprovalStatus, setClientApprovalStatus] = useState(
     concept?.clientApprovalStatus ?? NONE_VALUE,
   );
-  // Read-only now that the control is gone (P2B-5): the value is kept solely so the hidden input
-  // submits what is stored instead of clearing the column.
-  const [productionStatus] = useState(concept?.productionStatus ?? NONE_VALUE);
-  const [formatsToCreate, setFormatsToCreate] = useState<readonly string[]>(
-    concept?.formatsToCreate ?? [],
-  );
   const [creatorIds, setCreatorIds] = useState<readonly string[]>(concept?.creatorIds ?? []);
 
   useEffect(() => {
@@ -319,12 +311,6 @@ export function ConceptDetail({
 
   const toggleFormat = (key: AngleFormatKey) => {
     setFormats((current) =>
-      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
-    );
-  };
-
-  const toggleFormatToCreate = (key: string) => {
-    setFormatsToCreate((current) =>
       current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
     );
   };
@@ -498,11 +484,7 @@ export function ConceptDetail({
           {formats.map((key) => (
             <input key={key} type="hidden" name="formats" value={key} />
           ))}
-          {formatsToCreate.map((key) => (
-            <input key={`ftc-${key}`} type="hidden" name="formatsToCreate" value={key} />
-          ))}
           <input type="hidden" name="clientApprovalStatus" value={clientApprovalStatus} />
-          <input type="hidden" name="productionStatus" value={productionStatus} />
 
           <section className="flex flex-col gap-3" data-slot="concept-pairing">
             <h2 className="flex items-center gap-2 border-b border-line pb-1 text-sm font-medium text-text2">
@@ -638,9 +620,9 @@ export function ConceptDetail({
                 demo,
               )}
               {/*
-                Production Status is deliberately NOT rendered (P2B-5, Talal 2026-09-28: "take it
-                out"). The column still exists and the hidden input above still round-trips whatever
-                is stored, so hiding the control cannot silently blank the field on a save.
+                Production Status is gone from Concepts (Talal, Oct 12 client sync, Ticket 2; the
+                P2B-5 hide of 2026-09-28 before it). The column and its stored values stay until the
+                drop migration; the write path no longer touches it, so a save cannot blank it.
               */}
             </div>
 
@@ -657,44 +639,6 @@ export function ConceptDetail({
               slot="concept-creatorIds"
               empty="No creator assigned yet. Assign one here or from the creator's panel."
             />
-
-            <div className="flex flex-col gap-1.5">
-              <Label required={false} className="text-[11px] tracking-wide text-text3 uppercase">
-                Formats to create (production)
-              </Label>
-              <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
-                <div
-                  className="flex flex-wrap gap-2"
-                  role="group"
-                  aria-label="Formats to create (production)"
-                  data-slot="concept-formats-to-create"
-                >
-                  {ANGLE_FORMATS.map((entry) => {
-                    const on = formatsToCreate.includes(entry.key);
-                    return (
-                      <button
-                        key={entry.key}
-                        type="button"
-                        disabled={demo}
-                        aria-pressed={on}
-                        data-slot="format-to-create-toggle"
-                        data-format={entry.key}
-                        onClick={() => {
-                          toggleFormatToCreate(entry.key);
-                        }}
-                        className={
-                          on
-                            ? 'rounded-input border border-accent-line bg-accent-soft px-2.5 py-1 font-mono text-[11px] tracking-wide text-accent uppercase disabled:cursor-not-allowed'
-                            : 'rounded-input border border-line bg-surface2 px-2.5 py-1 font-mono text-[11px] tracking-wide text-text3 uppercase hover:border-line2 hover:text-text2 disabled:cursor-not-allowed'
-                        }
-                      >
-                        {entry.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </DisabledWrite>
-            </div>
 
             <div className="flex flex-col gap-1.5">
               <Label required={false} className="text-[11px] tracking-wide text-text3 uppercase">

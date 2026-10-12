@@ -194,10 +194,8 @@ export interface ConceptItem {
   readonly clientStatus: ConceptClientStatusView;
   /** `client_approval_status` (migration 0055, CLIENT_STATUS since AUDIT-13), or null until set. */
   readonly clientApproval: ConceptClientStatusView | null;
-  readonly productionStatusLabel: string | null;
   readonly categoryLabel: string | null;
   readonly styleLabel: string | null;
-  readonly formatsToCreate: readonly string[];
   /** PRD §5.7 Formats, the multi-select on the row (`concepts.formats`). */
   readonly formats: readonly string[];
   readonly hookExamples: string | null;
@@ -247,10 +245,8 @@ export const EMPTY_CONCEPT_RECORD: Pick<
   ConceptItem,
   | 'clientStatus'
   | 'clientApproval'
-  | 'productionStatusLabel'
   | 'categoryLabel'
   | 'styleLabel'
-  | 'formatsToCreate'
   | 'formats'
   | 'hookExamples'
   | 'scriptIdea'
@@ -267,10 +263,8 @@ export const EMPTY_CONCEPT_RECORD: Pick<
 > = {
   clientStatus: { key: 'pending_for_approval', label: 'Pending for Approval', tone: 'info' },
   clientApproval: null,
-  productionStatusLabel: null,
   categoryLabel: null,
   styleLabel: null,
-  formatsToCreate: [],
   formats: [],
   hookExamples: null,
   scriptIdea: null,
@@ -401,7 +395,7 @@ export const CONCEPT_GROUPS: readonly ConceptFieldGroup[] = [
   { heading: 'Pairing', note: 'One angle, one theme. Together they name the concept.' },
   { heading: 'Inherited', note: 'Read-only. These come from the angle and change when it does.' },
   {
-    heading: 'Concept details',
+    heading: 'Concept Details',
     note: 'What the editor reads: how it is made, and what goes in it.',
   },
 ];

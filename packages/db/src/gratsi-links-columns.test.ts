@@ -176,7 +176,12 @@ describe('GRATSI-MATCH · creative_briefs', () => {
    */
   // `(Internal) Collections 3` joined the exclusions when Collections retired (2026-10-12, Ticket 1):
   // the link column stays stored, its seeded row is hidden on every brand.
-  const EXCLUDED = new Set(['Created 2', '(Internal) Collections 2', '(Internal) Collections 3', 'Angles']);
+  const EXCLUDED = new Set([
+    'Created 2',
+    '(Internal) Collections 2',
+    '(Internal) Collections 3',
+    'Angles',
+  ]);
 
   it('resolves the Airtable list minus the named exclusions, plus the AI-49 Due Date', async () => {
     const resolved = await gratsiColumns('creative_briefs');
@@ -247,8 +252,9 @@ describe('GRATSI-MATCH · concepts', () => {
    */
   // FLIPPED 2026-10-04: Production Status is shown again for Gratsi (the base has it; AI-34's
   // hide stands everywhere else).
-  // `Collection` (concept_collections) is hidden since Collections retired (2026-10-12, Ticket 1).
-  const EXCLUDED = new Set(['UGC Management copy', 'Collection']);
+  // `Collection` (concept_collections) is hidden since Collections retired (2026-10-12, Ticket 1);
+  // `Production Status` since Talal took it off Concepts for every brand (Ticket 2).
+  const EXCLUDED = new Set(['UGC Management copy', 'Collection', 'Production Status']);
 
   it('resolves exactly the Airtable list minus the named exclusions, in Airtable order', async () => {
     const resolved = await gratsiColumns('concepts');

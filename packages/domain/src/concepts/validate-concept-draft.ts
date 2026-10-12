@@ -8,7 +8,9 @@
  * name is `Batch-Angle-Theme` (PRD §7) — so a concept missing any of those three has no name to be
  * stored under, only the preview `conceptName` renders. That is why Batch, Angle and Theme are
  * required and why the hook examples, the script idea and the ad inspiration are not: those are
- * notes on a concept that already exists.
+ * notes on a concept that already exists. Category stopped being required on 2026-10-12 (Oct 12
+ * client sync, Ticket 2: "batch, angle, theme are the ONLY three required fields"); when given it
+ * must still be one of the vocabulary.
  *
  * Pure: it reads a draft and returns messages. It never looks up an angle, never touches a database
  * and never throws.
@@ -51,7 +53,6 @@ export const REQUIRED_CONCEPT_FIELDS: readonly ConceptDraftField[] = [
   'batch',
   'angleIds',
   'themeIds',
-  'category',
 ];
 
 export interface ConceptDraftValidation {
@@ -67,8 +68,8 @@ export interface ConceptDraftValidation {
  *   and a batch outside the vocabulary would name a concept nothing can group.
  * - At least one angle is required, and at least one theme is required. A concept with neither is
  *   not a concept yet.
- * - Category is required and must be `New` or `Iteration`: the board and the filters treat it as a
- *   closed vocabulary, so a row outside it would be unreachable.
+ * - Category is optional (Ticket 2) but, when chosen, must be `New` or `Iteration`: the board and
+ *   the filters treat it as a closed vocabulary, so a row outside it would be unreachable.
  * - Concept Style carries no rule: the style is often undecided while the pairing is being drafted.
  * - Every ad-inspiration entry that has any text in it must be an `http(s)` URL, exactly as on an
  *   angle. Blank rows are ignored, because the panel keeps an empty input at the bottom of the list.
@@ -92,9 +93,7 @@ export function validateConceptDraft(draft: ConceptDraft): ConceptDraftValidatio
   }
 
   const category = draft.category?.trim() ?? '';
-  if (category === '') {
-    fieldErrors.category = 'Pick whether this is new ground or an iteration.';
-  } else if (!isConceptCategory(category)) {
+  if (category !== '' && !isConceptCategory(category)) {
     fieldErrors.category = `A concept is one of ${CONCEPT_CATEGORY_KEYS.join(', ')}.`;
   }
 

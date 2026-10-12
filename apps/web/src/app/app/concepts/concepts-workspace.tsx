@@ -223,12 +223,6 @@ export const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
       ),
     sortValue: (item) => item.clientApproval?.label ?? '',
   },
-  // Fidelity flip 2026-10-04: the live base HAS Production Status, so Gratsi resolves it again
-  // (visible child row over the AI-34-hidden parent; other brands keep the hide).
-  production_status: {
-    render: (item) => <TextCell value={item.productionStatusLabel} />,
-    sortValue: (item) => item.productionStatusLabel ?? '',
-  },
   category: {
     render: (item) => <TextCell value={item.categoryLabel} />,
     sortValue: (item) => item.categoryLabel,
@@ -236,13 +230,6 @@ export const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   concept_style: {
     render: (item) => <TextCell value={item.styleLabel} />,
     sortValue: (item) => item.styleLabel,
-  },
-  formats_to_create: {
-    render: (item) => (
-      <ChipListCell
-        chips={item.formatsToCreate.map((format) => ({ label: format, tone: 'accent' }))}
-      />
-    ),
   },
   hook_examples: { render: (item) => <TextCell value={item.hookExamples} /> },
   script_idea: { render: (item) => <TextCell value={item.scriptIdea} /> },

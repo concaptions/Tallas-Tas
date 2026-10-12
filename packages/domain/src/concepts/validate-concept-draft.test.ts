@@ -80,19 +80,16 @@ describe('validateConceptDraft · the pairing', () => {
 });
 
 describe('validateConceptDraft · category', () => {
-  it('requires a category', () => {
-    expect(validateConceptDraft({ ...valid, category: null }).fieldErrors.category).toBe(
-      'Pick whether this is new ground or an iteration.',
-    );
+  it('accepts a draft with no category (Oct 12 client sync, Ticket 2: only batch, angle and theme are required)', () => {
+    expect(validateConceptDraft({ ...valid, category: null }).ok).toBe(true);
+    expect(validateConceptDraft({ ...valid, category: null }).fieldErrors.category).toBeUndefined();
   });
 
-  it('treats whitespace as no category', () => {
-    expect(validateConceptDraft({ ...valid, category: '  ' }).fieldErrors.category).toBe(
-      'Pick whether this is new ground or an iteration.',
-    );
+  it('requires nothing of a blank category either', () => {
+    expect(validateConceptDraft({ ...valid, category: '  ' }).fieldErrors.category).toBeUndefined();
   });
 
-  it('refuses a category outside the vocabulary', () => {
+  it('still refuses a category outside the vocabulary', () => {
     expect(validateConceptDraft({ ...valid, category: 'Remix' }).fieldErrors.category).toBe(
       'A concept is one of New, Iteration.',
     );
@@ -119,7 +116,7 @@ describe('validateConceptDraft · ad inspiration links', () => {
 });
 
 describe('validateConceptDraft · an empty draft', () => {
-  it('reports all four required fields at once and nothing else', () => {
+  it('reports the three required fields at once and nothing else', () => {
     const result = validateConceptDraft({
       batch: null,
       angleIds: [],
@@ -127,12 +124,7 @@ describe('validateConceptDraft · an empty draft', () => {
       category: null,
     });
     expect(result.ok).toBe(false);
-    expect(Object.keys(result.fieldErrors).sort()).toEqual([
-      'angleIds',
-      'batch',
-      'category',
-      'themeIds',
-    ]);
+    expect(Object.keys(result.fieldErrors).sort()).toEqual(['angleIds', 'batch', 'themeIds']);
   });
 });
 

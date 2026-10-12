@@ -63,7 +63,6 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Approval Status',
       'Hook examples',
       'Script idea',
-      'Formats to create',
       'Ad Inspo',
       'Creator',
       'Internal Status',
@@ -316,7 +315,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
   }) => {
     await page.goto(conceptPath(NOT_YOUR_AGE));
 
-    for (const field of ['batch', 'themeIds', 'category']) {
+    for (const field of ['batch', 'themeIds']) {
       await expect(
         page.locator(`[data-slot="concept-field-${field}"] [data-slot="label-requirement"]`),
         `${field} is required by validateConceptDraft but the form does not say so`,

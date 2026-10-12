@@ -190,7 +190,7 @@ describe('the page contract', () => {
   });
 
   it('names the three blocks of the detail page in order', () => {
-    expect(CONCEPT_GROUP_HEADINGS).toEqual(['Pairing', 'Inherited', 'Concept details']);
+    expect(CONCEPT_GROUP_HEADINGS).toEqual(['Pairing', 'Inherited', 'Concept Details']);
   });
 });
 

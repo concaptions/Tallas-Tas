@@ -22,11 +22,9 @@ import { generateBriefName } from '@tas/domain/briefs';
 import { conceptNameSegment } from '@tas/domain/creatives';
 import {
   conceptName,
-  isConceptProductionStatus,
   isConceptStyle,
   validateConceptDraft,
   type ConceptDraftField,
-  type ConceptProductionStatusKey,
   type ConceptStyleKey,
 } from '@tas/domain/concepts';
 import {
@@ -97,8 +95,6 @@ export type ConceptFieldName =
   | 'internalStatus'
   | 'clientStatus'
   | 'clientApprovalStatus'
-  | 'productionStatus'
-  | 'formatsToCreate'
   | 'creatorId';
 
 export interface ConceptActionSuccess {
@@ -215,8 +211,6 @@ const conceptSchema = z.object({
   internalStatus,
   clientStatus,
   clientApprovalStatus: link,
-  productionStatus: link,
-  formatsToCreate: z.array(z.string().trim()),
   creatorId: links,
 });
 
@@ -257,8 +251,6 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     internalStatus: single('internalStatus'),
     clientStatus: single('clientStatus'),
     clientApprovalStatus: single('clientApprovalStatus'),
-    productionStatus: single('productionStatus'),
-    formatsToCreate: many('formatsToCreate'),
     creatorId: many('creatorId'),
   };
 }
@@ -355,10 +347,8 @@ function toInput(
   // SMOKE-18 (Option B): the approval select writes the ONE client vocabulary to
   // `client_approval_status`; the legacy `approval_status` is frozen and never written again.
   const approval = normalizeClientApprovalStatus(values.clientApprovalStatus);
-  const production: ConceptProductionStatusKey | null =
-    values.productionStatus !== null && isConceptProductionStatus(values.productionStatus)
-      ? values.productionStatus
-      : null;
+  // `production_status` and `formats_to_create` are no longer written (Oct 12 client sync,
+  // Ticket 2): the columns keep their stored values until the drop migration is applied.
   return {
     name,
     batch: values.batch,
@@ -375,8 +365,6 @@ function toInput(
     internalStatus: internal,
     clientStatus: client,
     clientApprovalStatus: approval,
-    productionStatus: production,
-    formatsToCreate: values.formatsToCreate.filter((entry) => entry !== ''),
   };
 }
 

@@ -2207,3 +2207,25 @@ and `frozen-tables.test.ts` failing the suite on a new import of the table from 
 layer and the importer keep their joins. The drop is a later migration after Talal confirms. No
 migration ships with this change; the hidden rows reach Railway with `seed-columns --apply`
 (`docs/runbook.md`, pending).
+
+## 2026-10-12 — Oct 12 client sync, Tickets 2 and 15: Concepts and Copywriting trimmed; column drops wait for the operator
+
+**Concepts (Ticket 2).** Batch, Angle and Theme are the only required fields; Category is optional
+(still `New` / `Iteration` when chosen). The duplicate "Formats to create (production)"
+(`concepts.formats_to_create`) and `production_status` leave the form, the grid and the write path on
+every brand — the Oct 4 fidelity row that showed Production Status on Gratsi is hidden with them
+(Talal: "remove production status from concepts"). Both columns and their stored values (73 on
+`production_status`) stay until a drop migration the operator applies. The concept name keeps the
+PRD §7 hyphen (`Batch-Angle-Theme`): the brief's spaced form conflicts with CLAUDE.md non-negotiable 6
+and with every live name, so it waits for Talal (`docs/sprint-oct12.md`).
+
+**Copywriting (Ticket 15).** Used, Winning, Meta Rating and the Client's Comment section leave the
+internal form, the grid and `updateCopyAction`; their seeded rows are hidden on every brand. The
+columns stay: the drop needs the production counts the operator runs, and `client_comment` is the
+client's own note (written by the portal, shown on `/client/<brand>/copywriting`), so it is not
+dropped without Talal's word. The four-value client vocabulary in the brief is not adopted: AUDIT-13
+(2026-10-10) stands — ONE vocabulary, `CLIENT_STATUS`, six keys — until he rules.
+
+**Mechanism.** One list, `RETIRED_COLUMNS` in `packages/db/src/column-seed.ts`, hides every retired
+column on every brand through the seed (Tickets 1, 2 and 15); `seed-columns --apply` carries it to
+Railway (`docs/runbook.md`, pending). `verify-rollout.ts` carries the new counts.

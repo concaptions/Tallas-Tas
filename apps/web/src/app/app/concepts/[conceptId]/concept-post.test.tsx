@@ -103,8 +103,6 @@ function filledForm(overrides: Partial<ConceptFormValues> = {}): string {
         usp: null,
         clientComments: null,
         clientApprovalStatus: null,
-        productionStatus: 'done',
-        formatsToCreate: [],
         clientStatusNote: null,
         ...overrides,
       }}

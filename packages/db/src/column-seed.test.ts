@@ -631,17 +631,13 @@ describe('platform columns on concepts', () => {
    * missing-columns notice — the removed field's name on screen for every brand. There is no child
    * row for the key anywhere, so hiding the parent is enough to hide it everywhere.
    */
-  it('hides production_status everywhere but Gratsi, whose base has the field (flip 2026-10-04)', async () => {
+  it('hides production_status everywhere, Gratsi included (Talal, Oct 12 client sync, Ticket 2)', async () => {
     const db = await testDb();
     await seed(db);
     await seedColumnDefinitions(db);
 
-    const shown = await resolveColumns(db, await brandIdBySlug(db, 'gratsi'), 'concepts');
-    expect(shown.find((column) => column.columnKey === 'production_status')?.displayLabel).toBe(
-      'Production Status',
-    );
-
-    for (const slug of ['niagara-sleep-solutions', 'funky-painting']) {
+    // The 2026-10-04 fidelity flip showed it on Gratsi; Ticket 2 takes it off Concepts for good.
+    for (const slug of ['gratsi', 'niagara-sleep-solutions', 'funky-painting']) {
       const resolved = await resolveColumns(db, await brandIdBySlug(db, slug), 'concepts');
       expect(
         resolved.find((column) => column.columnKey === 'production_status'),

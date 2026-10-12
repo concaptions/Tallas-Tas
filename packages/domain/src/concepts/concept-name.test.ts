@@ -174,3 +174,16 @@ describe('missingConceptNameParts / isConceptNameComplete', () => {
     expect(conceptName(named)).toBe('B2-Angle-Theme');
   });
 });
+
+describe('conceptName · the separator (Oct 12 client sync, Ticket 2)', () => {
+  it('derives the name from exactly batch, angle and theme, joined by the hyphen of CLAUDE.md non-negotiable 6', () => {
+    // The Oct 12 brief writes `${batch} - ${angle} - ${theme}`; the PRD §7 formula is
+    // `Batch-Angle-Theme` and every live concept carries it. The separator stays the hyphen until
+    // Talal rules on the spaced form (docs/sprint-oct12.md, Ticket 2).
+    expect(CONCEPT_NAME_SEPARATOR).toBe('-');
+    expect(conceptName({ batch: 'B3', angleName: 'Night Sweats', themeName: 'Testimonial' })).toBe(
+      'B3-Night Sweats-Testimonial',
+    );
+    expect(CONCEPT_NAME_PARTS).toEqual(['batch', 'angleName', 'themeName']);
+  });
+});
