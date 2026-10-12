@@ -1,8 +1,6 @@
-import type { BrandTabColumnWrite } from '@tas/db';
 import {
   CUSTOM_PAGE_SOURCE_TABLE_KEYS,
   filterOpNeedsValue,
-  type CustomPageColumnConfig,
   type CustomPageFilterConfig,
 } from '@tas/domain';
 import { z } from 'zod';
@@ -101,41 +99,4 @@ export function firstInternalColumn(
 ): string | null {
   if (picks === undefined) return null;
   return picks.find((pick) => !isVisible(pick.columnKey))?.columnKey ?? null;
-}
-
-/**
- * The dialog's picks as column definition writes for a standard tab: a picked column is shown
- * under its label, the picked ones taking the tab's existing order slots in the picked sequence
- * (so the tab's columns keep their place among Column Admin's other columns); every other
- * editable column is hidden, keeping its label and slot.
- */
-export function tabColumnWrites(
-  columns: readonly { columnKey: string; label: string; displayOrder: number }[],
-  picks: readonly CustomPageColumnConfig[],
-): BrandTabColumnWrite[] {
-  const known = new Set(columns.map((column) => column.columnKey));
-  const ordered = [...picks]
-    .filter((pick) => known.has(pick.columnKey))
-    .sort((a, b) => a.displayOrder - b.displayOrder);
-  const slots = columns.map((column) => column.displayOrder).sort((a, b) => a - b);
-  const picked = new Map(
-    ordered.map((pick, index) => [
-      pick.columnKey,
-      {
-        columnKey: pick.columnKey,
-        label: pick.displayLabel,
-        displayOrder: slots[index] ?? index,
-        hidden: false,
-      },
-    ]),
-  );
-  return columns.map(
-    (column) =>
-      picked.get(column.columnKey) ?? {
-        columnKey: column.columnKey,
-        label: column.label,
-        displayOrder: column.displayOrder,
-        hidden: true,
-      },
-  );
 }

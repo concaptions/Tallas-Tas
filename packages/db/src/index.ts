@@ -380,6 +380,7 @@ export * from './column-seed';
 export * from './client-columns';
 export * from './custom-interface-pages';
 export * from './brand-tab-columns';
+export * from './page-edit';
 export * from './propagation-runs';
 export {
   findTokenByValue,

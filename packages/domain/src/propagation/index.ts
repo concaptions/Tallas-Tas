@@ -14,5 +14,6 @@
 export * from '../state/promotion-status';
 export * from './diff-summary';
 export * from './describe-promotion';
+export * from './page-edit';
 export * from './plan';
 export * from './review';

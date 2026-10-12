@@ -15,6 +15,7 @@ import {
   setBrandPageVisibility,
   setBrandTabColumns,
   softDeleteCustomPage,
+  tabColumnWrites,
   type Db,
 } from '@tas/db';
 import {
@@ -31,13 +32,7 @@ import { withInterfacePagesScope } from '@/lib/interface-config-pages-source';
 import { interfaceConfigPath } from '@/lib/routes';
 import { teamPageActorFrom } from '@/lib/team-actor';
 
-import {
-  editPageSchema,
-  filterValid,
-  firstInternalColumn,
-  readJsonEntry,
-  tabColumnWrites,
-} from './page-schema';
+import { editPageSchema, filterValid, firstInternalColumn, readJsonEntry } from './page-schema';
 
 /**
  * Server Actions for the Interface Config "Pages" section (Scope A, B4): every page of the brand —

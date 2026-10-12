@@ -137,6 +137,57 @@ export async function setBrandTabColumns(
   return writes.length;
 }
 
+/** The editable columns the brand keeps rows of its own for (a label, order or hidden of its own). */
+export async function brandOwnTabColumnKeys(
+  db: Db,
+  brandId: string,
+  tableKey: string,
+): Promise<readonly string[]> {
+  const editable = new Set(
+    (await editableParentRows(db, brandId, tableKey)).map((row) => row.columnKey),
+  );
+  return (await rowsOf(db, brandId, tableKey))
+    .filter((row) => editable.has(row.columnKey))
+    .map((row) => row.columnKey);
+}
+
+/**
+ * A page's column picks as column definition writes for a standard tab: a picked column is shown
+ * under its label, the picked ones taking the tab's existing order slots in the picked sequence
+ * (so the tab's columns keep their place among Column Admin's other columns); every other
+ * editable column is hidden, keeping its label and slot.
+ */
+export function tabColumnWrites(
+  columns: readonly { columnKey: string; label: string; displayOrder: number }[],
+  picks: readonly { columnKey: string; displayLabel: string; displayOrder: number }[],
+): BrandTabColumnWrite[] {
+  const known = new Set(columns.map((column) => column.columnKey));
+  const ordered = [...picks]
+    .filter((pick) => known.has(pick.columnKey))
+    .sort((a, b) => a.displayOrder - b.displayOrder);
+  const slots = columns.map((column) => column.displayOrder).sort((a, b) => a - b);
+  const picked = new Map(
+    ordered.map((pick, index) => [
+      pick.columnKey,
+      {
+        columnKey: pick.columnKey,
+        label: pick.displayLabel,
+        displayOrder: slots[index] ?? index,
+        hidden: false,
+      },
+    ]),
+  );
+  return columns.map(
+    (column) =>
+      picked.get(column.columnKey) ?? {
+        columnKey: column.columnKey,
+        label: column.label,
+        displayOrder: column.displayOrder,
+        hidden: true,
+      },
+  );
+}
+
 /** Reattaches the brand's rows for the editable columns of the table; returns how many. */
 export async function reattachBrandTabColumns(
   db: Db,

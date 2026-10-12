@@ -1,3 +1,5 @@
+import { pageEditOf, pageEditPolicyLabel, pageEditTargetLabel } from './page-edit';
+
 /**
  * One sentence naming what a promotion request is about, for the row's accessible label.
  *
@@ -100,6 +102,10 @@ export function promotionBrandLabel(brandName: string | null | undefined): strin
  * scope for this ticket and there is no second brand column to name.
  */
 export function describePromotion(request: PromotionSubject): string {
+  const edit = pageEditOf(request);
+  if (edit !== null) {
+    return `${promotionBrandLabel(request.brandName)} requests applying the edit of "${edit.changes.title}" (${edit.slug}) to ${pageEditTargetLabel(edit.targets)}; ${pageEditPolicyLabel(edit.onConflict)}.`;
+  }
   const page = pagePushSubject(request);
   if (page !== null) {
     return `${promotionBrandLabel(request.brandName)} requests pushing the page "${page.title}" to every client brand.`;

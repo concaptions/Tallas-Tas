@@ -235,7 +235,11 @@ export async function applyApprovedPromotion(
   // A TEMPLATE page push (B3, 2026-10-10): the request is template-side, like a custom field
   // schema — `brand_id` is the template brand and `row_id` the template page. Approval runs the
   // one page propagation and writes the ledger row the engine never wrote before.
-  if (request.tableName === 'custom_interface_pages' && request.rowId) {
+  if (
+    request.tableName === 'custom_interface_pages' &&
+    request.fieldName === 'push' &&
+    request.rowId
+  ) {
     const templateBrandId = request.brandId;
     const children = await listChildBrands(db, templateBrandId);
     const result = await propagateCustomInterfacePageToChildren(
@@ -260,6 +264,12 @@ export async function applyApprovedPromotion(
       actorId,
     );
     return { applied: true, childrenUpdated: result.childrenUpdated };
+  }
+
+  // A page EDIT request (`field_name = edit`, Part B) is applied by `applyPageEdit`, from the
+  // Propagation action that reads its JSON; it never reaches the template-row path below.
+  if (request.tableName === 'custom_interface_pages') {
+    return { applied: false, reason: 'A page edit request is applied through applyPageEdit' };
   }
 
   const table = PROPAGATION_TABLES[request.tableName];
