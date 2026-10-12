@@ -1,8 +1,15 @@
-import { activityLog, customInterfacePages, listMergedPages, seed, type Db } from '@tas/db';
+import {
+  activityLog,
+  customInterfacePages,
+  insertCustomPage,
+  listMergedPages,
+  seed,
+  type Db,
+} from '@tas/db';
 import { testDb } from '@tas/db/testing';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { resetPageAction, setPageVisibilityAction } from './page-actions';
+import { editPageAction, resetPageAction, setPageVisibilityAction } from './page-actions';
 
 /**
  * The Pages section's visibility switch, end to end against a REAL database (PGlite): the action
@@ -147,5 +154,83 @@ describe('setPageVisibilityAction tracing', () => {
         'ok',
       ],
     ]);
+  });
+});
+
+/**
+ * Edit (2026-10-12): the Edit dialog posts `slug`, `title`, `isVisible` (and, for a custom or
+ * module page, `filterConfig` / `columnConfig`). A standard tab's edit lands on the brand's
+ * override row — the template keeps its own title — and Reset brings the template back; a brand's
+ * own custom page is updated in place. The tenant is the scope's, never the form's.
+ */
+describe('editPageAction with the client payload', () => {
+  it('re-titles Calendar for this brand, keeps the template, and Reset restores it', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    if (seam.db === null) throw new Error('the test database is not open');
+
+    const edited = await editPageAction(
+      null,
+      post({ slug: 'calendar', title: 'Dates', isVisible: 'true' }),
+    );
+    expect(edited).toMatchObject({ ok: true });
+    const merged = (await listMergedPages(seam.db, seam.brandId)).find(
+      (p) => p.slug === 'calendar',
+    );
+    expect(merged).toMatchObject({ title: 'Dates', brandId: seam.brandId });
+    // The brand row already kept `is_visible` from the toggles above; `title` joins it.
+    expect(merged?.overriddenFields).toEqual(expect.arrayContaining(['title']));
+    const template = (await seam.db.select().from(customInterfacePages)).find(
+      (row) => row.slug === 'calendar' && row.brandId === null,
+    );
+    expect(template?.title).toBe('Calendar');
+
+    expect(await resetPageAction(null, post({ slug: 'calendar' }))).toMatchObject({ ok: true });
+    expect(
+      (await listMergedPages(seam.db, seam.brandId)).find((p) => p.slug === 'calendar')?.title,
+    ).toBe('Calendar');
+  });
+
+  it("updates the brand's own custom page in place, columns included", async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    if (seam.db === null) throw new Error('the test database is not open');
+    const own = await insertCustomPage(seam.db, {
+      brandId: seam.brandId,
+      slug: 'winners',
+      title: 'Winners',
+      sourceTableKey: 'creative_briefs',
+      filterConfig: {},
+      columnConfig: [{ columnKey: 'name', displayLabel: 'Name', displayOrder: 0 }],
+      sortOrder: 50,
+      isVisible: true,
+      isInherited: false,
+      createdBy: 'user_admin',
+      updatedBy: 'user_admin',
+    });
+
+    const edited = await editPageAction(
+      null,
+      post({
+        slug: 'winners',
+        title: 'Top ads',
+        isVisible: 'false',
+        columnConfig: JSON.stringify([
+          { columnKey: 'name', displayLabel: 'Name', displayOrder: 0 },
+          { columnKey: 'client_status', displayLabel: 'Client Approval', displayOrder: 1 },
+        ]),
+      }),
+    );
+    expect(edited).toMatchObject({ ok: true });
+    const row = (await seam.db.select().from(customInterfacePages)).find((r) => r.id === own.id);
+    expect(row).toMatchObject({ title: 'Top ads', isVisible: false });
+    expect(row?.columnConfig).toHaveLength(2);
+  });
+
+  it('refuses an empty column set, which would show a client every column', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    const result = await editPageAction(
+      null,
+      post({ slug: 'winners', title: 'Top ads', isVisible: 'true', columnConfig: '[]' }),
+    );
+    expect(result.ok).toBe(false);
   });
 });

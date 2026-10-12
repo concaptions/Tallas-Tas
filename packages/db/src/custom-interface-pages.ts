@@ -322,14 +322,53 @@ export async function setBrandPageVisibility(
   isVisible: boolean,
   actorId: string,
 ): Promise<CustomInterfacePage> {
-  if (page.brandId === brandId) {
-    const row = await updateCustomPage(db, page.id, brandId, { isVisible });
-    if (row === null) throw new Error('setBrandPageVisibility: the brand page is gone');
+  return setBrandPageOverrides(db, brandId, page, { isVisible }, actorId);
+}
+
+/** The fields a brand may keep its own value for on a page, with the `overridden_fields` name of each. */
+export type BrandPageOverrides = Partial<
+  Pick<CustomInterfacePage, 'title' | 'isVisible' | 'filterConfig' | 'columnConfig'>
+>;
+
+const OVERRIDDEN_FIELD_NAMES: Readonly<Record<keyof BrandPageOverrides, string>> = {
+  title: 'title',
+  isVisible: 'is_visible',
+  filterConfig: 'filter_config',
+  columnConfig: 'column_config',
+};
+
+/**
+ * The Edit dialog's write (2026-10-12), for one brand only: a TEMPLATE page (standard tab, module
+ * or template custom page) gets — or updates — the brand's row carrying exactly the fields given,
+ * each named in `overridden_fields` (0062), so the template row never moves and "Reset to template"
+ * still restores it; a brand's OWN page is updated in place. Only the keys present are written;
+ * `undefined` leaves a field alone. An empty column set is refused by the writers beneath.
+ */
+export async function setBrandPageOverrides(
+  db: Db,
+  brandId: string,
+  page: CustomInterfacePage,
+  overrides: BrandPageOverrides,
+  actorId: string,
+): Promise<CustomInterfacePage> {
+  const given: BrandPageOverrides = {};
+  if (overrides.title !== undefined) given.title = overrides.title;
+  if (overrides.isVisible !== undefined) given.isVisible = overrides.isVisible;
+  if (overrides.filterConfig !== undefined) given.filterConfig = overrides.filterConfig;
+  if (overrides.columnConfig !== undefined) given.columnConfig = overrides.columnConfig;
+  if (page.brandId === brandId && page.templateRowId === null) {
+    // The brand's own page: no template to track, nothing to name as kept.
+    const row = await updateCustomPage(db, page.id, brandId, { ...given, updatedBy: actorId });
+    if (row === null) throw new Error('setBrandPageOverrides: the brand page is gone');
     return row;
   }
-  return upsertBrandCustomPageFromTemplate(db, brandId, page, { isVisible }, actorId, [
-    'is_visible',
-  ]);
+  // Only a value that DIFFERS from the page's current one counts as kept: the dialog posts every
+  // field, and an unchanged visibility must not stop following the template. On a brand row that
+  // already tracks the template, the kept fields are merged with the ones it already keeps.
+  const overridden = (Object.keys(given) as (keyof BrandPageOverrides)[])
+    .filter((key) => JSON.stringify(given[key]) !== JSON.stringify(page[key]))
+    .map((key) => OVERRIDDEN_FIELD_NAMES[key]);
+  return upsertBrandCustomPageFromTemplate(db, brandId, page, given, actorId, overridden);
 }
 
 /**

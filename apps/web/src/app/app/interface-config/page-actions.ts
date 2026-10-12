@@ -8,6 +8,7 @@ import {
   listMergedPages,
   listTeam,
   setBrandPageOrder,
+  setBrandPageOverrides,
   setBrandPageVisibility,
   softDeleteCustomPage,
   type Db,
@@ -20,6 +21,8 @@ import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withInterfacePagesScope } from '@/lib/interface-config-pages-source';
 import { interfaceConfigPath } from '@/lib/routes';
 import { teamPageActorFrom } from '@/lib/team-actor';
+
+import { editPageSchema, filterValid, readJsonEntry } from './page-schema';
 
 /**
  * Server Actions for the Interface Config "Pages" section (Scope A, B4): every page of the brand —
@@ -241,5 +244,61 @@ export async function resetPageAction(
       return null;
     },
     'The page could not be reset. Try again.',
+  );
+}
+
+/**
+ * The Edit dialog's save (2026-10-12): title, visibility and — for a custom or module page — the
+ * filter and the column picks, for THIS brand only. A standard tab or a template page gets the
+ * brand's override row (the template never changes; Reset restores it); the brand's own custom
+ * page is updated in place. Same admin/CSM rule and brand scope as every action here: the tenant
+ * is the scope's, never the form's. The schema is the one "Add custom page" uses (`page-schema`).
+ */
+export async function editPageAction(
+  _previous: PageActionResult | null,
+  formData: FormData,
+): Promise<PageActionResult> {
+  if (isDemoMode()) return failure(DEMO_WRITE_REFUSAL);
+  const raw: Record<string, unknown> = {
+    slug: entry(formData, 'slug'),
+    title: entry(formData, 'title'),
+    isVisible: entry(formData, 'isVisible') === 'true',
+  };
+  const filterConfig = readJsonEntry(formData, 'filterConfig');
+  const columnConfig = readJsonEntry(formData, 'columnConfig');
+  if (filterConfig !== undefined) raw.filterConfig = filterConfig;
+  if (columnConfig !== undefined) raw.columnConfig = columnConfig;
+  const parsed = editPageSchema.safeParse(raw);
+  if (!parsed.success) {
+    return failure(parsed.error.issues[0]?.message ?? 'Could not read the page edit.');
+  }
+  if (parsed.data.filterConfig !== undefined && !filterValid(parsed.data.filterConfig)) {
+    return failure('A filter with the chosen operator needs a value.');
+  }
+  const actor = await actorId();
+  if (actor === null) return failure('Your session has expired. Sign in again to save.');
+  return run(
+    actor,
+    async (db, brandId) => {
+      const page = (await listMergedPages(db, brandId)).find(
+        (row) => row.slug === parsed.data.slug,
+      );
+      if (page === undefined) return 'That page is no longer available.';
+      await setBrandPageOverrides(
+        db,
+        brandId,
+        page,
+        {
+          title: parsed.data.title,
+          isVisible: parsed.data.isVisible,
+          filterConfig: parsed.data.filterConfig,
+          columnConfig: parsed.data.columnConfig,
+        },
+        actor,
+      );
+      return null;
+    },
+    'The page could not be saved. Try again.',
+    `page_edit:${parsed.data.slug}`,
   );
 }

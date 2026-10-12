@@ -9,12 +9,7 @@ import {
   updateCustomPage,
   type Db,
 } from '@tas/db';
-import {
-  CUSTOM_PAGE_SOURCE_TABLE_KEYS,
-  canConfigureInterface,
-  filterOpNeedsValue,
-  type CustomPageFilterConfig,
-} from '@tas/domain';
+import { CUSTOM_PAGE_SOURCE_TABLE_KEYS, canConfigureInterface } from '@tas/domain';
 import { z } from 'zod';
 
 import { resolveLiveAgencyId } from '@/lib/data-source';
@@ -22,6 +17,16 @@ import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withInterfacePagesScope } from '@/lib/interface-config-pages-source';
 import { interfaceConfigPath } from '@/lib/routes';
 import { teamPageActorFrom } from '@/lib/team-actor';
+
+import {
+  columnPicksSchema,
+  createPageSchema,
+  filterConfigSchema,
+  filterValid,
+  pageSlugSchema,
+  pageTitleSchema,
+  readJsonEntry,
+} from './page-schema';
 
 /**
  * Server Actions for the Custom Interface Pages admin section (Oct 6/7 Agent 4).
@@ -77,54 +82,12 @@ function entry(formData: FormData, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-// kebab-case: lowercase + digits + dashes, no leading / trailing / double dash.
-const slugRegex = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
-const columnConfigSchema = z
-  .array(
-    z.object({
-      columnKey: z.string().min(1).max(128),
-      displayLabel: z.string().min(1).max(128),
-      displayOrder: z.number().int().min(0).max(999),
-    }),
-  )
-  .max(64);
-
-/**
- * At least one column pick: `column_config = []` is "every resolver column" to the client route,
- * internal fields included (non-negotiable 10). `@tas/db` refuses it too; this is the message.
- */
-const columnPicksSchema = columnConfigSchema.min(
-  1,
-  'Pick at least one column: an empty set would show the client every column of the table.',
-);
-
-const filterConfigSchema = z.union([
-  z.object({}).strict(),
-  z.object({
-    column: z.string().min(1).max(128),
-    op: z.enum(['is', 'is_not', 'contains']),
-    value: z.string().min(1).max(512),
-  }),
-  z.object({
-    column: z.string().min(1).max(128),
-    op: z.enum(['is_empty', 'is_not_empty']),
-  }),
-]);
-
-const createSchema = z.object({
-  slug: z.string().min(1).max(80).regex(slugRegex, 'Slug must be kebab-case.'),
-  title: z.string().min(1).max(120),
-  sourceTableKey: z.enum(CUSTOM_PAGE_SOURCE_TABLE_KEYS),
-  filterConfig: filterConfigSchema,
-  columnConfig: columnPicksSchema,
-  isVisible: z.boolean(),
-});
+const createSchema = createPageSchema;
 
 const updateSchema = z.object({
   id: z.uuid(),
-  title: z.string().min(1).max(120).optional(),
-  slug: z.string().min(1).max(80).regex(slugRegex, 'Slug must be kebab-case.').optional(),
+  title: pageTitleSchema.optional(),
+  slug: pageSlugSchema.optional(),
   sourceTableKey: z.enum(CUSTOM_PAGE_SOURCE_TABLE_KEYS).optional(),
   filterConfig: filterConfigSchema.optional(),
   columnConfig: columnPicksSchema.optional(),
@@ -133,27 +96,7 @@ const updateSchema = z.object({
 
 const deleteSchema = z.object({ id: z.uuid() });
 
-/**
- * Parse FormData for a create/update: the simple scalar fields come from flat entries, and the
- * two jsonb fields arrive as a JSON string. A caller writes the JSON string with `JSON.stringify`
- * on the client; the schema here validates it after `JSON.parse`.
- */
-function readJson(formData: FormData, key: string): unknown {
-  const raw = entry(formData, key);
-  if (raw === undefined || raw === '') return undefined;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-}
-
-/** Reject a filter with an op that needs a value but has none, before Postgres sees it. */
-function filterValid(filter: CustomPageFilterConfig): boolean {
-  if (!('op' in filter)) return true;
-  if (!filterOpNeedsValue(filter.op)) return true;
-  return 'value' in filter && filter.value.length > 0;
-}
+const readJson = readJsonEntry;
 
 export async function createCustomPageAction(
   _previous: CustomPageActionResult | null,

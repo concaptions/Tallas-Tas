@@ -7,6 +7,7 @@ import {
   listMergedPages,
   listTemplateCustomPages,
   setBrandPageOrder,
+  setBrandPageOverrides,
   setBrandPageVisibility,
   softDeleteCustomPage,
 } from './custom-interface-pages';
@@ -148,5 +149,57 @@ describe('setBrandPageOrder', () => {
       ['creative_sheet', 2, ['sort_order']],
     ]);
     expect(pages.map((p) => p.slug)).toEqual(['concepts', 'creative_sheet', 'winners']);
+  });
+});
+
+/**
+ * Edit (2026-10-12): a brand may re-title, show/hide, and (for a custom or module page) re-filter
+ * and re-column a page FOR ITSELF. A template page gets a brand row keeping exactly the fields it
+ * changed; the template row never moves, so "Reset to template" still restores it. A brand's own
+ * page is updated in place.
+ */
+describe('setBrandPageOverrides', () => {
+  it('re-titles and hides a TEMPLATE page for one brand only, naming the kept fields', async () => {
+    const { db, brandId, concepts } = await scenario();
+
+    const row = await setBrandPageOverrides(
+      db,
+      brandId,
+      concepts,
+      { title: 'Ideas', isVisible: false },
+      'admin',
+    );
+
+    expect(row).toMatchObject({
+      brandId,
+      slug: 'concepts',
+      title: 'Ideas',
+      isVisible: false,
+      templateRowId: concepts.id,
+      overriddenFields: ['title', 'is_visible'],
+    });
+    const template = (await listTemplateCustomPages(db)).find((p) => p.slug === 'concepts');
+    expect(template).toMatchObject({ title: 'Concepts', isVisible: true });
+    expect((await listMergedPages(db, brandId)).find((p) => p.slug === 'concepts')?.title).toBe(
+      'Ideas',
+    );
+  });
+
+  it("updates a brand's OWN page in place, and a reset of a template override restores it", async () => {
+    const { db, brandId, concepts, own } = await scenario();
+    const updated = await setBrandPageOverrides(db, brandId, own, { title: 'Top ads' }, 'admin');
+    expect(updated).toMatchObject({ id: own.id, title: 'Top ads', isVisible: true });
+
+    const override = await setBrandPageOverrides(
+      db,
+      brandId,
+      concepts,
+      { title: 'Ideas' },
+      'admin',
+    );
+    expect(await softDeleteCustomPage(db, override.id, brandId, 'admin')).toBe(true);
+    expect((await listMergedPages(db, brandId)).find((p) => p.slug === 'concepts')?.title).toBe(
+      'Concepts',
+    );
   });
 });
