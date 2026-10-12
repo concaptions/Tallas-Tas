@@ -7,12 +7,16 @@ import { describe, expect, it } from 'vitest';
 import { FROZEN_PROPAGATION_TABLES, PROPAGATION_TABLES } from './propagation';
 
 /**
- * `creative_sheet_items` is FROZEN (single-source cutover, 2026-10-09): the Creative Sheet is a
- * view over `creative_briefs`, and nothing may read or write the old table again until Talal
- * decides its drop. This test reads the import statements of every non-test source file in the
- * repo and fails on any that pulls in the Drizzle table — so a reader or writer cannot come back
- * by accident. The allowlist is the schema itself, the importer (whose sheet block is kept but
- * disabled behind `IMPORT_FROZEN_TABLES`) and the import-mapping inventory script.
+ * `creative_sheet_items` and `creative_dimensions` are FROZEN (single-source cutover, 2026-10-09):
+ * the Creative Sheet is a view over `creative_briefs`, a creative's ratios live in
+ * `creative_briefs.dimensions` (a jsonb string[] the UI reads straight off the brief, no join),
+ * and nothing may read or write either old table again until Talal decides their drop. This
+ * test reads the import statements of every non-test source file in the repo and fails on any
+ * that pulls in one of the Drizzle tables — so a reader or writer cannot come back by accident.
+ * The allowlist is the schema itself, the importer (whose blocks are kept but disabled behind
+ * `IMPORT_FROZEN_TABLES`), the import-mapping inventory script, the propagation registry and
+ * the retired dimensions query layer, which only the redirected `/app/creative-dimensions`
+ * workspace ever reached.
  */
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
@@ -25,10 +29,17 @@ const SCAN_ROOTS = [
   'packages/env/src',
 ].filter((dir) => existsSync(join(REPO_ROOT, dir)));
 
-const ALLOWED = new Set([
+/** Each frozen table: the Drizzle symbol a file would import, and its schema module's path. */
+const FROZEN_TABLES = {
+  creative_sheet_items: { symbol: 'creativeSheetItems', module: 'schema/creative-sheet-items' },
+  creative_dimensions: { symbol: 'creativeDimensions', module: 'schema/creative-dimensions' },
+} as const;
+
+type FrozenTable = keyof typeof FROZEN_TABLES;
+
+const ALLOWED_EVERYWHERE = new Set([
   'packages/db/src/schema/index.ts',
-  'packages/db/src/schema/creative-sheet-items.ts',
-  // The sheet import block stays, disabled: `IMPORT_FROZEN_TABLES` in airtable-import.ts.
+  // The sheet and dimensions import blocks stay, disabled: `IMPORT_FROZEN_TABLES` in airtable-import.ts.
   'packages/db/src/airtable-import.ts',
   // The Airtable → Drizzle mapping inventory, documentation for the importer.
   'packages/db/src/scripts/import-mappings.ts',
@@ -36,6 +47,17 @@ const ALLOWED = new Set([
   // paths skip FROZEN_PROPAGATION_TABLES.
   'packages/db/src/propagation.ts',
 ]);
+
+const ALLOWED: Readonly<Record<FrozenTable, ReadonlySet<string>>> = {
+  creative_sheet_items: new Set(['packages/db/src/schema/creative-sheet-items.ts']),
+  creative_dimensions: new Set([
+    'packages/db/src/schema/creative-dimensions.ts',
+    // The retired query layer. Its only caller is the `/app/creative-dimensions` workspace,
+    // which `REMOVED_WORKSPACES` redirects and whose actions refuse via `assertWorkspaceLive`;
+    // it leaves with the table.
+    'packages/db/src/creative-dimensions.ts',
+  ]),
+};
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -62,29 +84,90 @@ function imports(source: string): readonly { readonly names: string; readonly fr
   return found;
 }
 
-function importsFrozenTable(source: string): boolean {
-  return imports(source).some(
-    ({ names, from }) =>
-      /\bcreativeSheetItems\b/.test(names) || /(^|\/)schema\/creative-sheet-items$/.test(from),
-  );
+/**
+ * The frozen tables a source file imports: by the Drizzle symbol (from any module, `@tas/db`,
+ * `@tas/db/schema` or a relative path alike) or by the schema module's own path.
+ */
+function frozenTablesImportedBy(source: string): readonly FrozenTable[] {
+  const found = imports(source);
+  return (Object.keys(FROZEN_TABLES) as FrozenTable[]).filter((table) => {
+    const { symbol, module } = FROZEN_TABLES[table];
+    const symbolPattern = new RegExp(`\\b${symbol}\\b`);
+    const modulePattern = new RegExp(`(^|/)${module}$`);
+    return found.some(({ names, from }) => symbolPattern.test(names) || modulePattern.test(from));
+  });
 }
+
+/** Every non-test source file that imports the table, outside its allowlist. */
+function offenders(table: FrozenTable): string[] {
+  const out: string[] = [];
+  for (const root of SCAN_ROOTS) {
+    for (const file of sourceFiles(join(REPO_ROOT, root))) {
+      const rel = relative(REPO_ROOT, file).split('\\').join('/');
+      if (ALLOWED_EVERYWHERE.has(rel) || ALLOWED[table].has(rel)) continue;
+      if (frozenTablesImportedBy(readFileSync(file, 'utf8')).includes(table)) out.push(rel);
+    }
+  }
+  return out;
+}
+
+describe('the frozen-table import scanner', () => {
+  it('catches a fresh import of creative_dimensions by symbol, whichever module it comes from', () => {
+    expect(
+      frozenTablesImportedBy(`import { creativeDimensions } from '@tas/db/schema';\n`),
+    ).toEqual(['creative_dimensions']);
+    expect(
+      frozenTablesImportedBy(
+        `import { and, eq } from 'drizzle-orm';\nimport {\n  creativeBriefs,\n  creativeDimensions,\n} from './schema';\n`,
+      ),
+    ).toEqual(['creative_dimensions']);
+    expect(frozenTablesImportedBy(`import type { creativeDimensions } from '@tas/db';\n`)).toEqual([
+      'creative_dimensions',
+    ]);
+  });
+
+  it('catches a fresh import of the schema module by path', () => {
+    expect(
+      frozenTablesImportedBy(
+        `import { creativeDimensions as dims } from './schema/creative-dimensions';\n`,
+      ),
+    ).toEqual(['creative_dimensions']);
+    expect(
+      frozenTablesImportedBy(`import * as sheet from '../schema/creative-sheet-items';\n`),
+    ).toEqual(['creative_sheet_items']);
+  });
+
+  it('lets the brief’s own dimensions column through: the live read is a column, not a table', () => {
+    expect(
+      frozenTablesImportedBy(
+        `import { creativeBriefs, type CreativeBrief } from '@tas/db/schema';\nconst ratios = (brief: CreativeBrief): string[] => brief.dimensions;\n`,
+      ),
+    ).toEqual([]);
+    // A mention outside an import statement is not an import.
+    expect(frozenTablesImportedBy(`// creativeDimensions used to hold these\n`)).toEqual([]);
+  });
+});
 
 describe('creative_sheet_items is frozen', () => {
   it('is imported by nothing but the schema, the disabled importer block and the mapping inventory', () => {
-    const offenders: string[] = [];
-    for (const root of SCAN_ROOTS) {
-      for (const file of sourceFiles(join(REPO_ROOT, root))) {
-        const rel = relative(REPO_ROOT, file).split('\\').join('/');
-        if (ALLOWED.has(rel)) continue;
-        if (importsFrozenTable(readFileSync(file, 'utf8'))) offenders.push(rel);
-      }
-    }
-    expect(offenders, 'files importing the frozen creative_sheet_items table').toEqual([]);
+    expect(
+      offenders('creative_sheet_items'),
+      'files importing the frozen creative_sheet_items table',
+    ).toEqual([]);
   });
 
   it('keeps the importer’s sheet block switched off', () => {
     const importer = readFileSync(join(REPO_ROOT, 'packages/db/src/airtable-import.ts'), 'utf8');
     expect(importer).toMatch(/const IMPORT_FROZEN_TABLES = false as boolean;/);
+  });
+});
+
+describe('creative_dimensions is frozen: dimensions is a COLUMN on the brief, not a table', () => {
+  it('is imported by nothing but the schema, the disabled importer block, the inventory and the retired query layer', () => {
+    expect(
+      offenders('creative_dimensions'),
+      'files importing the frozen creative_dimensions table',
+    ).toEqual([]);
   });
 
   it('keeps the frozen tables in the registry but off every propagation write', () => {
