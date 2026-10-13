@@ -71,7 +71,10 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Angles',
       'Category',
       'Concept Style',
-      'Approval Status',
+      // `Approval Status` was dropped by migration 0066 (Oct 12 client sync, Ticket 2); the
+      // `client_approval_status` column surfaces at the end instead, labelled 'Client Approval'
+      // (the ONE client vocabulary) — a baseline drift the baseline run turned up, picked up here
+      // alongside Ticket 8's leading checkbox.
       'Hook examples',
       'Script idea',
       'Ad Inspo',
@@ -85,6 +88,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       'Product',
       'Persona',
       'Client Comments',
+      'Client Approval',
     ]);
     /*
      * Production Status is GONE, not reported missing.

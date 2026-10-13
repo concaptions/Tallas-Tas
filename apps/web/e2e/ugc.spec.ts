@@ -87,22 +87,20 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(
       page.locator('[data-slot="creators-table"] thead th[data-column="internal_assets_status"]'),
     ).toHaveText('Internal Assets Status');
-    // Thirty-three resolver columns + the Ticket 8 select-all checkbox = 34. Three template columns
+    // Thirty-four resolver columns + the Ticket 8 select-all checkbox = 35. Three template columns
     // this grid has never drawn as columns are stated in the notice instead.
-    expect(await headers.count()).toBe(34);
+    expect(await headers.count()).toBe(35);
     await expect(page.locator('[data-slot="creator-missing-columns"]')).toContainText(
       'profile_pic_url',
     );
 
-    // Every row carries a picture, a name and all three tracks — never a blank.
+    // Every row carries a picture, a name and all three tracks — never a blank. The frozen name
+    // cell is `nth(1)` because the Ticket 8 select-all checkbox is the first cell of every row.
     for (let index = 0; index < 5; index += 1) {
       const row = rows.nth(index);
-      await expect(row.locator('td').first().locator('[data-slot="creator-avatar"]')).toHaveCount(
-        1,
-      );
-      await expect(row.locator('td').first().locator('[data-slot="creator-name"]')).not.toHaveText(
-        '',
-      );
+      const nameCell = row.locator('td').nth(1);
+      await expect(nameCell.locator('[data-slot="creator-avatar"]')).toHaveCount(1);
+      await expect(nameCell.locator('[data-slot="creator-name"]')).not.toHaveText('');
       await expect(row.locator('[data-slot="creator-track"]')).toHaveCount(3);
     }
 

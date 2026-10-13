@@ -103,7 +103,8 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     // Cells are addressed by COLUMN KEY, not position: order is configuration now, so a reorder in
     // Column Admin would silently repoint a positional assertion at a different column.
     const row = page.locator(`[data-angle-id="${DAYLIGHT}"]`);
-    await expect(row.locator('td')).toHaveCount(16);
+    // 16 data cells + the Ticket 8 leading select-all checkbox cell = 17.
+    await expect(row.locator('td')).toHaveCount(17);
     const personaCell = row.locator('td[data-column="angle_personas"]');
     const persona = personaCell.locator('[data-slot="status-chip"]');
     await expect(persona).toHaveText('Marcus');
