@@ -8,6 +8,14 @@
  * `data-theme="light"` (the root element, or any container, which is how the /design-system page
  * shows both palettes side by side) and the OS preference when the root has not been pinned to dark.
  * `--accent-gradient` is the signature purple gradient; use it via the `.bg-brand-gradient` utility.
+ *
+ * Oct 13 (Ticket 0, the six design boards — `docs/sprint-oct12-ui-gap.md` "Token gap"): four tokens
+ * that are NOT re-themed. `--on-accent` is the ink on a filled accent or the gradient (white in both
+ * palettes: the light purples are darker, not lighter); `--on-ok` is the ink on the solid `--ok` fill
+ * (`--ok` keeps one value in both palettes, so its ink stays near-black in both); `--shadow-float`
+ * lifts a floating surface (context menu, action bar, popover) and `--shadow-sheet` is the Sheet's
+ * leftward cast. The shadows ARE re-themed: `--bg-deep` on a white surface reads as a smear, so the
+ * light blocks cast the palette's darkest ink at 16% through `var(--text)` — no second literal.
  */
 
 :root {
@@ -31,6 +39,10 @@
   --warn: #d9a441;
   --bad: #e06a63;
   --info: #6f9ad9;
+  --on-accent: #ffffff;
+  --on-ok: #0f2418;
+  --shadow-float: 0 16px 40px color-mix(in srgb, var(--bg-deep) 80%, transparent);
+  --shadow-sheet: -18px 0 44px color-mix(in srgb, var(--bg-deep) 60%, transparent);
   /* next/font/google hands the hashed families over as --font-inter / --font-jetbrains-mono
      (apps/web/src/app/layout.tsx); the handoff's stack is the fallback when it has not loaded. */
   --mono: var(--font-jetbrains-mono, 'JetBrains Mono'), ui-monospace, monospace;
@@ -56,6 +68,10 @@
   --accent-line: #6d28d9;
   --accent-soft: color-mix(in srgb, #7c3aed 12%, transparent);
   --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #a21caf 100%);
+  --on-accent: #ffffff;
+  --on-ok: #0f2418;
+  --shadow-float: 0 16px 40px color-mix(in srgb, var(--text) 16%, transparent);
+  --shadow-sheet: -18px 0 44px color-mix(in srgb, var(--text) 16%, transparent);
 }
 
 /* A dark container nested inside a light one (the /design-system swatch pair) re-declares dark. */
@@ -75,6 +91,10 @@
   --accent-line: #8b5cf6;
   --accent-soft: color-mix(in srgb, #a855f7 22%, transparent);
   --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #c026d3 100%);
+  --on-accent: #ffffff;
+  --on-ok: #0f2418;
+  --shadow-float: 0 16px 40px color-mix(in srgb, var(--bg-deep) 80%, transparent);
+  --shadow-sheet: -18px 0 44px color-mix(in srgb, var(--bg-deep) 60%, transparent);
 }
 
 @media (prefers-color-scheme: light) {
@@ -94,6 +114,10 @@
     --accent-line: #6d28d9;
     --accent-soft: color-mix(in srgb, #7c3aed 12%, transparent);
     --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #a21caf 100%);
+    --on-accent: #ffffff;
+    --on-ok: #0f2418;
+    --shadow-float: 0 16px 40px color-mix(in srgb, var(--text) 16%, transparent);
+    --shadow-sheet: -18px 0 44px color-mix(in srgb, var(--text) 16%, transparent);
   }
 }
 
@@ -111,7 +135,7 @@
   --popover: var(--surface2);
   --popover-foreground: var(--text);
   --primary: var(--accent);
-  --primary-foreground: var(--bg);
+  --primary-foreground: var(--on-accent);
   --secondary: var(--surface3);
   --secondary-foreground: var(--text);
   --muted: var(--surface2);
@@ -148,12 +172,21 @@
   --color-warn: var(--warn);
   --color-bad: var(--bad);
   --color-info: var(--info);
+  --color-on-accent: var(--on-accent);
+  --color-on-ok: var(--on-ok);
 
   --font-sans: var(--sans);
   --font-mono: var(--mono);
 
   --radius-input: 6px;
   --radius-card: 8px;
+
+  /* `shadow-float` / `shadow-sheet`. The theme name equals the token name, so Tailwind also emits
+     `:root { --shadow-float: var(--shadow-float) }` inside `@layer theme` — a self-reference that
+     never applies, because this file is imported unlayered and an unlayered declaration beats a
+     layered one on the same element. Keep the import unlayered. */
+  --shadow-float: var(--shadow-float);
+  --shadow-sheet: var(--shadow-sheet);
 
   /* shadcn surface aliases, so the vendored primitives keep compiling unchanged. */
   --color-background: var(--background);
