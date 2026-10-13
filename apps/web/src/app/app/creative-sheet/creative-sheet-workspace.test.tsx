@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { renderToStaticMarkup, renderToString } from 'react-dom/server';
+import { defaultUserViewConfig } from '@tas/domain';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCreativeSheetColumns, loadCreativeSheetWorkspace } from '@/lib/creative-sheet-source';
@@ -55,6 +56,8 @@ describe('CreativeSheetWorkspace hydration boundary', () => {
     expect(boundary).toBeGreaterThan(0);
     expect(markup.indexOf('data-slot="new-creative"')).toBeLessThan(boundary);
     expect(markup.indexOf('data-slot="tabs-trigger"')).toBeLessThan(boundary);
+    // The whole view toolbar (Ticket 7) is a header control: before the boundary with the tabs.
+    expect(markup.indexOf('data-slot="view-toolbar"')).toBeLessThan(boundary);
     expect(markup.indexOf('data-slot="creative-sheet-table"')).toBeGreaterThan(boundary);
   });
 });
@@ -103,15 +106,105 @@ describe('the sheet names its client track Client Approval (item 5b)', () => {
         initialSelection={null}
         initialSearch=""
         initialView="kanban"
+        initialKanbanField="status"
       />,
     );
     expect(columns.find((column) => column.columnKey === 'status')?.displayLabel).toBe(
       'Client Approval',
     );
     expect(columns.some((column) => column.columnKey === 'client_approval_status')).toBe(false);
-    expect(markup).toContain('<option value="status">Client Approval</option>');
+    // The board's field picker is the GroupByControl since Ticket 7; its closed Radix list is not
+    // in server markup, so the trigger — the board opened on the client track — carries the word.
+    expect(markup).toContain('data-slot="creative-sheet-group-by"');
+    expect(markup).toContain('Group: Client Approval</button>');
     // The demo fixtures still leave a few sheet columns undrawn; this one is no longer among them.
     expect(markup).not.toContain('client_approval_status');
+  });
+});
+
+/**
+ * Ticket 7: the sheet joins the per-user views (`useTableView` + `ViewToolbar`), so its grid
+ * carries the Group popover every other table has, and the board's field picker is the same
+ * control without a "None" row. The demo fixtures are the seven Niagara briefs: four Approved and
+ * three singletons on the internal track.
+ */
+describe('the sheet joins the per-user views (Ticket 7)', () => {
+  const NOW = new Date('2026-10-10T00:00:00Z');
+  async function demoSheet() {
+    const demoMode = () => true;
+    const [workspace, { columns }] = await Promise.all([
+      loadCreativeSheetWorkspace({ demoMode }),
+      loadCreativeSheetColumns({ demoMode }),
+    ]);
+    return { columns, items: buildSheetItems(workspace, NOW) };
+  }
+
+  it('renders the view toolbar with the grid Group popover, and no board picker, on the grid', async () => {
+    const { columns, items } = await demoSheet();
+    const markup = renderToString(
+      <CreativeSheetWorkspace
+        columns={columns}
+        items={items}
+        demo
+        initialSelection={null}
+        initialSearch=""
+      />,
+    );
+    expect(markup).toContain('data-slot="view-toolbar"');
+    expect(markup).toContain('data-slot="grid-group"');
+    expect(markup).toContain('data-slot="grid-filter"');
+    expect(markup).not.toContain('data-slot="creative-sheet-group-by"');
+  });
+
+  it('renders the board picker, opened on Internal Status, and no grid Group popover, on the board', async () => {
+    const { columns, items } = await demoSheet();
+    const markup = renderToString(
+      <CreativeSheetWorkspace
+        columns={columns}
+        items={items}
+        demo
+        initialSelection={null}
+        initialSearch=""
+        initialView="kanban"
+      />,
+    );
+    expect(markup).toContain('data-slot="creative-sheet-group-by"');
+    expect(markup).toContain('Group: Internal Status</button>');
+    expect(markup).not.toContain('data-slot="grid-group"');
+  });
+
+  it('groups the grid under the active saved view’s column: one counted header per status label', async () => {
+    const { columns, items } = await demoSheet();
+    const markup = renderToString(
+      <CreativeSheetWorkspace
+        columns={columns}
+        items={items}
+        demo
+        initialSelection={null}
+        initialSearch=""
+        userViews={{
+          userId: null,
+          views: [
+            {
+              id: 'view-1',
+              name: 'By status',
+              isActive: true,
+              ...defaultUserViewConfig('grid'),
+              groupBy: 'internal_status',
+            },
+          ],
+        }}
+      />,
+    );
+    const headers = markup.match(/data-slot="grid-group-header"/g) ?? [];
+    expect(headers).toHaveLength(4);
+    // The group value is the chip's LABEL (the renderer's `sortValue`), never the stored key.
+    expect(markup).toMatch(
+      /data-slot="grid-group-header"[^>]*data-group="Approved"[\s\S]*?data-slot="group-count"[^>]*>4</,
+    );
+    expect(markup).not.toContain('data-group="approved"');
+    expect(markup).toContain('Group: Internal Status</button>');
+    expect(markup.match(/data-slot="creative-sheet-row"/g)).toHaveLength(7);
   });
 });
 

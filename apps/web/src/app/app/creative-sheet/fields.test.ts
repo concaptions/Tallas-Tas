@@ -15,6 +15,7 @@ import {
   applyKanbanMoves,
   assetSubline,
   countLabel,
+  GROUP_PARAM,
   INTERNAL_STATUS_OPTIONS,
   internalStatusView,
   isKanbanField,
@@ -25,12 +26,21 @@ import {
   matchesSearch,
   OTHER_COLUMN,
   QA_CHECKS,
+  SEARCH_PARAM,
+  SELECTION_PARAM,
   SHEET_CHECKS,
   SHEET_GROUPS,
   sheetQaGate,
   STATUS_OPTIONS,
   statusView,
 } from './fields';
+
+describe('the URL parameters', () => {
+  it('spell the board field `?groupBy=` — the editor-board link and the retired list’s redirect read it — and never collide', () => {
+    expect(GROUP_PARAM).toBe('groupBy');
+    expect(new Set([SELECTION_PARAM, SEARCH_PARAM, GROUP_PARAM]).size).toBe(3);
+  });
+});
 
 describe('the two select vocabularies', () => {
   it('are the state machine’s own lists: INTERNAL_STATUS, then CLIENT_STATUS', () => {

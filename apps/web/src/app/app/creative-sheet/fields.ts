@@ -54,9 +54,14 @@ export const DEMO_FOOTER_NOTICE = 'Demo mode — changes are not saved';
 /** The record type a creative's comments are filed under — the table's name, as the client portal files them, so Focus Mode's Feedback panel shows the client's comments too. */
 export const CREATIVE_COMMENT_RECORD_TYPE = 'creative_briefs';
 
-/** The `?creative-sheet=` parameter the open row lives in, and the `?q=` the filter lives in. */
+/**
+ * The `?creative-sheet=` parameter the open row lives in, the `?q=` the filter lives in, and the
+ * `?groupBy=` the board's field lives in (the editor-board link `?view=kanban&groupBy=editorStage`
+ * and the retired Creative Design list's `?group=` alias both read it; Ticket 7 writes it back).
+ */
 export const SELECTION_PARAM = 'creative-sheet';
 export const SEARCH_PARAM = 'q';
+export const GROUP_PARAM = 'groupBy';
 
 /** One select value, ready to render: the stored key, its label and the chip tone it carries. */
 export interface SheetStatusView {

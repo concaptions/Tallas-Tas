@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
-import { getTableCapability, type ViewType } from '@tas/domain';
+import { getTableCapability, type UserViewConfig, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { EDITOR_STAGE_KEYS } from '@tas/domain/state';
 import { Button, DEMO_WRITE_HINT, Input, StatusChip } from '@tas/ui';
@@ -12,12 +12,14 @@ import { Captions, Copy, Link, RefreshCw, Trash } from '@tas/ui/icons';
 import {
   ColumnNotices,
   duplicateShortcut,
+  GroupByControl,
   KanbanBoard,
   RowContextMenu,
   SelectionBar,
   SelectionDeleteConfirm,
   SelectionStatusPicker,
-  ViewSwitcher,
+  useTableView,
+  ViewToolbar,
   type ContextMenuItem,
   type KanbanItem,
   type SelectionAction,
@@ -25,6 +27,8 @@ import {
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import {
+  applyFilters,
+  groupableFields,
   pruneSelection,
   toggleAllSelected,
   toggleSelected,
@@ -38,6 +42,8 @@ import {
 
 import { moveBriefStageAction, startBriefAction } from '@/app/app/creative-design/actions';
 import { briefPath, creativeSheetPath } from '@/lib/routes';
+import type { UserViewsResult } from '@/lib/user-view-actions';
+import { saveViewPreferenceAction } from '@/lib/view-preference-actions';
 
 import { moveCreativeSheetItemAction } from './actions';
 import { CreativeSheetPanel } from './creative-sheet-panel';
@@ -51,6 +57,7 @@ import {
   applyKanbanMoves,
   countLabel,
   EM_DASH,
+  GROUP_PARAM,
   INTERNAL_STATUS_OPTIONS,
   internalStatusView,
   isKanbanField,
@@ -85,6 +92,13 @@ import {
  * Two views, from `getTableCapability('creative-sheet')`: the Airtable-style grid and a Kanban
  * board grouped by Internal Status or Status. A card dropped in another column is one write through
  * `moveCreativeSheetItemAction`; in demo mode the board ignores the drop.
+ *
+ * Ticket 7: the grid is the viewer's saved view like every other table's (`useTableView` +
+ * `ViewToolbar`, Sprint 7 / VIEWS-01) — fields, order, freeze, sort, conditions and the Group
+ * popover all persist into `user_table_views`, so hidden columns no longer live in the browser's
+ * own store. The board's field is the same `GroupByControl` without a "None" row; it is a per-brand
+ * setting rather than a lens, so it keeps its own store (`user_view_preferences
+ * .kanban_group_by_field`, Sprint 5) and the URL (`?groupBy=`) instead of the view's `groupBy`.
  *
  * The board's third grouping, "Editing stage", is the editor's board re-homed from the retired
  * Creative Design list (2026-10-09): its cards are BRIEFS (`editor-board.ts`), grouped by
@@ -157,13 +171,27 @@ interface CreativeSheetWorkspaceProps {
   readonly demo: boolean;
   readonly initialSelection: string | null;
   readonly initialSearch: string;
-  readonly initialView?: ViewType;
+  /** A `?view=` the page was opened with: applied once, over the saved view's own type. */
+  readonly initialView?: ViewType | null;
+  /**
+   * The view the sheet opens on with no `?view=` and no active saved view — the viewer's stored
+   * preference (`loadViewPreference`), the grid by default.
+   */
+  readonly defaultView?: ViewType;
   readonly initialKanbanField?: CreativeSheetKanbanField;
+  /** The viewer's saved views (`loadUserViews`); absent in a story or a test, the browser keeps them. */
+  readonly userViews?: UserViewsResult;
 }
 
 const CAP = getTableCapability('creative-sheet') as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
+
+/** The board's three fields, in the capability's order, as the Group control lists them. */
+const KANBAN_OPTIONS = CAP.kanbanFields.map(({ field, label }) => ({ key: field, label }));
+
+/** No saved views: a story or a test mount, where `useTableView` keeps the state in the browser. */
+const NO_USER_VIEWS: UserViewsResult = { userId: null, views: [] };
 
 /** The bulk Change-status picker's two tracks; "Client Approval" per Oct 11 item 5b. */
 const STATUS_TRACKS: readonly SelectionStatusTrack[] = [
@@ -173,7 +201,10 @@ const STATUS_TRACKS: readonly SelectionStatusTrack[] = [
 
 const DELETE_DETAIL = 'They leave the sheet, the queues and the portal; nothing is erased.';
 
-function syncUrl(key: typeof SELECTION_PARAM | typeof SEARCH_PARAM, value: string | null): void {
+function syncUrl(
+  key: typeof SELECTION_PARAM | typeof SEARCH_PARAM | typeof GROUP_PARAM,
+  value: string | null,
+): void {
   const url = new URL(window.location.href);
   if (value === null || value.trim() === '') {
     url.searchParams.delete(key);
@@ -399,8 +430,10 @@ export function CreativeSheetWorkspace({
   demo,
   initialSelection,
   initialSearch,
-  initialView = 'grid',
+  initialView = null,
+  defaultView = 'grid',
   initialKanbanField = 'internalStatus',
+  userViews = NO_USER_VIEWS,
   columns,
   unconfiguredColumns = false,
 }: CreativeSheetWorkspaceProps) {
@@ -413,10 +446,16 @@ export function CreativeSheetWorkspace({
       }),
     [columns],
   );
+  /** Every column key the Fields popover can toggle, its label, and the ones the grid can bucket. */
+  const fieldKeys = useMemo(() => grid.columns.map((column) => column.key), [grid]);
+  const fieldOptions = useMemo(
+    () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
+    [grid],
+  );
+  const groupFields = useMemo(() => groupableFields(grid.columns), [grid]);
   const router = useRouter();
   const [selection, setSelection] = useState<string | null>(initialSelection);
   const [search, setSearch] = useState(initialSearch);
-  const [activeView, setActiveView] = useState<ViewType>(initialView);
   const [kanbanField, setKanbanField] = useState<CreativeSheetKanbanField>(initialKanbanField);
   const [, startTransition] = useTransition();
   const [busy, startBulk] = useTransition();
@@ -472,6 +511,51 @@ export function CreativeSheetWorkspace({
     syncUrl(SEARCH_PARAM, next);
   }, []);
 
+  const adoptView = useCallback(
+    (config: UserViewConfig) => {
+      filter(config.filter);
+    },
+    [filter],
+  );
+
+  const tableView = useTableView({
+    tableKey: CAP.tableKey,
+    userId: userViews.userId,
+    initialViews: userViews.views,
+    defaultViewType: defaultView,
+    initialViewType: initialView,
+    fieldKeys,
+    onActivate: adoptView,
+  });
+  const activeView = tableView.viewType;
+  const setActiveView = tableView.setViewType;
+  const setViewFilter = tableView.setFilter;
+  const onSearch = useCallback(
+    (next: string) => {
+      filter(next);
+      setViewFilter(next);
+    },
+    [filter, setViewFilter],
+  );
+
+  /**
+   * The board's field: state, the URL (`?groupBy=`, so the link shares it) and the viewer's
+   * per-brand preference — the Sprint 5 store the view switcher already writes on a tab change —
+   * so a reload lands on the same board. Demo mode's action answers ok without writing; the URL
+   * and the browser's view store carry the choice there.
+   */
+  const changeKanbanField = useCallback((next: CreativeSheetKanbanField) => {
+    setKanbanField(next);
+    syncUrl(GROUP_PARAM, next);
+    startTransition(() => {
+      void saveViewPreferenceAction({
+        tableKey: CAP.tableKey,
+        viewType: 'kanban',
+        kanbanGroupByField: next,
+      });
+    });
+  }, []);
+
   const close = useCallback(() => {
     select(null);
   }, [select]);
@@ -490,12 +574,22 @@ export function CreativeSheetWorkspace({
     () => (query === '' ? items : items.filter(({ item }) => matchesSearch(item, query))),
     [items, query],
   );
+  /**
+   * The view's field conditions applied once, here, so the grid, the board and Focus Mode all
+   * read the SAME narrowed row set (AI-32): `visible` already passed the search, the grid sorts
+   * afterwards. With no conditions this is the same array back.
+   */
+  const viewFilters = tableView.config.filters;
+  const filtered = useMemo(
+    () => applyFilters(visible, viewFilters, grid.columns),
+    [visible, viewFilters, grid],
+  );
   // The pending creative as a row of the grid (SMOKE-24), first until the refresh carries it.
   const pendingRow = useMemo(
     () => (pending === null ? null : pendingSheetRow(pending, new Date())),
     [pending],
   );
-  const rows = rowsWithPendingCreative(pendingRow, visible);
+  const rows = rowsWithPendingCreative(pendingRow, filtered);
 
   const open = items.find(({ item }) => item.id === selection) ?? null;
 
@@ -520,7 +614,7 @@ export function CreativeSheetWorkspace({
       select(id);
       setActiveView('focus');
     },
-    [select],
+    [select, setActiveView],
   );
 
   const finish = useCallback(
@@ -730,7 +824,7 @@ export function CreativeSheetWorkspace({
     () =>
       kanbanField === 'editorStage'
         ? []
-        : visible.map(({ item }) => {
+        : filtered.map(({ item }) => {
             const view = kanbanView(kanbanField, item);
             return {
               id: item.id,
@@ -742,7 +836,7 @@ export function CreativeSheetWorkspace({
               accentTone: view?.tone,
             };
           }),
-    [visible, kanbanField],
+    [filtered, kanbanField],
   );
   const shownKanbanItems = useMemo(
     () => applyKanbanMoves(kanbanItems, moves),
@@ -881,7 +975,7 @@ export function CreativeSheetWorkspace({
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Sheet</h1>
             <span data-slot="creative-sheet-count">
-              <StatusChip tone="mute" label={countLabel(items.length, visible.length)} />
+              <StatusChip tone="mute" label={countLabel(items.length, filtered.length)} />
             </span>
           </div>
           {newCreative}
@@ -907,12 +1001,28 @@ export function CreativeSheetWorkspace({
             <h2 id="creative-sheet-heading" className="text-sm font-medium text-text2">
               Sheet
             </h2>
-            <ViewSwitcher
+            <ViewToolbar
               tableKey={CAP.tableKey}
               supportedViews={[...CAP.supportedViews]}
               activeView={activeView}
               onViewChange={setActiveView}
               kanbanGroupByField={kanbanField}
+              views={tableView.views}
+              activeViewId={tableView.activeView?.id ?? null}
+              onActivateView={tableView.activateView}
+              onCreateView={tableView.createView}
+              onRenameView={tableView.renameView}
+              onDeleteView={tableView.deleteView}
+              fields={fieldOptions}
+              isFieldVisible={tableView.isFieldVisible}
+              onToggleField={tableView.toggleField}
+              onMoveField={tableView.moveField}
+              viewConfig={tableView.config}
+              onFreezeChange={tableView.setFrozenFields}
+              onFiltersChange={tableView.setFilters}
+              onGroupChange={tableView.setGroupBy}
+              groupFields={groupFields}
+              error={tableView.error}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -923,28 +1033,22 @@ export function CreativeSheetWorkspace({
               registryName="CREATIVE_SHEET_RENDERERS in creative-sheet-workspace.tsx"
             />
             {activeView === 'kanban' ? (
-              <select
+              <GroupByControl
+                options={KANBAN_OPTIONS}
                 value={kanbanField}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  if (isKanbanField(next)) setKanbanField(next);
+                allowNone={false}
+                menuLabel="Board columns by"
+                slot="creative-sheet-group-by"
+                onChange={(next) => {
+                  if (next !== null && isKanbanField(next)) changeKanbanField(next);
                 }}
-                className="h-8 rounded-input border border-line bg-surface px-2 text-xs text-text"
-                aria-label="Group by"
-                data-slot="creative-sheet-group-by"
-              >
-                {CAP.kanbanFields.map((option) => (
-                  <option key={option.field} value={option.field}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
             ) : null}
             <Input
               type="search"
               value={search}
               onChange={(event) => {
-                filter(event.target.value);
+                onSearch(event.target.value);
               }}
               placeholder="Search name, creative or status"
               aria-label="Search the sheet by name, creative or status"
@@ -965,7 +1069,7 @@ export function CreativeSheetWorkspace({
         */}
         <Suspense fallback={null}>
           {activeView === 'focus' ? (
-            <FocusModeView items={visible} focusedId={selection} onFocus={select} demo={demo} />
+            <FocusModeView items={filtered} focusedId={selection} onFocus={select} demo={demo} />
           ) : activeView === 'kanban' ? (
             <div className="flex flex-col gap-2">
               <KanbanBoard
@@ -995,6 +1099,8 @@ export function CreativeSheetWorkspace({
           ) : (
             <AirtableGrid
               tableKey={CAP.tableKey}
+              view={tableView.config}
+              onSortChange={tableView.setSort}
               columns={grid.columns}
               rows={rows}
               rowId={({ item }) => item.id}
@@ -1041,7 +1147,7 @@ export function CreativeSheetWorkspace({
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        filter('');
+                        onSearch('');
                       }}
                       data-slot="clear-search"
                     >

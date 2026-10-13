@@ -69,6 +69,17 @@ async function hydrated(page: Page): Promise<void> {
   await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true', { timeout: 45_000 });
 }
 
+/**
+ * The board's field picker is the shared `GroupByControl` (Ticket 7) without a "None" row: a
+ * popover, so a pick is the trigger, the option by its `data-field`, then Escape — a pick keeps
+ * the popover open so the viewer sees the radio move.
+ */
+async function pickBoardField(page: Page, field: string): Promise<void> {
+  await page.locator('[data-slot="creative-sheet-group-by"]').click();
+  await page.locator(`[data-slot="creative-sheet-group-by-option"][data-field="${field}"]`).click();
+  await page.keyboard.press('Escape');
+}
+
 test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
   test.skip(
     clerkKeys() !== undefined,
@@ -260,7 +271,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     // mode never drops, so nothing alerts at rest.
     await expect(page.locator('[data-slot="kanban-move-error"]')).toHaveCount(0);
 
-    await page.locator('[data-slot="creative-sheet-group-by"]').selectOption('status');
+    await pickBoardField(page, 'status');
     await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(ROWS);
   });
 
@@ -271,7 +282,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await hydrated(page);
 
     await page.getByRole('tab', { name: 'Kanban' }).click();
-    await page.locator('[data-slot="creative-sheet-group-by"]').selectOption('editorStage');
+    await pickBoardField(page, 'editorStage');
     const board = page.locator('[data-slot="kanban-board"]');
     const columns = board.locator(':scope > div');
     await expect(columns).toHaveCount(3);
@@ -300,6 +311,91 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="brief-off-board"]')).toHaveText(
       '4 creatives off the board (draft or approved) · 0 sheet rows with no creative',
     );
+  });
+
+  /* ── Ticket 7: the sheet joins the per-user views; the board field is the Group control ──── */
+
+  test('the grid groups under Internal Status through the Group popover, keeps it over a reload and flattens on None', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+    await hydrated(page);
+    const rows = page.locator('[data-slot="creative-sheet-row"]');
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    await expect(headers).toHaveCount(0);
+
+    // The popover offers the two status tracks — the columns the grid can bucket — and groups.
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await expect(page.locator('[data-slot="grid-group-option"][data-field="status"]')).toHaveCount(
+      1,
+    );
+    await page.locator('[data-slot="grid-group-option"][data-field="internal_status"]').click();
+    await page.keyboard.press('Escape');
+
+    // Seven briefs on four internal statuses: four Approved, three singletons. The header's
+    // `data-group` is the chip LABEL (the renderer's `sortValue`), counted in the mono face, and
+    // every data row still renders under its header.
+    await expect(headers).toHaveCount(4);
+    await expect(
+      page.locator(
+        '[data-slot="grid-group-header"][data-group="Approved"] [data-slot="group-count"]',
+      ),
+    ).toHaveText('4');
+    await expect(page.locator('[data-slot="grid-group"]')).toHaveText('Group: Internal Status');
+    await expect(rows).toHaveCount(ROWS);
+
+    // It persisted into this viewer's active view ("My view", auto-created), and a reload reads
+    // it back — in demo mode from this browser's own store, in live mode from `user_table_views`.
+    await expect(page.locator('[data-slot="views-menu"]')).toHaveText('My view');
+    await page.reload();
+    await expect(headers).toHaveCount(4);
+    await expect(page.locator('[data-slot="grid-group"]')).toHaveText('Group: Internal Status');
+
+    // "None" hands the flat grid back.
+    await hydrated(page);
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page.locator('[data-slot="grid-group-option"][data-field="__none__"]').click();
+    await page.keyboard.press('Escape');
+    await expect(headers).toHaveCount(0);
+    await expect(rows).toHaveCount(ROWS);
+  });
+
+  test('the board field is the Group control: a pick lands in ?groupBy= and a reload opens the same board', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+    await hydrated(page);
+    // The picker is a board control: absent on the grid, present once the board is up.
+    await expect(page.locator('[data-slot="creative-sheet-group-by"]')).toHaveCount(0);
+    await page.getByRole('tab', { name: 'Kanban' }).click();
+    const picker = page.locator('[data-slot="creative-sheet-group-by"]');
+    await expect(picker).toHaveText('Group: Internal Status');
+
+    // No "None" row on a board — it always groups — and the three fields in capability order.
+    await picker.click();
+    await expect(page.locator('[data-slot="creative-sheet-group-by-option"]')).toHaveText([
+      'Internal Status',
+      'Client Approval',
+      'Editing stage',
+    ]);
+    await expect(
+      page.locator('[data-slot="creative-sheet-group-by-option"][data-field="__none__"]'),
+    ).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    await pickBoardField(page, 'status');
+    await expect(page).toHaveURL(/[?&]groupBy=status/);
+    await expect(picker).toHaveText('Group: Client Approval');
+    const board = page.locator('[data-slot="kanban-board"]');
+    await expect(board.locator(':scope > div').first()).toContainText('Pending for Approval');
+
+    // A reload reads the field back from the URL and lands on the board (the view type is this
+    // browser's in demo mode; the per-brand preference's in live mode) on the client track.
+    await page.reload();
+    await expect(board).toBeVisible();
+    await expect(picker).toHaveText('Group: Client Approval');
+    await expect(board.locator(':scope > div').first()).toContainText('Pending for Approval');
+    await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(ROWS);
   });
 
   /* ── Oct 12 client sync: Focus Mode, the Sheet sidebar, multi-select ───────────────────────── */
