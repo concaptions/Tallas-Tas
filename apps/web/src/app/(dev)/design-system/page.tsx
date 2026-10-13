@@ -122,6 +122,7 @@ import {
   AirtableGridEmptyStory,
   AirtableGridSelectionStory,
   AirtableGridStory,
+  GridSelectionOverlayStory,
 } from './airtable-grid.stories';
 import { CheckboxStory, DisabledWritePopoverStory, SectionLabelStory } from './primitives.stories';
 import {
@@ -996,6 +997,14 @@ export default function DesignSystemPage() {
               indeterminate while some rows are ticked
             </h3>
             <AirtableGridSelectionStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              shared selection overlay (Ticket 8) — useGridSelection + GridSelectionOverlay: two
+              rows ticked with the picker open on load, right-click a row for the menu, Delete asks
+              once in the bar; the demo switch holds every write with the hint
+            </h3>
+            <GridSelectionOverlayStory />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">

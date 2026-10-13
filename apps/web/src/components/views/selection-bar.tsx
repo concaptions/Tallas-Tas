@@ -28,6 +28,8 @@ export interface SelectionBarProps {
   readonly count: number;
   /** Singular noun for the count line, e.g. `brief` → "2 briefs selected". */
   readonly noun: string;
+  /** Irregular plural (Ticket 8): `copy` pluralises to "copys" without it — pass `copies`. */
+  readonly plural?: string;
   readonly actions: readonly SelectionAction[];
   readonly onClear: () => void;
   /** An inline control the page opens beside the actions, e.g. the Change status picker. */
@@ -36,13 +38,14 @@ export interface SelectionBarProps {
   readonly notice?: ReactNode;
 }
 
-export function selectionCountLabel(count: number, noun: string): string {
-  return `${noun}${count === 1 ? '' : 's'} selected`;
+export function selectionCountLabel(count: number, noun: string, plural?: string): string {
+  return `${count === 1 ? noun : (plural ?? `${noun}s`)} selected`;
 }
 
 export function SelectionBar({
   count,
   noun,
+  plural,
   actions,
   onClear,
   children,
@@ -56,7 +59,7 @@ export function SelectionBar({
         <div
           data-slot="selection-bar"
           role="toolbar"
-          aria-label={`${String(count)} ${selectionCountLabel(count, noun)}`}
+          aria-label={`${String(count)} ${selectionCountLabel(count, noun, plural)}`}
           className="flex flex-wrap items-center gap-2 rounded-xl border border-line2 bg-surface2 py-2 pr-2.5 pl-3.5 shadow-float"
         >
           <span className="mr-1 flex items-center gap-2 border-r border-line2 pr-3">
@@ -67,7 +70,7 @@ export function SelectionBar({
               {count}
             </span>
             <span className="text-xs text-text2 whitespace-nowrap">
-              {selectionCountLabel(count, noun)}
+              {selectionCountLabel(count, noun, plural)}
             </span>
           </span>
           {actions.map((action) => (

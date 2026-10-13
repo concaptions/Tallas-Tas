@@ -34,6 +34,31 @@ describe('SelectionDeleteConfirm (B3.A31)', () => {
     expect(held).not.toMatch(/<button[^>]*disabled=""[^>]*>Cancel<\/button>/);
   });
 
+  it('pluralises through the plural prop: Delete 2 copies, Delete 1 copy, never copys', () => {
+    const two = renderToStaticMarkup(
+      <SelectionDeleteConfirm
+        count={2}
+        noun="copy"
+        plural="copies"
+        detail="Nothing is erased."
+        onConfirm={() => undefined}
+        onCancel={() => undefined}
+      />,
+    ).replace(/<!--.*?-->/g, '');
+    expect(two).toContain('Delete 2 copies? Nothing is erased.');
+    const one = renderToStaticMarkup(
+      <SelectionDeleteConfirm
+        count={1}
+        noun="copy"
+        plural="copies"
+        detail="Nothing is erased."
+        onConfirm={() => undefined}
+        onCancel={() => undefined}
+      />,
+    ).replace(/<!--.*?-->/g, '');
+    expect(one).toContain('Delete 1 copy? Nothing is erased.');
+  });
+
   it('holds no colour literal', () => {
     expect(confirm(2)).not.toMatch(COLOUR_LITERAL);
   });

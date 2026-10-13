@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { chipTone } from '@tas/domain/state';
-import { StatusChip } from '@tas/ui';
+import { Checkbox, StatusChip } from '@tas/ui';
 
+import { GridSelectionOverlay, SelectionDeleteConfirm, useGridSelection } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 import { toggleAllSelected, toggleSelected } from '@/components/views/airtable-grid-logic';
 
@@ -122,6 +123,107 @@ export function AirtableGridEmptyStory() {
  * `contextRowId`). One of three is ticked, so the header box shows the indeterminate bar. Ticking
  * rows changes the header through the shared `toggleSelected` / `toggleAllSelected` logic.
  */
+const DEMO_ROW_ID = (row: DemoRow) => row.id;
+
+const OVERLAY_STATUS_OPTIONS = [
+  { key: 'Draft', label: 'Draft' },
+  { key: 'Testing', label: 'Testing' },
+  { key: 'Approved', label: 'Approved' },
+];
+
+const OVERLAY_DELETE_DETAIL = 'Linked records keep their reference and go nameless.';
+
+/**
+ * The SHARED multi-select wiring every grid view adopts (Ticket 8): one `useGridSelection` call
+ * feeds the grid's checkbox column and one `GridSelectionOverlay` draws the right-click menu, the
+ * bar, the inline Change-status picker and the Delete confirm. Live: two rows arrive ticked with
+ * the picker open, right-click a row for the menu (Open → Copy link → Delete; no Duplicate — no
+ * naming formula, PRD §7), Delete asks once in the bar, a confirmed delete really drops the story
+ * rows and leaves the notice behind the cleared selection (B3.A29). The demo switch holds every
+ * write with the demo hint. The confirm line is also mounted inline below so it can be reviewed
+ * without a click.
+ */
+export function GridSelectionOverlayStory() {
+  const [demo, setDemo] = useState(false);
+  const [rows, setRows] = useState<readonly DemoRow[]>(ROWS);
+  const state = useGridSelection<DemoRow>({
+    rows,
+    rowId: DEMO_ROW_ID,
+    rowLabel: (row) => row.name,
+    demo,
+    noun: 'record',
+    linkFor: (id) => `${window.location.origin}/design-system?record=${id}`,
+    open: { label: 'Open', onOpen: () => undefined },
+    remove: {
+      detail: OVERLAY_DELETE_DETAIL,
+      run: (ids) => Promise.resolve({ ok: true as const, deleted: [...ids] }),
+      onDeleted: (ids) => {
+        setRows((current) => current.filter((row) => !ids.includes(row.id)));
+      },
+    },
+    status: {
+      tracks: [{ key: 'status', label: 'Status', options: OVERLAY_STATUS_OPTIONS }],
+      run: (ids) => Promise.resolve({ ok: true as const, moved: [...ids], refused: [] }),
+    },
+    refresh: () => undefined,
+  });
+
+  // Two rows ticked and the picker open on load, so the bar and the picker are reviewable
+  // without a click; the toggle and the action are the hook's own, run once.
+  const seeded = useRef(false);
+  const seedToggleAll = state.gridProps.selection.onToggleAll;
+  const changeStatus = state.selectionActions.find(
+    (action) => action.slot === 'selection-change-status',
+  );
+  useEffect(() => {
+    if (seeded.current) return;
+    seeded.current = true;
+    seedToggleAll(['1', '2']);
+    changeStatus?.onSelect();
+  }, [changeStatus, seedToggleAll]);
+
+  return (
+    <div className="relative flex flex-col gap-3">
+      <AirtableGrid
+        tableKey="design-system-grid-selection-overlay"
+        columns={COLUMNS}
+        rows={rows}
+        rowId={DEMO_ROW_ID}
+        rowLabel={(row) => row.name}
+        {...state.gridProps}
+        tableSlot="design-system-grid-selection-overlay-table"
+      />
+      <div className="flex flex-wrap items-center gap-4 text-xs text-text3">
+        <span>
+          Tick rows or right-click one; the bar, the picker, the confirm and the notice are the
+          hook&apos;s own state.
+        </span>
+        <label className="flex items-center gap-2 text-text2">
+          <Checkbox
+            checked={demo}
+            onChange={(event) => {
+              setDemo(event.target.checked);
+            }}
+            data-slot="grid-selection-overlay-story-demo"
+          />
+          Demo mode — every write held with the hint
+        </label>
+      </div>
+      <div className="rounded-card border border-line bg-surface px-3 py-2 text-xs text-text2">
+        <SelectionDeleteConfirm
+          count={2}
+          noun="record"
+          detail={OVERLAY_DELETE_DETAIL}
+          disabled={demo}
+          onConfirm={() => undefined}
+          onCancel={() => undefined}
+        />
+      </div>
+      <GridSelectionOverlay state={state} noun="record" />
+    </div>
+  );
+}
+
 export function AirtableGridSelectionStory() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(['1']));
   return (

@@ -6,6 +6,8 @@ export interface SelectionDeleteConfirmProps {
   readonly count: number;
   /** Singular noun, e.g. `creative` → "Delete 2 creatives?". */
   readonly noun: string;
+  /** Irregular plural (Ticket 8): `copy` pluralises to "copys" without it — pass `copies`. */
+  readonly plural?: string;
   /** What the delete means for these records, after the question. */
   readonly detail: string;
   /** Demo mode or a write in flight: the confirming button is held. */
@@ -21,6 +23,7 @@ export interface SelectionDeleteConfirmProps {
 export function SelectionDeleteConfirm({
   count,
   noun,
+  plural,
   detail,
   disabled = false,
   onConfirm,
@@ -28,8 +31,7 @@ export function SelectionDeleteConfirm({
 }: SelectionDeleteConfirmProps) {
   return (
     <span className="flex items-center gap-2" data-slot="selection-delete-confirm">
-      Delete {String(count)} {noun}
-      {count === 1 ? '' : 's'}? {detail}
+      Delete {String(count)} {count === 1 ? noun : (plural ?? `${noun}s`)}? {detail}
       <Button
         type="button"
         size="sm"

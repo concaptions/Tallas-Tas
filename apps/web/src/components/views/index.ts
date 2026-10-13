@@ -45,3 +45,18 @@ export {
   SelectionDeleteConfirm,
   type SelectionDeleteConfirmProps,
 } from './selection-delete-confirm';
+export type {
+  BulkDeleteResult,
+  BulkDuplicateResult,
+  BulkFailure,
+  BulkStatusResult,
+} from './bulk-results';
+export {
+  useGridSelection,
+  type GridPointer,
+  type GridSelectionArgs,
+  type GridSelectionExtraAction,
+  type GridSelectionOpenItem,
+  type GridSelectionState,
+} from './use-grid-selection';
+export { GridSelectionOverlay, type GridSelectionOverlayProps } from './grid-selection-overlay';

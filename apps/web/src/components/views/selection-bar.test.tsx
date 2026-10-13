@@ -70,6 +70,23 @@ describe('SelectionBar', () => {
     expect(markup).not.toContain('rounded-full');
   });
 
+  it('pluralises through the plural prop: 2 copies selected, 1 copy selected, never copys', () => {
+    expect(selectionCountLabel(2, 'copy', 'copies')).toBe('copies selected');
+    expect(selectionCountLabel(1, 'copy', 'copies')).toBe('copy selected');
+    expect(selectionCountLabel(2, 'angle')).toBe('angles selected');
+    const markup = renderToStaticMarkup(
+      <SelectionBar
+        count={2}
+        noun="copy"
+        plural="copies"
+        actions={actions}
+        onClear={() => undefined}
+      />,
+    );
+    expect(markup).toContain('copies selected');
+    expect(markup).not.toContain('copys');
+  });
+
   it('holds no colour literal', () => {
     const markup = renderToStaticMarkup(
       <SelectionBar
