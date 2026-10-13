@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { loadAllAnglePersonas } from './junction-queries';
@@ -129,4 +129,26 @@ export async function updatePersona(
     .update(personas, { ...patch, updatedBy: actorId, updatedAt: new Date() }, eq(personas.id, id))
     .returning();
   return row ?? null;
+}
+
+/**
+ * Soft-deletes the live personas of the brand among `ids` and returns the ids it actually marked
+ * (CLAUDE.md: soft delete only, never `DELETE FROM`). The scope keeps another brand's id and an
+ * already-deleted row out of the statement, so the count is honest — modelled on `softDeleteBriefs`.
+ */
+export async function softDeletePersonas(
+  db: Db,
+  brandId: string,
+  ids: readonly string[],
+  actorId: string,
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await withBrand(db, brandId)
+    .update(
+      personas,
+      { deletedAt: new Date(), updatedBy: actorId, updatedAt: new Date() },
+      inArray(personas.id, [...ids]),
+    )
+    .returning();
+  return rows.map((row) => row.id);
 }

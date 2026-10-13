@@ -5,6 +5,7 @@ import {
   getCopyById,
   insertCopy,
   listCopy,
+  softDeleteCopy,
   updateCopy,
   type CopyInput,
   type CopyListRow,
@@ -433,5 +434,29 @@ describe('updateCopyStatus — the shared Oct 5 client-status writer (`status` i
       'user_test',
     );
     expect(saved).toBeNull();
+  });
+});
+
+describe('softDeleteCopy', () => {
+  it('marks only the brand’s live rows, never DELETEs, and reports what it marked', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = newestCopy();
+    const foreign = await insertCopy(db, otherBrandId, { copyNumber: 9 }, 'user_test');
+    const before = (await listCopy(db, brandId)).length;
+
+    const marked = await softDeleteCopy(db, brandId, [target.id, foreign.id], 'user_test');
+
+    expect(marked).toEqual([target.id]);
+    expect(await getCopyById(db, brandId, target.id)).toBeNull();
+    expect(await listCopy(db, brandId)).toHaveLength(before - 1);
+    // The row still exists, soft-deleted and actor-stamped: a read without the scope finds it.
+    const [raw] = await db.select().from(copywriting).where(eq(copywriting.id, target.id));
+    expect(raw?.deletedAt).not.toBeNull();
+    expect(raw?.updatedBy).toBe('user_test');
+    // Already deleted: a second call marks nothing. An empty selection writes nothing.
+    expect(await softDeleteCopy(db, brandId, [target.id], 'user_test')).toEqual([]);
+    expect(await softDeleteCopy(db, brandId, [], 'user_test')).toEqual([]);
+    // The other brand's row is untouched.
+    expect(await getCopyById(db, otherBrandId, foreign.id)).not.toBeNull();
   });
 });

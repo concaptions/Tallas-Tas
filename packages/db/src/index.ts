@@ -39,7 +39,7 @@ export type { AssetInput, AssetListRow } from './assets';
 export { assetCategories } from './schema/assets';
 export type { AssetCategory } from './schema/assets';
 export type { AirtableExport, AirtableRecord } from './airtable-import';
-export { getAngleById, insertAngle, listAngles, updateAngle } from './angles';
+export { getAngleById, insertAngle, listAngles, softDeleteAngles, updateAngle } from './angles';
 export { restoreBrief, snapshotBrief } from './briefs-e2e';
 export type { BriefSnapshot } from './briefs-e2e';
 export type { AngleInput, AngleListRow } from './angles';
@@ -149,6 +149,7 @@ export {
   getConceptById,
   insertConcept,
   listConcepts,
+  softDeleteConcepts,
   updateConcept,
   updateConceptClientApproval,
   updateConceptClientStatus,
@@ -158,6 +159,7 @@ export {
   getCopyById,
   insertCopy,
   listCopy,
+  softDeleteCopy,
   updateCopy,
   updateCopyClientApproval,
   updateCopyStatus,
@@ -168,6 +170,7 @@ export {
   insertCreator,
   listCreators,
   listPartnershipCreators,
+  softDeleteCreators,
   updateCreator,
   updateCreatorClientApproval,
   updateCreatorClientStatus,
@@ -276,9 +279,21 @@ export {
   setNotificationChannel,
 } from './notifications';
 export type { NotificationChannel, NotificationRow, NotificationSettingRow } from './notifications';
-export { getPersonaById, insertPersona, listPersonas, updatePersona } from './personas';
+export {
+  getPersonaById,
+  insertPersona,
+  listPersonas,
+  softDeletePersonas,
+  updatePersona,
+} from './personas';
 export type { PersonaInput, PersonaListRow } from './personas';
-export { getProductById, insertProduct, listProducts, updateProduct } from './products';
+export {
+  getProductById,
+  insertProduct,
+  listProducts,
+  softDeleteProducts,
+  updateProduct,
+} from './products';
 export type { ProductInput, ProductListRow } from './products';
 export {
   createPromotionRequest,

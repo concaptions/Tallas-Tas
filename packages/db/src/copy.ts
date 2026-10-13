@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { concepts, copywriting, creativeBriefs, type Copy, type NewCopy } from './schema';
@@ -158,6 +158,28 @@ export async function updateCopy(
     )
     .returning();
   return row ?? null;
+}
+
+/**
+ * Soft-deletes the live copy rows of the brand among `ids` and returns the ids it actually marked
+ * (CLAUDE.md: soft delete only, never `DELETE FROM`). The scope keeps another brand's id and an
+ * already-deleted row out of the statement, so the count is honest — modelled on `softDeleteBriefs`.
+ */
+export async function softDeleteCopy(
+  db: Db,
+  brandId: string,
+  ids: readonly string[],
+  actorId: string,
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await withBrand(db, brandId)
+    .update(
+      copywriting,
+      { deletedAt: new Date(), updatedBy: actorId, updatedAt: new Date() },
+      inArray(copywriting.id, [...ids]),
+    )
+    .returning();
+  return rows.map((row) => row.id);
 }
 
 /**

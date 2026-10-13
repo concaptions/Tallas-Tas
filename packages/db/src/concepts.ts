@@ -1,4 +1,4 @@
-import { desc, eq, isNull } from 'drizzle-orm';
+import { desc, eq, inArray, isNull } from 'drizzle-orm';
 
 import type { Db } from './db';
 import {
@@ -281,6 +281,30 @@ export async function updateConcept(
     .update(concepts, { ...patch, updatedBy: actorId, updatedAt: new Date() }, eq(concepts.id, id))
     .returning();
   return row ?? null;
+}
+
+/**
+ * Soft-deletes the live concepts of the brand among `ids` and returns the ids it actually marked
+ * (CLAUDE.md: soft delete only, never `DELETE FROM`). The scope keeps another brand's id and an
+ * already-deleted row out of the statement, so the count is honest — modelled on `softDeleteBriefs`.
+ * Briefs pointing at a deleted concept keep their nullable `concept_id` (non-negotiable 5) and
+ * simply resolve no concept name any more.
+ */
+export async function softDeleteConcepts(
+  db: Db,
+  brandId: string,
+  ids: readonly string[],
+  actorId: string,
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await withBrand(db, brandId)
+    .update(
+      concepts,
+      { deletedAt: new Date(), updatedBy: actorId, updatedAt: new Date() },
+      inArray(concepts.id, [...ids]),
+    )
+    .returning();
+  return rows.map((row) => row.id);
 }
 
 /**

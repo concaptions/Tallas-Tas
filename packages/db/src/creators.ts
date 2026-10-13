@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { creators, type Creator, type NewCreator } from './schema';
@@ -147,6 +147,28 @@ export async function updateCreator(
     .update(creators, { ...patch, updatedBy: actorId, updatedAt: new Date() }, eq(creators.id, id))
     .returning();
   return row ?? null;
+}
+
+/**
+ * Soft-deletes the live creators of the brand among `ids` and returns the ids it actually marked
+ * (CLAUDE.md: soft delete only, never `DELETE FROM`). The scope keeps another brand's id and an
+ * already-deleted row out of the statement, so the count is honest — modelled on `softDeleteBriefs`.
+ */
+export async function softDeleteCreators(
+  db: Db,
+  brandId: string,
+  ids: readonly string[],
+  actorId: string,
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await withBrand(db, brandId)
+    .update(
+      creators,
+      { deletedAt: new Date(), updatedBy: actorId, updatedAt: new Date() },
+      inArray(creators.id, [...ids]),
+    )
+    .returning();
+  return rows.map((row) => row.id);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { listConcepts } from './concepts';
@@ -14,6 +14,7 @@ import {
   getPersonaById,
   insertPersona,
   listPersonas,
+  softDeletePersonas,
   updatePersona,
   type PersonaInput,
   type PersonaListRow,
@@ -220,5 +221,34 @@ describe('persona queries', () => {
     expect(updated?.triggerWords).toBe(target.triggerWords);
     expect(updated?.emotionalTriggers).toBe(target.emotionalTriggers);
     expect(updated?.productId).toBe(target.productId);
+  });
+});
+
+describe('softDeletePersonas', () => {
+  it('marks only the brand’s live rows, never DELETEs, and reports what it marked', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = demoPersona();
+    const foreign = await insertPersona(
+      db,
+      otherBrandId,
+      { name: 'Other brand persona' },
+      'user_test',
+    );
+    const before = (await listPersonas(db, brandId)).length;
+
+    const marked = await softDeletePersonas(db, brandId, [target.id, foreign.id], 'user_test');
+
+    expect(marked).toEqual([target.id]);
+    expect(await getPersonaById(db, brandId, target.id)).toBeNull();
+    expect(await listPersonas(db, brandId)).toHaveLength(before - 1);
+    // The row still exists, soft-deleted and actor-stamped: a read without the scope finds it.
+    const [raw] = await db.select().from(personas).where(eq(personas.id, target.id));
+    expect(raw?.deletedAt).not.toBeNull();
+    expect(raw?.updatedBy).toBe('user_test');
+    // Already deleted: a second call marks nothing. An empty selection writes nothing.
+    expect(await softDeletePersonas(db, brandId, [target.id], 'user_test')).toEqual([]);
+    expect(await softDeletePersonas(db, brandId, [], 'user_test')).toEqual([]);
+    // The other brand's row is untouched.
+    expect(await getPersonaById(db, otherBrandId, foreign.id)).not.toBeNull();
   });
 });

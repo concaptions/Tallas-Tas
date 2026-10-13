@@ -5,6 +5,7 @@ import {
   getConceptById,
   insertConcept,
   listConcepts,
+  softDeleteConcepts,
   updateConcept,
   updateConceptClientStatus,
   type ConceptInput,
@@ -649,5 +650,34 @@ describe('updateConceptClientStatus — the shared Oct 5 client-status writer', 
       'user_test',
     );
     expect(saved?.clientStatusNote).toBeNull();
+  });
+});
+
+describe('softDeleteConcepts', () => {
+  it('marks only the brand’s live rows, never DELETEs, and reports what it marked', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = demoConcept();
+    const foreign = await insertConcept(
+      db,
+      otherBrandId,
+      { name: 'OTHER-Angle-Theme' },
+      'user_test',
+    );
+    const before = (await listConcepts(db, brandId)).length;
+
+    const marked = await softDeleteConcepts(db, brandId, [target.id, foreign.id], 'user_test');
+
+    expect(marked).toEqual([target.id]);
+    expect(await getConceptById(db, brandId, target.id)).toBeNull();
+    expect(await listConcepts(db, brandId)).toHaveLength(before - 1);
+    // The row still exists, soft-deleted and actor-stamped: a read without the scope finds it.
+    const [raw] = await db.select().from(concepts).where(eq(concepts.id, target.id));
+    expect(raw?.deletedAt).not.toBeNull();
+    expect(raw?.updatedBy).toBe('user_test');
+    // Already deleted: a second call marks nothing. An empty selection writes nothing.
+    expect(await softDeleteConcepts(db, brandId, [target.id], 'user_test')).toEqual([]);
+    expect(await softDeleteConcepts(db, brandId, [], 'user_test')).toEqual([]);
+    // The other brand's row is untouched.
+    expect(await getConceptById(db, otherBrandId, foreign.id)).not.toBeNull();
   });
 });

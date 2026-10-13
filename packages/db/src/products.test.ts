@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { DEMO_BRAND_ID, PRODUCT_CSV_COLUMNS, demoProducts } from './demo-data';
@@ -6,6 +6,7 @@ import {
   getProductById,
   insertProduct,
   listProducts,
+  softDeleteProducts,
   updateProduct,
   type ProductInput,
   type ProductListRow,
@@ -172,5 +173,34 @@ describe('product queries', () => {
     expectTypeOf<ProductInput>().toHaveProperty('link');
     expectTypeOf<ProductInput>().toHaveProperty('collectionLink');
     expect(PRODUCT_CSV_COLUMNS).toEqual(['name', 'link', 'collection_link']);
+  });
+});
+
+describe('softDeleteProducts', () => {
+  it('marks only the brand’s live rows, never DELETEs, and reports what it marked', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = demoProduct();
+    const foreign = await insertProduct(
+      db,
+      otherBrandId,
+      { name: 'Other brand product', link: 'https://example.com/other' },
+      'user_test',
+    );
+    const before = (await listProducts(db, brandId)).length;
+
+    const marked = await softDeleteProducts(db, brandId, [target.id, foreign.id], 'user_test');
+
+    expect(marked).toEqual([target.id]);
+    expect(await getProductById(db, brandId, target.id)).toBeNull();
+    expect(await listProducts(db, brandId)).toHaveLength(before - 1);
+    // The row still exists, soft-deleted and actor-stamped: a read without the scope finds it.
+    const [raw] = await db.select().from(products).where(eq(products.id, target.id));
+    expect(raw?.deletedAt).not.toBeNull();
+    expect(raw?.updatedBy).toBe('user_test');
+    // Already deleted: a second call marks nothing. An empty selection writes nothing.
+    expect(await softDeleteProducts(db, brandId, [target.id], 'user_test')).toEqual([]);
+    expect(await softDeleteProducts(db, brandId, [], 'user_test')).toEqual([]);
+    // The other brand's row is untouched.
+    expect(await getProductById(db, otherBrandId, foreign.id)).not.toBeNull();
   });
 });

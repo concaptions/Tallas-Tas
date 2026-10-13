@@ -5,6 +5,7 @@ import {
   getAngleById,
   insertAngle,
   listAngles,
+  softDeleteAngles,
   updateAngle,
   type AngleInput,
   type AngleListRow,
@@ -380,5 +381,29 @@ describe('angle status (Gratsi "Angles › Status", the client-approval track)',
     expectTypeOf<AngleInput>().toHaveProperty('status');
     expectTypeOf<AngleInput['status']>().toEqualTypeOf<AngleStatusesKey | null | undefined>();
     expectTypeOf<AngleListRow['status']>().toEqualTypeOf<AngleStatusesKey | null>();
+  });
+});
+
+describe('softDeleteAngles', () => {
+  it('marks only the brand’s live rows, never DELETEs, and reports what it marked', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const target = demoAngle();
+    const foreign = await insertAngle(db, otherBrandId, { name: 'Other brand angle' }, 'user_test');
+    const before = (await listAngles(db, brandId)).length;
+
+    const marked = await softDeleteAngles(db, brandId, [target.id, foreign.id], 'user_test');
+
+    expect(marked).toEqual([target.id]);
+    expect(await getAngleById(db, brandId, target.id)).toBeNull();
+    expect(await listAngles(db, brandId)).toHaveLength(before - 1);
+    // The row still exists, soft-deleted and actor-stamped: a read without the scope finds it.
+    const [raw] = await db.select().from(angles).where(eq(angles.id, target.id));
+    expect(raw?.deletedAt).not.toBeNull();
+    expect(raw?.updatedBy).toBe('user_test');
+    // Already deleted: a second call marks nothing. An empty selection writes nothing.
+    expect(await softDeleteAngles(db, brandId, [target.id], 'user_test')).toEqual([]);
+    expect(await softDeleteAngles(db, brandId, [], 'user_test')).toEqual([]);
+    // The other brand's row is untouched.
+    expect(await getAngleById(db, otherBrandId, foreign.id)).not.toBeNull();
   });
 });

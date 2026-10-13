@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
@@ -6,6 +6,7 @@ import {
   insertCreator,
   listCreators,
   listPartnershipCreators,
+  softDeleteCreators,
   updateCreator,
   updateCreatorClientStatus,
   type CreatorInput,
@@ -466,5 +467,35 @@ describe('updateCreatorClientStatus — the shared Oct 5 client-status writer', 
       'user_test',
     );
     expect(saved).toBeNull();
+  });
+});
+
+describe('softDeleteCreators', () => {
+  it('marks only the brand’s live rows, never DELETEs, and reports what it marked', async () => {
+    const { db, brandId, otherBrandId } = await seeded();
+    const rows = await listCreators(db, brandId);
+    const [target] = rows;
+    if (target === undefined) throw new Error('seeded creators are empty');
+    const foreign = await insertCreator(
+      db,
+      otherBrandId,
+      { name: 'Other brand creator' },
+      'user_test',
+    );
+
+    const marked = await softDeleteCreators(db, brandId, [target.id, foreign.id], 'user_test');
+
+    expect(marked).toEqual([target.id]);
+    expect(await getCreatorById(db, brandId, target.id)).toBeNull();
+    expect(await listCreators(db, brandId)).toHaveLength(rows.length - 1);
+    // The row still exists, soft-deleted and actor-stamped: a read without the scope finds it.
+    const [raw] = await db.select().from(creators).where(eq(creators.id, target.id));
+    expect(raw?.deletedAt).not.toBeNull();
+    expect(raw?.updatedBy).toBe('user_test');
+    // Already deleted: a second call marks nothing. An empty selection writes nothing.
+    expect(await softDeleteCreators(db, brandId, [target.id], 'user_test')).toEqual([]);
+    expect(await softDeleteCreators(db, brandId, [], 'user_test')).toEqual([]);
+    // The other brand's row is untouched.
+    expect(await getCreatorById(db, otherBrandId, foreign.id)).not.toBeNull();
   });
 });
