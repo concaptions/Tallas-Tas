@@ -7,7 +7,12 @@ import { useRouter } from 'next/navigation';
 import { createCopyAction } from './actions';
 import { copyFunnelLabel } from '@tas/domain/copy';
 import { getTableCapability, type ViewType } from '@tas/domain';
-import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
+import {
+  CLIENT_STATUS,
+  clientApprovalLabel,
+  clientApprovalTone,
+  COPY_STATUS,
+} from '@tas/domain/state';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -19,10 +24,13 @@ import {
 
 import {
   ColumnNotices,
+  GridSelectionOverlay,
   KanbanBoard,
+  useGridSelection,
   useTableView,
   ViewToolbar,
   type KanbanItem,
+  type SelectionStatusTrack,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
@@ -32,8 +40,11 @@ import {
   type ColumnRegistry,
   type ResolvedColumnView,
 } from '@/components/views/resolved-columns';
+import { clientStatusRequiresNote } from '@/lib/client-status-vocabulary';
+import { copywritingPath } from '@/lib/routes';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 
+import { bulkMoveCopyAction, deleteCopyAction } from './bulk-actions';
 import { CopyPanel } from './copy-panel';
 import {
   EM_DASH,
@@ -97,6 +108,38 @@ interface CopywritingWorkspaceProps {
 const COPY_CAP = getTableCapability('copywriting') as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
+
+/** The grid selection's row identity, module-level so the hook's prune effect keeps one function. */
+const copyRowId = (item: CopyItem): string => item.id;
+const copyRowLabel = (item: CopyItem): string => item.title;
+
+/**
+ * The bulk Change-status picker's TWO tracks (lead's Ticket 8 answer 5): the copy status and the
+ * client-facing approval, each over its own domain vocabulary so the picker cannot drift from what
+ * the Server Action re-checks. The `status` track leaves out its note-required keys
+ * (`revisions_needed`, `disapproved` — the Oct 6 Talal ruling): a bulk move has no per-row reason
+ * to store, so those are set one copy at a time through the panel's dropdown, and the action
+ * refuses them server-side either way. The client-approval track offers the whole `CLIENT_STATUS`
+ * vocabulary, exactly as the single-row `updateCopyClientApproval` action accepts it.
+ */
+const STATUS_TRACKS: readonly SelectionStatusTrack[] = [
+  {
+    key: 'status',
+    label: 'Status',
+    options: COPY_STATUS.filter((entry) => !clientStatusRequiresNote('copywriting', entry.key)).map(
+      ({ key, label }) => ({ key, label }),
+    ),
+  },
+  {
+    key: 'clientApprovalStatus',
+    label: 'Client Approval',
+    options: CLIENT_STATUS.map(({ key, label }) => ({ key, label })),
+  },
+];
+
+/** What a bulk delete means here (lead's Ticket 8 ruling: linked rows keep their reference). */
+const DELETE_DETAIL =
+  'Linked copy types and campaigns keep their copy reference and go nameless; nothing is erased.';
 
 /** Writes `?copy=` and `?q=` without a server round trip; Next.js reads the History API back. */
 function syncUrl(selection: string | null, search: string): void {
@@ -361,6 +404,45 @@ export function CopywritingWorkspace({
   const open = openCopy(items, pending, selection);
   const panelCreating = open !== null && isPendingCopyId(open.id);
 
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
+  /** A confirmed delete that took the open row with it closes the panel instead of 404-ing it. */
+  const onDeleted = useCallback(
+    (ids: readonly string[]) => {
+      if (selection !== null && ids.includes(selection)) select(null);
+    },
+    [select, selection],
+  );
+
+  /** "Copy link" carries the absolute panel URL, the same `?copy=` a refresh reopens. */
+  const linkFor = useCallback(
+    (id: string) => `${window.location.origin}${copywritingPath}?${SELECTION_PARAM}=${id}`,
+    [],
+  );
+
+  /**
+   * Multi-select + right-click (Ticket 8): the shared hook over the SAME rows the grid draws —
+   * pending row included, so select-all matches the screen; a delete carrying its provisional id
+   * resolves nothing on the server, which is the supported case. Delete and Change status (both
+   * tracks) are the two bulk Server Actions; Open is the row click's own `select`, Copy link writes
+   * nothing. No Duplicate: the Copy # is allocator-generated, never typed (PRD §7).
+   */
+  const gridSelection = useGridSelection<CopyItem>({
+    rows,
+    rowId: copyRowId,
+    rowLabel: copyRowLabel,
+    demo,
+    noun: 'copy',
+    plural: 'copies',
+    linkFor,
+    open: { label: 'Open', onOpen: select },
+    remove: { detail: DELETE_DETAIL, run: deleteCopyAction, onDeleted },
+    status: { tracks: STATUS_TRACKS, run: bulkMoveCopyAction },
+    refresh,
+  });
+
   const kanbanItems: KanbanItem[] = useMemo(
     () =>
       filtered.map((item) => ({
@@ -530,6 +612,7 @@ export function CopywritingWorkspace({
             }}
             tableSlot="copy-table"
             rowSlot="copy-row"
+            {...gridSelection.gridProps}
             empty={
               <div data-slot="copy-empty" className="flex flex-col items-center gap-3 text-center">
                 <p className="text-sm text-text2">{narrowed ? NO_MATCH_NOTE : NO_COPY_NOTE}</p>
@@ -568,6 +651,8 @@ export function CopywritingWorkspace({
           onSaved={saved}
         />
       )}
+
+      <GridSelectionOverlay state={gridSelection} noun="copy" plural="copies" />
     </div>
   );
 }

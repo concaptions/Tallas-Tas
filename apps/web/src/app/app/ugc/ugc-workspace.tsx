@@ -14,14 +14,22 @@ import {
   TabsTrigger,
 } from '@tas/ui';
 import { getTableCapability, type ViewType } from '@tas/domain';
-import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
+import {
+  clientApprovalLabel,
+  clientApprovalTone,
+  CREATOR_INTERNAL_STATUS,
+  CREATOR_STATUS,
+} from '@tas/domain/state';
 
 import {
+  GridSelectionOverlay,
   KanbanBoard,
   ListView,
   type KanbanItem,
   type ListChip,
+  type SelectionStatusTrack,
   coverFieldOptions,
+  useGridSelection,
   useTableView,
   ViewToolbar,
   galleryItemsFrom,
@@ -49,7 +57,10 @@ import {
   TextCell,
 } from '@/components/views/grid-cells';
 import { ageBracketLabel, creatorPlatformLabel } from '@tas/domain/creators';
+import { clientStatusRequiresNote } from '@/lib/client-status-vocabulary';
+import { ugcPath } from '@/lib/routes';
 
+import { bulkMoveCreatorsAction, deleteCreatorsAction } from './bulk-actions';
 import { CreatorGalleryCard, type CreatorAssetThumb } from './creator-gallery-card';
 import { CreatorPanel, type CreatorVideo, type LinkOption } from './creator-panel';
 import { CreatorPool } from './creator-pool';
@@ -111,6 +122,37 @@ export interface UgcWorkspaceProps {
   /** The request's one clock, for the rating receipt's "3 days ago"; never a component's own. */
   readonly now: Date;
 }
+
+/** The grid selection's row identity, module-level so the hook's prune effect keeps one function. */
+const creatorRowId = (creator: CreatorCardRow): string => creator.id;
+const creatorRowLabel = (creator: CreatorCardRow): string => creator.name;
+
+/**
+ * The bulk Change-status picker's TWO tracks (lead's Ticket 8 answer 5): the internal review and
+ * the client-facing creator track, each over its own domain vocabulary so the picker cannot drift
+ * from what the Server Action re-checks. The client track leaves out its note-required keys
+ * (`revisions_needed`, `disapproved` — the Oct 6 Talal ruling): a bulk move has no per-row reason
+ * to store, so those are set one creator at a time through the panel, and the action refuses them
+ * server-side either way.
+ */
+const STATUS_TRACKS: readonly SelectionStatusTrack[] = [
+  {
+    key: 'internalCreatorStatus',
+    label: 'Internal Status',
+    options: CREATOR_INTERNAL_STATUS.map(({ key, label }) => ({ key, label })),
+  },
+  {
+    key: 'clientStatus',
+    label: 'Client Status',
+    options: CREATOR_STATUS.filter((entry) => !clientStatusRequiresNote('creators', entry.key)).map(
+      ({ key, label }) => ({ key, label }),
+    ),
+  },
+];
+
+/** What a bulk delete means here (lead's Ticket 8 ruling: linked rows keep their reference). */
+const DELETE_DETAIL =
+  'Linked collaborations and concepts keep their creator reference and go nameless; nothing is erased.';
 
 function syncUrl(tab: UgcTabKey, search: string, creator: string | null): void {
   const url = new URL(window.location.href);
@@ -531,6 +573,51 @@ export function UgcWorkspace({
     [visibleCreators, grid, tableView.config.filters],
   );
 
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
+  /** A confirmed delete that took the open row with it closes the panel instead of 404-ing it. */
+  const onDeleted = useCallback(
+    (ids: readonly string[]) => {
+      if (selection !== null && ids.includes(selection)) select(null);
+    },
+    [select, selection],
+  );
+
+  /** "Copy link" carries the absolute URL a refresh reopens: the creators tab with the panel. */
+  const linkFor = useCallback(
+    (id: string) => `${window.location.origin}${ugcPath}?tab=creators&creator=${id}`,
+    [],
+  );
+
+  /**
+   * Multi-select + right-click (Ticket 8), on the CREATORS GRID ALONE: the shared hook over the
+   * SAME narrowed rows the grid draws, so select-all never ticks a filtered-off row. Delete and
+   * Change status (both tracks) are the two bulk Server Actions; Open is the row click's own
+   * `select`, Copy link writes nothing. No Duplicate: creator names are typed, not
+   * formula-generated (PRD §7). The Partnership Ads table and the Creator Pool are not grids.
+   */
+  const gridSelection = useGridSelection<CreatorCardRow>({
+    rows: filteredCreators,
+    rowId: creatorRowId,
+    rowLabel: creatorRowLabel,
+    demo,
+    noun: 'creator',
+    linkFor,
+    open: { label: 'Open', onOpen: select },
+    remove: { detail: DELETE_DETAIL, run: deleteCreatorsAction, onDeleted },
+    status: { tracks: STATUS_TRACKS, run: bulkMoveCreatorsAction },
+    refresh,
+  });
+
+  // Leaving the creators tab clears the selection: the bar belongs to that grid and must not
+  // float over Partnership Ads or the Creator Pool.
+  const { clearSelection } = gridSelection;
+  useEffect(() => {
+    if (tab !== 'creators') clearSelection();
+  }, [tab, clearSelection]);
+
   const kanbanItems: readonly KanbanItem[] = useMemo(() => {
     return filteredCreators.map((creator) => ({
       id: creator.id,
@@ -785,6 +872,7 @@ export function UgcWorkspace({
               }}
               tableSlot="creators-table"
               rowSlot="creator-row"
+              {...gridSelection.gridProps}
             />
           )}
         </TabsContent>
@@ -824,6 +912,8 @@ export function UgcWorkspace({
           onSaved={saved}
         />
       ) : null}
+
+      <GridSelectionOverlay state={gridSelection} noun="creator" />
     </div>
   );
 }

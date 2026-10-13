@@ -1,7 +1,16 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { ugcPath } from '../src/lib/routes';
+
+/**
+ * The shell stamps `data-hydrated` from its first client effect (`src/lib/hydration-replay.ts`).
+ * A click or a right-click that lands before React has attached its handlers is dropped, so the
+ * multi-select test waits for the stamp first — same helper as `creative-sheet.spec.ts`.
+ */
+async function hydrated(page: Page): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true', { timeout: 45_000 });
+}
 
 /**
  * UGC Management with no environment variables at all — the Vercel deployment as it stands. The
@@ -314,6 +323,68 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     // Disabled means disabled: clicking it navigates nowhere and opens nothing.
     await newCreator.first().click({ force: true });
     await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
+  });
+
+  test('multi-select: the bar with its demo-held writes, select-all, and the right-click menu', async ({
+    page,
+  }) => {
+    await page.goto(ugcPath);
+    await hydrated(page);
+
+    const rows = page.locator('[data-slot="creator-row"]');
+    await expect(page.locator('[data-slot="selection-bar"]')).toHaveCount(0);
+
+    // Ticking a row selects it without opening the panel.
+    await rows.nth(0).locator('[data-slot="row-select"]').check();
+    await expect(rows.nth(0)).toHaveAttribute('data-checked', 'true');
+    await expect(page.locator('[data-slot="creator-panel"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'some');
+
+    const bar = page.locator('[data-slot="selection-bar"]');
+    await expect(bar).toBeVisible();
+    await expect(bar).toHaveAttribute('role', 'toolbar');
+    await expect(bar.locator('[data-slot="selection-count"]')).toHaveText('1');
+    await expect(bar).toContainText('creator selected');
+    // Demo mode holds both bulk writes, each explaining itself through the shared hint.
+    await expect(bar.locator('[data-slot="selection-change-status"]')).toBeDisabled();
+    await expect(bar.locator('[data-slot="selection-delete"]')).toBeDisabled();
+    await expect(bar.locator('[data-slot="disabled-write"]').first()).toHaveAttribute(
+      'title',
+      'Sign in required to save changes',
+    );
+    // No formula names a creator (PRD §7), so the bar offers no Duplicate.
+    await expect(bar.locator('[data-slot="selection-duplicate"]')).toHaveCount(0);
+
+    // The header checkbox selects every row on screen, then clears them.
+    await page.locator('[data-slot="select-all"]').click();
+    await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'all');
+    await expect(bar.locator('[data-slot="selection-count"]')).toHaveText('5');
+    await page.locator('[data-slot="select-all"]').click();
+    await expect(page.locator('[data-slot="selection-bar"]')).toHaveCount(0);
+
+    // Right-click opens the menu with the page's three items; Escape closes it.
+    await rows.nth(1).click({ button: 'right' });
+    const menu = page.locator('[data-slot="row-context-menu"]');
+    await expect(menu).toBeVisible();
+    await expect(rows.nth(1)).toHaveAttribute('data-context', 'open');
+    await expect(menu.locator('[role="menuitem"]')).toHaveText(['Open', 'Copy link', 'Delete']);
+    await expect(menu.locator('[data-slot="context-delete"]')).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+
+    // Copy link writes nothing, so it stays live in demo: headless Chromium may refuse the
+    // clipboard, in which case the notice IS the URL — either way the notice names the outcome.
+    await rows.nth(1).click({ button: 'right' });
+    await menu.locator('[data-slot="context-copy-link"]').click();
+    await expect(page.locator('[data-slot="selection-notice"]')).toHaveText(
+      /^(Link copied\.|http.*\/app\/ugc\?tab=creators&creator=.+)$/,
+    );
+
+    // Open is the row click's own panel, via the menu.
+    await rows.nth(1).click({ button: 'right' });
+    await menu.locator('[data-slot="context-open"]').click();
+    await expect(page.locator('[data-slot="creator-panel"]')).toBeVisible();
+    await expect(page).toHaveURL(/creator=/);
   });
 
   test('fits a 390px phone with no horizontal page scroll, on either tab', async ({ page }) => {
