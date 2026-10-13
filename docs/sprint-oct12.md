@@ -187,6 +187,20 @@ order they were worked; blockers and the decisions the human owns are at the bot
   Voiceover columns (Ticket 6); "Ticked by"; the backend ticket for the portal's Request Revisions
   (B5.A3, must — until it lands the "send it back from the portal → both ticks clear" check fails).
 
+### Ticket 7 — Group-by on all data tables — DONE (2026-10-13)
+
+- **Five commits**: the `GroupByControl` primitive (groupable columns only, `Layers2` trigger); the
+  seven tables passing `groupableFields` + `apps/web/e2e/group-by.spec.ts`; the Creative Sheet joining
+  the per-user views with the Kanban picker as a persisted GroupByControl; status group headers as
+  `StatusChip` + booleans grouping as Yes/No; this docs commit. Details in `docs/decisions.md`
+  2026-10-13 "Ticket 7".
+- **Persistence**: grid grouping was already per user (`user_table_views.group_by`, Sprint 7); the
+  Creative Sheet now participates; the Kanban field persists in `user_view_preferences` + `?groupBy=`.
+- **E2E**: `group-by.spec.ts` green on all eight pages; the UGC `user-views` and `first-paint-click`
+  failures reproduce at the pre-ticket commit (pre-existing, container-bound; noted in decisions).
+- **Follow-up**: fold the Themes / UGC / Copywriting / Angles cell-tone maps into the domain's
+  `chipTone` so a grouped header chip can never diverge from the cells beneath it.
+
 ## Blockers and decisions the human owns
 
 - **Apply on Railway (operator, in this order)**: `cd packages/db && DATABASE_URL=… node apply66.mjs

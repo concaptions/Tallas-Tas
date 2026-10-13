@@ -2317,3 +2317,43 @@ without `qaResetFor` and without an activity row (B5.A3, must); the client-statu
 ticks clear" fails on that path. Open design questions (white ink contrast on the violet end of the
 dark gradient; who grades a Motion Image; the count noun; Due/Assignee sheet columns; Music/Voiceover
 columns; "ticked by") are listed in the gap report.
+
+## 2026-10-13 — Ticket 7: one GroupByControl, groupable columns only, the Creative Sheet joins the per-user views
+
+**The defect was the offer, not the control.** The Group popover has been shared since AI-32, but it
+offered every column, including ones `groupRows` cannot read (no `sortValue` / `cellTitle`): picking
+Angles' Formats read "Group: Formats" while the grid stayed flat. `GroupByControl` replaces
+`GroupMenu` with the same slots and trigger text; `isGroupable` / `groupableFields`
+(`airtable-grid-logic.ts`) are now the one readable-column rule inside the offer, `applyFilters` AND
+`groupRows`, and each of the seven wired tables passes `groupableFields(grid.columns)`. The trigger
+wears `Layers2` from `@tas/ui/icons` (canonical; `Layers` is an alias in lucide 1.46 and is not
+exported). Copywriting's controlled grid had no `onSortChange` — a header click was a no-op; fixed.
+
+**The Creative Sheet joins the per-user views.** It was the one page without `useTableView`: an
+uncontrolled grid, hidden columns in the browser's localStorage, no Group control, and a native
+`<select>` for the Kanban field that survived neither a reload nor a user. It now loads
+`loadUserViews('creative-sheet')` + the view preference like every table; hidden columns moved from
+localStorage to the saved view (a visitor's old choice reappears once). TWO stores for "group by" on
+this page, on purpose: grid grouping lives in `user_table_views.group_by` (the Sprint 7 view), the
+KANBAN field in `user_view_preferences.kanban_group_by_field` + `?groupBy=` (the Sprint 5 store) —
+folding the board field into the view would mix two vocabularies (camelCase kanban fields vs
+Postgres column keys) and need a fallback on every view switch. A pick writes the preference and the
+URL on click only, and consumes the retired Creative Design redirect's `?group=` alias.
+
+**Group headers (B6.V15, deferred from Ticket 0) and booleans (GAP-5).** Columns gain `groupLabel`
+(the word a group is headed by, from the raw cell text) and `groupHeader` (how the header prints that
+label). `groupRows` buckets by the LABEL, so a boolean's `'1'` and `'true'` fold into one 'Yes'
+group; `data-group` keeps the first raw value seen and the empty group stays words, never a chip.
+Status columns head their groups with the `StatusChip` toned by `chipTone(label)` — the one tone
+source — on the GRID only (Kanban column headers stay text, the Ticket 0 ruling). KNOWN DIVERGENCE,
+left on purpose: Themes, UGC, Copywriting and Angles tone their CELLS from their own vocabulary maps
+(`themeStatusTone`, `creatorStatusTone`, `copyStatusTone`, `ANGLE_STATUS_TONE`), so a grouped header
+chip can read mute over toned cells (a grey 'Done' over green 'Done' cells). The cure is finishing
+the B6.V11 consolidation — folding those maps into the domain's one function — a follow-up ticket,
+never a second per-page tone map.
+
+**E2E.** `apps/web/e2e/group-by.spec.ts` covers all eight pages in demo mode (the render-only column
+drawn and not offered; grouping draws counted headers; a reload keeps the lens; None flattens). The
+five UGC `user-views.spec.ts` failures and the `first-paint-click` timing failures reproduce at the
+pre-ticket commit (verified in a throwaway checkout) and are pre-existing: the UGC Radix menus time
+out under two workers on this container; `group-by.spec.ts`'s own UGC grouping test passes.

@@ -72,14 +72,7 @@ interface ViewToolbarProps {
   readonly error?: string | null;
 }
 
-/**
- * The strip above every one of the six tables (Sprint 7, VIEWS-01): the view type switch, the
- * viewer's saved views, the Fields popover (Grid, Gallery and List — a Kanban column is not a
- * field), the Freeze popover on the Grid (action item 22) and the Cover popover on the Gallery
- * (action item 16), and the Group popover on the Grid (AI-32; Ticket 7 narrowed it to the columns
- * the grid can bucket). One component so the controls sit in the same place on every page, and so
- * a control that makes no sense for the active view is simply not there.
- */
+/** A field list in the viewer's saved order — what every popover of the strip reads. */
 function inViewerOrder(
   fields: readonly FieldOption[],
   viewConfig: UserViewConfig | undefined,
@@ -93,6 +86,14 @@ function inViewerOrder(
       });
 }
 
+/**
+ * The strip above every one of the six tables (Sprint 7, VIEWS-01): the view type switch, the
+ * viewer's saved views, the Fields popover (Grid, Gallery and List — a Kanban column is not a
+ * field), the Freeze popover on the Grid (action item 22) and the Cover popover on the Gallery
+ * (action item 16), and the Group popover on the Grid (AI-32; Ticket 7 narrowed it to the columns
+ * the grid can bucket). One component so the controls sit in the same place on every page, and so
+ * a control that makes no sense for the active view is simply not there.
+ */
 export function ViewToolbar({
   tableKey,
   supportedViews,

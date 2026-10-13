@@ -216,6 +216,9 @@ function syncUrl(
   } else {
     url.searchParams.set(key, value);
   }
+  // The retired Creative Design redirect arrives as `?group=`; a pick consumes the alias so the
+  // shared URL names one board, not two.
+  if (key === GROUP_PARAM) url.searchParams.delete('group');
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
 

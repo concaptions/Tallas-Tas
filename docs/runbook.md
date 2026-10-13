@@ -104,6 +104,12 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Oct 12 UI overhaul, Ticket 0 (2026-10-13) · the live Playwright spec `apps/web/e2e/live/briefs-start.spec.ts`
+  now reads the Activity entry's `data-value` attributes (the grouped QA auto-reset entry); it is typechecked
+  but unrun here (no Clerk test instance): run `pnpm test:e2e -- --project=live` once with the four live
+  variables set. Visually: `/app/creative-sheet` grid, sidebar and Focus Mode, `/app/creative-design/<id>`
+  and `/design-system` were screenshot-checked in demo mode in both themes; a live brand (Gratsi) still
+  deserves one look at the gated Approve popover and the grouped Activity entry after a real Request Changes.
 - Oct 12 client sync, Phase A finalisation (2026-10-12) · 0066 and 0067 were applied to Railway BY HAND
   before their files existed; record their hashes so a future migrate run stays consistent (both
   scripts are record-aware: they verify the end state and insert the hash only, nothing is re-run):
