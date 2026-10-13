@@ -15,6 +15,7 @@ import {
   clientStatusView,
   conceptViewFromParam,
   internalStatusView,
+  SELECTION_PARAM,
   type ConceptItem,
   type ConceptLinkedRecord,
 } from './fields';
@@ -130,6 +131,10 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
 
+  const requestedSelection = params[SELECTION_PARAM];
+  const initialSelection =
+    typeof requestedSelection === 'string' && requestedSelection !== '' ? requestedSelection : null;
+
   return (
     <ConceptsWorkspace
       columns={columns}
@@ -138,6 +143,7 @@ export default async function ConceptsPage({ searchParams }: ConceptsPageProps) 
       demo={demo}
       initialView={view}
       initialSearch={initialSearch}
+      initialSelection={initialSelection}
       userViews={userViews}
     />
   );

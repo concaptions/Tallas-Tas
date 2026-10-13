@@ -136,7 +136,7 @@ const MODULES: readonly ModuleEntry[] = [
     heading: 'Copywriting',
     rowSlot: 'copy-row',
     clickSlot: 'copy-row-title',
-    opens: { panelSlot: 'copy-panel' },
+    opens: { panelSlot: 'record-sheet' },
     fields: [
       { gratsi: 'Copy #', slot: 'copy-panel-title' },
       { gratsi: 'Status', label: 'Status' },

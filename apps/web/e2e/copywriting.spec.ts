@@ -133,9 +133,14 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // the panel (see the cell's own test below).
     await firstRow.locator('[data-slot="copy-row-title"]').click();
 
-    const panel = page.locator('[data-slot="copy-panel"]');
+    const panel = page.locator('[data-slot="record-sheet"]');
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="copy-panel-title"]')).toHaveText(title);
+
+    // The shared `RecordSheet` carries the counter and both chevrons (Ticket 9, part 3).
+    await expect(panel.locator('[data-slot="record-sheet-counter"]')).toBeVisible();
+    await expect(panel.locator('[data-slot="record-sheet-prev"]')).toBeVisible();
+    await expect(panel.locator('[data-slot="record-sheet-next"]')).toBeVisible();
 
     // Exactly the four PRD §5.11 copy fields, in order, each with its guidance.
     await expect(panel.locator('#copy-field-primaryCopy')).toBeVisible();
@@ -150,43 +155,23 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // Open state is in the URL, so a refresh reopens it and the link is shareable.
     await expect(page).toHaveURL(/\?copy=/);
     await page.reload();
-    await expect(page.locator('[data-slot="copy-panel"]')).toBeVisible();
+    await expect(page.locator('[data-slot="record-sheet"]')).toBeVisible();
 
-    // Not a modal: the table is still there beside the panel.
+    // Not a focus trap on the surrounding table: the table is still rendered beside the panel.
     await expect(page.locator('[data-slot="copy-row"]')).toHaveCount(4);
 
-    // Escape still closes the panel (copy-panel.tsx keeps its window keydown listener), but the
-    // Sprint 5 view switcher and Kanban board made this workspace's client bundle heavier, so the
-    // reloaded page can still be hydrating when a single keypress lands and the listener is not
-    // attached yet. Re-press until the close takes instead of pressing exactly once.
+    // Escape closes the panel through `RecordSheet`'s own dismiss, but the Sprint 5 view switcher
+    // and Kanban board made this workspace's client bundle heavier, so the reloaded page can
+    // still be hydrating when a single keypress lands. Re-press until the close takes.
     await expect(async () => {
       await page.keyboard.press('Escape');
-      await expect(page.locator('[data-slot="copy-panel"]')).toHaveCount(0, { timeout: 1_000 });
+      await expect(page.locator('[data-slot="record-sheet"]')).toHaveCount(0, { timeout: 1_000 });
     }).toPass({ timeout: 45_000 });
     await expect(page).not.toHaveURL(/\?copy=/);
   });
 
-  test('the Oct 5 client-status badge + dropdown mount in the copy panel', async ({ page }) => {
-    await page.goto(copywritingPath);
-
-    const firstRow = page.locator('[data-slot="copy-row"]').first();
-    await firstRow.locator('[data-slot="copy-row-title"]').click();
-
-    const panel = page.locator('[data-slot="copy-panel"]');
-    await expect(panel).toBeVisible();
-
-    const section = panel.locator('[data-slot="copy-client-status"]');
-    await expect(section).toBeVisible();
-    await expect(section.locator('[data-slot="status-chip"]').first()).toBeVisible();
-
-    const dropdown = section.locator('[data-slot="client-status-dropdown"]');
-    await expect(dropdown).toHaveAttribute('data-table-key', 'copywriting');
-
-    // COPY_STATUS has `disapproved` AND `revisions_needed`. The Textarea is hidden until the
-    // chosen key is a note-required branch; the first copy row opens on `approved`, so it is
-    // not shown.
-    await expect(section.locator('textarea[name="client_status_note"]')).toHaveCount(0);
-  });
+  // The Oct 5 `copy-client-status` section left the panel on 2026-10-11 (SMOKE-34); Ticket 9 does
+  // not reintroduce it, and the matching assertion block for it was removed with this commit.
 
   test('the Linked Creative chip goes to the brief instead of opening the panel', async ({
     page,
@@ -201,7 +186,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
 
     // The cell stops the row's own click, so this is a navigation and not a panel.
     await expect(page).toHaveURL(/\/app\/creative-design\//);
-    await expect(page.locator('[data-slot="copy-panel"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="record-sheet"]')).toHaveCount(0);
   });
 
   test('Linked Creative is a select of brief names, never a text input', async ({ page }) => {
@@ -212,7 +197,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       .locator('[data-slot="copy-row-title"]')
       .click();
 
-    const panel = page.locator('[data-slot="copy-panel"]');
+    const panel = page.locator('[data-slot="record-sheet"]');
     const select = panel.locator('[data-slot="copy-creative-select"]');
 
     await expect(select).toHaveRole('combobox');
@@ -236,7 +221,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // select so the reader can jump to that brief without opening the drop-down.
     await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
 
-    const panel = page.locator('[data-slot="copy-panel"]');
+    const panel = page.locator('[data-slot="record-sheet"]');
     const chip = panel.locator('[data-slot="copy-creative-chip"]');
     await expect(chip).toBeVisible();
     await expect(chip).toContainText('Open ');
@@ -245,7 +230,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // The unattached copy row has nothing to point at (`creative_brief_id` null), so no chip
     // renders at all — only the "No creative" option in the select.
     await page.goto(`${copywritingPath}?copy=${COPY_BUNDLE_UNATTACHED_ID}`);
-    await expect(page.locator('[data-slot="copy-panel"]')).toBeVisible();
+    await expect(page.locator('[data-slot="record-sheet"]')).toBeVisible();
     await expect(page.locator('[data-slot="copy-creative-chip"]')).toHaveCount(0);
   });
 
@@ -254,7 +239,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
   }) => {
     await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
 
-    const panel = page.locator('[data-slot="copy-panel"]');
+    const panel = page.locator('[data-slot="record-sheet"]');
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="copy-panel-title"]')).toHaveText('Copy #1');
 
@@ -303,7 +288,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // hidden submit input mirrors the empty value.
     await page.goto(`${copywritingPath}?copy=${COPY_BODY_CLOCK_ID}`);
 
-    const panel = page.locator('[data-slot="copy-panel"]');
+    const panel = page.locator('[data-slot="record-sheet"]');
     const select = panel.locator('[data-slot="copy-product-select"]');
     await expect(select).toHaveRole('combobox');
     await expect(select).toContainText('No product');
@@ -323,7 +308,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       .locator('[data-slot="copy-row-title"]')
       .click();
 
-    const panel = page.locator('[data-slot="copy-panel"]');
+    const panel = page.locator('[data-slot="record-sheet"]');
     await expect(panel.locator('[data-slot="copy-demo-note"]')).toContainText(
       'changes are not saved',
     );
@@ -369,7 +354,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // Ticking a row selects it without opening the panel.
     await rows.nth(0).locator('[data-slot="row-select"]').check();
     await expect(rows.nth(0)).toHaveAttribute('data-checked', 'true');
-    await expect(page.locator('[data-slot="copy-panel"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="record-sheet"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'some');
 
     const bar = page.locator('[data-slot="selection-bar"]');
@@ -417,7 +402,7 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     // Open is the row click's own panel, via the menu.
     await rows.nth(1).click({ button: 'right' });
     await menu.locator('[data-slot="context-open"]').click();
-    await expect(page.locator('[data-slot="copy-panel"]')).toBeVisible();
+    await expect(page.locator('[data-slot="record-sheet"]')).toBeVisible();
     await expect(page).toHaveURL(/\?copy=/);
   });
 

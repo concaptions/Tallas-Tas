@@ -18,6 +18,7 @@ import {
 import { validateCopyDraft, type CopyDraft } from '@tas/domain/copy';
 import { clientApprovalLabel, clientApprovalTone } from '@tas/domain/state';
 
+import { RecordSheet, type RecordSheetNavigation } from '@/components/views';
 import { briefPath, productsPath } from '@/lib/routes';
 
 import { updateCopyAction, type CopyActionResult, type CopyFieldName } from './actions';
@@ -53,11 +54,10 @@ import {
 } from './fields';
 
 /**
- * The right-side copy panel (PRD §5.11, ticket criteria 6 and 7).
- *
- * Deliberately not a modal, exactly as the Personas panel is not: no backdrop, no focus trap, no
- * `aria-modal`, so the table beside it stays visible and clickable while this is open. Fixed to the
- * right edge at 60% of the viewport, full width under 900px, closing on Escape or its close button.
+ * The right-side copy panel (PRD §5.11, ticket criteria 6 and 7). The SHELL is the shared
+ * `RecordSheet` since Ticket 9 (part 3): header with counter + prev/next, keyboard ArrowLeft /
+ * ArrowRight through the grid-visible set, close through its built-in button and overlay. The
+ * form, the `useActionState` save, the demo-note slot and the pending-create wiring are unchanged.
  *
  * FOUR COPY FIELDS, IN ONE ORDER, FROM ONE DESCRIPTOR. Primary Copy, Headline, News Feed / Link
  * Description and CTA come from `COPY_FIELDS`; the panel renders that list and knows nothing else.
@@ -102,6 +102,9 @@ interface CopyPanelProps {
   readonly creating?: boolean;
   readonly onClose: () => void;
   readonly onSaved: () => void;
+  /** The shared sidebar's prev/next walk through the grid-visible set (Ticket 9, part 3). */
+  readonly nav?: RecordSheetNavigation;
+  readonly onNavigate?: (id: string) => void;
 }
 
 /** What a disabled control says while the row is being created. */
@@ -161,6 +164,8 @@ export function CopyPanel({
   creating = false,
   onClose,
   onSaved,
+  nav,
+  onNavigate,
 }: CopyPanelProps) {
   // Demo mode and a row still being created lock the same controls; only the hint differs.
   const locked = demo || creating;
@@ -183,17 +188,8 @@ export function CopyPanel({
     );
   }, []);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
+  // Escape and overlay-dismiss are handled by the shared RecordSheet (Ticket 9, part 3); no
+  // panel-local keydown listener is needed any more.
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -302,46 +298,29 @@ export function CopyPanel({
   const savedWarnings = state !== null && state.ok ? Object.keys(state.warnings).length : 0;
 
   return (
-    <aside
-      data-slot="copy-panel"
-      aria-label={`Copy: ${item.title}`}
-      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-lg min-[900px]:w-[60%]"
+    <RecordSheet
+      open
+      onClose={onClose}
+      nav={nav}
+      onNavigate={onNavigate}
+      title={item.title}
+      titleSlot="copy-panel-title"
+      width="form"
+      description={`Copy: ${item.title}`}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Copywriting</p>
-          <h2
-            className="truncate font-mono text-lg font-semibold text-text"
-            data-slot="copy-panel-title"
-          >
-            {item.title}
-          </h2>
-          {creating ? (
-            <p className="text-xs text-text3" role="status" data-slot="copy-panel-creating">
-              {CREATING_HINT}
-            </p>
-          ) : null}
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          aria-label="Close panel"
-          data-slot="copy-panel-close"
-        >
-          Close
-        </Button>
-      </header>
-
-      <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+      {creating ? (
+        <p className="mb-3 text-xs text-text3" role="status" data-slot="copy-panel-creating">
+          {CREATING_HINT}
+        </p>
+      ) : null}
+      <form action={formAction} className="-m-4 flex min-h-full flex-col">
         <input type="hidden" name="id" value={item.id} />
         <input type="hidden" name="copyTypeIds" value="" data-slot="copy-types-marker" />
         {selectedCopyTypeIds.map((copyTypeId) => (
           <input key={copyTypeId} type="hidden" name="copyTypeIds" value={copyTypeId} />
         ))}
 
-        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+        <div className="flex-1 px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-7">
             <section className="flex flex-col gap-3">
               <h3
@@ -767,6 +746,6 @@ export function CopyPanel({
           </DisabledWrite>
         </footer>
       </form>
-    </aside>
+    </RecordSheet>
   );
 }

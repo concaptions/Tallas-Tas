@@ -23,7 +23,7 @@ test.describe('New copy on the live Copywriting page', () => {
     await page.locator('[data-slot="new-copy"]').click();
     await expect(page.locator('[data-copy-pending="true"]')).toBeVisible({ timeout: 500 });
     // SMOKE-25: the panel opens on the pending copy at the press, not after the round trip.
-    await expect(page.locator('[data-slot="copy-panel"]')).toBeVisible({ timeout: 600 });
+    await expect(page.locator('[data-slot="record-sheet"]')).toBeVisible({ timeout: 600 });
     await expect(page.locator('[data-slot="copy-panel-creating"]')).toHaveCount(0, {
       timeout: 30_000,
     });

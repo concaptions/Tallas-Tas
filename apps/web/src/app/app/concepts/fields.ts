@@ -114,6 +114,14 @@ export const VIEW_PARAM = 'view';
 export const SEARCH_PARAM = 'q';
 
 /**
+ * The URL parameter the open row lives in (Ticket 9, part 3). A row click writes `?concept=<id>`
+ * so a refresh reopens the sidebar and the narrowed-plus-open link is shareable; the full detail
+ * route (`/app/concepts/<id>`) remains the Name link in the row and the "Open full page" entry on
+ * the right-click menu.
+ */
+export const SELECTION_PARAM = 'concept';
+
+/**
  * The view a `?view=` value asks for. Anything absent or unrecognised is the table, which is the
  * default the ticket fixes — so a stale link never lands a reader on a blank screen.
  */

@@ -26,6 +26,8 @@ import {
   ColumnNotices,
   GridSelectionOverlay,
   KanbanBoard,
+  onScreenOrder,
+  recordNavigation,
   useGridSelection,
   useTableView,
   ViewToolbar,
@@ -448,6 +450,17 @@ export function CopywritingWorkspace({
     refresh,
   });
 
+  /**
+   * The sidebar's prev/next walks the grid-visible rows in the order the grid draws them
+   * (Ticket 9, part 3). The kanban view keeps the raw order; the grid sorts and groups through
+   * `onScreenOrder`, so a Ctrl ↑ / Ctrl ↓ or a chevron step moves to the row literally underneath.
+   */
+  const order = useMemo(
+    () => (activeView === 'kanban' ? rows : onScreenOrder(rows, grid.columns, tableView.config)),
+    [activeView, rows, grid.columns, tableView.config],
+  );
+  const nav = useMemo(() => recordNavigation(order.map(copyRowId), selection), [order, selection]);
+
   const kanbanItems: KanbanItem[] = useMemo(
     () =>
       filtered.map((item) => ({
@@ -654,6 +667,8 @@ export function CopywritingWorkspace({
           demo={demo}
           onClose={close}
           onSaved={saved}
+          nav={nav}
+          onNavigate={select}
         />
       )}
 

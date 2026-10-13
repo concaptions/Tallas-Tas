@@ -22,6 +22,8 @@ import {
   galleryItemsFrom,
   GridSelectionOverlay,
   ListView,
+  onScreenOrder,
+  recordNavigation,
   useGridSelection,
   useTableView,
   ViewToolbar,
@@ -54,6 +56,7 @@ import {
   NO_CONCEPTS_NOTE,
   NO_MATCH_NOTE,
   SEARCH_PARAM,
+  SELECTION_PARAM,
   VIEW_PARAM,
   conceptCountLabel,
   filteredConceptCountLabel,
@@ -106,6 +109,8 @@ interface ConceptsWorkspaceProps {
   readonly initialView: ConceptView;
   /** The `?q=` filter the page was opened with; `''` when there is none. */
   readonly initialSearch: string;
+  /** The open row's id from `?concept=` (Ticket 9, part 3); `null` when the sidebar is shut. */
+  readonly initialSelection?: string | null;
   /** The viewer's saved views of this table (VIEWS-01); `userId` null in demo mode. */
   readonly userViews: UserViewsResult;
 }
@@ -152,11 +157,12 @@ function conceptViewOf(viewType: ViewType): ConceptView {
 }
 
 /**
- * Writes both pieces of list state without a server round trip; Next.js reads the History API back.
- * A default is deleted rather than written as `?view=table` or `?q=`, so a cleared list leaves a
- * clean URL.
+ * Writes the three pieces of list state without a server round trip; Next.js reads the History
+ * API back. A default is deleted rather than written as `?view=table`, `?q=` or `?concept=`, so a
+ * cleared list leaves a clean URL. The sidebar's open row rides along as `?concept=<id>` since
+ * Ticket 9 (part 3), so a refresh reopens the sidebar and the link is shareable.
  */
-function syncUrl(view: ConceptView, search: string): void {
+function syncUrl(view: ConceptView, search: string, selection: string | null): void {
   const url = new URL(window.location.href);
   if (view === 'table') {
     url.searchParams.delete(VIEW_PARAM);
@@ -167,6 +173,11 @@ function syncUrl(view: ConceptView, search: string): void {
     url.searchParams.delete(SEARCH_PARAM);
   } else {
     url.searchParams.set(SEARCH_PARAM, search);
+  }
+  if (selection === null) {
+    url.searchParams.delete(SELECTION_PARAM);
+  } else {
+    url.searchParams.set(SELECTION_PARAM, selection);
   }
   window.history.replaceState(null, '', `${url.pathname}${url.search}`);
 }
@@ -305,6 +316,7 @@ export function ConceptsWorkspace({
   demo,
   initialView,
   initialSearch,
+  initialSelection = null,
   userViews,
   columns,
   unconfiguredColumns = false,
@@ -324,12 +336,21 @@ export function ConceptsWorkspace({
   const groupFields = useMemo(() => groupableFields(grid.columns), [grid]);
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
-  const [selection, setSelection] = useState<string | null>(null);
+  const [selection, setSelection] = useState<string | null>(initialSelection);
   const viewRef = useRef<ConceptView>(initialView);
+  const searchRef = useRef<string>(initialSearch);
+  const selectionRef = useRef<string | null>(initialSelection);
+
+  const select = useCallback((next: string | null) => {
+    setSelection(next);
+    selectionRef.current = next;
+    syncUrl(viewRef.current, searchRef.current, next);
+  }, []);
 
   const filter = useCallback((next: string) => {
     setSearch(next);
-    syncUrl(viewRef.current, next);
+    searchRef.current = next;
+    syncUrl(viewRef.current, next, selectionRef.current);
   }, []);
 
   const adoptView = useCallback(
@@ -362,9 +383,9 @@ export function ConceptsWorkspace({
     (next: ViewType) => {
       tableView.setViewType(next);
       viewRef.current = conceptViewOf(next);
-      syncUrl(conceptViewOf(next), search);
+      syncUrl(conceptViewOf(next), searchRef.current, selectionRef.current);
     },
-    [search, tableView],
+    [tableView],
   );
 
   const onSearch = useCallback(
@@ -380,13 +401,16 @@ export function ConceptsWorkspace({
   }, [onSearch]);
 
   /** A click on a row, card or list row opens the panel; only the NAME link navigates. */
-  const open = useCallback((item: ConceptItem) => {
-    setSelection(item.id);
-  }, []);
+  const open = useCallback(
+    (item: ConceptItem) => {
+      select(item.id);
+    },
+    [select],
+  );
 
   const closePanel = useCallback(() => {
-    setSelection(null);
-  }, []);
+    select(null);
+  }, [select]);
 
   const create = useCallback(() => {
     router.push(conceptPath(NEW_CONCEPT));
@@ -416,9 +440,12 @@ export function ConceptsWorkspace({
   }, [router]);
 
   /** The menu's "Open": the row click's own panel, by id. */
-  const openById = useCallback((id: string) => {
-    setSelection(id);
-  }, []);
+  const openById = useCallback(
+    (id: string) => {
+      select(id);
+    },
+    [select],
+  );
 
   /** The menu's "Open full page": the concept's real route, the same `href` the name link carries. */
   const openFullPage = useCallback(
@@ -429,9 +456,12 @@ export function ConceptsWorkspace({
   );
 
   /** A confirmed delete that took the open row with it closes the panel instead of 404-ing it. */
-  const onDeleted = useCallback((ids: readonly string[]) => {
-    setSelection((current) => (current !== null && ids.includes(current) ? null : current));
-  }, []);
+  const onDeleted = useCallback(
+    (ids: readonly string[]) => {
+      if (selectionRef.current !== null && ids.includes(selectionRef.current)) select(null);
+    },
+    [select],
+  );
 
   /** "Copy link" carries the absolute DETAIL route — no `?concept=` parameter exists (AI-52). */
   const linkFor = useCallback((id: string) => `${window.location.origin}${conceptPath(id)}`, []);
@@ -483,6 +513,22 @@ export function ConceptsWorkspace({
   }, [filtered]);
 
   const openConcept = filtered.find((item) => item.id === selection) ?? null;
+
+  /**
+   * The sidebar's prev/next walks the grid-visible rows in the order the grid draws them
+   * (Ticket 9, part 3). The gallery and list views keep the raw order; the grid sorts and groups
+   * through `onScreenOrder`, so a Ctrl ↑ / Ctrl ↓ or a chevron step moves to the row literally
+   * underneath.
+   */
+  const order = useMemo(
+    () =>
+      activeView === 'grid' ? onScreenOrder(filtered, grid.columns, tableView.config) : filtered,
+    [activeView, filtered, grid.columns, tableView.config],
+  );
+  const nav = useMemo(
+    () => recordNavigation(order.map(conceptRowId), selection),
+    [order, selection],
+  );
 
   const newConcept = (
     <Button
@@ -641,7 +687,15 @@ export function ConceptsWorkspace({
         )}
       </section>
 
-      {openConcept === null ? null : <ConceptPanel item={openConcept} onClose={closePanel} />}
+      {openConcept === null ? null : (
+        <ConceptPanel
+          item={openConcept}
+          columns={grid.columns}
+          onClose={closePanel}
+          nav={nav}
+          onNavigate={select}
+        />
+      )}
 
       <GridSelectionOverlay state={gridSelection} noun="concept" />
     </div>

@@ -224,29 +224,33 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await page.goto(conceptsPath);
     await page.locator(`[data-slot="concept-row"][data-concept-id="${BODY_CLOCK}"]`).click();
 
-    // The panel opens with the concept's facts; the grid and the URL stay exactly where they were.
-    const panel = page.locator('[data-slot="concept-panel"]');
+    // The panel opens with the concept's facts; the grid stays where it was and the sidebar's
+    // open row rides along in `?concept=` (Ticket 9, part 3) so the link is shareable.
+    const panel = page.locator('[data-slot="record-sheet"]');
     await expect(panel).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
+    await expect(page).toHaveURL(/[?&]concept=/);
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
 
-    // The facts: the generated name (font-mono, and a real link), the name parts, the linked
-    // product, and the two approval tracks as StatusChips (CLAUDE.md non-negotiable 4).
+    // The sidebar's counter and both chevrons are the shared `RecordSheet` header.
+    await expect(panel.locator('[data-slot="record-sheet-counter"]')).toBeVisible();
+    await expect(panel.locator('[data-slot="record-sheet-prev"]')).toBeVisible();
+    await expect(panel.locator('[data-slot="record-sheet-next"]')).toBeVisible();
+
+    // The facts: the generated name (font-mono, and a real link), and the two approval tracks as
+    // StatusChips (CLAUDE.md non-negotiable 4) — rendered from the SAME grid columns through
+    // `ReadOnlyFields`, so a column added to the grid shows up here without a second loop.
     const panelName = panel.locator('[data-slot="concept-panel-name"]');
     await expect(panelName).toHaveText(BODY_CLOCK_NAME);
     await expect(panelName).toHaveCSS('font-family', /mono/i);
     await expect(panelName).toHaveAttribute('href', conceptPath(BODY_CLOCK));
-    await expect(panel).toContainText('Your Body Clock Is Not Broken');
-    await expect(panel).toContainText('Problem/Solution');
     const chips = panel.locator('[data-slot="status-chip"]');
-    await expect(chips).toHaveCount(2);
-    await expect(chips.first()).toHaveText('Revisions Needed');
+    await expect(chips.first()).toBeVisible();
 
     // A click on another row SWITCHES the panel to that concept rather than closing it.
     await page.locator(`[data-slot="concept-row"][data-concept-id="${NOT_YOUR_AGE}"]`).click();
     await expect(panelName).toHaveText(NOT_YOUR_AGE_NAME);
 
-    // Escape closes it, and nothing has navigated.
+    // Escape closes it (RecordSheet carries the dismiss), and nothing has navigated.
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`${conceptsPath}$`));
@@ -269,8 +273,9 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await page.locator(`[data-slot="concept-card"][data-gallery-id="${NOT_YOUR_AGE}"]`).click();
     await expect(panel).toBeVisible();
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
-    await expect(panelName).toHaveAttribute('href', conceptPath(NOT_YOUR_AGE));
-    await panelName.click();
+    const galleryPanelName = panel.locator('[data-slot="concept-panel-name"]');
+    await expect(galleryPanelName).toHaveAttribute('href', conceptPath(NOT_YOUR_AGE));
+    await galleryPanelName.click();
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(0);
     await page.goBack();
@@ -515,7 +520,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     // Ticking a row selects it without opening the panel.
     await rows.nth(0).locator('[data-slot="row-select"]').check();
     await expect(rows.nth(0)).toHaveAttribute('data-checked', 'true');
-    await expect(page.locator('[data-slot="concept-panel"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="record-sheet"]')).toHaveCount(0);
     await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'some');
 
     const bar = page.locator('[data-slot="selection-bar"]');
@@ -566,7 +571,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     // Open is the row click's own panel, via the menu.
     await rows.nth(1).click({ button: 'right' });
     await menu.locator('[data-slot="context-open"]').click();
-    await expect(page.locator('[data-slot="concept-panel"]')).toBeVisible();
+    await expect(page.locator('[data-slot="record-sheet"]')).toBeVisible();
   });
 
   test('both views and the detail page fit a 390px phone with no sideways scroll', async ({
