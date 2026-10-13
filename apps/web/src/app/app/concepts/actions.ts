@@ -28,10 +28,6 @@ import {
   type ConceptStyleKey,
 } from '@tas/domain/concepts';
 import {
-  CLIENT_STATUS,
-  canTransitionClient,
-  canTransitionInternal,
-  isClientTrackOpen,
   isInternalStatusKey,
   normalizeClientApprovalStatus,
   type ClientStatusKey,
@@ -42,6 +38,14 @@ import { z } from 'zod';
 import { withBrandScope } from '@/lib/concepts-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefsPath, conceptPath, conceptsPath } from '@/lib/routes';
+
+import {
+  clientGateRefusal,
+  clientMoveRefusal,
+  internalMoveRefusal,
+  isClientStatus,
+  type ConceptStatusRefusal,
+} from './status-guard';
 
 /**
  * The Concepts route's two mutations (PRD §5.7). Both follow `angles/actions.ts` exactly:
@@ -137,12 +141,6 @@ const format = z
   .string()
   .refine(isAngleFormat, 'That is not one of the four formats.')
   .transform((value): AngleFormatKey => value);
-
-const clientStatusKeys: readonly string[] = CLIENT_STATUS.map((entry) => entry.key);
-
-function isClientStatus(value: string): value is ClientStatusKey {
-  return clientStatusKeys.includes(value);
-}
 
 /**
  * A submitted status. Absent means "leave it where it is", which is why both are nullable rather
@@ -364,71 +362,19 @@ async function actorId(): Promise<string | null> {
   return userId;
 }
 
-const CLIENT_GATE_SHUT = 'The client track opens once internal status reaches Approved.';
-
 /**
- * THE GATE (CLAUDE.md non-negotiable 6, PRD §9), checked with no database behind it.
- *
- * A concept whose internal status is not Approved has no client track at all, so it may only ever
- * rest on the client track's FIRST state. Anything past that — the whole of the client bar the
- * strategist can click — requires `isClientTrackOpen` on the internal status this same write is
- * storing, not on the row's old one: a save that approves a creative and moves the client bar in one
- * submission is legal, and a save that walks the internal status back shuts the gate immediately.
- *
- * This is a statement about the STATE, which is why it needs no `from` and can run before the actor
- * lookup and before a connection is opened — the refusal a tampered submission gets must not depend
- * on a database being reachable. The finer question ("is that the NEXT step?") is
- * `canTransitionClient` and needs the row, so it runs later, inside the scope.
+ * THE GATE lives in `./status-guard` since Ticket 8, so the bulk Change-status action
+ * (`bulk-actions.ts`) re-runs the SAME `clientGateRefusal` / `clientMoveRefusal` /
+ * `internalMoveRefusal` this form's save runs — a `'use server'` module may only export async
+ * functions, so the pure helpers had to move out rather than be exported from here. This wrapper
+ * shapes a refusal into this form's failure type, under the field the detail page shows it by.
  */
-function clientGateRefusal(
-  internal: InternalStatusKey,
-  client: ClientStatusKey,
-): ConceptActionFailure | null {
-  if (client === CONCEPT_CLIENT_STATUS_DEFAULT) {
-    return null;
-  }
-  if (isClientTrackOpen(internal)) {
-    return null;
-  }
-  return { ok: false, error: NEEDS_ATTENTION, fieldErrors: { clientStatus: CLIENT_GATE_SHUT } };
-}
-
-/** Standing still is always allowed; any actual move has to be the machine's next step. */
-function clientMoveRefusal(
-  internal: InternalStatusKey,
-  from: ClientStatusKey,
-  to: ClientStatusKey,
-): ConceptActionFailure | null {
-  if (to === from) {
-    return null;
-  }
-  const gate = clientGateRefusal(internal, to);
-  if (gate !== null) {
-    return gate;
-  }
-  if (!canTransitionClient(internal, from, to)) {
-    return {
-      ok: false,
-      error: NEEDS_ATTENTION,
-      fieldErrors: { clientStatus: 'That is not the next step on the client track.' },
-    };
-  }
-  return null;
-}
-
-/** Any internal move has to be one the state machine allows; standing still always is. */
-function internalMoveRefusal(
-  from: InternalStatusKey,
-  to: InternalStatusKey,
-): ConceptActionFailure | null {
-  if (to === from || canTransitionInternal(from, to)) {
-    return null;
-  }
-  return {
-    ok: false,
-    error: NEEDS_ATTENTION,
-    fieldErrors: { internalStatus: 'That is not the next step on the internal track.' },
-  };
+function refusalFailure(refusal: ConceptStatusRefusal): ConceptActionFailure {
+  const fieldErrors: Partial<Record<ConceptFieldName, string>> =
+    refusal.field === 'internalStatus'
+      ? { internalStatus: refusal.message }
+      : { clientStatus: refusal.message };
+  return { ok: false, error: NEEDS_ATTENTION, fieldErrors };
 }
 
 /**
@@ -458,7 +404,7 @@ export async function createConceptAction(
   const client = parsed.values.clientStatus ?? CONCEPT_CLIENT_STATUS_DEFAULT;
   const refusal = clientMoveRefusal(internal, CONCEPT_CLIENT_STATUS_DEFAULT, client);
   if (refusal !== null) {
-    return refusal;
+    return refusalFailure(refusal);
   }
 
   try {
@@ -545,7 +491,7 @@ export async function updateConceptAction(
   if (parsed.values.internalStatus !== null && parsed.values.clientStatus !== null) {
     const gate = clientGateRefusal(parsed.values.internalStatus, parsed.values.clientStatus);
     if (gate !== null) {
-      return gate;
+      return refusalFailure(gate);
     }
   }
 
@@ -589,11 +535,11 @@ export async function updateConceptAction(
 
       const internalRefusal = internalMoveRefusal(wasInternal, internal);
       if (internalRefusal !== null) {
-        return internalRefusal;
+        return refusalFailure(internalRefusal);
       }
       const clientRefusal = clientMoveRefusal(internal, wasClient, client);
       if (clientRefusal !== null) {
-        return clientRefusal;
+        return refusalFailure(clientRefusal);
       }
 
       // SMOKE-31 (migration 0065): a 'manual' name — every imported Gratsi concept — is kept

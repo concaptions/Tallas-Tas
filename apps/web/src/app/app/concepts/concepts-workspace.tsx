@@ -13,15 +13,20 @@ import {
   StatusChip,
 } from '@tas/ui';
 
+import { CLIENT_STATUS } from '@tas/domain/state';
+
 import { conceptPath } from '@/lib/routes';
 import {
   ColumnNotices,
   GalleryView,
   galleryItemsFrom,
+  GridSelectionOverlay,
   ListView,
+  useGridSelection,
   useTableView,
   ViewToolbar,
   type ListChip,
+  type SelectionStatusTrack,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
@@ -41,6 +46,7 @@ import {
 } from '@/components/views/grid-cells';
 import { linkedRecordsRenderer } from '@/components/views/linked-records-cell';
 
+import { bulkMoveConceptsAction, deleteConceptsAction } from './bulk-actions';
 import { ConceptPanel } from './concept-panel';
 import {
   EM_DASH,
@@ -51,6 +57,7 @@ import {
   VIEW_PARAM,
   conceptCountLabel,
   filteredConceptCountLabel,
+  internalStatusViews,
   matchesQuery,
   type ConceptItem,
   type ConceptView,
@@ -107,6 +114,32 @@ interface ConceptsWorkspaceProps {
 const CONCEPTS_CAP = getTableCapability('concepts') as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
+
+/** The grid selection's row identity, module-level so the hook's prune effect keeps one function. */
+const conceptRowId = (item: ConceptItem): string => item.id;
+const conceptRowLabel = (item: ConceptItem): string => item.name;
+
+/**
+ * The bulk Change-status picker's TWO tracks (non-negotiable 4): the team's `INTERNAL_STATUS`, as
+ * the page's own `internalStatusViews` resolves it, and the client-facing `CLIENT_STATUS` — both
+ * the same vocabularies the Server Action re-checks, and the client one re-gated per row there.
+ */
+const STATUS_TRACKS: readonly SelectionStatusTrack[] = [
+  {
+    key: 'internalStatus',
+    label: 'Internal Status',
+    options: internalStatusViews().map((entry) => ({ key: entry.key, label: entry.label })),
+  },
+  {
+    key: 'clientStatus',
+    label: 'Client Status',
+    options: CLIENT_STATUS.map((entry) => ({ key: entry.key, label: entry.label })),
+  },
+];
+
+/** What a bulk delete means here (lead's Ticket 8 ruling: linked rows keep their reference). */
+const DELETE_DETAIL =
+  'Linked creatives and copy keep their concept reference and go nameless; nothing is erased.';
 
 /**
  * `?view=` ↔ the view switcher: the URL keeps its `table` / `gallery` words, and `board` is STILL a
@@ -378,6 +411,52 @@ export function ConceptsWorkspace({
 
   const narrowed = filtered.length !== items.length;
 
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
+  /** The menu's "Open": the row click's own panel, by id. */
+  const openById = useCallback((id: string) => {
+    setSelection(id);
+  }, []);
+
+  /** The menu's "Open full page": the concept's real route, the same `href` the name link carries. */
+  const openFullPage = useCallback(
+    (id: string) => {
+      router.push(conceptPath(id));
+    },
+    [router],
+  );
+
+  /** A confirmed delete that took the open row with it closes the panel instead of 404-ing it. */
+  const onDeleted = useCallback((ids: readonly string[]) => {
+    setSelection((current) => (current !== null && ids.includes(current) ? null : current));
+  }, []);
+
+  /** "Copy link" carries the absolute DETAIL route — no `?concept=` parameter exists (AI-52). */
+  const linkFor = useCallback((id: string) => `${window.location.origin}${conceptPath(id)}`, []);
+
+  /**
+   * Multi-select + right-click (Ticket 8): the shared hook over the SAME narrowed rows the grid
+   * draws, so select-all never ticks a filtered-off row. Delete and Change status (both tracks,
+   * the client one re-gated per row on the server) are the two bulk Server Actions; Open is the
+   * panel, Open full page the route, Copy link writes nothing. No Duplicate: a concept's name is
+   * the `Batch-Angle-Theme` formula, so a copy would collide (PRD §7).
+   */
+  const gridSelection = useGridSelection<ConceptItem>({
+    rows: filtered,
+    rowId: conceptRowId,
+    rowLabel: conceptRowLabel,
+    demo,
+    noun: 'concept',
+    linkFor,
+    open: { label: 'Open', onOpen: openById },
+    openFullPage: { label: 'Open full page', onOpen: openFullPage },
+    remove: { detail: DELETE_DETAIL, run: deleteConceptsAction, onDeleted },
+    status: { tracks: STATUS_TRACKS, run: bulkMoveConceptsAction },
+    refresh,
+  });
+
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
@@ -555,11 +634,14 @@ export function ConceptsWorkspace({
             }}
             tableSlot="concepts-table"
             rowSlot="concept-row"
+            {...gridSelection.gridProps}
           />
         )}
       </section>
 
       {openConcept === null ? null : <ConceptPanel item={openConcept} onClose={closePanel} />}
+
+      <GridSelectionOverlay state={gridSelection} noun="concept" />
     </div>
   );
 }
