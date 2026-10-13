@@ -16,8 +16,11 @@ import {
   useTableView,
   ViewToolbar,
   GalleryView,
+  GridSelectionOverlay,
   ListView,
   galleryItemsFrom,
+  useGridSelection,
+  type SelectionStatusTrack,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
@@ -40,8 +43,12 @@ import {
   TextCell,
 } from '@/components/views/grid-cells';
 
+import { anglesPath } from '@/lib/routes';
+
 import { AnglePanel, NEW_ANGLE, type LinkOption } from './angle-panel';
+import { bulkMoveAnglesAction, deleteAnglesAction } from './bulk-actions';
 import {
+  ANGLE_STATUS_OPTIONS,
   FORMAT_CHIP_TONE,
   PERSONA_CHIP_TONE,
   PRODUCT_CHIP_TONE,
@@ -116,6 +123,23 @@ interface AnglesWorkspaceProps {
 const ANGLES_CAP = getTableCapability('angles') as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
+
+/** The grid selection's row identity, module-level so the hook's prune effect keeps one function. */
+const angleRowId = (item: AngleItem): string => item.angle.id;
+const angleRowLabel = (item: AngleItem): string => item.angle.name;
+
+/**
+ * The bulk Change-status picker's ONE track: the approval Status from migration 0039, over the
+ * same `ANGLE_STATUS_OPTIONS` the panel's dropdown renders, so the picker cannot drift from the
+ * vocabulary the Server Action re-checks.
+ */
+const STATUS_TRACKS: readonly SelectionStatusTrack[] = [
+  { key: 'status', label: 'Status', options: ANGLE_STATUS_OPTIONS },
+];
+
+/** What a bulk delete means here (lead's Ticket 8 ruling: linked rows keep their reference). */
+const DELETE_DETAIL =
+  'Linked concepts and creatives keep their reference and go nameless; nothing is erased.';
 
 /**
  * Writes one table-state parameter without a server round trip; Next.js reads the History API back.
@@ -389,6 +413,43 @@ export function AnglesWorkspace({
     [visible, grid, tableView.config.filters],
   );
 
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
+  /** A confirmed delete that took the open row with it closes the panel instead of 404-ing it. */
+  const onDeleted = useCallback(
+    (ids: readonly string[]) => {
+      if (selection !== null && ids.includes(selection)) select(null);
+    },
+    [select, selection],
+  );
+
+  /** "Copy link" carries the absolute panel URL, the same `?angle=` a refresh reopens. */
+  const linkFor = useCallback(
+    (id: string) => `${window.location.origin}${anglesPath}?angle=${id}`,
+    [],
+  );
+
+  /**
+   * Multi-select + right-click (Ticket 8): the shared hook over the SAME narrowed rows the grid
+   * draws, so select-all never ticks a filtered-off row. Delete and Change status are the two bulk
+   * Server Actions; Open is the row click's own `select`, Copy link writes nothing. No Duplicate:
+   * angle names are typed, not formula-generated (PRD §7).
+   */
+  const gridSelection = useGridSelection<AngleItem>({
+    rows: filtered,
+    rowId: angleRowId,
+    rowLabel: angleRowLabel,
+    demo,
+    noun: 'angle',
+    linkFor,
+    open: { label: 'Open', onOpen: select },
+    remove: { detail: DELETE_DETAIL, run: deleteAnglesAction, onDeleted },
+    status: { tracks: STATUS_TRACKS, run: bulkMoveAnglesAction },
+    refresh,
+  });
+
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
@@ -527,6 +588,7 @@ export function AnglesWorkspace({
             }}
             tableSlot="angles-table"
             rowSlot="angle-row"
+            {...gridSelection.gridProps}
             empty={
               <div
                 data-slot="angles-empty"
@@ -586,6 +648,8 @@ export function AnglesWorkspace({
           onSaved={saved}
         />
       ) : null}
+
+      <GridSelectionOverlay state={gridSelection} noun="angle" />
     </div>
   );
 }

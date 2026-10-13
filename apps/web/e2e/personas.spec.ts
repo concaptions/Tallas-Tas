@@ -1,7 +1,16 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { personasPath } from '../src/lib/routes';
+
+/**
+ * The shell stamps `data-hydrated` from its first client effect (`src/lib/hydration-replay.ts`).
+ * A click or a right-click that lands before React has attached its handlers is dropped, so the
+ * multi-select test waits for the stamp first — the same guard the Creative Sheet spec uses.
+ */
+async function hydrated(page: Page): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true', { timeout: 45_000 });
+}
 
 /**
  * The Personas route with no environment variables at all — the Vercel deployment as it stands.
@@ -157,5 +166,62 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
 
     await expect(page.locator('[data-slot="persona-panel-title"]')).toHaveText('New persona');
     await expect(page).toHaveURL(/\?persona=new$/);
+  });
+
+  test('multi-select: the checkbox column, the header state, the bar and the right-click menu', async ({
+    page,
+  }) => {
+    await page.goto(personasPath);
+    await hydrated(page);
+
+    const rows = page.locator('[data-slot="persona-row"]');
+    await expect(page.locator('[data-slot="selection-bar"]')).toHaveCount(0);
+
+    // Ticking a row selects it without opening the panel.
+    await rows.nth(0).locator('[data-slot="row-select"]').check();
+    await expect(rows.nth(0)).toHaveAttribute('data-checked', 'true');
+    await expect(page.locator('[data-slot="persona-panel"]')).toHaveCount(0);
+    await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'some');
+
+    const bar = page.locator('[data-slot="selection-bar"]');
+    await expect(bar).toBeVisible();
+    await expect(bar).toHaveAttribute('role', 'toolbar');
+    await expect(bar.locator('[data-slot="selection-count"]')).toHaveText('1');
+    await expect(bar).toContainText('persona selected');
+    // Demo: the one write is withheld, with the reason on its wrapper.
+    await expect(bar.locator('[data-slot="selection-delete"]')).toBeDisabled();
+    await expect(bar.locator('[data-slot="disabled-write"]')).toHaveAttribute(
+      'title',
+      'Sign in required to save changes',
+    );
+
+    // The header selects every row on screen, then clears them.
+    await page.locator('[data-slot="select-all"]').click();
+    await expect(page.locator('[data-slot="select-all"]')).toHaveAttribute('data-state', 'all');
+    await expect(bar.locator('[data-slot="selection-count"]')).toHaveText('3');
+    await page.locator('[data-slot="select-all"]').click();
+    await expect(page.locator('[data-slot="selection-bar"]')).toHaveCount(0);
+
+    // Right-click: Open, Copy link, Delete — no Duplicate, no Change status; Escape closes it.
+    await rows.nth(1).click({ button: 'right' });
+    const menu = page.locator('[data-slot="row-context-menu"]');
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('[role="menuitem"]')).toHaveText(['Open', 'Copy link', 'Delete']);
+    await expect(rows.nth(1)).toHaveAttribute('data-context', 'open');
+    await expect(menu.locator('[data-slot="context-delete"]')).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+
+    // Copy link: the headless clipboard may refuse the write, and the fallback notice IS the URL.
+    await rows.nth(1).click({ button: 'right' });
+    await menu.locator('[data-slot="context-copy-link"]').click();
+    await expect(page.locator('[data-slot="selection-notice"]')).toHaveText(
+      /^Link copied\.$|\?persona=/,
+    );
+
+    // Open from the menu opens the same panel a row click does.
+    await rows.nth(2).click({ button: 'right' });
+    await menu.locator('[data-slot="context-open"]').click();
+    await expect(page.locator('[data-slot="persona-panel"]')).toBeVisible();
   });
 });

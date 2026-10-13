@@ -12,7 +12,10 @@ import {
   ViewToolbar,
   GalleryView,
   galleryItemsFrom,
+  GridSelectionOverlay,
   ListView,
+  useGridSelection,
+  type GridSelectionExtraAction,
 } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
@@ -26,6 +29,9 @@ import {
   TextCell,
 } from '@/components/views/grid-cells';
 
+import { themesPath } from '@/lib/routes';
+
+import { archiveThemesAction } from './bulk-actions';
 import {
   ALL_CATEGORIES,
   CATEGORY_FILTERS,
@@ -224,6 +230,32 @@ const FIELD_OPTIONS = THEME_COLUMNS.map((column) => ({ key: column.key, label: c
 /** The columns the grid can bucket under — the Group popover offers these alone (Ticket 7). */
 const GROUP_FIELDS = groupableFields(THEME_COLUMNS);
 
+/** The grid selection's row identity, module-level so the hook's prune effect keeps one function. */
+const themeRowId = (theme: ThemeListRow): string => theme.id;
+const themeRowLabel = (theme: ThemeListRow): string => theme.name;
+
+/**
+ * The bar's one bulk write per tab (Ticket 8, lead's ruling on the GLOBAL library): Archive (n) on
+ * the Active tab, Restore (n) on the Archived one, both the same `isActive` flip the panel's
+ * Archive button makes — and NOTHING ELSE. No Delete: themes are global (non-negotiable 3), so a
+ * soft delete here would pull the theme out of every brand's library at once; archiving is the
+ * reversible off-switch. No Duplicate either (a theme's name is typed, PRD §7).
+ */
+const ARCHIVE_ACTION: readonly GridSelectionExtraAction[] = [
+  {
+    label: (count) => `Archive (${String(count)})`,
+    slot: 'selection-archive',
+    run: (ids) => archiveThemesAction(ids, false),
+  },
+];
+const RESTORE_ACTION: readonly GridSelectionExtraAction[] = [
+  {
+    label: (count) => `Restore (${String(count)})`,
+    slot: 'selection-restore',
+    run: (ids) => archiveThemesAction(ids, true),
+  },
+];
+
 export function ThemesWorkspace({
   themes,
   demo,
@@ -342,6 +374,31 @@ export function ThemesWorkspace({
   const narrowed = filtered.length !== tabThemes.length;
 
   const open = themes.find((theme) => theme.id === selection) ?? null;
+
+  /** "Copy link" carries the absolute panel URL, the same `?theme=` a refresh reopens. */
+  const linkFor = useCallback(
+    (id: string) => `${window.location.origin}${themesPath}?theme=${encodeURIComponent(id)}`,
+    [],
+  );
+
+  /**
+   * Multi-select + right-click (Ticket 8): the shared hook over the SAME narrowed rows the grid
+   * draws, so select-all never ticks a filtered-off row — and switching tabs prunes the selection,
+   * because the other tab's rows leave `filtered`. The one bulk action follows the tab: Archive on
+   * Active, Restore on Archived. Open is the row click's own `select`; Copy link writes nothing.
+   * No Delete and no Change status on the GLOBAL library (lead's Ticket 8 ruling).
+   */
+  const gridSelection = useGridSelection<ThemeListRow>({
+    rows: filtered,
+    rowId: themeRowId,
+    rowLabel: themeRowLabel,
+    demo,
+    noun: 'theme',
+    linkFor,
+    open: { label: 'Open', onOpen: select },
+    extraActions: tab === 'active' ? ARCHIVE_ACTION : RESTORE_ACTION,
+    refresh: saved,
+  });
 
   // The card image is the first attachment (Sprint 7 gallery); a theme with none shows its initial.
   const galleryItems = useMemo(
@@ -528,6 +585,7 @@ export function ThemesWorkspace({
             onRowClick={(theme) => {
               select(theme.id);
             }}
+            {...gridSelection.gridProps}
             tableSlot="themes-table"
             rowSlot="theme-row"
             empty={
@@ -564,6 +622,8 @@ export function ThemesWorkspace({
       {open === null ? null : (
         <ThemePanel key={open.id} theme={open} demo={demo} onClose={close} onToggled={saved} />
       )}
+
+      <GridSelectionOverlay state={gridSelection} noun="theme" />
     </div>
   );
 }

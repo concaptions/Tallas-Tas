@@ -18,7 +18,9 @@ import {
   ColumnNotices,
   GalleryView,
   galleryItemsFrom,
+  GridSelectionOverlay,
   ListView,
+  useGridSelection,
   useTableView,
   ViewToolbar,
 } from '@/components/views';
@@ -32,7 +34,9 @@ import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
 import { CountCell, TextCell } from '@/components/views/grid-cells';
+import { productsPath } from '@/lib/routes';
 
+import { deleteProductsAction } from './bulk-actions';
 import { EM_DASH, type CreatorOption, type LinkedRecord } from './fields';
 import { NEW_PRODUCT, ProductPanel } from './product-panel';
 
@@ -108,6 +112,18 @@ const TEMPLATE_FILENAME = 'products-template.csv';
 
 /** Why Upload CSV is inert outside demo mode: the import phase has not shipped yet. */
 const UPLOAD_SOON_HINT = 'Bulk upload arrives with the CSV import phase.';
+
+/**
+ * What a bulk delete means here, after the confirm's question (Ticket 8 ruling 3): a product can be
+ * deleted while briefs and copy still carry its `product_id` — the linked rows keep their
+ * reference, which simply no longer resolves to a name. Soft, so nothing is erased.
+ */
+const DELETE_DETAIL =
+  'Briefs and copy keep their link to a deleted product, but it no longer resolves to a name; nothing is erased.';
+
+/** The grid's row identity, shared with the selection hook so the two can never disagree. */
+const productId = (item: ProductItem): string => item.product.id;
+const productName = (item: ProductItem): string => item.product.name;
 
 /**
  * Writes one table-state parameter without a server round trip; Next.js reads the History API back.
@@ -312,6 +328,34 @@ export function ProductsWorkspace({
     [visible, grid, tableView.config.filters],
   );
 
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+  /** After a confirmed delete: a panel whose row is gone closes with it. */
+  const onDeleted = useCallback(
+    (ids: readonly string[]) => {
+      if (selection !== null && ids.includes(selection)) {
+        select(null);
+      }
+    },
+    [select, selection],
+  );
+
+  // Multi-select + right-click (Ticket 8): Open is the `?product=` panel, Copy link its absolute
+  // URL, Delete the one bulk write. No status track and no Duplicate — product names are typed,
+  // never generated (PRD §7), and the table has no status column.
+  const bulk = useGridSelection({
+    rows: filtered,
+    rowId: productId,
+    rowLabel: productName,
+    demo,
+    noun: 'product',
+    linkFor: (id) => `${window.location.origin}${productsPath}?product=${id}`,
+    open: { label: 'Open', onOpen: select },
+    remove: { detail: DELETE_DETAIL, run: deleteProductsAction, onDeleted },
+    refresh,
+  });
+
   const galleryItems = useMemo(
     () =>
       galleryItemsFrom(
@@ -477,6 +521,7 @@ export function ProductsWorkspace({
             }}
             tableSlot="products-table"
             rowSlot="product-row"
+            {...bulk.gridProps}
             empty={
               <div
                 data-slot="products-empty"
@@ -533,6 +578,8 @@ export function ProductsWorkspace({
           onSaved={saved}
         />
       ) : null}
+
+      <GridSelectionOverlay state={bulk} noun="product" />
     </div>
   );
 }

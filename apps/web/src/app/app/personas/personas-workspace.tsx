@@ -11,8 +11,10 @@ import {
   useTableView,
   ViewToolbar,
   GalleryView,
+  GridSelectionOverlay,
   ListView,
   galleryItemsFrom,
+  useGridSelection,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
@@ -25,7 +27,9 @@ import {
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipCell, TextCell, type GridChip } from '@/components/views/grid-cells';
+import { personasPath } from '@/lib/routes';
 
+import { deletePersonasAction } from './bulk-actions';
 import { awarenessLabel, awarenessTone, type PersonaFieldName } from './fields';
 import { PersonaPanel, NEW_PERSONA } from './persona-panel';
 
@@ -72,6 +76,18 @@ interface PersonasWorkspaceProps {
 const PERSONAS_CAP = getTableCapability('personas') as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
+
+/**
+ * What a bulk delete means here, after the confirm's question (Ticket 8 ruling 3): a persona can be
+ * deleted while angles still link it through `angle_personas` — the linked rows keep their
+ * reference, which simply no longer resolves to a name. Soft, so nothing is erased.
+ */
+const DELETE_DETAIL =
+  'Angles keep their link to a deleted persona, but it no longer resolves to a name; nothing is erased.';
+
+/** The grid's row identity, shared with the selection hook so the two can never disagree. */
+const personaId = (item: PersonaItem): string => item.persona.id;
+const personaName = (item: PersonaItem): string => item.persona.name;
 
 /** Writes `?persona=` without a server round trip; Next.js reads the History API back. */
 function syncUrl(id: string | null): void {
@@ -259,6 +275,19 @@ export function PersonasWorkspace({
   const open = openItem?.persona ?? null;
   const creating = selection === NEW_PERSONA;
 
+  const refresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+  /** After a confirmed delete: a panel whose row is gone closes with it. */
+  const onDeleted = useCallback(
+    (ids: readonly string[]) => {
+      if (selection !== null && ids.includes(selection)) {
+        select(null);
+      }
+    },
+    [select, selection],
+  );
+
   /**
    * The view's field conditions applied once, here, so the grid, the gallery and the list all
    * read the SAME narrowed row set (AI-32): `visible` already passed the search, the grid sorts
@@ -268,6 +297,21 @@ export function PersonasWorkspace({
     () => applyFilters(visible, tableView.config.filters, grid.columns),
     [visible, grid, tableView.config.filters],
   );
+
+  // Multi-select + right-click (Ticket 8): Open is the `?persona=` panel, Copy link its absolute
+  // URL, Delete the one bulk write. No status track and no Duplicate — persona names are typed,
+  // never generated (PRD §7), and the table has no status column.
+  const bulk = useGridSelection({
+    rows: filtered,
+    rowId: personaId,
+    rowLabel: personaName,
+    demo,
+    noun: 'persona',
+    linkFor: (id) => `${window.location.origin}${personasPath}?persona=${id}`,
+    open: { label: 'Open', onOpen: select },
+    remove: { detail: DELETE_DETAIL, run: deletePersonasAction, onDeleted },
+    refresh,
+  });
 
   const galleryItems = useMemo(
     () =>
@@ -398,6 +442,7 @@ export function PersonasWorkspace({
             tableSlot="personas-table"
             rowSlot="persona-row"
             empty="No personas yet. Start with the one your best customer looks like."
+            {...bulk.gridProps}
           />
         )}
       </section>
@@ -414,6 +459,8 @@ export function PersonasWorkspace({
           onSaved={saved}
         />
       ) : null}
+
+      <GridSelectionOverlay state={bulk} noun="persona" />
     </div>
   );
 }
