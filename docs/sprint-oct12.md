@@ -187,6 +187,30 @@ order they were worked; blockers and the decisions the human owns are at the bot
   Voiceover columns (Ticket 6); "Ticked by"; the backend ticket for the portal's Request Revisions
   (B5.A3, must — until it lands the "send it back from the portal → both ticks clear" check fails).
 
+### Ticket 8 — Multi-select + right-click on every data grid — DONE (2026-10-13)
+
+- **Six commits**: `softDelete*` writers for angles / personas / products / concepts / creators /
+  copy in `@tas/db` (themes GLOBAL, no writer by design); the `useGridSelection` + `GridSelectionOverlay`
+  shared primitives in `components/views`; four page-group commits wiring the four light tables
+  (angles, themes, personas, products), UGC + copywriting (both carry one single status track and a
+  sub-nav where selection resets on tab change) and concepts (both status tracks, the pure gate
+  helpers extracted to `concepts/status-guard.ts` so the single-row save and the bulk Change-status
+  action re-run the same `clientGateRefusal` / `clientMoveRefusal` / `internalMoveRefusal` — a
+  `'use server'` module may only export async functions, hence the extraction); a sheet-parity fix
+  the adversarial review caught (every page now passes the brand's whole row set, not the
+  search-narrowed one, to the hook — a selection the user ticked survives a filter); and a specs
+  reconciliation that picks up the Ticket 8 leading checkbox cell plus three baseline drifts the
+  baseline run turned up (`concepts` lost `Approval Status` with 0066 and gained `Client Approval`
+  at the end; UGC's resolver returned 33 → 34 columns; UGC's workspace tabs added `Creator Pool`).
+- **E2E**: Playwright on the eight touched specs reaches 80 passing. The four remaining failures
+  (`concepts.spec.ts:277, 376, 398` + `copywriting.spec.ts:169`) also fail at the pre-Ticket-8
+  baseline `bbab582` — they are the SMOKE-31 (Oct 11) and client-status-section (Oct 11) drifts
+  under "Stale Playwright specs" below, never Ticket 8 regressions.
+- **Lead question answered**: the adversarial review's one confirmed finding — "should pages pass
+  unfiltered rows so a search does not drop the selection, i.e. sheet parity?" — is yes, and
+  commit `a1ddd0e` wires every page to the sheet's rule. The hook's `rows` docstring states the
+  contract.
+
 ### Ticket 7 — Group-by on all data tables — DONE (2026-10-13)
 
 - **Five commits**: the `GroupByControl` primitive (groupable columns only, `Layers2` trigger); the
