@@ -28,7 +28,7 @@ import {
 } from '@/components/views';
 import { ColumnNotices } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
-import { applyFilters } from '@/components/views/airtable-grid-logic';
+import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -429,6 +429,8 @@ export function UgcWorkspace({
     () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
     [grid],
   );
+  /** The columns the grid can bucket under — the Group popover offers these alone (Ticket 7). */
+  const groupFields = useMemo(() => groupableFields(grid.columns), [grid]);
   const [tab, setTab] = useState<UgcTabKey>(initialTab);
   const [search, setSearch] = useState(initialSearch);
   const [selection, setSelection] = useState<string | null>(initialSelection);
@@ -709,6 +711,7 @@ export function UgcWorkspace({
               onMoveField={tableView.moveField}
               onFiltersChange={tableView.setFilters}
               onGroupChange={tableView.setGroupBy}
+              groupFields={groupFields}
               coverFields={coverFields}
               onCoverChange={tableView.setCoverField}
               error={tableView.error}

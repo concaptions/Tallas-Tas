@@ -25,7 +25,7 @@ import {
   type KanbanItem,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
-import { applyFilters } from '@/components/views/airtable-grid-logic';
+import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
 import { ChipListCell, TextCell } from '@/components/views/grid-cells';
 import {
   gridColumnsFrom,
@@ -292,6 +292,8 @@ export function CopywritingWorkspace({
     () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
     [grid],
   );
+  /** The columns the grid can bucket under — the Group popover offers these alone (Ticket 7). */
+  const groupFields = useMemo(() => groupableFields(grid.columns), [grid]);
   const tableView = useTableView({
     tableKey: 'copywriting',
     userId: userViews.userId,
@@ -476,6 +478,7 @@ export function CopywritingWorkspace({
               onMoveField={tableView.moveField}
               onFiltersChange={tableView.setFilters}
               onGroupChange={tableView.setGroupBy}
+              groupFields={groupFields}
               error={tableView.error}
             />
             <ColumnNotices
@@ -510,6 +513,7 @@ export function CopywritingWorkspace({
           <AirtableGrid
             tableKey="copywriting"
             view={tableView.config}
+            onSortChange={tableView.setSort}
             columns={grid.columns}
             rows={rows}
             rowId={(item) => item.id}

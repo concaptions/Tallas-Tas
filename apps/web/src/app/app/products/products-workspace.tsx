@@ -30,7 +30,7 @@ import {
 } from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
-import { applyFilters } from '@/components/views/airtable-grid-logic';
+import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
 import { CountCell, TextCell } from '@/components/views/grid-cells';
 
 import { EM_DASH, type CreatorOption, type LinkedRecord } from './fields';
@@ -243,6 +243,8 @@ export function ProductsWorkspace({
     () => grid.columns.map((column) => ({ key: column.key, label: column.header })),
     [grid],
   );
+  /** The columns the grid can bucket under — the Group popover offers these alone (Ticket 7). */
+  const groupFields = useMemo(() => groupableFields(grid.columns), [grid]);
 
   const select = useCallback((id: string | null) => {
     setSelection(id);
@@ -415,6 +417,7 @@ export function ProductsWorkspace({
               onMoveField={tableView.moveField}
               onFiltersChange={tableView.setFilters}
               onGroupChange={tableView.setGroupBy}
+              groupFields={groupFields}
               error={tableView.error}
             />
           </div>

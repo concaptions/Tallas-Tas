@@ -15,7 +15,7 @@ import {
   ListView,
 } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
-import { applyFilters } from '@/components/views/airtable-grid-logic';
+import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import { ChipCell, CountCell, TextCell } from '@/components/views/grid-cells';
@@ -213,6 +213,8 @@ const THEME_COLUMNS: readonly GridColumn<ThemeListRow>[] = [
 /** Every column key the Fields popover can toggle, and its label, in grid order (VIEWS-01). */
 const FIELD_KEYS: readonly string[] = THEME_COLUMNS.map((column) => column.key);
 const FIELD_OPTIONS = THEME_COLUMNS.map((column) => ({ key: column.key, label: column.header }));
+/** The columns the grid can bucket under — the Group popover offers these alone (Ticket 7). */
+const GROUP_FIELDS = groupableFields(THEME_COLUMNS);
 
 export function ThemesWorkspace({
   themes,
@@ -435,6 +437,7 @@ export function ThemesWorkspace({
             onMoveField={tableView.moveField}
             onFiltersChange={tableView.setFilters}
             onGroupChange={tableView.setGroupBy}
+            groupFields={GROUP_FIELDS}
             error={tableView.error}
           />
           <Input
