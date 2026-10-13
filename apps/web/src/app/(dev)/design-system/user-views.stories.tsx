@@ -8,6 +8,7 @@ import {
   internalStatusLabel,
   moveViewField,
   type UserView,
+  type UserViewConfig,
   type UserViewFilter,
   type UserViewSort,
   type ViewType,
@@ -17,13 +18,13 @@ import {
   FieldsMenu,
   FilterMenu,
   GalleryView,
-  GroupMenu,
+  GroupByControl,
   ListView,
   ViewsMenu,
   ViewToolbar,
 } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
-import { applyFilters } from '@/components/views/airtable-grid-logic';
+import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
 
 /** One status chip as the list view draws it: the label and tone the vocabulary gives the key. */
 function statusChip(key: string): {
@@ -58,10 +59,14 @@ const FIELDS = [
   { key: 'updated', label: 'Updated' },
 ];
 
+/** The toolbar's groupable subset: "Notes" stands for a render-only column the grid draws flat. */
+const GROUP_FIELDS = FIELDS.filter((field) => field.key !== 'notes');
+
 export function ViewToolbarStory() {
   const [views, setViews] = useState<readonly UserView[]>(SAMPLE_VIEWS);
   const [activeView, setActiveView] = useState<ViewType>('grid');
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  const [config, setConfig] = useState<UserViewConfig>(() => defaultUserViewConfig('grid'));
   const activeId = views.find((view) => view.isActive)?.id ?? null;
 
   return (
@@ -103,6 +108,14 @@ export function ViewToolbarStory() {
           return next;
         });
       }}
+      viewConfig={config}
+      onFiltersChange={(filters) => {
+        setConfig((current) => ({ ...current, filters }));
+      }}
+      onGroupChange={(groupBy) => {
+        setConfig((current) => ({ ...current, groupBy }));
+      }}
+      groupFields={GROUP_FIELDS}
     />
   );
 }
@@ -287,7 +300,8 @@ export function ListViewStory() {
 /**
  * Filters and grouping (AI-32; UI governance rule 4): the Filter popover holds the view's field
  * conditions (ANDed, one click removes one, "Add filter…" opens the dialog), the Group popover
- * picks the column whose values head the grid's rows, and the grid below is the real
+ * picks the column whose values head the grid's rows — only the columns the grid can bucket, so
+ * "Tags" (drawn, never read) is not on its list (Ticket 7) — and the grid below is the real
  * `AirtableGrid` doing both at once — so this story is the live proof that a condition narrows
  * the rows and a grouping draws one counted header per value, composed with click-to-sort.
  */
@@ -296,13 +310,15 @@ interface FilterStoryRow {
   readonly name: string;
   readonly status: string;
   readonly owner: string | null;
+  /** A linked-record strip: drawn, never read — the column the Group popover must not offer. */
+  readonly tags: readonly string[];
 }
 
 const FILTER_STORY_ROWS: readonly FilterStoryRow[] = [
-  { id: 'f1', name: 'Sleep Mask — Hero', status: 'Approved', owner: 'Mia' },
-  { id: 'f2', name: 'Weighted Blanket', status: 'Testing', owner: 'Jon' },
-  { id: 'f3', name: 'Magnesium Drink', status: 'Approved', owner: null },
-  { id: 'f4', name: 'Cooling Pillow', status: 'Draft', owner: 'Ada' },
+  { id: 'f1', name: 'Sleep Mask — Hero', status: 'Approved', owner: 'Mia', tags: ['hero', 'q4'] },
+  { id: 'f2', name: 'Weighted Blanket', status: 'Testing', owner: 'Jon', tags: ['q4'] },
+  { id: 'f3', name: 'Magnesium Drink', status: 'Approved', owner: null, tags: [] },
+  { id: 'f4', name: 'Cooling Pillow', status: 'Draft', owner: 'Ada', tags: ['hero'] },
 ];
 
 const FILTER_STORY_COLUMNS: readonly GridColumn<FilterStoryRow>[] = [
@@ -326,7 +342,19 @@ const FILTER_STORY_COLUMNS: readonly GridColumn<FilterStoryRow>[] = [
     sortValue: (row) => row.owner,
     render: (row) => <span className="text-text2">{row.owner ?? '—'}</span>,
   },
+  {
+    key: 'tags',
+    header: 'Tags',
+    // Render-only, like a real table's link or attachment column: no `sortValue`, no `cellTitle`,
+    // so `groupableFields` leaves it out and the Group popover never offers it.
+    render: (row) => (
+      <span className="font-mono text-xs text-text3">{String(row.tags.length)} linked</span>
+    ),
+  },
 ];
+
+/** The same subset the toolbar reads on a real page: `groupableFields(grid.columns)`. */
+const FILTER_STORY_GROUP_FIELDS = groupableFields(FILTER_STORY_COLUMNS);
 
 export function FilterGroupStory() {
   const [filters, setFilters] = useState<readonly UserViewFilter[]>([
@@ -344,7 +372,7 @@ export function FilterGroupStory() {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <FilterMenu fields={fields} filters={filters} onFiltersChange={setFilters} />
-        <GroupMenu fields={fields} groupBy={groupBy} onGroupChange={setGroupBy} />
+        <GroupByControl options={FILTER_STORY_GROUP_FIELDS} value={groupBy} onChange={setGroupBy} />
         <p className="text-sm text-text2">
           <span className="font-mono text-text3">
             {String(rows.length)}/{String(FILTER_STORY_ROWS.length)}
@@ -360,6 +388,55 @@ export function FilterGroupStory() {
         view={{ ...defaultUserViewConfig('grid'), filters, groupBy, sort }}
         onSortChange={setSort}
       />
+    </div>
+  );
+}
+
+/** The Creative Sheet's Kanban fields, as `TABLE_VIEW_CAPABILITIES['creative-sheet']` words them. */
+const KANBAN_STORY_OPTIONS = [
+  { key: 'internalStatus', label: 'Internal Status' },
+  { key: 'status', label: 'Client Approval' },
+  { key: 'editorStage', label: 'Editing stage' },
+];
+
+/**
+ * The Group popover on its own (Ticket 7; UI governance rule 4), every flavour. The grid flavour
+ * opens on "None" and lists only the columns the grid can bucket — the same `groupableFields` the
+ * toolbar reads, so "Tags" is absent. The Kanban flavour (`allowNone={false}`) is the Creative
+ * Sheet's field picker: a board always groups, so there is no "None" and the value never clears.
+ * The third is the disabled state. The trigger prints the choice beside the Layers glyph; the
+ * line underneath echoes what each one reported.
+ */
+export function GroupByControlStory() {
+  const [groupBy, setGroupBy] = useState<string | null>(null);
+  const [kanbanField, setKanbanField] = useState('internalStatus');
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <GroupByControl options={FILTER_STORY_GROUP_FIELDS} value={groupBy} onChange={setGroupBy} />
+        <GroupByControl
+          options={KANBAN_STORY_OPTIONS}
+          value={kanbanField}
+          allowNone={false}
+          menuLabel="Board columns by"
+          slot="story-kanban-group"
+          onChange={(next) => {
+            if (next !== null) setKanbanField(next);
+          }}
+        />
+        <GroupByControl
+          options={FILTER_STORY_GROUP_FIELDS}
+          value="status"
+          disabled
+          onChange={() => {
+            /* story */
+          }}
+        />
+      </div>
+      <p className="text-sm text-text2">
+        grid <span className="font-mono text-text3">{groupBy ?? 'none'}</span> · board{' '}
+        <span className="font-mono text-text3">{kanbanField}</span>
+      </p>
     </div>
   );
 }

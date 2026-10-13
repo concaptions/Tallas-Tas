@@ -4,8 +4,10 @@ import {
   applyFilters,
   cycleSort,
   EMPTY_GROUP_LABEL,
+  groupableFields,
   groupRows,
   headerSelectionState,
+  isGroupable,
   pruneSelection,
   toggleAllSelected,
   toggleSelected,
@@ -260,6 +262,67 @@ describe('groupRows', () => {
 
   it('groups nothing into nothing', () => {
     expect(groupRows([], 'status', FILTER_COLUMNS)).toEqual([]);
+  });
+});
+
+/**
+ * The groupable-columns rule (Ticket 7, GAP-1). Angles in miniature: a render-only `formats`
+ * chip strip the grid cannot read, a `brief_url` whose text lives in `cellTitle` only, and a
+ * boolean `winning` with a numeric `sortValue`.
+ */
+interface AngleRow {
+  readonly name: string;
+  readonly status: string | null;
+  readonly formats: readonly string[];
+  readonly briefUrl: string | null;
+  readonly winning: boolean;
+}
+
+const ANGLE_ROWS: readonly AngleRow[] = [
+  { name: 'Body clock', status: 'Approved', formats: ['Video'], briefUrl: null, winning: true },
+  { name: 'Daylight', status: null, formats: [], briefUrl: 'https://a.example', winning: false },
+];
+
+const ANGLE_COLUMNS: readonly (FilterableColumn<AngleRow> & { readonly header: string })[] = [
+  { key: 'name', header: 'Name', sortValue: (row) => row.name },
+  { key: 'status', header: 'Status', sortValue: (row) => row.status },
+  { key: 'formats', header: 'Formats' },
+  { key: 'brief_url', header: 'Brief URL', cellTitle: (row) => row.briefUrl ?? undefined },
+  { key: 'winning', header: 'Winning', sortValue: (row) => (row.winning ? 1 : 0) },
+];
+
+describe('isGroupable / groupableFields (Ticket 7)', () => {
+  it('keeps a column with a sortValue or a cellTitle and drops a render-only one', () => {
+    expect(isGroupable({ key: 'status', sortValue: () => 'x' })).toBe(true);
+    expect(isGroupable({ key: 'link', cellTitle: () => 'x' })).toBe(true);
+    expect(isGroupable({ key: 'formats' })).toBe(false);
+  });
+
+  it('offers the groupable columns in column order, labelled by header, Formats absent', () => {
+    // The defect this pins: the popover offered Formats, and picking it read "Group: Formats"
+    // above a grid that stayed flat.
+    expect(groupableFields(ANGLE_COLUMNS)).toEqual([
+      { key: 'name', label: 'Name' },
+      { key: 'status', label: 'Status' },
+      { key: 'brief_url', label: 'Brief URL' },
+      { key: 'winning', label: 'Winning' },
+    ]);
+  });
+
+  it('is the one rule groupRows applies: a column is offered exactly when it groups', () => {
+    for (const column of ANGLE_COLUMNS) {
+      expect(isGroupable(column)).toBe(groupRows(ANGLE_ROWS, column.key, ANGLE_COLUMNS) !== null);
+    }
+  });
+
+  it('offers nothing for a table with no readable column', () => {
+    expect(
+      groupableFields([
+        { key: 'a', header: 'A' },
+        { key: 'b', header: 'B' },
+      ]),
+    ).toEqual([]);
+    expect(groupableFields([])).toEqual([]);
   });
 });
 

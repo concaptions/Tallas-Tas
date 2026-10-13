@@ -25,6 +25,7 @@ export {
   House,
   Image,
   Info,
+  Layers2,
   LayoutGrid,
   Link,
   Lock,

@@ -139,6 +139,7 @@ import {
   FieldsMenuStory,
   FilterGroupStory,
   GalleryInitialTileStory,
+  GroupByControlStory,
   ListViewStory,
   ViewsMenuStory,
   ViewToolbarStory,
@@ -1070,7 +1071,7 @@ export default function DesignSystemPage() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-              toolbar — view switch, my views, fields
+              toolbar — view switch, my views, fields, filter, group
             </h3>
             <ViewToolbarStory />
           </div>
@@ -1125,6 +1126,13 @@ export default function DesignSystemPage() {
               cover popover — which media column covers a gallery card (action item 16)
             </h3>
             <CoverMenuStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              group popover — groupable columns only, none first; the kanban flavour has no none
+              (ticket 7)
+            </h3>
+            <GroupByControlStory />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">

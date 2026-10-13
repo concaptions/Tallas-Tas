@@ -15,7 +15,7 @@ import { CoverMenu } from './cover-menu';
 import { FieldsMenu, type FieldOption } from './fields-menu';
 import { FilterMenu } from './filter-menu';
 import { FreezeMenu } from './freeze-menu';
-import { GroupMenu } from './group-menu';
+import { GroupByControl } from './group-by-control';
 import { ViewSwitcher } from './view-switcher';
 import { ViewsMenu } from './views-menu';
 
@@ -63,6 +63,12 @@ interface ViewToolbarProps {
   readonly onFiltersChange?: (filters: readonly UserViewFilter[]) => void;
   /** The grid's grouping column (AI-32). Given, the Grid carries the Group popover. */
   readonly onGroupChange?: (groupBy: string | null) => void;
+  /**
+   * The columns the grid can bucket under, in table order — a page passes
+   * `groupableFields(grid.columns)` (Ticket 7). Absent, every field is offered, which is right
+   * only for a story: a real table carries render-only columns the grid draws flat.
+   */
+  readonly groupFields?: readonly FieldOption[];
   readonly error?: string | null;
 }
 
@@ -70,9 +76,23 @@ interface ViewToolbarProps {
  * The strip above every one of the six tables (Sprint 7, VIEWS-01): the view type switch, the
  * viewer's saved views, the Fields popover (Grid, Gallery and List — a Kanban column is not a
  * field), the Freeze popover on the Grid (action item 22) and the Cover popover on the Gallery
- * (action item 16). One component so the controls sit in the same place on every page, and so a
- * control that makes no sense for the active view is simply not there.
+ * (action item 16), and the Group popover on the Grid (AI-32; Ticket 7 narrowed it to the columns
+ * the grid can bucket). One component so the controls sit in the same place on every page, and so
+ * a control that makes no sense for the active view is simply not there.
  */
+function inViewerOrder(
+  fields: readonly FieldOption[],
+  viewConfig: UserViewConfig | undefined,
+): readonly FieldOption[] {
+  return viewConfig === undefined
+    ? fields
+    : applyUserView(fields, {
+        visibleFields: null,
+        fieldOrder: viewConfig.fieldOrder,
+        frozenFields: [],
+      });
+}
+
 export function ViewToolbar({
   tableKey,
   supportedViews,
@@ -95,6 +115,7 @@ export function ViewToolbar({
   onCoverChange,
   onFiltersChange,
   onGroupChange,
+  groupFields,
   error = null,
 }: ViewToolbarProps) {
   // The freeze is a prefix of the columns AS THE VIEWER SEES THEM, so the active view's order and
@@ -107,16 +128,11 @@ export function ViewToolbar({
   const orderedKeys = useMemo(() => orderedFields.map((field) => field.key), [orderedFields]);
   // The Fields popover lists EVERY field in the viewer's order — hidden ones keep their place, so
   // re-showing a column puts it back where the viewer left it, not at the end of the table.
-  const arrangedFields = useMemo(
-    () =>
-      viewConfig === undefined
-        ? fields
-        : applyUserView(fields, {
-            visibleFields: null,
-            fieldOrder: viewConfig.fieldOrder,
-            frozenFields: [],
-          }),
-    [fields, viewConfig],
+  const arrangedFields = useMemo(() => inViewerOrder(fields, viewConfig), [fields, viewConfig]);
+  // The Group popover lists the groupable columns in that same order, so the two popovers agree.
+  const arrangedGroupFields = useMemo(
+    () => inViewerOrder(groupFields ?? fields, viewConfig),
+    [fields, groupFields, viewConfig],
   );
 
   return (
@@ -155,10 +171,10 @@ export function ViewToolbar({
         />
       ) : null}
       {activeView === 'grid' && viewConfig !== undefined && onGroupChange !== undefined ? (
-        <GroupMenu
-          fields={arrangedFields}
-          groupBy={viewConfig.groupBy}
-          onGroupChange={onGroupChange}
+        <GroupByControl
+          options={arrangedGroupFields}
+          value={viewConfig.groupBy}
+          onChange={onGroupChange}
         />
       ) : null}
       {activeView === 'gallery' && viewConfig !== undefined && onCoverChange !== undefined ? (

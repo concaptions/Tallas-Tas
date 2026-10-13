@@ -55,6 +55,35 @@ export interface FilterableColumn<Row> {
   readonly cellTitle?: (row: Row) => string | undefined;
 }
 
+/** One column the Group popover offers: its key, and the header the viewer reads it by. */
+export interface GroupByOption {
+  readonly key: string;
+  readonly label: string;
+}
+
+/**
+ * Whether the grid can read this column's cells — a `sortValue` or a `cellTitle` — the one test
+ * `groupRows` makes before bucketing and `applyFilters` before comparing. A render-only column (a
+ * chip strip, a link count, an attachment cell) is not groupable: offered in the Group popover it
+ * reads "Group: Formats" above a grid that stays flat, which is the Ticket 7 defect.
+ */
+export function isGroupable<Row>(column: FilterableColumn<Row>): boolean {
+  return column.sortValue !== undefined || column.cellTitle !== undefined;
+}
+
+/**
+ * The columns the Group popover may offer, in column order: the ones `isGroupable`, keyed and
+ * labelled by their header. A page hands `groupableFields(grid.columns)` to the `ViewToolbar` as
+ * `groupFields`, which then arranges them in the viewer's field order.
+ */
+export function groupableFields<Row>(
+  columns: readonly (FilterableColumn<Row> & { readonly header: string })[],
+): GroupByOption[] {
+  return columns
+    .filter((column) => isGroupable(column))
+    .map((column) => ({ key: column.key, label: column.header }));
+}
+
 /** One condition, shaped exactly as `UserViewConfig.filters` stores it (AI-32). */
 export interface RowFilter {
   readonly field: string;
@@ -103,9 +132,7 @@ export function applyFilters<Row>(
   const byKey = new Map(columns.map((column) => [column.key, column]));
   const live = filters.filter((filter) => {
     const column = byKey.get(filter.field);
-    return (
-      column !== undefined && (column.sortValue !== undefined || column.cellTitle !== undefined)
-    );
+    return column !== undefined && isGroupable(column);
   });
   if (live.length === 0) return rows;
   return rows.filter((row) =>
@@ -157,9 +184,7 @@ export function groupRows<Row>(
   columns: readonly FilterableColumn<Row>[],
 ): readonly RowGroup<Row>[] | null {
   const column = columns.find((candidate) => candidate.key === groupBy);
-  if (column === undefined || (column.sortValue === undefined && column.cellTitle === undefined)) {
-    return null;
-  }
+  if (column === undefined || !isGroupable(column)) return null;
   const groups = new Map<string, { value: string; rows: Row[] }>();
   for (const row of rows) {
     const text = readCell(column, row) ?? '';

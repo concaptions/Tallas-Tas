@@ -6,7 +6,12 @@ export { CoverMenu } from './cover-menu';
 export { FieldsMenu, type FieldOption } from './fields-menu';
 export { FilterMenu } from './filter-menu';
 export { FreezeMenu } from './freeze-menu';
-export { GroupMenu } from './group-menu';
+export {
+  GroupByControl,
+  GROUP_NONE,
+  type GroupByOption,
+  type GroupByControlProps,
+} from './group-by-control';
 export {
   coverFieldOptions,
   galleryItemsFrom,
