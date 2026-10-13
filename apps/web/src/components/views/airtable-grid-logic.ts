@@ -217,6 +217,33 @@ export function groupRows<Row>(
 }
 
 /**
+ * The row order the grid actually draws (Ticket 9), given a view's sort and groupBy: sort first,
+ * then bucket. The sidebar's prev/next walks this list, so hitting Next after the viewer sorted by
+ * Status or grouped by Owner moves to the row that is literally underneath, not to the row
+ * `rows` happens to carry next. Returns a fresh array — never mutates the input — and degrades the
+ * same way the grid does: an unknown sort column skips the sort step; an unknown or unreadable
+ * `groupBy` keeps the flat sorted order (`groupRows` returns null, same lens-degrades rule).
+ */
+export function onScreenOrder<Row>(
+  rows: readonly Row[],
+  columns: readonly (FilterableColumn<Row> & { readonly header?: string })[],
+  view: { readonly sort?: SortState | null; readonly groupBy?: string | null },
+): readonly Row[] {
+  const sort = view.sort ?? null;
+  const groupBy = view.groupBy ?? null;
+  const sortColumn =
+    sort === null ? undefined : columns.find((candidate) => candidate.key === sort.key);
+  const sorted =
+    sort === null || sortColumn?.sortValue === undefined
+      ? [...rows]
+      : sortRows(rows, sortColumn.sortValue, sort.direction);
+  if (groupBy === null) return sorted;
+  const groups = groupRows(sorted, groupBy, columns);
+  if (groups === null) return sorted;
+  return groups.flatMap((group) => [...group.rows]);
+}
+
+/**
  * Where each frozen column sits once the grid is scrolled sideways (action item 22).
  *
  * `position: sticky` pins a cell at the `left` it is given, so a second frozen column has to be

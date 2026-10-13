@@ -60,3 +60,13 @@ export {
   type GridSelectionState,
 } from './use-grid-selection';
 export { GridSelectionOverlay, type GridSelectionOverlayProps } from './grid-selection-overlay';
+export { RecordSheet, type RecordSheetNavigation, type RecordSheetProps } from './record-sheet';
+export { ReadOnlyFields, type ReadOnlyFieldsProps } from './record-fields';
+export {
+  focusCounter,
+  focusIndex,
+  neighbourIndex,
+  recordNavigation,
+  type RecordNavigation,
+} from './record-nav';
+export { onScreenOrder } from './airtable-grid-logic';

@@ -8,6 +8,7 @@ import {
   groupRows,
   headerSelectionState,
   isGroupable,
+  onScreenOrder,
   pruneSelection,
   toggleAllSelected,
   toggleSelected,
@@ -388,5 +389,55 @@ describe('multi-select (Oct 12 scope 3)', () => {
     expect([...pruneSelection(selected, ['a', 'b'])]).toEqual(['a']);
     const same = new Set(['a']);
     expect(pruneSelection(same, ['a', 'b'])).toBe(same);
+  });
+});
+
+describe('onScreenOrder', () => {
+  interface Row {
+    readonly id: string;
+    readonly name: string;
+    readonly owner: string;
+  }
+  const rows: readonly Row[] = [
+    { id: '1', name: 'B', owner: 'Mia' },
+    { id: '2', name: 'A', owner: 'Jon' },
+    { id: '3', name: 'C', owner: 'Mia' },
+  ];
+  const columns: readonly FilterableColumn<Row>[] = [
+    { key: 'name', sortValue: (row) => row.name },
+    { key: 'owner', sortValue: (row) => row.owner },
+  ];
+
+  it('returns a new sorted array when sort is given, never mutating the input', () => {
+    const result = onScreenOrder(rows, columns, {
+      sort: { key: 'name', direction: 'asc' },
+      groupBy: null,
+    });
+    expect(result.map((r) => r.name)).toEqual(['A', 'B', 'C']);
+    expect(rows.map((r) => r.name)).toEqual(['B', 'A', 'C']);
+    expect(result).not.toBe(rows);
+  });
+
+  it('flattens the grouped rows in the groupBy order, after the sort', () => {
+    const result = onScreenOrder(rows, columns, {
+      sort: { key: 'name', direction: 'asc' },
+      groupBy: 'owner',
+    });
+    // sort: A/Jon, B/Mia, C/Mia → groups by owner, first-appearance = Jon then Mia
+    expect(result.map((r) => r.id)).toEqual(['2', '1', '3']);
+  });
+
+  it('falls back to the sorted rows when groupBy names an unknown column', () => {
+    const result = onScreenOrder(rows, columns, {
+      sort: { key: 'name', direction: 'asc' },
+      groupBy: 'ghost',
+    });
+    expect(result.map((r) => r.name)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('with neither sort nor groupBy, returns the rows in their original order (fresh array)', () => {
+    const result = onScreenOrder(rows, columns, {});
+    expect(result).toEqual(rows);
+    expect(result).not.toBe(rows);
   });
 });

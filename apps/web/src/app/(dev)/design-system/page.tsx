@@ -124,6 +124,7 @@ import {
   AirtableGridStory,
   GridSelectionOverlayStory,
 } from './airtable-grid.stories';
+import { RecordSheetStory } from './record-sheet.stories';
 import { CheckboxStory, DisabledWritePopoverStory, SectionLabelStory } from './primitives.stories';
 import {
   ChipToneMapStory,
@@ -1616,6 +1617,13 @@ export default function DesignSystemPage() {
             <ClientStatusDropdownDemoStory />
           </div>
         </div>
+      </Section>
+
+      <Section
+        title="Record sidebar"
+        note="The shared RecordSheet (Ticket 9, part 1): one @tas/ui Sheet with the four pages' header shape — counter plus prev/next — a chips row, and a scrollable body. ArrowLeft/ArrowRight walk the selection unless the active element is a text editor or combobox. ReadOnlyFields renders every stored column under its header, so the sidebar carries one column list with the grid."
+      >
+        <RecordSheetStory />
       </Section>
 
       <Section
