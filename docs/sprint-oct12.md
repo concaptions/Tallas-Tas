@@ -148,6 +148,45 @@ order they were worked; blockers and the decisions the human owns are at the bot
   `apps/web/src/app/app/concepts/{[conceptId]/concept-detail.tsx,[conceptId]/page.tsx,actions.ts,fields.ts,concepts-workspace.tsx}`,
   `packages/db/src/column-seed.ts`, `packages/db/src/scripts/verify-rollout.ts`, tests and specs alongside.
 
+### Ticket 0 — UI overhaul foundation (the six boards) — DONE (2026-10-13)
+
+- **Gap report**: `docs/sprint-oct12-ui-gap.md` — the six boards of `tas-ui-overhaul.zip` (the Oct 13 HTML
+  bundle is the same six boards in a React runtime) read by two lenses each, 194 findings, 22 cross-lens
+  rulings, 105 Ticket 0 gaps; 101 rows done, 2 deferred with reasons, 3 escalations, 3 deferrals.
+- **Commits**: `0500b3a` feat(ui): add missing semantic tokens from ZIP designs · `c392758`
+  feat(creative-sheet): match ZIP designs for Focus Mode, Sidebar, Multi-select, QA gate, Activity log,
+  Vocabulary · this docs commit docs(sprint-oct12): close UI gap report.
+- **Tokens** (`packages/ui/src/styles/tokens.css`, all four theme blocks, `tokens-declared.test.ts`):
+  `--on-accent` #ffffff (ink on a filled accent / the gradient — the old `text-bg` was dark on purple in
+  dark mode), `--on-ok` #0f2418 (the Approve ink on the solid `--ok`), `--shadow-float`, `--shadow-sheet`
+  (light values through `var(--text)` at 16%); `--primary-foreground` → `var(--on-accent)`.
+- **Primitives** (`@tas/ui`): `@tas/ui/icons` (lucide, canonical names; `sheet-icons.tsx` deleted),
+  `Checkbox` (styled native input, `indeterminate`, `variant="na"`), `DisabledWrite` popover (`heading`,
+  `popover`, `hintEmphasis`), `SectionLabel`, Button `success`, `formatSheetDate` / `formatCommentStamp`.
+- **Surfaces**: Focus Mode (full-bleed, success Approve, gradient Submit with white ink, gate popover
+  "QA checklist incomplete", preview frame with the play disc and `Video · 9:16` stamp, composer, dates
+  and stamps formatted); the Sheet (six sections at 460px, primitive close, asset tiles, `SheetFooter`
+  with Save on the gradient, Open full page outline, no Cancel; title = brief name); the grid (header
+  type and 42px rows product-wide, three row states, Checkbox column, Type as a mute chip, view
+  switcher icons), the context menu and the floating bar, `SelectionStatusPicker` /
+  `SelectionDeleteConfirm`; the brief page (QA rows via `qa-check-row.tsx`, the grouped Activity entry
+  for a QA auto-reset); one tone source (`chipTone(label)`, the sheet's local map gone).
+- **Stories**: Button success, Checkbox, DisabledWrite open, SectionLabel, status vocabulary + QA
+  matrix, Focus Mode gated state, QA gate box, sidebar, multi-select grid with picker and confirm,
+  brief QA rows, grouped Activity — all on `/design-system`, each with a no-colour-literal markup test.
+- **Playwright** (demo): `creative-sheet.spec.ts` + new `ui-overhaul-smoke.spec.ts`, 15 of 15 green; the
+  five stale creative-sheet assertions from the Follow-ups list are repaired (hydration wait, real
+  fixture names, resolved header list). The live spec `live/briefs-start.spec.ts` is updated for the
+  Activity `data-value` attributes but unrun here (no live env).
+- **Size**: the surfaces commit is far above the 300-LOC rule (≈ +2,500 / −750 across 39 files, tests
+  and stories included); the user asked for three commits for the whole ticket, so it is flagged, not
+  split. The natural split points are in the gap report's implementation plan.
+- **For Talal** (gap report "Open questions"): white ink contrast on the violet end of the dark gradient;
+  who grades a Motion Image; a creative with no type; the count noun ("briefs" vs "creatives"); the
+  working-step chip tones (mute, as drawn, or richer); Due / Assignee as sheet columns; Music /
+  Voiceover columns (Ticket 6); "Ticked by"; the backend ticket for the portal's Request Revisions
+  (B5.A3, must — until it lands the "send it back from the portal → both ticks clear" check fails).
+
 ## Blockers and decisions the human owns
 
 - **Apply on Railway (operator, in this order)**: `cd packages/db && DATABASE_URL=… node apply66.mjs
@@ -183,8 +222,8 @@ order they were worked; blockers and the decisions the human owns are at the bot
   and the select-all checkbox column; `concepts` expects a `concept-name-preview` on a manual-named
   concept, a client bar on a rail that is `internalOnly`, and a `concept-client-status` slot that no
   longer exists; `copywriting` expects a `copy-client-status` slot the panel deliberately dropped;
-  `creative-sheet` searches for a "Daylight" brief the fixtures renamed, and its panel / multi-select
-  clicks land before hydration under two workers; `overview` and `smoke` expect the pipeline cards to
+  (`creative-sheet`'s five — the header list, the "Daylight" brief, the search, the panel and
+  multi-select clicks before hydration — were repaired by Ticket 0 on 2026-10-13, 15 remain); `overview` and `smoke` expect the pipeline cards to
   land on `/app/creative-design?status=…` while the cards link to the Creative Sheet (the
   `creative-design` list route redirects there since the single-source cutover — decide which is
   right); `removed-workspaces` expects `?q=hook` to survive the `youtube-copywriting` redirect and

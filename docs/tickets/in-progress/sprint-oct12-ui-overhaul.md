@@ -12,7 +12,7 @@ the Creative Design list redirects there), so every surface lands on the sheet a
 | -------- | ----- |
 | FOCUS-01 | Focus Mode: a third view beside Grid and Kanban (`ViewType 'focus'`). One creative full width, prev/next (buttons and arrow keys), `07 / 23` counter, name and both chips, Request Changes / Approve / Submit to Client, Identity and Status facts, the QA checklist FILTERED BY TYPE with the gate box, asset preview, Script / Brief to Design / Elements tested / Offer cards, Feedback & Comments (read, post). `focus-mode.ts` + `focus-mode-view.tsx` |
 | SHEET-02 | Brief row sidebar: shadcn/ui `Sheet` (`@tas/ui`, side right) replacing the fixed panel. Six sections — Identity, Status, Content, QA, Assets, Meta — titled with the brief name; the non-applicable QA tick struck through with an N/A tag; footer: Focus Mode, Open full page, Save. Every existing control and `data-slot` kept. `creative-sheet-panel.tsx` |
-| MULTI-03 | Multi-select and duplicate: checkbox as the first grid column with an indeterminate header, right-click context menu (Duplicate ⌘D, Open in Focus Mode, Copy link, Delete), floating action bar (Duplicate (n), Change status, Delete (n), Clear). Duplicate copies every field, bumps the version, names the copy through the formula (auto) or by bumping the version segment (manual), resets QA and both tracks to their entry states (`sent_to_video_editor` / `sent_to_designer` — there is no `draft`), keeps `name_mode`. Delete is a soft delete. `review-actions.ts`, `duplicate-values.ts`, `components/views/{airtable-grid,row-context-menu,selection-bar}.tsx` |
+| MULTI-03 | Multi-select and duplicate: checkbox as the first grid column with an indeterminate header, right-click context menu (Duplicate ⌘D, Open in Focus Mode, Copy link, Delete), floating action bar (Duplicate (n), Change status, Delete (n), Clear). Duplicate copies every field, bumps the version, names the copy through the formula (auto) or by bumping the version segment (manual), resets QA and both tracks to their entry states (`draft` on the internal track since the Oct 12 consolidation, Ticket 5 / 0067; the handoff's `sent_to_video_editor` / `sent_to_designer` are retired), keeps `name_mode`. Delete is a soft delete. `review-actions.ts`, `duplicate-values.ts`, `components/views/{airtable-grid,row-context-menu,selection-bar}.tsx` |
 | QA-04    | QA gate: `canSubmitToClient()` in `@tas/domain/state/qa-gate.ts`, additive to `isClientTrackOpen()`. Applied in Focus Mode's bar, the brief page's approval rail (Advance to Approved, the client-status Save), the sheet's save and Kanban drop, the bulk Change status, and RE-RUN by every Server Action before it writes. |
 | QA-05    | QA auto-reset: a move into `videos_revisions`, `images_revisions` (internal) or `revisions_needed` (client) clears the three ticks in the SAME statement as the status (`qaResetFor`; `updateBriefClientStatus` carries the columns alongside). |
 
@@ -51,8 +51,9 @@ the Creative Design list redirects there), so every surface lands on the sheet a
 - [x] The grid's selection helpers (`airtable-grid-logic.test.ts`); the Sheet primitive (`sheet.test.tsx`).
 - [x] `/design-system` mounts Focus Mode, the sidebar and the multi-select grid as stories.
 - [x] `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm --filter @tas/web build:ci`.
-- [ ] Playwright (demo): `creative-sheet.spec.ts` — the Focus Mode tab, the sidebar's sections, the
-      selection checkbox and bar, the context menu. Written; not run here (no browser in this session).
+- [x] Playwright (demo): `creative-sheet.spec.ts` — the Focus Mode tab, the sidebar's sections, the
+      selection checkbox and bar, the context menu — and `ui-overhaul-smoke.spec.ts` (2026-10-13, Ticket 0):
+      15 of 15 green against the restyled surfaces; the five stale assertions from before Ticket 0 repaired.
 
 ## Pending human verification
 
@@ -62,3 +63,26 @@ the Creative Design list redirects there), so every surface lands on the sheet a
   (Revisions Needed) → both ticks clear; re-tick → Submit to Client → Revisions Submitted.
 - Live: select two rows → Duplicate (2) → two copies at the ladder's first step, version +1, QA
   clear; Delete (1) → the row leaves the sheet, the queues and the portal; the row is soft-deleted.
+
+## Ticket 0 — the boards as the design foundation (2026-10-13)
+
+The Oct 12 handoff shipped the mechanics (the four tickets above); Ticket 0 makes the six boards the
+visual truth. `docs/sprint-oct12-ui-gap.md` is the record: every board read by two lenses, 194
+findings, 22 cross-lens rulings, 105 Ticket 0 gaps closed across three commits (tokens; the
+surfaces; docs). What changed, in one paragraph: four non-re-themed tokens (`--on-accent`, `--on-ok`,
+`--shadow-float`, `--shadow-sheet`); lucide icons through `@tas/ui/icons` (the hand-copied
+`sheet-icons.tsx` is gone); a drawn `Checkbox` primitive (native input, no new dependency); the
+`DisabledWrite` popover with the warn heading; `SectionLabel`; the Button `success` variant for
+Approve; Focus Mode full-bleed with the board's bar, preview frame, cards and composer; the Sheet in
+six sections at 460px with the primitive's close, asset tiles and a `SheetFooter`; the grid's
+header type and 42px rows product-wide, three distinct row states, the context menu and the
+floating bar restyled, the status picker and the delete confirmation as components; the brief
+page's QA rows and the grouped Activity entry for the QA auto-reset; one tone source
+(`chipTone(label)`); stories for every changed component on `/design-system`.
+
+Not done, on purpose: B1.V3 (the shared disabled look — optional, ruling 22), B4.V12 (a bulk
+refusal preview inside the shared picker would couple it to one table's machine — follow-up), the
+three escalations (B5.A3 the portal's Request Revisions without the QA reset — must; B5.V14,
+B5.A14 the unlogged client-status and tick writes) and the three deferrals (Due / Assignee sheet
+columns, status group headers as chips, the editor-stage label). The open design questions are the
+gap report's "Open questions for Talal".

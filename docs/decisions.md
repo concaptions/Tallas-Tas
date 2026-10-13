@@ -2262,3 +2262,58 @@ it those concepts render as Draft (the fallback for a stored key the build does 
 nothing writes the retired key because every app insert sets the status explicitly. The concept
 mapping (→ `sent_to_editor_or_designer`, not `draft`) is flagged in `docs/sprint-oct12.md` for Talal
 and must be decided before `apply68.mjs` runs.
+
+## 2026-10-13 — Oct 12 UI overhaul, Ticket 0: the six boards as the design foundation
+
+**Source.** `tas-ui-overhaul.zip` (six static boards, 2026-10-12) and the Oct 13 HTML bundle — the same
+six boards wrapped in a React runtime, byte-equivalent once the runtime's attribute rewrites are undone.
+The boards were read twice each (visual tokens; anatomy, states and copy), the twelve readings merged
+and every disagreement ruled in `docs/sprint-oct12-ui-gap.md` (194 findings, 105 of them this ticket's
+work, 72 "keep code"). Three facts frame the report: the boards predate the Oct 12 status
+consolidation (Ticket 5) so every per-track key they draw is the code's, not a gap; decision 3 of the
+2026-10-12 entry (Approve IS the submission) overrides board 1's enabled Approve; the backend contract
+is frozen, so the writer-side defects board 5 surfaced are escalations, not changes.
+
+**Four tokens, not re-themed.** `--on-accent` (`#ffffff`) is the ink on a filled accent or the brand
+gradient — the boards draw white, and the one ink the repo had (`text-bg`, the shadcn
+`--primary-foreground` alias) flipped the wrong way in dark mode (`#15111f` on purple). `--on-ok`
+(`#0f2418`) is the Approve button's ink on the solid `--ok` fill (`--ok` keeps one value in both
+palettes, so its ink stays near-black in both; the user's rule is "a ZIP colour not covered gets a
+token first", so it is a token rather than `--bg-deep`). `--shadow-float` and `--shadow-sheet` are
+the boards' floating-surface and Sheet casts; their light values cast the palette's darkest ink at 16%
+through `var(--text)` so no second literal enters `tokens.css`. `--primary-foreground` now points at
+`--on-accent`. `tokens-declared.test.ts` pins all four in all four theme blocks.
+
+**Icons.** Every product icon is lucide-react through the `@tas/ui/icons` subpath (one declared
+dependency, canonical names only; `Trash2`, `Unlock`, `XCircle`, `AlertTriangle`, `Home`, `AlignLeft`
+are aliases in 1.46 and `Text` does not exist). The hand-copied `sheet-icons.tsx` paths are gone.
+
+**Checkbox.** A styled native `<input type="checkbox">` (`appearance-none`, lucide `Check` / `Minus`
+overlay, `variant="na"` for the struck-through QA tick) in `@tas/ui` — no `@radix-ui/react-checkbox`,
+keyboard and screen-reader behaviour untouched, every `data-slot` the e2e addresses stays on the input.
+
+**One tone source.** The Creative Sheet's local `INTERNAL_STATUS_TONE` map is gone; every internal chip
+takes `chipTone(label)` from `@tas/domain/state`, as board 6 and the domain already said (Ad Submitted
+and Under Editing / Designing are `mute`). If richer working-step tones are wanted they go into the
+domain as one function, never into a second map.
+
+**Rulings worth knowing.** The Sheet keeps every control (selects, Save, QA doc, Dimensions) under SIX
+sections (Creative folded into Identity, Spelling into QA); Save keeps the gradient, Open full page is
+outline, Cancel is dropped (Escape, overlay and the close button dismiss). The Sheet's title is the
+brief's name (the generated creative name, no month), the sheet's month name is the description line.
+Grid header typography and the 42px row are product-wide (one `airtable-grid.tsx`). Focus Mode loses
+its outer card chrome; the page header and search stay because prev/next iterate the search's rows.
+The gate tooltip is a CSS-only popover inside `DisabledWrite` (heading + bolded tick name), the native
+`title` kept. The QA auto-reset renders as ONE grouped Activity entry (actor + second) — the rows are
+already there; nothing new is written.
+
+**Erratum to the 2026-10-12 entry, item 5.** Duplicate's entry state is `draft` since the consolidation,
+not `sent_to_video_editor` / `sent_to_designer`; the board-3 annotation and `index.html`'s "spec bugs"
+are inverted by Ticket 5.
+
+**Escalations (Talal's go, a backend ticket).** The portal's Request Revisions writes `revisions_needed`
+without `qaResetFor` and without an activity row (B5.A3, must); the client-status dispatcher and
+`toggleQaAction` log nothing (B5.V14, B5.A14). Until B5.A3 lands, "send it back from the portal → both
+ticks clear" fails on that path. Open design questions (white ink contrast on the violet end of the
+dark gradient; who grades a Motion Image; the count noun; Due/Assignee sheet columns; Music/Voiceover
+columns; "ticked by") are listed in the gap report.
