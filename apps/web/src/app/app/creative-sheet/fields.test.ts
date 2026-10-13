@@ -13,6 +13,7 @@ import {
   pendingSheetRow,
   rowsWithPendingCreative,
   applyKanbanMoves,
+  assetSubline,
   countLabel,
   INTERNAL_STATUS_OPTIONS,
   internalStatusView,
@@ -25,6 +26,8 @@ import {
   OTHER_COLUMN,
   QA_CHECKS,
   SHEET_CHECKS,
+  SHEET_GROUPS,
+  sheetQaGate,
   STATUS_OPTIONS,
   statusView,
 } from './fields';
@@ -38,12 +41,9 @@ describe('the two select vocabularies', () => {
     );
   });
 
-  it('agree with chipTone wherever the domain has a rule for the label', () => {
+  it('take every tone from chipTone(label) — one tone source for both tracks (B6.V11)', () => {
     for (const option of [...INTERNAL_STATUS_OPTIONS, ...STATUS_OPTIONS]) {
-      const domain = chipTone(option.label);
-      if (domain !== 'mute') {
-        expect(option.tone, option.label).toBe(domain);
-      }
+      expect(option.tone, option.label).toBe(chipTone(option.label));
     }
     expect(internalStatusView('approved')?.tone).toBe(chipTone('Approved'));
     expect(internalStatusView('revisions_needed')?.tone).toBe(chipTone('Revisions Needed'));
@@ -53,10 +53,10 @@ describe('the two select vocabularies', () => {
     expect(statusView('disapproved')?.tone).toBe(chipTone('Disapproved'));
   });
 
-  it('give the in-progress and submitted steps the tones the label map cannot', () => {
+  it('draw the working steps mute, as board 6 rules and the brief page already does', () => {
     expect(statusView('pending_for_approval')?.tone).toBe('info');
-    expect(internalStatusView('ad_submitted')?.tone).toBe('accent');
-    expect(internalStatusView('under_editing_or_designing')?.tone).toBe('info');
+    expect(internalStatusView('ad_submitted')?.tone).toBe('mute');
+    expect(internalStatusView('under_editing_or_designing')?.tone).toBe('mute');
     expect(internalStatusView('draft')?.tone).toBe('mute');
   });
 
@@ -84,6 +84,59 @@ describe('the checkboxes', () => {
       'Graphic Designer QA',
       'Creative Strategist QA',
     ]);
+  });
+});
+
+describe('the panel sections (B2.A4)', () => {
+  it('are the six of decision 2, in the board’s order', () => {
+    expect(Object.values(SHEET_GROUPS)).toEqual([
+      'Identity',
+      'Status',
+      'Content',
+      'QA',
+      'Assets',
+      'Meta',
+    ]);
+  });
+});
+
+describe('assetSubline (B2.V20)', () => {
+  it('names the file when the field holds exactly one link, decoded, without query or fragment', () => {
+    expect(assetSubline(['https://files.example/briefs/breakdown_v2.docx'])).toBe(
+      'breakdown_v2.docx',
+    );
+    expect(assetSubline(['https://r2.example/a%20b.png?x=1#top'])).toBe('a b.png');
+    expect(assetSubline(['https://r2.example/dir/'])).toBe('dir');
+  });
+
+  it('counts the files otherwise, and survives a malformed escape', () => {
+    expect(assetSubline(['https://r2.example/a.png', 'https://r2.example/b.png'])).toBe('2 files');
+    expect(assetSubline([])).toBe('0 files');
+    expect(assetSubline(['https://r2.example/%E0%A4%A.png'])).toBe('%E0%A4%A.png');
+  });
+});
+
+describe('sheetQaGate (B4.A12)', () => {
+  const none = { qaVideoEditor: false, qaDesigner: false, qaStrategist: false };
+
+  it('reads the ticks it is given, so the line moves before Save', () => {
+    expect(sheetQaGate('video', none)).toEqual({
+      label: '0 of 2 required checks complete.',
+      open: false,
+    });
+    expect(sheetQaGate('video', { ...none, qaVideoEditor: true, qaStrategist: true })).toEqual({
+      label: '2 of 2 required checks complete.',
+      open: true,
+    });
+  });
+
+  it('ignores the tick the other track owns', () => {
+    expect(sheetQaGate('static', { ...none, qaVideoEditor: true }).label).toBe(
+      '0 of 2 required checks complete.',
+    );
+    expect(sheetQaGate('static', { ...none, qaDesigner: true, qaStrategist: true }).open).toBe(
+      true,
+    );
   });
 });
 

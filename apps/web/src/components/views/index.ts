@@ -18,10 +18,25 @@ export { ViewToolbar } from './view-toolbar';
 export { useTableView, type TableViewState } from './use-table-view';
 export { TimelineView, type TimelineItem } from './timeline-view';
 export { ColumnNotices, type ColumnNoticesProps } from './column-notices';
-export { RowContextMenu, type ContextMenuItem, type RowContextMenuProps } from './row-context-menu';
+export {
+  RowContextMenu,
+  duplicateShortcut,
+  type ContextMenuItem,
+  type RowContextMenuProps,
+} from './row-context-menu';
 export {
   SelectionBar,
   selectionCountLabel,
   type SelectionAction,
   type SelectionBarProps,
 } from './selection-bar';
+export {
+  SelectionStatusPicker,
+  type SelectionStatusOption,
+  type SelectionStatusPickerProps,
+  type SelectionStatusTrack,
+} from './selection-status-picker';
+export {
+  SelectionDeleteConfirm,
+  type SelectionDeleteConfirmProps,
+} from './selection-delete-confirm';

@@ -1,5 +1,6 @@
 import { lookupRollup } from '@tas/db';
 import { copyTitle } from '@tas/domain/copy';
+import { formatCommentStamp } from '@tas/ui';
 
 import type { CreativeSheetWorkspaceResult } from '@/lib/creative-sheet-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
@@ -100,7 +101,9 @@ export function buildSheetItems(
       id: comment.id,
       authorName: comment.authorName,
       body: comment.body,
-      at: absoluteTime(comment.createdAt),
+      // The board's `10 Oct, 3:42 PM` beside the author (B1.A21); `ago` stays for the title. Both
+      // are computed here, on the server, so the client never formats a time of its own.
+      at: formatCommentStamp(comment.createdAt),
       ago: relativeTime(comment.createdAt, now),
     });
     commentsByBrief.set(comment.recordId, list);

@@ -1,6 +1,11 @@
 'use client';
 
+import { useState } from 'react';
+import { chipTone } from '@tas/domain/state';
+import { StatusChip } from '@tas/ui';
+
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
+import { toggleAllSelected, toggleSelected } from '@/components/views/airtable-grid-logic';
 
 /**
  * The reusable Airtable-style grid (P2A, UI governance rule 4). Read-only, full-width, horizontally
@@ -49,12 +54,6 @@ const ROWS: readonly DemoRow[] = [
   },
 ];
 
-const TONE: Record<DemoRow['status'], string> = {
-  Approved: 'bg-ok/15 text-ok',
-  Testing: 'bg-warn/15 text-warn',
-  Draft: 'bg-surface3 text-text3',
-};
-
 const COLUMNS: readonly GridColumn<DemoRow>[] = [
   {
     key: 'name',
@@ -68,9 +67,8 @@ const COLUMNS: readonly GridColumn<DemoRow>[] = [
     key: 'status',
     header: 'Status',
     sortValue: (row) => row.status,
-    render: (row) => (
-      <span className={`rounded-input px-2 py-0.5 text-xs ${TONE[row.status]}`}>{row.status}</span>
-    ),
+    // The one pill: `StatusChip`, toned by `chipTone` — never a hand-rolled badge (governance rule 3).
+    render: (row) => <StatusChip tone={chipTone(row.status)} label={row.status} />,
   },
   {
     key: 'angles',
@@ -113,6 +111,39 @@ export function AirtableGridEmptyStory() {
       rows={[]}
       rowId={(row) => row.id}
       empty="🌱 No records yet — add your first one."
+    />
+  );
+}
+
+/**
+ * The three row states board 3 draws, in one grid (B3.V5 / B3.V29): the first row TICKED
+ * (`accent-soft` wash, the inset bar, its cells in `--text`), the second OPEN in the sidebar
+ * (`surface3` + the bar, `selectedId`), the third the row whose context menu is up (`surface3`,
+ * `contextRowId`). One of three is ticked, so the header box shows the indeterminate bar. Ticking
+ * rows changes the header through the shared `toggleSelected` / `toggleAllSelected` logic.
+ */
+export function AirtableGridSelectionStory() {
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(['1']));
+  return (
+    <AirtableGrid
+      tableKey="design-system-demo-selection"
+      columns={COLUMNS}
+      rows={ROWS}
+      rowId={(row) => row.id}
+      rowLabel={(row) => row.name}
+      selectedId="2"
+      contextRowId="3"
+      selection={{
+        selected,
+        onToggle: (id) => {
+          setSelected((current) => toggleSelected(current, id));
+        },
+        onToggleAll: (ids) => {
+          setSelected((current) => toggleAllSelected(current, ids));
+        },
+      }}
+      onRowClick={() => undefined}
+      tableSlot="design-system-selection-table"
     />
   );
 }

@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { applyUserView, type UserViewConfig, type UserViewSort } from '@tas/domain';
-import { cn } from '@tas/ui';
+import { Checkbox, cn } from '@tas/ui';
 
 import {
   cycleSort,
@@ -84,6 +84,11 @@ export interface AirtableGridProps<Row> {
     row: Row,
     position: { readonly x: number; readonly y: number },
   ) => void;
+  /**
+   * The row whose context menu is up (B3.V5). The page holds the menu; the grid only learns which
+   * row it belongs to, so that row keeps a `surface3` wash while the pointer is on the menu.
+   */
+  readonly contextRowId?: string | null;
 }
 
 /**
@@ -122,6 +127,7 @@ export function AirtableGrid<Row>({
   onSortChange,
   selection,
   onRowContextMenu,
+  contextRowId = null,
 }: AirtableGridProps<Row>) {
   const [localSort, setLocalSort] = useState<SortState | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
@@ -230,12 +236,6 @@ export function AirtableGrid<Row>({
   const visibleIds = useMemo(() => sortedRows.map(rowId), [sortedRows, rowId]);
   const headerState =
     selection === undefined ? 'none' : headerSelectionState(selection.selected, visibleIds);
-  const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    if (headerCheckboxRef.current !== null) {
-      headerCheckboxRef.current.indeterminate = headerState === 'some';
-    }
-  }, [headerState]);
 
   const onToggleColumn = useCallback(
     (key: string) => {
@@ -264,6 +264,7 @@ export function AirtableGrid<Row>({
         data-slot={rowSlot}
         data-state={id === selectedId ? 'selected' : undefined}
         data-checked={selection === undefined ? undefined : checked ? 'true' : 'false'}
+        data-context={id === contextRowId ? 'open' : undefined}
         {...rowAttributes?.(row)}
         role={clickable ? 'button' : undefined}
         tabIndex={clickable ? 0 : undefined}
@@ -287,8 +288,13 @@ export function AirtableGrid<Row>({
               }
             : undefined
         }
+        // Three row states, each legible against the others (B3.V5, ruling 14): the OPEN row is
+        // `surface3` with the inset accent bar, a CHECKED row is the accent wash with the same bar,
+        // and the row whose context menu is up is `surface3` alone.
         className={cn(
-          'border-b border-line/60 last:border-b-0 data-[state=selected]:bg-accent-soft',
+          'group border-b border-line/60 last:border-b-0',
+          'data-[state=selected]:bg-surface3 data-[state=selected]:shadow-[inset_3px_0_0_var(--accent)]',
+          'data-[context=open]:bg-surface3',
           clickable && 'cursor-pointer hover:bg-surface3',
           checked && 'bg-accent-soft/60 shadow-[inset_3px_0_0_var(--accent)]',
         )}
@@ -296,14 +302,22 @@ export function AirtableGrid<Row>({
         {selection === undefined ? null : (
           <td
             data-column="__select"
-            className="sticky left-0 z-10 w-9 border-r border-line bg-surface px-2 py-1.5 text-center"
+            // A sticky cell paints its own opaque surface over the row, so the row state and the
+            // 3px bar are drawn here too (a `before` bar; a solid mix for the wash, so nothing
+            // scrolling underneath shows through).
+            className={cn(
+              'sticky left-0 z-10 w-9 border-r border-line bg-surface px-2 py-1.5 text-center',
+              'relative before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-transparent',
+              'group-data-[state=selected]:bg-surface3 group-data-[state=selected]:before:bg-accent',
+              'group-data-[context=open]:bg-surface3',
+              checked && 'bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))] before:bg-accent',
+            )}
             onClick={(event) => {
               // The checkbox is not a row click: ticking a row never opens it.
               event.stopPropagation();
             }}
           >
-            <input
-              type="checkbox"
+            <Checkbox
               checked={checked}
               aria-label={`Select ${rowLabel ? rowLabel(row) : id}`}
               data-slot="row-select"
@@ -313,7 +327,7 @@ export function AirtableGrid<Row>({
               onKeyDown={(event) => {
                 event.stopPropagation();
               }}
-              className="size-4 rounded-input border border-line2 bg-surface2 accent-[var(--accent)]"
+              className="align-middle"
             />
           </td>
         )}
@@ -325,11 +339,17 @@ export function AirtableGrid<Row>({
             style={{
               left: column.frozen === true ? (frozenLefts[column.key] ?? 0) : undefined,
             }}
+            // `py-2.5` is the boards' 42px data row (B3.V12, product-wide); a checked row's text
+            // steps up to `--text` (B3.A11) — on the cell, because the cell sets its own colour.
             className={cn(
-              'px-3 py-1.5 whitespace-nowrap text-text2',
+              'px-3 py-2.5 whitespace-nowrap text-text2',
               column.align === 'right' && 'text-right',
               column.align === 'center' && 'text-center',
               column.frozen && 'sticky z-10 border-r border-line bg-surface text-text',
+              column.frozen &&
+                'group-data-[state=selected]:bg-surface3 group-data-[context=open]:bg-surface3',
+              column.frozen && checked && 'bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))]',
+              checked && 'text-text',
             )}
           >
             {column.render(row)}
@@ -363,18 +383,17 @@ export function AirtableGrid<Row>({
             tie would be broken by DOM order and this header — later in the document — would paint
             over the brand switcher as soon as the page scrolls far enough. `z-20` still outranks the
             frozen body cells (`z-10` below), which is the only thing the header has to beat. */}
-          <thead className="sticky top-0 z-20 bg-surface">
+          <thead className="sticky top-0 z-20 bg-surface2">
             <tr className="border-b border-line" ref={headRowRef}>
               {selection === undefined ? null : (
                 <th
                   scope="col"
                   data-column="__select"
-                  className="sticky left-0 z-20 w-9 border-r border-line bg-surface px-2 py-2 text-center"
+                  className="sticky left-0 z-20 w-9 border-r border-line bg-surface2 px-2 py-2 text-center"
                 >
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
+                  <Checkbox
                     checked={headerState === 'all'}
+                    indeterminate={headerState === 'some'}
                     aria-label={
                       headerState === 'all'
                         ? 'Clear the rows on screen'
@@ -385,7 +404,7 @@ export function AirtableGrid<Row>({
                     onChange={() => {
                       selection.onToggleAll(visibleIds);
                     }}
-                    className="size-4 rounded-input border border-line2 bg-surface2 accent-[var(--accent)]"
+                    className="align-middle"
                   />
                 </th>
               )}
@@ -402,11 +421,13 @@ export function AirtableGrid<Row>({
                     minWidth: column.minWidth,
                     left: column.frozen === true ? (frozenLefts[column.key] ?? 0) : undefined,
                   }}
+                  // The boards' column header on every grid (B3.V11, product-wide): 10px / 600 /
+                  // uppercase / wide tracking in `--text4` on `--surface2`.
                   className={cn(
-                    'px-3 py-2 text-left font-medium whitespace-nowrap text-text2',
+                    'px-3 py-2 text-left text-[10px] font-semibold tracking-widest whitespace-nowrap text-text4 uppercase',
                     column.align === 'right' && 'text-right',
                     column.align === 'center' && 'text-center',
-                    column.frozen && 'sticky z-20 border-r border-line bg-surface',
+                    column.frozen && 'sticky z-20 border-r border-line bg-surface2',
                   )}
                 >
                   {column.sortValue === undefined ? (
@@ -452,7 +473,7 @@ export function AirtableGrid<Row>({
                   >
                     <td colSpan={visibleColumns.length + selectionColumn} className="p-0">
                       <div className="sticky left-0 flex w-fit max-w-full items-baseline gap-2 px-3 py-1.5">
-                        <span className="text-xs font-medium text-text2">{group.label}</span>
+                        <span className="text-xs font-semibold text-text2">{group.label}</span>
                         <span className="font-mono text-[10px] text-text3" data-slot="group-count">
                           {group.rows.length}
                         </span>

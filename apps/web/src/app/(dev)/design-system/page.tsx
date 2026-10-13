@@ -79,12 +79,14 @@ import { GlobalBadge } from '@/app/app/themes/global-badge';
 import { ThemeCard } from '@/app/app/themes/theme-card';
 
 import {
+  BriefActivityStory,
   BriefChipsStory,
   BriefDimensionsPickerStory,
   BriefDimensionsStory,
   BriefInspirationStory,
   BriefNameStory,
-  BriefQaStory,
+  BriefQaChecklistStory,
+  QaCheckRowStory,
 } from './briefs.stories';
 import {
   ConceptNamePreviewStory,
@@ -114,8 +116,19 @@ import {
   CreativeSheetTicksStory,
   FocusModeStory,
   MultiSelectStory,
+  QaGateBoxStory,
 } from './creative-sheet.stories';
-import { AirtableGridEmptyStory, AirtableGridStory } from './airtable-grid.stories';
+import {
+  AirtableGridEmptyStory,
+  AirtableGridSelectionStory,
+  AirtableGridStory,
+} from './airtable-grid.stories';
+import { CheckboxStory, DisabledWritePopoverStory, SectionLabelStory } from './primitives.stories';
+import {
+  ChipToneMapStory,
+  QaGateMatrixStory,
+  StatusVocabularyStory,
+} from './status-vocabulary.stories';
 import { ClientStatusBadgesStory, ClientStatusDropdownDemoStory } from './client-status.stories';
 import { GridCellsStory, ThemePanelStory } from './grid-cells.stories';
 import { LinkedRecordsCellStory } from './linked-records.stories';
@@ -385,7 +398,7 @@ export default function DesignSystemPage() {
 
       <Section
         title="Buttons"
-        note="Six variants, four sizes. 6px radius: the system has no pill buttons."
+        note="Seven variants, four sizes. 6px radius: the system has no pill buttons. The filled variants ink through the two tokens: --on-accent on the gradient and on --bad, --on-ok on the solid --ok of success (Oct 13, B1.V1 / B1.V2)."
       >
         <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5">
           <div className="flex flex-wrap items-center gap-3">
@@ -396,6 +409,19 @@ export default function DesignSystemPage() {
             <Button variant="link">Link</Button>
             <Button variant="destructive">Destructive</Button>
             <Button disabled>Disabled</Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+            <Button variant="success">Success</Button>
+            <Button variant="success" disabled>
+              Success, disabled
+            </Button>
+            <Button variant="success" disabled className={disabledWriteClassName}>
+              Success, held write
+            </Button>
+            <span className="text-sm text-text3">
+              The Approve button (board 1): solid --ok, near-black ink, 600; then the variant&apos;s
+              own disabled look, then the muted held-write look Focus Mode gives it.
+            </span>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button size="sm">Small</Button>
@@ -458,6 +484,13 @@ export default function DesignSystemPage() {
             <Switch id="ds-switch" defaultChecked />
             <Label htmlFor="ds-switch">Email notifications</Label>
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+            checkbox (Oct 13, B2.V15) — a styled native input: 4px radius, accent fill with the
+            white tick, the indeterminate bar, the dashed N/A box, disabled
+          </h3>
+          <CheckboxStory />
         </div>
       </Section>
 
@@ -587,6 +620,35 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section
+        title="Status vocabulary"
+        note="Every legal key, its label and tone, in flow order; the gate row; the type-to-ticks matrix. Read before writing any status string. Drawn live from @tas/domain/state (board 6, B6.V17): the Oct 12 consolidation (Ticket 5, migration 0067) retired the per-track internal keys, so only the one live list is shown. under_editing / under_review are editor-stage keys (EDITOR_STAGES), not statuses."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              the two tracks — numbered in flow order, the stored key beside each chip, the gate row
+              washed ok, the client branches set apart
+            </h3>
+            <StatusVocabularyStory />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <div className="flex flex-col gap-2">
+              <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+                chipTone — the six rules, computed over every live label
+              </h3>
+              <ChipToneMapStory />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+                QA gate matrix (board 4 §3) — required ticks per type, from requiredQaChecks
+              </h3>
+              <QaGateMatrixStory />
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section
         title="SoonChip and disabled write actions"
         note="A section that is not built yet carries a SoonChip. A write action disabled because no session exists is muted, never accent, and explains itself on hover."
       >
@@ -608,6 +670,14 @@ export default function DesignSystemPage() {
               Enabled, then the same button disabled in demo mode: hover it for {DEMO_WRITE_HINT}.
             </span>
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+            popover (Oct 13, B1.V6) — the gate tooltip board 1 draws: surface4 on line2, the warn
+            heading, the missing tick in bold; the first two are held open for review, the third
+            opens on hover or keyboard focus as in the product
+          </h3>
+          <DisabledWritePopoverStory />
         </div>
       </Section>
 
@@ -875,6 +945,13 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section
+        title="SectionLabel"
+        note="The boards' slab (Oct 13, B4.V5): 10px / 600 / .09em uppercase in --text4 with a 1px --line rule filling the row. One recipe for every section heading — Focus Mode, the sidebar, the QA checklist, the two-track bars, Activity — where the product had three."
+      >
+        <SectionLabelStory />
+      </Section>
+
+      <Section
         title="Concepts: view toggle, board and auto-name"
         note="The three shapes /app/concepts introduces. Mounted from the route's own modules, never re-drawn here."
       >
@@ -910,6 +987,14 @@ export default function DesignSystemPage() {
               grid — frozen name column, inline cells, sortable headers
             </h3>
             <AirtableGridStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              selection (Oct 13, B3.V5) — the three row states: ticked (accent wash, bar, text ink),
+              open in the sidebar (surface3, bar), context menu up (surface3); the header box
+              indeterminate while some rows are ticked
+            </h3>
+            <AirtableGridSelectionStory />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
@@ -1082,9 +1167,26 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-              QA checklist — three boxes, disabled in demo mode with the reason on hover
+              QA checklist with a track (Oct 13, B4.V3 / B4.V14) — video with the strategist
+              missing, static with every tick set; the other track&apos;s tick struck through as
+              N/A, the gate line under the list; demo mode, boxes disabled with the reason on hover
             </h3>
-            <BriefQaStory />
+            <BriefQaChecklistStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              QA check row (Oct 13, B4.V3 / B4.V17) — the one row every surface draws: required and
+              unset, N/A, ticked; then the same three disabled
+            </h3>
+            <QaCheckRowStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              activity (Oct 13, B5.V19) — one card per write: the client sent it back and the two
+              ticks cleared in the same second (reset, re-locked), a plain edit, the internal
+              Request Changes reset; then the empty state
+            </h3>
+            <BriefActivityStory />
           </div>
         </div>
       </Section>
@@ -1259,10 +1361,21 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex-1 basis-full">
             <h3 className="mb-2 font-mono text-[11px] tracking-wide text-text3 uppercase">
-              focus mode (Oct 12) — one creative, prev/next, the type-filtered QA checklist, the
-              gated buttons
+              focus mode (Oct 12 / 13) — one creative, prev/next, the type-filtered QA checklist,
+              the gated buttons: Approve held with the QA sentence under its heading (the gate
+              refusal beats the demo hint, B4.V13); next walks the static twin, then the creative
+              with every tick set (ok gate box, open padlock)
             </h3>
             <FocusModeStory />
+          </div>
+          <div className="flex-1 basis-full">
+            <h3 className="mb-2 font-mono text-[11px] tracking-wide text-text3 uppercase">
+              QA gate states (Oct 13, B4.A19) — the gate box and the three review buttons for the
+              three fixtures: both box tones, the popover held open on the QA-gated button, Approve
+              in the success variant and Submit live with the open padlock where the client sent the
+              creative back
+            </h3>
+            <QaGateBoxStory />
           </div>
           <div className="flex-1 basis-full">
             <h3 className="mb-2 font-mono text-[11px] tracking-wide text-text3 uppercase">
@@ -1273,7 +1386,9 @@ export default function DesignSystemPage() {
           </div>
           <div className="flex-1 basis-full">
             <h3 className="mb-2 font-mono text-[11px] tracking-wide text-text3 uppercase">
-              multi-select (Oct 12) — checkbox column, right-click menu, floating action bar
+              multi-select (Oct 12 / 13, B3.V29) — checkbox column, right-click menu with its glyphs
+              and the washed row, floating action bar with the status picker, the delete confirm and
+              the notice that outlives the selection; the demo switch holds every action
             </h3>
             <MultiSelectStory columns={parentColumnsFor('creative_sheet_items')} />
           </div>

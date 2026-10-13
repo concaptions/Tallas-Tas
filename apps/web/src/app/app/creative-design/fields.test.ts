@@ -7,6 +7,11 @@ import {
 } from '@tas/db';
 import { creativePerformances } from '@tas/db/schema';
 import { creativeNameForConcept, dimensionsFor } from '@tas/domain/creatives';
+import {
+  BRIEF_QA_CHECK_LABELS,
+  BRIEF_QA_CHECKS as DOMAIN_QA_CHECKS,
+  INTERNAL_GATE_REASON,
+} from '@tas/domain/state';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -25,6 +30,7 @@ import {
   filteredBriefCountLabel,
   briefPersonaName,
   briefStageView,
+  clientSaveRefusal,
   indexBriefLinkCounts,
   internalStatusView,
   linkCountLabel,
@@ -414,6 +420,70 @@ describe('BRIEF_QA_LABELS', () => {
       'Graphic Designer QA',
       'Creative Strategist QA',
     ]);
+  });
+
+  it('IS the domain’s table, not a copy of it (B4.V4)', () => {
+    expect(BRIEF_QA_LABELS).toBe(BRIEF_QA_CHECK_LABELS);
+    expect(BRIEF_QA_CHECKS).toBe(DOMAIN_QA_CHECKS);
+  });
+});
+
+describe('clientSaveRefusal — both gates on the client Save (B4.A22)', () => {
+  const qaReason = 'Video Editor QA must be ticked before this brief can go to the client.';
+
+  it('holds Save with the internal gate while the internal track is below Approved', () => {
+    expect(
+      clientSaveRefusal({
+        internal: 'ad_submitted',
+        client: 'pending_for_approval',
+        candidate: 'approved',
+        qaReason: null,
+      }),
+    ).toBe(INTERNAL_GATE_REASON);
+  });
+
+  it('names the internal gate before the QA gate: it is the first of the two', () => {
+    expect(
+      clientSaveRefusal({
+        internal: 'draft',
+        client: 'revisions_needed',
+        candidate: 'revisions_submitted',
+        qaReason,
+      }),
+    ).toBe(INTERNAL_GATE_REASON);
+  });
+
+  it('holds a resubmission with the QA reason once the track is open and a tick is missing', () => {
+    expect(
+      clientSaveRefusal({
+        internal: 'approved',
+        client: 'revisions_needed',
+        candidate: 'revisions_submitted',
+        qaReason,
+      }),
+    ).toBe(qaReason);
+  });
+
+  it('lets a move that is not a submission through, QA or not', () => {
+    expect(
+      clientSaveRefusal({
+        internal: 'approved',
+        client: 'pending_for_approval',
+        candidate: 'approved',
+        qaReason,
+      }),
+    ).toBeNull();
+  });
+
+  it('never holds the status the brief already has, so an unchanged dropdown shows no gate', () => {
+    expect(
+      clientSaveRefusal({
+        internal: 'draft',
+        client: 'pending_for_approval',
+        candidate: 'pending_for_approval',
+        qaReason,
+      }),
+    ).toBeNull();
   });
 });
 

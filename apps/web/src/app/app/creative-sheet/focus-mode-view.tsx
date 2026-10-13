@@ -6,12 +6,17 @@ import { useRouter } from 'next/navigation';
 import { briefThumbnail } from '@tas/domain/creatives';
 import {
   Button,
+  Checkbox,
+  cn,
   DEMO_WRITE_HINT,
   DisabledWrite,
   disabledWriteClassName,
+  formatSheetDate,
+  SectionLabel,
   StatusChip,
   Textarea,
 } from '@tas/ui';
+import { Check, ChevronLeft, ChevronRight, Lock, LockOpen, Play, X } from '@tas/ui/icons';
 
 import { toggleQaAction } from '@/app/app/creative-design/actions';
 import { briefPath } from '@/lib/routes';
@@ -23,10 +28,18 @@ import {
   focusCounter,
   focusIndex,
   focusQaChecklist,
+  focusQaGateNote,
+  focusQaGateOpen,
+  focusQaMissingLabel,
   focusQaProgress,
+  focusQaTrack,
   neighbourIndex,
-  QA_GATE_NOTE,
+  previewFileName,
+  previewStamp,
+  QA_GATE_HEADING,
+  type FocusButtonState,
 } from './focus-mode';
+import { QaGateBox } from './qa-gate-box';
 import {
   approveCreativeAction,
   postCreativeCommentAction,
@@ -34,7 +47,6 @@ import {
   submitToClientAction,
   type ReviewResult,
 } from './review-actions';
-import { SheetIcon } from './sheet-icons';
 
 /**
  * Focus Mode (Oct 12 scope 1): the Creative Sheet's third view — one creative at a time, full
@@ -54,8 +66,6 @@ interface FocusModeViewProps {
   readonly onFocus: (id: string) => void;
   readonly demo: boolean;
 }
-
-const SECTION_LABEL = 'text-[10px] font-semibold tracking-[.09em] text-text4 uppercase';
 
 function Row({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
@@ -86,13 +96,25 @@ function TextCard({
       className={`flex min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface ${className ?? ''}`}
     >
       <header className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
-        <h3 className={SECTION_LABEL}>{title}</h3>
+        <SectionLabel rule={false}>{title}</SectionLabel>
         {action}
       </header>
       <div className="px-3 py-2.5 text-xs leading-relaxed whitespace-pre-wrap text-text2">
         {children}
       </div>
     </section>
+  );
+}
+
+/** Board 1's glass play disc over the preview frame (B1.V16): white at 8% / 17% through `--on-accent`. */
+function PlayDisc({ className }: { readonly className?: string }) {
+  return (
+    <span
+      data-slot="focus-play"
+      className={`flex size-[46px] items-center justify-center rounded-full border border-on-accent/17 bg-on-accent/8 backdrop-blur-[2px] ${className ?? ''}`}
+    >
+      <Play aria-hidden="true" className="size-[17px] fill-current text-text" />
+    </span>
   );
 }
 
@@ -116,6 +138,15 @@ function initials(name: string): string {
     .join('');
 }
 
+interface ThreadComment {
+  readonly id: string;
+  readonly authorName: string;
+  readonly body: string;
+  readonly at: string;
+  /** The relative wording, for the stamp's title; a comment posted this session has none yet. */
+  readonly ago?: string;
+}
+
 export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeViewProps) {
   const router = useRouter();
   const ids = useMemo(() => items.map((view) => view.item.id), [items]);
@@ -123,9 +154,7 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
   const view = index === -1 ? null : (items[index] ?? null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [posted, setPosted] = useState<
-    readonly { id: string; authorName: string; body: string; at: string }[]
-  >([]);
+  const [posted, setPosted] = useState<readonly ThreadComment[]>([]);
   const [draft, setDraft] = useState('');
 
   // The comments the page loaded plus the ones posted since, until the refresh brings them back.
@@ -220,35 +249,43 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
   const client = statusView(item.status);
   const actions = focusActions(item);
   const checklist = focusQaChecklist(item);
+  const qaTrack = focusQaTrack(item);
+  const missingLabel = focusQaMissingLabel(item);
   const image = firstImage(detail.designFile) ?? firstImage(detail.inspirationImage);
   const tile = briefThumbnail({
     name: item.briefName ?? item.name,
     designFileUrl: item.briefDesignFileUrl,
     inspoLinks: detail.inspoLinks,
   });
-  const allComments = [
-    ...comments.map((comment) => ({
-      id: comment.id,
-      authorName: comment.authorName,
-      body: comment.body,
-      at: `${comment.at} · ${comment.ago}`,
-    })),
-    ...posted,
-  ];
+  const fileUrl = tile.url ?? detail.designFile?.[0] ?? null;
+  // A stamp exists exactly for the types that play, which is when the frame gets the play disc.
+  const stamp = previewStamp(item);
+  const plays = stamp !== null;
+  const allComments: readonly ThreadComment[] = [...comments, ...posted];
 
   const button = (
     label: string,
     icon: ReactNode,
-    state: { enabled: boolean; hint: string | null },
+    state: FocusButtonState,
     onClick: () => void,
     slot: string,
-    variant: 'outline' | 'default' | 'secondary',
+    variant: 'outline' | 'default' | 'success',
     extraClass = '',
   ) => {
     const disabled = demo || pending || !state.enabled;
-    const hint = demo ? DEMO_WRITE_HINT : (state.hint ?? '');
+    // A guard refusal is the more specific reason, so it beats the demo hint (B4.V13); the demo
+    // hint stays for a button the guard would allow. The QA refusal alone gets the warn heading
+    // and the missing tick's name in bold (B1.A6); every other hint renders as the guard wrote it.
+    const hint = !state.enabled && state.hint !== null ? state.hint : demo ? DEMO_WRITE_HINT : '';
+    const qaGated = state.kind === 'qa';
     return (
-      <DisabledWrite active={disabled && hint !== ''} hint={hint}>
+      <DisabledWrite
+        active={disabled && hint !== ''}
+        hint={hint}
+        popover
+        heading={qaGated ? QA_GATE_HEADING : undefined}
+        hintEmphasis={qaGated ? (missingLabel ?? undefined) : undefined}
+      >
         <Button
           type="button"
           size="sm"
@@ -257,7 +294,7 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
           onClick={onClick}
           data-slot={slot}
           title={hint === '' ? undefined : hint}
-          className={`${disabled ? disabledWriteClassName : ''} ${extraClass}`}
+          className={`text-xs ${disabled ? disabledWriteClassName : ''} ${extraClass}`}
         >
           {icon}
           {label}
@@ -270,17 +307,17 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
     <div
       data-slot="focus-mode"
       data-focus-id={item.id}
-      className="flex flex-col overflow-hidden rounded-card border border-line bg-bg"
+      className="flex flex-col overflow-hidden border-t border-line bg-bg lg:min-h-[calc(100vh-14rem)]"
     >
       {/* Focus bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-surface px-5 py-3">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <div className="flex items-center gap-0.5 rounded-input border border-line bg-surface2 p-0.5">
+          <div className="flex items-center gap-0.5 rounded-card border border-line bg-surface2 p-0.5">
             <Button
               type="button"
               size="icon"
               variant="ghost"
-              className="size-7"
+              className="size-7 hover:bg-surface4"
               aria-label="Previous creative"
               data-slot="focus-prev"
               disabled={index <= 0}
@@ -288,7 +325,7 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                 go(-1);
               }}
             >
-              <SheetIcon name="prev" />
+              <ChevronLeft aria-hidden="true" className="size-[15px]" />
             </Button>
             <span
               data-slot="focus-counter"
@@ -300,7 +337,7 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
               type="button"
               size="icon"
               variant="ghost"
-              className="size-7"
+              className="size-7 hover:bg-surface4"
               aria-label="Next creative"
               data-slot="focus-next"
               disabled={index >= ids.length - 1}
@@ -308,11 +345,14 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                 go(1);
               }}
             >
-              <SheetIcon name="next" />
+              <ChevronRight aria-hidden="true" className="size-[15px]" />
             </Button>
           </div>
           <span className="hidden h-5 w-px bg-line sm:block" />
-          <span data-slot="focus-name" className="truncate font-mono text-sm font-medium text-text">
+          <span
+            data-slot="focus-name"
+            className="truncate font-mono text-[13px] font-medium tracking-[-.01em] text-text"
+          >
             {item.briefName ?? item.name}
           </span>
           {internal === null ? null : <StatusChip tone={internal.tone} label={internal.label} />}
@@ -321,35 +361,39 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
         <div className="flex flex-wrap items-center gap-2" data-slot="focus-actions">
           {button(
             'Request Changes',
-            <SheetIcon name="x" />,
+            <X aria-hidden="true" className="size-3.5" strokeWidth={2} />,
             actions.requestChanges,
             () => {
               run(requestChangesAction);
             },
             'focus-request-changes',
             'outline',
-            'text-bad border-bad/45 hover:text-bad',
+            'border-bad/45 bg-bad/10 text-bad hover:bg-bad/15 hover:text-bad',
           )}
           {button(
             'Approve',
-            <SheetIcon name="check" />,
+            <Check aria-hidden="true" className="size-3.5" strokeWidth={2.4} />,
             actions.approve,
             () => {
               run(approveCreativeAction);
             },
             'focus-approve',
-            'secondary',
-            'text-ok',
+            'success',
           )}
           {button(
             'Submit to Client',
-            <SheetIcon name="lock" />,
+            actions.submitToClient.enabled ? (
+              <LockOpen aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
+            ) : (
+              <Lock aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
+            ),
             actions.submitToClient,
             () => {
               run(submitToClientAction);
             },
             'focus-submit',
             'default',
+            'font-semibold',
           )}
         </div>
       </div>
@@ -363,14 +407,16 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
         </p>
       )}
 
-      <div className="grid gap-0 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid flex-1 gap-0 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* Left: metadata */}
         <aside
           className="flex flex-col border-b border-line bg-surface lg:border-r lg:border-b-0"
           data-slot="focus-meta"
         >
           <section className="border-b border-line px-4 py-3">
-            <h3 className={`${SECTION_LABEL} mb-2`}>Identity</h3>
+            <SectionLabel rule={false} className="mb-2.5">
+              Identity
+            </SectionLabel>
             <Row label="Concept">{lookups.concept ?? <Dash />}</Row>
             <Row label="Angle">{lookups.angle ?? <Dash />}</Row>
             <Row label="Batch">
@@ -387,7 +433,9 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
             <Row label="Funnel">{item.briefFunnel ?? <Dash />}</Row>
           </section>
           <section className="border-b border-line px-4 py-3">
-            <h3 className={`${SECTION_LABEL} mb-2`}>Status</h3>
+            <SectionLabel rule={false} className="mb-2.5">
+              Status
+            </SectionLabel>
             <Row label="Internal">
               {internal === null ? (
                 <Dash />
@@ -399,21 +447,18 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
               {client === null ? <Dash /> : <StatusChip tone={client.tone} label={client.label} />}
             </Row>
             <Row label="Due date">
-              {detail.dueDate === null ? (
-                <Dash />
-              ) : (
-                <span className="font-mono">{detail.dueDate.toISOString().slice(0, 10)}</span>
-              )}
+              {detail.dueDate === null ? <Dash /> : formatSheetDate(detail.dueDate)}
             </Row>
             <Row label="Assignee">{detail.assignee ?? <Dash />}</Row>
           </section>
           <section className="px-4 py-3" data-slot="focus-qa">
-            <h3 className={`${SECTION_LABEL} mb-2`}>QA Checklist</h3>
+            <SectionLabel rule={false} className="mb-2.5">
+              QA Checklist
+            </SectionLabel>
             <ul className="flex flex-col gap-2.5">
               {checklist.map((check) => (
                 <li key={check.key} className="flex items-start gap-2.5">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id={`focus-qa-${check.key}`}
                     checked={check.checked}
                     disabled={demo || pending}
@@ -422,7 +467,7 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                     }}
                     data-slot="focus-qa-check"
                     data-check={check.key}
-                    className="mt-0.5 size-4 shrink-0 rounded-input border border-line2 bg-surface2 accent-[var(--accent)] disabled:cursor-not-allowed"
+                    className="mt-0.5"
                   />
                   <label
                     htmlFor={`focus-qa-${check.key}`}
@@ -432,35 +477,37 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                     <span
                       className={check.checked ? 'text-[10px] text-text4' : 'text-[10px] text-warn'}
                     >
-                      {check.checked ? 'Ticked' : `Required — type is ${item.briefType ?? 'Video'}`}
+                      {check.checked ? 'Ticked' : `Required on the ${qaTrack} track`}
                     </span>
                   </label>
                 </li>
               ))}
             </ul>
-            <div
-              data-slot="focus-qa-gate"
-              className="mt-3 rounded-input border border-warn/35 bg-warn/10 px-3 py-2 text-[11px] leading-relaxed"
-            >
-              <p className="text-warn">{focusQaProgress(item)}</p>
-              <p className="text-text3">{QA_GATE_NOTE}</p>
-            </div>
+            <QaGateBox
+              progress={focusQaProgress(item)}
+              open={focusQaGateOpen(item)}
+              note={focusQaGateNote(item)}
+            />
           </section>
         </aside>
 
         {/* Right: content */}
-        <div className="flex min-w-0 flex-col gap-3 p-4" data-slot="focus-content">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="flex min-w-0 flex-col gap-3.5 p-4" data-slot="focus-content">
+          <div className="grid gap-3.5 lg:grid-cols-[392px_minmax(0,1fr)]">
             <section
               className="flex flex-col overflow-hidden rounded-card border border-line bg-surface"
               data-slot="focus-preview"
             >
-              <div className="relative flex aspect-video items-center justify-center bg-surface2">
+              <div className="relative flex aspect-video items-center justify-center bg-linear-to-br from-surface3 via-surface2 via-55% to-bg-deep">
                 {image === null ? (
                   <span className="flex flex-col items-center gap-1 text-text3">
-                    <span className="font-mono text-2xl font-semibold text-text2">
-                      {tile.label}
-                    </span>
+                    {plays ? (
+                      <PlayDisc />
+                    ) : (
+                      <span className="font-mono text-2xl font-semibold text-text2">
+                        {tile.label}
+                      </span>
+                    )}
                     <span className="text-[10px] uppercase tracking-wide">
                       {tile.source === 'name'
                         ? 'No asset yet'
@@ -470,20 +517,23 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                     </span>
                   </span>
                 ) : (
-                  <img src={image} alt={tile.alt} className="size-full object-cover" />
+                  <>
+                    <img src={image} alt={tile.alt} className="size-full object-cover" />
+                    {plays ? <PlayDisc className="absolute inset-0 m-auto" /> : null}
+                  </>
                 )}
-                {item.briefType === 'Video' || item.briefType === 'Motion Image' ? (
+                {plays ? (
                   <span className="absolute left-2 bottom-2 rounded-input border border-line bg-bg-deep/70 px-1.5 py-0.5 font-mono text-[10px] text-text3">
-                    {item.briefType}
+                    {stamp}
                   </span>
                 ) : null}
               </div>
               <div className="flex items-center justify-between gap-2 px-3 py-2">
                 <span
                   className="truncate font-mono text-[10px] text-text3"
-                  title={tile.url ?? undefined}
+                  title={fileUrl ?? undefined}
                 >
-                  {tile.url ?? detail.designFile?.[0] ?? 'No design file uploaded'}
+                  {fileUrl === null ? 'No design file uploaded' : previewFileName(fileUrl)}
                 </span>
                 <StatusChip tone="accent" label={`V${String(detail.version)}`} />
               </div>
@@ -495,7 +545,7 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
               ) : null}
             </TextCard>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3.5 md:grid-cols-3">
             <TextCard title="Brief to Design">{detail.briefToDesign ?? <Dash />}</TextCard>
             <TextCard title="Elements tested">{detail.elementsTested ?? <Dash />}</TextCard>
             <TextCard title="Offer & inspiration">
@@ -524,24 +574,33 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
             className="flex-1"
           >
             <div className="flex flex-col gap-3" data-slot="focus-comments">
-              {allComments.length === 0 ? (
-                <span className="text-text4">No comments yet.</span>
-              ) : null}
-              {allComments.map((comment) => (
-                <div key={comment.id} className="flex gap-2.5" data-slot="focus-comment">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface4 text-[10px] font-semibold text-text2">
-                    {initials(comment.authorName)}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="flex items-baseline gap-2">
-                      <span className="text-xs font-semibold text-text2">{comment.authorName}</span>
-                      <span className="text-[10px] text-text4">{comment.at}</span>
+              <div className="flex max-h-64 flex-col gap-3 overflow-y-auto">
+                {allComments.length === 0 ? (
+                  <span className="text-text4">No comments yet.</span>
+                ) : null}
+                {allComments.map((comment) => (
+                  <div key={comment.id} className="flex gap-2.5" data-slot="focus-comment">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-line text-[10px] font-semibold text-on-accent">
+                      {initials(comment.authorName)}
                     </span>
-                    <span className="block text-xs text-text2">{comment.body}</span>
-                  </span>
-                </div>
-              ))}
-              <div className="flex items-end gap-2 border-t border-line pt-3">
+                    <span className="min-w-0">
+                      <span className="flex items-baseline gap-2">
+                        <span className="text-xs font-semibold text-text2">
+                          {comment.authorName}
+                        </span>
+                        <span className="text-[10px] text-text4" title={comment.ago}>
+                          {comment.at}
+                        </span>
+                      </span>
+                      <span className="block text-xs text-text2">{comment.body}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 border-t border-line pt-3">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface4 text-[10px] font-semibold text-text3">
+                  You
+                </span>
                 <Textarea
                   value={draft}
                   onChange={(event) => {
@@ -549,10 +608,10 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                   }}
                   placeholder={demo ? 'Sign in to comment' : 'Add a comment…'}
                   readOnly={demo}
-                  rows={2}
+                  rows={1}
                   aria-label="Add a comment"
                   data-slot="focus-comment-draft"
-                  className="min-h-9 flex-1 text-xs"
+                  className="min-h-8 flex-1 text-xs"
                 />
                 <DisabledWrite active={demo} hint={DEMO_WRITE_HINT}>
                   <Button
@@ -561,7 +620,7 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                     disabled={demo || pending || draft.trim() === ''}
                     onClick={post}
                     data-slot="focus-comment-post"
-                    className={demo ? disabledWriteClassName : undefined}
+                    className={cn('font-semibold', demo && disabledWriteClassName)}
                   >
                     Post
                   </Button>

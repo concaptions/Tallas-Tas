@@ -1,4 +1,5 @@
 export { cn } from './lib/cn';
+export { formatCommentStamp, formatSheetDate } from './lib/format-date';
 
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
@@ -11,6 +12,7 @@ export {
   CardHeader,
   CardTitle,
 } from './components/card';
+export { Checkbox, checkboxVariants, type CheckboxProps } from './components/checkbox';
 export {
   DEMO_WRITE_HINT,
   DisabledWrite,
@@ -48,6 +50,11 @@ export {
 } from './components/dropdown-menu';
 export { Input } from './components/input';
 export { Label } from './components/label';
+export {
+  SectionLabel,
+  sectionLabelClassName,
+  type SectionLabelProps,
+} from './components/section-label';
 export {
   Select,
   SelectContent,

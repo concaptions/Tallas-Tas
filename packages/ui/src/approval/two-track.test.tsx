@@ -75,6 +75,52 @@ describe('TwoTrackApproval — the gate', () => {
   });
 });
 
+describe('TwoTrackApproval — the boards (Oct 13)', () => {
+  /** B6.V16: the gate row is washed in `--ok` at 8%, and only that row, and only in the internal bar. */
+  it('washes the Approved internal step as the gate, and no other row', () => {
+    const { container } = render(
+      <TwoTrackApproval internal="ad_submitted" client="pending_for_approval" />,
+    );
+    const internalRows = [
+      ...container.querySelectorAll<HTMLElement>(
+        '[data-slot="internal-steps"] [data-slot="step-row"]',
+      ),
+    ];
+    const washed = internalRows.filter((row) => row.className.includes('bg-ok/8'));
+
+    expect(washed).toHaveLength(1);
+    expect(washed[0]?.textContent.startsWith('Approved')).toBe(true);
+
+    // The client bar's Approved is the client's decision, not the gate.
+    const clientRows = container.querySelectorAll<HTMLElement>(
+      '[data-slot="client-steps"] [data-slot="step-row"]',
+    );
+    expect([...clientRows].some((row) => row.className.includes('bg-ok/8'))).toBe(false);
+  });
+
+  /** B4.V5: both bar headings use the one section-label recipe. */
+  it('heads both bars with the shared section label', () => {
+    const { container } = render(
+      <TwoTrackApproval internal="ad_submitted" client="pending_for_approval" />,
+    );
+    const labels = container.querySelectorAll<HTMLElement>('[data-slot="section-label"]');
+
+    expect([...labels].map((label) => label.textContent)).toEqual([
+      'Internal status',
+      'Client status',
+    ]);
+    expect(labels[0]?.className).toContain('text-text4');
+  });
+
+  it('holds no colour literal beyond the inline var() references the handoff specifies', () => {
+    const { container } = render(
+      <TwoTrackApproval internal="approved" client="pending_for_approval" />,
+    );
+
+    expect(container.innerHTML).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgb\(/);
+  });
+});
+
 describe('TwoTrackApproval — the internal bar', () => {
   it('renders the internal stepper with the current step marked now', () => {
     const { container } = render(

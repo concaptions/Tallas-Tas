@@ -23,3 +23,41 @@
     background-image: var(--accent-gradient);
   }
 }
+
+/* The Sheet's open motion (Oct 12 UI overhaul, B2.A30 — optional, no dependency): the side sheet
+   slides in from its edge and the scrim fades, keyed on the `data-state` radix sets. Only the
+   OPEN state is animated, so a close stays instant and nothing waits on an exit animation. */
+@keyframes sheet-slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  [data-slot='sheet-content'][data-side='right'][data-state='open'] {
+    animation: sheet-slide-in-right 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  [data-slot='sheet-overlay'][data-state='open'] {
+    animation: sheet-fade-in 180ms ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot='sheet-content'][data-state='open'],
+    [data-slot='sheet-overlay'][data-state='open'] {
+      animation: none;
+    }
+  }
+}

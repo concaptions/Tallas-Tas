@@ -54,18 +54,30 @@ test.describe('editor board with Clerk and a database', () => {
     expect(after.assignee).toBe(who);
     expect(after.activityIds.length).toBeGreaterThanOrEqual(before.activityIds.length + 2);
 
-    // The full page shows those rows: old → new status, the actor, and the assignee.
+    // The full page shows those rows: old → new status, the actor, and the assignee. Since the
+    // Oct 12 overhaul (B5.V4) the rows one action wrote share ONE card: the actor and the stamp
+    // sit on the group, each field is its own entry, and a status side is the StatusChip with the
+    // stored key on `data-value` (B5.V1) — the attribute is the contract, never the label's text.
     await page.goto(briefPath(id));
-    const entry = page
-      .locator('[data-slot="brief-activity-entry"][data-field="internalStatus"]')
-      .first();
-    await expect(entry.locator('[data-slot="brief-activity-old"]')).toContainText(
+    const statusEntry = page.locator(
+      '[data-slot="brief-activity-entry"][data-field="internalStatus"]',
+    );
+    const entry = statusEntry.first();
+    await expect(entry.locator('[data-slot="brief-activity-old"]')).toHaveAttribute(
+      'data-value',
       before.internalStatus,
     );
-    await expect(entry.locator('[data-slot="brief-activity-new"]')).toContainText(
+    await expect(entry.locator('[data-slot="brief-activity-new"]')).toHaveAttribute(
+      'data-value',
       'under_editing_or_designing',
     );
-    await expect(entry.locator('[data-slot="brief-activity-actor"]')).toHaveText(who);
+    await expect(
+      entry.locator('[data-slot="brief-activity-new"] [data-slot="status-chip"]'),
+    ).toHaveText('Under Editing / Designing');
+    const group = page.locator('[data-slot="brief-activity-group"]', { has: statusEntry }).first();
+    await expect(group.locator('[data-slot="brief-activity-actor"]')).toHaveText(who);
+    // The assignee write is its own entry; it shares the card only when the two inserts fall in
+    // the same second (ruling 19), so it is asserted page-wide, not on the group.
     await expect(
       page.locator('[data-slot="brief-activity-entry"][data-field="assignee"]').first(),
     ).toBeVisible();

@@ -191,9 +191,10 @@ function KanbanColumn({
         isOver ? 'border-accent bg-accent/5' : 'border-line bg-surface2'
       }`}
     >
+      {/* Board 6's track card: a 600 heading and a bare mono count, no pill (B6.V14, B6.V13). */}
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <span className="text-xs font-medium text-text2">{label}</span>
-        <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-text3">
+        <span className="text-xs font-semibold text-text2">{label}</span>
+        <span className="font-mono text-[10px] text-text3" data-slot="column-count">
           {items.length}
         </span>
       </div>

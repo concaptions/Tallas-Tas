@@ -13,13 +13,20 @@ import { cn } from '../lib/cn';
 // loaded on. The hover is opacity, not a colour shade — a `bg-accent/90` hover only repaints the
 // colour UNDER the gradient image, which is invisible — and the shared `disabled:opacity-50`
 // still reads over a background-image.
+//
+// Inks (Oct 13, B1.V1 / B1.V2): the filled variants read through the two ink tokens, never `text-bg`,
+// which is white in light mode and near-black in dark — the opposite of every board. `--on-accent`
+// is white on the gradient and on `--bad` in both palettes; `--on-ok` is the near-black the boards
+// draw on the solid `--ok` fill of the `success` variant (Approve), which is not re-themed either.
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-input text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-bad aria-invalid:ring-bad/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: 'bg-accent bg-brand-gradient text-bg shadow-xs hover:opacity-90',
-        destructive: 'bg-bad text-bg shadow-xs hover:bg-bad/90 focus-visible:ring-bad/20',
+        default: 'bg-accent bg-brand-gradient text-on-accent shadow-xs hover:opacity-90',
+        destructive: 'bg-bad text-on-accent shadow-xs hover:bg-bad/90 focus-visible:ring-bad/20',
+        success:
+          'bg-ok text-on-ok border border-ok font-semibold shadow-xs hover:opacity-90 focus-visible:ring-ok/20',
         outline: 'border border-line bg-surface text-text shadow-xs hover:bg-surface3',
         secondary: 'bg-surface3 text-text shadow-xs hover:bg-surface4',
         ghost: 'text-text2 hover:bg-surface3 hover:text-text',

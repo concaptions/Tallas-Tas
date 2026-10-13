@@ -12,7 +12,9 @@ import { cn } from '../lib/cn';
  * row sidebar is `side="right"`; the overlay dims the grid behind it, Escape and the close button
  * dismiss it, and focus is trapped inside while it is open — which is what makes it a Sheet and not
  * the fixed `<aside>` panels it replaces. Colours, radii and the mono face come from the token
- * layer through the semantic classes; no literal anywhere.
+ * layer through the semantic classes; no literal anywhere. The side sheets cast `shadow-sheet`
+ * (B2.V2) — the long leftward `--bg-deep` cast the board draws onto the dimmed grid, which the
+ * downward `shadow-lg` cannot express; the top and bottom edges keep `shadow-lg`.
  */
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -43,13 +45,13 @@ function SheetOverlay({
   );
 }
 
-const sheetVariants = cva('fixed z-50 flex flex-col gap-0 bg-surface text-text shadow-lg', {
+const sheetVariants = cva('fixed z-50 flex flex-col gap-0 bg-surface text-text', {
   variants: {
     side: {
-      right: 'inset-y-0 right-0 h-full w-full border-l border-line2 sm:max-w-md',
-      left: 'inset-y-0 left-0 h-full w-full border-r border-line2 sm:max-w-md',
-      top: 'inset-x-0 top-0 h-auto border-b border-line2',
-      bottom: 'inset-x-0 bottom-0 h-auto border-t border-line2',
+      right: 'inset-y-0 right-0 h-full w-full border-l border-line2 shadow-sheet sm:max-w-md',
+      left: 'inset-y-0 left-0 h-full w-full border-r border-line2 shadow-sheet sm:max-w-md',
+      top: 'inset-x-0 top-0 h-auto border-b border-line2 shadow-lg',
+      bottom: 'inset-x-0 bottom-0 h-auto border-t border-line2 shadow-lg',
     },
   },
   defaultVariants: { side: 'right' },

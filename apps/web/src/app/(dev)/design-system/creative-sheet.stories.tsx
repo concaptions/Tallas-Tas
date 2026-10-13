@@ -1,12 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { CreativeSheetItemListRow } from '@tas/db';
-import { Button, StatusChip } from '@tas/ui';
+import {
+  Button,
+  Checkbox,
+  cn,
+  DEMO_WRITE_HINT,
+  DisabledWrite,
+  disabledWriteClassName,
+  StatusChip,
+} from '@tas/ui';
+import { Captions, Check, Copy, Link, Lock, LockOpen, RefreshCw, Trash, X } from '@tas/ui/icons';
 
 import { CreativeSheetPanel } from '@/app/app/creative-sheet/creative-sheet-panel';
 import { DimensionsField } from '@/app/app/creative-sheet/dimensions-field';
+import {
+  focusActions,
+  focusQaGateNote,
+  focusQaGateOpen,
+  focusQaMissingLabel,
+  focusQaProgress,
+  QA_GATE_HEADING,
+  type FocusButtonState,
+} from '@/app/app/creative-sheet/focus-mode';
 import { FocusModeView } from '@/app/app/creative-sheet/focus-mode-view';
+import { QaGateBox } from '@/app/app/creative-sheet/qa-gate-box';
 import {
   CREATIVE_SHEET_RENDERERS,
   QaTicks,
@@ -16,14 +35,25 @@ import {
 } from '@/app/app/creative-sheet/creative-sheet-workspace';
 import {
   INTERNAL_STATUS_OPTIONS,
+  internalStatusView,
   SHEET_LABELS,
   STATUS_OPTIONS,
+  statusView,
   type SheetStatusView,
 } from '@/app/app/creative-sheet/fields';
-import { RowContextMenu, SelectionBar } from '@/components/views';
+import {
+  duplicateShortcut,
+  RowContextMenu,
+  SelectionBar,
+  SelectionDeleteConfirm,
+  SelectionStatusPicker,
+  type SelectionStatusTrack,
+} from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import { toggleAllSelected, toggleSelected } from '@/components/views/airtable-grid-logic';
 import { gridColumnsFrom, type ResolvedColumnView } from '@/components/views/resolved-columns';
+
+import { POPOVER_OPEN_CLASS } from './primitives.stories';
 
 /**
  * The three shapes the Creative Sheet route introduces, mounted as the product mounts them
@@ -311,74 +341,277 @@ export function CreativeSheetDimensionsStory() {
 
 /* ── Oct 12 client sync: Focus Mode, the Brief row sidebar, multi-select ─────────────────────── */
 
-/** A video brief at Ad Submitted with one of its two required ticks set: the gated state the boards document. */
-function focusSample(): SheetItemView {
+/**
+ * The three gate positions boards 1, 4 and 5 document, as fixtures the pure `focus-mode.ts`
+ * helpers read (B4.A19): a video brief at Ad Submitted with the editor's tick missing, a static
+ * brief at Ad Submitted with the strategist's tick missing, and a creative the client sent back
+ * with every required tick set — the one position where Submit to Client is live (decision 3).
+ */
+export type FocusFixtureKind = 'video-gated' | 'static-gated' | 'open';
+
+export const FOCUS_FIXTURE_IDS: Readonly<Record<FocusFixtureKind, string>> = {
+  'video-gated': 'ds-focus-1',
+  'static-gated': 'ds-focus-2',
+  open: 'ds-focus-3',
+};
+
+export function focusFixture(kind: FocusFixtureKind): SheetItemView {
   const base = SAMPLE_ROWS[0];
   if (base === undefined) throw new Error('SAMPLE_ROWS is empty');
-  return {
-    ...base,
-    item: sampleRow({
-      id: 'ds-focus-1',
-      name: 'October-TV01-B3-CasualHangouts-V2',
-      briefName: 'TV01-B3-CasualHangouts-V2',
-      briefType: 'Video',
-      briefFunnel: 'TOF',
-      internalStatus: 'ad_submitted',
-      status: 'pending_for_approval',
-      qaStrategist: true,
-      detail: {
-        ...sampleRow({ id: 'x', name: 'x' }).detail,
-        batch: 'B3',
-        version: 2,
-        assignee: 'Sarah K.',
-        dueDate: new Date('2026-10-18T00:00:00.000Z'),
-        scriptContent:
-          'Hook — “What if date night didn’t need a reservation?”\nOpen on a cosy kitchen, two people unpacking a shipment. Natural light, candles lit.',
-        briefToDesign: 'Warm, intimate kitchen. Dissolves only, no hard cuts.',
-        elementsTested: 'Problem-first open against the comfort-led V1.',
-        offer: 'First box ships free.',
-        inspoLinks: ['https://www.youtube.com/watch?v=nm1TxQj9IsQ'],
-      },
-    }),
-    lookups: {
-      ...NO_LOOKUPS,
-      concept: 'Casual Hangouts',
-      angle: 'Casual date night dinner at home',
-    },
-    comments: [
-      {
-        id: 'c1',
-        authorName: 'Sarah K.',
-        body: 'Love the hook. Can we take the pour shot 2× slower?',
-        at: '10 Oct 2026, 15:42',
-        ago: '2d ago',
-      },
-      {
-        id: 'c2',
-        authorName: 'Mia D.',
-        body: 'Music confirmed and cleared. Targeting client send by 18 Oct.',
-        at: '11 Oct 2026, 09:15',
-        ago: '1d ago',
-      },
-    ],
+  const detail = {
+    ...sampleRow({ id: 'x', name: 'x' }).detail,
+    batch: 'B3',
+    version: 2,
+    assignee: 'Sarah K.',
+    dueDate: new Date('2026-10-18T00:00:00.000Z'),
+    scriptContent:
+      'Hook — “What if date night didn’t need a reservation?”\nOpen on a cosy kitchen, two people unpacking a shipment. Natural light, candles lit.',
+    briefToDesign: 'Warm, intimate kitchen. Dissolves only, no hard cuts.',
+    elementsTested: 'Problem-first open against the comfort-led V1.',
+    offer: 'First box ships free.',
+    inspoLinks: ['https://www.youtube.com/watch?v=nm1TxQj9IsQ'],
   };
+  const lookups: SheetLookups = {
+    ...NO_LOOKUPS,
+    concept: 'Casual Hangouts',
+    angle: 'Casual date night dinner at home',
+  };
+  // The stamps are what `buildSheetItems` writes with `formatCommentStamp` (B1.A21).
+  const comments = [
+    {
+      id: 'c1',
+      authorName: 'Sarah K.',
+      body: 'Love the hook. Can we take the pour shot 2× slower?',
+      at: '10 Oct, 3:42 PM',
+      ago: '2d ago',
+    },
+    {
+      id: 'c2',
+      authorName: 'Mia D.',
+      body: 'Music confirmed and cleared. Targeting client send by 18 Oct.',
+      at: '11 Oct, 9:15 AM',
+      ago: '1d ago',
+    },
+  ];
+  const item =
+    kind === 'video-gated'
+      ? sampleRow({
+          id: FOCUS_FIXTURE_IDS[kind],
+          name: 'October-TV01-B3-CasualHangouts-V2',
+          briefName: 'TV01-B3-CasualHangouts-V2',
+          briefType: 'Video',
+          briefFunnel: 'TOF',
+          internalStatus: 'ad_submitted',
+          status: 'pending_for_approval',
+          qaStrategist: true,
+          dimensions: ['9:16'],
+          detail,
+        })
+      : kind === 'static-gated'
+        ? sampleRow({
+            id: FOCUS_FIXTURE_IDS[kind],
+            name: 'October-TS02-B3-CasualHangouts-V1',
+            briefName: 'TS02-B3-CasualHangouts-V1',
+            briefType: 'Static',
+            briefFunnel: 'Retargeting',
+            internalStatus: 'ad_submitted',
+            status: 'pending_for_approval',
+            qaDesigner: true,
+            dimensions: ['4:5'],
+            detail: {
+              ...detail,
+              version: 1,
+              scriptContent: null,
+              adContent: 'Date night, delivered.',
+            },
+          })
+        : sampleRow({
+            id: FOCUS_FIXTURE_IDS[kind],
+            name: 'October-TV04-B2-NightReset-V1',
+            briefName: 'TV04-B2-NightReset-V1',
+            briefType: 'Video',
+            briefFunnel: 'All Funnels',
+            internalStatus: 'approved',
+            status: 'revisions_needed',
+            qaVideoEditor: true,
+            qaDesigner: true,
+            qaStrategist: true,
+            dimensions: ['9:16', '1:1'],
+            detail: { ...detail, version: 1, batch: 'B2' },
+          });
+  return { ...base, item, lookups, comments };
 }
 
 /**
  * Focus Mode (scope 1): the bar with prev/next and the three review buttons, the type-filtered
- * QA checklist with the gate box, the content cards and the Feedback thread. Demo mode, so every
- * write is withheld with its reason — including Submit to Client, gated on the internal track.
+ * QA checklist with the gate box, the content cards and the Feedback thread. Demo mode, but a
+ * gate refusal beats the demo hint (B4.V13), so what renders is the truth of each position: on
+ * the first creative Approve is held with the QA sentence under its warn heading and Submit with
+ * the internal gate; the next creative is the static twin; the third has every tick set, so the
+ * gate box turns ok and Submit draws the open padlock. Prev / next walks the three.
  */
 export function FocusModeStory() {
-  const [focused, setFocused] = useState<string | null>('ds-focus-1');
-  const items = [focusSample(), ...SAMPLE_ROWS];
+  const [focused, setFocused] = useState<string | null>(FOCUS_FIXTURE_IDS['video-gated']);
+  const items = [
+    focusFixture('video-gated'),
+    focusFixture('static-gated'),
+    focusFixture('open'),
+    ...SAMPLE_ROWS,
+  ];
   return <FocusModeView items={items} focusedId={focused} onFocus={setFocused} demo />;
+}
+
+/**
+ * One review button as Focus Mode draws it, from the pure `focusActions` state: enabled as the
+ * action would be, or held with the guard's own sentence in the popover — the QA refusal with
+ * its heading and the missing tick in bold. The story's click does nothing; what it shows is
+ * what the guard decided. `forced` holds the popover open for the reader (`POPOVER_OPEN_CLASS`).
+ */
+function GateButton({
+  label,
+  icon,
+  state,
+  variant,
+  slot,
+  missingLabel,
+  forced,
+  className,
+}: {
+  readonly label: string;
+  readonly icon: ReactNode;
+  readonly state: FocusButtonState;
+  readonly variant: 'outline' | 'default' | 'success';
+  readonly slot: string;
+  readonly missingLabel: string | null;
+  readonly forced: boolean;
+  readonly className?: string;
+}) {
+  const disabled = !state.enabled;
+  const hint = state.hint ?? '';
+  const qaGated = state.kind === 'qa';
+  return (
+    <DisabledWrite
+      active={disabled}
+      hint={hint}
+      popover
+      heading={qaGated ? QA_GATE_HEADING : undefined}
+      hintEmphasis={qaGated ? (missingLabel ?? undefined) : undefined}
+      className={forced ? POPOVER_OPEN_CLASS : undefined}
+    >
+      <Button
+        type="button"
+        size="sm"
+        variant={variant}
+        disabled={disabled}
+        onClick={() => undefined}
+        data-slot={slot}
+        className={cn('text-xs', disabled && disabledWriteClassName, className)}
+      >
+        {icon}
+        {label}
+      </Button>
+    </DisabledWrite>
+  );
+}
+
+/**
+ * The gate box and the three review buttons for the three fixtures side by side (B4.A19): both
+ * box tones, the popover with its heading open on the QA-gated button, the internal-gate sentence
+ * on Submit, and — on the creative the client sent back — Approve enabled in the `success`
+ * variant and Submit to Client live with the open padlock. One popover per card is held open:
+ * the QA-gated one where there is one, else the first held button; the others open on hover.
+ */
+export function QaGateBoxStory() {
+  const kinds: readonly FocusFixtureKind[] = ['video-gated', 'static-gated', 'open'];
+  return (
+    <div className="flex flex-col gap-4" data-slot="qa-gate-box-story">
+      {kinds.map((kind) => {
+        const { item } = focusFixture(kind);
+        const actions = focusActions(item);
+        const missingLabel = focusQaMissingLabel(item);
+        const internal = internalStatusView(item.internalStatus);
+        const client = statusView(item.status);
+        const ordered = [
+          { key: 'request', state: actions.requestChanges },
+          { key: 'approve', state: actions.approve },
+          { key: 'submit', state: actions.submitToClient },
+        ] as const;
+        const forcedKey =
+          ordered.find(({ state }) => state.kind === 'qa')?.key ??
+          ordered.find(({ state }) => !state.enabled)?.key ??
+          null;
+        return (
+          <div
+            key={kind}
+            data-slot="qa-gate-box-fixture"
+            data-fixture={kind}
+            className="flex flex-wrap items-start gap-5 rounded-card border border-line bg-surface p-4"
+          >
+            <div className="w-[300px] shrink-0">
+              <span className="block truncate font-mono text-[13px] font-medium tracking-[-.01em] text-text">
+                {item.briefName ?? item.name}
+              </span>
+              <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {item.briefType === null ? null : <StatusChip tone="mute" label={item.briefType} />}
+                {internal === null ? null : (
+                  <StatusChip tone={internal.tone} label={internal.label} />
+                )}
+                {client === null ? null : <StatusChip tone={client.tone} label={client.label} />}
+              </span>
+              <QaGateBox
+                progress={focusQaProgress(item)}
+                open={focusQaGateOpen(item)}
+                note={focusQaGateNote(item)}
+              />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pb-24">
+              <GateButton
+                label="Request Changes"
+                icon={<X aria-hidden="true" className="size-3.5" strokeWidth={2} />}
+                state={actions.requestChanges}
+                variant="outline"
+                slot="story-request-changes"
+                missingLabel={missingLabel}
+                forced={forcedKey === 'request'}
+                className="border-bad/45 bg-bad/10 text-bad hover:bg-bad/15 hover:text-bad"
+              />
+              <GateButton
+                label="Approve"
+                icon={<Check aria-hidden="true" className="size-3.5" strokeWidth={2.4} />}
+                state={actions.approve}
+                variant="success"
+                slot="story-approve"
+                missingLabel={missingLabel}
+                forced={forcedKey === 'approve'}
+              />
+              <GateButton
+                label="Submit to Client"
+                icon={
+                  actions.submitToClient.enabled ? (
+                    <LockOpen aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
+                  ) : (
+                    <Lock aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
+                  )
+                }
+                state={actions.submitToClient}
+                variant="default"
+                slot="story-submit"
+                missingLabel={missingLabel}
+                forced={forcedKey === 'submit'}
+                className="font-semibold"
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 /** The Brief row sidebar (scope 2): a Sheet from the right, six sections, the N/A tick struck through. */
 export function BriefSidebarStory() {
   const [open, setOpen] = useState(false);
-  const sample = focusSample();
+  const sample = focusFixture('video-gated');
   return (
     <div className="flex flex-col gap-2">
       <Button
@@ -410,14 +643,41 @@ export function BriefSidebarStory() {
   );
 }
 
-/** Multi-select (scope 3): the checkbox column with the header's indeterminate state, and the action bar. */
+/** The bulk Change-status picker's two tracks, as the workspace offers them. */
+const STORY_STATUS_TRACKS: readonly SelectionStatusTrack[] = [
+  { key: 'internalStatus', label: SHEET_LABELS.internalStatus, options: INTERNAL_STATUS_OPTIONS },
+  { key: 'status', label: SHEET_LABELS.status, options: STATUS_OPTIONS },
+];
+
+const STORY_DELETE_DETAIL = 'They leave the sheet, the queues and the portal; nothing is erased.';
+
+/**
+ * Multi-select (scope 3, B3.V29): the checkbox column with the header's indeterminate state, the
+ * right-click menu with its lucide glyphs and the row it belongs to washed `surface3`, and the
+ * action bar — the real component, pinned to the viewport while a row is ticked — with the
+ * picker, the delete confirm and the notice wired as the workspace wires them: Duplicate clears
+ * the selection and leaves "n copies created." under the bar (B3.A29), Change status opens the
+ * picker inline, Delete asks once. The demo switch holds every action with the demo hint. The
+ * two inline pieces are also mounted below the grid so they can be reviewed without a click.
+ */
 export function MultiSelectStory({ columns }: CreativeSheetGridStoryProps) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(['ds-sheet-1']));
-  const [menu, setMenu] = useState<{ x: number; y: number; name: string } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string; name: string } | null>(null);
+  const [demo, setDemo] = useState(false);
+  const [picker, setPicker] = useState<{ track: string; value: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const storyColumns = gridColumnsFrom(columns, CREATIVE_SHEET_RENDERERS, {
     freezeFirst: true,
     frozenMinWidth: 260,
   }).columns;
+  const count = selected.size;
+  const hint = demo ? DEMO_WRITE_HINT : '';
+  const clear = () => {
+    setSelected(new Set());
+    setPicker(null);
+    setConfirmDelete(false);
+  };
   return (
     <div className="relative flex flex-col gap-3">
       <AirtableGrid
@@ -435,15 +695,28 @@ export function MultiSelectStory({ columns }: CreativeSheetGridStoryProps) {
             setSelected((current) => toggleAllSelected(current, ids));
           },
         }}
+        contextRowId={menu?.id ?? null}
         onRowContextMenu={({ item }, position) => {
-          setMenu({ ...position, name: item.name });
+          setMenu({ ...position, id: item.id, name: item.name });
         }}
         tableSlot="creative-sheet-multiselect-story-table"
       />
-      <p className="text-xs text-text3">
-        Tick rows, or right-click one for the menu. The bar below is the real component, pinned to
-        the viewport while a row is selected.
-      </p>
+      <div className="flex flex-wrap items-center gap-4 text-xs text-text3">
+        <span>
+          Tick rows, or right-click one for the menu. The bar is the real component, pinned to the
+          viewport while a row is selected.
+        </span>
+        <label className="flex items-center gap-2 text-text2">
+          <Checkbox
+            checked={demo}
+            onChange={(event) => {
+              setDemo(event.target.checked);
+            }}
+            data-slot="multiselect-story-demo"
+          />
+          Demo mode — every action held with the hint
+        </label>
+      </div>
       {menu === null ? null : (
         <RowContextMenu
           position={menu}
@@ -452,25 +725,140 @@ export function MultiSelectStory({ columns }: CreativeSheetGridStoryProps) {
             setMenu(null);
           }}
           items={[
-            { label: 'Duplicate', shortcut: '⌘D', onSelect: () => undefined },
-            { label: 'Open in Focus Mode', onSelect: () => undefined },
-            { label: 'Copy link', onSelect: () => undefined },
-            { label: 'Delete', tone: 'bad', divider: true, onSelect: () => undefined },
+            {
+              label: 'Duplicate',
+              shortcut: duplicateShortcut(navigator.userAgent),
+              icon: <Copy className="size-4" strokeWidth={1.75} />,
+              disabled: demo,
+              onSelect: () => {
+                setNotice('1 copy created.');
+              },
+            },
+            {
+              label: 'Open in Focus Mode',
+              icon: <Captions className="size-4" strokeWidth={1.75} />,
+              onSelect: () => undefined,
+            },
+            {
+              label: 'Copy link',
+              icon: <Link className="size-4" strokeWidth={1.75} />,
+              onSelect: () => undefined,
+            },
+            {
+              label: 'Delete',
+              icon: <Trash className="size-4" strokeWidth={1.75} />,
+              tone: 'bad',
+              divider: true,
+              disabled: demo,
+              onSelect: () => {
+                setSelected(new Set([menu.id]));
+                setPicker(null);
+                setConfirmDelete(true);
+              },
+            },
           ]}
         />
       )}
+      <div className="flex flex-wrap items-center gap-4 rounded-card border border-line bg-surface p-3">
+        <SelectionStatusPicker
+          tracks={STORY_STATUS_TRACKS}
+          track="internalStatus"
+          value=""
+          onTrackChange={() => undefined}
+          onValueChange={() => undefined}
+          onApply={() => undefined}
+        />
+        <span className="text-xs text-text2">
+          <SelectionDeleteConfirm
+            count={2}
+            noun="creative"
+            detail={STORY_DELETE_DETAIL}
+            onConfirm={() => undefined}
+            onCancel={() => undefined}
+          />
+        </span>
+      </div>
       <SelectionBar
-        count={selected.size}
+        count={count}
         noun="creative"
-        onClear={() => {
-          setSelected(new Set());
-        }}
+        onClear={clear}
         actions={[
-          { label: `Duplicate (${String(selected.size)})`, onSelect: () => undefined },
-          { label: 'Change status', onSelect: () => undefined },
-          { label: `Delete (${String(selected.size)})`, tone: 'bad', onSelect: () => undefined },
+          {
+            label: `Duplicate (${String(count)})`,
+            icon: <Copy className="size-3.5" strokeWidth={1.75} />,
+            disabled: demo,
+            hint,
+            slot: 'selection-duplicate',
+            onSelect: () => {
+              setNotice(`${String(count)} ${count === 1 ? 'copy' : 'copies'} created.`);
+              clear();
+            },
+          },
+          {
+            label: 'Change status',
+            icon: <RefreshCw className="size-3.5" strokeWidth={1.75} />,
+            disabled: demo,
+            hint,
+            slot: 'selection-change-status',
+            onSelect: () => {
+              setConfirmDelete(false);
+              setPicker((current) =>
+                current === null ? { track: 'internalStatus', value: '' } : null,
+              );
+            },
+          },
+          {
+            label: `Delete (${String(count)})`,
+            icon: <Trash className="size-3.5" strokeWidth={1.75} />,
+            tone: 'bad',
+            disabled: demo,
+            hint,
+            slot: 'selection-delete',
+            onSelect: () => {
+              setPicker(null);
+              setConfirmDelete(true);
+            },
+          },
         ]}
-      />
+        notice={
+          confirmDelete ? (
+            <SelectionDeleteConfirm
+              count={count}
+              noun="creative"
+              detail={STORY_DELETE_DETAIL}
+              disabled={demo}
+              onConfirm={() => {
+                setNotice(`${String(count)} deleted.`);
+                clear();
+              }}
+              onCancel={() => {
+                setConfirmDelete(false);
+              }}
+            />
+          ) : (
+            notice
+          )
+        }
+      >
+        {picker === null ? null : (
+          <SelectionStatusPicker
+            tracks={STORY_STATUS_TRACKS}
+            track={picker.track}
+            value={picker.value}
+            disabled={demo}
+            onTrackChange={(track) => {
+              setPicker({ track, value: '' });
+            }}
+            onValueChange={(value) => {
+              setPicker({ track: picker.track, value });
+            }}
+            onApply={() => {
+              setNotice(`${String(count)} moved.`);
+              clear();
+            }}
+          />
+        )}
+      </SelectionBar>
     </div>
   );
 }

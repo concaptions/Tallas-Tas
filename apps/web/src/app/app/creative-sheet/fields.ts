@@ -1,11 +1,14 @@
 import {
   CLIENT_STATUS,
+  canSubmitToClient,
   chipTone,
   EDITOR_STAGES,
   INTERNAL_ENTRY_STATUS,
   INTERNAL_STATUS,
+  qaProgressLabel,
+  type BriefQaTicks,
   type ChipTone,
-  type InternalStatusKey,
+  type CreativeTrack,
 } from '@tas/domain/state';
 
 import type {
@@ -63,27 +66,17 @@ export interface SheetStatusView {
 }
 
 /**
- * The tone of each internal status, keyed on the KEY: the working step is `info`, a submission
- * waiting on review is `accent`, the revision state is `warn`, the hand-offs (and Draft) rest at
- * `mute`, Approved is `ok`. One entry per key of the one list (Oct 12 consolidation, Ticket 5 /
- * 0067) — the `Record` type makes a missing key a typecheck error. Where the domain's `chipTone`
- * has a rule for the label the two agree, and `fields.test.ts` pins that.
+ * The two dropdowns' options, in vocabulary order, each already carrying its tone — the domain's
+ * `chipTone(label)` for BOTH tracks (B6.V11, ruling 16). The sheet once kept its own key-based map
+ * that drew Ad Submitted `accent` and Under Editing `info`, so the same brief wore one tone on the
+ * sheet and another on its own page; board 6's rule ("everything else → mute") and the brief rail
+ * are the one source now. A richer working-step tone, if ever wanted, is a domain function, never
+ * a second map here.
  */
-const INTERNAL_STATUS_TONE: Readonly<Record<InternalStatusKey, ChipTone>> = {
-  draft: 'mute',
-  sent_to_editor_or_designer: 'mute',
-  under_editing_or_designing: 'info',
-  ad_submitted: 'accent',
-  revisions_needed: 'warn',
-  revisions_submitted: 'mute',
-  approved: 'ok',
-};
-
-/** The two dropdowns' options, in vocabulary order, each already carrying its tone. */
 export const INTERNAL_STATUS_OPTIONS: readonly SheetStatusView[] = INTERNAL_STATUS.map((entry) => ({
   key: entry.key,
   label: entry.label,
-  tone: INTERNAL_STATUS_TONE[entry.key],
+  tone: chipTone(entry.label),
 }));
 export const STATUS_OPTIONS: readonly SheetStatusView[] = CLIENT_STATUS.map((entry) => ({
   key: entry.key,
@@ -153,33 +146,68 @@ export const DIMENSIONS_SAVE_LABELS = {
   saved: 'Saved',
 } as const;
 
-/** The panel's section headings, in order. */
+/**
+ * The panel's six section headings, in order (decision 2, SHEET-02, B2.A4): the Dimensions picker
+ * and the brief lookups live under Identity, the spell-check controls under QA.
+ */
 export const SHEET_GROUPS = {
   identity: 'Identity',
-  creative: 'Creative',
   approval: 'Status',
   content: 'Content',
   qa: 'QA',
   assets: 'Assets',
-  spelling: 'Spelling',
   meta: 'Meta',
 } as const;
 
-/** The link from the panel's header to the creative's own page, where the rest is edited. */
-export const OPEN_CREATIVE_LABEL = 'Open the creative’s page';
-
-/** The read-only lookups the panel shows beneath the ratios, all read from the brief itself. */
+/**
+ * The read-only lookups the panel lists under Identity, all read from the brief itself. Type and
+ * Funnel are Identity rows already, so they are not repeated here (B2.A7).
+ */
 export const BRIEF_LOOKUP_LABELS = {
-  briefType: 'Type',
   briefPlatform: 'Platform',
-  briefFunnel: 'Funnel',
   briefPerformance: 'Performance',
   briefDesignFileUrl: 'Design Link URL',
 } as const;
 
-/** The quiet line under the name: it is a formula, never an input. */
-export const NAME_GENERATED_NOTE =
-  'Generated from the month the creative was created and its name. Never typed.';
+/**
+ * The asset row's mono sub-line (B2.V20): the file's own name when the field holds exactly one
+ * link, else how many it holds. The name is the URL's last path segment, decoded, without a query
+ * or fragment — the storage keys R2 and Airtable hand back are ordinary paths.
+ */
+export function assetSubline(urls: readonly string[]): string {
+  const [only] = urls;
+  if (only !== undefined && urls.length === 1) return fileBasename(only);
+  return `${String(urls.length)} files`;
+}
+
+function fileBasename(url: string): string {
+  const path = url.split(/[?#]/, 1)[0] ?? url;
+  const last =
+    path
+      .split('/')
+      .filter((segment) => segment !== '')
+      .at(-1) ?? url;
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+}
+
+/** The live gate line under the QA ticks (B4.A12): the progress sentence and whether the gate is open. */
+export interface SheetQaGate {
+  readonly label: string;
+  readonly open: boolean;
+}
+
+/**
+ * Read from the panel's LOCAL ticks, not the stored row, so the line moves as a tick is set and
+ * before Save — the gate the action re-runs reads the ticks that same save stores, so ticking and
+ * approving in one Save is legal and the line says so ahead of the round trip.
+ */
+export function sheetQaGate(track: CreativeTrack | null, ticks: BriefQaTicks): SheetQaGate {
+  return { label: qaProgressLabel(track, ticks), open: canSubmitToClient(track, ticks) };
+}
 
 /** The checklist textarea's helper line. */
 export const QA_DOC_HINT = 'One link per line.';

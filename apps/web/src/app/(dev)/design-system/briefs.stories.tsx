@@ -1,24 +1,35 @@
 'use client';
 
+import { useState } from 'react';
 import { StatusChip } from '@tas/ui';
+import {
+  BRIEF_QA_CHECKS,
+  qaChecklistFor,
+  type BriefQaTicks,
+  type ClientStatusKey,
+  type InternalStatusKey,
+} from '@tas/domain/state';
 
 import {
-  BRIEF_QA_LABELS,
   PERFORMANCE_OPTIONS,
   briefDimensions,
   internalStatusView,
   priorityView,
   STANDALONE_CONCEPT_SLUG,
 } from '@/app/app/creative-design/fields';
+import { BriefActivity } from '@/app/app/creative-design/[briefId]/brief-activity';
 import { BriefName } from '@/app/app/creative-design/[briefId]/brief-name';
 import { DimensionsGrid } from '@/app/app/creative-design/[briefId]/dimensions-grid';
 import { BriefDimensionsPicker } from '@/app/app/creative-design/[briefId]/dimensions-picker';
 import { InspirationList } from '@/app/app/creative-design/[briefId]/inspiration-list';
 import { QaChecklist } from '@/app/app/creative-design/[briefId]/qa-checklist';
+import { notApplicableTag } from '@/app/app/creative-sheet/focus-mode';
+import { QaCheckRow } from '@/components/status/qa-check-row';
+import type { BriefActivityItem } from '@/lib/briefs-source';
 
 /**
- * The four shapes the Creative Briefs route introduces, mounted as the product mounts them
- * (CLAUDE.md UI governance rule 4). A client module because three of them are interactive: the copy
+ * The shapes the Creative Briefs route introduces, mounted as the product mounts them
+ * (CLAUDE.md UI governance rule 4). A client module because several are interactive: the copy
  * button confirms in place, the QA checklist holds three ticks, and a server component cannot hand
  * either one a callback.
  *
@@ -116,18 +127,176 @@ export function BriefInspirationStory() {
   return <InspirationList urls={SAMPLE_LINKS} />;
 }
 
-/** The QA checklist as the demo deployment renders it: three boxes, disabled, explaining why. */
-export function BriefQaStory() {
+/**
+ * The brief page's QA checklist with a track (B4.V14): a video brief with the strategist's tick
+ * still missing — the designer's row struck through as N/A, `Required` on the open tick, the
+ * gate line in warn — and a static brief with every required tick set, so the line turns ok.
+ * Demo mode, as the deployment renders it: the boxes are disabled with the reason on hover.
+ */
+export function BriefQaChecklistStory() {
   return (
-    <div className="max-w-xs">
+    <div className="grid gap-4 md:grid-cols-2">
       <QaChecklist
         briefId="ds-brief-1"
         checks={{ qaVideoEditor: true, qaDesigner: false, qaStrategist: false }}
+        track="video"
         demo
       />
-      <p className="mt-2 font-mono text-[10px] text-text4">
-        {Object.values(BRIEF_QA_LABELS).join(' · ')}
-      </p>
+      <QaChecklist
+        briefId="ds-brief-2"
+        checks={{ qaVideoEditor: false, qaDesigner: true, qaStrategist: true }}
+        track="static"
+        demo
+      />
+    </div>
+  );
+}
+
+/**
+ * The one QA row every surface draws (B4.V3 / B4.V17), in its states: a required tick still
+ * unset (the `Required` tag), the N/A tick of the other track (dashed box, struck label), a tick
+ * set (no tag), and the same three disabled. The rows come from `qaChecklistFor`, so which tick is
+ * N/A is the domain's answer for the video track, never a flag typed here. The live rows toggle.
+ */
+export function QaCheckRowStory() {
+  const [ticks, setTicks] = useState<BriefQaTicks>({
+    qaVideoEditor: false,
+    qaDesigner: false,
+    qaStrategist: true,
+  });
+  const rows = qaChecklistFor('video', ticks);
+  return (
+    <div className="grid gap-4 rounded-card border border-line bg-surface p-4 md:grid-cols-2">
+      <ul className="flex flex-col gap-1.5">
+        {rows.map((check) => (
+          <QaCheckRow
+            key={check.key}
+            id={`ds-qa-row-${check.key}`}
+            checkKey={check.key}
+            inputSlot="story-qa-check"
+            label={check.label}
+            required={check.required}
+            checked={check.checked}
+            notApplicableTag={notApplicableTag('video')}
+            onCheckedChange={(next) => {
+              setTicks((current) => ({ ...current, [check.key]: next }));
+            }}
+          />
+        ))}
+      </ul>
+      <ul className="flex flex-col gap-1.5">
+        {rows.map((check) => (
+          <QaCheckRow
+            key={check.key}
+            id={`ds-qa-row-disabled-${check.key}`}
+            checkKey={check.key}
+            inputSlot="story-qa-check-disabled"
+            label={check.label}
+            required={check.required}
+            checked={check.checked}
+            disabled
+            notApplicableTag={notApplicableTag('video')}
+            onCheckedChange={() => undefined}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Typed against the vocabularies, so a retired key cannot sit in a fixture: these are the stored
+ * values the Activity log carries, not labels.
+ */
+const INTERNAL = {
+  adSubmitted: 'ad_submitted',
+  revisionsNeeded: 'revisions_needed',
+} as const satisfies Record<string, InternalStatusKey>;
+
+const CLIENT = {
+  pending: 'pending_for_approval',
+  revisionsNeeded: 'revisions_needed',
+} as const satisfies Record<string, ClientStatusKey>;
+
+const [EDITOR_TICK, , STRATEGIST_TICK] = BRIEF_QA_CHECKS;
+
+const MIA = { actorId: 'user_mia', actorName: 'Mia D.' } as const;
+const TALAL = { actorId: 'user_talal', actorName: 'Talal' } as const;
+
+/**
+ * Three writes, newest first, as `listActivity` returns them: the client sent the creative back
+ * and the two ticks cleared in the same second (the post-approval reset is the CLIENT move,
+ * B5.A6 — internal stays Approved); a plain edit; the internal reviewer's Request Changes
+ * (`ad_submitted → revisions_needed`) with the same two ticks going to `false` (B5.V19).
+ */
+const ACTIVITY: readonly BriefActivityItem[] = [
+  {
+    id: 'ds-act-1',
+    field: 'clientStatus',
+    oldValue: CLIENT.pending,
+    newValue: CLIENT.revisionsNeeded,
+    ...MIA,
+    at: '2026-10-11T14:02:08.410Z',
+  },
+  {
+    id: 'ds-act-2',
+    field: EDITOR_TICK,
+    oldValue: 'true',
+    newValue: 'false',
+    ...MIA,
+    at: '2026-10-11T14:02:08.412Z',
+  },
+  {
+    id: 'ds-act-3',
+    field: STRATEGIST_TICK,
+    oldValue: 'true',
+    newValue: 'false',
+    ...MIA,
+    at: '2026-10-11T14:02:08.414Z',
+  },
+  {
+    id: 'ds-act-4',
+    field: 'assignee',
+    oldValue: 'Sarah K.',
+    newValue: 'Jon P.',
+    ...TALAL,
+    at: '2026-10-10T09:15:00.000Z',
+  },
+  {
+    id: 'ds-act-5',
+    field: 'internalStatus',
+    oldValue: INTERNAL.adSubmitted,
+    newValue: INTERNAL.revisionsNeeded,
+    ...MIA,
+    at: '2026-10-09T16:40:31.100Z',
+  },
+  {
+    id: 'ds-act-6',
+    field: EDITOR_TICK,
+    oldValue: 'true',
+    newValue: 'false',
+    ...MIA,
+    at: '2026-10-09T16:40:31.103Z',
+  },
+  {
+    id: 'ds-act-7',
+    field: STRATEGIST_TICK,
+    oldValue: 'true',
+    newValue: 'false',
+    ...MIA,
+    at: '2026-10-09T16:40:31.105Z',
+  },
+];
+
+/**
+ * The Activity section (B5.V19): one card per write, the status pair as chips, the cleared ticks
+ * in `bad`, and the shut-gate line under a reset — then the empty state the demo deployment shows.
+ */
+export function BriefActivityStory() {
+  return (
+    <div className="grid gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <BriefActivity items={ACTIVITY} />
+      <BriefActivity items={[]} />
     </div>
   );
 }

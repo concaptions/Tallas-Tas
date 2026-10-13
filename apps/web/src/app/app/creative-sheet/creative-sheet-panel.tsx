@@ -6,10 +6,14 @@ import type { CreativeSheetItemListRow } from '@tas/db';
 import { creativeTrack } from '@tas/domain/creatives';
 import {
   Button,
+  Checkbox,
+  cn,
   DEMO_WRITE_HINT,
   disabledWriteClassName,
   DisabledWrite,
+  formatSheetDate,
   Label,
+  SectionLabel,
   Select,
   SelectContent,
   SelectItem,
@@ -18,11 +22,13 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   StatusChip,
   Textarea,
 } from '@tas/ui';
+import { ArrowRight, Captions, File, Image, Plus, type LucideIcon } from '@tas/ui/icons';
 
 import { briefPath } from '@/lib/routes';
 
@@ -34,19 +40,19 @@ import {
 import type { SheetLookups } from './creative-sheet-workspace';
 import { DimensionsField, type DimensionsSaveState } from './dimensions-field';
 import {
+  assetSubline,
   BRIEF_LOOKUP_LABELS,
   DEMO_FOOTER_NOTICE,
   EM_DASH,
   INTERNAL_STATUS_OPTIONS,
   internalStatusView,
   joinUrlLines,
-  NAME_GENERATED_NOTE,
   NOT_SET,
-  OPEN_CREATIVE_LABEL,
   QA_CHECKS,
   QA_DOC_HINT,
   SHEET_GROUPS,
   SHEET_LABELS,
+  sheetQaGate,
   SPELL_CHECK_FIELD,
   STATUS_OPTIONS,
   statusView,
@@ -56,7 +62,6 @@ import {
   type SheetStatusView,
 } from './fields';
 import { notApplicableTag, sidebarQaChecklist } from './focus-mode';
-import { SheetIcon } from './sheet-icons';
 
 interface CreativeSheetPanelProps {
   readonly item: CreativeSheetItemListRow;
@@ -83,37 +88,42 @@ function checksOf(item: CreativeSheetItemListRow): Checks {
   };
 }
 
+/** The form labels (textareas); the selects and the QA ticks read in sentence case (B2.V33, B2.V16). */
 const LABEL_CLASS = 'text-[11px] tracking-wide text-text3 uppercase';
+const FIELD_LABEL_CLASS = 'text-xs text-text3';
 
+/**
+ * One board section (B2.V9, B2.V10): full-bleed, a rule beneath every section but the last, and
+ * the 10px eyebrow heading with its trailing rule from `@tas/ui`.
+ */
 function Group({ heading, children }: { heading: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
-      <h3
-        data-slot="creative-sheet-group-heading"
-        className="border-b border-line pb-1 text-sm font-medium text-text2"
-      >
+    <section className="border-b border-line px-5 py-3.5 last:border-b-0">
+      <SectionLabel data-slot="creative-sheet-group-heading" className="mb-3">
         {heading}
-      </h3>
-      <div className="flex flex-col gap-4">{children}</div>
+      </SectionLabel>
+      <div className="flex flex-col gap-3">{children}</div>
     </section>
   );
 }
 
 /**
  * The Brief row sidebar (Oct 12 scope 2): a shadcn/ui Sheet, `side="right"`, in place of the old
- * fixed quick-look panel. It dims the grid behind it, traps focus, closes on Escape, its close
- * button and a press on the overlay; the open row still lives in `?creative-sheet=`. Six sections
- * — Identity, Status, Content, QA, Assets, Meta — titled with the brief's generated name: a FULL
- * record view, so the QA tick the other track owns is listed struck through rather than hidden
- * (Focus Mode hides it). The footer opens the same creative in Focus Mode or on its full page.
+ * fixed quick-look panel. It dims the grid behind it, traps focus, closes on Escape, the
+ * primitive's own close button and a press on the overlay; the open row still lives in
+ * `?creative-sheet=`. Six sections — Identity, Status, Content, QA, Assets, Meta — titled with the
+ * brief's generated name (the sheet's month-prefixed name is the dialog's accessible description):
+ * a FULL record view, so the QA tick the other track owns is listed struck through rather than
+ * hidden (Focus Mode hides it). The footer opens the same creative in Focus Mode or on its full
+ * page, and saves.
  *
  * Since the single-source cutover (2026-10-09) the row IS the brief, so every control here edits
  * `creative_briefs`: the two status tracks (the internal select is the one `INTERNAL_STATUS` list,
  * the same for both creative tracks since the Oct 12 consolidation, Ticket 5 / 0067), the
  * three QA ticks, the QA checklist links and the spell-check trigger, and the Dimensions field,
  * which saves on pick. Read-only on purpose: the NAME, which is the month formula, the spelling
- * feedback the AI check wrote, and the brief's own lookups (type, platform, funnel, performance,
- * design link), which the creative's page edits. The header links to that page.
+ * feedback the AI check wrote, and the brief's own lookups (platform, performance, design link),
+ * which the creative's page edits.
  *
  * Selects and checkboxes post through hidden inputs so an untouched select arrives as `''` (the
  * action leaves the status alone) and an unticked box as `''` (the action stores false), the same
@@ -176,7 +186,7 @@ export function CreativeSheetPanel({
     const error = fieldError(name);
     return (
       <div data-slot={id} className="flex flex-col gap-1.5">
-        <Label htmlFor={id} className={LABEL_CLASS}>
+        <Label htmlFor={id} className={FIELD_LABEL_CLASS}>
           {SHEET_LABELS[name]}
         </Label>
         <div className="flex items-center gap-2">
@@ -205,6 +215,8 @@ export function CreativeSheetPanel({
 
   const qaRows = sidebarQaChecklist(item);
   const track = creativeTrack(item.briefType ?? 'Video');
+  // The gate line follows the LOCAL ticks, so it moves before Save (B4.A12).
+  const gate = sheetQaGate(track, checks);
 
   /**
    * One checkbox. A QA tick the other track owns is still a control — the row IS the brief and
@@ -219,39 +231,42 @@ export function CreativeSheetPanel({
         key={field.name}
         data-slot={id}
         data-applicable={qa === undefined ? undefined : applicable ? 'true' : 'false'}
-        className="flex items-center gap-3"
+        className="flex items-center gap-2 py-1"
       >
-        <input
+        <Checkbox
           id={id}
-          type="checkbox"
+          variant={applicable ? 'default' : 'na'}
           checked={checks[field.name]}
           disabled={demo}
           onChange={(event) => {
             const next = event.target.checked;
             setChecks((current) => ({ ...current, [field.name]: next }));
           }}
-          className={
-            applicable
-              ? 'size-4 shrink-0 rounded-input border border-line2 bg-surface2 accent-[var(--accent)] disabled:cursor-not-allowed'
-              : 'size-4 shrink-0 rounded-input border border-dashed border-line bg-transparent accent-[var(--accent)] disabled:cursor-not-allowed'
-          }
         />
         <Label
           htmlFor={id}
           className={
-            applicable ? LABEL_CLASS : `${LABEL_CLASS} text-text4 line-through decoration-text4`
+            applicable ? 'text-xs text-text2' : 'text-xs text-text4 line-through decoration-text4'
           }
         >
           {field.label}
         </Label>
         {qa === undefined ? null : applicable ? (
           checks[field.name] ? null : (
-            <span className="ml-auto font-mono text-[9.5px] tracking-wide text-warn uppercase">
+            <span
+              data-slot="qa-check-tag"
+              data-kind="required"
+              className="ml-auto shrink-0 font-mono text-[10px] tracking-[.03em] text-warn uppercase"
+            >
               Required
             </span>
           )
         ) : (
-          <span className="ml-auto font-mono text-[9.5px] tracking-wide text-text4 uppercase">
+          <span
+            data-slot="qa-check-tag"
+            data-kind="na"
+            className="ml-auto shrink-0 font-mono text-[10px] tracking-[.03em] text-text4 uppercase"
+          >
             {notApplicableTag(track)}
           </span>
         )}
@@ -259,40 +274,39 @@ export function CreativeSheetPanel({
     );
   };
 
-  const lookup = (label: string, value: ReactNode) => (
-    <div className="flex flex-col gap-0.5">
-      <span className={LABEL_CLASS}>{label}</span>
-      <span className="text-sm text-text2">{value}</span>
-    </div>
-  );
-
   const dash = <span className="text-text4">{EM_DASH}</span>;
   const docError = fieldError('qaChecklistDoc');
 
   const row = (label: string, value: ReactNode) => (
-    <div className="flex items-start justify-between gap-4 py-1">
-      <span className="shrink-0 text-xs text-text3">{label}</span>
-      <span className="min-w-0 text-right text-xs leading-relaxed text-text2">{value}</span>
+    <div className="flex items-start justify-between gap-3.5 py-1">
+      <span className="shrink-0 text-xs whitespace-nowrap text-text3">{label}</span>
+      <span className="min-w-0 text-right text-xs leading-normal text-text2">{value}</span>
     </div>
   );
   const block = (label: string, value: string | null) => (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold tracking-wide text-text4 uppercase">{label}</span>
+      <span className="text-[10px] font-semibold tracking-wider text-text4 uppercase">{label}</span>
       <p className="rounded-input border border-line bg-surface2 px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-text2">
         {value ?? dash}
       </p>
     </div>
   );
-  const files = (label: string, urls: readonly string[] | null) =>
+  // The board's asset row (B2.V20, B2.V21): an icon tile, the name over a mono sub-line; the empty
+  // row keeps its dashed chrome and gains the plus glyph.
+  const files = (label: string, urls: readonly string[] | null, Icon: LucideIcon) =>
     urls === null || urls.length === 0 ? (
       <div className="flex items-center gap-2 rounded-input border border-dashed border-line2 px-3 py-2 text-xs text-text4">
+        <Plus aria-hidden="true" className="size-3.5 shrink-0" />
         {label} — not uploaded
       </div>
     ) : (
-      <div className="flex items-center gap-2 rounded-input border border-line bg-surface2 px-3 py-2 text-xs text-text2">
-        <span className="flex-1">{label}</span>
-        <span className="font-mono text-[10px] text-text4">
-          {String(urls.length)} {urls.length === 1 ? 'file' : 'files'}
+      <div className="flex items-center gap-2.5 rounded-input border border-line bg-surface2 px-2.5 py-2">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-input bg-surface4 text-text3">
+          <Icon aria-hidden="true" className="size-3.5" />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-xs leading-tight text-text2">{label}</span>
+          <span className="mt-0.5 font-mono text-[9.5px] text-text4">{assetSubline(urls)}</span>
         </span>
       </div>
     );
@@ -309,45 +323,19 @@ export function CreativeSheetPanel({
     >
       <SheetContent
         side="right"
-        showCloseButton={false}
         data-slot="creative-sheet-panel"
-        aria-label={`Creative: ${item.name}`}
-        className="w-full gap-0 p-0 sm:max-w-[520px]"
+        aria-label={`Creative: ${item.briefName ?? item.name}`}
+        className="w-full gap-0 p-0 sm:max-w-[460px]"
       >
-        <SheetHeader className="pr-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-                Creative Sheet
-              </p>
-              <SheetTitle
-                className="font-mono text-sm leading-snug font-medium break-all text-text"
-                data-slot="creative-sheet-panel-title"
-              >
-                {item.name}
-              </SheetTitle>
-              <SheetDescription>{NAME_GENERATED_NOTE}</SheetDescription>
-              <Link
-                href={briefPath(item.id)}
-                className="text-xs text-accent underline-offset-2 hover:underline"
-                data-slot="creative-sheet-open-brief"
-              >
-                {OPEN_CREATIVE_LABEL}
-              </Link>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-7 shrink-0"
-              onClick={onClose}
-              aria-label="Close panel"
-              data-slot="creative-sheet-panel-close"
-            >
-              <SheetIcon name="x" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-1.5" data-slot="creative-sheet-panel-chips">
+        <SheetHeader className="px-5 pt-4 pr-14 pb-3.5">
+          <SheetTitle
+            className="font-mono text-[13px] leading-normal font-medium tracking-[-.01em] break-all text-text"
+            data-slot="creative-sheet-panel-title"
+          >
+            {item.briefName ?? item.name}
+          </SheetTitle>
+          <SheetDescription className="sr-only">{item.name}</SheetDescription>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" data-slot="creative-sheet-panel-chips">
             {internalView === null ? null : (
               <StatusChip tone={internalView.tone} label={internalView.label} />
             )}
@@ -366,8 +354,8 @@ export function CreativeSheetPanel({
             <input key={name} type="hidden" name={name} value={checks[name] ? 'true' : ''} />
           ))}
 
-          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-            <div className="flex flex-col gap-7">
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex flex-col">
               <Group heading={SHEET_GROUPS.identity}>
                 <div data-slot="creative-sheet-identity">
                   {row('Concept', lookups?.concept ?? dash)}
@@ -379,9 +367,7 @@ export function CreativeSheetPanel({
                   {row('Version', <span className="font-mono">V{String(detail.version)}</span>)}
                   {row('Product', lookups?.internalProduct ?? dash)}
                 </div>
-              </Group>
 
-              <Group heading={SHEET_GROUPS.creative}>
                 <DimensionsField
                   value={dimensions}
                   onChange={saveDimensions}
@@ -389,25 +375,20 @@ export function CreativeSheetPanel({
                   saveState={dimensionsState}
                 />
 
-                <div
-                  data-slot="creative-sheet-brief-lookups"
-                  className="grid gap-3 rounded-card border border-line bg-surface2 p-3 sm:grid-cols-2"
-                >
-                  {lookup(BRIEF_LOOKUP_LABELS.briefType, item.briefType ?? dash)}
-                  {lookup(BRIEF_LOOKUP_LABELS.briefFunnel, item.briefFunnel ?? dash)}
-                  {lookup(
+                <div data-slot="creative-sheet-brief-lookups">
+                  {row(
                     BRIEF_LOOKUP_LABELS.briefPlatform,
                     item.briefPlatform.length === 0 ? (
                       dash
                     ) : (
-                      <span className="flex flex-wrap gap-1">
+                      <span className="flex flex-wrap justify-end gap-1">
                         {item.briefPlatform.map((platform) => (
                           <StatusChip key={platform} tone="mute" label={platform} />
                         ))}
                       </span>
                     ),
                   )}
-                  {lookup(
+                  {row(
                     BRIEF_LOOKUP_LABELS.briefPerformance,
                     item.briefPerformance === null ? (
                       dash
@@ -415,7 +396,7 @@ export function CreativeSheetPanel({
                       <StatusChip tone="info" label={item.briefPerformance} />
                     ),
                   )}
-                  {lookup(
+                  {row(
                     BRIEF_LOOKUP_LABELS.briefDesignFileUrl,
                     item.briefDesignFileUrl === null ? (
                       dash
@@ -424,13 +405,13 @@ export function CreativeSheetPanel({
                         href={item.briefDesignFileUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="truncate font-mono text-xs text-accent underline-offset-2 hover:underline"
+                        className="block truncate font-mono text-xs text-accent underline-offset-2 hover:underline"
                       >
                         {item.briefDesignFileUrl}
                       </a>
                     ),
                   )}
-                  <p className="text-xs text-text4 sm:col-span-2">
+                  <p className="pt-1 text-xs text-text4">
                     Read from the creative. Edit them on its own page.
                   </p>
                 </div>
@@ -454,13 +435,8 @@ export function CreativeSheetPanel({
                 <div data-slot="creative-sheet-status-facts">
                   {row(
                     'Due date',
-                    detail.dueDate === null ? (
-                      dash
-                    ) : (
-                      <span className="font-mono">{detail.dueDate.toISOString().slice(0, 10)}</span>
-                    ),
+                    detail.dueDate === null ? dash : formatSheetDate(detail.dueDate),
                   )}
-                  {row('Assignee', detail.assignee ?? dash)}
                   {row('Priority', detail.priority ?? dash)}
                   {row('Client note', detail.clientStatusNote ?? dash)}
                 </div>
@@ -494,8 +470,15 @@ export function CreativeSheetPanel({
 
               <Group heading={SHEET_GROUPS.qa}>
                 <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
-                  <div className="flex w-full flex-col gap-2">{QA_CHECKS.map(checkField)}</div>
+                  <div className="flex w-full flex-col">{QA_CHECKS.map(checkField)}</div>
                 </DisabledWrite>
+                <p
+                  data-slot="creative-sheet-qa-gate"
+                  data-open={gate.open ? 'true' : 'false'}
+                  className={cn('text-[11px]', gate.open ? 'text-ok' : 'text-warn')}
+                >
+                  {gate.label}
+                </p>
                 <div
                   data-slot="creative-sheet-field-qaChecklistDoc"
                   className="flex flex-col gap-1.5"
@@ -515,19 +498,8 @@ export function CreativeSheetPanel({
                   />
                   {docError === undefined ? null : <p className="text-xs text-bad">{docError}</p>}
                 </div>
-              </Group>
-
-              <Group heading={SHEET_GROUPS.assets}>
-                <div className="flex flex-col gap-2" data-slot="creative-sheet-assets">
-                  {files('Inspiration images', detail.inspirationImage)}
-                  {files('Script breakdown', detail.scriptAndBriefBreakdown)}
-                  {files('Design file', detail.designFile)}
-                </div>
-              </Group>
-
-              <Group heading={SHEET_GROUPS.spelling}>
                 <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
-                  <div className="flex w-full flex-col gap-2">{checkField(SPELL_CHECK_FIELD)}</div>
+                  <div className="flex w-full flex-col">{checkField(SPELL_CHECK_FIELD)}</div>
                 </DisabledWrite>
                 <div
                   data-slot="creative-sheet-field-spellingFeedback"
@@ -547,17 +519,20 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
+              <Group heading={SHEET_GROUPS.assets}>
+                <div className="flex flex-col gap-2" data-slot="creative-sheet-assets">
+                  {files('Inspiration images', detail.inspirationImage, Image)}
+                  {files('Script breakdown', detail.scriptAndBriefBreakdown, File)}
+                  {files('Design file', detail.designFile, File)}
+                </div>
+              </Group>
+
               <Group heading={SHEET_GROUPS.meta}>
                 <div data-slot="creative-sheet-meta">
-                  {row(
-                    'Created',
-                    <span className="font-mono">{item.createdAt.toISOString().slice(0, 10)}</span>,
-                  )}
-                  {row(
-                    'Last modified',
-                    <span className="font-mono">{item.updatedAt.toISOString().slice(0, 10)}</span>,
-                  )}
-                  {row('Created by', detail.createdBy ?? dash)}
+                  {row('Created', formatSheetDate(item.createdAt))}
+                  {row('Last modified', formatSheetDate(item.updatedAt))}
+                  {row('Creator', detail.createdBy ?? dash)}
+                  {row('Editor', detail.assignee ?? dash)}
                   {row('Updated by', detail.updatedBy ?? dash)}
                   {row('Name mode', <span className="font-mono">{detail.nameMode}</span>)}
                 </div>
@@ -565,7 +540,7 @@ export function CreativeSheetPanel({
             </div>
           </div>
 
-          <footer className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-line bg-surface2 px-4 py-3 sm:px-6">
+          <SheetFooter className="sticky bottom-0 flex-wrap items-center justify-end px-5 py-3">
             {onFocusMode === undefined ? null : (
               <Button
                 type="button"
@@ -576,14 +551,14 @@ export function CreativeSheetPanel({
                 }}
                 data-slot="creative-sheet-focus-mode"
               >
-                <SheetIcon name="focus" />
+                <Captions aria-hidden="true" className="size-3.5" />
                 Focus Mode
               </Button>
             )}
-            <Button asChild variant="secondary" size="sm">
+            <Button asChild variant="outline" size="sm">
               <Link href={briefPath(item.id)} data-slot="creative-sheet-open-full">
                 Open full page
-                <SheetIcon name="arrow" />
+                <ArrowRight aria-hidden="true" className="size-3.5" />
               </Link>
             </Button>
             {demo ? (
@@ -593,9 +568,6 @@ export function CreativeSheetPanel({
             ) : state !== null && !state.ok ? (
               <p className="mr-auto text-xs text-bad">{state.error}</p>
             ) : null}
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
             <DisabledWrite active={demo}>
               <Button
                 type="submit"
@@ -607,7 +579,7 @@ export function CreativeSheetPanel({
                 {pending ? 'Saving…' : 'Save'}
               </Button>
             </DisabledWrite>
-          </footer>
+          </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>

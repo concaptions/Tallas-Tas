@@ -13,7 +13,7 @@ export interface ContextMenuItem {
   readonly label: string;
   readonly onSelect: () => void;
   readonly icon?: ReactNode;
-  /** A keyboard hint drawn at the right, e.g. `⌘D`; cosmetic, the row's shortcut is the grid's. */
+  /** A keyboard hint drawn at the right, e.g. `⌘D`; the page's key handler honours the menu's row. */
   readonly shortcut?: string;
   readonly tone?: 'default' | 'bad';
   readonly disabled?: boolean;
@@ -31,6 +31,15 @@ export interface RowContextMenuProps {
 }
 
 const MARGIN = 8;
+
+/**
+ * How the viewer's keyboard spells the Duplicate shortcut (B3.A19): the command glyph on an Apple
+ * platform, `Ctrl+D` anywhere else. Read off the user-agent string — `navigator.platform` is
+ * deprecated in the DOM lib and the lint rejects it.
+ */
+export function duplicateShortcut(userAgent: string): string {
+  return /Mac|iPhone|iPad|iPod/.test(userAgent) ? '⌘D' : 'Ctrl+D';
+}
 
 export function RowContextMenu({ position, items, onClose, label }: RowContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -91,7 +100,7 @@ export function RowContextMenu({ position, items, onClose, label }: RowContextMe
       aria-label={`Actions for ${label}`}
       data-slot="row-context-menu"
       style={{ left: place.x, top: place.y }}
-      className="fixed z-50 min-w-[218px] rounded-card border border-line2 bg-surface2 p-1 text-text2 shadow-lg"
+      className="fixed z-50 min-w-[218px] rounded-card border border-line2 bg-surface2 p-1 text-text2 shadow-float"
       onContextMenu={(event) => {
         event.preventDefault();
       }}

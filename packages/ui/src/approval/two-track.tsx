@@ -13,6 +13,7 @@ import {
 } from '@tas/domain/state';
 
 import { Button } from '../components/button';
+import { SectionLabel } from '../components/section-label';
 import { cn } from '../lib/cn';
 import { StatusChip } from '../status/status-chip';
 import { StepRow } from '../status/step-row';
@@ -86,9 +87,7 @@ export function TwoTrackApproval({
           className="rounded-card border border-line bg-surface p-4"
         >
           <header className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-[11px] font-medium tracking-wide text-text3 uppercase">
-              Internal status
-            </h3>
+            <SectionLabel className="flex-1">Internal status</SectionLabel>
             {internalEntry === undefined ? null : (
               <StatusChip tone={chipTone(internalEntry.label)} label={internalEntry.label} />
             )}
@@ -101,6 +100,11 @@ export function TwoTrackApproval({
                 tip={entry.description}
                 state={stepState(internalSteps, internal, entry.key)}
                 isLast={index === internalSteps.length - 1}
+                // B6.V16: the board washes the gate row in `--ok` at 8%. The gate step is the one
+                // `isClientTrackOpen` accepts — no status key is spelled here.
+                className={
+                  isClientTrackOpen(entry.key) ? '-mx-2 rounded-input bg-ok/8 px-2' : undefined
+                }
               />
             ))}
           </div>
@@ -122,9 +126,7 @@ export function TwoTrackApproval({
           style={clientWrapperStyle}
         >
           <header className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-[11px] font-medium tracking-wide text-text3 uppercase">
-              Client status
-            </h3>
+            <SectionLabel className="flex-1">Client status</SectionLabel>
             {open ? (
               clientEntry === undefined ? null : (
                 <StatusChip tone={chipTone(clientEntry.label)} label={clientEntry.label} />

@@ -17,13 +17,18 @@ import type { InspoLinkKind } from '@tas/domain/angles';
 import { inheritedFromAngle } from '@tas/domain/concepts';
 import {
   CLIENT_STATUS,
+  INTERNAL_GATE_REASON,
   INTERNAL_STATUS,
   INTERNAL_TRANSITIONS,
   chipTone,
+  clientMoveNeedsQa,
   editorStageLabel,
   editorStageOf,
   editorStageTone,
+  isClientStatusKey,
+  isClientTrackOpen,
   type ChipTone,
+  type ClientStatusKey,
   type EditorStageKey,
   type InternalStatusKey,
 } from '@tas/domain/state';
@@ -631,15 +636,38 @@ export const NEW_BRIEF_SOON_HINT = 'The create form ships with the CSV upload ti
 /** Why "Re-run AI check" is inert outside demo mode: there is no Server Action behind it yet. */
 export const RERUN_SOON_HINT = 'The spelling check runs as a background job in a later ticket';
 
-/** The three QA checkboxes of ticket criterion 10, in the order the checklist lists them. */
-export const BRIEF_QA_CHECKS = ['qaVideoEditor', 'qaDesigner', 'qaStrategist'] as const;
+/**
+ * The three QA checkboxes of ticket criterion 10 and their labels, re-exported from the domain
+ * (B4.V4): `actions.ts` is a `'use server'` module and cannot export a table, and this module
+ * used to hold a copy of `qa-gate.ts`'s, word for word. One table, so the checklist, Focus Mode
+ * and the Activity labels cannot disagree.
+ */
+export { BRIEF_QA_CHECKS, BRIEF_QA_CHECK_LABELS as BRIEF_QA_LABELS } from '@tas/domain/state';
 
-/** Their labels, the table `actions.ts` could not export from a `'use server'` module. */
-export const BRIEF_QA_LABELS: Record<BriefQaCheck, string> = {
-  qaVideoEditor: 'Video Editor QA',
-  qaDesigner: 'Graphic Designer QA',
-  qaStrategist: 'Creative Strategist QA',
-};
+/**
+ * Why the client-status Save would be refused for `candidate` (B4.A22), or null when it may run:
+ * the internal gate first — the client track opens at Approved — then the QA gate when the move
+ * is a submission. The same two gates `submitToClientRefusal` composes for Submit to Client,
+ * asked of a dropdown's choice; the shared action re-runs both before it writes.
+ */
+export function clientSaveRefusal(position: {
+  readonly internal: string;
+  readonly client: ClientStatusKey;
+  readonly candidate: string;
+  /** The QA gate's sentence for this brief, or null once every required tick is set. */
+  readonly qaReason: string | null;
+}): string | null {
+  if (position.candidate === position.client) return null;
+  if (!isClientTrackOpen(position.internal)) return INTERNAL_GATE_REASON;
+  if (
+    position.qaReason !== null &&
+    isClientStatusKey(position.candidate) &&
+    clientMoveNeedsQa(position.client, position.candidate)
+  ) {
+    return position.qaReason;
+  }
+  return null;
+}
 
 /** The detail page's headings, each stated once so the page and the E2E assertion agree. */
 export const BRIEF_HEADINGS = {

@@ -7,16 +7,21 @@ import { getTableCapability, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { EDITOR_STAGE_KEYS } from '@tas/domain/state';
 import { Button, DEMO_WRITE_HINT, Input, StatusChip } from '@tas/ui';
+import { Captions, Copy, Link, RefreshCw, Trash } from '@tas/ui/icons';
 
 import {
   ColumnNotices,
+  duplicateShortcut,
   KanbanBoard,
   RowContextMenu,
   SelectionBar,
+  SelectionDeleteConfirm,
+  SelectionStatusPicker,
   ViewSwitcher,
   type ContextMenuItem,
   type KanbanItem,
   type SelectionAction,
+  type SelectionStatusTrack,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import {
@@ -68,7 +73,6 @@ import {
   deleteCreativesAction,
   duplicateCreativesAction,
 } from './review-actions';
-import { SheetIcon } from './sheet-icons';
 
 /**
  * The Creative Sheet grid, its Kanban board and its side panel.
@@ -161,6 +165,14 @@ const CAP = getTableCapability('creative-sheet') as NonNullable<
   ReturnType<typeof getTableCapability>
 >;
 
+/** The bulk Change-status picker's two tracks; "Client Approval" per Oct 11 item 5b. */
+const STATUS_TRACKS: readonly SelectionStatusTrack[] = [
+  { key: 'internalStatus', label: 'Internal Status', options: INTERNAL_STATUS_OPTIONS },
+  { key: 'status', label: 'Client Approval', options: STATUS_OPTIONS },
+];
+
+const DELETE_DETAIL = 'They leave the sheet, the queues and the portal; nothing is erased.';
+
 function syncUrl(key: typeof SELECTION_PARAM | typeof SEARCH_PARAM, value: string | null): void {
   const url = new URL(window.location.href);
   if (value === null || value.trim() === '') {
@@ -200,7 +212,7 @@ export function QaTicks({ item }: { item: CreativeSheetItemListRow }) {
 
 function chipOrDash(view: SheetStatusView | null) {
   return view === null ? (
-    <span className="text-text4">{EM_DASH}</span>
+    <span className="font-mono text-xs text-text4">{EM_DASH}</span>
   ) : (
     <StatusChip tone={view.tone} label={view.label} />
   );
@@ -339,7 +351,12 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
     sortValue: ({ lookups }) => lookups.funnel,
   },
   type: {
-    render: ({ lookups }) => <TextCell value={lookups.type} maxWidth={120} />,
+    render: ({ lookups }) =>
+      lookups.type === null ? (
+        <span className="font-mono text-xs text-text4">{EM_DASH}</span>
+      ) : (
+        <StatusChip tone="mute" label={lookups.type} />
+      ),
     sortValue: ({ lookups }) => lookups.type,
   },
   proposed_copy: {
@@ -426,7 +443,9 @@ export function CreativeSheetWorkspace({
   const withoutMove = (current: Readonly<Record<string, string>>, id: string) =>
     Object.fromEntries(Object.entries(current).filter(([key]) => key !== id));
   useEffect(() => {
-    setMoves({});
+    // Only a real reset re-renders: `boardBriefs` defaults to a fresh `[]` per render, and a new
+    // `{}` on every pass would loop the effect (a client render; the server never runs it).
+    setMoves((current) => (Object.keys(current).length === 0 ? current : {}));
   }, [items, boardBriefs]);
   /**
    * The creative "New creative" just made, shown as a pending row until the refresh brings the
@@ -481,13 +500,19 @@ export function CreativeSheetWorkspace({
   const open = items.find(({ item }) => item.id === selection) ?? null;
 
   useEffect(() => {
-    setSelected((current) => pruneSelection(current, items.map(({ item }) => item.id)));
+    setSelected((current) =>
+      pruneSelection(
+        current,
+        items.map(({ item }) => item.id),
+      ),
+    );
   }, [items]);
 
   const clearSelection = useCallback(() => {
     setSelected(new Set());
     setStatusPicker(null);
     setConfirmDelete(false);
+    setBulkNotice(null);
   }, []);
 
   const focus = useCallback(
@@ -570,9 +595,10 @@ export function CreativeSheetWorkspace({
     });
   }, [demo, finish, selected, statusPicker]);
 
-  // ⌘D / Ctrl+D duplicates the selection, as the context menu's shortcut hint says.
+  // ⌘D / Ctrl+D duplicates THE MENU'S ROW while a context menu is up — the hint sits on that row,
+  // ticked or not (B3.A20) — and the selection otherwise.
   useEffect(() => {
-    if (selected.size === 0) return;
+    if (selected.size === 0 && contextMenu === null) return;
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
         const target = event.target;
@@ -580,14 +606,19 @@ export function CreativeSheetWorkspace({
           return;
         }
         event.preventDefault();
-        duplicate([...selected]);
+        if (contextMenu !== null) {
+          setContextMenu(null);
+          duplicate([contextMenu.view.item.id]);
+        } else {
+          duplicate([...selected]);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [duplicate, selected]);
+  }, [contextMenu, duplicate, selected]);
 
   const copyLink = useCallback((id: string) => {
     const url = `${window.location.origin}${creativeSheetPath}?${SELECTION_PARAM}=${encodeURIComponent(id)}`;
@@ -604,11 +635,13 @@ export function CreativeSheetWorkspace({
   const contextItems = useMemo((): readonly ContextMenuItem[] => {
     if (contextMenu === null) return [];
     const id = contextMenu.view.item.id;
+    // The menu only exists after a right-click, so `navigator` is always there when this runs.
+    const shortcut = duplicateShortcut(navigator.userAgent);
     return [
       {
         label: 'Duplicate',
-        shortcut: '⌘D',
-        icon: <SheetIcon name="copy" />,
+        shortcut,
+        icon: <Copy className="size-4" strokeWidth={1.75} />,
         disabled: demo,
         slot: 'context-duplicate',
         onSelect: () => {
@@ -617,7 +650,7 @@ export function CreativeSheetWorkspace({
       },
       {
         label: 'Open in Focus Mode',
-        icon: <SheetIcon name="focus" />,
+        icon: <Captions className="size-4" strokeWidth={1.75} />,
         slot: 'context-focus',
         onSelect: () => {
           focus(id);
@@ -625,7 +658,7 @@ export function CreativeSheetWorkspace({
       },
       {
         label: 'Copy link',
-        icon: <SheetIcon name="link" />,
+        icon: <Link className="size-4" strokeWidth={1.75} />,
         slot: 'context-copy-link',
         onSelect: () => {
           copyLink(id);
@@ -633,7 +666,7 @@ export function CreativeSheetWorkspace({
       },
       {
         label: 'Delete',
-        icon: <SheetIcon name="trash" />,
+        icon: <Trash className="size-4" strokeWidth={1.75} />,
         tone: 'bad',
         divider: true,
         disabled: demo,
@@ -655,7 +688,7 @@ export function CreativeSheetWorkspace({
     return [
       {
         label: `Duplicate (${String(count)})`,
-        icon: <SheetIcon name="copy" />,
+        icon: <Copy className="size-3.5" strokeWidth={1.75} />,
         disabled,
         hint,
         slot: 'selection-duplicate',
@@ -665,7 +698,7 @@ export function CreativeSheetWorkspace({
       },
       {
         label: 'Change status',
-        icon: <SheetIcon name="status" />,
+        icon: <RefreshCw className="size-3.5" strokeWidth={1.75} />,
         disabled,
         hint,
         slot: 'selection-change-status',
@@ -678,7 +711,7 @@ export function CreativeSheetWorkspace({
       },
       {
         label: `Delete (${String(count)})`,
-        icon: <SheetIcon name="trash" />,
+        icon: <Trash className="size-3.5" strokeWidth={1.75} />,
         tone: 'bad',
         disabled,
         hint,
@@ -775,7 +808,10 @@ export function CreativeSheetWorkspace({
         });
         return;
       }
-      // The card moves NOW; the write and the refresh follow in the background (SMOKE-10).
+      // The card moves NOW; the write and the refresh follow in the background (SMOKE-10). A
+      // refusal — the server re-running the QA gate on a drop into Approved — snaps the card back
+      // AND says why (B4.A11): a silent bounce read as a broken board.
+      setMoveError(null);
       setMoves((current) => ({ ...current, [itemId]: newValue }));
       startTransition(() => {
         const formData = new FormData();
@@ -787,6 +823,7 @@ export function CreativeSheetWorkspace({
             router.refresh();
           } else {
             setMoves((current) => withoutMove(current, itemId));
+            setMoveError(result.error);
           }
         });
       });
@@ -841,7 +878,12 @@ export function CreativeSheetWorkspace({
       <header className="flex flex-col gap-1">
         <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Creative Sheet</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Sheet</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight text-text">Creative Sheet</h1>
+            <span data-slot="creative-sheet-count">
+              <StatusChip tone="mute" label={countLabel(items.length, visible.length)} />
+            </span>
+          </div>
           {newCreative}
         </div>
         {pending === null ? null : (
@@ -855,8 +897,7 @@ export function CreativeSheetWorkspace({
           </p>
         )}
         <p className="text-sm text-text2">
-          <span data-slot="creative-sheet-count">{countLabel(items.length, visible.length)}</span> —
-          the month&apos;s client-facing sheet, one row per creative, named for you.
+          The month&apos;s client-facing sheet, one row per creative, named for you.
         </p>
       </header>
 
@@ -945,8 +986,8 @@ export function CreativeSheetWorkspace({
                   {startError}
                 </p>
               ) : null}
-              {editorBoard && moveError !== null ? (
-                <p className="text-sm text-bad" role="alert" data-slot="brief-move-error">
+              {moveError !== null ? (
+                <p className="text-xs text-bad" role="alert" data-slot="kanban-move-error">
                   {moveError}
                 </p>
               ) : null}
@@ -979,6 +1020,7 @@ export function CreativeSheetWorkspace({
               onRowContextMenu={(view, position) => {
                 setContextMenu({ view, position });
               }}
+              contextRowId={contextMenu?.view.item.id ?? null}
               tableSlot="creative-sheet-table"
               rowSlot="creative-sheet-row"
               empty={
@@ -1043,80 +1085,40 @@ export function CreativeSheetWorkspace({
         onClear={clearSelection}
         notice={
           confirmDelete ? (
-            <span className="flex items-center gap-2" data-slot="selection-delete-confirm">
-              Delete {String(selected.size)} {selected.size === 1 ? 'creative' : 'creatives'}? They
-              leave the sheet, the queues and the portal; nothing is erased.
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                disabled={demo || busy}
-                data-slot="selection-delete-confirm-yes"
-                onClick={() => {
-                  remove([...selected]);
-                }}
-              >
-                Delete
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setConfirmDelete(false);
-                }}
-              >
-                Cancel
-              </Button>
-            </span>
+            <SelectionDeleteConfirm
+              count={selected.size}
+              noun="creative"
+              detail={DELETE_DETAIL}
+              disabled={demo || busy}
+              onConfirm={() => {
+                remove([...selected]);
+              }}
+              onCancel={() => {
+                setConfirmDelete(false);
+              }}
+            />
           ) : (
             bulkNotice
           )
         }
       >
         {statusPicker === null ? null : (
-          <span className="flex items-center gap-1.5" data-slot="selection-status-picker">
-            <select
-              value={statusPicker.field}
-              onChange={(event) => {
-                const field = event.target.value === 'status' ? 'status' : 'internalStatus';
-                setStatusPicker({ field, value: '' });
-              }}
-              aria-label="Track"
-              className="h-8 rounded-input border border-line bg-surface px-2 text-xs text-text"
-            >
-              <option value="internalStatus">Internal Status</option>
-              <option value="status">Client Approval</option>
-            </select>
-            <select
-              value={statusPicker.value}
-              onChange={(event) => {
-                setStatusPicker({ field: statusPicker.field, value: event.target.value });
-              }}
-              aria-label="New status"
-              data-slot="selection-status-value"
-              className="h-8 rounded-input border border-line bg-surface px-2 text-xs text-text"
-            >
-              <option value="">Pick a status…</option>
-              {(statusPicker.field === 'internalStatus'
-                ? INTERNAL_STATUS_OPTIONS
-                : STATUS_OPTIONS
-              ).map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              size="sm"
-              disabled={demo || busy || statusPicker.value === ''}
-              onClick={applyStatus}
-              data-slot="selection-status-apply"
-            >
-              Apply
-            </Button>
-          </span>
+          <SelectionStatusPicker
+            tracks={STATUS_TRACKS}
+            track={statusPicker.field}
+            value={statusPicker.value}
+            disabled={demo || busy}
+            onTrackChange={(track) => {
+              setStatusPicker({
+                field: track === 'status' ? 'status' : 'internalStatus',
+                value: '',
+              });
+            }}
+            onValueChange={(value) => {
+              setStatusPicker({ field: statusPicker.field, value });
+            }}
+            onApply={applyStatus}
+          />
         )}
       </SelectionBar>
     </div>

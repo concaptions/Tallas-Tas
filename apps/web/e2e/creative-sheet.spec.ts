@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { clerkKeys } from '../src/lib/clerk-keys';
 import { creativeSheetPath } from '../src/lib/routes';
@@ -39,13 +39,48 @@ const INTERNAL_STATUS_LABELS = [
   'Revisions Submitted',
   'Approved',
 ];
-const DAYLIGHT_BRIEF_ID = '77777777-7777-4777-8777-000000000003';
+
+/**
+ * The sidebar's SIX sections — `SHEET_GROUPS` in `creative-sheet/fields.ts` after B2.A4 folded
+ * Creative into Identity and Spelling into QA (decision 2, SHEET-02). Every control the old eight
+ * carried is still inside one of these.
+ */
+const SHEET_GROUP_HEADINGS = ['Identity', 'Status', 'Content', 'QA', 'Assets', 'Meta'];
+
+/**
+ * `demoBriefs` (packages/db/src/demo-data.ts): the Motion Image on the "Make 9am Look Like 3am"
+ * concept — Ad Submitted, video editor ticked, strategist NOT ticked, so the QA gate holds it on
+ * every surface. Its brief name is the formula's output, never typed (CLAUDE.md rule 6).
+ */
+const MOTION_BRIEF_ID = '77777777-7777-4777-8777-000000000003';
+const MOTION_BRIEF_NAME = 'TAS-AM1-B2-Make 9am Look Like 3am-POV: X vs Y-V1';
+/** The Carousel on the Ninety Minutes concept: Sent to Editor / Designer, the editor board's Incoming. */
+const CAROUSEL_BRIEF_ID = '77777777-7777-4777-8777-000000000006';
+/** A word exactly ONE fixture name carries — the search reads names and status labels. */
+const UNIQUE_SEARCH = '9am';
+
+/**
+ * The shell stamps `data-hydrated` from its first client effect (`src/lib/hydration-replay.ts`).
+ * A click or a keystroke that lands before React has attached its handlers is dropped — the
+ * panel-click and multi-select tests used to race it under two workers — so every test that
+ * drives a control waits for the stamp first. Nothing else is relaxed.
+ */
+async function hydrated(page: Page): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true', { timeout: 45_000 });
+}
 
 test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
   test.skip(
     clerkKeys() !== undefined,
     'Clerk keys present: /app/creative-sheet needs a session and real data',
   );
+
+  // `next dev` compiles the route on its first request; warm it once so no test pays for it.
+  test.beforeAll(async ({ browser }) => {
+    const page = await browser.newPage();
+    await page.goto(creativeSheetPath, { waitUntil: 'networkidle' });
+    await page.close();
+  });
 
   test('lists one row per fixture brief with the resolved columns, named by the formula', async ({
     page,
@@ -54,27 +89,36 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Creative Sheet');
     await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(ROWS);
+    // The count is a mute chip beside the title now (B3.V22); the wording is `countLabel`'s.
     await expect(page.locator('[data-slot="creative-sheet-count"]')).toContainText(
       `${String(ROWS)} rows`,
     );
+    await expect(
+      page.locator('[data-slot="creative-sheet-count"] [data-slot="status-chip"]'),
+    ).toHaveAttribute('data-tone', 'mute');
 
     /*
      * The resolver's labels, in the template's order. Demo mode's brand is Niagara, which owns no
      * rows, so it inherits the template: the parent base's own field names first — `Name + Angle +
-     * Offer` is field 1, a FORMULA, so the column is VIRTUAL and nothing stores it — then the ten
+     * Offer` is field 1, a FORMULA, so the column is VIRTUAL and nothing stores it — then the
      * fields only GRATSI's base defines, which are the platform's and sort after the parent's
      * 17-field range.
      *
-     * THE THREE QA CHECKS ARE THREE COLUMNS NOW, not one `QA` header. Airtable has three separate
+     * Column 0 is the multi-select checkbox column (Oct 12): a control with an `aria-label`, no
+     * header text. `Client Approval` is the sheet's client track worded as every table words it
+     * (item 5b, 2026-10-11; ruling 13 keeps it). `Dimensions` is the stored ratio set (0059).
+     *
+     * THE THREE QA CHECKS ARE THREE COLUMNS, not one `QA` header. Airtable has three separate
      * fields and the rule is to mirror Airtable; the single header also left the resolver returning
      * three columns where the page drew one cell, so an admin hiding "QA" would have been hiding
      * something other than what they saw. Gratsi's own set differs in one label only — it words the
      * primary field `Name` — and that is asserted against PGlite in column-seed.test.ts.
      */
     await expect(page.locator('[data-slot="creative-sheet-table"] thead th')).toHaveText([
+      '',
       'Name + Angle + Offer',
       'Creative Name',
-      'Status',
+      'Client Approval',
       // Template field 17, added by the Gratsi column match (2026-10-04): the one system
       // timestamp the parent base genuinely has, `updated_at` under Airtable's own label. The
       // thirteen lookups are NOT here — the template's copies are dead and seed nothing
@@ -88,7 +132,11 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       'Creative Strategist QA',
       'Click for AI Spell Checker Again',
       'Spelling Feedback',
+      'Dimensions',
     ]);
+    await expect(
+      page.locator('[data-slot="creative-sheet-table"] thead [data-slot="select-all"]'),
+    ).toHaveAttribute('data-state', 'none');
 
     /*
      * The name is the month plus the brief's name — computed on read by `creativeSheetName`, with no
@@ -114,16 +162,25 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(creativeSheetPath);
+    await hydrated(page);
 
     const firstRow = page.locator('[data-slot="creative-sheet-row"]').first();
     const name = ((await firstRow.getAttribute('aria-label')) ?? '').trim();
     expect(name).not.toBe('');
+    // The Sheet is titled by the BRIEF's name (B2.A1, ruling 11), the grid's `Creative Name`
+    // cell; the month-prefixed sheet name stays the dialog's accessible name.
+    const briefName = (await firstRow.locator('td[data-column="brief_id"]').innerText()).trim();
+    expect(briefName).not.toBe('');
 
     await firstRow.click();
 
     const panel = page.locator('[data-slot="creative-sheet-panel"]');
     await expect(panel).toBeVisible();
-    await expect(panel.locator('[data-slot="creative-sheet-panel-title"]')).toHaveText(name);
+    await expect(panel.locator('[data-slot="creative-sheet-panel-title"]')).toHaveText(briefName);
+    // The dialog is named by what it shows: the brief's name, not the sheet's month-prefixed row.
+    await expect(panel).toHaveAttribute('aria-label', `Creative: ${briefName}`);
+    // One close control: the Sheet primitive's own (B2.V6), no hand-built twin beside it.
+    await expect(panel.locator('[data-slot="sheet-close"]')).toHaveCount(1);
 
     // Every stored Airtable field is a labelled control in the panel.
     for (const field of STORED_FIELDS) {
@@ -133,7 +190,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       await expect(control.locator(`#creative-sheet-field-${field}`), field).toBeVisible();
     }
 
-    // The brief's lookups are shown read-only beneath the picker.
+    // The brief's lookups are shown read-only under Identity (B2.A7).
     await expect(panel.locator('[data-slot="creative-sheet-brief-lookups"]')).toBeVisible();
 
     // Open state is in the URL, so a refresh reopens it and the link is shareable.
@@ -145,11 +202,8 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(ROWS);
 
     // After the reload the client bundle can still be hydrating when a single Escape lands (the
-
     // tracked panel Escape-close race; products/personas specs keep the strict form as sentinels).
-
     // Re-press until the close takes.
-
     await expect(async () => {
       await page.keyboard.press('Escape');
 
@@ -161,7 +215,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
   });
 
   test('the panel is read-only and refuses to save', async ({ page }) => {
-    await page.goto(`${creativeSheetPath}?creative-sheet=${DAYLIGHT_BRIEF_ID}`);
+    await page.goto(`${creativeSheetPath}?creative-sheet=${MOTION_BRIEF_ID}`);
 
     const panel = page.locator('[data-slot="creative-sheet-panel"]');
     await expect(panel.locator('[data-slot="creative-sheet-demo-note"]')).toContainText(
@@ -178,10 +232,16 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       'readonly',
       '',
     );
+    // The gate line reads the ticks (B4.A12): the strategist's is unset, so Submit stays shut.
+    await expect(panel.locator('[data-slot="creative-sheet-qa-gate"]')).toHaveAttribute(
+      'data-open',
+      'false',
+    );
   });
 
   test('the Kanban board groups every row by internal status, then by status', async ({ page }) => {
     await page.goto(creativeSheetPath);
+    await hydrated(page);
 
     await page.getByRole('tab', { name: 'Kanban' }).click();
     const board = page.locator('[data-slot="kanban-board"]');
@@ -194,6 +254,11 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     for (const [index, label] of INTERNAL_STATUS_LABELS.entries()) {
       await expect(columns.nth(index), label).toContainText(label);
     }
+    // Every column counts its cards in the mono face (B6.V13).
+    await expect(board.locator('[data-slot="column-count"]')).toHaveCount(await columns.count());
+    // The refusal line (B4.A11, one slot for both boards) exists only after a refused drop; demo
+    // mode never drops, so nothing alerts at rest.
+    await expect(page.locator('[data-slot="kanban-move-error"]')).toHaveCount(0);
 
     await page.locator('[data-slot="creative-sheet-group-by"]').selectOption('status');
     await expect(board.locator('[data-slot="kanban-card"]')).toHaveCount(ROWS);
@@ -203,6 +268,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(creativeSheetPath);
+    await hydrated(page);
 
     await page.getByRole('tab', { name: 'Kanban' }).click();
     await page.locator('[data-slot="creative-sheet-group-by"]').selectOption('editorStage');
@@ -213,18 +279,14 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(columns.nth(1)).toContainText('Under Editing');
     await expect(columns.nth(2)).toContainText('Under Review');
 
-    // A card is a BRIEF, keyed by the brief id: the Daylight brief sits under Under Review, with
-    // the sheet row linked to it as its subtitle.
-    const daylight = columns
-      .nth(2)
-      .locator('[data-card-id="77777777-7777-4777-8777-000000000003"]');
-    await expect(daylight).toHaveCount(1);
-    await expect(daylight).toContainText('Daylight');
+    // A card is a BRIEF, keyed by the brief id: the Ad Submitted motion image sits under Under
+    // Review, titled by its generated name, with the sheet row linked to it as its subtitle.
+    const motion = columns.nth(2).locator(`[data-card-id="${MOTION_BRIEF_ID}"]`);
+    await expect(motion).toHaveCount(1);
+    await expect(motion).toContainText(MOTION_BRIEF_NAME);
 
     // The Incoming brief is on the board with its own sheet name as subtitle, Start withheld in demo.
-    const incoming = columns
-      .nth(0)
-      .locator('[data-card-id="77777777-7777-4777-8777-000000000006"]');
+    const incoming = columns.nth(0).locator(`[data-card-id="${CAROUSEL_BRIEF_ID}"]`);
     await expect(incoming).toHaveCount(1);
     await expect(incoming).not.toContainText('No sheet row yet');
     await expect(incoming.locator('[data-slot="brief-start"]')).toBeDisabled();
@@ -246,6 +308,7 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(creativeSheetPath);
+    await hydrated(page);
 
     await page.getByRole('tab', { name: 'Focus Mode' }).click();
     const focus = page.locator('[data-slot="focus-mode"]');
@@ -264,8 +327,13 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(
       focus.locator('[data-slot="focus-qa-check"][data-check="qaStrategist"]'),
     ).toHaveCount(1);
+    // The gate box words the progress and carries its state as an attribute (B4.V1 / B4.V2).
     await expect(focus.locator('[data-slot="focus-qa-gate"]')).toContainText(
       'required checks complete',
+    );
+    await expect(focus.locator('[data-slot="focus-qa-gate"]')).toHaveAttribute(
+      'data-open',
+      /^(true|false)$/,
     );
 
     // Demo: every review button is withheld with a reason.
@@ -276,19 +344,24 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
   });
 
   test('?view=focus opens Focus Mode on the creative the URL names', async ({ page }) => {
-    await page.goto(`${creativeSheetPath}?view=focus&creative-sheet=${DAYLIGHT_BRIEF_ID}`);
+    await page.goto(`${creativeSheetPath}?view=focus&creative-sheet=${MOTION_BRIEF_ID}`);
 
     const focus = page.locator('[data-slot="focus-mode"]');
-    await expect(focus).toHaveAttribute('data-focus-id', DAYLIGHT_BRIEF_ID);
-    // In demo mode the demo hint wins; the gate's own wording is pinned by focus-mode.test.ts.
+    await expect(focus).toHaveAttribute('data-focus-id', MOTION_BRIEF_ID);
+    // A refusal beats the demo hint (B4.V13); the gate's wording is pinned by focus-mode.test.ts.
     await expect(focus.locator('[data-slot="focus-submit"]')).toBeDisabled();
+    // The motion image is video-track: the strategist's tick is missing, so the gate is shut.
+    await expect(focus.locator('[data-slot="focus-qa-gate"]')).toHaveAttribute(
+      'data-open',
+      'false',
+    );
     await expect(page.locator('[data-slot="creative-sheet-panel"]')).toHaveCount(0);
   });
 
-  test('the row panel is a Sheet with its sections, the brief name as its title and the N/A tick struck through', async ({
+  test('the row panel is a Sheet with its six sections, the brief name as its title and the N/A tick struck through', async ({
     page,
   }) => {
-    await page.goto(`${creativeSheetPath}?creative-sheet=${DAYLIGHT_BRIEF_ID}`);
+    await page.goto(`${creativeSheetPath}?creative-sheet=${MOTION_BRIEF_ID}`);
 
     const panel = page.locator('[data-slot="creative-sheet-panel"]');
     await expect(panel).toBeVisible();
@@ -297,17 +370,13 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(panel.locator('[data-slot="creative-sheet-panel-title"]')).toHaveClass(
       /font-mono/,
     );
-    await expect(panel.locator('[data-slot="creative-sheet-group-heading"]')).toHaveText([
-      'Identity',
-      'Creative',
-      'Status',
-      'Content',
-      'QA',
-      'Assets',
-      'Spelling',
-      'Meta',
-    ]);
-    // A video brief: the designer's tick is listed, struck through, tagged N/A.
+    await expect(panel.locator('[data-slot="creative-sheet-panel-title"]')).toHaveText(
+      MOTION_BRIEF_NAME,
+    );
+    await expect(panel.locator('[data-slot="creative-sheet-group-heading"]')).toHaveText(
+      SHEET_GROUP_HEADINGS,
+    );
+    // A video-track brief: the designer's tick is listed, struck through, tagged N/A.
     const designer = panel.locator('[data-slot="creative-sheet-field-qaDesigner"]');
     await expect(designer).toHaveAttribute('data-applicable', 'false');
     await expect(designer).toContainText('N/A');
@@ -317,14 +386,15 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     );
     await expect(panel.locator('[data-slot="creative-sheet-open-full"]')).toHaveAttribute(
       'href',
-      new RegExp(DAYLIGHT_BRIEF_ID),
+      new RegExp(MOTION_BRIEF_ID),
     );
 
     // Focus Mode from the footer swaps the view and keeps the creative.
+    await hydrated(page);
     await panel.locator('[data-slot="creative-sheet-focus-mode"]').click();
     await expect(page.locator('[data-slot="focus-mode"]')).toHaveAttribute(
       'data-focus-id',
-      DAYLIGHT_BRIEF_ID,
+      MOTION_BRIEF_ID,
     );
     await expect(page.locator('[data-slot="creative-sheet-panel"]')).toHaveCount(0);
   });
@@ -333,11 +403,13 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(creativeSheetPath);
+    await hydrated(page);
 
     const rows = page.locator('[data-slot="creative-sheet-row"]');
     await expect(page.locator('[data-slot="selection-bar"]')).toHaveCount(0);
 
-    // Ticking a row selects it without opening it.
+    // Ticking a row selects it without opening it. The box is the drawn `Checkbox` primitive
+    // (B3.V3); its native input keeps the `row-select` slot, so a `.check()` is still a check.
     await rows.nth(0).locator('[data-slot="row-select"]').check();
     await expect(rows.nth(0)).toHaveAttribute('data-checked', 'true');
     await expect(page.locator('[data-slot="creative-sheet-panel"]')).toHaveCount(0);
@@ -345,9 +417,12 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
 
     const bar = page.locator('[data-slot="selection-bar"]');
     await expect(bar).toBeVisible();
+    await expect(bar).toHaveAttribute('role', 'toolbar');
     await expect(bar.locator('[data-slot="selection-count"]')).toHaveText('1');
     await expect(bar.locator('[data-slot="selection-duplicate"]')).toBeDisabled();
     await expect(bar.locator('[data-slot="selection-delete"]')).toBeDisabled();
+    // A bulk result's notice (B3.A29) needs a write; demo mode has none, so none shows.
+    await expect(page.locator('[data-slot="selection-notice"]')).toHaveCount(0);
 
     // The header selects every row on screen, then clears them.
     await page.locator('[data-slot="select-all"]').click();
@@ -366,6 +441,8 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
       'Copy link',
       'Delete',
     ]);
+    // The row the menu is open on is marked, so the grid can tint it (B3.V5).
+    await expect(rows.nth(1)).toHaveAttribute('data-context', 'open');
     await expect(menu.locator('[data-slot="context-duplicate"]')).toBeDisabled();
     await menu.locator('[data-slot="context-focus"]').click();
     await expect(page.locator('[data-slot="focus-mode"]')).toBeVisible();
@@ -373,9 +450,14 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
 
   test('search reads the name, the brief and the status labels', async ({ page }) => {
     await page.goto(creativeSheetPath);
+    await hydrated(page);
 
-    await page.locator('[data-slot="creative-sheet-search"]').fill('daylight');
+    await page.locator('[data-slot="creative-sheet-search"]').fill(UNIQUE_SEARCH);
     await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="creative-sheet-row"]').first()).toHaveAttribute(
+      'aria-label',
+      new RegExp(UNIQUE_SEARCH),
+    );
     await expect(page.locator('[data-slot="creative-sheet-count"]')).toContainText(
       `1 of ${String(ROWS)} rows`,
     );

@@ -6,12 +6,10 @@ import { useRouter } from 'next/navigation';
 import { applyDimensionChange, dimensionsFor, type DimensionChange } from '@tas/domain/creatives';
 import {
   canSubmitToClient,
-  clientMoveNeedsQa,
   editorStageLabel,
   editorStageOf,
   editorStageTone,
   internalMoveNeedsQa,
-  isClientStatusKey,
   qaGateReason,
 } from '@tas/domain/state';
 import type {
@@ -73,6 +71,7 @@ import {
   advanceLabel,
   briefDimensionKeys,
   briefDimensions,
+  clientSaveRefusal,
   creativeTypeLabel,
   nextInternalStatus,
   performanceView,
@@ -82,6 +81,7 @@ import {
   type BriefLinkedRecord,
   type BriefLinkedRecords,
 } from '../fields';
+import { BriefActivity } from './brief-activity';
 import { BriefName } from './brief-name';
 import { DimensionsGrid } from './dimensions-grid';
 import { BriefDimensionsPicker, type DimensionsSaveState } from './dimensions-picker';
@@ -162,9 +162,6 @@ interface BriefScriptRow {
 /** What the Scripts table says when nothing has been written yet. */
 const NO_SCRIPTS_NOTE =
   'No script yet. The creative’s script and its Copywriting rows appear here.';
-
-/** What the Activity section says before any write has been logged. */
-const NO_ACTIVITY_NOTE = 'No activity yet. Every saved change is listed here with who made it.';
 
 /** A value no uuid can be, so the Select can offer "Standalone" without an empty item value. */
 const STANDALONE_VALUE = 'standalone';
@@ -433,10 +430,9 @@ export function BriefDetail({
   const qaReason = canSubmitToClient(track, ticks) ? null : qaGateReason(track, ticks);
   const advanceGated =
     next !== null && qaReason !== null && internalMoveNeedsQa(internal, next.key);
+  // Both gates, in order, for the client Save (B4.A22): the dropdown holds Save with the reason.
   const clientRefusalFor = (candidate: string): string | null =>
-    qaReason !== null && isClientStatusKey(candidate) && clientMoveNeedsQa(client, candidate)
-      ? qaReason
-      : null;
+    clientSaveRefusal({ internal, client, candidate, qaReason });
 
   // The Scripts table (EDIT-04): the brief's own script, then every Meta Copywriting row written
   // for it — the rows under the details an editor reads before cutting.
@@ -994,6 +990,7 @@ export function BriefDetail({
             <DisabledWrite
               active={demo || advanceGated}
               hint={demo ? DEMO_WRITE_HINT : (qaReason ?? '')}
+              popover
             >
               <Button
                 type="submit"
@@ -1019,6 +1016,7 @@ export function BriefDetail({
               qaDesigner: brief.qaDesigner,
               qaStrategist: brief.qaStrategist,
             }}
+            track={track}
             demo={demo}
           />
 
@@ -1133,12 +1131,6 @@ export function BriefDetail({
         </aside>
       </div>
 
-      {/*
-        The brief's history (P2B-4). Nothing records edits yet — there is no audit/activity table in
-        `packages/db/src/schema` — so this ships as the real container with its empty state rather
-        than a placeholder that would have to be thrown away: when the audit trail lands it appends
-        `<li>` rows into this same scrollable list and the empty state simply stops rendering.
-      */}
       <section className="flex flex-col gap-2" data-slot="brief-copywriting">
         <h2 className="text-sm font-medium text-text2">{BRIEF_HEADINGS.metaCopywriting}</h2>
         {copyLinks.length === 0 ? (
@@ -1168,49 +1160,7 @@ export function BriefDetail({
         )}
       </section>
 
-      <section
-        data-slot="brief-activity"
-        aria-labelledby="brief-activity-heading"
-        className="flex min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-4"
-      >
-        <h2 id="brief-activity-heading" className="text-sm font-medium text-text2">
-          Activity
-        </h2>
-        {activity.length === 0 ? (
-          <p data-slot="brief-activity-empty" className="py-4 text-center text-xs text-text4">
-            {NO_ACTIVITY_NOTE}
-          </p>
-        ) : (
-          <ol
-            data-slot="brief-activity-list"
-            className="flex max-h-64 flex-col gap-2 overflow-y-auto"
-          >
-            {activity.map((entry) => (
-              <li
-                key={entry.id}
-                data-slot="brief-activity-entry"
-                data-field={entry.field}
-                className="flex flex-col gap-0.5 border-b border-line pb-2 text-xs last:border-b-0 last:pb-0"
-              >
-                <span className="text-text2">
-                  <span className="font-medium" data-slot="brief-activity-actor">
-                    {entry.actorName ?? entry.actorId ?? 'Someone'}
-                  </span>{' '}
-                  changed <span className="font-mono">{entry.field}</span>
-                </span>
-                <span className="font-mono text-[11px] text-text3">
-                  <span data-slot="brief-activity-old">{entry.oldValue ?? EM_DASH}</span>
-                  {' → '}
-                  <span data-slot="brief-activity-new">{entry.newValue ?? EM_DASH}</span>
-                </span>
-                <span className="font-mono text-[10.5px] text-text4" data-slot="brief-activity-at">
-                  {entry.at.replace('T', ' ').slice(0, 16)} UTC
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      <BriefActivity items={activity} />
     </div>
   );
 }

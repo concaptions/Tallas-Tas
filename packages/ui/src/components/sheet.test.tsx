@@ -41,4 +41,31 @@ describe('Sheet', () => {
     expect(sheetVariants()).toContain('bg-surface');
     expect(sheetVariants()).not.toMatch(/#[0-9a-f]{3,6}/i);
   });
+
+  /**
+   * B2.V2: the board's sheet casts a long LEFTWARD shadow onto the dimmed grid (`--shadow-sheet`),
+   * which Tailwind's downward `shadow-lg` cannot express. The edge sheets keep `shadow-lg`.
+   */
+  it('casts the sheet shadow from the side edges and the plain one from top and bottom', () => {
+    expect(sheetVariants({ side: 'right' })).toContain('shadow-sheet');
+    expect(sheetVariants({ side: 'left' })).toContain('shadow-sheet');
+    expect(sheetVariants({ side: 'right' })).not.toContain('shadow-lg');
+    expect(sheetVariants({ side: 'top' })).toContain('shadow-lg');
+    expect(sheetVariants({ side: 'bottom' })).toContain('shadow-lg');
+    expect(sheetVariants({ side: 'top' })).not.toContain('shadow-sheet');
+  });
+
+  it('holds no colour literal in the rendered dialog', () => {
+    render(
+      <Sheet open>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>TV01-B3-CasualHangouts-V2-GratsiRED</SheetTitle>
+          </SheetHeader>
+        </SheetContent>
+      </Sheet>,
+    );
+
+    expect(document.body.innerHTML).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgb\(/);
+  });
 });
