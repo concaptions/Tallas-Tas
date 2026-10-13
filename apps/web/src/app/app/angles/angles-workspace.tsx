@@ -19,6 +19,8 @@ import {
   GridSelectionOverlay,
   ListView,
   galleryItemsFrom,
+  onScreenOrder,
+  recordNavigation,
   useGridSelection,
   type SelectionStatusTrack,
 } from '@/components/views';
@@ -413,6 +415,17 @@ export function AnglesWorkspace({
     [visible, grid, tableView.config.filters],
   );
 
+  /**
+   * The sheet's prev/next walk, Ticket 9: in grid view the on-screen row order (sort + group
+   * aware), in gallery or list view the filtered order itself. The counter and the two neighbour
+   * ids come out of `recordNavigation` over that list.
+   */
+  const nav = useMemo(() => {
+    const ordered =
+      activeView === 'grid' ? onScreenOrder(filtered, grid.columns, tableView.config) : filtered;
+    return recordNavigation(ordered.map(angleRowId), selection);
+  }, [activeView, filtered, grid.columns, tableView.config, selection]);
+
   const refresh = useCallback(() => {
     router.refresh();
   }, [router]);
@@ -646,6 +659,8 @@ export function AnglesWorkspace({
           concepts={openConcepts}
           creativeDesigns={openCreativeDesigns}
           demo={demo}
+          nav={creating ? undefined : nav}
+          onNavigate={creating ? undefined : select}
           onClose={close}
           onSaved={saved}
         />

@@ -92,6 +92,15 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="persona-panel-title"]')).toHaveText(name);
 
+    // Ticket 9: the panel rides the shared `RecordSheet`, with the counter and the two
+    // prev/next buttons in its header. The counter pads to the total's width, so three rows
+    // read `1 / 3` not `01 / 3`.
+    const sheet = page.locator('[data-slot="record-sheet"]');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('[data-slot="record-sheet-counter"]')).toHaveText('1 / 3');
+    await expect(sheet.locator('[data-slot="record-sheet-prev"]')).toBeDisabled();
+    await expect(sheet.locator('[data-slot="record-sheet-next"]')).toBeEnabled();
+
     // Grouping is not something `column_definitions` can express, so the panel is one section of
     // the brand's resolved fields plus one section per link column — here the two-way Angles link,
     // whose heading is the resolver's own label for the `angle_personas` junction.

@@ -22,6 +22,7 @@ import {
 } from '@tas/ui';
 
 import { LinkField } from '@/components/links/link-field';
+import { RecordSheet, type RecordSheetNavigation } from '@/components/views';
 
 import { createAngleAction, updateAngleAction, type AngleActionResult } from './actions';
 import {
@@ -85,6 +86,9 @@ interface AnglePanelProps {
   readonly concepts: readonly LinkedRecord[];
   readonly creativeDesigns: readonly LinkedRecord[];
   readonly demo: boolean;
+  /** The sheet's prev/next walk, from `recordNavigation` over the grid's `onScreenOrder`. */
+  readonly nav?: RecordSheetNavigation;
+  readonly onNavigate?: (id: string) => void;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
 }
@@ -237,6 +241,8 @@ export function AnglePanel({
   concepts,
   creativeDesigns,
   demo,
+  nav,
+  onNavigate,
   onClose,
   onSaved,
 }: AnglePanelProps) {
@@ -256,18 +262,6 @@ export function AnglePanel({
   const [winning, setWinning] = useState(angle?.winning ?? false);
 
   const types: readonly AngleTypeKey[] = angle?.type ?? [];
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -572,40 +566,26 @@ export function AnglePanel({
     </section>
   );
 
+  const title = creating ? 'New angle' : angle.name;
+
   return (
-    <aside
-      data-slot="angle-panel"
-      aria-label={creating ? 'New angle' : `Angle: ${angle.name}`}
-      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-lg min-[900px]:w-[60%]"
+    <RecordSheet
+      open
+      onClose={onClose}
+      nav={nav}
+      onNavigate={onNavigate}
+      title={title}
+      titleSlot="angle-panel-title"
+      width="form"
+      description={creating ? 'New angle' : `Angle: ${angle.name}`}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-            {creating ? 'New angle' : 'Angle'}
-          </p>
-          <h2 className="truncate text-lg font-semibold text-text" data-slot="angle-panel-title">
-            {creating ? 'New angle' : angle.name}
-          </h2>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          aria-label="Close panel"
-          data-slot="angle-panel-close"
-        >
-          Close
-        </Button>
-      </header>
+      <div data-slot="angle-panel" className="flex min-h-0 flex-1 flex-col">
+        <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+          {creating ? null : <input type="hidden" name="id" value={angle.id} />}
+          {formats.map((key) => (
+            <input key={key} type="hidden" name="formats" value={key} />
+          ))}
 
-      <form action={formAction} className="flex min-h-0 flex-1 flex-col">
-        {creating ? null : <input type="hidden" name="id" value={angle.id} />}
-        {formats.map((key) => (
-          <input key={key} type="hidden" name="formats" value={key} />
-        ))}
-
-        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-7">
             {ANGLE_FIELD_GROUPS.map((group) => (
               <section key={group.heading} className="flex flex-col gap-3">
@@ -814,32 +794,32 @@ export function AnglePanel({
               </section>
             )}
           </div>
-        </div>
 
-        <footer className="sticky bottom-0 flex flex-wrap items-center justify-end gap-3 border-t border-line bg-surface2 px-4 py-3 sm:px-6">
-          {demo ? (
-            <p className="mr-auto text-xs text-text3" data-slot="angle-demo-note">
-              {DEMO_FOOTER_NOTICE}
-            </p>
-          ) : state !== null && !state.ok ? (
-            <p className="mr-auto text-xs text-bad">{state.error}</p>
-          ) : null}
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <DisabledWrite active={blocked} hint={blockedHint}>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={blocked || pending}
-              data-slot="angle-save"
-              className={disabledWriteClassName}
-            >
-              {pending ? 'Saving…' : 'Save'}
+          <footer className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-line bg-surface2 px-4 py-3 sm:px-6">
+            {demo ? (
+              <p className="mr-auto text-xs text-text3" data-slot="angle-demo-note">
+                {DEMO_FOOTER_NOTICE}
+              </p>
+            ) : state !== null && !state.ok ? (
+              <p className="mr-auto text-xs text-bad">{state.error}</p>
+            ) : null}
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              Cancel
             </Button>
-          </DisabledWrite>
-        </footer>
-      </form>
-    </aside>
+            <DisabledWrite active={blocked} hint={blockedHint}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={blocked || pending}
+                data-slot="angle-save"
+                className={disabledWriteClassName}
+              >
+                {pending ? 'Saving…' : 'Save'}
+              </Button>
+            </DisabledWrite>
+          </footer>
+        </form>
+      </div>
+    </RecordSheet>
   );
 }

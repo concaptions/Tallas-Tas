@@ -26,6 +26,7 @@ import {
 } from './fields';
 import type { ResolvedColumnView } from '@/components/views/resolved-columns';
 import { LinkField } from '@/components/links/link-field';
+import { RecordSheet, type RecordSheetNavigation } from '@/components/views';
 
 /** The `?persona=` value that means "the panel is open on a persona that does not exist yet". */
 export const NEW_PERSONA = 'new';
@@ -56,6 +57,9 @@ interface PersonaPanelProps {
   /** The angle ids currently linked to the persona, from the same junction the angle panel writes. */
   readonly angleIds?: readonly string[];
   readonly demo: boolean;
+  /** The sheet's prev/next walk, from `recordNavigation` over the grid's `onScreenOrder`. */
+  readonly nav?: RecordSheetNavigation;
+  readonly onNavigate?: (id: string) => void;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
 }
@@ -70,10 +74,9 @@ function valueOf(persona: PersonaListRow | null, name: PersonaFieldName): string
 }
 
 /**
- * The right-side persona panel. Deliberately not a modal: no backdrop, no focus trap, no
- * `aria-modal` — the table beside it stays visible and clickable while this is open, which is the
- * point of a panel. It is fixed to the right edge at 60% of the viewport, full width under 900px,
- * and it closes on Escape or on its close button.
+ * The right-side persona panel. The outer shell is now the shared `RecordSheet` (Ticket 9): header
+ * with the record counter and the prev/next buttons that walk the grid's on-screen order, keyboard
+ * ArrowLeft/ArrowRight for the same walk, and the sheet's built-in close button and overlay dismiss.
  *
  * WHICH FIELDS IT SHOWS IS CONFIGURATION, not code: `personaPanelFrom` turns the brand's resolved
  * columns into the form's fields, in the resolver's order and under the resolver's labels, and maps
@@ -87,6 +90,8 @@ export function PersonaPanel({
   angles = [],
   angleIds = [],
   demo,
+  nav,
+  onNavigate,
   onClose,
   onSaved,
 }: PersonaPanelProps) {
@@ -98,18 +103,6 @@ export function PersonaPanel({
   );
   const [stage, setStage] = useState<AwarenessStage | ''>(persona?.stageOfAwareness ?? '');
   const layout = useMemo(() => personaPanelFrom(columns), [columns]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -128,7 +121,6 @@ export function PersonaPanel({
       name: field.name,
       readOnly: demo,
       'aria-invalid': error !== undefined,
-      // The one field the action refuses to save empty says so to a screen reader.
       'aria-required': field.required ? true : undefined,
       placeholder: NOT_SET,
       defaultValue: valueOf(persona, field.name),
@@ -171,37 +163,23 @@ export function PersonaPanel({
     );
   };
 
+  const title = creating ? 'New persona' : persona.name;
+
   return (
-    <aside
-      data-slot="persona-panel"
-      aria-label={creating ? 'New persona' : `Persona: ${persona.name}`}
-      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-line bg-surface shadow-lg min-[900px]:w-[60%]"
+    <RecordSheet
+      open
+      onClose={onClose}
+      nav={nav}
+      onNavigate={onNavigate}
+      title={title}
+      titleSlot="persona-panel-title"
+      width="form"
+      description={creating ? 'New persona' : `Persona: ${persona.name}`}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">
-            {creating ? 'New persona' : 'Persona'}
-          </p>
-          <h2 className="truncate text-lg font-semibold text-text" data-slot="persona-panel-title">
-            {creating ? 'New persona' : persona.name}
-          </h2>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          aria-label="Close panel"
-          data-slot="persona-panel-close"
-        >
-          Close
-        </Button>
-      </header>
+      <div data-slot="persona-panel" className="flex min-h-0 flex-1 flex-col">
+        <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+          {creating ? null : <input type="hidden" name="id" value={persona.id} />}
 
-      <form action={formAction} className="flex min-h-0 flex-1 flex-col">
-        {creating ? null : <input type="hidden" name="id" value={persona.id} />}
-
-        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-7">
             <section className="flex flex-col gap-3">
               <h3
@@ -245,32 +223,32 @@ export function PersonaPanel({
               </p>
             ) : null}
           </div>
-        </div>
 
-        <footer className="sticky bottom-0 flex flex-wrap items-center justify-end gap-3 border-t border-line bg-surface2 px-4 py-3 sm:px-6">
-          {demo ? (
-            <p className="mr-auto text-xs text-text3" data-slot="persona-demo-note">
-              {DEMO_FOOTER_NOTICE}
-            </p>
-          ) : state !== null && !state.ok ? (
-            <p className="mr-auto text-xs text-bad">{state.error}</p>
-          ) : null}
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <DisabledWrite active={demo}>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={demo || pending}
-              data-slot="persona-save"
-              className={disabledWriteClassName}
-            >
-              {pending ? 'Saving…' : 'Save'}
+          <footer className="sticky bottom-0 mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-line bg-surface2 px-4 py-3 sm:px-6">
+            {demo ? (
+              <p className="mr-auto text-xs text-text3" data-slot="persona-demo-note">
+                {DEMO_FOOTER_NOTICE}
+              </p>
+            ) : state !== null && !state.ok ? (
+              <p className="mr-auto text-xs text-bad">{state.error}</p>
+            ) : null}
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              Cancel
             </Button>
-          </DisabledWrite>
-        </footer>
-      </form>
-    </aside>
+            <DisabledWrite active={demo}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={demo || pending}
+                data-slot="persona-save"
+                className={disabledWriteClassName}
+              >
+                {pending ? 'Saving…' : 'Save'}
+              </Button>
+            </DisabledWrite>
+          </footer>
+        </form>
+      </div>
+    </RecordSheet>
   );
 }

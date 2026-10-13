@@ -132,6 +132,14 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-slot="angle-panel-title"]')).toHaveText(name);
 
+    // Ticket 9: the panel rides the shared `RecordSheet`. Its header carries the record
+    // counter and the prev/next buttons that walk the on-screen row order.
+    const sheet = page.locator('[data-slot="record-sheet"]');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('[data-slot="record-sheet-counter"]')).toHaveText('1 / 5');
+    await expect(sheet.locator('[data-slot="record-sheet-prev"]')).toBeDisabled();
+    await expect(sheet.locator('[data-slot="record-sheet-next"]')).toBeEnabled();
+
     // The six groups, in the order fields.ts states; "Inspiration" became "Resources".
     await expect(panel.locator('[data-slot="angle-group-heading"]')).toHaveText([
       'Identity',
