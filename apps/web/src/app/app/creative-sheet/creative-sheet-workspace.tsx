@@ -33,7 +33,12 @@ import {
   toggleAllSelected,
   toggleSelected,
 } from '@/components/views/airtable-grid-logic';
-import { CountCell, TextCell } from '@/components/views/grid-cells';
+import {
+  booleanGroupLabel,
+  CountCell,
+  statusGroupHeader,
+  TextCell,
+} from '@/components/views/grid-cells';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -283,10 +288,12 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   status: {
     render: ({ item }) => chipOrDash(statusView(item.status)),
     sortValue: ({ item }) => statusView(item.status)?.label ?? '',
+    groupHeader: statusGroupHeader,
   },
   internal_status: {
     render: ({ item }) => chipOrDash(internalStatusView(item.internalStatus)),
     sortValue: ({ item }) => internalStatusView(item.internalStatus)?.label ?? '',
+    groupHeader: statusGroupHeader,
   },
   qa_checklist_doc: {
     render: ({ item }) => <CountCell count={item.qaChecklistDoc?.length ?? 0} noun="file" />,
@@ -295,16 +302,19 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   qa_video_editor: {
     render: ({ item }) => <Tick on={item.qaVideoEditor} label="Video Editor QA" />,
     sortValue: ({ item }) => (item.qaVideoEditor ? 1 : 0),
+    groupLabel: booleanGroupLabel,
     align: 'center',
   },
   qa_designer: {
     render: ({ item }) => <Tick on={item.qaDesigner} label="Graphic Designer QA" />,
     sortValue: ({ item }) => (item.qaDesigner ? 1 : 0),
+    groupLabel: booleanGroupLabel,
     align: 'center',
   },
   qa_strategist: {
     render: ({ item }) => <Tick on={item.qaStrategist} label="Creative Strategist QA" />,
     sortValue: ({ item }) => (item.qaStrategist ? 1 : 0),
+    groupLabel: booleanGroupLabel,
     align: 'center',
   },
   spell_check_requested: {
@@ -312,6 +322,7 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
       <Tick on={item.spellCheckRequested} label="Click for AI Spell Checker Again" />
     ),
     sortValue: ({ item }) => (item.spellCheckRequested ? 1 : 0),
+    groupLabel: booleanGroupLabel,
     align: 'center',
   },
   spelling_feedback: {

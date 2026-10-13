@@ -26,7 +26,7 @@ import {
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
-import { ChipListCell, TextCell } from '@/components/views/grid-cells';
+import { ChipListCell, statusGroupHeader, TextCell } from '@/components/views/grid-cells';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -165,6 +165,7 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
   status: {
     render: (item) => <StatusChip tone={item.statusTone} label={item.statusLabel} />,
     sortValue: (item) => item.statusLabel,
+    groupHeader: statusGroupHeader,
   },
   product_id: {
     render: (item) => <TextCell value={item.productName} maxWidth={200} />,
@@ -259,6 +260,7 @@ const COPY_RENDERERS: ColumnRegistry<CopyItem> = {
       return <StatusChip tone={clientApprovalTone(key)} label={clientApprovalLabel(key)} />;
     },
     sortValue: (item) => clientApprovalLabel(item.clientApprovalStatus),
+    groupHeader: statusGroupHeader,
   },
 };
 

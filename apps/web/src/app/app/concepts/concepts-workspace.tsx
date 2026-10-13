@@ -32,7 +32,13 @@ import {
 } from '@/components/views/resolved-columns';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
-import { EmptyCell, ChipListCell, CountCell, TextCell } from '@/components/views/grid-cells';
+import {
+  EmptyCell,
+  ChipListCell,
+  CountCell,
+  statusGroupHeader,
+  TextCell,
+} from '@/components/views/grid-cells';
 import { linkedRecordsRenderer } from '@/components/views/linked-records-cell';
 
 import { ConceptPanel } from './concept-panel';
@@ -199,10 +205,12 @@ export const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
   internal_status: {
     render: (item) => <StatusChip tone={item.status.tone} label={item.status.label} />,
     sortValue: (item) => item.status.label,
+    groupHeader: statusGroupHeader,
   },
   client_status: {
     render: (item) => <StatusChip tone={item.clientStatus.tone} label={item.clientStatus.label} />,
     sortValue: (item) => item.clientStatus.label,
+    groupHeader: statusGroupHeader,
   },
   // The client's own approval of the concept (migration 0055; CLIENT_STATUS since AUDIT-13). Seeded
   // as "Client Approval" and never drawn until SMOKE-12 — the grid reported it as a missing renderer.
@@ -222,6 +230,7 @@ export const CONCEPT_RENDERERS: ColumnRegistry<ConceptItem> = {
         <StatusChip tone={item.clientApproval.tone} label={item.clientApproval.label} />
       ),
     sortValue: (item) => item.clientApproval?.label ?? '',
+    groupHeader: statusGroupHeader,
   },
   category: {
     render: (item) => <TextCell value={item.categoryLabel} />,

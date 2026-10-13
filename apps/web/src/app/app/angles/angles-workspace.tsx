@@ -31,10 +31,12 @@ import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import {
   BoolCell,
+  booleanGroupLabel,
   ChipCell,
   ChipListCell,
   CountCell,
   LinkCell,
+  statusGroupHeader,
   TextCell,
 } from '@/components/views/grid-cells';
 
@@ -191,6 +193,7 @@ const ANGLE_RENDERERS: ColumnRegistry<AngleItem> = {
       return <ChipCell chip={view === null ? null : { label: view.label, tone: view.tone }} />;
     },
     sortValue: (item) => angleStatusView(item.angle.status)?.label ?? null,
+    groupHeader: statusGroupHeader,
   },
   potential: {
     render: (item) => (
@@ -210,6 +213,7 @@ const ANGLE_RENDERERS: ColumnRegistry<AngleItem> = {
   winning: {
     render: (item) => <BoolCell value={item.angle.winning} />,
     sortValue: (item) => (item.angle.winning ? 1 : 0),
+    groupLabel: booleanGroupLabel,
     align: 'center',
   },
   formats: {

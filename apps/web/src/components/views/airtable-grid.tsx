@@ -42,6 +42,14 @@ export interface GridColumn<Row> {
   readonly sortValue?: (row: Row) => string | number | null;
   /** A tooltip for the whole cell — e.g. the full URL behind a truncated host. */
   readonly cellTitle?: (row: Row) => string | undefined;
+  /** The word a group of this column is headed by, from the raw cell text (`FilterableColumn`). */
+  readonly groupLabel?: (value: string) => string;
+  /**
+   * How the group header prints this column's label (B6.V15): a status column hands back its
+   * `StatusChip`. Default is the label as text. Never called for the empty group, which stays
+   * `EMPTY_GROUP_LABEL` in words — a chip that says "Empty" would read as a status.
+   */
+  readonly groupHeader?: (label: string) => ReactNode;
 }
 
 export interface AirtableGridProps<Row> {
@@ -172,6 +180,7 @@ export function AirtableGrid<Row>({
     if (groupBy === null) return null;
     return groupRows(sortedRows, groupBy, columns);
   }, [columns, sortedRows, view]);
+  const groupHeader = columns.find((column) => column.key === view?.groupBy)?.groupHeader;
 
   const onHeaderClick = useCallback(
     (key: string) => {
@@ -473,7 +482,11 @@ export function AirtableGrid<Row>({
                   >
                     <td colSpan={visibleColumns.length + selectionColumn} className="p-0">
                       <div className="sticky left-0 flex w-fit max-w-full items-baseline gap-2 px-3 py-1.5">
-                        <span className="text-xs font-semibold text-text2">{group.label}</span>
+                        <span className="text-xs font-semibold text-text2">
+                          {group.value === ''
+                            ? group.label
+                            : (groupHeader?.(group.label) ?? group.label)}
+                        </span>
                         <span className="font-mono text-[10px] text-text3" data-slot="group-count">
                           {group.rows.length}
                         </span>

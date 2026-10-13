@@ -25,6 +25,7 @@ import {
 } from '@/components/views';
 import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid';
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
+import { statusGroupHeader } from '@/components/views/grid-cells';
 
 /** One status chip as the list view draws it: the label and tone the vocabulary gives the key. */
 function statusChip(key: string): {
@@ -334,6 +335,8 @@ const FILTER_STORY_COLUMNS: readonly GridColumn<FilterStoryRow>[] = [
     key: 'status',
     header: 'Status',
     sortValue: (row) => row.status,
+    // Grouped under Status, each header wears the chip (B6.V15), not the value as text.
+    groupHeader: statusGroupHeader,
     render: (row) => <span className="text-text2">{row.status}</span>,
   },
   {

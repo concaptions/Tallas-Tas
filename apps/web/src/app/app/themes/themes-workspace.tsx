@@ -18,7 +18,13 @@ import { AirtableGrid, type GridColumn } from '@/components/views/airtable-grid'
 import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
 import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
-import { ChipCell, CountCell, TextCell } from '@/components/views/grid-cells';
+import {
+  booleanGroupLabel,
+  ChipCell,
+  CountCell,
+  statusGroupHeader,
+  TextCell,
+} from '@/components/views/grid-cells';
 
 import {
   ALL_CATEGORIES,
@@ -148,6 +154,7 @@ const THEME_COLUMNS: readonly GridColumn<ThemeListRow>[] = [
     key: 'status',
     header: 'Status',
     sortValue: (theme) => statusChip(theme.status)?.label ?? null,
+    groupHeader: statusGroupHeader,
     render: (theme) => <ChipCell chip={statusChip(theme.status)} />,
   },
   {
@@ -206,6 +213,7 @@ const THEME_COLUMNS: readonly GridColumn<ThemeListRow>[] = [
     header: 'Active',
     align: 'center',
     sortValue: (theme) => (theme.isActive ? 1 : 0),
+    groupLabel: booleanGroupLabel,
     render: (theme) => (theme.isActive ? 'Active' : 'Archived'),
   },
 ];

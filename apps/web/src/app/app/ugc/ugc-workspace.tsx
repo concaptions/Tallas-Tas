@@ -38,12 +38,14 @@ import type { UserViewConfig } from '@tas/domain';
 import type { UserViewsResult } from '@/lib/user-view-actions';
 import {
   BoolCell,
+  booleanGroupLabel,
   ChipCell,
   ChipListCell,
   CountCell,
   DateCell,
   LinkCell,
   MoneyCell,
+  statusGroupHeader,
   TextCell,
 } from '@/components/views/grid-cells';
 import { ageBracketLabel, creatorPlatformLabel } from '@tas/domain/creators';
@@ -141,6 +143,7 @@ function trackRenderer(trackKey: 'internal' | 'client' | 'assets') {
     },
     sortValue: (creator: CreatorCardRow) =>
       creatorTracks(creator).find((entry) => entry.key === trackKey)?.statusLabel ?? null,
+    groupHeader: statusGroupHeader,
   };
 }
 
@@ -254,6 +257,7 @@ export const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
       creator.clientApprovalStatus === null || creator.clientApprovalStatus === undefined
         ? ''
         : clientApprovalLabel(creator.clientApprovalStatus),
+    groupHeader: statusGroupHeader,
   },
   gender: {
     render: (creator) => <TextCell value={creator.gender} />,
@@ -332,6 +336,7 @@ export const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
       <ChipCell chip={creator.notifyFlag === 'YES' ? { label: 'YES', tone: 'warn' } : null} />
     ),
     sortValue: (creator) => (creator.notifyFlag === 'YES' ? 1 : 0),
+    groupLabel: booleanGroupLabel,
     align: 'center',
   },
   cost_usd: {
@@ -349,6 +354,9 @@ export const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
       return <ChipCell chip={chip.key === '' ? null : { label: chip.label, tone: chip.tone }} />;
     },
     sortValue: (creator) => creator.partnershipActivity ?? null,
+    // The cell reads the stored key, so the group is headed by the chip's label, not `not_active`.
+    groupLabel: (key) => partnershipActivityChip(key).label,
+    groupHeader: statusGroupHeader,
   },
   partnership_activated_at: {
     render: (creator) => <DateCell value={creator.partnershipActivatedAt} />,

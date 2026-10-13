@@ -24,6 +24,10 @@ export interface ColumnRenderer<Row> {
   readonly cellTitle?: (row: Row) => string | undefined;
   readonly align?: 'left' | 'right' | 'center';
   readonly minWidth?: number;
+  /** The word a group of this column is headed by, from the raw cell text (see `FilterableColumn`). */
+  readonly groupLabel?: (value: string) => string;
+  /** How the group header prints this column's label; default is the label as text (B6.V15). */
+  readonly groupHeader?: (label: string) => ReactNode;
 }
 
 /** A page's renderers, keyed by the resolver's `columnKey`. */
@@ -105,6 +109,8 @@ export function gridColumnsFrom<Row>(
       ...(renderer.align !== undefined ? { align: renderer.align } : {}),
       ...(renderer.sortValue !== undefined ? { sortValue: renderer.sortValue } : {}),
       ...(renderer.cellTitle !== undefined ? { cellTitle: renderer.cellTitle } : {}),
+      ...(renderer.groupLabel !== undefined ? { groupLabel: renderer.groupLabel } : {}),
+      ...(renderer.groupHeader !== undefined ? { groupHeader: renderer.groupHeader } : {}),
       render: renderer.render,
     });
   }

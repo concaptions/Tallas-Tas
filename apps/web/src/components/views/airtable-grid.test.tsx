@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { defaultUserViewConfig } from '@tas/domain';
 import { describe, expect, it } from 'vitest';
 
 import { AirtableGrid, type GridColumn } from './airtable-grid';
+import { statusGroupHeader } from './grid-cells';
 
 const COLOUR_LITERAL = /#[0-9a-fA-F]{3,8}\b|rgb\(/;
 
@@ -144,5 +146,50 @@ describe('AirtableGrid header and row typography (B3.V11, B3.V12, B6.V14)', () =
     expect(grid({ selected: new Set(['r1']), selectedId: 'r2', contextRowId: 'r3' })).not.toMatch(
       COLOUR_LITERAL,
     );
+  });
+});
+
+describe('AirtableGrid group headers (B6.V15)', () => {
+  const grouped = renderToStaticMarkup(
+    <AirtableGrid
+      tableKey="grid-test-groups"
+      columns={[
+        ...columns.filter((column) => column.key !== 'type'),
+        {
+          key: 'type',
+          header: 'Type',
+          render: (row) => row.type,
+          sortValue: (row) => row.type,
+          groupHeader: statusGroupHeader,
+        },
+      ]}
+      rows={[...rows, { id: 'r4', name: 'TS03-B3-CasualHangouts-V1', type: '' }]}
+      rowId={(row) => row.id}
+      view={{ ...defaultUserViewConfig('grid'), groupBy: 'type' }}
+    />,
+  );
+
+  it('prints the column’s chip in the header slot while data-group keeps the raw value', () => {
+    const video =
+      /<tr[^>]*data-slot="grid-group-header"[^>]*data-group="Video"[^>]*>[\s\S]*?<\/tr>/.exec(
+        grouped,
+      )?.[0];
+    expect(video).toBeDefined();
+    expect(video).toMatch(/data-slot="status-chip"[^>]*data-tone="mute"[^>]*>Video</);
+    expect(video).toMatch(/data-slot="group-count"[^>]*>2</);
+    expect(grouped).toMatch(/data-group="Static"[\s\S]*?data-slot="status-chip"[^>]*>Static</);
+  });
+
+  it('keeps the empty group in words, never as a chip', () => {
+    const empty =
+      /<tr[^>]*data-slot="grid-group-header"[^>]*data-group=""[^>]*>[\s\S]*?<\/tr>/.exec(
+        grouped,
+      )?.[0];
+    expect(empty).toContain('>Empty<');
+    expect(empty).not.toContain('data-slot="status-chip"');
+  });
+
+  it('holds no colour literal', () => {
+    expect(grouped).not.toMatch(COLOUR_LITERAL);
   });
 });

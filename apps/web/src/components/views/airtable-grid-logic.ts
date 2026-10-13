@@ -53,6 +53,12 @@ export interface FilterableColumn<Row> {
   readonly key: string;
   readonly sortValue?: (row: Row) => string | number | null;
   readonly cellTitle?: (row: Row) => string | undefined;
+  /**
+   * The word a group of this column's rows is headed by, from the raw cell text (B6.V15 / GAP-5):
+   * a boolean column reads `'1'` from its `sortValue` and says 'Yes'. Never called for the empty
+   * cell, which keeps `EMPTY_GROUP_LABEL`. Default: the raw text itself.
+   */
+  readonly groupLabel?: (value: string) => string;
 }
 
 /** One column the Group popover offers: its key, and the header the viewer reads it by. */
@@ -158,9 +164,12 @@ export function applyFilters<Row>(
 
 /** One group of rows under one value of the grouping column, already counted by `rows.length`. */
 export interface RowGroup<Row> {
-  /** The raw cell text shared by the group's rows; `''` is the empty-celled group. */
+  /**
+   * The raw cell text of the group's FIRST row; `''` is the empty-celled group. It is what the
+   * header's `data-group` carries, so an automation addresses a group by the value the grid read.
+   */
   readonly value: string;
-  /** What the header row prints for the group; the empty group says so in words. */
+  /** What the header row prints for the group (`groupLabel` applied); the empty group says so in words. */
   readonly label: string;
   readonly rows: readonly Row[];
 }
@@ -174,6 +183,11 @@ export const EMPTY_GROUP_LABEL = 'Empty';
  * and without one the groups sit where their first row sat. Values that differ only by case fold
  * into one group under the first spelling seen, matching how `applyFilters` compares.
  *
+ * THE BUCKET IS THE LABEL, NOT THE RAW TEXT. Two raw values the column's `groupLabel` reads as one
+ * word (`'1'` and `'true'` both 'Yes') land in one group, headed by that word and carrying the
+ * first raw value seen as `value` — a header that said 'Yes' twice would be two groups with one
+ * name, which is the GAP-5 defect in a different coat.
+ *
  * Returns `null` — "render flat" — when the column is unknown or unreadable, for the same reason
  * `applyFilters` ignores such a condition: a stale `group_by` must degrade to the flat grid, not
  * to one giant "Empty" bucket that looks like data.
@@ -185,23 +199,21 @@ export function groupRows<Row>(
 ): readonly RowGroup<Row>[] | null {
   const column = columns.find((candidate) => candidate.key === groupBy);
   if (column === undefined || !isGroupable(column)) return null;
-  const groups = new Map<string, { value: string; rows: Row[] }>();
+  const groups = new Map<string, { value: string; label: string; rows: Row[] }>();
   for (const row of rows) {
     const text = readCell(column, row) ?? '';
     const normalised = isEmptyCell(text) ? '' : text;
-    const key = normalised.toLowerCase();
+    const label =
+      normalised === '' ? EMPTY_GROUP_LABEL : (column.groupLabel?.(normalised) ?? normalised);
+    const key = normalised === '' ? '' : label.toLowerCase();
     const existing = groups.get(key);
     if (existing === undefined) {
-      groups.set(key, { value: normalised, rows: [row] });
+      groups.set(key, { value: normalised, label, rows: [row] });
     } else {
       existing.rows.push(row);
     }
   }
-  return [...groups.values()].map((group) => ({
-    value: group.value,
-    label: group.value === '' ? EMPTY_GROUP_LABEL : group.value,
-    rows: group.rows,
-  }));
+  return [...groups.values()];
 }
 
 /**

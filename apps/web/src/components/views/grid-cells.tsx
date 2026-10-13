@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { StatusChip } from '@tas/ui';
-import type { ChipTone } from '@tas/domain/state';
+import { chipTone, type ChipTone } from '@tas/domain/state';
 
 import { hostLabel } from '@/app/app/products/fields';
 
@@ -66,6 +66,24 @@ export interface GridChip {
 export function ChipCell({ chip }: { readonly chip: GridChip | null }) {
   if (chip === null) return <EmptyCell />;
   return <StatusChip tone={chip.tone} label={chip.label} />;
+}
+
+/**
+ * A status column's group header (B6.V15): the same `StatusChip` its cells wear, toned by the one
+ * tone source `chipTone(label)` (decisions 2026-10-13, "One tone source"). Passed as a column's
+ * `groupHeader`; the grid hands it the group's label, never the empty group.
+ */
+export function statusGroupHeader(label: string): ReactNode {
+  return <StatusChip tone={chipTone(label)} label={label} />;
+}
+
+/**
+ * A boolean column's group label (GAP-5): its `sortValue` is `1 | 0`, which `groupRows` reads as
+ * `'1'` / `'0'`, and a header that prints a digit reads as data. Passed as the column's
+ * `groupLabel`; the two spellings a boolean reaches the grid in both fold into 'Yes'.
+ */
+export function booleanGroupLabel(value: string): string {
+  return value === '1' || value === 'true' ? 'Yes' : 'No';
 }
 
 /** A multi-select column: every chip inline, the dash when there are none. */

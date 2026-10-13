@@ -263,6 +263,36 @@ describe('groupRows', () => {
   it('groups nothing into nothing', () => {
     expect(groupRows([], 'status', FILTER_COLUMNS)).toEqual([]);
   });
+
+  it('buckets by the groupLabel, keeps the first raw value, and leaves the empty group in words (GAP-5)', () => {
+    // A boolean column: `sortValue` is 1 | 0, read as '1' / '0'; a second row stores it as 'true'.
+    interface Flag {
+      readonly name: string;
+      readonly winning: string | number | null;
+    }
+    const rows: readonly Flag[] = [
+      { name: 'A', winning: 1 },
+      { name: 'B', winning: 0 },
+      { name: 'C', winning: 'true' },
+      { name: 'D', winning: null },
+    ];
+    const columns: readonly FilterableColumn<Flag>[] = [
+      {
+        key: 'winning',
+        sortValue: (row) => row.winning,
+        groupLabel: (value) => (value === '1' || value === 'true' ? 'Yes' : 'No'),
+      },
+    ];
+    const groups = groupRows(rows, 'winning', columns);
+    expect(groups?.map((group) => group.label)).toEqual(['Yes', 'No', EMPTY_GROUP_LABEL]);
+    // '1' and 'true' are ONE group — the bucket is the label — under the first raw value seen.
+    expect(groups?.map((group) => group.value)).toEqual(['1', '0', '']);
+    expect(groups?.map((group) => group.rows.map((row) => row.name))).toEqual([
+      ['A', 'C'],
+      ['B'],
+      ['D'],
+    ]);
+  });
 });
 
 /**
