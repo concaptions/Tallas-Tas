@@ -429,8 +429,13 @@ export function CopywritingWorkspace({
    * tracks) are the two bulk Server Actions; Open is the row click's own `select`, Copy link writes
    * nothing. No Duplicate: the Copy # is allocator-generated, never typed (PRD §7).
    */
+  // Sheet parity (Ticket 8 review): prune only on real row-set changes (deletes, server
+  // refreshes), never on local search typing — so a selection the user ticked survives a filter.
+  // The pending row carries the id a provisional press is addressed by, so Select All over the
+  // whole brand's set still ticks it before the server's answer comes back.
+  const selectionRows = rowsWithPending(pending, items);
   const gridSelection = useGridSelection<CopyItem>({
-    rows,
+    rows: selectionRows,
     rowId: copyRowId,
     rowLabel: copyRowLabel,
     demo,

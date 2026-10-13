@@ -345,7 +345,9 @@ export function ProductsWorkspace({
   // URL, Delete the one bulk write. No status track and no Duplicate — product names are typed,
   // never generated (PRD §7), and the table has no status column.
   const bulk = useGridSelection({
-    rows: filtered,
+    // Sheet parity (Ticket 8 review): prune only on real row-set changes (deletes, server
+    // refreshes), never on local search typing — so a selection the user ticked survives a filter.
+    rows: items,
     rowId: productId,
     rowLabel: productName,
     demo,

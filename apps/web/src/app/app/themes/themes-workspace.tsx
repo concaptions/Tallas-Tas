@@ -389,7 +389,9 @@ export function ThemesWorkspace({
    * No Delete and no Change status on the GLOBAL library (lead's Ticket 8 ruling).
    */
   const gridSelection = useGridSelection<ThemeListRow>({
-    rows: filtered,
+    // Sheet parity (Ticket 8 review): prune only on real row-set changes (archive, server refresh),
+    // never on local search typing — so a selection the user ticked survives a filter.
+    rows: themes,
     rowId: themeRowId,
     rowLabel: themeRowLabel,
     demo,

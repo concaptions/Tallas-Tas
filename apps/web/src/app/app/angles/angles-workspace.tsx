@@ -438,7 +438,9 @@ export function AnglesWorkspace({
    * angle names are typed, not formula-generated (PRD §7).
    */
   const gridSelection = useGridSelection<AngleItem>({
-    rows: filtered,
+    // Sheet parity (Ticket 8 review): prune only on real row-set changes (deletes, server
+    // refreshes), never on local search typing — so a selection the user ticked survives a filter.
+    rows: items,
     rowId: angleRowId,
     rowLabel: angleRowLabel,
     demo,

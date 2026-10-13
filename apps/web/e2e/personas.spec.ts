@@ -48,6 +48,8 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     // the seed writes no row and the resolver never emits one. `Passion` is absent because it is
     // Gratsi's own child-added column, not the parent's.
     await expect(page.locator('[data-slot="personas-table"] thead th')).toHaveText([
+      // Ticket 8: the leading header cell is the select-all checkbox the shared grid prepends.
+      '',
       'Persona Name',
       'A Day in the Life',
       'Demographic',

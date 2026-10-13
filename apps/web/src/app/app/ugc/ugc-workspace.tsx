@@ -599,7 +599,9 @@ export function UgcWorkspace({
    * formula-generated (PRD §7). The Partnership Ads table and the Creator Pool are not grids.
    */
   const gridSelection = useGridSelection<CreatorCardRow>({
-    rows: filteredCreators,
+    // Sheet parity (Ticket 8 review): prune only on real row-set changes (deletes, server
+    // refreshes), never on local search typing — so a selection the user ticked survives a filter.
+    rows: creators,
     rowId: creatorRowId,
     rowLabel: creatorRowLabel,
     demo,

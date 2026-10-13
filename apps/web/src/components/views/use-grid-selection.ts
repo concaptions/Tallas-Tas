@@ -56,7 +56,12 @@ export interface GridSelectionExtraAction {
 }
 
 export interface GridSelectionArgs<Row> {
-  /** The rows on screen (after search and view filters); a vanished row leaves the selection. */
+  /**
+   * The brand's whole row set — before the local search filter, in sheet parity (Ticket 8
+   * review). Prune drops a selected id only when its row is DELETED from the set (or the server's
+   * refresh replaced it), never when a user types into the search box: a selection the user has
+   * ticked survives a filter that would hide the row, and reappears when the filter clears.
+   */
   readonly rows: readonly Row[];
   readonly rowId: (row: Row) => string;
   /** The record's name: the context menu's accessible label. */

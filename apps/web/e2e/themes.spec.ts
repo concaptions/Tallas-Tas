@@ -74,6 +74,8 @@ test.describe('themes in demo mode (no Clerk publishable key)', () => {
 
     // Every stored field of a theme is a column, readable without opening a row.
     await expect(page.locator('[data-slot="themes-table"] thead th')).toHaveText([
+      // Ticket 8: the leading header cell is the select-all checkbox the shared grid prepends.
+      '',
       'Name',
       'Category',
       'Status',

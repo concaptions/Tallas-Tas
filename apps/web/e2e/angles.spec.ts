@@ -73,6 +73,8 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
      * packages/db/src/column-seed.test.ts.
      */
     await expect(page.locator('[data-slot="angles-table"] thead th')).toHaveText([
+      // Ticket 8: the leading header cell is the select-all checkbox the shared grid prepends.
+      '',
       'Name',
       'Type',
       'Product',

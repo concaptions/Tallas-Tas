@@ -444,7 +444,9 @@ export function ConceptsWorkspace({
    * the `Batch-Angle-Theme` formula, so a copy would collide (PRD §7).
    */
   const gridSelection = useGridSelection<ConceptItem>({
-    rows: filtered,
+    // Sheet parity (Ticket 8 review): prune only on real row-set changes (deletes, server
+    // refreshes), never on local search typing — so a selection the user ticked survives a filter.
+    rows: items,
     rowId: conceptRowId,
     rowLabel: conceptRowLabel,
     demo,

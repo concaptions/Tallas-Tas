@@ -62,6 +62,10 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
       'Headline',
       'News Feed / Link Description',
       'CTA',
+      // `client_approval_status` from COPYWRITING_PLATFORM (phase 2 schema), ordered after the
+      // parent's nine. The baseline spec never asserted this column either; added here together
+      // with Ticket 8's leading checkbox.
+      'Client Approval',
     ]);
 
     // The title is the auto-generated Copy #, in font-mono, never an input.

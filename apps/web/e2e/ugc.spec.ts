@@ -46,6 +46,8 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="tabs-trigger"][data-tab]')).toHaveText([
       'Creators',
       'Partnership Ads',
+      // Oct 8 (bfe5ec7): the global creator registry mounts as a third workspace tab.
+      'Creator Pool',
     ]);
     await expect(page.locator('[data-slot="tabs-trigger"]:not([data-tab])')).toHaveText([
       'Grid',
@@ -69,8 +71,12 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
      * The tracks are addressed by COLUMN KEY, because order is configuration now.
      */
     const headers = page.locator('[data-slot="creators-table"] thead th');
-    await expect(headers.first()).toHaveText('Creator name (Filled by UGC Manager)');
+    // Ticket 8: the leading header cell is the select-all checkbox the shared grid prepends; the
+    // name column is the next one, and both are sticky.
+    await expect(headers.first()).toHaveText('');
     await expect(headers.first()).toHaveCSS('position', 'sticky');
+    await expect(headers.nth(1)).toHaveText('Creator name (Filled by UGC Manager)');
+    await expect(headers.nth(1)).toHaveCSS('position', 'sticky');
     await expect(headers.locator('css=[data-column="internal_creator_status"]')).toHaveCount(0);
     await expect(
       page.locator('[data-slot="creators-table"] thead th[data-column="internal_creator_status"]'),
@@ -81,9 +87,9 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(
       page.locator('[data-slot="creators-table"] thead th[data-column="internal_assets_status"]'),
     ).toHaveText('Internal Assets Status');
-    // Thirty-three drawn, the same count as the hand-written array. Three template columns this grid
-    // has never drawn as columns are stated in the notice instead.
-    expect(await headers.count()).toBe(33);
+    // Thirty-three resolver columns + the Ticket 8 select-all checkbox = 34. Three template columns
+    // this grid has never drawn as columns are stated in the notice instead.
+    expect(await headers.count()).toBe(34);
     await expect(page.locator('[data-slot="creator-missing-columns"]')).toContainText(
       'profile_pic_url',
     );
