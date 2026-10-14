@@ -3,15 +3,27 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import {
+  briefBrandId,
+  countActiveBriefComments,
   createBrief,
+  findBriefAnnotationActor,
+  findBriefCommentActor,
+  getActiveBrandRole,
   getBriefById,
   getConceptById,
   insertActivity,
+  insertBriefAnnotation,
+  insertBriefComment,
   insertComment,
   listBriefsByIds,
+  resolveUserIdByClerk,
+  softDeleteBriefAnnotation,
+  softDeleteBriefComment,
   softDeleteBriefs,
   updateBrief,
   updateBriefClientStatus,
+  type BriefAnnotation,
+  type BriefComment,
   type CreativeBrief,
   type Db,
 } from '@tas/db';
@@ -25,6 +37,14 @@ import {
   submitToClientRefusal,
   type InternalStatusKey,
 } from '@tas/domain/state';
+import {
+  APPROVE_BRIEF_NOT_PERMITTED,
+  REQUEST_CHANGES_NEEDS_COMMENT,
+  REVIEW_BRIEF_NOT_PERMITTED,
+  canApproveBrief,
+  canReviewBrief,
+  type ViewerRole,
+} from '@tas/domain/team';
 import { z } from 'zod';
 
 import { currentActor } from '@/lib/actor';
@@ -43,14 +63,15 @@ import { currentPosition, statusPatch, statusRefusal } from './status-guard';
  * - Focus Mode's three buttons (scopes 1 and 4): Request Changes, Approve and Submit to Client.
  *   Each is one track move through the same `status-guard.ts` checks the panel's save runs — the
  *   machine, the client gate, and the QA gate, which the Server Action RE-RUNS before it writes:
- *   a disabled button is a hint, not an authorisation boundary. A move into a revision state
- *   clears the three QA ticks in the same statement (scope 5).
+ *   a disabled button is a hint, not an authorisation boundary. Approve and Request Changes also
+ *   run the Ticket 10 role gates (`canApproveBrief` / `canReviewBrief`) and the Request-Changes
+ *   gate (`countActiveBriefComments >= 1` on the current submission version).
  * - Multi-select (scope 3): Duplicate, Change status and Delete over a selection, and the
- *   right-click menu's single-row versions of them. Duplicate copies every field, bumps the
- *   version, names the copy through the formula (an auto-named row) or by bumping the version
- *   segment (a manual one), resets QA and both statuses to their entry states, and keeps
- *   `name_mode` as the source row had it. Delete is a soft delete, never `DELETE FROM`.
- * - A comment on a creative (scope 1's Feedback panel), through the shared `comments` table.
+ *   right-click menu's single-row versions of them.
+ * - A comment on a creative (scope 1's Feedback panel), through the shared `comments` table AND
+ *   through the brief-scoped `brief_comments` thread (Ticket 10).
+ * - Ticket 10's annotation + comment writes on the brief-scoped tables: add/delete a pin, add a
+ *   root comment or a reply, delete a comment the viewer wrote (or any if admin).
  *
  * Every action refuses in DEMO MODE first, then without a session; every write goes through the
  * scoped `@tas/db` writers; nothing throws to the client.
@@ -78,6 +99,9 @@ const SAVE_FAILED = 'The creative could not be saved. Try again.';
 const NOTHING_SELECTED = 'Select at least one creative first.';
 const NO_REVISION_STEP = 'This creative is not waiting on an internal review.';
 const UNKNOWN_TRACK = 'That is not a status track.';
+const UNKNOWN_BRIEF = 'That creative is no longer available.';
+const UNKNOWN_ROW = 'That record is no longer available.';
+const UNKNOWN_PARENT = 'That reply has no parent to attach to.';
 
 interface Actor {
   readonly id: string;
@@ -90,6 +114,18 @@ async function writer(): Promise<Actor | null> {
   if (userId === null) return null;
   const { fullName } = await currentActor();
   return { id: userId, name: fullName };
+}
+
+/**
+ * The viewer's role for the brief's brand, resolved from the Clerk id. `null` on the deny-by-default
+ * branches — no row, no admin membership — so the two Ticket 10 predicates refuse.
+ */
+async function viewerRoleFor(
+  db: Db,
+  brandId: string,
+  clerkUserId: string,
+): Promise<ViewerRole | null> {
+  return await getActiveBrandRole(db, brandId, clerkUserId);
 }
 
 function revalidateRow(id: string): void {
@@ -160,15 +196,25 @@ async function reviewOne(
 /**
  * Request Changes: the internal reviewer sends the cut back — `ad_submitted` /
  * `revisions_submitted` → `revisions_needed`. The three QA ticks are cleared in the same write
- * (scope 5).
+ * (scope 5). Ticket 10 adds TWO extra gates: the role must be a reviewer, and the current
+ * submission must carry at least one comment (so the reviewer wrote down what they want changed
+ * before the cut goes back).
  */
 export async function requestChangesAction(id: string): Promise<ReviewResult> {
   return reviewOne(id, async (db, brandId, current, actor) => {
+    const role = await viewerRoleFor(db, brandId, actor.id);
+    if (!canReviewBrief(role)) return { ok: false, error: REVIEW_BRIEF_NOT_PERMITTED };
     const position = currentPosition(current);
     const target = REVISION_STEP;
     if (target === null) return { ok: false, error: NO_REVISION_STEP };
     const refusal = statusRefusal(position, target, position.client);
     if (refusal !== null) return { ok: false, error: refusal.message };
+    // Ticket 10 lands before Ticket 11's brief_submissions table carries the version chip.
+    // Until then, every write targets version 1 — the Focus Mode overlay and the comment panel
+    // both file against the same number, so this gate matches what the viewer wrote.
+    const version = 1;
+    const comments = await countActiveBriefComments(db, current.id, version);
+    if (comments < 1) return { ok: false, error: REQUEST_CHANGES_NEEDS_COMMENT };
     const saved = await updateBrief(
       db,
       brandId,
@@ -181,12 +227,17 @@ export async function requestChangesAction(id: string): Promise<ReviewResult> {
 }
 
 /**
- * Approve: internal sign-off, the step that OPENS the client track — so it is the first move the
- * QA gate guards (scope 4): refused, naming the missing tick, until every tick the type requires
- * is set.
+ * Approve: internal sign-off, the step that OPENS the client track. First the Ticket 10 role gate
+ * — only an admin or the assigned strategist (per the spec). The brief's `assignee` is a plain
+ * text column holding the actor's full name, so the comparison today is name-based: an admin can
+ * always approve, a strategist only when their current actor name equals `brief.assignee`.
  */
-export async function approveCreativeAction(id: string): Promise<ReviewResult> {
+export async function approveBriefAction(id: string): Promise<ReviewResult> {
   return reviewOne(id, async (db, brandId, current, actor) => {
+    const role = await viewerRoleFor(db, brandId, actor.id);
+    if (!canApproveBrief(role, current.assignee, actor.name ?? '')) {
+      return { ok: false, error: APPROVE_BRIEF_NOT_PERMITTED };
+    }
     const position = currentPosition(current);
     const refusal = statusRefusal(position, 'approved', position.client);
     if (refusal !== null) return { ok: false, error: refusal.message };
@@ -432,5 +483,203 @@ export async function postCreativeCommentAction(id: string, body: string): Promi
     return outcome;
   } catch {
     return { ok: false, error: 'The comment could not be saved. Try again.' };
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * TICKET 10 — annotations + comments on the brief-scoped tables (migration 0070)
+ * ---------------------------------------------------------------------------------------------- */
+
+export interface AnnotationSuccess {
+  readonly ok: true;
+  readonly annotation: BriefAnnotation;
+}
+
+export type AnnotationResult = AnnotationSuccess | ReviewFailure;
+
+export interface BriefCommentSuccess {
+  readonly ok: true;
+  readonly comment: BriefComment;
+}
+
+export type BriefCommentResult = BriefCommentSuccess | ReviewFailure;
+
+export interface IdSuccess {
+  readonly ok: true;
+  readonly id: string;
+}
+
+export type IdResult = IdSuccess | ReviewFailure;
+
+const annotationInput = z.object({
+  briefId: z.string().trim().min(1),
+  submissionVersion: z.number().int().positive().nullable(),
+  xPct: z.number().min(0).max(100),
+  yPct: z.number().min(0).max(100),
+  note: z.string().trim().min(1).max(2000),
+});
+
+/**
+ * Add a pin to a brief. Requires a reviewer role (not a video editor or designer — they are the
+ * people BEING reviewed), the brief has to belong to a brand the viewer can resolve, and the
+ * note cannot be blank. The write goes through the brief-scoped `brief_annotations` writer.
+ */
+export async function addAnnotationAction(
+  briefId: string,
+  submissionVersion: number | null,
+  xPct: number,
+  yPct: number,
+  note: string,
+): Promise<AnnotationResult> {
+  if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
+  const parsed = annotationInput.safeParse({ briefId, submissionVersion, xPct, yPct, note });
+  if (!parsed.success) return { ok: false, error: 'That annotation is not valid.' };
+  try {
+    const actor = await writer();
+    if (actor === null) return { ok: false, error: SESSION_EXPIRED };
+    const outcome = await withBrandScope(async (db) => {
+      const brandId = await briefBrandId(db, parsed.data.briefId);
+      if (brandId === null) return { ok: false as const, error: UNKNOWN_BRIEF };
+      const role = await viewerRoleFor(db, brandId, actor.id);
+      if (!canReviewBrief(role)) return { ok: false as const, error: REVIEW_BRIEF_NOT_PERMITTED };
+      const userRowId = await resolveUserIdByClerk(db, actor.id);
+      if (userRowId === null) return { ok: false as const, error: SESSION_EXPIRED };
+      const annotation = await insertBriefAnnotation(db, {
+        briefId: parsed.data.briefId,
+        submissionVersion: parsed.data.submissionVersion,
+        xPct: parsed.data.xPct,
+        yPct: parsed.data.yPct,
+        note: parsed.data.note,
+        createdBy: userRowId,
+      });
+      return { ok: true as const, annotation };
+    });
+    if (outcome === null) return { ok: false, error: NO_BRAND };
+    if (outcome.ok) revalidateRow(briefId);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The annotation could not be saved. Try again.' };
+  }
+}
+
+/**
+ * Delete a pin. Allowed to the author (looked up via `users.clerk_user_id`) or an admin on the
+ * brand. Any other role is refused.
+ */
+export async function deleteAnnotationAction(id: string): Promise<IdResult> {
+  if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
+  if (typeof id !== 'string' || id.trim() === '') return { ok: false, error: NOT_IDENTIFIED };
+  try {
+    const actor = await writer();
+    if (actor === null) return { ok: false, error: SESSION_EXPIRED };
+    const outcome = await withBrandScope(async (db) => {
+      const row = await findBriefAnnotationActor(db, id);
+      if (row === null) return { ok: false as const, error: UNKNOWN_ROW };
+      const brandId = await briefBrandId(db, row.briefId);
+      if (brandId === null) return { ok: false as const, error: UNKNOWN_BRIEF };
+      const role = await viewerRoleFor(db, brandId, actor.id);
+      const userRowId = await resolveUserIdByClerk(db, actor.id);
+      const isAuthor = userRowId !== null && userRowId === row.createdBy;
+      if (role !== 'admin' && !isAuthor) {
+        return { ok: false as const, error: REVIEW_BRIEF_NOT_PERMITTED };
+      }
+      const deleted = await softDeleteBriefAnnotation(db, id);
+      if (deleted.length === 0) return { ok: false as const, error: UNKNOWN_ROW };
+      return { ok: true as const, id: deleted[0] as string, briefId: row.briefId };
+    });
+    if (outcome === null) return { ok: false, error: NO_BRAND };
+    if (outcome.ok) {
+      revalidateRow(outcome.briefId);
+      return { ok: true, id: outcome.id };
+    }
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The annotation could not be removed. Try again.' };
+  }
+}
+
+const commentInput = z.object({
+  briefId: z.string().trim().min(1),
+  submissionVersion: z.number().int().positive(),
+  body: z.string().trim().min(1).max(4000),
+  parentCommentId: z.string().trim().min(1).nullable(),
+});
+
+/**
+ * Add a comment to the brief-scoped thread. A reply (`parentCommentId !== null`) must point at a
+ * live comment on the SAME brief — a reply to a comment on another brief is refused.
+ */
+export async function addCommentAction(
+  briefId: string,
+  submissionVersion: number,
+  body: string,
+  parentCommentId: string | null,
+): Promise<BriefCommentResult> {
+  if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
+  const parsed = commentInput.safeParse({ briefId, submissionVersion, body, parentCommentId });
+  if (!parsed.success) return { ok: false, error: 'That comment is not valid.' };
+  try {
+    const actor = await writer();
+    if (actor === null) return { ok: false, error: SESSION_EXPIRED };
+    const outcome = await withBrandScope(async (db) => {
+      const brandId = await briefBrandId(db, parsed.data.briefId);
+      if (brandId === null) return { ok: false as const, error: UNKNOWN_BRIEF };
+      const role = await viewerRoleFor(db, brandId, actor.id);
+      if (!canReviewBrief(role)) return { ok: false as const, error: REVIEW_BRIEF_NOT_PERMITTED };
+      if (parsed.data.parentCommentId !== null) {
+        const parent = await findBriefCommentActor(db, parsed.data.parentCommentId);
+        if (parent === null || parent.briefId !== parsed.data.briefId) {
+          return { ok: false as const, error: UNKNOWN_PARENT };
+        }
+      }
+      const userRowId = await resolveUserIdByClerk(db, actor.id);
+      if (userRowId === null) return { ok: false as const, error: SESSION_EXPIRED };
+      const comment = await insertBriefComment(db, {
+        briefId: parsed.data.briefId,
+        submissionVersion: parsed.data.submissionVersion,
+        body: parsed.data.body,
+        parentCommentId: parsed.data.parentCommentId,
+        createdBy: userRowId,
+      });
+      return { ok: true as const, comment };
+    });
+    if (outcome === null) return { ok: false, error: NO_BRAND };
+    if (outcome.ok) revalidateRow(briefId);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The comment could not be saved. Try again.' };
+  }
+}
+
+/** Delete a comment. Author-or-admin gate, same shape as `deleteAnnotationAction`. */
+export async function deleteCommentAction(id: string): Promise<IdResult> {
+  if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
+  if (typeof id !== 'string' || id.trim() === '') return { ok: false, error: NOT_IDENTIFIED };
+  try {
+    const actor = await writer();
+    if (actor === null) return { ok: false, error: SESSION_EXPIRED };
+    const outcome = await withBrandScope(async (db) => {
+      const row = await findBriefCommentActor(db, id);
+      if (row === null) return { ok: false as const, error: UNKNOWN_ROW };
+      const brandId = await briefBrandId(db, row.briefId);
+      if (brandId === null) return { ok: false as const, error: UNKNOWN_BRIEF };
+      const role = await viewerRoleFor(db, brandId, actor.id);
+      const userRowId = await resolveUserIdByClerk(db, actor.id);
+      const isAuthor = userRowId !== null && userRowId === row.createdBy;
+      if (role !== 'admin' && !isAuthor) {
+        return { ok: false as const, error: REVIEW_BRIEF_NOT_PERMITTED };
+      }
+      const deleted = await softDeleteBriefComment(db, id);
+      if (deleted.length === 0) return { ok: false as const, error: UNKNOWN_ROW };
+      return { ok: true as const, id: deleted[0] as string, briefId: row.briefId };
+    });
+    if (outcome === null) return { ok: false, error: NO_BRAND };
+    if (outcome.ok) {
+      revalidateRow(outcome.briefId);
+      return { ok: true, id: outcome.id };
+    }
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The comment could not be removed. Try again.' };
   }
 }

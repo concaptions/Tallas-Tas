@@ -2,6 +2,8 @@ export * from './ad-metrics';
 export * from './agencies';
 export * from './ai-characters';
 export * from './annotations';
+export * from './brief-annotations';
+export * from './brief-comments';
 export * from './assets';
 export * from './angles';
 export * from './brand-assignments';

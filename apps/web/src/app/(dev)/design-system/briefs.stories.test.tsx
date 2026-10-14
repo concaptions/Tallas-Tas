@@ -18,6 +18,8 @@ vi.mock('@/app/app/creative-design/actions', () => ({
 // After the mock: the stories resolve the mocked module on import.
 import {
   BriefActivityStory,
+  BriefAnnotationOverlayStory,
+  BriefCommentThreadStory,
   BriefContentFieldsStory,
   BriefQaChecklistStory,
   QaCheckRowStory,
@@ -121,6 +123,41 @@ describe('BriefContentFieldsStory', () => {
       // Each label appears three times — once per column.
       expect(html.match(new RegExp(label, 'g'))?.length ?? 0).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it('uses the token layer only', () => {
+    expect(html).not.toMatch(COLOUR_LITERAL);
+  });
+});
+
+/**
+ * The Ticket 10 overlay story: three fixture states for the annotation layer. Each state renders
+ * exactly the pins the fixture names, nothing names a hex colour.
+ */
+describe('BriefAnnotationOverlayStory', () => {
+  const html = renderToStaticMarkup(<BriefAnnotationOverlayStory />);
+
+  it('mounts the three states (empty, one pin, four pins)', () => {
+    expect(html).toContain('data-state="empty"');
+    expect(html).toContain('data-state="one-pin"');
+    expect(html).toContain('data-state="four-pins"');
+    // 0 + 1 + 4 = 5 pins across the three frames.
+    expect(html.match(/data-slot="story-pin"/g)).toHaveLength(5);
+  });
+
+  it('uses the token layer only', () => {
+    expect(html).not.toMatch(COLOUR_LITERAL);
+  });
+});
+
+/** The Ticket 10 brief-scoped thread story: empty, flat (three comments), and a reply chain. */
+describe('BriefCommentThreadStory', () => {
+  const html = renderToStaticMarkup(<BriefCommentThreadStory />);
+
+  it('mounts the three states', () => {
+    expect(html).toContain('data-state="empty"');
+    expect(html).toContain('data-state="flat"');
+    expect(html).toContain('data-state="with-a-reply"');
   });
 
   it('uses the token layer only', () => {

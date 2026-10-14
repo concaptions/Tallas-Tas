@@ -2357,3 +2357,8 @@ drawn and not offered; grouping draws counted headers; a reload keeps the lens; 
 five UGC `user-views.spec.ts` failures and the `first-paint-click` timing failures reproduce at the
 pre-ticket commit (verified in a throwaway checkout) and are pre-existing: the UGC Radix menus time
 out under two workers on this container; `group-by.spec.ts`'s own UGC grouping test passes.
+
+
+## 2026-10-14 · Ticket 10 — brief-scoped annotations and comments
+
+2026-10-14: 0070 introduces brief-scoped annotations/comments beside the polymorphic ones. Unify ticket (post Oct 16 sync) will migrate polymorphic rows into brief-scoped tables and drop the polymorphic schemas.

@@ -491,3 +491,58 @@ export const NO_WORKSPACE_TITLE = 'This workspace is for the TAS team.';
 export const NO_WORKSPACE_NOTE =
   'Your account does not have access to the internal workspace. If you are a client, your brand ' +
   'interface is the place to review and approve work; ask your Client Success Manager for the link.';
+
+/* ------------------------------------------------------------------------------------------------
+ * REVIEW GATES (Ticket 10) — who may touch Focus Mode's annotation/comment panels and the two
+ * review buttons. Shared by `focus-mode-view.tsx`, `review-actions.ts` and the stories, so a
+ * disabled button cannot promise an answer the server will refuse.
+ * ---------------------------------------------------------------------------------------------- */
+
+/**
+ * Whether `role` may REVIEW a brief — place a pin, write a comment, or press Request Changes.
+ *
+ * TRUE for every AGENCY agent whose job touches a creative under review: admin, CSM, strategist,
+ * media buyer. FALSE for the two production roles (video editor, designer) because they are the
+ * people being reviewed, and FALSE for every brand role, member and the client — reviewing is an
+ * agency decision, the client surface answers it elsewhere through the client-track action.
+ */
+export function canReviewBrief(role: ViewerRole | null | undefined): boolean {
+  if (role === null || role === undefined) {
+    return false;
+  }
+  return role === 'admin' || role === 'csm' || role === 'strategist' || role === 'media_buyer';
+}
+
+/**
+ * Whether this viewer may APPROVE this brief — the narrower of the two gates (Ticket 10
+ * acceptance line: "creative strategist assigned OR agency admin"). An admin always may; a
+ * strategist may iff they are the brief's assignee; everyone else is refused.
+ *
+ * The `userId` is the Clerk user id the review action resolves from the session; the brief's
+ * `assignee` is read from the row. A brief with a null assignee is approvable only by an admin.
+ */
+export function canApproveBrief(
+  role: ViewerRole | null | undefined,
+  assigneeId: string | null,
+  userId: string,
+): boolean {
+  if (role === 'admin') {
+    return true;
+  }
+  if (role === 'strategist' && assigneeId !== null && assigneeId === userId) {
+    return true;
+  }
+  return false;
+}
+
+/** The refusal the server returns when `canApproveBrief` is false. */
+export const APPROVE_BRIEF_NOT_PERMITTED =
+  'Only an admin or the assigned creative strategist can approve this brief.';
+
+/** The refusal `canReviewBrief` and the comment/annotation writes share. */
+export const REVIEW_BRIEF_NOT_PERMITTED =
+  'Only an agency admin, CSM, strategist or media buyer can review this brief.';
+
+/** The Request Changes gate — at least one comment on the current version before the button fires. */
+export const REQUEST_CHANGES_NEEDS_COMMENT =
+  'Request Changes needs at least one comment on this version.';

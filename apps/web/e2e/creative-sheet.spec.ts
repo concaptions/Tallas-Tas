@@ -563,4 +563,28 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await page.locator('[data-slot="creative-sheet-empty"] [data-slot="clear-search"]').click();
     await expect(page.locator('[data-slot="creative-sheet-row"]')).toHaveCount(ROWS);
   });
+
+  // Ticket 10: Focus Mode mounts the Review Thread panel and the annotation overlay. In demo mode
+  // every write is refused with the demo hint; the thread panel is empty for the first fixture
+  // brief and the Approve button is disabled with the QA refusal (not the demo hint).
+  test('Ticket 10 — overlay and thread panel mount; writes refused in demo mode', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+    await hydrated(page);
+
+    await page.getByRole('tab', { name: 'Focus Mode' }).click();
+    const focus = page.locator('[data-slot="focus-mode"]');
+    await expect(focus).toBeVisible();
+
+    // The thread panel mounts empty; the overlay is non-interactive in demo mode.
+    await expect(focus.locator('[data-slot="brief-comment-thread"]')).toBeVisible();
+    await expect(focus.locator('[data-slot="focus-overlay"]')).toHaveAttribute(
+      'data-interactive',
+      'false',
+    );
+
+    // Approve is disabled with the QA refusal, which beats the demo hint (B4.V13).
+    await expect(focus.locator('[data-slot="focus-approve"]')).toBeDisabled();
+  });
 });

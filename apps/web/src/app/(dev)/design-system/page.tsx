@@ -80,6 +80,8 @@ import { ThemeCard } from '@/app/app/themes/theme-card';
 
 import {
   BriefActivityStory,
+  BriefAnnotationOverlayStory,
+  BriefCommentThreadStory,
   BriefContentFieldsStory,
   BriefChipsStory,
   BriefDimensionsPickerStory,
@@ -1215,6 +1217,20 @@ export default function DesignSystemPage() {
               sidebar’s Content section edits, in three states: empty, partial, full
             </h3>
             <BriefContentFieldsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              annotation overlay (Ticket 10, migration 0070) — the frame-level pin layer in three
+              states: empty, one pin, four pins
+            </h3>
+            <BriefAnnotationOverlayStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              review thread (Ticket 10) — the brief-scoped comment panel in three states: empty,
+              flat with three comments, threaded with a reply chain
+            </h3>
+            <BriefCommentThreadStory />
           </div>
         </div>
       </Section>

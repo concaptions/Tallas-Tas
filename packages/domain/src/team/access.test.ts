@@ -16,7 +16,12 @@ import {
   PROPAGATION_ADMIN_NOTE,
   PROPAGATION_NOT_ADMIN_NOTE,
   TEAM_ACCESS_ROLES,
+  APPROVE_BRIEF_NOT_PERMITTED,
+  REVIEW_BRIEF_NOT_PERMITTED,
+  REQUEST_CHANGES_NEEDS_COMMENT,
+  canApproveBrief,
   canConfigureInterface,
+  canReviewBrief,
   canSeeInternalWorkspace,
   canSeeNavSection,
   canSeePropagationPage,
@@ -24,6 +29,7 @@ import {
   isRemovedWorkspace,
   navSectionsForRole,
   teamAccessNote,
+  type ViewerRole,
 } from './access';
 
 /** The catalogue less the retired workspaces: what "every section" means since 2026-10-07. */
@@ -442,5 +448,82 @@ describe('canConfigureInterface', () => {
   it('refusal note is a plain sentence', () => {
     expect(INTERFACE_CONFIG_NOT_PERMITTED_NOTE).not.toContain('<');
     expect(INTERFACE_CONFIG_NOT_PERMITTED_NOTE.endsWith('.')).toBe(true);
+  });
+});
+
+/**
+ * The two Ticket 10 review gates. One row per role × predicate: the matrix the server reads before
+ * a write, and the one the Focus Mode buttons read before rendering an enabled button. A disabled
+ * button cannot promise an answer the server would refuse.
+ */
+describe('canReviewBrief', () => {
+  const ALLOWED: readonly ViewerRole[] = ['admin', 'csm', 'strategist', 'media_buyer'];
+  const REFUSED: readonly ViewerRole[] = ['video_editor', 'designer', 'member', 'client'];
+
+  it('lets every agency reviewer in', () => {
+    for (const role of ALLOWED) {
+      expect(canReviewBrief(role), role).toBe(true);
+    }
+  });
+
+  it('refuses the two production roles, the organisation default and every client', () => {
+    for (const role of REFUSED) {
+      expect(canReviewBrief(role), role).toBe(false);
+    }
+  });
+
+  it('denies by default on a null or undefined role', () => {
+    expect(canReviewBrief(null)).toBe(false);
+    expect(canReviewBrief(undefined)).toBe(false);
+  });
+});
+
+describe('canApproveBrief', () => {
+  const ME = 'user_me';
+  const OTHER = 'user_other';
+
+  it('lets an admin approve any brief, including one with no assignee', () => {
+    expect(canApproveBrief('admin', null, ME)).toBe(true);
+    expect(canApproveBrief('admin', OTHER, ME)).toBe(true);
+    expect(canApproveBrief('admin', ME, ME)).toBe(true);
+  });
+
+  it('lets a strategist approve only the brief they are assigned to', () => {
+    expect(canApproveBrief('strategist', ME, ME)).toBe(true);
+    expect(canApproveBrief('strategist', OTHER, ME)).toBe(false);
+    expect(canApproveBrief('strategist', null, ME)).toBe(false);
+  });
+
+  it('refuses every other role, assigned or not', () => {
+    const refused: readonly ViewerRole[] = [
+      'csm',
+      'media_buyer',
+      'video_editor',
+      'designer',
+      'member',
+      'client',
+    ];
+    for (const role of refused) {
+      expect(canApproveBrief(role, ME, ME), role).toBe(false);
+      expect(canApproveBrief(role, null, ME), role).toBe(false);
+    }
+  });
+
+  it('denies by default on a null or undefined role', () => {
+    expect(canApproveBrief(null, ME, ME)).toBe(false);
+    expect(canApproveBrief(undefined, ME, ME)).toBe(false);
+  });
+});
+
+describe('Ticket 10 refusal notes', () => {
+  it('are plain sentences ending with a period', () => {
+    for (const note of [
+      APPROVE_BRIEF_NOT_PERMITTED,
+      REVIEW_BRIEF_NOT_PERMITTED,
+      REQUEST_CHANGES_NEEDS_COMMENT,
+    ]) {
+      expect(note).not.toContain('<');
+      expect(note.endsWith('.')).toBe(true);
+    }
   });
 });

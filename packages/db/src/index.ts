@@ -25,6 +25,23 @@ export { insertAnnotation } from './annotation-queries';
 export type { AnnotationInput } from './annotation-queries';
 export { insertComment } from './comment-queries';
 export type { CommentInput } from './comment-queries';
+export {
+  briefBrandId,
+  findBriefAnnotationActor,
+  insertBriefAnnotation,
+  listBriefAnnotations,
+  resolveUserIdByClerk,
+  softDeleteBriefAnnotation,
+} from './brief-annotations';
+export type { InsertBriefAnnotationInput } from './brief-annotations';
+export {
+  countActiveBriefComments,
+  findBriefCommentActor,
+  insertBriefComment,
+  listBriefComments,
+  softDeleteBriefComment,
+} from './brief-comments';
+export type { InsertBriefCommentInput } from './brief-comments';
 export { importAirtableExport } from './airtable-import';
 export {
   getAssetById,

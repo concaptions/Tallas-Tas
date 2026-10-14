@@ -13,7 +13,11 @@ import { QA_GATE_NOTE, QA_GATE_OPEN_NOTE } from './focus-mode';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock('@/app/app/creative-design/actions', () => ({ toggleQaAction: vi.fn() }));
 vi.mock('./review-actions', () => ({
-  approveCreativeAction: vi.fn(),
+  addAnnotationAction: vi.fn(),
+  addCommentAction: vi.fn(),
+  approveBriefAction: vi.fn(),
+  deleteAnnotationAction: vi.fn(),
+  deleteCommentAction: vi.fn(),
   postCreativeCommentAction: vi.fn(),
   requestChangesAction: vi.fn(),
   submitToClientAction: vi.fn(),
