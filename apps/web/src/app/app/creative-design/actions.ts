@@ -16,8 +16,10 @@ import {
 import {
   creativePerformances,
   creativeSources,
+  voiceoverTypes,
   type CreativePerformance,
   type CreativeSource,
+  type VoiceoverType,
 } from '@tas/db/schema';
 import { BRIEF_NAME_DEFAULT_SOURCE, generateBriefName } from '@tas/domain/briefs';
 import {
@@ -139,7 +141,13 @@ export type BriefFieldName =
   | 'internalStatus'
   | 'clientStatus'
   | 'source'
-  | 'qa';
+  | 'qa'
+  // Ticket 6 Content fields (migration 0069): the four strategist-authored fields on the brief
+  // the sidebar's Content section edits — three rich-text and one single-select voiceover kind.
+  | 'briefText'
+  | 'music'
+  | 'voiceoverType'
+  | 'voiceoverScript';
 
 /** The three QA checkboxes of ticket criterion 10, by the column each one ticks. */
 export type BriefQaCheck = 'qaVideoEditor' | 'qaDesigner' | 'qaStrategist';
@@ -220,6 +228,26 @@ function isCreativePerformance(value: string): value is CreativePerformance {
   return creativePerformances.some((grade) => grade === value);
 }
 
+function isVoiceoverType(value: string): value is VoiceoverType {
+  return (voiceoverTypes as readonly string[]).includes(value);
+}
+
+/**
+ * The voiceover-type select (migration 0069, Ticket 6): one of `tts`, `human`, `none`, or empty
+ * for "not set" — stored as NULL. Shaped like `priority`: nullable, membership checked by the
+ * domain's own guard, so a tampered submission is refused rather than clamped.
+ */
+const voiceoverTypeField = z
+  .string()
+  .trim()
+  .transform((value) => (value === '' ? null : value))
+  .nullable()
+  .refine(
+    (value) => value === null || isVoiceoverType(value),
+    'That is not one of the three voiceover types.',
+  )
+  .transform((value): VoiceoverType | null => (value === null ? null : value));
+
 /**
  * The Performance grade (PRD §5.10): one of the three `creativePerformances` names, or empty for
  * "not graded yet", stored as NULL. OPTIONAL at the key level, and that is a different thing from
@@ -290,6 +318,13 @@ const briefSchema = z.object({
   offer: text,
   language: text,
   spellingFeedback2: text,
+  // Ticket 6 Content fields (migration 0069). All four are nullable: an empty submission writes
+  // NULL rather than an empty string, so the sidebar's "Not set" state and a stored NULL are the
+  // same thing. `voiceoverType` further checks membership against the three keys.
+  briefText: text,
+  music: text,
+  voiceoverType: voiceoverTypeField,
+  voiceoverScript: text,
   angleId: link,
   productId: link,
   inspoLinks: z.array(z.string().trim()),
@@ -365,6 +400,12 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     offer: single('offer'),
     language: single('language'),
     spellingFeedback2: single('spellingFeedback2'),
+    // Ticket 6 Content fields (migration 0069). Single values; a missing key becomes '' so the
+    // schema's "empty means NULL" branch runs, same contract every other text field uses.
+    briefText: single('briefText'),
+    music: single('music'),
+    voiceoverType: single('voiceoverType'),
+    voiceoverScript: single('voiceoverScript'),
     angleId: single('angleId'),
     productId: single('productId'),
     inspoLinks: many('inspoLinks'),
@@ -556,6 +597,12 @@ function toInput(
     offer: values.offer,
     language: values.language as BriefInput['language'],
     spellingFeedback2: values.spellingFeedback2,
+    // Ticket 6 Content fields (migration 0069): each one stored exactly as the schema parsed it,
+    // including NULL for an unset select or an empty textarea.
+    briefText: values.briefText,
+    music: values.music,
+    voiceoverType: values.voiceoverType,
+    voiceoverScript: values.voiceoverScript,
     angleId: values.angleId,
     productId: values.productId,
     inspoLinks: values.inspoLinks.filter((entry) => entry !== ''),
@@ -1015,6 +1062,11 @@ const BRIEF_ACTIVITY_FIELDS = [
   'inspiration',
   'offer',
   'language',
+  // Ticket 6 Content fields (migration 0069).
+  'briefText',
+  'music',
+  'voiceoverType',
+  'voiceoverScript',
 ] as const;
 
 export interface StartBriefSuccess {

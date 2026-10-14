@@ -16,7 +16,12 @@ vi.mock('@/app/app/creative-design/actions', () => ({
 }));
 
 // After the mock: the stories resolve the mocked module on import.
-import { BriefActivityStory, BriefQaChecklistStory, QaCheckRowStory } from './briefs.stories';
+import {
+  BriefActivityStory,
+  BriefContentFieldsStory,
+  BriefQaChecklistStory,
+  QaCheckRowStory,
+} from './briefs.stories';
 
 /**
  * The brief-page stories rendered as the page renders them (B4.V14, B5.V19): the checklist with a
@@ -92,6 +97,33 @@ describe('BriefActivityStory', () => {
     expect(html.match(/text-\[10px\] text-bad">false</g)).toHaveLength(4);
     expect(html).toContain('data-field="assignee"');
     expect(html).toContain('lucide-lock');
+    expect(html).not.toMatch(COLOUR_LITERAL);
+  });
+});
+
+/**
+ * The Ticket 6 Content section story (migration 0069): three columns — empty, partial, full —
+ * each with the four fields the sidebar edits. The story draws the same cards the sidebar does
+ * and must stay on the token layer.
+ */
+describe('BriefContentFieldsStory', () => {
+  const html = renderToStaticMarkup(<BriefContentFieldsStory />);
+
+  it('mounts three columns, one for each state the sidebar can render', () => {
+    expect(html.match(/data-slot="brief-content-column"/g)).toHaveLength(3);
+    expect(html).toContain('data-state="empty"');
+    expect(html).toContain('data-state="partial"');
+    expect(html).toContain('data-state="full"');
+  });
+
+  it('labels the four Content fields the ticket spells', () => {
+    for (const label of ['Brief', 'Music', 'Voiceover type', 'Voiceover script']) {
+      // Each label appears three times — once per column.
+      expect(html.match(new RegExp(label, 'g'))?.length ?? 0).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('uses the token layer only', () => {
     expect(html).not.toMatch(COLOUR_LITERAL);
   });
 });

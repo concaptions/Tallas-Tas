@@ -26,6 +26,7 @@ import type {
   CreativePriority,
   CreativeSource,
   CreativeType,
+  VoiceoverType,
 } from './enums';
 
 /**
@@ -102,6 +103,27 @@ export const creativeBriefs = pgTable(
     briefToDesign: text('brief_to_design'),
     scriptContent: text('script_content'),
     elementsTested: text('elements_tested'),
+    /**
+     * The strategist's rich-text brief for the editor (migration 0069, Ticket 6). Distinct from
+     * the legacy `brief_to_design` text column, which the Airtable importer reserves for the
+     * column of the same name — `brief_text` is the Content-section field the sidebar edits.
+     */
+    briefText: text('brief_text'),
+    /** The music direction for the editor, as plain text (migration 0069). */
+    music: text('music'),
+    /**
+     * How the voiceover is produced on this creative (migration 0069). Plain `text` with a CHECK
+     * constraint restricting it to `'tts' | 'human' | 'none'`; the TypeScript union lives in
+     * `enums.ts` as `VoiceoverType`. The column is nullable: an unset voiceover is NULL rather
+     * than any of the three keys, so the sidebar renders "Not set" rather than one choice by
+     * accident.
+     */
+    voiceoverType: text('voiceover_type').$type<VoiceoverType>(),
+    /**
+     * The voiceover script, rich text (migration 0069). Distinct from the legacy `script_content`
+     * for the same reason `brief_text` is distinct from `brief_to_design`.
+     */
+    voiceoverScript: text('voiceover_script'),
     inspoLinks: jsonb('inspo_links').$type<string[]>().notNull().default([]),
     dimensions: jsonb('dimensions').$type<string[]>().notNull().default([]),
     platform: jsonb('platform').$type<CreativePlatform[]>().notNull().default([]),

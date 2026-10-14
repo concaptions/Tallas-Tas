@@ -22,7 +22,7 @@ import { toggleQaAction } from '@/app/app/creative-design/actions';
 import { briefPath } from '@/lib/routes';
 
 import type { SheetItemView } from './creative-sheet-workspace';
-import { EM_DASH, internalStatusView, statusView } from './fields';
+import { EM_DASH, internalStatusView, statusView, VOICEOVER_TYPE_OPTIONS } from './fields';
 import {
   focusActions,
   focusCounter,
@@ -567,6 +567,22 @@ export function FocusModeView({ items, focusedId, onFocus, demo }: FocusModeView
                 </ul>
               )}
             </TextCard>
+          </div>
+          {/* Ticket 6 Content fields (migration 0069): the four new strategist-authored columns on
+              the brief, under the existing scripts/elements row — Brief, Music, Voiceover type,
+              Voiceover script. Each card renders Dash when the column is NULL. */}
+          <div className="grid gap-3.5 md:grid-cols-2" data-slot="focus-content-fields">
+            <TextCard title="Brief">{detail.briefText ?? <Dash />}</TextCard>
+            <TextCard title="Music">{detail.music ?? <Dash />}</TextCard>
+            <TextCard title="Voiceover type">
+              {detail.voiceoverType === null ? (
+                <Dash />
+              ) : (
+                (VOICEOVER_TYPE_OPTIONS.find((option) => option.key === detail.voiceoverType)
+                  ?.label ?? detail.voiceoverType)
+              )}
+            </TextCard>
+            <TextCard title="Voiceover script">{detail.voiceoverScript ?? <Dash />}</TextCard>
           </div>
           <TextCard
             title="Feedback & Comments"

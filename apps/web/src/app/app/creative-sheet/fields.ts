@@ -152,17 +152,60 @@ export const DIMENSIONS_SAVE_LABELS = {
 } as const;
 
 /**
- * The panel's six section headings, in order (decision 2, SHEET-02, B2.A4): the Dimensions picker
- * and the brief lookups live under Identity, the spell-check controls under QA.
+ * The panel's six section headings, in order (Ticket 6, 2026-10-14): Identity, Content, Assets,
+ * QA, Status, Activity. The Status section covers both approval tracks and the due date; the
+ * Activity section is what the panel previously labelled Meta, carrying the audit timestamps.
+ *
+ * The object is written in the render order so a map over `Object.values(SHEET_GROUPS)` is the
+ * same order the panel draws.
  */
 export const SHEET_GROUPS = {
   identity: 'Identity',
-  approval: 'Status',
   content: 'Content',
-  qa: 'QA',
   assets: 'Assets',
-  meta: 'Meta',
+  qa: 'QA',
+  approval: 'Status',
+  activity: 'Activity',
 } as const;
+
+/**
+ * The Content section's four Ticket 6 fields on the brief (migration 0069): `brief_text` and
+ * `voiceover_script` are rich-text textareas, `music` is a plain-text input, and `voiceover_type`
+ * is a single-select over the three keys. The labels are stated once here so the sidebar, Focus
+ * Mode and the `/design-system` story read the same strings. Keys match the camelCase column
+ * names on `creative_briefs`, so a FormData hidden input can share them.
+ */
+export interface BriefContentField {
+  readonly name: 'briefText' | 'music' | 'voiceoverType' | 'voiceoverScript';
+  readonly label: string;
+  readonly kind: 'richtext' | 'text' | 'singleSelect';
+}
+
+export const BRIEF_CONTENT_FIELDS: readonly BriefContentField[] = [
+  { name: 'briefText', label: 'Brief', kind: 'richtext' },
+  { name: 'music', label: 'Music', kind: 'text' },
+  { name: 'voiceoverType', label: 'Voiceover type', kind: 'singleSelect' },
+  { name: 'voiceoverScript', label: 'Voiceover script', kind: 'richtext' },
+];
+
+/**
+ * The voiceover-type options the single-select renders, in storage order. The storage keys are
+ * `'tts' | 'human' | 'none'`, re-exported from `@tas/db/schema` as `voiceoverTypes`; the labels
+ * are stated here so the chip, the dropdown and the story read one string per key. "Not set" is
+ * NOT in the list: an unset voiceover is NULL, which the select renders through its placeholder.
+ */
+export const VOICEOVER_TYPE_OPTIONS: readonly { key: string; label: string }[] = [
+  { key: 'tts', label: 'Text-to-speech' },
+  { key: 'human', label: 'Human' },
+  { key: 'none', label: 'None' },
+];
+
+/**
+ * The Status section's Due-date label (Ticket 6, 2026-10-14). Stated once so the row label, the
+ * Column Admin column and the story share one string. The stored column stays `timestamptz`
+ * (migration 0043); the sidebar renders it through `formatSheetDate` as a date, not a datetime.
+ */
+export const SHEET_DUE_DATE_LABEL = 'Due';
 
 /**
  * The read-only lookups the panel lists under Identity, all read from the brief itself. Type and
@@ -400,6 +443,10 @@ export function pendingSheetRow(pending: PendingCreative, now: Date): SheetItemV
         inspiration: null,
         offer: null,
         language: null,
+        briefText: null,
+        music: null,
+        voiceoverType: null,
+        voiceoverScript: null,
         inspoLinks: [],
         inspirationImage: null,
         designFile: null,

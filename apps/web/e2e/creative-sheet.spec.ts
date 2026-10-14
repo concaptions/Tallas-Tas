@@ -45,7 +45,7 @@ const INTERNAL_STATUS_LABELS = [
  * Creative into Identity and Spelling into QA (decision 2, SHEET-02). Every control the old eight
  * carried is still inside one of these.
  */
-const SHEET_GROUP_HEADINGS = ['Identity', 'Status', 'Content', 'QA', 'Assets', 'Meta'];
+const SHEET_GROUP_HEADINGS = ['Identity', 'Content', 'Assets', 'QA', 'Status', 'Activity'];
 
 /**
  * `demoBriefs` (packages/db/src/demo-data.ts): the Motion Image on the "Make 9am Look Like 3am"

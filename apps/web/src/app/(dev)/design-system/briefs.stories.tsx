@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StatusChip } from '@tas/ui';
 import {
   BRIEF_QA_CHECKS,
@@ -297,6 +297,95 @@ export function BriefActivityStory() {
     <div className="grid gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <BriefActivity items={ACTIVITY} />
       <BriefActivity items={[]} />
+    </div>
+  );
+}
+
+/**
+ * The Ticket 6 Content section (migration 0069): the four strategist-authored fields the sidebar
+ * and Focus Mode draw, rendered as three cards per state — empty (every field NULL), partial
+ * (only `briefText` and `voiceoverType` set), full (every field set). Nothing here imports from a
+ * runtime database; the "card" is the same Group shape the sidebar uses so a tone or a label
+ * change on either side cannot drift. No hex colour literal.
+ */
+function ContentCard({
+  label,
+  children,
+}: {
+  readonly label: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold tracking-wider text-text4 uppercase">{label}</span>
+      <p className="rounded-input border border-line bg-surface2 px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-text2">
+        {children}
+      </p>
+    </div>
+  );
+}
+
+const CONTENT_SAMPLE = {
+  briefText:
+    'The strategist’s rich-text brief for the editor. Shot by shot, with the arc the pack hangs on.',
+  music: 'Soft piano, 60 bpm; no cymbals.',
+  voiceoverLabel: 'Human',
+  voiceoverScript: 'LINE 1: Welcome back.\nLINE 2: Here is what you missed.',
+} as const;
+
+function ContentColumn({
+  title,
+  briefText,
+  music,
+  voiceover,
+  voiceoverScript,
+}: {
+  readonly title: string;
+  readonly briefText: string | null;
+  readonly music: string | null;
+  readonly voiceover: string | null;
+  readonly voiceoverScript: string | null;
+}) {
+  const dash = <span className="text-text4">—</span>;
+  return (
+    <section
+      data-slot="brief-content-column"
+      data-state={title.toLowerCase()}
+      className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4"
+    >
+      <h3 className="text-sm font-medium text-text">{title}</h3>
+      <ContentCard label="Brief">{briefText ?? dash}</ContentCard>
+      <ContentCard label="Music">{music ?? dash}</ContentCard>
+      <ContentCard label="Voiceover type">{voiceover ?? dash}</ContentCard>
+      <ContentCard label="Voiceover script">{voiceoverScript ?? dash}</ContentCard>
+    </section>
+  );
+}
+
+export function BriefContentFieldsStory() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3" data-slot="brief-content-fields">
+      <ContentColumn
+        title="Empty"
+        briefText={null}
+        music={null}
+        voiceover={null}
+        voiceoverScript={null}
+      />
+      <ContentColumn
+        title="Partial"
+        briefText={CONTENT_SAMPLE.briefText}
+        music={null}
+        voiceover={CONTENT_SAMPLE.voiceoverLabel}
+        voiceoverScript={null}
+      />
+      <ContentColumn
+        title="Full"
+        briefText={CONTENT_SAMPLE.briefText}
+        music={CONTENT_SAMPLE.music}
+        voiceover={CONTENT_SAMPLE.voiceoverLabel}
+        voiceoverScript={CONTENT_SAMPLE.voiceoverScript}
+      />
     </div>
   );
 }

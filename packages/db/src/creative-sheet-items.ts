@@ -12,6 +12,7 @@ import {
   type CreativePriority,
   type CreativeSource,
   type CreativeType,
+  type VoiceoverType,
 } from './schema';
 import { withBrand } from './tenancy';
 import { creativeSheetName } from './formulas';
@@ -76,6 +77,11 @@ export interface CreativeSheetBriefDetail {
   readonly inspiration: string | null;
   readonly offer: string | null;
   readonly language: CreativeLanguage | null;
+  /** Ticket 6 Content fields (migration 0069). All nullable; the sidebar renders NULL as "—". */
+  readonly briefText: string | null;
+  readonly music: string | null;
+  readonly voiceoverType: VoiceoverType | null;
+  readonly voiceoverScript: string | null;
   readonly inspoLinks: string[];
   readonly inspirationImage: string[] | null;
   readonly designFile: string[] | null;
@@ -190,6 +196,10 @@ export function sheetRowFromBrief(brief: CreativeSheetBriefSource): CreativeShee
       inspiration: brief.inspiration,
       offer: brief.offer,
       language: brief.language,
+      briefText: brief.briefText,
+      music: brief.music,
+      voiceoverType: brief.voiceoverType,
+      voiceoverScript: brief.voiceoverScript,
       inspoLinks: brief.inspoLinks,
       inspirationImage: brief.inspirationImage,
       designFile: brief.designFile,

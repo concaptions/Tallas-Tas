@@ -18,7 +18,7 @@ const BODY_CLOCK_BRIEF_ID = '77777777-7777-4777-8777-000000000001';
 const MOTION_BRIEF_ID = '77777777-7777-4777-8777-000000000003';
 
 /** `SHEET_GROUPS` in creative-sheet/fields.ts, the six sections after B2.A4. */
-const SHEET_GROUP_HEADINGS = ['Identity', 'Status', 'Content', 'QA', 'Assets', 'Meta'];
+const SHEET_GROUP_HEADINGS = ['Identity', 'Content', 'Assets', 'QA', 'Status', 'Activity'];
 
 const DESIGN_SYSTEM = '/design-system';
 

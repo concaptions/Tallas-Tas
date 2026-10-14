@@ -348,4 +348,83 @@ describe('with Clerk configured', () => {
     }
     expect(result.fieldErrors?.qa).toBe('That is not one of the three QA checks.');
   });
+
+  /**
+   * The four Ticket 6 Content fields (migration 0069). Each test proves one of three contracts:
+   * NULL round-trip (empty submission reaches the actor lookup), non-null round-trip (a submitted
+   * value reaches the actor lookup), and the voiceover vocabulary gate (an out-of-vocab value is
+   * refused in validation). "Reaching the actor lookup" is the poisoned-Clerk throw's message,
+   * which is downstream of every zod refusal — so a `fieldErrors` entry on these fields means the
+   * field was refused in validation, and the throw's message means it got past.
+   */
+  it('accepts briefText at null (empty) and non-null, round-trip through the schema', async () => {
+    configured();
+    const empty = await updateBriefAction(null, form({ ...filled, id: 'a-brief', briefText: '' }));
+    expect(empty).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
+    const filledText = await updateBriefAction(
+      null,
+      form({ ...filled, id: 'a-brief', briefText: 'The strategist’s rich-text brief.' }),
+    );
+    expect(filledText).toEqual({
+      ok: false,
+      error: 'The creative could not be saved. Try again.',
+    });
+  });
+
+  it('accepts music at null (empty) and non-null, round-trip through the schema', async () => {
+    configured();
+    const empty = await updateBriefAction(null, form({ ...filled, id: 'a-brief', music: '' }));
+    expect(empty).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
+    const filledMusic = await updateBriefAction(
+      null,
+      form({ ...filled, id: 'a-brief', music: 'Soft piano, 60 bpm.' }),
+    );
+    expect(filledMusic).toEqual({
+      ok: false,
+      error: 'The creative could not be saved. Try again.',
+    });
+  });
+
+  it('accepts voiceoverType at null (empty) and each of the three keys, and refuses anything else', async () => {
+    configured();
+    const empty = await updateBriefAction(
+      null,
+      form({ ...filled, id: 'a-brief', voiceoverType: '' }),
+    );
+    expect(empty).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
+    for (const key of ['tts', 'human', 'none']) {
+      const ok = await updateBriefAction(
+        null,
+        form({ ...filled, id: 'a-brief', voiceoverType: key }),
+      );
+      expect(ok, key).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
+    }
+    const refused = await updateBriefAction(
+      null,
+      form({ ...filled, id: 'a-brief', voiceoverType: 'robot' }),
+    );
+    if (refused.ok) {
+      throw new Error('an unknown voiceover type was accepted');
+    }
+    expect(refused.fieldErrors?.voiceoverType).toBe(
+      'That is not one of the three voiceover types.',
+    );
+  });
+
+  it('accepts voiceoverScript at null (empty) and non-null, round-trip through the schema', async () => {
+    configured();
+    const empty = await updateBriefAction(
+      null,
+      form({ ...filled, id: 'a-brief', voiceoverScript: '' }),
+    );
+    expect(empty).toEqual({ ok: false, error: 'The creative could not be saved. Try again.' });
+    const filledScript = await updateBriefAction(
+      null,
+      form({ ...filled, id: 'a-brief', voiceoverScript: 'LINE 1: Welcome back.' }),
+    );
+    expect(filledScript).toEqual({
+      ok: false,
+      error: 'The creative could not be saved. Try again.',
+    });
+  });
 });

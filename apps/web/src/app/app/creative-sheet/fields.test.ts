@@ -8,6 +8,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import {
+  BRIEF_CONTENT_FIELDS,
   pendingAfterRows,
   pendingOnSubmit,
   pendingSheetRow,
@@ -29,10 +30,12 @@ import {
   SEARCH_PARAM,
   SELECTION_PARAM,
   SHEET_CHECKS,
+  SHEET_DUE_DATE_LABEL,
   SHEET_GROUPS,
   sheetQaGate,
   STATUS_OPTIONS,
   statusView,
+  VOICEOVER_TYPE_OPTIONS,
 } from './fields';
 
 describe('the URL parameters', () => {
@@ -97,15 +100,15 @@ describe('the checkboxes', () => {
   });
 });
 
-describe('the panel sections (B2.A4)', () => {
-  it('are the six of decision 2, in the board’s order', () => {
+describe('the panel sections (Ticket 6, 2026-10-14)', () => {
+  it('are the six Ticket 6 headings in render order: Identity, Content, Assets, QA, Status, Activity', () => {
     expect(Object.values(SHEET_GROUPS)).toEqual([
       'Identity',
-      'Status',
       'Content',
-      'QA',
       'Assets',
-      'Meta',
+      'QA',
+      'Status',
+      'Activity',
     ]);
   });
 });
@@ -286,5 +289,44 @@ describe('the pending creative as a grid row (SMOKE-24)', () => {
     ]);
     expect(rowsWithPendingCreative(pendingRow, [other, pendingRow])).toHaveLength(2);
     expect(rowsWithPendingCreative(null, [other])).toEqual([other]);
+  });
+});
+
+describe('the Ticket 6 Content fields (migration 0069)', () => {
+  it('name the four columns the Content section edits, labelled as the ticket spells them', () => {
+    expect(BRIEF_CONTENT_FIELDS.map((field) => field.name)).toEqual([
+      'briefText',
+      'music',
+      'voiceoverType',
+      'voiceoverScript',
+    ]);
+    expect(BRIEF_CONTENT_FIELDS.map((field) => field.label)).toEqual([
+      'Brief',
+      'Music',
+      'Voiceover type',
+      'Voiceover script',
+    ]);
+  });
+
+  it('carry the right field kinds: textarea / plain / single-select / textarea', () => {
+    expect(BRIEF_CONTENT_FIELDS.map((field) => field.kind)).toEqual([
+      'richtext',
+      'text',
+      'singleSelect',
+      'richtext',
+    ]);
+  });
+
+  it('offer the three voiceover keys the schema CHECK restricts the column to', () => {
+    expect(VOICEOVER_TYPE_OPTIONS.map((option) => option.key)).toEqual(['tts', 'human', 'none']);
+    expect(VOICEOVER_TYPE_OPTIONS.map((option) => option.label)).toEqual([
+      'Text-to-speech',
+      'Human',
+      'None',
+    ]);
+  });
+
+  it('give the Status section a Due label of two characters, so the grid header stays narrow', () => {
+    expect(SHEET_DUE_DATE_LABEL).toBe('Due');
   });
 });

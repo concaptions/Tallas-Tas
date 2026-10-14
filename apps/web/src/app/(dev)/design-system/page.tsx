@@ -80,6 +80,7 @@ import { ThemeCard } from '@/app/app/themes/theme-card';
 
 import {
   BriefActivityStory,
+  BriefContentFieldsStory,
   BriefChipsStory,
   BriefDimensionsPickerStory,
   BriefDimensionsStory,
@@ -1207,6 +1208,13 @@ export default function DesignSystemPage() {
               Request Changes reset; then the empty state
             </h3>
             <BriefActivityStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              content fields (Ticket 6, migration 0069) — the four strategist-authored fields the
+              sidebar’s Content section edits, in three states: empty, partial, full
+            </h3>
+            <BriefContentFieldsStory />
           </div>
         </div>
       </Section>

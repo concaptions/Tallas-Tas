@@ -50,12 +50,14 @@ import {
   NOT_SET,
   QA_CHECKS,
   QA_DOC_HINT,
+  SHEET_DUE_DATE_LABEL,
   SHEET_GROUPS,
   SHEET_LABELS,
   sheetQaGate,
   SPELL_CHECK_FIELD,
   STATUS_OPTIONS,
   statusView,
+  VOICEOVER_TYPE_OPTIONS,
   type CreativeSheetCheck,
   type CreativeSheetFieldName,
   type SheetCheckField,
@@ -417,31 +419,6 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.approval}>
-                {selectField(
-                  'internalStatus',
-                  internalOptions,
-                  internalStatus,
-                  setInternalStatus,
-                  internalStatusView(internalStatus === NONE_VALUE ? null : internalStatus),
-                )}
-                {selectField(
-                  'status',
-                  STATUS_OPTIONS,
-                  status,
-                  setStatus,
-                  statusView(status === NONE_VALUE ? null : status),
-                )}
-                <div data-slot="creative-sheet-status-facts">
-                  {row(
-                    'Due date',
-                    detail.dueDate === null ? dash : formatSheetDate(detail.dueDate),
-                  )}
-                  {row('Priority', detail.priority ?? dash)}
-                  {row('Client note', detail.clientStatusNote ?? dash)}
-                </div>
-              </Group>
-
               <Group heading={SHEET_GROUPS.content}>
                 <div className="flex flex-col gap-3" data-slot="creative-sheet-content">
                   {block('Script / Ad Content', detail.scriptContent ?? detail.adContent)}
@@ -465,6 +442,28 @@ export function CreativeSheetPanel({
                       ))}
                     </ul>
                   )}
+                  {/* Ticket 6 Content fields (migration 0069), read-only on the sidebar: the sidebar
+                      is a quick-look surface, so a change goes through the brief page's own form.
+                      Rendered through the shared `block` helper that every other prose field uses. */}
+                  {block('Brief', detail.briefText)}
+                  {block('Music', detail.music)}
+                  {block(
+                    'Voiceover type',
+                    detail.voiceoverType === null
+                      ? null
+                      : (VOICEOVER_TYPE_OPTIONS.find(
+                          (option) => option.key === detail.voiceoverType,
+                        )?.label ?? detail.voiceoverType),
+                  )}
+                  {block('Voiceover script', detail.voiceoverScript)}
+                </div>
+              </Group>
+
+              <Group heading={SHEET_GROUPS.assets}>
+                <div className="flex flex-col gap-2" data-slot="creative-sheet-assets">
+                  {files('Inspiration images', detail.inspirationImage, Image)}
+                  {files('Script breakdown', detail.scriptAndBriefBreakdown, File)}
+                  {files('Design file', detail.designFile, File)}
                 </div>
               </Group>
 
@@ -519,15 +518,32 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.assets}>
-                <div className="flex flex-col gap-2" data-slot="creative-sheet-assets">
-                  {files('Inspiration images', detail.inspirationImage, Image)}
-                  {files('Script breakdown', detail.scriptAndBriefBreakdown, File)}
-                  {files('Design file', detail.designFile, File)}
+              <Group heading={SHEET_GROUPS.approval}>
+                {selectField(
+                  'internalStatus',
+                  internalOptions,
+                  internalStatus,
+                  setInternalStatus,
+                  internalStatusView(internalStatus === NONE_VALUE ? null : internalStatus),
+                )}
+                {selectField(
+                  'status',
+                  STATUS_OPTIONS,
+                  status,
+                  setStatus,
+                  statusView(status === NONE_VALUE ? null : status),
+                )}
+                <div data-slot="creative-sheet-status-facts">
+                  {row(
+                    SHEET_DUE_DATE_LABEL,
+                    detail.dueDate === null ? dash : formatSheetDate(detail.dueDate),
+                  )}
+                  {row('Priority', detail.priority ?? dash)}
+                  {row('Client note', detail.clientStatusNote ?? dash)}
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.meta}>
+              <Group heading={SHEET_GROUPS.activity}>
                 <div data-slot="creative-sheet-meta">
                   {row('Created', formatSheetDate(item.createdAt))}
                   {row('Last modified', formatSheetDate(item.updatedAt))}

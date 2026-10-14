@@ -195,6 +195,16 @@ export const creativePerformances = ['Winning', 'High Potential to Iterate', 'Lo
 export type CreativePerformance = (typeof creativePerformances)[number];
 
 /**
+ * How the voiceover on a creative is produced (`creative_briefs.voiceover_type`, migration 0069):
+ * `tts` — text-to-speech generated, `human` — recorded by a person, `none` — no voiceover. The
+ * column is plain `text` with a CHECK constraint; the vocabulary is this `as const` tuple and the
+ * type is derived from it, the same arrangement `creativePerformances` and `creativeSources` use.
+ * Nullable: an unset voiceover is NULL rather than any of the three keys.
+ */
+export const voiceoverTypes = ['tts', 'human', 'none'] as const;
+export type VoiceoverType = (typeof voiceoverTypes)[number];
+
+/**
  * The call to action a copy row offers (`copywriting.cta`), PRD §5.11, in the order the PRD lists
  * them and the panel's dropdown renders them.
  *
