@@ -73,6 +73,30 @@ describe('canSubmitToClient', () => {
     );
     expect(qaProgressLabel(null, NONE)).toBe('0 of 1 required checks complete.');
   });
+
+  /**
+   * Oct-14 walkthrough: "Approve clickable on brief TV23 with 1 of 2 QA ticked" was traced to a
+   * misreading of the checklist (the third row is the N/A tick of the other track, struck through).
+   * This pins the real behaviour the gate enforces: Approve stays shut whenever any required tick
+   * is missing, regardless of which track the brief is on, so a future refactor cannot regress it.
+   */
+  it('the walkthrough scenario: 1 of 2 required ticked keeps Approve disabled on either track', () => {
+    // Static brief (e.g. a Carousel) with only the designer tick — strategist missing.
+    expect(canSubmitToClient('static', { ...NONE, qaDesigner: true, qaStrategist: false })).toBe(
+      false,
+    );
+    // Video brief with only the strategist tick — video-editor missing.
+    expect(canSubmitToClient('video', { ...NONE, qaVideoEditor: false, qaStrategist: true })).toBe(
+      false,
+    );
+    // Both required ticks set opens the gate; the other track's N/A tick stays unset.
+    expect(canSubmitToClient('static', { ...NONE, qaDesigner: true, qaStrategist: true })).toBe(
+      true,
+    );
+    expect(canSubmitToClient('video', { ...NONE, qaVideoEditor: true, qaStrategist: true })).toBe(
+      true,
+    );
+  });
 });
 
 describe('submitToClientRefusal composes the two gates, internal first', () => {
