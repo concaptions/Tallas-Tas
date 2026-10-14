@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { Db } from './db';
 import { brands, creatorRegistry, creators, type NewRegistryCreator } from './schema';
@@ -22,11 +22,50 @@ export interface RegistryCreatorListRow {
   normalizedInstagram: string | null;
 }
 
+/**
+ * Oct 14 pre-Thursday QA (item 47): the Creator Pool card used to read `totalBrands` off the
+ * cached `creator_registry.total_brands` column, while the detail panel reads
+ * `listRegistryCreatorBrandHistory` -- a live join over `creators` scoped to this registry row and
+ * `deleted_at IS NULL`. The two drift the moment a brand creator row is inserted, soft-deleted or
+ * imported without the stats update job running, which is how Talal saw "5 brands" on the card and
+ * "No brand history yet" on the panel at the same time.
+ *
+ * The authoritative count is the live join, since it is what the panel renders. This DAO computes
+ * `totalBrands` from the same filter the panel applies -- a correlated subquery of
+ * `COUNT(DISTINCT creators.brand_id)` where `registry_creator_id` matches and `deleted_at` is null
+ * -- so the two sources always agree. The cached `creator_registry.total_brands` column is left
+ * untouched: it still carries whatever last write set it, but nothing reads it from here.
+ */
 export async function listRegistryCreators(db: Db): Promise<RegistryCreatorListRow[]> {
+  // The live join count the detail panel reads: distinct brand ids on `creators` whose
+  // `registry_creator_id` matches this row and that are not soft-deleted. Expressed as a LEFT
+  // JOIN + GROUP BY so the aggregation is on the main query plan, not a correlated subquery -- the
+  // outer alias is always visible to the FILTER and `COUNT(DISTINCT ...) FILTER (WHERE ...)` is a
+  // single pass over the join.
   const rows = await db
-    .select()
+    .select({
+      id: creatorRegistry.id,
+      name: creatorRegistry.name,
+      instagramUsername: creatorRegistry.instagramUsername,
+      profilePicUrl: creatorRegistry.profilePicUrl,
+      creatorLink: creatorRegistry.creatorLink,
+      platform: creatorRegistry.platform,
+      ageBracket: creatorRegistry.ageBracket,
+      gender: creatorRegistry.gender,
+      ethnicity: creatorRegistry.ethnicity,
+      shippingLocation: creatorRegistry.shippingLocation,
+      totalBrands: sql<number>`count(distinct ${creators.brandId}) filter (where ${creators.deletedAt} is null)::int`,
+      totalProjects: creatorRegistry.totalProjects,
+      avgRating: creatorRegistry.avgRating,
+      tags: creatorRegistry.tags,
+      notes: creatorRegistry.notes,
+      normalizedInstagram: creatorRegistry.normalizedInstagram,
+      updatedAt: creatorRegistry.updatedAt,
+    })
     .from(creatorRegistry)
+    .leftJoin(creators, eq(creators.registryCreatorId, creatorRegistry.id))
     .where(isNull(creatorRegistry.deletedAt))
+    .groupBy(creatorRegistry.id)
     .orderBy(desc(creatorRegistry.updatedAt));
   return rows.map((r) => ({
     id: r.id,
