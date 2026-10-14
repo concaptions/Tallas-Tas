@@ -278,6 +278,15 @@ order they were worked; blockers and the decisions the human owns are at the bot
 - **Ticket 1 · Campaigns & Offers** still shows its read-only "Collections" reverse-link column and
   panel list (not named in the ticket). Drop it too?
 
+## Follow-ups from Phase B2
+
+1. **Hiding `due_date` in Column Admin deferred** — the resolver's `take()` drops `isHidden` rows outright, so hiding the parent would strip `due_date` from every inheriting brand's resolved set. Two existing column-seed tests reproduce the breakage. A visible-but-shown-by-default distinction in the resolver is a separate ticket. The grid renderer is live for every brand whose resolved columns already include `due_date`.
+2. **Strategist self-approval uses `actor.name`, not `userId`** — `creative_briefs.assignee` is a `text` column that stores the actor's full name (`apps/web/src/app/app/creative-design/actions.ts` ~L1117 writing `assignee: actorName`), so the server action passes `actor.name` into `canApproveBrief(role, assigneeId, userId)` for the comparison to match live data. Pure function stays per spec; the fix is a data migration moving stored assignees to Clerk userIds.
+3. **`approveCreativeAction → approveBriefAction` rename scope** — limited to the Creative Sheet's `review-actions.ts` and its direct callers. The two other `approveCreativeAction` functions in `apps/web/src/app/app/queue/client/actions.ts` and `apps/web/src/app/client/actions.ts` are a different FormData `(prev, formData) → ActionResult` signature on the client-track queue — distinct module, distinct semantics, left alone.
+4. **Submission version resolution in Ticket 10 commit** defaulted to version 1 everywhere because `brief_submissions` landed in commit 2. Follow-up: wire the Request Changes gate from a hard-coded `1` to `currentBriefSubmission(…)?.version ?? 1`.
+5. **Focus Mode `useSearchParams` → lazy `window.location`** — `useSearchParams()` forced a Suspense boundary on every parent that prerenders Focus Mode (including `/design-system`), breaking `build:ci`. The version chip row reads `?version=` via `useState(() => new URLSearchParams(window.location.search).get('version'))`; SSR gets no window and matches `is_current` on first render. If a cleaner pattern lands, revisit.
+6. **Ticket 12 empty-state copy strings** in `apps/web/src/app/app/creative-sheet/stats-copy.ts` need Talal review (7 strings, each tagged `// Talal review`).
+
 ## Follow-ups (not in Phase A)
 
 - **Stale Playwright specs (20 tests, pre-existing on `cbaa207`)**, one repair session, no product
