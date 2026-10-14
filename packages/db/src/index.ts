@@ -475,3 +475,5 @@ export {
   updateCreatorPerformanceRating,
 } from './creator-rating-queries';
 export type { CreatorPerformanceHistoryRow } from './creator-rating-queries';
+export { RETIRED_COLUMNS, isRetiredColumn } from './retired-columns';
+export type { RetiredColumn } from './retired-columns';

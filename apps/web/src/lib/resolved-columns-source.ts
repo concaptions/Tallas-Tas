@@ -1,4 +1,10 @@
-import { COLUMN_SEED, resolveColumns, type Db, type ResolvedColumn } from '@tas/db';
+import {
+  COLUMN_SEED,
+  isRetiredColumn,
+  resolveColumns,
+  type Db,
+  type ResolvedColumn,
+} from '@tas/db';
 
 import { orderColumns } from '@/components/views/resolved-columns';
 
@@ -79,19 +85,33 @@ export function parentColumnsFor(tableKey: string): readonly ResolvedColumn[] {
   );
 }
 
+/**
+ * Columns that have been RETIRED from the UI (no renderer) but may still have a
+ * `column_definitions` row on live brands are filtered out here so the grid adapter never flags
+ * them in its `missing` list. The DB column survives until its drop migration lands — see
+ * `packages/db/src/retired-columns.ts`.
+ */
+function dropRetiredColumns(
+  tableKey: string,
+  columns: readonly ResolvedColumn[],
+): readonly ResolvedColumn[] {
+  return columns.filter((column) => !isRetiredColumn(tableKey, column.columnKey));
+}
+
 /** The ordered, labelled, visible columns of one table for the working brand. */
 export async function loadResolvedColumns(
   tableKey: string,
   deps: ResolvedColumnsDeps,
 ): Promise<ResolvedColumnsResult> {
-  const parent = parentColumnsFor(tableKey);
+  const parent = dropRetiredColumns(tableKey, parentColumnsFor(tableKey));
   if (deps.demoMode()) {
     return { columns: parent, source: 'demo', unconfigured: false };
   }
   return deps.withDb(async (db) => {
     const resolve = deps.resolveColumns ?? resolveColumns;
     const brandId = await resolveLiveBrandId(db, deps);
-    const columns = brandId === null ? [] : await resolve(db, brandId, tableKey);
+    const resolved = brandId === null ? [] : await resolve(db, brandId, tableKey);
+    const columns = dropRetiredColumns(tableKey, resolved);
     return columns.length === 0
       ? { columns: parent, source: 'database' as const, unconfigured: true }
       : { columns, source: 'database' as const, unconfigured: false };
