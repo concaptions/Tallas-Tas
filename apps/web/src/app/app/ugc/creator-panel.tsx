@@ -29,6 +29,7 @@ import {
   type CreatorActionResult,
   type VideoUploadResult,
 } from './actions';
+import { CreatorProfileCard } from './creator-profile-card';
 import {
   clientStatusChoices,
   collabDateLabel,
@@ -298,6 +299,15 @@ export function CreatorPanel({
           Close
         </Button>
       </header>
+
+      <div className="border-b border-line px-4 py-3 sm:px-6">
+        <CreatorProfileCard
+          name={creator.name}
+          profilePicUrl={creator.profilePicUrl}
+          instagramUsername={creator.instagramUsername ?? null}
+          rating={creator.performanceRating ?? null}
+        />
+      </div>
 
       {otherBrands.length > 0 ? (
         <div

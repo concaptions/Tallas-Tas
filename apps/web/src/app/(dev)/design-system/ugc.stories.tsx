@@ -1,6 +1,7 @@
 import { RatingStars } from '@tas/ui';
 
 import { CreatorCard } from '@/app/app/ugc/creator-card';
+import { CreatorProfileCard } from '@/app/app/ugc/creator-profile-card';
 import { PartnershipTable } from '@/app/app/ugc/partnership-table';
 import { RatingWidget } from '@/app/app/ugc/rating-widget';
 
@@ -102,6 +103,36 @@ export function CreatorCardStory() {
       {SAMPLE_CREATORS.map((creator) => (
         <CreatorCard key={creator.id} creator={creator} />
       ))}
+    </div>
+  );
+}
+
+/**
+ * The profile pic card (Ticket 14): picture or initials, name, @handle in `font-mono`, and the
+ * read-only rating. Three cases — a creator with a usable picture and a rating, one with no
+ * picture and no rating (initials, "Not rated"), and one with the @ already in the stored handle.
+ */
+export function CreatorProfileCardStory() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      <CreatorProfileCard
+        name="Danielle Okonkwo"
+        profilePicUrl={SAMPLE_AVATAR}
+        instagramUsername="danielle.sleeps.late"
+        rating={4}
+      />
+      <CreatorProfileCard
+        name="Tomás Ferreira"
+        profilePicUrl={null}
+        instagramUsername={null}
+        rating={null}
+      />
+      <CreatorProfileCard
+        name="Marcus Delacroix"
+        profilePicUrl={SAMPLE_AVATAR}
+        instagramUsername="@marcus.after.midnight"
+        rating={2}
+      />
     </div>
   );
 }

@@ -182,6 +182,7 @@ import {
 } from './column-admin.stories';
 import {
   CreatorCardStory,
+  CreatorProfileCardStory,
   PartnershipCountdownStory,
   RatingStarsStory,
   RatingWidgetStory,
@@ -1265,6 +1266,13 @@ export default function DesignSystemPage() {
               partnership countdown — expiring, active, expired, and never activated
             </h3>
             <PartnershipCountdownStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              creator profile card — picture, mono @handle, read-only rating; initials when no
+              picture or no rating
+            </h3>
+            <CreatorProfileCardStory />
           </div>
         </div>
       </Section>

@@ -153,6 +153,37 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="creator-row"]')).toHaveCount(5);
   });
 
+  test('Ticket 14: the profile pic card tops the panel with picture, name, @handle and read-only rating', async ({
+    page,
+  }) => {
+    await page.goto(ugcPath);
+    await page.locator('[data-slot="creator-row"]').filter({ hasText: DANIELLE }).click();
+
+    const card = page.locator('[data-slot="creator-profile-card"]');
+    await expect(card).toBeVisible();
+    // Lives inside the panel, above the "In other brands:" chip row (demo mode has none).
+    await expect(
+      page.locator('[data-slot="creator-panel"] [data-slot="creator-profile-card"]'),
+    ).toHaveCount(1);
+    await expect(card.locator('[data-slot="profile-card-name"]')).toHaveText(DANIELLE);
+    // Danielle's demo picture decodes, so the card holds the <img>, not the initials fallback.
+    await expect(card.locator('img[data-slot="profile-card-avatar"]')).toHaveCount(1);
+    // The read-only rating widget mounts; its RatingStars carry an aria-label naming the creator.
+    await expect(
+      card.locator('[data-slot="profile-card-rating"] [aria-label*="performance rating"]'),
+    ).toHaveCount(1);
+
+    // Tomás has no picture: the card falls back to initials, and the @handle reads the em dash.
+    await page.locator('[data-slot="creator-panel-close"]').click();
+    await page.locator('[data-slot="creator-row"]').filter({ hasText: TOMAS }).click();
+    const tomasCard = page.locator('[data-slot="creator-profile-card"]');
+    await expect(tomasCard.locator('[data-slot="profile-card-avatar"]')).toHaveAttribute(
+      'data-fallback',
+      'initials',
+    );
+    await expect(tomasCard.locator('[data-slot="profile-card-avatar"]')).toHaveText('TF');
+  });
+
   test('the Oct 5 client-status badge + dropdown mount in the creator panel', async ({ page }) => {
     await page.goto(ugcPath);
     await page.locator('[data-slot="creator-row"]').filter({ hasText: DANIELLE }).click();
