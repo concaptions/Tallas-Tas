@@ -491,6 +491,20 @@
       "when": 1792077600000,
       "tag": "0069_brief_content_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792079400000,
+      "tag": "0070_brief_annotations_and_comments",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792081200000,
+      "tag": "0071_brief_submissions",
+      "breakpoints": true
     }
   ]
 }
