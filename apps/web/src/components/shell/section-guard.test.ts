@@ -138,7 +138,15 @@ describe('section route guards', () => {
     }
     // Named, so a new layout-less retired segment is a decision on the record: Creative Design keeps
     // its brief detail route live for the queues; the other two never had a layout.
-    expect(pageRedirected.sort()).toEqual(['briefs', 'client-assets', 'creative-dimensions']);
+    // Oct 14 follow-up #4 (`docs/sprint-oct12.md`): `youtube-copywriting` joined this list — its
+    // sectionGuard-based layout redirect dropped the visitor's query string because a layout in
+    // Next 15 does not receive `searchParams`, so the retirement moved into the page.
+    expect(pageRedirected.sort()).toEqual([
+      'briefs',
+      'client-assets',
+      'creative-dimensions',
+      'youtube-copywriting',
+    ]);
   });
 
   it('no guard names a section that is not in the catalogue, and none guards the wrong one', () => {
