@@ -15,6 +15,7 @@ import {
 } from '@tas/ui';
 import { CLIENT_STATUS, COPY_STATUS, CREATOR_STATUS, type StatusEntry } from '@tas/domain/state';
 
+import { approveBriefAction, requestChangesAction } from '@/app/app/creative-sheet/review-actions';
 import { updateClientStatus, type UpdateClientStatusResult } from '@/lib/client-status-actions';
 import {
   clientStatusRequiresNote,
@@ -125,6 +126,34 @@ export function ClientStatusDropdown({
   const handleSave = () => {
     setError(null);
     startTransition(async () => {
+      // Oct 14 follow-up #1: the two review-ending transitions on `creative_briefs` route
+      // through the Ticket 10 gated server actions (role gate + QA gate; Request Changes also
+      // enforces the one-comment-per-submission gate). The dropdown's direct `updateClientStatus`
+      // path has the QA gate but neither the role gate nor the comment gate — approving a brief
+      // without an assigned strategist and sending it back with no written note both got past
+      // it. The other client-status keys (pending, revisions_submitted, disapproved, launched)
+      // stay on the direct setter — the gate is specifically for Approve and Request Changes.
+      const gated =
+        tableKey === 'creative_briefs' && (status === 'approved' || status === 'revisions_needed');
+      if (gated) {
+        const review =
+          status === 'approved'
+            ? await approveBriefAction(recordId)
+            : await requestChangesAction(recordId);
+        if (!review.ok) {
+          setError(review.error);
+          return;
+        }
+        onStatusChange?.({
+          ok: true,
+          tableKey,
+          recordId,
+          status: review.clientStatus,
+          note: null,
+          updatedAt: new Date(review.savedAt).toISOString(),
+        });
+        return;
+      }
       const result = await updateClientStatus({
         tableKey,
         recordId,
