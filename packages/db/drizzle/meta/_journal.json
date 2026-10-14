@@ -484,6 +484,13 @@
       "when": 1791991200000,
       "tag": "0068_internal_status_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792077600000,
+      "tag": "0069_brief_content_fields",
+      "breakpoints": true
     }
   ]
 }
