@@ -2,11 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { getBriefById, updateBrief } from '@tas/db';
+import { getBriefById, insertActivity, updateBrief } from '@tas/db';
 import {
   canTransitionClient,
   clientQueueAction,
   isClientTrackOpen,
+  qaResetFor,
   type ClientQueueActionKey,
   type ClientStatusKey,
 } from '@tas/domain/state';
@@ -134,10 +135,36 @@ async function moveClientStatus(
         return failure('That is not the next step on the client track.');
       }
 
-      const saved = await updateBrief(db, brandId, id, { clientStatus: action.to }, actor);
-      return saved === null
-        ? failure('That creative is no longer available.')
-        : { ok: true as const, id: saved.id, clientStatus: action.to, savedAt: Date.now() };
+      // Oct 14 follow-up #2 (`docs/sprint-oct12.md`): a client move into `revisions_needed`
+      // resets the three QA ticks in the SAME write the status moves in — the same rule the
+      // brief page applies through `statusPatch`, routed through `qaResetFor` so the two writers
+      // share one source of truth. The ticks are also diffed into the activity ledger so a
+      // reader can see the reset the client's "Request Revisions" caused.
+      const qaReset = qaResetFor({ clientFrom: row.clientStatus, clientTo: action.to });
+      const saved = await updateBrief(
+        db,
+        brandId,
+        id,
+        { ...qaReset, clientStatus: action.to },
+        actor,
+      );
+      if (saved === null) return failure('That creative is no longer available.');
+      const qaChanges = (['qaVideoEditor', 'qaDesigner', 'qaStrategist'] as const)
+        .filter((key) => found[key] !== saved[key])
+        .map((field) => ({
+          field,
+          oldValue: String(found[field]),
+          newValue: String(saved[field]),
+        }));
+      const diff = [
+        { field: 'clientStatus', oldValue: row.clientStatus, newValue: action.to },
+        ...qaChanges,
+      ];
+      await insertActivity(db, brandId, 'creative_brief', saved.id, diff, {
+        id: actor,
+        name: null,
+      });
+      return { ok: true as const, id: saved.id, clientStatus: action.to, savedAt: Date.now() };
     });
 
     if (outcome === null) {

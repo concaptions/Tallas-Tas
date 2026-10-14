@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   getBriefById: vi.fn(),
   updateBrief: vi.fn(),
+  insertActivity: vi.fn(),
 }));
 
 /** The actions call `revalidatePath`, which only exists inside a Next request. */
@@ -20,6 +21,7 @@ vi.mock('@tas/db', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tas/db')>()),
   getBriefById: mocks.getBriefById,
   updateBrief: mocks.updateBrief,
+  insertActivity: mocks.insertActivity,
 }));
 
 /**
@@ -68,6 +70,7 @@ afterEach(() => {
   mocks.auth.mockReset();
   mocks.getBriefById.mockReset();
   mocks.updateBrief.mockReset();
+  mocks.insertActivity.mockReset();
 });
 
 describe('in demo mode (no Clerk publishable key)', () => {
@@ -152,6 +155,8 @@ describe('with Clerk configured', () => {
     const result = await approveCreativeAction(null, form({ id: ON_THE_BOARD.id }));
 
     expect(result).toMatchObject({ ok: true, id: ON_THE_BOARD.id, clientStatus: 'approved' });
+    // Approve does NOT reset QA (only moves into `revisions_needed` do), so the patch stays
+    // the one-key shape it was before the Oct 14 follow-up #2 fix.
     expect(mocks.updateBrief).toHaveBeenCalledWith(
       {},
       'brand-1',
@@ -166,10 +171,22 @@ describe('with Clerk configured', () => {
    * had no `revisions_needed` key, so this action answered "not the next step" from every state and
    * the button could never succeed. D-027 added the status and the edge; this pins the move.
    */
-  it('sends a creative back for changes, storing Revisions Needed', async () => {
+  it('sends a creative back for changes, storing Revisions Needed and resetting QA', async () => {
     configured();
-    mocks.getBriefById.mockResolvedValue(ON_THE_BOARD);
-    mocks.updateBrief.mockResolvedValue({ ...ON_THE_BOARD, clientStatus: 'revisions_needed' });
+    const seeded = {
+      ...ON_THE_BOARD,
+      qaVideoEditor: true,
+      qaDesigner: true,
+      qaStrategist: false,
+    };
+    mocks.getBriefById.mockResolvedValue(seeded);
+    mocks.updateBrief.mockResolvedValue({
+      ...seeded,
+      clientStatus: 'revisions_needed',
+      qaVideoEditor: false,
+      qaDesigner: false,
+      qaStrategist: false,
+    });
 
     const result = await requestRevisionsAction(null, form({ id: ON_THE_BOARD.id }));
 
@@ -178,13 +195,39 @@ describe('with Clerk configured', () => {
       id: ON_THE_BOARD.id,
       clientStatus: 'revisions_needed',
     });
+    // Oct 14 follow-up #2: the QA reset lands in the SAME write the status moves in — the
+    // same rule the brief page applies through `statusPatch`. The two writers now share one
+    // source of truth via `qaResetFor`.
     expect(mocks.updateBrief).toHaveBeenCalledWith(
       {},
       'brand-1',
       ON_THE_BOARD.id,
-      { clientStatus: 'revisions_needed' },
+      {
+        qaVideoEditor: false,
+        qaDesigner: false,
+        qaStrategist: false,
+        clientStatus: 'revisions_needed',
+      },
       'user_client_1',
     );
+    // The activity ledger records the status move AND the two QA ticks that changed, so a
+    // reader can see what the client's "Request Revisions" caused.
+    expect(mocks.insertActivity).toHaveBeenCalledTimes(1);
+    const [, brandArg, entityType, entityId, diff] = mocks.insertActivity.mock.calls[0] as [
+      unknown,
+      string,
+      string,
+      string,
+      ReadonlyArray<{ field: string; oldValue: string | null; newValue: string | null }>,
+    ];
+    expect(brandArg).toBe('brand-1');
+    expect(entityType).toBe('creative_brief');
+    expect(entityId).toBe(ON_THE_BOARD.id);
+    expect(diff).toEqual([
+      { field: 'clientStatus', oldValue: 'pending_for_approval', newValue: 'revisions_needed' },
+      { field: 'qaVideoEditor', oldValue: 'true', newValue: 'false' },
+      { field: 'qaDesigner', oldValue: 'true', newValue: 'false' },
+    ]);
   });
 
   /**
