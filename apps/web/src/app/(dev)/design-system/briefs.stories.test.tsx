@@ -19,6 +19,7 @@ vi.mock('@/app/app/creative-design/actions', () => ({
 import {
   BriefActivityStory,
   BriefAnnotationOverlayStory,
+  BriefAutoNamePreviewStory,
   BriefCommentThreadStory,
   BriefContentFieldsStory,
   BriefDueDateStory,
@@ -200,6 +201,32 @@ describe('BriefDueDateStory', () => {
     expect(html).toContain('text-bad');
     expect(html).toContain('text-warn');
     expect(html).toContain('text-text');
+  });
+
+  it('uses the token layer only', () => {
+    expect(html).not.toMatch(COLOUR_LITERAL);
+  });
+});
+
+/**
+ * Ticket 3 (Oct 14) — the auto-name preview story. The four inputs feed `buildBriefName` directly
+ * and the preview chip reads the result, so a drift between the dialog's live preview and the
+ * server action would fail here first. No hex colour literal.
+ */
+describe('BriefAutoNamePreviewStory', () => {
+  const html = renderToStaticMarkup(<BriefAutoNamePreviewStory />);
+
+  it('mounts the four controls and the preview chip', () => {
+    expect(html).toContain('data-slot="brief-auto-name-source"');
+    expect(html).toContain('data-slot="brief-auto-name-funnel"');
+    expect(html).toContain('data-slot="brief-auto-name-type"');
+    expect(html).toContain('data-slot="brief-auto-name-concept"');
+    expect(html).toContain('data-slot="brief-auto-name-batch"');
+    expect(html).toContain('data-slot="brief-name-preview"');
+  });
+
+  it('renders the initial preview from the pure formula', () => {
+    expect(html).toContain('TAS_TOF_V_042_summer-sale_Batch 1');
   });
 
   it('uses the token layer only', () => {

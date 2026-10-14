@@ -81,6 +81,7 @@ import { ThemeCard } from '@/app/app/themes/theme-card';
 import {
   BriefActivityStory,
   BriefAnnotationOverlayStory,
+  BriefAutoNamePreviewStory,
   BriefCommentThreadStory,
   BriefContentFieldsStory,
   BriefDueDateStory,
@@ -1247,6 +1248,13 @@ export default function DesignSystemPage() {
               (text-bad), soon within three days (text-warn), far (text-text)
             </h3>
             <BriefDueDateStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              auto-name preview (Ticket 3, Oct 14) — the live `buildBriefName` output as the four
+              controls change, the pure function the dialog and the server action share
+            </h3>
+            <BriefAutoNamePreviewStory />
           </div>
         </div>
       </Section>

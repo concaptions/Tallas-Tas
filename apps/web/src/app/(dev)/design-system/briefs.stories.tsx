@@ -5,6 +5,11 @@ import { formatCommentStamp, formatSheetDate, StatusChip } from '@tas/ui';
 
 import { dueDateTone } from '@/app/app/creative-sheet/creative-sheet-workspace';
 import {
+  BRIEF_AUTO_NAME_SOURCES,
+  buildBriefName,
+  type BriefAutoNameSource,
+} from '@tas/domain/briefs';
+import {
   BRIEF_QA_CHECKS,
   qaChecklistFor,
   type BriefQaTicks,
@@ -720,5 +725,132 @@ export function BriefDueDateStory() {
       <DueDateCell date={soon} label="soon" />
       <DueDateCell date={far} label="far" />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Ticket 3 (Oct 14) — Brief auto-name preview. Four controls (source, funnel, type, concept) feed
+ * `buildBriefName` directly; the preview reads from the same pure function the "New creative"
+ * dialog and the server action use, so a brand's live preview and this story can never disagree.
+ * Nothing in the preview comes from a database — the number is pinned at 42 so the shape is
+ * stable across viewers.
+ * ---------------------------------------------------------------------------------------------- */
+
+const PREVIEW_FUNNELS = ['TOF', 'Retargeting', 'All Funnels'] as const;
+const PREVIEW_TYPES = ['Video', 'Static', 'Carousel', 'Motion Image'] as const;
+
+export function BriefAutoNamePreviewStory() {
+  const [source, setSource] = useState<BriefAutoNameSource>('TAS');
+  const [funnel, setFunnel] = useState<(typeof PREVIEW_FUNNELS)[number]>('TOF');
+  const [type, setType] = useState<(typeof PREVIEW_TYPES)[number]>('Video');
+  const [conceptName, setConceptName] = useState('Summer Sale');
+  const [batch, setBatch] = useState('Batch 1');
+
+  const preview = buildBriefName({
+    source,
+    funnel,
+    type,
+    number: 42,
+    conceptName,
+    conceptBatch: batch,
+  });
+
+  return (
+    <section
+      data-slot="brief-auto-name-preview-story"
+      className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4"
+    >
+      <header className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-text">Auto-name preview</h3>
+        <StatusChip tone="mute" label="Ticket 3" />
+      </header>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-1 text-[11px] text-text3">
+          Source
+          <select
+            data-slot="brief-auto-name-source"
+            value={source}
+            onChange={(event) => {
+              setSource(event.target.value as BriefAutoNameSource);
+            }}
+            className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+          >
+            {BRIEF_AUTO_NAME_SOURCES.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-[11px] text-text3">
+          Funnel
+          <select
+            data-slot="brief-auto-name-funnel"
+            value={funnel}
+            onChange={(event) => {
+              setFunnel(event.target.value as (typeof PREVIEW_FUNNELS)[number]);
+            }}
+            className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+          >
+            {PREVIEW_FUNNELS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-[11px] text-text3">
+          Type
+          <select
+            data-slot="brief-auto-name-type"
+            value={type}
+            onChange={(event) => {
+              setType(event.target.value as (typeof PREVIEW_TYPES)[number]);
+            }}
+            className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+          >
+            {PREVIEW_TYPES.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-[11px] text-text3">
+          Concept
+          <input
+            data-slot="brief-auto-name-concept"
+            value={conceptName}
+            onChange={(event) => {
+              setConceptName(event.target.value);
+            }}
+            className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-[11px] text-text3 md:col-span-2">
+          Batch
+          <input
+            data-slot="brief-auto-name-batch"
+            value={batch}
+            onChange={(event) => {
+              setBatch(event.target.value);
+            }}
+            className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+          />
+        </label>
+      </div>
+
+      <p
+        data-slot="brief-name-preview"
+        className="rounded-input border border-line bg-surface2 px-3 py-2 font-mono text-xs text-text2"
+      >
+        {preview}
+      </p>
+    </section>
   );
 }

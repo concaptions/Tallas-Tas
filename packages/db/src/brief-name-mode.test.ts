@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
 import { createBrief, getBriefById, insertBrief, renameBrief } from './briefs';
-import { DEMO_BRAND_ID } from './demo-data';
+import { DEMO_BRAND_ID, demoBriefs } from './demo-data';
 import { creativeBriefs } from './schema';
 import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
@@ -19,6 +19,21 @@ async function freshDb(): Promise<PgliteDb> {
   await seed(db);
   return db;
 }
+
+/**
+ * Ticket 3 (Oct 14): every fixture brief is `name_mode = 'manual'` — the live rows and the demo
+ * rows share the same guarantee that the Oct 5 auto-naming formula never retro-names an imported
+ * or hand-typed row. If a new fixture is added as `auto`, this test fails and the author rewrites
+ * the fixture or the ticket.
+ */
+describe('demoBriefs fixture (Ticket 3)', () => {
+  it('is non-empty and every row is name_mode manual', () => {
+    expect(demoBriefs.length).toBeGreaterThan(0);
+    for (const brief of demoBriefs) {
+      expect(brief.nameMode).toBe('manual');
+    }
+  });
+});
 
 describe('name_mode', () => {
   it('defaults to manual, so an imported brief is protected without the importer knowing the column', async () => {
@@ -138,5 +153,36 @@ describe('createBrief', () => {
 
     const after = await db.select().from(creativeBriefs);
     expect(after).toHaveLength(before.length);
+  });
+
+  /**
+   * Ticket 3 (Oct 14) — ten parallel creates on the same brand must hand out ten DISTINCT
+   * monotonic numbers 1..10. The advisory lock inside `allocateBriefNumber` is what makes this
+   * safe under real Postgres; PGlite is a single connection and serialises writes on its own, so
+   * the test proves the resulting numbers are unique and gap-free, which is the contract the
+   * create path relies on.
+   */
+  it('allocates ten distinct monotonic numbers under ten parallel creates on one brand', async () => {
+    const db = await freshDb();
+
+    const PARALLEL = 10;
+    const created = await Promise.all(
+      Array.from({ length: PARALLEL }, (_, index) =>
+        createBrief(
+          db,
+          DEMO_BRAND_ID,
+          { funnel: 'TOF', type: 'Video' },
+          (briefNumber) => `TAS-TOF-V${String(briefNumber).padStart(3, '0')}-race-${String(index)}`,
+          'auto',
+          ACTOR,
+        ),
+      ),
+    );
+
+    const numbers = created.map((brief) => brief.briefNumber ?? 0).toSorted((a, b) => a - b);
+    const names = new Set(created.map((brief) => brief.name));
+
+    expect(numbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(names.size).toBe(PARALLEL);
   });
 });
