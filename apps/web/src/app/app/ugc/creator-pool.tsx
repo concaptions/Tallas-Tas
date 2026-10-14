@@ -287,8 +287,13 @@ export function CreatorPool({
                     ? selectedCreator.platform.map((p) => creatorPlatformLabel(p)).join(', ')
                     : EM_DASH}
                 </dd>
-                <dt className="text-text3">Location</dt>
-                <dd className="text-text2">{selectedCreator.shippingLocation ?? EM_DASH}</dd>
+                {/*
+                 * Oct-14 privacy fix: the Location dt/dd pair rendered the creator's full
+                 * `shippingLocation` (postal code + street-level address) to every agency admin
+                 * and brand manager visiting the Creator Pool detail aside. Pulled entirely
+                 * pending a role-gated reveal.
+                 * TODO: role-gated reveal for owner-admin only — next sprint.
+                 */}
               </dl>
 
               <div>
