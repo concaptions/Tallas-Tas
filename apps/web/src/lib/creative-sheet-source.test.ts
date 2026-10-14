@@ -94,15 +94,14 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       [13, 'qa_video_editor', 'Video Editor QA'],
       [14, 'qa_designer', 'Graphic Designer QA'],
       [15, 'qa_strategist', 'Creative Strategist QA'],
-      [16, 'client_comments', "Client's Comments"],
+      // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): client_comments (16), used (23),
+      // denied_revisions_needed (24) and winning (25) left the seed — creative_sheet_items is
+      // frozen and the Column Admin was offering dead toggles.
       [18, 'platform', 'Platform'],
       [19, 'funnel', 'Funnel'],
       [20, 'type', 'Type'],
       [21, 'proposed_copy', 'Proposed Copy'],
       [22, 'creative_module', 'Creative Module'],
-      [23, 'used', 'Used'],
-      [24, 'denied_revisions_needed', 'Denied/revisions needed'],
-      [25, 'winning', 'Winning'],
       [26, 'created_at', 'Created'],
       [27, 'updated_at', 'Last Modified'],
       [28, 'spell_check_requested', 'Click for AI Spell Checker Again'],
@@ -151,15 +150,12 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
 
     const resolved = await resolveColumns(db, niagara.id, 'creative_sheet_items');
     // 16 since item 5b hid client_approval_status on the sheet table (its client track is `status`).
-    expect(resolved).toHaveLength(16);
+    // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): four more off — client_comments (parent),
+    // used, denied_revisions_needed, winning (three platform rows). 16 → 12.
+    expect(resolved).toHaveLength(12);
     expect(resolved.map((column) => column.columnKey)).toContain('dimensions');
     expect(resolved.map((column) => column.displayLabel)).toContain('Last Modified');
-    for (const deadLookup of [
-      'performance',
-      'angle',
-      'proposed_copy',
-      'creative_module',
-    ]) {
+    for (const deadLookup of ['performance', 'angle', 'proposed_copy', 'creative_module']) {
       expect(resolved.some((column) => column.columnKey === deadLookup)).toBe(false);
     }
   });

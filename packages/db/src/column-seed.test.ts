@@ -713,12 +713,14 @@ describe('platform columns on concepts', () => {
         'creative_modules.foreplay_link',
         // Copywriting: client approval track
         'copywriting.client_approval_status',
-        // Creative Sheet: the ten fields Gratsi's base defines on this table and the parent's does
-        // not, plus client_approval_status. `name` is NOT here — the parent base really does define
-        // field 1, so that column is the parent's and merely happens to be computed.
+        // Creative Sheet: the Gratsi-only fields plus client_approval_status. `name` is NOT here —
+        // the parent base really does define field 1, so that column is the parent's and merely
+        // happens to be computed.
         // Hidden since item 5b (2026-10-11), still the platform's row.
+        // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): used, denied_revisions_needed and winning
+        // left the seed — creative_sheet_items is frozen and the Column Admin was offering dead
+        // toggles.
         'creative_sheet_items.client_approval_status',
-        'creative_sheet_items.denied_revisions_needed',
         'creative_sheet_items.dimensions',
         'creative_sheet_items.internal_status',
         'creative_sheet_items.qa_checklist_doc',
@@ -727,8 +729,6 @@ describe('platform columns on concepts', () => {
         'creative_sheet_items.qa_video_editor',
         'creative_sheet_items.spell_check_requested',
         'creative_sheet_items.spelling_feedback',
-        'creative_sheet_items.used',
-        'creative_sheet_items.winning',
       ].sort(),
     );
   });
@@ -1164,8 +1164,12 @@ describe('the Creative Sheet column set', () => {
     // (docs/decisions/overnight-dead-lookups.md).
     // One fewer each since item 5b (2026-10-11) hid client_approval_status on the sheet table.
     // One fewer on Gratsi since Collections retired (2026-10-12): its `Collection` lookup is hidden.
-    expect(onNiagara).toHaveLength(16);
-    expect(onGratsi).toHaveLength(29);
+    // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): four more columns off each —
+    // `client_comments` (parent + Gratsi relabel), `used`, `denied_revisions_needed`, `winning`
+    // (three platform rows) — because `creative_sheet_items` is frozen and the Column Admin was
+    // offering dead toggles. Niagara 16 → 12, Gratsi 29 → 25.
+    expect(onNiagara).toHaveLength(12);
+    expect(onGratsi).toHaveLength(25);
     // The 0059 column resolves for every brand, last, as the platform's.
     for (const set of [onNiagara, onGratsi]) {
       const dimensions = set.find((column) => column.columnKey === 'dimensions');
@@ -1198,24 +1202,26 @@ describe('the Creative Sheet column set', () => {
     );
     const keys = new Set(resolved.map((column) => column.columnKey));
 
+    // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): `client_comments`, `used`,
+    // `denied_revisions_needed` and `winning` left the seed with the Column Admin cleanup — the
+    // sheet is frozen and the grid no longer offers them.
     for (const drawn of [
       'name',
       'brief_id',
       'status',
-      'client_comments',
       'internal_status',
       'qa_checklist_doc',
       'qa_video_editor',
       'qa_designer',
       'qa_strategist',
-      'used',
-      'denied_revisions_needed',
-      'winning',
       'spell_check_requested',
       'spelling_feedback',
       'dimensions',
     ]) {
       expect(keys.has(drawn), `the Creative Sheet grid draws ${drawn}`).toBe(true);
+    }
+    for (const retired of ['client_comments', 'used', 'denied_revisions_needed', 'winning']) {
+      expect(keys.has(retired), `the retired column ${retired} is gone`).toBe(false);
     }
     // Three separate columns, because Airtable has three separate fields — not one `QA` header.
     expect(
@@ -1224,6 +1230,37 @@ describe('the Creative Sheet column set', () => {
       ),
     ).toHaveLength(3);
   });
+});
+
+/**
+ * Oct 14 follow-up #5 (`docs/sprint-oct12.md`): the four retired columns on the frozen
+ * `creative_sheet_items` table lose their seed rows, so the Column Admin stops offering toggles
+ * for columns the pages no longer draw. Four assertions pin the drop at the stored-row level —
+ * one `expect` per key — so a regression lands in CI, not in a stale production dropdown.
+ *
+ * The seed also writes `column_definitions` rows on every brand (template + child), so this test
+ * queries by `columnKey` scoped to `tableKey = 'creative_sheet_items'` to prove no brand got one.
+ */
+describe('Oct 14 follow-up #5 · retired column_definitions rows are gone', () => {
+  it.each(['client_comments', 'used', 'denied_revisions_needed', 'winning'])(
+    'leaves no creative_sheet_items.%s row in the seeded column_definitions table',
+    async (columnKey) => {
+      const db = await testDb();
+      await seed(db);
+      await seedColumnDefinitions(db);
+
+      const [count] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(columnDefinitions)
+        .where(
+          and(
+            eq(columnDefinitions.tableKey, 'creative_sheet_items'),
+            eq(columnDefinitions.columnKey, columnKey),
+          ),
+        );
+      expect(count?.n).toBe(0);
+    },
+  );
 });
 
 describe('the all-platform tables resolve for every brand', () => {

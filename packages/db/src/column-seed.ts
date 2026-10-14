@@ -1073,7 +1073,9 @@ const CREATIVE_SHEET_ITEMS_PARENT = parentRows('creative_sheet_items', [
   // Item 5b (2026-10-11): the sheet IS creative_briefs since the cutover, so its status column
   // is the client track in the one client vocabulary — worded as every other table words it.
   ['status', 'Client Approval', 9, 'singleSelect'],
-  ['client_comments', "Client's Comments", 10, 'multilineText'],
+  // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): `client_comments` left the seed with the three
+  // retired checkbox columns below — `creative_sheet_items` is frozen (no reader, no writer) and
+  // the Column Admin was still offering dead toggles.
   // Field 17 of the template's own table (`docs/audits/overnight-parent-columns.md` §DONT USE
   // Creative Sheet): the one system timestamp both bases carry, `baseColumns()`'s `updated_at`
   // surfaced under Airtable's label. Added by the Gratsi column match (2026-10-04) — the first
@@ -1142,9 +1144,9 @@ const CREATIVE_SHEET_ITEMS_PLATFORM = platformRows('creative_sheet_items', [
   ['qa_video_editor', 'Video Editor QA', 20, 'checkbox'],
   ['qa_designer', 'Graphic Designer QA', 21, 'checkbox'],
   ['qa_strategist', 'Creative Strategist QA', 22, 'checkbox'],
-  ['used', 'Used', 23, 'checkbox'],
-  ['denied_revisions_needed', 'Denied/revisions needed', 24, 'checkbox'],
-  ['winning', 'Winning', 25, 'singleSelect'],
+  // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): `used` (23), `denied_revisions_needed` (24)
+  // and `winning` (25) left the seed. `creative_sheet_items` is frozen (no reader, no writer)
+  // and the Column Admin was offering toggles for columns the pages no longer draw.
   ['spell_check_requested', 'Click for AI Spell Checker Again', 26, 'checkbox'],
   ['spelling_feedback', 'Spelling Feedback', 27, 'multilineText'],
   // The ratios the creative ships in (migration 0059): a stored copy of the brief's `Dimensions`
@@ -1190,7 +1192,9 @@ const CREATIVE_SHEET_ITEMS_GRATSI = [
     ['qa_video_editor', 'Video Editor QA', 13, 'relabel-platform', 'checkbox'],
     ['qa_designer', 'Graphic Designer QA', 14, 'relabel-platform', 'checkbox'],
     ['qa_strategist', 'Creative Strategist QA', 15, 'relabel-platform', 'checkbox'],
-    ['client_comments', "Client's Comments", 16, 'relabel', 'multilineText'],
+    // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): `client_comments` left the seed — matches
+    // the parent-side drop above; the Gratsi relabel inherits nothing because the parent row
+    // is gone.
     ['created_at', 'Created', 26, 'custom', 'createdTime'],
     ['updated_at', 'Last Modified', 27, 'relabel', 'lastModifiedTime'],
     [
