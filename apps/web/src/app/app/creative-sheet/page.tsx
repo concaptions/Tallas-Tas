@@ -1,17 +1,24 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { ViewType } from '@tas/domain';
+import { canViewBriefStats } from '@tas/domain';
 
 import { loadBriefs, loadNextBriefNumber } from '@/lib/briefs-source';
+import { loadBriefStatsForWorkspace } from '@/lib/brief-stats-source';
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeSheetColumns, loadCreativeSheetWorkspace } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { creativeSheetPath } from '@/lib/routes';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { loadViewPreference } from '@/lib/view-preference-actions';
+import { viewerRole } from '@/lib/viewer-role';
 
 import { buildSheetItems } from './build-items';
 import { CreativeSheetWorkspace } from './creative-sheet-workspace';
 import type { EditorBoardBrief } from './editor-board';
 import type { ConceptOption } from './new-creative-dialog';
 import { GROUP_PARAM, isKanbanField, SEARCH_PARAM, SELECTION_PARAM } from './fields';
+import { StatsTab } from './stats-tab';
 
 /**
  * Creative Sheet (Airtable `tblGC0TxnHI7lKaNQ`): the month's client-facing sheet, one row per
@@ -47,14 +54,37 @@ export const metadata = {
 
 const VALID_VIEWS = new Set<ViewType>(['grid', 'kanban', 'focus']);
 
+const STATS_TAB_KEY = 'stats';
+type SheetTab = 'rows' | 'stats';
+
+function tabKey(value: unknown): SheetTab {
+  return value === STATS_TAB_KEY ? 'stats' : 'rows';
+}
+
 export default async function CreativeSheetPage({ searchParams }: CreativeSheetPageProps) {
+  const params = await searchParams;
+  const tab = tabKey(params.tab);
+
+  if (tab === 'stats') {
+    const role = await viewerRole();
+    if (!canViewBriefStats(role)) {
+      redirect(creativeSheetPath);
+    }
+    const stats = await loadBriefStatsForWorkspace();
+    return (
+      <div className="flex flex-col gap-6">
+        <StatsHeader active="stats" />
+        <StatsTab stats={stats} />
+      </div>
+    );
+  }
+
   const [
     workspace,
     { columns, unconfigured: unconfiguredColumns },
     briefResult,
     conceptResult,
     nextNumber,
-    params,
     userViews,
     viewPref,
   ] = await Promise.all([
@@ -63,11 +93,12 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
     loadBriefs(),
     loadConcepts(),
     loadNextBriefNumber(),
-    searchParams,
     loadUserViews('creative-sheet'),
     loadViewPreference('creative-sheet'),
   ]);
   const demo = isDemoMode();
+  const role = await viewerRole();
+  const canSeeStats = canViewBriefStats(role);
 
   const items = buildSheetItems(workspace, new Date());
 
@@ -113,20 +144,61 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
         : 'internalStatus';
 
   return (
-    <CreativeSheetWorkspace
-      columns={columns}
-      unconfiguredColumns={unconfiguredColumns}
-      items={items}
-      boardBriefs={boardBriefs}
-      conceptOptions={conceptOptions}
-      nextNumber={nextNumber}
-      demo={demo}
-      initialSelection={selection}
-      initialSearch={initialSearch}
-      initialView={initialView}
-      defaultView={viewPref.viewType}
-      initialKanbanField={initialKanbanField}
-      userViews={userViews}
-    />
+    <div className="flex flex-col gap-6">
+      {canSeeStats ? <StatsHeader active="rows" /> : null}
+      <CreativeSheetWorkspace
+        columns={columns}
+        unconfiguredColumns={unconfiguredColumns}
+        items={items}
+        boardBriefs={boardBriefs}
+        conceptOptions={conceptOptions}
+        nextNumber={nextNumber}
+        demo={demo}
+        initialSelection={selection}
+        initialSearch={initialSearch}
+        initialView={initialView}
+        defaultView={viewPref.viewType}
+        initialKanbanField={initialKanbanField}
+        userViews={userViews}
+      />
+    </div>
+  );
+}
+
+/**
+ * The thin tab bar above the Creative Sheet: `rows` is the default grid/board, `stats` is the
+ * Ticket 12 analytics tab. Role-gated by `canViewBriefStats` at the caller; this component
+ * only renders the two links.
+ */
+function StatsHeader({ active }: { active: SheetTab }) {
+  const linkClass = (tab: SheetTab) =>
+    `rounded-input border px-3 py-1.5 font-mono text-[11px] tracking-wide uppercase ${
+      tab === active
+        ? 'border-accent-line text-accent bg-accent-soft'
+        : 'border-line text-text3 hover:text-text2'
+    }`;
+  return (
+    <nav
+      data-slot="creative-sheet-tabs"
+      aria-label="Creative Sheet views"
+      className="flex items-center gap-2"
+    >
+      <Link
+        className={linkClass('rows')}
+        data-slot="creative-sheet-tab-rows"
+        data-active={active === 'rows' ? 'true' : 'false'}
+        href={creativeSheetPath}
+      >
+        Rows
+      </Link>
+      <Link
+        className={linkClass('stats')}
+        data-slot="creative-sheet-tab-stats"
+        data-active={active === 'stats' ? 'true' : 'false'}
+        href={`${creativeSheetPath}?tab=stats`}
+      >
+        Stats
+      </Link>
+    </nav>
   );
 }

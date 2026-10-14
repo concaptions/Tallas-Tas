@@ -2362,3 +2362,14 @@ out under two workers on this container; `group-by.spec.ts`'s own UGC grouping t
 ## 2026-10-14 · Ticket 10 — brief-scoped annotations and comments
 
 2026-10-14: 0070 introduces brief-scoped annotations/comments beside the polymorphic ones. Unify ticket (post Oct 16 sync) will migrate polymorphic rows into brief-scoped tables and drop the polymorphic schemas.
+
+
+## 2026-10-14 · Ticket 12 — recharts added for the Creative Sheet stats tab
+
+Phase B3 Ticket 12 (Creative Sheet `?tab=stats`) adds `recharts@^2.15.0` as an `apps/web`
+dependency (the only chart library in the repo; a prior pipeline component noted "recharts is not
+installed"). Zero hosted-service cost. Scoped to `apps/web` only — the UI package does not import a
+chart library, so the design-system package stays runtime-free. Chart colours come from the token
+layer (`var(--ok|warn|bad|info|accent|text3|line)`), so light and dark modes both work without a
+hex ever reaching chart code.
+

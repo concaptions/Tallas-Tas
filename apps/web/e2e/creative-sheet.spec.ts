@@ -605,4 +605,41 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(focus.locator('[data-slot="focus-version-chips"]')).toBeVisible();
     await expect(focus.locator('[data-slot="focus-upload"]')).toBeDisabled();
   });
+
+  /**
+   * Ticket 12 — `?tab=stats` mounts the four panels. Demo mode seeds no activity log and no
+   * submissions, so every empty-state slot is visible. The role gate passes because demo mode
+   * returns `admin` from `loadViewerRole`.
+   */
+  test('`?tab=stats` renders the KPI, per-editor, weekly and turnaround panels with empty states', async ({
+    page,
+  }) => {
+    await page.goto(`${creativeSheetPath}?tab=stats`);
+
+    await expect(page.locator('[data-slot="brief-stats-tab"]')).toBeVisible();
+    await expect(page.locator('[data-slot="brief-stats-kpi"]')).toBeVisible();
+    await expect(page.locator('[data-slot="brief-stats-per-editor"]')).toBeVisible();
+    await expect(page.locator('[data-slot="brief-stats-weekly"]')).toBeVisible();
+    await expect(page.locator('[data-slot="brief-stats-turnaround"]')).toBeVisible();
+
+    // Every panel's empty-state slot is present (demo mode has no activity ledger).
+    const emptySlots = [
+      'brief-stats-in-flight-empty',
+      'brief-stats-approved-week-empty',
+      'brief-stats-avg-revision-empty',
+      'brief-stats-qa-pass-rate-empty',
+      'brief-stats-per-editor-empty',
+      'brief-stats-weekly-empty',
+      'brief-stats-turnaround-empty',
+    ];
+    for (const slot of emptySlots) {
+      await expect(page.locator(`[data-slot="${slot}"]`)).toBeVisible();
+    }
+
+    // The tab bar sits above the panels and marks `stats` active.
+    await expect(page.locator('[data-slot="creative-sheet-tab-stats"]')).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+  });
 });

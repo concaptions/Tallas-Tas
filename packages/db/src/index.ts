@@ -48,6 +48,28 @@ export {
   uploadBriefSubmission,
 } from './brief-submissions';
 export type { UploadSubmissionInput } from './brief-submissions';
+export {
+  approvedThisWeek,
+  avgRevisionHours,
+  briefsInFlight,
+  IN_FLIGHT_STATUSES,
+  loadBriefStats,
+  pairRevisionRows,
+  perEditorBars,
+  qaPassRatePct,
+  startOfWeekMonday,
+  trailingThirtyStart,
+  turnaroundTable,
+  weeklyOutput,
+} from './brief-stats';
+export type {
+  BriefStats,
+  BriefStatsKpi,
+  EditorBar,
+  TurnaroundRow,
+  WeekdayShort,
+  WeeklyOutputPoint,
+} from './brief-stats';
 export { importAirtableExport } from './airtable-import';
 export {
   getAssetById,

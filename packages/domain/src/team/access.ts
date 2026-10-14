@@ -546,3 +546,23 @@ export const REVIEW_BRIEF_NOT_PERMITTED =
 /** The Request Changes gate — at least one comment on the current version before the button fires. */
 export const REQUEST_CHANGES_NEEDS_COMMENT =
   'Request Changes needs at least one comment on this version.';
+
+/* ------------------------------------------------------------------------------------------------
+ * BRIEF STATS GATE (Ticket 12) — who may open the Creative Sheet's `?tab=stats` view.
+ * ---------------------------------------------------------------------------------------------- */
+
+/**
+ * Whether `role` may open the Creative Sheet stats tab (`/app/creative-sheet?tab=stats`).
+ *
+ * TRUE only for agency `admin` and brand-manager `csm`. The stats panel exposes internal metrics —
+ * assignee loads, QA pass rate, revision turnaround — that only the two roles who manage the
+ * agency's creative pipeline have a reason to see. FALSE for every other agency role (a strategist,
+ * video editor, designer or media buyer never needs the roster-wide roll-up) and FALSE for every
+ * brand role, member and the client (CLAUDE.md non-negotiable 10: clients see zero internal data).
+ */
+export function canViewBriefStats(role: ViewerRole | null | undefined): boolean {
+  if (role === null || role === undefined) {
+    return false;
+  }
+  return role === 'admin' || role === 'csm';
+}

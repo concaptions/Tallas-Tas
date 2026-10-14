@@ -23,6 +23,7 @@ import {
   canConfigureInterface,
   canReviewBrief,
   canSeeInternalWorkspace,
+  canViewBriefStats,
   canSeeNavSection,
   canSeePropagationPage,
   canSeeTeamPage,
@@ -512,6 +513,39 @@ describe('canApproveBrief', () => {
   it('denies by default on a null or undefined role', () => {
     expect(canApproveBrief(null, ME, ME)).toBe(false);
     expect(canApproveBrief(undefined, ME, ME)).toBe(false);
+  });
+});
+
+/**
+ * Ticket 12. Only `admin` and `csm` may open the Creative Sheet stats tab; every other agency role,
+ * every brand role, member and the client are refused, and a null or undefined role denies.
+ */
+describe('canViewBriefStats', () => {
+  const ALLOWED: readonly ViewerRole[] = ['admin', 'csm'];
+  const REFUSED: readonly ViewerRole[] = [
+    'strategist',
+    'media_buyer',
+    'video_editor',
+    'designer',
+    'member',
+    'client',
+  ];
+
+  it('lets agency admins and CSMs in', () => {
+    for (const role of ALLOWED) {
+      expect(canViewBriefStats(role), role).toBe(true);
+    }
+  });
+
+  it('refuses every other agency role, the org default and every client role', () => {
+    for (const role of REFUSED) {
+      expect(canViewBriefStats(role), role).toBe(false);
+    }
+  });
+
+  it('denies by default on a null or undefined role', () => {
+    expect(canViewBriefStats(null)).toBe(false);
+    expect(canViewBriefStats(undefined)).toBe(false);
   });
 });
 
