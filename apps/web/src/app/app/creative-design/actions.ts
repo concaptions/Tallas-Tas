@@ -655,6 +655,14 @@ export async function createBriefAction(
   if (isFailure(internal)) {
     return internal;
   }
+  // Oct 14 follow-up #3 (`docs/sprint-oct12.md`): a tampered FormData could ask to create a brief
+  // already past Draft (e.g. `ad_submitted` or `approved`), skipping every step before it. The
+  // CREATE path refuses any submitted internal status other than `draft`. The vocabulary check
+  // runs first (above), so an unknown spelling still answers "not a status on the internal track"
+  // rather than this new sentence.
+  if (values.internalStatus !== null && internal !== INTERNAL_ENTRY_STATUS) {
+    return fieldFailure({ internalStatus: 'A new brief starts at Draft.' });
+  }
   const client = clientStatusOr(values.clientStatus, BRIEF_CLIENT_STATUS_DEFAULT);
   if (isFailure(client)) {
     return client;

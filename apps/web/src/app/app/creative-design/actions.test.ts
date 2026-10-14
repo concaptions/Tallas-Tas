@@ -43,7 +43,10 @@ const filled = {
   briefToDesign: 'Cut the V2 from the 14 September rushes.',
   scriptContent: 'NURSE: Six years of nights.',
   elementsTested: 'Naming the rota as the broken thing.',
-  internalStatus: 'sent_to_editor_or_designer',
+  // Oct 14 follow-up #3 (`docs/sprint-oct12.md`): a new brief starts at `draft`; the CREATE path
+  // refuses any other submitted internal status, so this baseline stays at the entry state and
+  // the UPDATE paths below override it where they need a mid-pipeline fixture.
+  internalStatus: 'draft',
   clientStatus: 'pending_for_approval',
 };
 
@@ -271,9 +274,11 @@ describe('with Clerk configured', () => {
   it('refuses a client move while the internal track is not Approved', async () => {
     configured();
 
+    // Oct 14 follow-up #3: CREATE pins internal to `draft`, so the illegal shape this test
+    // covers is `draft` + a client key that only Approved opens.
     const result = await createBriefAction(
       null,
-      form({ ...filled, internalStatus: 'ad_submitted', clientStatus: 'approved' }),
+      form({ ...filled, internalStatus: 'draft', clientStatus: 'approved' }),
     );
 
     if (result.ok) {
@@ -282,6 +287,28 @@ describe('with Clerk configured', () => {
     expect(result.fieldErrors?.clientStatus).toBe(
       'The client track opens once internal status reaches Approved.',
     );
+  });
+
+  // Oct 14 follow-up #3 (`docs/sprint-oct12.md`): a tampered FormData can submit a status past
+  // Draft, so the CREATE path refuses every non-draft spelling in the seven-value vocabulary.
+  // The test runs once per key so a future addition to the list is covered by the loop, not by
+  // another forgotten branch.
+  it.each([
+    ['sent_to_editor_or_designer'],
+    ['under_editing_or_designing'],
+    ['ad_submitted'],
+    ['revisions_needed'],
+    ['revisions_submitted'],
+    ['approved'],
+  ])('refuses CREATE at %s with the Draft-only message', async (status) => {
+    configured();
+
+    const result = await createBriefAction(null, form({ ...filled, internalStatus: status }));
+
+    if (result.ok) {
+      throw new Error('a non-draft internal status was accepted on CREATE');
+    }
+    expect(result.fieldErrors?.internalStatus).toBe('A new brief starts at Draft.');
   });
 
   it('refuses a key outside INTERNAL_STATUS', async () => {
