@@ -59,7 +59,7 @@ import { TokenSection } from './token-section';
  * CSM is working on, so which concept fills it does not matter beyond it being a real one.
  */
 export const metadata = {
-  title: 'Interface Config — TAS Creative Platform',
+  title: 'Client Interface Configuration — TAS Creative Platform',
 };
 
 /** Live mode, guard says no. No tree, no preview and no switches — just the rule, in words. */
@@ -68,7 +68,9 @@ function NotAdmin() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Settings</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-text">Interface Config</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-text">
+          Client Interface Configuration
+        </h1>
       </header>
       <section
         data-slot="not-admin"

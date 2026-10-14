@@ -282,7 +282,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { key: 'team', label: 'Team', icon: 'team', href: teamPath },
       {
         key: 'interface-config',
-        label: 'Interface Config',
+        label: 'Client Interface Configuration',
         icon: 'interface',
         href: interfaceConfigPath,
       },

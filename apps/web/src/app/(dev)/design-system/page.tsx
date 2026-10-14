@@ -1499,7 +1499,7 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section
-        title="Interface Config: the switch, the page/field tree and the client preview"
+        title="Client Interface Configuration: the switch, the page/field tree and the client preview"
         note="The shapes /app/interface-config introduces. Mounted from the route's own components and wired to one draft, so the toggles work here too: the tree writes through toggleField / togglePage and the preview reads back through enabledPages / visibleFields. Every row is StepRow, every chip is StatusChip, and the switch is role=switch with rounded-input — never a pill."
       >
         <div className="flex flex-col gap-6">

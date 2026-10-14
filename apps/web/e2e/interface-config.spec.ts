@@ -38,7 +38,9 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
   test('renders both columns, six pages, and twelve fields under Concepts', async ({ page }) => {
     await page.goto(interfaceConfigPath);
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interface Config');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Client Interface Configuration',
+    );
     await expect(page.locator('[data-slot="config-tree"]')).toBeVisible();
     await expect(page.locator('[data-slot="config-preview"]')).toBeVisible();
 
@@ -186,7 +188,7 @@ test.describe('interface config in demo mode (no Clerk publishable key)', () => 
   }) => {
     await page.goto(interfaceConfigPath);
 
-    const link = page.getByRole('link', { name: 'Interface Config' });
+    const link = page.getByRole('link', { name: 'Client Interface Configuration' });
     await expect(link).toHaveAttribute('href', interfaceConfigPath);
     await expect(link).toHaveAttribute('aria-current', 'page');
     await expect(link.locator('[data-slot="soon-chip"]')).toHaveCount(0);

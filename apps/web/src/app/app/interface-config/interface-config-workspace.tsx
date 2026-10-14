@@ -119,7 +119,9 @@ export function InterfaceConfigWorkspace({ rows, demo, concept }: InterfaceConfi
       <header className="flex flex-col gap-1">
         <p className="font-mono text-[11px] tracking-wide text-text3 uppercase">Settings</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">Interface Config</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-text">
+            Client Interface Configuration
+          </h1>
           <form action={formAction} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="config" value={payload} />
             {dirty ? (
