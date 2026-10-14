@@ -121,6 +121,12 @@ export interface UgcWorkspaceProps {
   readonly canRate?: boolean;
   /** The request's one clock, for the rating receipt's "3 days ago"; never a component's own. */
   readonly now: Date;
+  /**
+   * The OTHER brands the open creator's registry row is in — the two-way link to the Creator Pool
+   * (Ticket 13 Phase B1, PRD §5.8, Oct 8 Talal sync). Empty when the open row has no registry link
+   * yet or no selection is open. The current brand is never in this list (the page filters it out).
+   */
+  readonly otherBrands?: readonly { readonly brandId: string; readonly brandName: string }[];
 }
 
 /** The grid selection's row identity, module-level so the hook's prune effect keeps one function. */
@@ -466,6 +472,7 @@ export function UgcWorkspace({
   brandName = 'this brand',
   canRate = false,
   now,
+  otherBrands = [],
 }: UgcWorkspaceProps) {
   const router = useRouter();
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
@@ -910,6 +917,7 @@ export function UgcWorkspace({
           demo={demo}
           canRate={canRate}
           now={now}
+          otherBrands={otherBrands}
           onClose={close}
           onSaved={saved}
         />

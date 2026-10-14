@@ -69,6 +69,12 @@ interface CreatorPanelProps {
   readonly now: Date;
   readonly onClose: () => void;
   readonly onSaved: (id: string) => void;
+  /**
+   * The OTHER brands the creator's registry row is in (Ticket 13 Phase B1 two-way link, PRD §5.8).
+   * Already filtered to exclude the current brand by the page. Empty when the creator has no
+   * registry link yet or the registry only knows them on this brand — the chip row then stays out.
+   */
+  readonly otherBrands?: readonly { readonly brandId: string; readonly brandName: string }[];
 }
 
 const AGE_BRACKETS = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
@@ -97,6 +103,7 @@ export function CreatorPanel({
   now,
   onClose,
   onSaved,
+  otherBrands = [],
 }: CreatorPanelProps) {
   const [state, formAction, pending] = useActionState<CreatorActionResult | null, FormData>(
     updateCreatorAction,
@@ -291,6 +298,24 @@ export function CreatorPanel({
           Close
         </Button>
       </header>
+
+      {otherBrands.length > 0 ? (
+        <div
+          className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5 sm:px-6"
+          data-slot="creator-other-brands"
+        >
+          <span className="text-[11px] tracking-wide text-text3 uppercase">In other brands:</span>
+          {otherBrands.map((entry) => (
+            <span
+              key={entry.brandId}
+              data-slot="creator-other-brand"
+              className="inline-flex items-center rounded-input border border-line bg-surface2 px-2 py-0.5 text-xs text-text2"
+            >
+              {entry.brandName}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {collabs.length > 0 ? (
         <div

@@ -4,6 +4,7 @@ import { loadConcepts } from '@/lib/concepts-source';
 import { currentBrand } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadProducts } from '@/lib/products-source';
+import { loadRegistryBrandHistory } from '@/lib/registry-source';
 import {
   loadAllCreatorAssets,
   loadCollaborations,
@@ -126,6 +127,20 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
           loadCollaborations(initialSelection),
           loadCreatorVideos(initialSelection),
         ]);
+
+  // Ticket 13 Phase B1 two-way link (PRD §5.8, Oct 8 Talal sync): the OTHER brands this registry
+  // creator is in. Only reach for the registry when a creator is open AND it links one — a brand's
+  // own row that was never seeded from the pool has no registry id to look up.
+  const selectedCreator =
+    initialSelection === null ? null : cards.find((row) => row.id === initialSelection) ?? null;
+  const selectedRegistryId =
+    selectedCreator === null ? null : creators.find((row) => row.id === selectedCreator.id)?.registryCreatorId ?? null;
+  const otherBrands =
+    selectedRegistryId === null
+      ? []
+      : (await loadRegistryBrandHistory(selectedRegistryId))
+          .filter((row) => row.brandId !== brand?.id)
+          .map((row) => ({ brandId: row.brandId, brandName: row.brandName }));
   const videos = (videoResult?.rows ?? []).map((row) => ({
     id: row.id,
     url: row.url,
@@ -171,6 +186,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
       brandName={brand?.name}
       canRate={canRate}
       now={now}
+      otherBrands={otherBrands}
     />
   );
 }
