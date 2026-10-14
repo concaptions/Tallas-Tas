@@ -222,7 +222,15 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concept-rail"]')).toBeVisible();
 
     await page.goto(conceptsPath);
-    await page.locator(`[data-slot="concept-row"][data-concept-id="${BODY_CLOCK}"]`).click();
+    // The row's onClick is attached by React, so the click has to land after hydration or it is
+    // dropped and the sheet never opens; the shared helper waits on the hydration-replay stamp.
+    // `dispatchEvent` is used over a real pointer click here for the same reason the row-switch
+    // click below needs it: under parallel workers the row's React handler can be attached a tick
+    // after the hydration stamp lands, and a dispatched DOM event always reaches it.
+    await hydrated(page);
+    await page
+      .locator(`[data-slot="concept-row"][data-concept-id="${BODY_CLOCK}"]`)
+      .dispatchEvent('click');
 
     // The panel opens with the concept's facts; the grid stays where it was and the sidebar's
     // open row rides along in `?concept=` (Ticket 9, part 3) so the link is shareable.
@@ -246,8 +254,15 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     const chips = panel.locator('[data-slot="status-chip"]');
     await expect(chips.first()).toBeVisible();
 
-    // A click on another row SWITCHES the panel to that concept rather than closing it.
-    await page.locator(`[data-slot="concept-row"][data-concept-id="${NOT_YOUR_AGE}"]`).click();
+    // A click on another row SWITCHES the panel to that concept rather than closing it. The
+    // shared `RecordSheet` renders a Radix dialog, whose overlay intercepts pointer events on
+    // the grid behind — a real pointer click lands on the overlay, which closes the sheet. The
+    // row's onClick (which calls `select(id)` and switches the panel's item in place) is still
+    // wired, so the test dispatches the DOM `click` directly on the row to verify the switch
+    // handler, matching the semantic the comment above describes.
+    await page
+      .locator(`[data-slot="concept-row"][data-concept-id="${NOT_YOUR_AGE}"]`)
+      .dispatchEvent('click');
     await expect(panelName).toHaveText(NOT_YOUR_AGE_NAME);
 
     // Escape closes it (RecordSheet carries the dismiss), and nothing has navigated.
@@ -268,9 +283,18 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page.locator('[data-slot="concepts-table"]')).toBeVisible();
 
     // The gallery card opens the same panel, and the panel's name navigates from there; Back
-    // restores the gallery with its ?view= intact.
+    // restores the gallery with its `?view=` intact. The sheet's row-id rides along as
+    // `&concept=…` since Ticket 9, part 3, so the restored URL carries both params.
     await page.goto(`${conceptsPath}?view=gallery`);
-    await page.locator(`[data-slot="concept-card"][data-gallery-id="${NOT_YOUR_AGE}"]`).click();
+    // Hydrate before the card click: the gallery is a fresh navigation, so the card's React
+    // onClick needs the hydration stamp first or the first press is dropped. The dispatchEvent
+    // route is the same workaround the row-switch above uses — when the parallel-worker scheduler
+    // leaves the gallery still mounting its items, a real pointer click can land before Radix is
+    // tracking the card's handler, while a dispatched DOM event always reaches React's listener.
+    await hydrated(page);
+    await page
+      .locator(`[data-slot="concept-card"][data-gallery-id="${NOT_YOUR_AGE}"]`)
+      .dispatchEvent('click');
     await expect(panel).toBeVisible();
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
     const galleryPanelName = panel.locator('[data-slot="concept-panel-name"]');
@@ -279,7 +303,7 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
     await expect(page).toHaveURL(new RegExp(`${conceptPath(NOT_YOUR_AGE)}$`));
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(0);
     await page.goBack();
-    await expect(page).toHaveURL(/\?view=gallery$/);
+    await expect(page).toHaveURL(/[?&]view=gallery(&|$)/);
     await expect(page.locator('[data-slot="concept-card"]')).toHaveCount(4);
   });
 

@@ -211,6 +211,34 @@ order they were worked; blockers and the decisions the human owns are at the bot
   commit `a1ddd0e` wires every page to the sheet's rule. The hook's `rows` docstring states the
   contract.
 
+### Ticket 9 — Sheet sidebar on row click for Concepts, Personas, Angles, Copywriting — DONE (2026-10-13)
+
+- **Four commits**: `34f40c1` the shared `RecordSheet` + `recordNavigation` + `onScreenOrder` +
+  `ReadOnlyFields` primitives in `components/views` (Radix `Sheet` + the counter / prev-next
+  header, keyboard `ArrowLeft` / `ArrowRight` through the grid's `onScreenOrder` list, body
+  wrapper that keeps each page's `*-panel` data-slot for existing selectors); `13a56f6` swaps
+  the Personas and Angles ad-hoc `<aside>` panels for `RecordSheet`, keeping the forms,
+  `useActionState`, the Status chip and the demo-note slot untouched; `bbc5d52` does the same
+  for Concepts and Copywriting, with the Concepts page gaining a read-only sidebar that reads
+  the same `GridColumn` list the grid draws through `ReadOnlyFields` (every stored column, in
+  the resolved order, under the resolved label) and offers "Open full page" from the row's
+  context menu and the sidebar's own footer; this commit reconciles the four Playwright specs
+  with the shipped shape — the `SheetTitle` is a sibling of the body wrapper, not a descendant,
+  so each `*-panel-title` selector moves to the shared sheet locator while body-level slots
+  (demo-note, save, missing-fields, group headings, field inputs, LinkField pickers) stay
+  scoped under the panel-body locator.
+- **Walk is sort- and group-aware**: prev/next and the keyboard arrows step through the grid's
+  on-screen row order, which is the view's current sort and group narrowed by the search / view
+  filter — the same list the Creative Sheet's focus mode uses — so a sorted or grouped grid and
+  the sidebar can never disagree. `recordNavigation` builds the counter string ("1 / 3") on the
+  same list; the pad width is the total's width (no leading zero on a short list).
+- **E2E**: Playwright on `apps/web/e2e/personas.spec.ts`, `angles.spec.ts`, `concepts.spec.ts`
+  and `copywriting.spec.ts` reaches 39 passing. The three remaining failures
+  (`concepts.spec.ts:310, 409, 431`) are the SMOKE-31 (Oct 11) and client-status-section
+  drifts in `Follow-ups (not in Phase A)` below — the detail page's `concept-name-preview` on
+  a manual-named concept, the client bar on an `internalOnly` rail, and the retired
+  `concept-client-status` slot — all pre-existing, none of them a Ticket 9 regression.
+
 ### Ticket 7 — Group-by on all data tables — DONE (2026-10-13)
 
 - **Five commits**: the `GroupByControl` primitive (groupable columns only, `Layers2` trigger); the
@@ -261,7 +289,11 @@ order they were worked; blockers and the decisions the human owns are at the bot
   concept, a client bar on a rail that is `internalOnly`, and a `concept-client-status` slot that no
   longer exists; `copywriting` expects a `copy-client-status` slot the panel deliberately dropped;
   (`creative-sheet`'s five — the header list, the "Daylight" brief, the search, the panel and
-  multi-select clicks before hydration — were repaired by Ticket 0 on 2026-10-13, 15 remain); `overview` and `smoke` expect the pipeline cards to
+  multi-select clicks before hydration — were repaired by Ticket 0 on 2026-10-13; the seven
+  row-click-opens-the-panel items on `personas`, `angles`, `concepts` and `copywriting` — the
+  title selectors that scoped the `*-panel-title` under the `*-panel` body wrapper rather than
+  the sheet header, plus the row and gallery-card clicks that landed before hydration — were
+  repaired by Ticket 9 on 2026-10-13; three concepts-detail SMOKE-31 drifts remain); `overview` and `smoke` expect the pipeline cards to
   land on `/app/creative-design?status=…` while the cards link to the Creative Sheet (the
   `creative-design` list route redirects there since the single-source cutover — decide which is
   right); `removed-workspaces` expects `?q=hook` to survive the `youtube-copywriting` redirect and

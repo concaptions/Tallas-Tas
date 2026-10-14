@@ -81,6 +81,9 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(personasPath);
+    // The row's onClick is attached by React, so the click has to land after hydration or it is
+    // dropped and the sheet never opens; the shared helper waits on the hydration-replay stamp.
+    await hydrated(page);
 
     const firstRow = page.locator('[data-slot="persona-row"]').first();
     const name = ((await firstRow.getAttribute('aria-label')) ?? '').trim();
@@ -88,15 +91,16 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
 
     await firstRow.click();
 
-    const panel = page.locator('[data-slot="persona-panel"]');
-    await expect(panel).toBeVisible();
-    await expect(panel.locator('[data-slot="persona-panel-title"]')).toHaveText(name);
-
     // Ticket 9: the panel rides the shared `RecordSheet`, with the counter and the two
     // prev/next buttons in its header. The counter pads to the total's width, so three rows
-    // read `1 / 3` not `01 / 3`.
+    // read `1 / 3` not `01 / 3`. The `persona-panel` body wrapper lives inside the sheet's
+    // scrollable body; the `persona-panel-title` is a sibling in the sheet header, so it is
+    // addressed through the sheet locator rather than the panel-body locator.
     const sheet = page.locator('[data-slot="record-sheet"]');
     await expect(sheet).toBeVisible();
+    const panel = page.locator('[data-slot="persona-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(sheet.locator('[data-slot="persona-panel-title"]')).toHaveText(name);
     await expect(sheet.locator('[data-slot="record-sheet-counter"]')).toHaveText('1 / 3');
     await expect(sheet.locator('[data-slot="record-sheet-prev"]')).toBeDisabled();
     await expect(sheet.locator('[data-slot="record-sheet-next"]')).toBeEnabled();
@@ -160,6 +164,9 @@ test.describe('personas in demo mode (no Clerk publishable key)', () => {
 
   test('the panel is read-only and refuses to save', async ({ page }) => {
     await page.goto(personasPath);
+    // The row's onClick is attached by React, so the click has to land after hydration or the
+    // sheet never opens and every panel-scoped assertion below times out looking for an empty DOM.
+    await hydrated(page);
     await page.locator('[data-slot="persona-row"]').first().click();
 
     const panel = page.locator('[data-slot="persona-panel"]');

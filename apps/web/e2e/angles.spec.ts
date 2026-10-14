@@ -121,6 +121,9 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(anglesPath);
+    // The row's onClick is attached by React, so the click has to land after hydration or it is
+    // dropped and the sheet never opens; the shared helper waits on the hydration-replay stamp.
+    await hydrated(page);
 
     const firstRow = page.locator('[data-slot="angle-row"]').first();
     const name = ((await firstRow.getAttribute('aria-label')) ?? '').trim();
@@ -128,14 +131,15 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
 
     await firstRow.click();
 
-    const panel = page.locator('[data-slot="angle-panel"]');
-    await expect(panel).toBeVisible();
-    await expect(panel.locator('[data-slot="angle-panel-title"]')).toHaveText(name);
-
     // Ticket 9: the panel rides the shared `RecordSheet`. Its header carries the record
-    // counter and the prev/next buttons that walk the on-screen row order.
+    // counter and the prev/next buttons that walk the on-screen row order, with the
+    // `angle-panel-title` living in the sheet header beside them — a sibling of the
+    // `angle-panel` body wrapper that holds the form, not a descendant of it.
     const sheet = page.locator('[data-slot="record-sheet"]');
     await expect(sheet).toBeVisible();
+    const panel = page.locator('[data-slot="angle-panel"]');
+    await expect(panel).toBeVisible();
+    await expect(sheet.locator('[data-slot="angle-panel-title"]')).toHaveText(name);
     await expect(sheet.locator('[data-slot="record-sheet-counter"]')).toHaveText('1 / 5');
     await expect(sheet.locator('[data-slot="record-sheet-prev"]')).toBeDisabled();
     await expect(sheet.locator('[data-slot="record-sheet-next"]')).toBeEnabled();
@@ -310,9 +314,14 @@ test.describe('angles in demo mode (no Clerk publishable key)', () => {
     // Demo disables the "New angle" button, so reach the create state the way the URL does.
     await page.goto(`${anglesPath}?angle=new`);
 
+    // The `angle-panel-title` lives in the sheet header (a sibling of the `angle-panel` body
+    // wrapper), so the title is addressed through the sheet; the "Linked work" assertions stay
+    // scoped to the panel body, where the section would have rendered on an existing angle.
+    const sheet = page.locator('[data-slot="record-sheet"]');
+    await expect(sheet).toBeVisible();
     const panel = page.locator('[data-slot="angle-panel"]');
     await expect(panel).toBeVisible();
-    await expect(panel.locator('[data-slot="angle-panel-title"]')).toHaveText('New angle');
+    await expect(sheet.locator('[data-slot="angle-panel-title"]')).toHaveText('New angle');
     await expect(panel.locator('[data-slot="angle-linked-heading"]')).toHaveCount(0);
     await expect(panel.locator('[data-slot="angle-creative-modules"]')).toHaveCount(0);
   });

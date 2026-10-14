@@ -123,6 +123,9 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(copywritingPath);
+    // The row's onClick is attached by React, so the click has to land after hydration or it is
+    // dropped and the sheet never opens; the shared helper waits on the hydration-replay stamp.
+    await hydrated(page);
 
     const firstRow = page.locator('[data-slot="copy-row"]').first();
     const title = ((await firstRow.getAttribute('aria-label')) ?? '').trim();
@@ -191,6 +194,9 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
 
   test('Linked Creative is a select of brief names, never a text input', async ({ page }) => {
     await page.goto(copywritingPath);
+    // The row's onClick is attached by React, so the click has to land after hydration or it is
+    // dropped and the sheet never opens; the shared helper waits on the hydration-replay stamp.
+    await hydrated(page);
     await page
       .locator('[data-slot="copy-row"]')
       .first()
@@ -302,6 +308,9 @@ test.describe('copywriting in demo mode (no Clerk publishable key)', () => {
     page,
   }) => {
     await page.goto(copywritingPath);
+    // The row's onClick is attached by React, so the click has to land after hydration or it is
+    // dropped and the sheet never opens; the shared helper waits on the hydration-replay stamp.
+    await hydrated(page);
     await page
       .locator('[data-slot="copy-row"]')
       .first()
