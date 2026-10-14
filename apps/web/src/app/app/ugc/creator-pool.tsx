@@ -24,11 +24,31 @@ export interface CreatorPoolProps {
   readonly brandName: string;
   readonly demo: boolean;
   readonly onAdded?: () => void;
+  /**
+   * Server-preloaded registry rows (Ticket 13 Phase B1): when the page loads them on the server
+   * and hands them in, the component skips its own client-side fetch. The UGC tab call-site still
+   * passes nothing, so that path remains client-fetched and this component is used from both.
+   */
+  readonly initialCreators?: readonly RegistryCreatorListRow[];
+  /**
+   * Server-preloaded brand history per registry id (Ticket 13 Phase B1). The aside reads it from
+   * the map directly; a creator missing from the map falls back to the server-action fetch.
+   */
+  readonly initialHistoryByCreatorId?: ReadonlyMap<string, readonly RegistryBrandHistoryRow[]>;
 }
 
-export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
-  const [registryCreators, setRegistryCreators] = useState<RegistryCreatorListRow[]>([]);
-  const [loading, setLoading] = useState(true);
+export function CreatorPool({
+  brandName,
+  demo,
+  onAdded,
+  initialCreators,
+  initialHistoryByCreatorId,
+}: CreatorPoolProps) {
+  const hasInitialCreators = initialCreators !== undefined;
+  const [registryCreators, setRegistryCreators] = useState<RegistryCreatorListRow[]>(
+    initialCreators ? [...initialCreators] : [],
+  );
+  const [loading, setLoading] = useState(!hasInitialCreators);
   const [query, setQuery] = useState('');
   const [platformFilter] = useState<string[]>([]);
   const [selectedCreator, setSelectedCreator] = useState<RegistryCreatorListRow | null>(null);
@@ -39,6 +59,10 @@ export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
   const [addResult, setAddResult] = useState<string | null>(null);
 
   useEffect(() => {
+    if (hasInitialCreators) {
+      // Server-side preload path (Ticket 13): the page already handed in the rows, no round trip.
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     void listRegistryCreatorsAction().then((rows) => {
@@ -50,7 +74,7 @@ export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasInitialCreators]);
 
   const filtered = useMemo(() => {
     const scored = registryCreators
@@ -77,18 +101,28 @@ export function CreatorPool({ brandName, demo, onAdded }: CreatorPoolProps) {
     return scored.map((entry) => entry.creator);
   }, [registryCreators, query, platformFilter]);
 
-  const selectCreator = useCallback((creator: RegistryCreatorListRow) => {
-    setSelectedCreator(creator);
-    setHistoryLoading(true);
-    void Promise.all([
-      getRegistryCreatorHistoryAction(creator.id),
-      getRegistryCreatorRatingsAction(creator.id),
-    ]).then(([rows, rated]) => {
-      setHistory(rows);
-      setRatings(rated);
-      setHistoryLoading(false);
-    });
-  }, []);
+  const selectCreator = useCallback(
+    (creator: RegistryCreatorListRow) => {
+      setSelectedCreator(creator);
+      const preloadedHistory = initialHistoryByCreatorId?.get(creator.id);
+      if (preloadedHistory !== undefined) {
+        // Server-preload path (Ticket 13 Phase B1): the aside's brand history is ready at render.
+        setHistory([...preloadedHistory]);
+      }
+      setHistoryLoading(preloadedHistory === undefined);
+      void Promise.all([
+        preloadedHistory !== undefined
+          ? Promise.resolve([...preloadedHistory])
+          : getRegistryCreatorHistoryAction(creator.id),
+        getRegistryCreatorRatingsAction(creator.id),
+      ]).then(([rows, rated]) => {
+        setHistory(rows);
+        setRatings(rated);
+        setHistoryLoading(false);
+      });
+    },
+    [initialHistoryByCreatorId],
+  );
 
   const handleAdd = useCallback(
     (registryCreatorId: string) => {

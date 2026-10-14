@@ -24,6 +24,19 @@ export const copywritingPath = '/app/copywriting';
 export const metaCopywritingPath = copywritingPath;
 export const ugcPath = '/app/ugc';
 /**
+ * The global Creator Pool (PRD §5.8, Oct 8 Talal sync, Ticket 13). A top-level nav section rather
+ * than a UGC tab: the pool is global (every brand), the per-brand roster is brand-scoped. The
+ * `/app/ugc?tab=pool` legacy tab stays live for the duration — this is a sibling, not a replacement.
+ */
+export const creatorPoolPath = '/app/creator-pool';
+/**
+ * One registry creator's detail route. The id is encoded, like the other detail helpers; a non-uuid
+ * segment can never produce a second path component.
+ */
+export function creatorPoolDetailPath(id: string): string {
+  return `${creatorPoolPath}/${encodeURIComponent(id)}`;
+}
+/**
  * The Internal Queue board (PRD §9, §13). It lives under a `queue` segment rather than at
  * `/app/internal-queue` because the Client Queue is the next page in the same group: two boards of
  * the same shape, one per track, and the segment is what keeps them siblings instead of two

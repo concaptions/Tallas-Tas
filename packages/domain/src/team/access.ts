@@ -203,6 +203,7 @@ export const NAV_SECTION_KEYS = [
   'briefs',
   'creative-sheet',
   'ugc',
+  'creator-pool',
   'client-assets',
   'assets',
   'upload-links',

@@ -14,6 +14,7 @@ import {
   creativeModulesPath,
   creativeReportingPath,
   creativeSheetPath,
+  creatorPoolPath,
   creatorRankingPath,
   emailCampaignsPath,
   emailFlowsPath,
@@ -142,6 +143,13 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         href: creativeSheetPath,
       },
       { key: 'ugc', label: 'UGC Management', icon: 'ugc', emoji: '🎬', href: ugcPath },
+      {
+        key: 'creator-pool',
+        label: 'Creator Pool',
+        icon: 'user',
+        emoji: '👥',
+        href: creatorPoolPath,
+      },
       {
         key: 'client-assets',
         label: 'Client Assets',
