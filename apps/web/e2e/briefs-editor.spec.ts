@@ -53,10 +53,13 @@ test.describe('editor view of a brief in demo mode (no Clerk publishable key)', 
     await expect(stage.locator('[data-slot="status-chip"]')).toHaveAttribute('data-tone', 'info');
 
     // The Scripts table under the details, and the Activity log with its worded empty state.
+    // Oct 12 ask (QA item 33): columns are Type / Script / B-roll / Instructions, with a live
+    // word count under each Script cell.
     await expect(page.locator('[data-slot="brief-scripts-table"] thead th')).toHaveText([
+      'Type',
       'Script',
-      'Kind',
-      'Status',
+      'B-roll',
+      'Instructions',
     ]);
     await expect(page.locator('[data-slot="brief-activity"]')).toBeVisible();
     await expect(page.locator('[data-slot="brief-activity-empty"]')).toContainText(

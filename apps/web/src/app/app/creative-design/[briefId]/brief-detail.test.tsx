@@ -194,6 +194,29 @@ describe('BriefDetail — the Dimensions picker (smoke test, 2026-10-10)', () =>
   });
 });
 
+/**
+ * Oct 12 ask (QA item 33): the Scripts table in the brief sidebar shows a live word count under
+ * each Script cell. The test seeds the brief with a 50-word script and asserts the markup carries
+ * "50 words" — the exact string the strategist reads at a glance.
+ */
+describe('BriefDetail — scripts table word count (Oct 12 QA item 33)', () => {
+  it('renders "50 words" under a Script cell seeded with a 50-word scriptContent', () => {
+    const fiftyWordScript = Array.from({ length: 50 }, (_, i) => `word${String(i + 1)}`).join(' ');
+    const markup = render(values({ scriptContent: fiftyWordScript }));
+
+    expect(markup).toContain('brief-script-word-count');
+    expect(markup).toContain('50 words');
+  });
+
+  it('renders "0 words" when scriptContent is empty, under the empty-state row only once', () => {
+    const markup = render(values({ scriptContent: null }));
+
+    // Empty state: no Script row, so no word-count line either.
+    expect(markup).toContain('brief-scripts-empty');
+    expect(markup).not.toContain('brief-script-word-count');
+  });
+});
+
 /** The h1 the page prints for the name. */
 function heading(markup: string): string | undefined {
   return /data-slot="brief-name"[^>]*>([^<]*)</.exec(markup)?.[1];

@@ -162,6 +162,17 @@ interface BriefScriptRow {
 const NO_SCRIPTS_NOTE =
   'No script yet. The creative’s script and its Copywriting rows appear here.';
 
+/**
+ * Live script word count (Oct 12 ask, QA item 33). Whitespace-split, trimmed empties collapse
+ * to zero. The format the strategist reads is always "N words", so the caller interpolates
+ * `{countWords(text)} words` without pluralising — "1 words" is accepted per the ask.
+ */
+function countWords(text: string): number {
+  const trimmed = text.trim();
+  if (trimmed === '') return 0;
+  return trimmed.split(/\s+/).length;
+}
+
 /** A value no uuid can be, so the Select can offer "Standalone" without an empty item value. */
 const STANDALONE_VALUE = 'standalone';
 
@@ -354,6 +365,14 @@ export function BriefDetail({
   const [version, setVersion] = useState(String(brief.version));
   const [performanceChoice, setPerformanceChoice] = useState(brief.performance ?? NOT_GRADED_VALUE);
   /**
+   * Oct 12 ask (QA item 33): the Scripts table shows a live word count under each Script cell,
+   * and the only live source is the actual Script textarea the strategist is typing in — the
+   * centre prose column's `scriptContent`. React re-renders when state changes, so the Textarea
+   * is lifted to controlled state here; the Scripts table reads the same state and renders
+   * `countWords(scriptContentValue)` as "N words" (singular tolerated for parity with the ask).
+   */
+  const [scriptContentValue, setScriptContentValue] = useState(brief.scriptContent ?? '');
+  /**
    * The Dimensions picker SAVES ON TICK (smoke test, 2026-10-10: it set React state and nothing
    * reached the server until "Save brief"). Seeded by `briefDimensionKeys` — the stored array
    * normalised, so an imported brief's placement names tick their ratios, or PRD §8's defaults
@@ -435,13 +454,15 @@ export function BriefDetail({
 
   // The Scripts table (EDIT-04): the brief's own script, then every Meta Copywriting row written
   // for it — the rows under the details an editor reads before cutting.
+  // Oct 12 ask (QA item 33): read the Script row's label from the controlled scriptContentValue
+  // state so the word count beneath it stays in step with the centre column's live Textarea.
   const scripts: readonly BriefScriptRow[] = [
-    ...(brief.scriptContent === null || brief.scriptContent.trim() === ''
+    ...(scriptContentValue.trim() === ''
       ? []
       : [
           {
             id: 'script-content',
-            label: brief.scriptContent,
+            label: scriptContentValue,
             kind: 'Script',
             statusLabel: null,
             statusTone: 'mute' as const,
@@ -846,29 +867,50 @@ export function BriefDetail({
           </section>
 
           <section data-slot="brief-centre" className="flex min-w-0 flex-col gap-5">
-            {BRIEF_PROSE_FIELDS.map((field) => (
-              <div key={field.name} className="flex min-w-0 flex-col gap-1.5">
-                <Label
-                  htmlFor={`brief-field-${field.name}`}
-                  className="text-[11px] tracking-wide text-text3 uppercase"
-                >
-                  {field.label}
-                </Label>
-                <p className="text-xs text-text3">{field.hint}</p>
-                <Textarea
-                  id={`brief-field-${field.name}`}
-                  name={field.name}
-                  readOnly={demo}
-                  placeholder={EM_DASH}
-                  defaultValue={brief[field.name] ?? ''}
-                  data-slot={`brief-${field.name}`}
-                  className="min-h-32 leading-relaxed"
-                />
-                {fieldError(field.name) === undefined ? null : (
-                  <p className="text-xs text-bad">{fieldError(field.name)}</p>
-                )}
-              </div>
-            ))}
+            {BRIEF_PROSE_FIELDS.map((field) => {
+              // Oct 12 ask (QA item 33): scriptContent is lifted to controlled state so the
+              // Scripts table's word count re-renders live as the strategist types. Every other
+              // prose field stays uncontrolled (defaultValue) — nothing else reads them live.
+              const isScript = field.name === 'scriptContent';
+              return (
+                <div key={field.name} className="flex min-w-0 flex-col gap-1.5">
+                  <Label
+                    htmlFor={`brief-field-${field.name}`}
+                    className="text-[11px] tracking-wide text-text3 uppercase"
+                  >
+                    {field.label}
+                  </Label>
+                  <p className="text-xs text-text3">{field.hint}</p>
+                  {isScript ? (
+                    <Textarea
+                      id={`brief-field-${field.name}`}
+                      name={field.name}
+                      readOnly={demo}
+                      placeholder={EM_DASH}
+                      value={scriptContentValue}
+                      onChange={(event) => {
+                        setScriptContentValue(event.target.value);
+                      }}
+                      data-slot={`brief-${field.name}`}
+                      className="min-h-32 leading-relaxed"
+                    />
+                  ) : (
+                    <Textarea
+                      id={`brief-field-${field.name}`}
+                      name={field.name}
+                      readOnly={demo}
+                      placeholder={EM_DASH}
+                      defaultValue={brief[field.name] ?? ''}
+                      data-slot={`brief-${field.name}`}
+                      className="min-h-32 leading-relaxed"
+                    />
+                  )}
+                  {fieldError(field.name) === undefined ? null : (
+                    <p className="text-xs text-bad">{fieldError(field.name)}</p>
+                  )}
+                </div>
+              );
+            })}
 
             <div className="flex min-w-0 flex-col gap-2" data-slot="brief-inspiration">
               <span className="text-[11px] tracking-wide text-text3 uppercase">
@@ -907,37 +949,74 @@ export function BriefDetail({
               <Table data-slot="brief-scripts-table">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
+                    <TableHead className="px-3">Type</TableHead>
                     <TableHead className="px-3">Script</TableHead>
-                    <TableHead className="px-3">Kind</TableHead>
-                    <TableHead className="px-3">Status</TableHead>
+                    <TableHead className="px-3">B-roll</TableHead>
+                    <TableHead className="px-3">Instructions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {scripts.length === 0 ? (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={3} className="px-3 py-6 text-center text-sm text-text3">
+                      <TableCell colSpan={4} className="px-3 py-6 text-center text-sm text-text3">
                         <span data-slot="brief-scripts-empty">{NO_SCRIPTS_NOTE}</span>
                       </TableCell>
                     </TableRow>
                   ) : (
                     scripts.map((script) => (
                       <TableRow key={script.id} data-slot="brief-script-row">
-                        <TableCell className="max-w-[480px] truncate px-3 py-1.5 text-text2">
-                          {script.href === null ? (
-                            script.label
-                          ) : (
-                            <Link href={script.href} className="underline-offset-2 hover:underline">
-                              {script.label}
-                            </Link>
-                          )}
+                        <TableCell className="px-3 py-1.5 align-top text-text3">
+                          {script.kind}
                         </TableCell>
-                        <TableCell className="px-3 py-1.5 text-text3">{script.kind}</TableCell>
-                        <TableCell className="px-3 py-1.5">
-                          {script.statusLabel === null ? (
-                            <span className="text-text4">{EM_DASH}</span>
-                          ) : (
-                            <StatusChip tone={script.statusTone} label={script.statusLabel} />
-                          )}
+                        <TableCell className="max-w-[480px] px-3 py-1.5 align-top text-text2">
+                          <div
+                            className="truncate whitespace-pre-wrap"
+                            data-slot="brief-script-text"
+                          >
+                            {script.href === null ? (
+                              script.label
+                            ) : (
+                              <Link
+                                href={script.href}
+                                className="underline-offset-2 hover:underline"
+                              >
+                                {script.label}
+                              </Link>
+                            )}
+                          </div>
+                          {/*
+                            Oct 12 ask (QA item 33): live word count under every Script cell.
+                            The strategist watches this update as they type in the centre column.
+                           */}
+                          <div
+                            data-slot="brief-script-word-count"
+                            className="mt-1 text-[11px] text-text3"
+                          >
+                            {countWords(script.label)} words
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-1.5 align-top">
+                          {/*
+                            B-roll — a plain per-row input until the global B-roll library ships
+                            next sprint. Not posted with the form, so no `name` attribute.
+                           */}
+                          <Input
+                            type="text"
+                            aria-label="B-roll"
+                            data-slot="brief-script-broll"
+                            readOnly={demo}
+                            className="h-8 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="px-3 py-1.5 align-top">
+                          {/* Instructions — same per-row ephemeral input shape as B-roll. */}
+                          <Input
+                            type="text"
+                            aria-label="Instructions"
+                            data-slot="brief-script-instructions"
+                            readOnly={demo}
+                            className="h-8 text-xs"
+                          />
                         </TableCell>
                       </TableRow>
                     ))
