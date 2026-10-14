@@ -45,7 +45,7 @@ describe('the Creative Sheet view over creative_briefs', () => {
     expect(updated).toEqual([...updated].sort((a, b) => b - a));
 
     // A brief that never had a legacy sheet row (the 19 at the cutover) is on the sheet at once.
-    const fresh = await insertBrief(db, brandId, { name: 'TAS-TOF-V099-Fresh' }, ACTOR);
+    const fresh = await insertBrief(db, brandId, { name: 'TAS_TOF_V_099_fresh' }, ACTOR);
     const after = await listCreativeSheetItems(db, brandId);
     expect(after).toHaveLength(before.length + 1);
     expect(after[0]?.id).toBe(fresh.id);
@@ -66,7 +66,7 @@ describe('the Creative Sheet view over creative_briefs', () => {
       db,
       brandId,
       {
-        name: 'TAS-TOF-V042-Read-Through',
+        name: 'TAS_TOF_V_042_read-through',
         internalStatus: 'ad_submitted',
         clientStatus: 'revisions_needed',
         qaVideoEditor: true,
@@ -93,7 +93,7 @@ describe('the Creative Sheet view over creative_briefs', () => {
       spellingFeedback: 'teh → the',
       qaChecklistDoc: ['https://docs.example/qa'],
       dimensions: ['9:16', '1:1'],
-      briefName: 'TAS-TOF-V042-Read-Through',
+      briefName: 'TAS_TOF_V_042_read-through',
       briefType: 'Video',
       briefFunnel: 'TOF',
     });
@@ -109,7 +109,7 @@ describe('the Creative Sheet view over creative_briefs', () => {
 
   it('has ONE write path for dimensions: the sheet’s pick and the brief page land on the same column', async () => {
     const { db, brandId, otherBrandId } = await seeded();
-    const brief = await insertBrief(db, brandId, { name: 'TAS-TOF-V044-Ratios' }, ACTOR);
+    const brief = await insertBrief(db, brandId, { name: 'TAS_TOF_V_044_ratios' }, ACTOR);
 
     // The sheet's save-on-pick field writes through updateBriefDimensions …
     const picked = await updateBriefDimensions(db, brandId, brief.id, ['9:16', '4:5'], ACTOR);
@@ -129,7 +129,7 @@ describe('the Creative Sheet view over creative_briefs', () => {
 
   it('returns nothing for another brand, and nothing once a brief is soft-deleted', async () => {
     const { db, brandId, otherBrandId } = await seeded();
-    const brief = await insertBrief(db, brandId, { name: 'TAS-TOF-V043-Scoped' }, ACTOR);
+    const brief = await insertBrief(db, brandId, { name: 'TAS_TOF_V_043_scoped' }, ACTOR);
 
     expect(await getCreativeSheetItemById(db, otherBrandId, brief.id)).toBeNull();
     const otherRows = await listCreativeSheetItems(db, otherBrandId);

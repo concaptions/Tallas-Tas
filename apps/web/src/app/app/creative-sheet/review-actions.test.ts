@@ -271,7 +271,7 @@ function brief(overrides: Partial<CreativeBrief> = {}): CreativeBrief {
   return {
     id: VIDEO_ID,
     brandId: 'brand-under-test',
-    name: 'TAS-TOF-V007-Pain-UGC-B1',
+    name: 'TAS_TOF_V_007_pain-ugc_B1',
     nameMode: 'auto',
     briefNumber: 7,
     conceptId: 'concept-1',
@@ -530,7 +530,7 @@ describe('Duplicate — copy and reset rules (scope 3)', () => {
 
     expect(result).toEqual({
       ok: true,
-      created: [{ id: 'copy-1', name: 'TAS-TOF-V042-Pain-UGC-B1' }],
+      created: [{ id: 'copy-1', name: 'TAS_TOF_V_042_pain-ugc_B1' }],
       skipped: 0,
     });
     expect(seam.created[0]).toMatchObject({

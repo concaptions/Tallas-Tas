@@ -6,7 +6,7 @@ import {
   type ConceptInput,
   type Db,
 } from '@tas/db';
-import { generateBriefName } from '@tas/domain/briefs';
+import { buildBriefName } from '@tas/domain/briefs';
 import { conceptName } from '@tas/domain/concepts';
 import { conceptNameSegment } from '@tas/domain/creatives';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -118,7 +118,7 @@ vi.mock('@tas/db', async (importOriginal) => {
           id: row.id,
           briefNumber: row.briefNumber,
           nameMode: row.nameMode,
-          // Enough of a shape for the cascade to feed `generateBriefName` — real fields come from
+          // Enough of a shape for the cascade to feed `buildBriefName` — real fields come from
           // fixtures in other tests; the cascade reads name_mode, brief_number and the formula's
           // source, funnel and type.
           source: 'TAS',
@@ -582,7 +582,7 @@ describe('with Clerk configured', () => {
 /**
  * The concept-rename cascade (2026-10-09, migration 0060). Only a brief the formula owns —
  * `name_mode = 'auto'`, created by "New creative" — is renamed, and it is renamed with the SAME
- * formula that named it (`generateBriefName`, the brief's own number) and the concept's new
+ * formula that named it (`buildBriefName`, the brief's own number) and the concept's new
  * `Angle-Theme` segment. An imported or hand-typed name is `manual` (the column default every
  * pre-0060 row kept) and is never touched: the audit found the old `briefNumber === null` guard let
  * a concept save rewrite every Airtable-imported brief under it into the PRD §7 shape.
@@ -628,17 +628,23 @@ describe('updateConceptAction · the concept-rename cascade renames only auto-na
     expect(seam.renames).toEqual([
       {
         id: 'auto-brief',
-        name: generateBriefName({
+        name: buildBriefName({
           source: 'TAS',
           funnel: 'TOF',
-          creativeType: 'Video',
+          type: 'Video',
           number: 7,
-          concept: conceptNameSegment({ name: newConceptName, batch: 'B9' }),
-          batch: 'B9',
+          conceptName: conceptNameSegment({ name: newConceptName, batch: 'B9' }),
+          conceptBatch: 'B9',
         }),
       },
     ]);
     // The batch is printed once: as the trailing segment, never also inside the concept segment.
-    expect(seam.renames[0]?.name).toBe(`TAS-TOF-V007-${newConceptName.slice('B9-'.length)}-B9`);
+    // The concept slug is lowercased and non-alphanumerics collapse to a single hyphen.
+    const expectedSlug = newConceptName
+      .slice('B9-'.length)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    expect(seam.renames[0]?.name).toBe(`TAS_TOF_V_007_${expectedSlug}_B9`);
   });
 });

@@ -681,7 +681,7 @@ describe('allocateBriefNumber', () => {
     await insertBrief(
       db,
       brandId,
-      { name: `TAS-TOF-V${String(briefNumber).padStart(3, '0')}-${nameSuffix}`, briefNumber },
+      { name: `TAS_TOF_V_${String(briefNumber).padStart(3, '0')}_${nameSuffix}`, briefNumber },
       'user_test',
     );
   }

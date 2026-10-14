@@ -108,12 +108,12 @@ describe('createBriefAction · what reaches the query layer', () => {
     expect(result).toMatchObject({
       ok: true,
       id: 'brief-created',
-      name: 'Client-TOF-V007-Batch 1',
+      name: 'Client_TOF_V_007_Batch 1',
     });
     expect(seam.created).toHaveLength(1);
     expect(seam.created[0]).toMatchObject({
       values: { source: 'Client', batch: 'Batch 1', conceptId: null },
-      name: 'Client-TOF-V007-Batch 1',
+      name: 'Client_TOF_V_007_Batch 1',
       nameMode: 'auto',
     });
   });
@@ -125,7 +125,7 @@ describe('createBriefAction · what reaches the query layer', () => {
 
     expect(seam.created[0]).toMatchObject({
       values: { source: 'TAS' },
-      name: 'TAS-TOF-V007-Batch 1',
+      name: 'TAS_TOF_V_007_Batch 1',
     });
   });
 
@@ -146,7 +146,7 @@ describe('createBriefAction · what reaches the query layer', () => {
 
     expect(seam.created[0]).toMatchObject({
       values: { conceptId: LINKED_CONCEPT_ID, batch: 'B1' },
-      name: 'TAS-TOF-V007-Pain-UGC-B1',
+      name: 'TAS_TOF_V_007_pain-ugc_B1',
       nameMode: 'auto',
     });
   });

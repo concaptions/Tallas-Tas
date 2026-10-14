@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { creativeSources, type CreativeSource } from '@tas/db/schema';
-import { BRIEF_NAME_DEFAULT_SOURCE, generateBriefName } from '@tas/domain/briefs';
+import { BRIEF_AUTO_NAME_DEFAULT_SOURCE, buildBriefName } from '@tas/domain/briefs';
 import {
   conceptNameSegment,
   CREATIVE_FUNNELS,
@@ -47,16 +47,16 @@ export interface ConceptOption {
 
 /**
  * "New creative" on the Creative Sheet (2026-10-09, audit item 7). The one entry point for a new
- * creative: it creates the BRIEF through `createBriefAction` — auto-named by `generateBriefName`,
- * numbered under the brand's advisory lock — and the linked sheet row in the same transaction, so
- * a sheet row never exists without a named, numbered creative behind it.
+ * creative: it creates the BRIEF through `createBriefAction` — auto-named by `buildBriefName`
+ * (Ticket 3, Oct 14), numbered under the brand's advisory lock — and the linked sheet row in the
+ * same transaction, so a sheet row never exists without a named, numbered creative behind it.
  *
  * It is the Oct 5 `NewBriefDialog` re-homed from the retired Creative Design list, with two fixes
  * the audit found: Source is a select over `creativeSources` (and the action now stores it), and
  * the concept segment is `conceptNameSegment` — the concept's `Angle-Theme` without its batch, so
- * a linked creative reads `TAS-TOF-V001-Pain-UGC-B1` and never `…-B1-Pain-UGC-B1`.
+ * a linked creative reads `TAS_TOF_V_001_pain-ugc_B1` and never `…_B1_pain-ugc_B1`.
  *
- * The preview is a client-side pure call to `generateBriefName`, so the name updates with no round
+ * The preview is a client-side pure call to `buildBriefName`, so the name updates with no round
  * trip as the user picks source, funnel, type, concept and batch. `nextNumber` is the page's best
  * guess (`MAX(brief_number) + 1` over the briefs it loaded); the server allocates the real one.
  *
@@ -94,7 +94,7 @@ export function NewCreativeDialog({
     null,
   );
 
-  const [source, setSource] = useState<CreativeSource>(BRIEF_NAME_DEFAULT_SOURCE);
+  const [source, setSource] = useState<CreativeSource>(BRIEF_AUTO_NAME_DEFAULT_SOURCE);
   const [funnel, setFunnel] = useState<CreativeFunnelKey>(CREATIVE_FUNNELS[0].key);
   const [type, setType] = useState<CreativeTypeKey>(CREATIVE_TYPES[0].key);
   const [conceptChoice, setConceptChoice] = useState(STANDALONE_VALUE);
@@ -127,13 +127,13 @@ export function NewCreativeDialog({
 
   // A linked creative copies its concept's batch, exactly as the action does.
   const effectiveBatch = concept?.batch ?? batch;
-  const auto = generateBriefName({
+  const auto = buildBriefName({
     source,
     funnel,
-    creativeType: type,
+    type,
     number: nextNumber,
-    concept: concept === null ? null : conceptNameSegment(concept),
-    batch: effectiveBatch,
+    conceptName: concept === null ? null : conceptNameSegment(concept),
+    conceptBatch: effectiveBatch,
   });
   const preview = nameMode === 'manual' && manualName.trim() !== '' ? manualName : auto;
 
@@ -148,7 +148,7 @@ export function NewCreativeDialog({
         <DialogHeader>
           <DialogTitle>New creative</DialogTitle>
           <DialogDescription>
-            Source-Funnel-TypeInitial-Number-Concept-Batch. The name writes itself as you choose
+            Source_Funnel_TypeInitial_Number_Concept_Batch. The name writes itself as you choose
             each part; flip the toggle to type one by hand. The creative lands on this sheet.
           </DialogDescription>
         </DialogHeader>

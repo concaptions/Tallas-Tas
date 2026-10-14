@@ -30,7 +30,7 @@ import {
   type Db,
 } from '@tas/db';
 import { diffFields } from '@tas/domain';
-import { duplicateManualName, generateBriefName } from '@tas/domain/briefs';
+import { buildBriefName, duplicateManualName } from '@tas/domain/briefs';
 import { conceptNameSegment } from '@tas/domain/creatives';
 import {
   clientSubmissionTarget,
@@ -312,13 +312,13 @@ export async function duplicateCreativesAction(ids: readonly string[]): Promise<
           (briefNumber) =>
             source.nameMode === 'manual'
               ? duplicateManualName(source.name, values.version ?? source.version + 1)
-              : generateBriefName({
+              : buildBriefName({
                   source: source.source,
                   funnel: source.funnel,
-                  creativeType: source.type,
+                  type: source.type,
                   number: briefNumber,
-                  concept: concept === null ? null : conceptNameSegment(concept),
-                  batch: values.batch ?? null,
+                  conceptName: concept === null ? null : conceptNameSegment(concept),
+                  conceptBatch: values.batch ?? null,
                 }),
           source.nameMode,
           actor.id,

@@ -18,7 +18,7 @@ import {
   type ConceptInput,
 } from '@tas/db';
 import { isAngleFormat, type AngleFormatKey } from '@tas/domain/angles';
-import { generateBriefName } from '@tas/domain/briefs';
+import { buildBriefName } from '@tas/domain/briefs';
 import { conceptNameSegment } from '@tas/domain/creatives';
 import {
   conceptName,
@@ -569,8 +569,8 @@ export async function updateConceptAction(
       ]);
 
       // Cascade: when the concept name changed, recompute the name of every brief the FORMULA
-      // owns — `name_mode = 'auto'`, the rows "New creative" created with `generateBriefName`
-      // (migration 0060, 2026-10-09). An imported or hand-typed name is `manual` and is never
+      // owns — `name_mode = 'auto'`, the rows "New creative" created with `buildBriefName`
+      // (Ticket 3, Oct 14; migration 0060, 2026-10-09). An imported or hand-typed name is `manual` and is never
       // rewritten: the audit found the old `briefNumber === null` guard let a concept save rename
       // every Airtable-imported brief under it into the PRD §7 shape. `renameBrief` repeats the
       // `auto` check in its WHERE, so a `manual` row cannot be renamed from here even by mistake.
@@ -588,13 +588,13 @@ export async function updateConceptAction(
                 db,
                 brandId,
                 brief.id,
-                generateBriefName({
+                buildBriefName({
                   source: brief.source,
                   funnel: brief.funnel,
-                  creativeType: brief.type,
+                  type: brief.type,
                   number: brief.briefNumber ?? 0,
-                  concept: segment,
-                  batch: parsed.values.batch,
+                  conceptName: segment,
+                  conceptBatch: parsed.values.batch,
                 }),
                 actor,
               ),

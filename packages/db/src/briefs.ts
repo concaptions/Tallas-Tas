@@ -300,9 +300,9 @@ export type CreateBriefValues = Omit<BriefInput, 'name' | 'briefNumber' | 'nameM
  * write beside it: the brief IS the sheet row.
  *
  * The name is the caller's: `@tas/db` never builds one (CLAUDE.md non-negotiable 6; the formula is
- * `generateBriefName` in `@tas/domain/briefs`, which this package cannot import). `nameMode` says
- * who owns it afterwards — `auto` follows the concept's renames, `manual` is never rewritten
- * (migration 0060).
+ * `buildBriefName` in `@tas/domain/briefs`, Ticket 3 Oct 14, which this package cannot import).
+ * `nameMode` says who owns it afterwards — `auto` follows the concept's renames, `manual` is never
+ * rewritten (migration 0060).
  */
 export async function createBrief(
   db: Db,

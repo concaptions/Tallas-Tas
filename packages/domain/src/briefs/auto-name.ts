@@ -20,9 +20,8 @@
  *
  * EMPTY SEGMENTS COLLAPSE. A missing concept (standalone brief) and a missing batch (a brief whose
  * concept has no batch) both drop their segment entirely rather than leaving a bare separator; the
- * head keeps `source_funnel_type_number` as a stable minimum. The same collapse rule the Oct 5
- * `generateBriefName` already uses, so a preview that has not been filled in yet never shows a
- * dangling separator.
+ * head keeps `source_funnel_type_number` as a stable minimum, so a preview that has not been filled
+ * in yet never shows a dangling separator.
  */
 
 /** The separator the top-level formula joins segments with. One place so nothing re-types it. */

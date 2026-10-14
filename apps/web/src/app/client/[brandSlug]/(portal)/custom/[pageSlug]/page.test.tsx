@@ -31,7 +31,7 @@ vi.mock('@/lib/client-interface-config-source', () => ({
         isInherited: false,
         pageKind: 'custom',
       },
-      rows: [{ id: 'r1', name: 'TAS-TOF-V001', client_status: 'approved', type: 'Video' }],
+      rows: [{ id: 'r1', name: 'TAS_TOF_V_001', client_status: 'approved', type: 'Video' }],
     }),
 }));
 

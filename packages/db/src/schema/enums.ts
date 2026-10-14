@@ -147,7 +147,8 @@ export type CreativeSource = (typeof creativeSources)[number];
 
 /**
  * `creative_briefs.name_mode` (migration 0060, 2026-10-09). `auto`: the name was written by the
- * CREATE formula (`generateBriefName` in `@tas/domain/briefs`) and follows its concept's renames.
+ * CREATE formula (`buildBriefName` in `@tas/domain/briefs`, Ticket 3 Oct 14) and follows its
+ * concept's renames.
  * `manual`: the name was imported from Airtable or typed by hand, and NOTHING rewrites it — the
  * column default, so every row that existed before the migration is `manual` and the concept
  * cascade can never touch an imported name again. A CHECK constraint in the migration pins the

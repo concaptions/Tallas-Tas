@@ -8,6 +8,7 @@ import { seed } from './seed';
 import { testDb, type PgliteDb } from './testing';
 
 /**
+/**
  * `creative_briefs.name_mode` (migration 0060, 2026-10-09): a name is rewritten ONLY when the row
  * says `auto`. An imported or hand-typed name is `manual` — the column default every existing row
  * kept — and survives every concept rename at the query layer, whatever the action above decides.
@@ -22,7 +23,7 @@ async function freshDb(): Promise<PgliteDb> {
 
 /**
  * Ticket 3 (Oct 14): every fixture brief is `name_mode = 'manual'` — the live rows and the demo
- * rows share the same guarantee that the Oct 5 auto-naming formula never retro-names an imported
+ * rows share the same guarantee that the Ticket 3 auto-naming formula never retro-names an imported
  * or hand-typed row. If a new fixture is added as `auto`, this test fails and the author rewrites
  * the fixture or the ticket.
  */
@@ -91,14 +92,14 @@ describe('renameBrief', () => {
     const auto = await insertBrief(
       db,
       DEMO_BRAND_ID,
-      { name: 'TAS-TOF-V001-Pain-UGC-B1', briefNumber: 1, nameMode: 'auto' },
+      { name: 'TAS_TOF_V_001_pain-ugc_B1', briefNumber: 1, nameMode: 'auto' },
       ACTOR,
     );
 
-    await renameBrief(db, DEMO_BRAND_ID, auto.id, 'TAS-TOF-V001-Pain-UGC-B9', ACTOR);
+    await renameBrief(db, DEMO_BRAND_ID, auto.id, 'TAS_TOF_V_001_pain-ugc_B9', ACTOR);
 
     const [after] = await db.select().from(creativeBriefs).where(eq(creativeBriefs.id, auto.id));
-    expect(after?.name).toBe('TAS-TOF-V001-Pain-UGC-B9');
+    expect(after?.name).toBe('TAS_TOF_V_001_pain-ugc_B9');
     expect(after?.updatedBy).toBe(ACTOR);
   });
 });
@@ -114,7 +115,7 @@ describe('createBrief', () => {
       { source: 'Client', funnel: 'TOF', type: 'Static', batch: 'B4', dimensions: ['1:1'] },
       (briefNumber) => {
         numbers.push(briefNumber);
-        return `Client-TOF-S00${String(briefNumber)}-B4`;
+        return `Client_TOF_S_00${String(briefNumber)}_B4`;
       },
       'auto',
       ACTOR,
@@ -123,7 +124,7 @@ describe('createBrief', () => {
     expect(numbers).toEqual([1]);
     expect(created).toMatchObject({
       brandId: DEMO_BRAND_ID,
-      name: 'Client-TOF-S001-B4',
+      name: 'Client_TOF_S_001_B4',
       briefNumber: 1,
       source: 'Client',
       nameMode: 'auto',
@@ -134,7 +135,7 @@ describe('createBrief', () => {
 
   it('hands the next create the next number, so two creatives never share one', async () => {
     const db = await freshDb();
-    const name = (n: number): string => `TAS-TOF-V00${String(n)}`;
+    const name = (n: number): string => `TAS_TOF_V_00${String(n)}`;
 
     const first = await createBrief(db, DEMO_BRAND_ID, {}, name, 'auto', ACTOR);
     const second = await createBrief(db, DEMO_BRAND_ID, {}, name, 'manual', ACTOR);
@@ -172,7 +173,8 @@ describe('createBrief', () => {
           db,
           DEMO_BRAND_ID,
           { funnel: 'TOF', type: 'Video' },
-          (briefNumber) => `TAS-TOF-V${String(briefNumber).padStart(3, '0')}-race-${String(index)}`,
+          (briefNumber) =>
+            `TAS_TOF_V_${String(briefNumber).padStart(3, '0')}_race-${String(index)}`,
           'auto',
           ACTOR,
         ),

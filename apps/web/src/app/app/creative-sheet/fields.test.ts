@@ -253,14 +253,14 @@ describe('applyKanbanMoves — a dropped card moves at once (SMOKE-10)', () => {
 
 describe('the pending creative (SMOKE-17): shown at submit, replaced by the real row', () => {
   it('is named at SUBMIT time from the preview, under a provisional id', () => {
-    expect(pendingOnSubmit('TAS-TOF-V008-B1')).toEqual({
-      id: 'pending:TAS-TOF-V008-B1',
-      name: 'TAS-TOF-V008-B1',
+    expect(pendingOnSubmit('TAS_TOF_V_008_B1')).toEqual({
+      id: 'pending:TAS_TOF_V_008_B1',
+      name: 'TAS_TOF_V_008_B1',
     });
   });
 
   it('is dropped once the rows carry its id, and kept while they do not', () => {
-    const real = { id: 'real-1', name: 'TAS-TOF-V008-B1' };
+    const real = { id: 'real-1', name: 'TAS_TOF_V_008_B1' };
     expect(pendingAfterRows(real, ['other'])).toEqual(real);
     expect(pendingAfterRows(real, ['other', 'real-1'])).toBeNull();
     expect(pendingAfterRows(null, ['real-1'])).toBeNull();
@@ -271,17 +271,17 @@ describe('the pending creative as a grid row (SMOKE-24)', () => {
   const now = new Date('2026-10-11T09:00:00Z');
 
   it('is named under the sheet spelling, carries the creative name, and starts both tracks', () => {
-    const row = pendingSheetRow(pendingOnSubmit('TAS-TOF-V008-B1'), now);
-    expect(row.item.id).toBe('pending:TAS-TOF-V008-B1');
-    expect(row.item.name).toBe('October-TAS-TOF-V008-B1');
-    expect(row.item.briefName).toBe('TAS-TOF-V008-B1');
+    const row = pendingSheetRow(pendingOnSubmit('TAS_TOF_V_008_B1'), now);
+    expect(row.item.id).toBe('pending:TAS_TOF_V_008_B1');
+    expect(row.item.name).toBe('October-TAS_TOF_V_008_B1');
+    expect(row.item.briefName).toBe('TAS_TOF_V_008_B1');
     expect(row.item.internalStatus).toBe(INTERNAL_ENTRY_STATUS);
     expect(row.item.status).toBe(CLIENT_STATUS[0].key);
     expect(row.lookups.proposedCopy).toBeNull();
   });
 
   it('leads the rows until they carry its id, then steps aside', () => {
-    const pendingRow = pendingSheetRow({ id: 'real-1', name: 'TAS-TOF-V008-B1' }, now);
+    const pendingRow = pendingSheetRow({ id: 'real-1', name: 'TAS_TOF_V_008_B1' }, now);
     const other = pendingSheetRow({ id: 'other', name: 'X' }, now);
     expect(rowsWithPendingCreative(pendingRow, [other]).map(({ item }) => item.id)).toEqual([
       'real-1',

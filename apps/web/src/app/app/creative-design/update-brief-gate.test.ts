@@ -47,7 +47,7 @@ const BRIEF_ID = '77777777-7777-4777-8777-000000000001';
 function brief(overrides: Partial<CreativeBrief> = {}): CreativeBrief {
   return {
     id: BRIEF_ID,
-    name: 'TAS-TOF-V007-B1',
+    name: 'TAS_TOF_V_007_B1',
     type: 'Video',
     sequence: 1,
     internalStatus: 'ad_submitted',

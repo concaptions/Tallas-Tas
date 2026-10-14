@@ -211,10 +211,10 @@ describe('BriefDetail — the name (smoke test, 2026-10-10)', () => {
 
   it('shows an auto-named brief under its stored name too — the formula runs at create time only', () => {
     const markup = render(
-      values({ name: 'TAS-TOF-V007-Pain-UGC-B1', nameMode: 'auto', version: 3 }),
+      values({ name: 'TAS_TOF_V_007_pain-ugc_B1', nameMode: 'auto', version: 3 }),
     );
 
-    expect(heading(markup)).toBe('TAS-TOF-V007-Pain-UGC-B1');
+    expect(heading(markup)).toBe('TAS_TOF_V_007_pain-ugc_B1');
   });
 });
 

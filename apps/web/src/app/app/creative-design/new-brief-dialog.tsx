@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BRIEF_NAME_DEFAULT_SOURCE, generateBriefName } from '@tas/domain/briefs';
+import { BRIEF_AUTO_NAME_DEFAULT_SOURCE, buildBriefName } from '@tas/domain/briefs';
 import {
   CREATIVE_FUNNELS,
   CREATIVE_TYPES,
@@ -37,14 +37,14 @@ import { createBriefAction, type BriefActionResult } from './actions';
 const STANDALONE_VALUE = 'standalone';
 
 /**
- * The create form for a brief (Oct 5 sprint, Agent 3). A `Dialog` the "New brief" button opens.
+ * The create form for a brief (Ticket 3, Oct 14 cutover). A `Dialog` the "New brief" button opens.
  * Everything else on the page is read-only in demo mode and the paste's own instructions pin the
  * PREVIEW behaviour here as the demo-mode acceptance — the write-side e2e is deferred to the live
- * shelf. The preview is a client-side pure call to `generateBriefName`, so the name updates with no
+ * shelf. The preview is a client-side pure call to `buildBriefName`, so the name updates with no
  * round trip as the user picks source, funnel, type, concept and batch.
  *
  * MANUAL-OVERRIDE TOGGLE. Auto mode (the default) renders the name field read-only and fills it from
- * `generateBriefName`. Flipping the Switch to manual releases the field and the user types the name
+ * `buildBriefName`. Flipping the Switch to manual releases the field and the user types the name
  * — the server stores whatever is submitted when `nameMode === 'manual'` and a non-empty override
  * is present. In auto mode the override is omitted, which is the server's "use the formula" branch.
  */
@@ -62,7 +62,7 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
     null,
   );
 
-  const [source, setSource] = useState(BRIEF_NAME_DEFAULT_SOURCE);
+  const [source, setSource] = useState(BRIEF_AUTO_NAME_DEFAULT_SOURCE);
   const [funnel, setFunnel] = useState<CreativeFunnelKey>(CREATIVE_FUNNELS[0].key);
   const [type, setType] = useState<CreativeTypeKey>(CREATIVE_TYPES[0].key);
   const [conceptChoice, setConceptChoice] = useState(STANDALONE_VALUE);
@@ -90,15 +90,15 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
   );
 
   // Preview number: the server allocates the real `briefNumber` inside the transaction, so this is
-  // the honest placeholder — 1 reads as "V001" for the first-brief case, and the e2e pins that.
+  // the honest placeholder — 1 reads as "V_001" for the first-brief case, and the e2e pins that.
   const previewNumber = 1;
-  const auto = generateBriefName({
+  const auto = buildBriefName({
     source,
     funnel,
-    creativeType: type,
+    type,
     number: previewNumber,
-    concept: conceptName,
-    batch,
+    conceptName,
+    conceptBatch: batch,
   });
   const preview = nameMode === 'manual' && manualName.trim() !== '' ? manualName : auto;
 
@@ -113,7 +113,7 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
         <DialogHeader>
           <DialogTitle>New brief</DialogTitle>
           <DialogDescription>
-            Source-Funnel-TypeInitial-Number-Concept-Batch. The name writes itself as you choose
+            Source_Funnel_TypeInitial_Number_Concept_Batch. The name writes itself as you choose
             each part; flip the toggle to type one by hand.
           </DialogDescription>
         </DialogHeader>
