@@ -6,7 +6,7 @@ import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type UserViewConfig, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
 import { EDITOR_STAGE_KEYS } from '@tas/domain/state';
-import { Button, DEMO_WRITE_HINT, Input, StatusChip } from '@tas/ui';
+import { Button, DEMO_WRITE_HINT, formatSheetDate, Input, StatusChip } from '@tas/ui';
 import { Captions, Copy, Link, RefreshCw, Trash } from '@tas/ui/icons';
 
 import {
@@ -249,6 +249,21 @@ export function QaTicks({ item }: { item: CreativeSheetItemListRow }) {
   );
 }
 
+/**
+ * Ticket 6 due-date tone (Oct 14). The ISO comparison runs over calendar-day boundaries (UTC) so
+ * a timezone shift does not flip a date from "today" into "yesterday"; `now` is a parameter so
+ * the grid, the sidebar and the story can run against a fixed clock in tests.
+ */
+export function dueDateTone(due: Date, now: Date): string {
+  const DAY_MS = 86_400_000;
+  const today = Math.floor(now.getTime() / DAY_MS);
+  const dueDay = Math.floor(due.getTime() / DAY_MS);
+  const diff = dueDay - today;
+  if (diff < 0) return 'text-bad';
+  if (diff <= 3) return 'text-warn';
+  return 'text-text';
+}
+
 function chipOrDash(view: SheetStatusView | null) {
   return view === null ? (
     <span className="font-mono text-xs text-text4">{EM_DASH}</span>
@@ -416,6 +431,30 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   creative_module: {
     render: ({ lookups }) => <TextCell value={lookups.creativeModule} maxWidth={200} />,
     sortValue: ({ lookups }) => lookups.creativeModule,
+  },
+  /*
+   * Ticket 6 due_date (Oct 14, migration 0069 column on `creative_briefs`; AI-49 platform seed):
+   * the strategist's cut deadline. Hidden by default — the parent template's platform row carries
+   * `is_visible = false`, so a brand needs its own visible row to see the column (Gratsi has one).
+   * The tone comes from an ISO day-diff against `new Date()` the renderer is called under: an
+   * overdue date reads `text-bad`, due within three calendar days reads `text-warn`, otherwise
+   * the default `text-text`. An unset date reads the em dash.
+   */
+  due_date: {
+    render: ({ item }) => {
+      const date = item.detail.dueDate;
+      if (date === null) {
+        return <span className="font-mono text-xs text-text4">{EM_DASH}</span>;
+      }
+      const tone = dueDateTone(date, new Date());
+      return (
+        <span className={`whitespace-nowrap text-xs ${tone}`} title={date.toISOString()}>
+          {formatSheetDate(date)}
+        </span>
+      );
+    },
+    sortValue: ({ item }) =>
+      item.detail.dueDate === null ? Number.POSITIVE_INFINITY : item.detail.dueDate.getTime(),
   },
   /* Airtable's `Created` / `Last Modified` system fields: the shared audit timestamps, displayed. */
   created_at: {

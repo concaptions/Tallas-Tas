@@ -83,6 +83,7 @@ import {
   BriefAnnotationOverlayStory,
   BriefCommentThreadStory,
   BriefContentFieldsStory,
+  BriefDueDateStory,
   BriefVersionChipsStory,
   BriefChipsStory,
   BriefDimensionsPickerStory,
@@ -1239,6 +1240,13 @@ export default function DesignSystemPage() {
               none, one upload (current), three uploads with the latest marked current
             </h3>
             <BriefVersionChipsStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              due date (Ticket 6, Oct 14) — the grid cell’s three ISO-day-diff tones: past
+              (text-bad), soon within three days (text-warn), far (text-text)
+            </h3>
+            <BriefDueDateStory />
           </div>
         </div>
       </Section>

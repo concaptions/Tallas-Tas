@@ -21,6 +21,7 @@ import {
   BriefAnnotationOverlayStory,
   BriefCommentThreadStory,
   BriefContentFieldsStory,
+  BriefDueDateStory,
   BriefQaChecklistStory,
   BriefVersionChipsStory,
   QaCheckRowStory,
@@ -178,6 +179,27 @@ describe('BriefVersionChipsStory', () => {
     expect(html).toContain('data-state="three"');
     // 0 + 1 + 3 chips across the three cards.
     expect(html.match(/data-slot="story-version-chip"/g)).toHaveLength(4);
+  });
+
+  it('uses the token layer only', () => {
+    expect(html).not.toMatch(COLOUR_LITERAL);
+  });
+});
+
+/**
+ * Ticket 6 due-date tone story — three states (past, soon, far). The ISO day-diff is pinned
+ * against the fixture's fixed clock so the story reads the same tone across any viewer.
+ */
+describe('BriefDueDateStory', () => {
+  const html = renderToStaticMarkup(<BriefDueDateStory />);
+
+  it('mounts three cells with their state labels and the semantic tone class', () => {
+    expect(html).toContain('data-state="past"');
+    expect(html).toContain('data-state="soon"');
+    expect(html).toContain('data-state="far"');
+    expect(html).toContain('text-bad');
+    expect(html).toContain('text-warn');
+    expect(html).toContain('text-text');
   });
 
   it('uses the token layer only', () => {

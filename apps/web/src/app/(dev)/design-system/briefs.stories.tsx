@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { formatCommentStamp, StatusChip } from '@tas/ui';
+import { formatCommentStamp, formatSheetDate, StatusChip } from '@tas/ui';
+
+import { dueDateTone } from '@/app/app/creative-sheet/creative-sheet-workspace';
 import {
   BRIEF_QA_CHECKS,
   qaChecklistFor,
@@ -682,6 +684,41 @@ export function BriefVersionChipsStory() {
       <VersionChipRowStory entries={[]} label="No uploads" />
       <VersionChipRowStory entries={CHIP_ONE} label="One" />
       <VersionChipRowStory entries={CHIP_THREE} label="Three" />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Ticket 6 due-date tone (Oct 14) — the three ISO-day-diff states the grid cell draws: past
+ * (text-bad), soon (text-warn), far (text-text). The `now` reference is fixed in the fixture so
+ * the story reads the same tone across any viewer's clock.
+ * ---------------------------------------------------------------------------------------------- */
+
+const DUE_DATE_FIXED_NOW = new Date('2026-10-14T00:00:00Z');
+
+function DueDateCell({ date, label }: { readonly date: Date; readonly label: string }) {
+  const tone = dueDateTone(date, DUE_DATE_FIXED_NOW);
+  return (
+    <div
+      data-slot="brief-due-date"
+      data-state={label}
+      className="flex flex-col gap-1 rounded-card border border-line bg-surface p-4"
+    >
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-text4">{label}</span>
+      <span className={`whitespace-nowrap text-xs ${tone}`}>{formatSheetDate(date)}</span>
+    </div>
+  );
+}
+
+export function BriefDueDateStory() {
+  const past = new Date('2026-10-10T00:00:00Z');
+  const soon = new Date('2026-10-16T00:00:00Z');
+  const far = new Date('2026-11-14T00:00:00Z');
+  return (
+    <div className="grid gap-4 md:grid-cols-3" data-slot="brief-due-date-states">
+      <DueDateCell date={past} label="past" />
+      <DueDateCell date={soon} label="soon" />
+      <DueDateCell date={far} label="far" />
     </div>
   );
 }
