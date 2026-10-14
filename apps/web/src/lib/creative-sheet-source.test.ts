@@ -85,7 +85,6 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       [4, 'internal_product', '(Internal) Product (from Creative Name)'],
       [5, 'angle', 'Angle (from Creative Name)'],
       [6, 'concepts_from_angle', 'Concepts (from Angle) (from Creative Name)'],
-      [7, 'elements_we_are_testing', 'Elements we are Testing'],
       [8, 'design_file', 'Design File (from Creative Name)'],
       [9, 'design_link_url', 'Design Link URL'],
       [10, 'internal_status', 'Internal Status'],
@@ -111,7 +110,7 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     ]);
   });
 
-  it('keeps all twelve lookups VIRTUAL (lookupRollup) and the two timestamps stored', async () => {
+  it('keeps all eleven lookups VIRTUAL (lookupRollup) and the two timestamps stored', async () => {
     const { db, gratsi } = await seededColumns();
     const resolved = await resolveColumns(db, gratsi.id, 'creative_sheet_items');
     const virtual = resolved.filter((column) => column.formula !== null);
@@ -122,7 +121,6 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
       'creative_module',
       'design_file',
       'design_link_url',
-      'elements_we_are_testing',
       'funnel',
       'internal_product',
       'name',
@@ -152,6 +150,8 @@ describe('the Gratsi Creative Sheet column set (GRATSI-MATCH 2026-10-04)', () =>
     // 16 since item 5b hid client_approval_status on the sheet table (its client track is `status`).
     // Oct 14 follow-up #5 (`docs/sprint-oct12.md`): four more off — client_comments (parent),
     // used, denied_revisions_needed, winning (three platform rows). 16 → 12.
+    // Oct 14 pre-Thursday QA (item 32): `elements_we_are_testing` retired, but it was Gratsi-only
+    // in the virtual child rows — Niagara's inheriting set never had it, so stays at 12.
     expect(resolved).toHaveLength(12);
     expect(resolved.map((column) => column.columnKey)).toContain('dimensions');
     expect(resolved.map((column) => column.displayLabel)).toContain('Last Modified');
@@ -208,7 +208,6 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
         name: 'TV1-B1-Body Clock-V2',
         angleId: angleRow?.id,
         productId: product?.id,
-        elementsTested: 'Hook: circadian framing',
         designFile: ['r2://design/tv1-b1-v2.mp4', 'r2://design/tv1-b1-v2.jpg'],
         designFileUrl: 'https://drive.gratsi.test/tv1-b1-v2',
         platform: ['Meta', 'TikTok'],
@@ -246,7 +245,6 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       internalProduct: 'Night Reset Bundle',
       angle: 'Your Body Clock Is Not Broken',
       conceptsFromAngle: 'B1-Body Clock-Sleep Science',
-      elementsWeAreTesting: 'Hook: circadian framing',
       designFiles: ['r2://design/tv1-b1-v2.mp4', 'r2://design/tv1-b1-v2.jpg'],
       designLinkUrl: 'https://drive.gratsi.test/tv1-b1-v2',
       platform: 'Meta, TikTok',
@@ -266,7 +264,6 @@ describe('the Creative Sheet lookup cells over PGlite (GRATSI-MATCH 2026-10-04)'
       internalProduct: null,
       angle: null,
       conceptsFromAngle: null,
-      elementsWeAreTesting: null,
       designFiles: [],
       designLinkUrl: null,
       platform: null,

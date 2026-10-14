@@ -63,7 +63,6 @@ export interface SheetBriefLookup {
   readonly angleId: string | null;
   readonly productId: string | null;
   readonly collectionId: string | null;
-  readonly elementsTested: string | null;
   readonly designFile: readonly string[] | null;
   readonly designFileUrl: string | null;
   readonly platform: readonly string[];
@@ -182,7 +181,6 @@ function toBriefLookup(brief: {
   readonly angleId: string | null;
   readonly productId: string | null;
   readonly collectionId: string | null;
-  readonly elementsTested: string | null;
   readonly designFile: readonly string[] | null;
   readonly designFileUrl: string | null;
   readonly platform: readonly string[];
@@ -198,7 +196,6 @@ function toBriefLookup(brief: {
     angleId: brief.angleId,
     productId: brief.productId,
     collectionId: brief.collectionId,
-    elementsTested: brief.elementsTested,
     designFile: brief.designFile,
     designFileUrl: brief.designFileUrl,
     platform: brief.platform,
@@ -287,25 +284,17 @@ export async function loadCreativeSheetWorkspace(
         source: 'database' as const,
       };
     }
-    const [
-      rows,
-      briefs,
-      angleRows,
-      productRows,
-      conceptRows,
-      moduleRows,
-      copyRows,
-      commentRows,
-    ] = await Promise.all([
-      listCreativeSheetItems(db, brandId),
-      listBriefs(db, brandId),
-      listAngles(db, brandId),
-      listProducts(db, brandId),
-      listConcepts(db, brandId),
-      listCreativeModules(db, brandId),
-      listCopy(db, brandId),
-      listCommentsForRecordType(db, brandId, BRIEF_COMMENT_RECORD_TYPE),
-    ]);
+    const [rows, briefs, angleRows, productRows, conceptRows, moduleRows, copyRows, commentRows] =
+      await Promise.all([
+        listCreativeSheetItems(db, brandId),
+        listBriefs(db, brandId),
+        listAngles(db, brandId),
+        listProducts(db, brandId),
+        listConcepts(db, brandId),
+        listCreativeModules(db, brandId),
+        listCopy(db, brandId),
+        listCommentsForRecordType(db, brandId, BRIEF_COMMENT_RECORD_TYPE),
+      ]);
     return {
       rows,
       briefLookups: briefs.map(toBriefLookup),

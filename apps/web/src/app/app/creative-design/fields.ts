@@ -312,7 +312,6 @@ export interface BriefFormSnapshot {
   readonly dueDate: string;
   readonly briefToDesign: string;
   readonly scriptContent: string;
-  readonly elementsTested: string;
   readonly adContent: string;
   readonly inspiration: string;
   readonly offer: string;
@@ -694,7 +693,6 @@ export const BRIEF_HEADINGS = {
   dimensions: 'Dimensions',
   briefToDesign: 'Brief to Design',
   scriptContent: 'Script or Ad Content',
-  elementsTested: 'Elements we are Testing',
   adContent: 'Ad Content',
   inspiration: 'Inspiration',
   inspirationNotes: 'Inspiration Notes',
@@ -710,7 +708,7 @@ export const BRIEF_HEADINGS = {
   spelling: 'Spelling Feedback',
 } as const;
 
-/** The three prose sections of the centre column, in order, with what each one is for. */
+/** The prose sections of the centre column, in order, with what each one is for. */
 export const BRIEF_PROSE_FIELDS = [
   {
     name: 'briefToDesign',
@@ -721,11 +719,6 @@ export const BRIEF_PROSE_FIELDS = [
     name: 'scriptContent',
     label: BRIEF_HEADINGS.scriptContent,
     hint: 'The words on screen and the words spoken, in order.',
-  },
-  {
-    name: 'elementsTested',
-    label: BRIEF_HEADINGS.elementsTested,
-    hint: 'The hypothesis this creative exists to settle.',
   },
   {
     name: 'adContent',

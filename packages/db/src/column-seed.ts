@@ -556,7 +556,9 @@ const CREATIVE_BRIEFS_PARENT = parentRows('creative_briefs', [
   ['priority', 'Priority', 9, 'singleSelect'],
   ['client_status', 'Client Status', 10, 'singleSelect'],
   ['internal_status', 'Internal Status', 11, 'singleSelect'],
-  ['elements_tested', 'Elements we are Testing', 12, 'richText'],
+  // Oct 14 pre-Thursday QA (item 32): `elements_tested` dropped from the creative_briefs
+  // Column Admin surface per Talal's Oct 12 ask. DB column stays; the brief UI no longer
+  // offers the field.
   ['qa_checklist_doc', 'QA Checklist Doc', 13, 'multipleAttachments'],
   ['qa_video_editor', 'Video Editor QA', 14, 'checkbox'],
   ['qa_designer', 'Graphic Designer QA', 15, 'checkbox'],
@@ -657,7 +659,7 @@ const CREATIVE_BRIEFS_GRATSI = childRows('creative_briefs', [
   ['dimensions', 'Dimensions', 23, 'relabel', 'multipleRecordLinks'],
   ['source', 'Source', 24, 'relabel', 'singleSelect'],
   ['funnel', 'Funnel', 25, 'relabel', 'singleSelect'],
-  ['elements_tested', 'Elements we are Testing', 26, 'relabel', 'richText'],
+  // Oct 14 pre-Thursday QA (item 32): Gratsi's `elements_tested` relabel drops with the parent.
   ['offer', 'Offer', 27, 'custom', 'richText'],
   ['creative_module_designs', 'Creative Module', 28, 'custom', 'multipleRecordLinks'],
   ['updated_at', 'Last Modified', 29, 'custom', 'lastModifiedTime'],
@@ -1223,13 +1225,9 @@ const CREATIVE_SHEET_ITEMS_GRATSI = [
       'multipleLookupValues',
       'lookupRollup',
     ],
-    [
-      'elements_we_are_testing',
-      'Elements we are Testing',
-      7,
-      'multipleLookupValues',
-      'lookupRollup',
-    ],
+    // Oct 14 follow-up (sprint-pre-thursday): `elements_we_are_testing` dropped from the
+    // Creative Sheet grid per Talal's Oct 12 ask (QA item 32); the Column Admin stops offering
+    // the toggle for the frozen `creative_sheet_items` table alongside the other retired keys.
     ['design_file', 'Design File (from Creative Name)', 8, 'multipleLookupValues', 'lookupRollup'],
     ['design_link_url', 'Design Link URL', 9, 'multipleLookupValues', 'lookupRollup'],
     ['collection', 'Collection', 17, 'multipleLookupValues', 'lookupRollup'],

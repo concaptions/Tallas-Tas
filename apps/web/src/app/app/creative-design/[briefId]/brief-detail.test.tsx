@@ -59,7 +59,6 @@ function values(overrides: Partial<BriefValues> = {}): BriefValues {
     dueDate: '',
     briefToDesign: null,
     scriptContent: null,
-    elementsTested: null,
     inspoLinks: [],
     dimensions: ['Facebook Reels', 'Facebook Feed Square'],
     spellingFeedback: null,

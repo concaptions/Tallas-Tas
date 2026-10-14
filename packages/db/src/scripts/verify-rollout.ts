@@ -78,7 +78,8 @@ const EXPECTED: readonly {
   // FROZEN table (0061): + Client Approval and Dimensions rows the seed still carries, applied 2026-10-11.
   // Item 5b (2026-10-11): client_approval_status hidden on the frozen sheet table — one fewer on both.
   // Collections retired 2026-10-12 (Ticket 1): Gratsi's `Collection` lookup hidden — 29.
-  { tableKey: 'creative_sheet_items', inheriting: 16, gratsi: 29, virtual: 1 },
+  // Oct 14 pre-Thursday QA (item 32): `elements_we_are_testing` dropped. 16/29 → 15/28.
+  { tableKey: 'creative_sheet_items', inheriting: 15, gratsi: 28, virtual: 1 },
   // Creative Design, the fifteenth and last hardcoded grid (AI-64a). 30 parent fields plus the
   // platform's own `due_date`; Gratsi hides three and adds five of its own.
   // GRATSI-MATCH 2026-10-04 (links cluster): plus the live base's remaining fields — three
@@ -86,7 +87,9 @@ const EXPECTED: readonly {
   // minus the four decision-register exclusions; Due Date stays per AI-49. Gratsi 39.
   // Fidelity flip 2026-10-04: Ads Copywriting copy shown fidelity-empty (virtual). Gratsi 40.
   // Collections retired 2026-10-12 (Ticket 1): `collection_id` hidden on both — one fewer each.
-  { tableKey: 'creative_briefs', inheriting: 30, gratsi: 39, virtual: 0 },
+  // Oct 14 pre-Thursday QA (item 32): `elements_tested` dropped from both parent + Gratsi
+  // relabel seeds. 30/39 → 29/38.
+  { tableKey: 'creative_briefs', inheriting: 29, gratsi: 38, virtual: 0 },
   // GRATSI-MATCH campaigns_offers (2026-10-04, WIRING cluster): absent from this script until that
   // run, because the page was not resolver-driven. 13 of the template's 14 fields (`Design
   // attached` is register-excluded); Gratsi = its 20 fields minus the `Product` lookup and

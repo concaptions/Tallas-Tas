@@ -123,7 +123,6 @@ export interface BriefValues {
   readonly dueDate: string;
   readonly briefToDesign: string | null;
   readonly scriptContent: string | null;
-  readonly elementsTested: string | null;
   readonly inspoLinks: readonly string[];
   readonly dimensions: readonly string[];
   readonly spellingFeedback: string | null;

@@ -171,7 +171,6 @@ export default async function BriefPage({ params }: BriefPageProps) {
     dueDate: dueDateInputValue(brief.dueDate),
     briefToDesign: brief.briefToDesign,
     scriptContent: brief.scriptContent,
-    elementsTested: brief.elementsTested,
     inspoLinks: brief.inspoLinks,
     dimensions: brief.dimensions,
     spellingFeedback: brief.spellingFeedback,

@@ -77,7 +77,6 @@ const filled = {
   assignee: '',
   briefToDesign: '',
   scriptContent: '',
-  elementsTested: '',
 };
 
 afterEach(() => {

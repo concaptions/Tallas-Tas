@@ -128,7 +128,6 @@ export type BriefFieldName =
   | 'dueDate'
   | 'briefToDesign'
   | 'scriptContent'
-  | 'elementsTested'
   | 'adContent'
   | 'inspiration'
   | 'offer'
@@ -312,7 +311,6 @@ const briefSchema = z.object({
   dueDate: optionalDate,
   briefToDesign: text,
   scriptContent: text,
-  elementsTested: text,
   adContent: text,
   inspiration: text,
   offer: text,
@@ -394,7 +392,6 @@ function fieldsOf(formData: FormData): Record<string, unknown> {
     dueDate: single('dueDate'),
     briefToDesign: single('briefToDesign'),
     scriptContent: single('scriptContent'),
-    elementsTested: single('elementsTested'),
     adContent: single('adContent'),
     inspiration: single('inspiration'),
     offer: single('offer'),
@@ -591,7 +588,6 @@ function toInput(
     dueDate: values.dueDate,
     briefToDesign: values.briefToDesign,
     scriptContent: values.scriptContent,
-    elementsTested: values.elementsTested,
     adContent: values.adContent,
     inspiration: values.inspiration,
     offer: values.offer,
@@ -1065,7 +1061,6 @@ const BRIEF_ACTIVITY_FIELDS = [
   'performance',
   'briefToDesign',
   'scriptContent',
-  'elementsTested',
   'adContent',
   'inspiration',
   'offer',

@@ -89,7 +89,6 @@ const BRIEF_TEXT_COLUMNS: Readonly<Record<string, (item: BriefItem) => string | 
   assignee: (item) => item.assignee,
   batch: (item) => item.row.batch,
   language: (item) => item.row.language,
-  elements_tested: (item) => item.row.elementsTested,
   brief_to_design: (item) => item.row.briefToDesign,
   script_content: (item) => item.row.scriptContent,
   ad_content: (item) => item.row.adContent,
@@ -390,7 +389,6 @@ export function BriefsWorkspace({
         fd.set('dueDate', snap.dueDate);
         fd.set('briefToDesign', snap.briefToDesign);
         fd.set('scriptContent', snap.scriptContent);
-        fd.set('elementsTested', snap.elementsTested);
         fd.set('adContent', snap.adContent);
         fd.set('inspiration', snap.inspiration);
         fd.set('offer', snap.offer);

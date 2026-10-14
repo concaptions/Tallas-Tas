@@ -423,7 +423,6 @@ export function CreativeSheetPanel({
                 <div className="flex flex-col gap-3" data-slot="creative-sheet-content">
                   {block('Script / Ad Content', detail.scriptContent ?? detail.adContent)}
                   {block('Brief to Design', detail.briefToDesign)}
-                  {block('Elements tested', detail.elementsTested)}
                   {block('Offer', detail.offer)}
                   {block('Inspiration', detail.inspiration)}
                   {detail.inspoLinks.length === 0 ? null : (

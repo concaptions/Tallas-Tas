@@ -82,7 +82,6 @@ const submitted = {
   assignee: '',
   briefToDesign: '',
   scriptContent: '',
-  elementsTested: '',
   internalStatus: '',
   clientStatus: '',
   nameMode: 'auto',

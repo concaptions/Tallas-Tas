@@ -1076,9 +1076,8 @@ export function FocusModeView({
               ) : null}
             </TextCard>
           </div>
-          <div className="grid gap-3.5 md:grid-cols-3">
+          <div className="grid gap-3.5 md:grid-cols-2">
             <TextCard title="Brief to Design">{detail.briefToDesign ?? <Dash />}</TextCard>
-            <TextCard title="Elements tested">{detail.elementsTested ?? <Dash />}</TextCard>
             <TextCard title="Offer & inspiration">
               {detail.offer ?? detail.inspiration ?? <Dash />}
               {detail.inspoLinks.length === 0 ? null : (

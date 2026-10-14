@@ -43,7 +43,6 @@ const NO_LOOKUPS: SheetLookups = {
   internalProduct: null,
   angle: null,
   conceptsFromAngle: null,
-  elementsWeAreTesting: null,
   designFiles: [],
   designLinkUrl: null,
   platform: null,

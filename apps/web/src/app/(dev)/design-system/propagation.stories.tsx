@@ -86,7 +86,7 @@ function sampleRows(): readonly PromotionItem[] {
     sampleItem('ds-promotion-4', 'approved', {
       brand: { text: 'Niagara Sleep Solutions', muted: false },
       tableName: 'creative_briefs',
-      fieldName: 'elements_tested',
+      fieldName: 'brief_to_design',
       requestedBy: 'Dorian Vance',
       requestedAt: '2 weeks ago',
       currentValue: 'Hook, thumbnail',

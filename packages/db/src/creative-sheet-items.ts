@@ -73,7 +73,6 @@ export interface CreativeSheetBriefDetail {
   readonly briefToDesign: string | null;
   readonly scriptContent: string | null;
   readonly adContent: string | null;
-  readonly elementsTested: string | null;
   readonly inspiration: string | null;
   readonly offer: string | null;
   readonly language: CreativeLanguage | null;
@@ -192,7 +191,6 @@ export function sheetRowFromBrief(brief: CreativeSheetBriefSource): CreativeShee
       briefToDesign: brief.briefToDesign,
       scriptContent: brief.scriptContent,
       adContent: brief.adContent,
-      elementsTested: brief.elementsTested,
       inspiration: brief.inspiration,
       offer: brief.offer,
       language: brief.language,

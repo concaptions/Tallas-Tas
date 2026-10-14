@@ -57,7 +57,6 @@ const EMPTY_SNAPSHOT = {
   dueDate: '',
   briefToDesign: '',
   scriptContent: '',
-  elementsTested: '',
   adContent: '',
   inspiration: '',
   offer: '',

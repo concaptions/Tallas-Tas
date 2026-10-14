@@ -94,10 +94,9 @@ test.describe('creative briefs in demo mode (no Clerk publishable key)', () => {
     );
     await expect(page.locator('[data-slot="brief-dimension"]')).toHaveCount(3);
 
-    // Criterion 8: the three prose sections, in order.
+    // Criterion 8: the prose sections, in order (Elements Tested retired Oct 12).
     await expect(page.locator('[data-slot="brief-briefToDesign"]')).toBeVisible();
     await expect(page.locator('[data-slot="brief-scriptContent"]')).toBeVisible();
-    await expect(page.locator('[data-slot="brief-elementsTested"]')).toBeVisible();
 
     // Criterion 9: one preview per pasted link, with the provider named on each.
     const cards = page.locator('[data-slot="inspiration-card"]');

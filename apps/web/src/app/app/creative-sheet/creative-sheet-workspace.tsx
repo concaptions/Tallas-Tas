@@ -129,7 +129,6 @@ export interface SheetLookups {
   readonly internalProduct: string | null;
   readonly angle: string | null;
   readonly conceptsFromAngle: string | null;
-  readonly elementsWeAreTesting: string | null;
   readonly designFiles: readonly string[];
   readonly designLinkUrl: string | null;
   readonly platform: string | null;
@@ -389,10 +388,6 @@ export const CREATIVE_SHEET_RENDERERS: ColumnRegistry<SheetItemView> = {
   concepts_from_angle: {
     render: ({ lookups }) => <TextCell value={lookups.conceptsFromAngle} maxWidth={240} />,
     sortValue: ({ lookups }) => lookups.conceptsFromAngle,
-  },
-  elements_we_are_testing: {
-    render: ({ lookups }) => <TextCell value={lookups.elementsWeAreTesting} maxWidth={240} />,
-    sortValue: ({ lookups }) => lookups.elementsWeAreTesting,
   },
   design_file: {
     render: ({ lookups }) => <CountCell count={lookups.designFiles.length} noun="file" />,

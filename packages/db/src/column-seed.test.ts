@@ -1168,8 +1168,11 @@ describe('the Creative Sheet column set', () => {
     // `client_comments` (parent + Gratsi relabel), `used`, `denied_revisions_needed`, `winning`
     // (three platform rows) — because `creative_sheet_items` is frozen and the Column Admin was
     // offering dead toggles. Niagara 16 → 12, Gratsi 29 → 25.
+    // Oct 14 pre-Thursday QA (item 32): `elements_we_are_testing` drops from the Creative Sheet
+    // Gratsi virtual child rows per Talal's Oct 12 ask. Niagara never had it (lookups are
+    // Gratsi-only), so its count is unchanged; Gratsi 25 → 24.
     expect(onNiagara).toHaveLength(12);
-    expect(onGratsi).toHaveLength(25);
+    expect(onGratsi).toHaveLength(24);
     // The 0059 column resolves for every brand, last, as the platform's.
     for (const set of [onNiagara, onGratsi]) {
       const dimensions = set.find((column) => column.columnKey === 'dimensions');
@@ -1220,7 +1223,13 @@ describe('the Creative Sheet column set', () => {
     ]) {
       expect(keys.has(drawn), `the Creative Sheet grid draws ${drawn}`).toBe(true);
     }
-    for (const retired of ['client_comments', 'used', 'denied_revisions_needed', 'winning']) {
+    for (const retired of [
+      'client_comments',
+      'used',
+      'denied_revisions_needed',
+      'winning',
+      'elements_we_are_testing',
+    ]) {
       expect(keys.has(retired), `the retired column ${retired} is gone`).toBe(false);
     }
     // Three separate columns, because Airtable has three separate fields — not one `QA` header.
@@ -1242,7 +1251,13 @@ describe('the Creative Sheet column set', () => {
  * queries by `columnKey` scoped to `tableKey = 'creative_sheet_items'` to prove no brand got one.
  */
 describe('Oct 14 follow-up #5 · retired column_definitions rows are gone', () => {
-  it.each(['client_comments', 'used', 'denied_revisions_needed', 'winning'])(
+  it.each([
+    'client_comments',
+    'used',
+    'denied_revisions_needed',
+    'winning',
+    'elements_we_are_testing',
+  ])(
     'leaves no creative_sheet_items.%s row in the seeded column_definitions table',
     async (columnKey) => {
       const db = await testDb();
@@ -1418,7 +1433,9 @@ describe('the Creative Design column set', () => {
 
     // Thirty parent fields plus the platform's `due_date`, minus the hidden `Collection` link
     // (Collections retired 2026-10-12).
-    expect(onNiagara).toHaveLength(30);
+    // Oct 14 pre-Thursday QA (item 32): `elements_tested` dropped from the creative_briefs
+    // Column Admin seed. 30 → 29.
+    expect(onNiagara).toHaveLength(29);
     /*
      * GRATSI-MATCH (2026-10-04): the live base's 42 fields minus the four decision-register
      * exclusions (`Created 2`, `(Internal) Collections 2`, `Ads Copywriting copy`, the `Angles`
@@ -1427,7 +1444,9 @@ describe('the Creative Design column set', () => {
      * all Gratsi child rows; the parent set above is untouched.
      */
     // 39 since Collections retired (2026-10-12): `(Internal) Collections 3` → collection_id is hidden.
-    expect(onGratsi).toHaveLength(39);
+    // Oct 14 pre-Thursday QA (item 32): `elements_tested` dropped from both parent + Gratsi
+    // relabel seeds. 39 → 38.
+    expect(onGratsi).toHaveLength(38);
     for (const hidden of ['ad_content', 'campaign_offer_id', 'asset_id']) {
       expect(onGratsi.map((column) => column.columnKey)).not.toContain(hidden);
       expect(onNiagara.map((column) => column.columnKey)).toContain(hidden);

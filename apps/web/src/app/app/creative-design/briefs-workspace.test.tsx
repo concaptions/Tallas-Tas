@@ -73,7 +73,6 @@ function itemOf(overrides: Partial<BriefItem> = {}): BriefItem {
       dueDate: '',
       briefToDesign: '',
       scriptContent: '',
-      elementsTested: '',
       adContent: '',
       inspiration: '',
       offer: '',

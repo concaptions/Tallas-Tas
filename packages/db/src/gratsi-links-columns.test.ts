@@ -176,11 +176,14 @@ describe('GRATSI-MATCH · creative_briefs', () => {
    */
   // `(Internal) Collections 3` joined the exclusions when Collections retired (2026-10-12, Ticket 1):
   // the link column stays stored, its seeded row is hidden on every brand.
+  // `Elements we are Testing` joined the exclusions on Oct 14 pre-Thursday QA (item 32): the DB
+  // column stays, the Column Admin stops offering the toggle per Talal's Oct 12 ask.
   const EXCLUDED = new Set([
     'Created 2',
     '(Internal) Collections 2',
     '(Internal) Collections 3',
     'Angles',
+    'Elements we are Testing',
   ]);
 
   it('resolves the Airtable list minus the named exclusions, plus the AI-49 Due Date', async () => {

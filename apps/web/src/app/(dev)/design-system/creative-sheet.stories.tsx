@@ -107,7 +107,6 @@ function sampleRow(
       briefToDesign: null,
       scriptContent: null,
       adContent: null,
-      elementsTested: null,
       inspiration: null,
       offer: null,
       language: null,
@@ -136,7 +135,6 @@ const NO_LOOKUPS: SheetLookups = {
   internalProduct: null,
   angle: null,
   conceptsFromAngle: null,
-  elementsWeAreTesting: null,
   designFiles: [],
   designLinkUrl: null,
   platform: null,
@@ -167,7 +165,6 @@ const SAMPLE_ROWS: readonly SheetItemView[] = [
       internalProduct: 'Night Reset Bundle',
       angle: 'Your Body Clock Is Not Broken',
       conceptsFromAngle: 'B1-Your Body Clock Is Not Broken-Sleep Science',
-      elementsWeAreTesting: 'Hook: circadian framing',
       designFiles: ['r2://design/tv1-b1-v2.mp4'],
       designLinkUrl: 'https://drive.example.test/tv1-b1-v2',
       platform: 'Meta, TikTok',
@@ -371,7 +368,6 @@ export function focusFixture(kind: FocusFixtureKind): SheetItemView {
     scriptContent:
       'Hook — “What if date night didn’t need a reservation?”\nOpen on a cosy kitchen, two people unpacking a shipment. Natural light, candles lit.',
     briefToDesign: 'Warm, intimate kitchen. Dissolves only, no hard cuts.',
-    elementsTested: 'Problem-first open against the comfort-led V1.',
     offer: 'First box ships free.',
     inspoLinks: ['https://www.youtube.com/watch?v=nm1TxQj9IsQ'],
   };

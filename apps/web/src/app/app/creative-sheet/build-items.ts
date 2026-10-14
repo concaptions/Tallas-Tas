@@ -14,7 +14,7 @@ import type { SheetComment, SheetItemView, SheetLookups } from './creative-sheet
  * reach a client bundle.
  *
  * The resolution map is the schema's own (`schema/creative-sheet-items.ts`): one hop into the
- * linked brief for `Performance`, `Elements we are Testing`, `Design File`, `Design Link URL`,
+ * linked brief for `Performance`, `Design File`, `Design Link URL`,
  * `Platform`, `Funnel` and `Type`; one hop further for `(Internal) Product` and `Angle` (the
  * brief's own links, with the concept-inherited name as the fallback `listBriefs` already
  * resolved); two hops for `Concepts (from Angle)` (the concepts whose angle
@@ -52,7 +52,6 @@ export function buildSheetItems(
         internalProduct: null,
         angle: null,
         conceptsFromAngle: null,
-        elementsWeAreTesting: null,
         designFiles: [],
         designLinkUrl: null,
         platform: null,
@@ -83,7 +82,6 @@ export function buildSheetItems(
       internalProduct: lookupRollup([directProduct ?? brief.productName]),
       angle: lookupRollup([directAngle ?? brief.angleName]),
       conceptsFromAngle: lookupRollup(conceptNames),
-      elementsWeAreTesting: lookupRollup([brief.elementsTested]),
       designFiles: brief.designFile ?? [],
       designLinkUrl: lookupRollup([brief.designFileUrl]),
       platform: lookupRollup(brief.platform),

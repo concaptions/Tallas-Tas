@@ -42,7 +42,6 @@ const filled = {
   assignee: 'Dorian Vance',
   briefToDesign: 'Cut the V2 from the 14 September rushes.',
   scriptContent: 'NURSE: Six years of nights.',
-  elementsTested: 'Naming the rota as the broken thing.',
   // Oct 14 follow-up #3 (`docs/sprint-oct12.md`): a new brief starts at `draft`; the CREATE path
   // refuses any other submitted internal status, so this baseline stays at the entry state and
   // the UPDATE paths below override it where they need a mid-pipeline fixture.
