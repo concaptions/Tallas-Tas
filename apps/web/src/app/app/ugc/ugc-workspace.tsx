@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { RegistryBrandHistoryRow } from '@tas/db';
 import {
   Button,
   DEMO_WRITE_HINT,
@@ -127,6 +128,12 @@ export interface UgcWorkspaceProps {
    * yet or no selection is open. The current brand is never in this list (the page filters it out).
    */
   readonly otherBrands?: readonly { readonly brandId: string; readonly brandName: string }[];
+  /**
+   * The full brand history for the open creator (Ticket 14 Phase B1). The page preloads it via
+   * `loadRegistryBrandHistory`; the panel's own timeline reads it as-is. Empty when no creator is
+   * open or when the open row has no registry link.
+   */
+  readonly brandHistory?: readonly RegistryBrandHistoryRow[];
 }
 
 /** The grid selection's row identity, module-level so the hook's prune effect keeps one function. */
@@ -473,6 +480,7 @@ export function UgcWorkspace({
   canRate = false,
   now,
   otherBrands = [],
+  brandHistory = [],
 }: UgcWorkspaceProps) {
   const router = useRouter();
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
@@ -918,6 +926,7 @@ export function UgcWorkspace({
           canRate={canRate}
           now={now}
           otherBrands={otherBrands}
+          brandHistory={brandHistory}
           onClose={close}
           onSaved={saved}
         />

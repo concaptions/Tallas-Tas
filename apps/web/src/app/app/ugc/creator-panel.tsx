@@ -18,6 +18,7 @@ import {
   Textarea,
 } from '@tas/ui';
 import { CREATOR_STATUS, creatorStatusTone } from '@tas/domain/state';
+import type { RegistryBrandHistoryRow } from '@tas/db';
 
 import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
 
@@ -29,6 +30,7 @@ import {
   type CreatorActionResult,
   type VideoUploadResult,
 } from './actions';
+import { BrandHistoryTimeline } from './brand-history-timeline';
 import { CreatorProfileCard } from './creator-profile-card';
 import {
   clientStatusChoices,
@@ -76,6 +78,12 @@ interface CreatorPanelProps {
    * registry link yet or the registry only knows them on this brand — the chip row then stays out.
    */
   readonly otherBrands?: readonly { readonly brandId: string; readonly brandName: string }[];
+  /**
+   * The full per-brand `creators` rows the creator's registry link points at (Ticket 14 Phase B1,
+   * PRD §5.8). Already filtered to the open creator by the page and ordered newest first. Empty
+   * when the row has no registry link yet (the timeline then shows its "no brand history" line).
+   */
+  readonly brandHistory?: readonly RegistryBrandHistoryRow[];
 }
 
 const AGE_BRACKETS = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
@@ -105,6 +113,7 @@ export function CreatorPanel({
   onClose,
   onSaved,
   otherBrands = [],
+  brandHistory = [],
 }: CreatorPanelProps) {
   const [state, formAction, pending] = useActionState<CreatorActionResult | null, FormData>(
     updateCreatorAction,
@@ -715,13 +724,17 @@ export function CreatorPanel({
                   No showcase videos yet. Upload the creator’s best work to play it here.
                 </p>
               ) : (
-                <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-slot="showcase-videos">
+                <ul
+                  className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1"
+                  data-slot="showcase-videos"
+                  aria-label="Showcase videos"
+                >
                   {videos.map((video) => (
                     <li
                       key={video.id}
                       data-slot="showcase-video"
                       data-asset-id={video.id}
-                      className="flex flex-col gap-1.5 rounded-card border border-line bg-surface2 p-2"
+                      className="flex w-56 shrink-0 snap-start flex-col gap-1.5 rounded-card border border-line bg-surface2 p-2 sm:w-64"
                     >
                       {/* A plain `<video>`: the asset URL is the R2 object, playable inline. */}
                       <video
@@ -774,6 +787,10 @@ export function CreatorPanel({
                   </p>
                 ) : null}
               </div>
+            </section>
+
+            <section className="flex flex-col gap-3" data-slot="brand-history-section">
+              <BrandHistoryTimeline entries={brandHistory} />
             </section>
 
             <section className="flex flex-col gap-3" data-slot="collaborations-section">

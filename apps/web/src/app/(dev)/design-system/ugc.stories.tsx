@@ -1,5 +1,7 @@
 import { RatingStars } from '@tas/ui';
+import type { RegistryBrandHistoryRow } from '@tas/db';
 
+import { BrandHistoryTimeline } from '@/app/app/ugc/brand-history-timeline';
 import { CreatorCard } from '@/app/app/ugc/creator-card';
 import { CreatorProfileCard } from '@/app/app/ugc/creator-profile-card';
 import { PartnershipTable } from '@/app/app/ugc/partnership-table';
@@ -133,6 +135,54 @@ export function CreatorProfileCardStory() {
         instagramUsername="@marcus.after.midnight"
         rating={2}
       />
+    </div>
+  );
+}
+
+const SAMPLE_BRAND_HISTORY: readonly RegistryBrandHistoryRow[] = [
+  {
+    brandId: 'brand-gratsi',
+    brandName: 'Gratsi',
+    clientStatus: 'approved',
+    continueWorkingWith: true,
+    creatorCost: 350,
+    createdAt: new Date('2026-08-14T09:00:00.000Z'),
+  },
+  {
+    brandId: 'brand-niagara',
+    brandName: 'Niagara',
+    clientStatus: 'revisions_needed',
+    continueWorkingWith: null,
+    creatorCost: 250,
+    createdAt: new Date('2026-06-02T09:00:00.000Z'),
+  },
+  {
+    brandId: 'brand-mc',
+    brandName: 'Mattress Central',
+    clientStatus: 'disapproved',
+    continueWorkingWith: false,
+    creatorCost: 180,
+    createdAt: new Date('2026-04-20T09:00:00.000Z'),
+  },
+];
+
+/**
+ * The brand history timeline (Ticket 14) at three cardinalities: a creator in three brands with a
+ * verdict on each, one with no history (the single-brand case the pool seeds every new import to),
+ * and the empty collapsed state.
+ */
+export function BrandHistoryTimelineStory() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-card border border-line bg-surface p-4">
+        <BrandHistoryTimeline entries={SAMPLE_BRAND_HISTORY} />
+      </div>
+      <div className="rounded-card border border-line bg-surface p-4">
+        <BrandHistoryTimeline entries={[]} />
+      </div>
+      <div className="rounded-card border border-line bg-surface p-4">
+        <BrandHistoryTimeline entries={SAMPLE_BRAND_HISTORY} defaultOpen={false} />
+      </div>
     </div>
   );
 }

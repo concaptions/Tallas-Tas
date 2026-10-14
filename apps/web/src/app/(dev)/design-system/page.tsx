@@ -181,6 +181,7 @@ import {
   ColumnOriginChipsStory,
 } from './column-admin.stories';
 import {
+  BrandHistoryTimelineStory,
   CreatorCardStory,
   CreatorProfileCardStory,
   PartnershipCountdownStory,
@@ -1273,6 +1274,13 @@ export default function DesignSystemPage() {
               picture or no rating
             </h3>
             <CreatorProfileCardStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              brand history timeline — three brands with verdicts, the empty line, and the collapsed
+              default
+            </h3>
+            <BrandHistoryTimelineStory />
           </div>
         </div>
       </Section>

@@ -131,16 +131,20 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
   // Ticket 13 Phase B1 two-way link (PRD §5.8, Oct 8 Talal sync): the OTHER brands this registry
   // creator is in. Only reach for the registry when a creator is open AND it links one — a brand's
   // own row that was never seeded from the pool has no registry id to look up.
+  // Ticket 14 Phase B1: the panel's brand-history timeline reads the SAME rows, so the single
+  // `loadRegistryBrandHistory` round trip now feeds both the "In other brands:" chip row and the
+  // timeline — no second query per creator open.
   const selectedCreator =
-    initialSelection === null ? null : cards.find((row) => row.id === initialSelection) ?? null;
+    initialSelection === null ? null : (cards.find((row) => row.id === initialSelection) ?? null);
   const selectedRegistryId =
-    selectedCreator === null ? null : creators.find((row) => row.id === selectedCreator.id)?.registryCreatorId ?? null;
-  const otherBrands =
-    selectedRegistryId === null
-      ? []
-      : (await loadRegistryBrandHistory(selectedRegistryId))
-          .filter((row) => row.brandId !== brand?.id)
-          .map((row) => ({ brandId: row.brandId, brandName: row.brandName }));
+    selectedCreator === null
+      ? null
+      : (creators.find((row) => row.id === selectedCreator.id)?.registryCreatorId ?? null);
+  const brandHistory =
+    selectedRegistryId === null ? [] : await loadRegistryBrandHistory(selectedRegistryId);
+  const otherBrands = brandHistory
+    .filter((row) => row.brandId !== brand?.id)
+    .map((row) => ({ brandId: row.brandId, brandName: row.brandName }));
   const videos = (videoResult?.rows ?? []).map((row) => ({
     id: row.id,
     url: row.url,
@@ -187,6 +191,7 @@ export default async function UgcPage({ searchParams }: UgcPageProps) {
       canRate={canRate}
       now={now}
       otherBrands={otherBrands}
+      brandHistory={brandHistory}
     />
   );
 }

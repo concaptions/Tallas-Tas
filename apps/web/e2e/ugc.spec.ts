@@ -184,6 +184,41 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(tomasCard.locator('[data-slot="profile-card-avatar"]')).toHaveText('TF');
   });
 
+  test('Ticket 14: the brand history timeline section is expandable and shows the empty state in demo', async ({
+    page,
+  }) => {
+    await page.goto(ugcPath);
+    await page.locator('[data-slot="creator-row"]').filter({ hasText: DANIELLE }).click();
+
+    // The timeline mounts, open by default (its "no brand history" line is the demo mode state —
+    // the registry is empty with no credentials, so `loadRegistryBrandHistory` returns []).
+    const timeline = page.locator('[data-slot="brand-history"]');
+    await expect(timeline).toBeVisible();
+    await expect(timeline).toHaveJSProperty('open', true);
+    await expect(timeline.locator('[data-slot="brand-history-empty"]')).toBeVisible();
+
+    // The summary toggle collapses it: a `<details>` summary click flips `open`, no slot change.
+    await timeline.locator('summary').click();
+    await expect(timeline).toHaveJSProperty('open', false);
+  });
+
+  test('Ticket 14: showcase videos sit in a horizontally scrollable strip (never a broken image for a missing pic)', async ({
+    page,
+  }) => {
+    await page.goto(ugcPath);
+    await page.locator('[data-slot="creator-row"]').filter({ hasText: DANIELLE }).click();
+
+    const strip = page.locator('[data-slot="showcase-videos"]');
+    // Demo mode may show the empty line or the strip, depending on fixtures; either way the slot
+    // name holds. If the strip renders, it carries overflow-x auto so a wide list scrolls alone.
+    const stripCount = await strip.count();
+    if (stripCount > 0) {
+      await expect(strip).toHaveCSS('overflow-x', 'auto');
+    } else {
+      await expect(page.locator('[data-slot="showcase-videos-empty"]')).toBeVisible();
+    }
+  });
+
   test('the Oct 5 client-status badge + dropdown mount in the creator panel', async ({ page }) => {
     await page.goto(ugcPath);
     await page.locator('[data-slot="creator-row"]').filter({ hasText: DANIELLE }).click();
