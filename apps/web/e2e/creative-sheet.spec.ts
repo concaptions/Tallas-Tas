@@ -587,4 +587,22 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     // Approve is disabled with the QA refusal, which beats the demo hint (B4.V13).
     await expect(focus.locator('[data-slot="focus-approve"]')).toBeDisabled();
   });
+
+  // Ticket 11: Focus Mode mounts the version chip row and the Upload control. In demo mode the
+  // Upload button is disabled with the demo hint; the chip row mounts even when the fixture carries
+  // no submissions (empty state), and no console error is thrown.
+  test('Ticket 11 — version chip row and Upload mount; Upload refused in demo mode', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+    await hydrated(page);
+
+    await page.getByRole('tab', { name: 'Focus Mode' }).click();
+    const focus = page.locator('[data-slot="focus-mode"]');
+    await expect(focus).toBeVisible();
+
+    // The chip row mounts, and the Upload button is disabled with the demo hint.
+    await expect(focus.locator('[data-slot="focus-version-chips"]')).toBeVisible();
+    await expect(focus.locator('[data-slot="focus-upload"]')).toBeDisabled();
+  });
 });

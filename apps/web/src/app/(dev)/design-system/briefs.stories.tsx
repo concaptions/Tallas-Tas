@@ -584,3 +584,104 @@ export function BriefCommentThreadStory() {
     </div>
   );
 }
+
+/* ------------------------------------------------------------------------------------------------
+ * Ticket 11 — version chip row (migration 0071). Three states: no uploads yet, one uploaded, three
+ * uploaded with the latest marked current. The row renders without any Server Action — rows are
+ * fed as props to Focus Mode in the real page.
+ * ---------------------------------------------------------------------------------------------- */
+
+interface VersionChipStoryEntry {
+  readonly version: number;
+  readonly isCurrent: boolean;
+  readonly uploadedByName: string;
+  readonly uploadedAt: Date;
+}
+
+function VersionChipRowStory({
+  entries,
+  label,
+}: {
+  readonly entries: readonly VersionChipStoryEntry[];
+  readonly label: string;
+}) {
+  const current = entries.find((e) => e.isCurrent);
+  return (
+    <section
+      data-slot="brief-version-chips-story"
+      data-state={label.toLowerCase().replace(/\s+/g, '-')}
+      className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4"
+    >
+      <header className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-text">{label}</h3>
+        <StatusChip tone="mute" label={String(entries.length)} />
+      </header>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {entries.length === 0 ? (
+          <span className="text-[11px] text-text4">No uploads yet.</span>
+        ) : (
+          entries.map((entry) => (
+            <span
+              key={entry.version}
+              data-slot="story-version-chip"
+              data-current={entry.isCurrent ? 'true' : 'false'}
+              className={
+                entry.isCurrent
+                  ? 'rounded-input border border-accent/60 bg-accent px-2 py-0.5 font-mono text-[10px] tracking-wide text-on-accent'
+                  : 'rounded-input border border-line bg-surface2 px-2 py-0.5 font-mono text-[10px] tracking-wide text-text3'
+              }
+            >
+              V{String(entry.version)}
+            </span>
+          ))
+        )}
+      </div>
+      {current === undefined ? null : (
+        <p className="text-[11px] text-text4">
+          V{String(current.version)} · uploaded {formatCommentStamp(current.uploadedAt)} by{' '}
+          {current.uploadedByName}
+        </p>
+      )}
+    </section>
+  );
+}
+
+const CHIP_ONE: readonly VersionChipStoryEntry[] = [
+  {
+    version: 1,
+    isCurrent: true,
+    uploadedByName: 'Haroon Ali',
+    uploadedAt: new Date('2026-10-14T14:12:00Z'),
+  },
+];
+
+const CHIP_THREE: readonly VersionChipStoryEntry[] = [
+  {
+    version: 1,
+    isCurrent: false,
+    uploadedByName: 'Haroon Ali',
+    uploadedAt: new Date('2026-10-10T09:30:00Z'),
+  },
+  {
+    version: 2,
+    isCurrent: false,
+    uploadedByName: 'Haroon Ali',
+    uploadedAt: new Date('2026-10-12T11:00:00Z'),
+  },
+  {
+    version: 3,
+    isCurrent: true,
+    uploadedByName: 'Haroon Ali',
+    uploadedAt: new Date('2026-10-14T14:45:00Z'),
+  },
+];
+
+export function BriefVersionChipsStory() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3" data-slot="brief-version-chips-states">
+      <VersionChipRowStory entries={[]} label="No uploads" />
+      <VersionChipRowStory entries={CHIP_ONE} label="One" />
+      <VersionChipRowStory entries={CHIP_THREE} label="Three" />
+    </div>
+  );
+}

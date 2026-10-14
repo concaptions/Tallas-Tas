@@ -58,6 +58,7 @@ import {
   postCreativeCommentAction,
   requestChangesAction,
   submitToClientAction,
+  uploadSubmissionAction,
   type ReviewResult,
 } from './review-actions';
 
@@ -90,6 +91,19 @@ interface FocusModeViewProps {
   readonly viewerIsAdmin?: boolean;
   /** The current submission version these overlays and thread live on; defaults to 1 (Ticket 10). */
   readonly submissionVersion?: number;
+  /** The Ticket 11 uploads history for the focused brief; empty keeps the chip row empty. */
+  readonly submissions?: readonly BriefSubmissionView[];
+}
+
+/** One uploaded submission, as the server loads it for the version chip row. */
+export interface BriefSubmissionView {
+  readonly id: string;
+  readonly version: number;
+  readonly fileUrl: string;
+  readonly fileType: string;
+  readonly uploadedAt: string;
+  readonly uploadedByName: string;
+  readonly isCurrent: boolean;
 }
 
 /** One annotation pin, as the server loads it for Focus Mode. */
@@ -256,8 +270,17 @@ export function FocusModeView({
   viewerCanReview = true,
   viewerIsAdmin = false,
   submissionVersion = 1,
+  submissions = [],
 }: FocusModeViewProps) {
   const router = useRouter();
+  // The URL's `?version=` chooses which submission the overlay and thread live on. Read lazily
+  // from `window.location.search` (not `useSearchParams`, which forces a Suspense boundary on
+  // every parent page); SSR gets no window and reads an empty string, so the default `is_current`
+  // path is picked, matching the server's initial render.
+  const [requestedVersion, setRequestedVersion] = useState<number>(() => {
+    if (typeof window === 'undefined') return Number.NaN;
+    return Number(new URLSearchParams(window.location.search).get('version') ?? '');
+  });
   const ids = useMemo(() => items.map((view) => view.item.id), [items]);
   const index = focusIndex(ids, focusedId);
   const view = index === -1 ? null : (items[index] ?? null);
@@ -274,6 +297,14 @@ export function FocusModeView({
   const [replyDraft, setReplyDraft] = useState('');
   const [rootDraft, setRootDraft] = useState('');
   const [pinDraft, setPinDraft] = useState<{ x: number; y: number; note: string } | null>(null);
+  // Ticket 11 upload dialog local state. `null` means the dialog is closed; opening it populates
+  // the four controlled inputs so a cancel keeps nothing between opens.
+  const [uploadDraft, setUploadDraft] = useState<{
+    fileUrl: string;
+    fileType: 'video' | 'image' | 'audio';
+    thumbnailUrl: string;
+    duration: string;
+  } | null>(null);
 
   // The comments the page loaded plus the ones posted since, until the refresh brings them back.
   useEffect(() => {
@@ -359,8 +390,17 @@ export function FocusModeView({
   };
 
   /* ----- Ticket 10 overlay + thread handlers ----- */
+  const currentSubmission = submissions.find((s) => s.isCurrent) ?? null;
+  const activeVersionResolved =
+    Number.isInteger(requestedVersion) && requestedVersion > 0
+      ? requestedVersion
+      : (currentSubmission?.version ?? submissionVersion);
+  const activeSubmission = submissions.find((s) => s.version === activeVersionResolved) ?? null;
+  const viewingCurrent =
+    currentSubmission === null || activeVersionResolved === currentSubmission.version;
+
   const openPinDraft = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (view === null || demo || !viewerCanReview) {
+    if (view === null || demo || !viewerCanReview || !viewingCurrent) {
       // The server would refuse; keep the overlay inert so the viewer sees why from the button hint.
       return;
     }
@@ -463,6 +503,40 @@ export function FocusModeView({
     });
   };
 
+  /** Ticket 11: switch the version chip to another submission by rewriting `?version=`. */
+  const switchVersion = (version: number) => {
+    if (view === null) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('version', String(version));
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    setRequestedVersion(version);
+  };
+
+  /** Ticket 11 upload. The dialog is open while `uploadDraft !== null`. */
+  const submitUpload = () => {
+    if (view === null || demo || uploadDraft === null) return;
+    if (uploadDraft.fileUrl.trim() === '' || uploadDraft.fileType.trim() === '') return;
+    setError(null);
+    const duration = uploadDraft.duration.trim() === '' ? null : Number(uploadDraft.duration);
+    const thumbnail =
+      uploadDraft.thumbnailUrl.trim() === '' ? null : uploadDraft.thumbnailUrl.trim();
+    startTransition(async () => {
+      const result = await uploadSubmissionAction(
+        view.item.id,
+        uploadDraft.fileUrl.trim(),
+        uploadDraft.fileType,
+        thumbnail,
+        duration,
+      );
+      if (result.ok) {
+        setUploadDraft(null);
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
+    });
+  };
+
   if (view === null) {
     return (
       <div
@@ -515,11 +589,18 @@ export function FocusModeView({
     variant: 'outline' | 'default' | 'success',
     extraClass = '',
   ) => {
-    const disabled = demo || pending || !state.enabled;
+    const disabled = demo || pending || !state.enabled || !viewingCurrent;
     // A guard refusal is the more specific reason, so it beats the demo hint (B4.V13); the demo
     // hint stays for a button the guard would allow. The QA refusal alone gets the warn heading
     // and the missing tick's name in bold (B1.A6); every other hint renders as the guard wrote it.
-    const hint = !state.enabled && state.hint !== null ? state.hint : demo ? DEMO_WRITE_HINT : '';
+    // Ticket 11: a previous version's chip disables review — the hint names the fix.
+    const hint = !viewingCurrent
+      ? 'Switch to the current version to review.'
+      : !state.enabled && state.hint !== null
+        ? state.hint
+        : demo
+          ? DEMO_WRITE_HINT
+          : '';
     const qaGated = state.kind === 'qa';
     return (
       <DisabledWrite
@@ -736,6 +817,144 @@ export function FocusModeView({
 
         {/* Right: content */}
         <div className="flex min-w-0 flex-col gap-3.5 p-4" data-slot="focus-content">
+          {/* Ticket 11 version chip row — the uploads history. One chip per submission; the
+              current one is marked. Upload opens a dialog beside the chips. */}
+          <div data-slot="focus-version-chips" className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {submissions.length === 0 ? (
+                <span className="text-[11px] text-text4">No uploads yet.</span>
+              ) : (
+                submissions.map((sub) => (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    data-slot="focus-version-chip"
+                    data-current={sub.version === activeVersionResolved ? 'true' : 'false'}
+                    aria-pressed={sub.version === activeVersionResolved}
+                    onClick={() => {
+                      switchVersion(sub.version);
+                    }}
+                    className={cn(
+                      'rounded-input border px-2 py-0.5 font-mono text-[10px] tracking-wide',
+                      sub.version === activeVersionResolved
+                        ? 'border-accent/60 bg-accent text-on-accent'
+                        : 'border-line bg-surface2 text-text3 hover:border-accent/40',
+                    )}
+                  >
+                    V{String(sub.version)}
+                  </button>
+                ))
+              )}
+            </div>
+            <DisabledWrite active={demo || !viewerCanReview} hint={demo ? DEMO_WRITE_HINT : ''}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-slot="focus-upload"
+                disabled={demo || !viewerCanReview}
+                onClick={() => {
+                  setUploadDraft({
+                    fileUrl: '',
+                    fileType: 'video',
+                    thumbnailUrl: '',
+                    duration: '',
+                  });
+                }}
+                className={cn('text-xs', demo && disabledWriteClassName)}
+              >
+                Upload
+              </Button>
+            </DisabledWrite>
+          </div>
+          {activeSubmission === null ? null : (
+            <p data-slot="focus-version-stamp" className="text-[11px] text-text4">
+              V{String(activeSubmission.version)} · uploaded{' '}
+              {formatCommentStamp(activeSubmission.uploadedAt)} by {activeSubmission.uploadedByName}
+            </p>
+          )}
+          {uploadDraft === null ? null : (
+            <div
+              data-slot="focus-upload-dialog"
+              className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3"
+            >
+              <label className="flex flex-col gap-1 text-[11px] text-text3">
+                File URL
+                <input
+                  type="url"
+                  value={uploadDraft.fileUrl}
+                  onChange={(event) => {
+                    setUploadDraft({ ...uploadDraft, fileUrl: event.target.value });
+                  }}
+                  placeholder="https://cdn.example.com/cut.mp4"
+                  className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] text-text3">
+                File type
+                <select
+                  value={uploadDraft.fileType}
+                  onChange={(event) => {
+                    setUploadDraft({
+                      ...uploadDraft,
+                      fileType: event.target.value as 'video' | 'image' | 'audio',
+                    });
+                  }}
+                  className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+                >
+                  <option value="video">Video</option>
+                  <option value="image">Image</option>
+                  <option value="audio">Audio</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] text-text3">
+                Thumbnail URL (optional)
+                <input
+                  type="url"
+                  value={uploadDraft.thumbnailUrl}
+                  onChange={(event) => {
+                    setUploadDraft({ ...uploadDraft, thumbnailUrl: event.target.value });
+                  }}
+                  className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] text-text3">
+                Duration seconds (optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={uploadDraft.duration}
+                  onChange={(event) => {
+                    setUploadDraft({ ...uploadDraft, duration: event.target.value });
+                  }}
+                  className="rounded-input border border-line bg-surface2 px-2 py-1 text-xs text-text2"
+                />
+              </label>
+              <div className="flex justify-end gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                  onClick={() => {
+                    setUploadDraft(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="text-xs font-semibold"
+                  disabled={uploadDraft.fileUrl.trim() === '' || pending}
+                  onClick={submitUpload}
+                  data-slot="focus-upload-save"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="grid gap-3.5 lg:grid-cols-[392px_minmax(0,1fr)]">
             <section
               className="flex flex-col overflow-hidden rounded-card border border-line bg-surface"
@@ -984,7 +1203,14 @@ export function FocusModeView({
                   );
                 })}
               </div>
-              {viewerCanReview ? (
+              {!viewingCurrent ? (
+                <p
+                  data-slot="brief-thread-readonly"
+                  className="border-t border-line pt-3 text-[11px] text-text4"
+                >
+                  Switch to the current version to review.
+                </p>
+              ) : viewerCanReview ? (
                 <div className="flex items-center gap-2 border-t border-line pt-3">
                   <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface4 text-[10px] font-semibold text-text3">
                     You

@@ -22,6 +22,7 @@ import {
   BriefCommentThreadStory,
   BriefContentFieldsStory,
   BriefQaChecklistStory,
+  BriefVersionChipsStory,
   QaCheckRowStory,
 } from './briefs.stories';
 
@@ -158,6 +159,25 @@ describe('BriefCommentThreadStory', () => {
     expect(html).toContain('data-state="empty"');
     expect(html).toContain('data-state="flat"');
     expect(html).toContain('data-state="with-a-reply"');
+  });
+
+  it('uses the token layer only', () => {
+    expect(html).not.toMatch(COLOUR_LITERAL);
+  });
+});
+
+/**
+ * Ticket 11 version chip row — three fixture states for the uploads chip row.
+ */
+describe('BriefVersionChipsStory', () => {
+  const html = renderToStaticMarkup(<BriefVersionChipsStory />);
+
+  it('mounts the three states (no uploads, one, three)', () => {
+    expect(html).toContain('data-state="no-uploads"');
+    expect(html).toContain('data-state="one"');
+    expect(html).toContain('data-state="three"');
+    // 0 + 1 + 3 chips across the three cards.
+    expect(html.match(/data-slot="story-version-chip"/g)).toHaveLength(4);
   });
 
   it('uses the token layer only', () => {

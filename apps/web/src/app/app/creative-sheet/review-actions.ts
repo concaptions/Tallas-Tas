@@ -22,8 +22,10 @@ import {
   softDeleteBriefs,
   updateBrief,
   updateBriefClientStatus,
+  uploadBriefSubmission,
   type BriefAnnotation,
   type BriefComment,
+  type BriefSubmission,
   type CreativeBrief,
   type Db,
 } from '@tas/db';
@@ -681,5 +683,81 @@ export async function deleteCommentAction(id: string): Promise<IdResult> {
     return outcome;
   } catch {
     return { ok: false, error: 'The comment could not be removed. Try again.' };
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * TICKET 11 — uploads history, the version chip row (migration 0071)
+ * ---------------------------------------------------------------------------------------------- */
+
+export interface SubmissionSuccess {
+  readonly ok: true;
+  readonly submission: BriefSubmission;
+}
+
+export type SubmissionResult = SubmissionSuccess | ReviewFailure;
+
+const submissionInput = z.object({
+  briefId: z.string().trim().min(1),
+  fileUrl: z.url(),
+  fileType: z.string().trim().min(1),
+  thumbnailUrl: z.url().nullable(),
+  durationSeconds: z.number().int().min(0).nullable(),
+});
+
+/**
+ * Upload a new submission for the brief: version increments under the per-brief advisory lock,
+ * the previous `is_current` row flips off, the new row lands as current, and the activity log
+ * records the write. The reviewer role gate is the same as Ticket 10's — only an agency reviewer.
+ */
+export async function uploadSubmissionAction(
+  briefId: string,
+  fileUrl: string,
+  fileType: string,
+  thumbnailUrl: string | null,
+  durationSeconds: number | null,
+): Promise<SubmissionResult> {
+  if (isDemoMode()) return { ok: false, error: DEMO_WRITE_REFUSAL };
+  const parsed = submissionInput.safeParse({
+    briefId,
+    fileUrl,
+    fileType,
+    thumbnailUrl,
+    durationSeconds,
+  });
+  if (!parsed.success) return { ok: false, error: 'That submission is not valid.' };
+  try {
+    const actor = await writer();
+    if (actor === null) return { ok: false, error: SESSION_EXPIRED };
+    const outcome = await withBrandScope(async (db) => {
+      const brandId = await briefBrandId(db, parsed.data.briefId);
+      if (brandId === null) return { ok: false as const, error: UNKNOWN_BRIEF };
+      const role = await viewerRoleFor(db, brandId, actor.id);
+      if (!canReviewBrief(role)) return { ok: false as const, error: REVIEW_BRIEF_NOT_PERMITTED };
+      const userRowId = await resolveUserIdByClerk(db, actor.id);
+      if (userRowId === null) return { ok: false as const, error: SESSION_EXPIRED };
+      const submission = await uploadBriefSubmission(db, {
+        briefId: parsed.data.briefId,
+        fileUrl: parsed.data.fileUrl,
+        fileType: parsed.data.fileType,
+        thumbnailUrl: parsed.data.thumbnailUrl,
+        durationSeconds: parsed.data.durationSeconds,
+        uploadedBy: userRowId,
+      });
+      await insertActivity(
+        db,
+        brandId,
+        BRIEF_ENTITY,
+        parsed.data.briefId,
+        [{ field: 'submission.version', oldValue: null, newValue: String(submission.version) }],
+        actor,
+      );
+      return { ok: true as const, submission };
+    });
+    if (outcome === null) return { ok: false, error: NO_BRAND };
+    if (outcome.ok) revalidateRow(briefId);
+    return outcome;
+  } catch {
+    return { ok: false, error: 'The submission could not be saved. Try again.' };
   }
 }

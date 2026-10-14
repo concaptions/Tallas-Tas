@@ -15,6 +15,7 @@ import {
   postCreativeCommentAction,
   requestChangesAction,
   submitToClientAction,
+  uploadSubmissionAction,
 } from './review-actions';
 
 /**
@@ -50,6 +51,14 @@ interface Seam {
     parentCommentId: string | null;
     createdBy: string;
   }[];
+  submissions: {
+    briefId: string;
+    fileUrl: string;
+    fileType: string;
+    thumbnailUrl: string | null;
+    durationSeconds: number | null;
+    uploadedBy: string;
+  }[];
   annotationActors: Map<string, { createdBy: string; briefId: string }>;
   commentActors: Map<string, { createdBy: string; briefId: string }>;
   briefBrand: Map<string, string>;
@@ -73,6 +82,7 @@ const seam = vi.hoisted<Seam>(() => ({
   briefCommentCount: 1,
   briefAnnotations: [],
   briefComments: [],
+  submissions: [],
   annotationActors: new Map(),
   commentActors: new Map(),
   briefBrand: new Map(),
@@ -225,6 +235,32 @@ vi.mock('@tas/db', async (importOriginal) => {
     },
     resolveUserIdByClerk: (_db: Db, clerkUserId: string) =>
       Promise.resolve(seam.userIdByClerk.get(clerkUserId) ?? null),
+    uploadBriefSubmission: (
+      _db: Db,
+      input: {
+        briefId: string;
+        fileUrl: string;
+        fileType: string;
+        thumbnailUrl: string | null;
+        durationSeconds: number | null;
+        uploadedBy: string;
+      },
+    ) => {
+      seam.submissions.push(input);
+      const version = seam.submissions.filter((s) => s.briefId === input.briefId).length;
+      return Promise.resolve({
+        id: `sub-${String(seam.submissions.length)}`,
+        briefId: input.briefId,
+        version,
+        uploadedBy: input.uploadedBy,
+        fileUrl: input.fileUrl,
+        fileType: input.fileType,
+        thumbnailUrl: input.thumbnailUrl,
+        durationSeconds: input.durationSeconds,
+        uploadedAt: new Date('2026-10-14T11:00:00Z'),
+        isCurrent: true,
+      });
+    },
   };
 });
 
@@ -286,6 +322,7 @@ afterEach(() => {
   seam.comments.length = 0;
   seam.briefAnnotations.length = 0;
   seam.briefComments.length = 0;
+  seam.submissions.length = 0;
   seam.deletedAnnotationIds.length = 0;
   seam.deletedCommentIds.length = 0;
   seam.annotationActors.clear();
@@ -309,6 +346,9 @@ describe('in demo mode', () => {
     expect(await deleteAnnotationAction('annot-1')).toEqual(refusal);
     expect(await addCommentAction(VIDEO_ID, 1, 'hi', null)).toEqual(refusal);
     expect(await deleteCommentAction('bc-1')).toEqual(refusal);
+    expect(
+      await uploadSubmissionAction(VIDEO_ID, 'https://cdn.example.com/v.mp4', 'video', null, null),
+    ).toEqual(refusal);
   });
 });
 
@@ -826,6 +866,67 @@ describe('deleteCommentAction', () => {
     expect(await deleteCommentAction('bc-1')).toEqual({
       ok: false,
       error: 'Only an agency admin, CSM, strategist or media buyer can review this brief.',
+    });
+  });
+});
+
+describe('uploadSubmissionAction', () => {
+  it('refuses a non-reviewer', async () => {
+    live();
+    seam.role = 'designer';
+    seam.briefBrand.set(VIDEO_ID, 'brand-under-test');
+    seam.briefs = [brief()];
+
+    const result = await uploadSubmissionAction(
+      VIDEO_ID,
+      'https://cdn.example.com/v.mp4',
+      'video',
+      null,
+      42,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Only an agency admin, CSM, strategist or media buyer can review this brief.',
+    });
+    expect(seam.submissions).toEqual([]);
+  });
+
+  it('writes a submission for a reviewer, with the user uuid as uploader', async () => {
+    live();
+    seam.role = 'strategist';
+    seam.briefBrand.set(VIDEO_ID, 'brand-under-test');
+    seam.briefs = [brief()];
+
+    const result = await uploadSubmissionAction(
+      VIDEO_ID,
+      'https://cdn.example.com/v.mp4',
+      'video',
+      null,
+      42,
+    );
+
+    expect(result).toMatchObject({ ok: true });
+    expect(seam.submissions).toEqual([
+      {
+        briefId: VIDEO_ID,
+        fileUrl: 'https://cdn.example.com/v.mp4',
+        fileType: 'video',
+        thumbnailUrl: null,
+        durationSeconds: 42,
+        uploadedBy: '00000000-0000-4000-8000-00000000aaaa',
+      },
+    ]);
+  });
+
+  it('refuses an invalid file URL', async () => {
+    live();
+    seam.briefBrand.set(VIDEO_ID, 'brand-under-test');
+    seam.briefs = [brief()];
+
+    expect(await uploadSubmissionAction(VIDEO_ID, 'not-a-url', 'video', null, null)).toEqual({
+      ok: false,
+      error: 'That submission is not valid.',
     });
   });
 });

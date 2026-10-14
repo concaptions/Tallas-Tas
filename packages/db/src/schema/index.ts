@@ -4,6 +4,7 @@ export * from './ai-characters';
 export * from './annotations';
 export * from './brief-annotations';
 export * from './brief-comments';
+export * from './brief-submissions';
 export * from './assets';
 export * from './angles';
 export * from './brand-assignments';

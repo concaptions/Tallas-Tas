@@ -83,6 +83,7 @@ import {
   BriefAnnotationOverlayStory,
   BriefCommentThreadStory,
   BriefContentFieldsStory,
+  BriefVersionChipsStory,
   BriefChipsStory,
   BriefDimensionsPickerStory,
   BriefDimensionsStory,
@@ -1231,6 +1232,13 @@ export default function DesignSystemPage() {
               flat with three comments, threaded with a reply chain
             </h3>
             <BriefCommentThreadStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              version chip row (Ticket 11, migration 0071) — the uploads history in three states:
+              none, one upload (current), three uploads with the latest marked current
+            </h3>
+            <BriefVersionChipsStory />
           </div>
         </div>
       </Section>
