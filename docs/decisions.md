@@ -2396,3 +2396,34 @@ to `react-day-picker` the day the team asks for one — the primitive's props (`
 Timezone rule: the primitive takes and returns an ISO `YYYY-MM-DD` LOCAL date — a brief's due date
 is "due Friday", not a UTC timestamp. The brief row's `due_date` column is `timestamptz`
 (migration 0043) and the caller normalises the two directions.
+
+
+## 2026-10-15 · D-034 — InlineField editable scope: 7 of 11 kinds inline, 4 remain readonly
+
+Phase B5 Fix A's `InlineField` composes seven of the eleven `BriefFieldKind` editors inline:
+`text`, `richtext`, `url`, `singleSelect`, `multiSelect`, `date`, and (as a readonly chip for the
+sidebar surface) `statusKey`. The user's named need — "editable in popup, in the new-item dialog
+and in the row itself" — is covered by exactly these kinds plus the status chip; everything the
+sidebar's own hand-coded editors reach today, the InlineField now reaches too, through a shared
+primitive.
+
+The remaining four kinds — `link`, `user`, `file`, `checkbox` — stay READONLY in the InlineField
+and open their existing editors inside the full brief page:
+
+- `link` is a record picker (concept, angle, product); the full brief page's dedicated picker
+  already runs the per-field search and inheritance preview and is not worth re-implementing
+  three times.
+- `user` is an org-member picker; the Team page's roster is the shared source.
+- `file` needs an upload workflow with R2 presign and a thumbnail; the full page carries it.
+- `checkbox` is a trivial boolean, but it is NOT on the user's named need (text / select / date /
+  richtext), and ticking a QA box has its own guarded action (`toggleQaAction`). The Fix B
+  follow-up swaps the readonly chip for the native checkbox, re-using the QA tick's existing
+  action rather than routing through `updateBriefPartialAction`.
+
+`statusKey` is readonly in the InlineField on purpose — a status move needs the state-machine
+check and the QA auto-reset, so the parent surface (sidebar / brief page / grid) owns the
+dropdown and calls `moveCreativeSheetItemAction`. `InlineField` renders the chip, never the
+dropdown.
+
+The role gate is pure (`canEditBrief`); the InlineField consults it before rendering an editor,
+and the server action re-runs the check. A disabled control and an action refusal always agree.
