@@ -140,8 +140,12 @@ describe('startOfWeekMonday', () => {
     const sun = new Date('2026-10-18T10:00:00Z');
     const start = startOfWeekMonday(sun);
     expect(start.getDay()).toBe(1);
-    // 2026-10-12 Monday is 6 days before 2026-10-18 Sunday.
-    expect(Math.round((sun.getTime() - start.getTime()) / DAY_MS)).toBe(6);
+    // 2026-10-12 Monday is 6 days before 2026-10-18 Sunday. Compared on CALENDAR DAYS (local-date
+    // midnights expressed in UTC), not ms, so the diff is timezone-neutral — ms subtraction mixes
+    // UTC-anchored `sun` with locally-anchored `start`, which lands on 7 in zones east of UTC.
+    const sunDay = Date.UTC(sun.getFullYear(), sun.getMonth(), sun.getDate());
+    const startDay = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+    expect(Math.round((sunDay - startDay) / DAY_MS)).toBe(6);
   });
 });
 
