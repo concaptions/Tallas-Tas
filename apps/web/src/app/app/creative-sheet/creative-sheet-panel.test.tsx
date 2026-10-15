@@ -79,7 +79,9 @@ describe('CreativeSheetPanel — the Brief row sidebar against board 2', () => {
 
     // B2.A4: six headings, each the SectionLabel eyebrow.
     const headings = [...panel.querySelectorAll('[data-slot="creative-sheet-group-heading"]')];
-    expect(headings.map((heading) => heading.textContent)).toEqual(Object.values(SHEET_GROUPS));
+    expect(headings.map((heading) => heading.textContent)).toEqual(
+      Object.values(SHEET_GROUPS).map((group) => group.label),
+    );
     for (const heading of headings) {
       expect(heading.className).toContain('uppercase');
     }

@@ -381,7 +381,7 @@ export function CreativeSheetPanel({
 
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col">
-              <Group heading={SHEET_GROUPS.identity}>
+              <Group heading={SHEET_GROUPS.identity.label}>
                 <div data-slot="creative-sheet-identity">
                   {row('Concept', lookups?.concept ?? dash)}
                   {row('Angle', lookups?.angle ?? dash)}
@@ -442,7 +442,7 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.content}>
+              <Group heading={SHEET_GROUPS.content.label}>
                 <div className="flex flex-col gap-3" data-slot="creative-sheet-content">
                   {block('Script / Ad Content', detail.scriptContent ?? detail.adContent)}
                   {/*
@@ -498,7 +498,7 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.assets}>
+              <Group heading={SHEET_GROUPS.assets.label}>
                 <div className="flex flex-col gap-2" data-slot="creative-sheet-assets">
                   {files('Inspiration images', detail.inspirationImage, Image)}
                   {files('Script breakdown', detail.scriptAndBriefBreakdown, File)}
@@ -506,7 +506,7 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.qa}>
+              <Group heading={SHEET_GROUPS.qa.label}>
                 <DisabledWrite active={demo} hint={DEMO_WRITE_HINT} className="w-full">
                   <div className="flex w-full flex-col">{QA_CHECKS.map(checkField)}</div>
                 </DisabledWrite>
@@ -557,7 +557,7 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.approval}>
+              <Group heading={SHEET_GROUPS.approval.label}>
                 {selectField(
                   'internalStatus',
                   internalOptions,
@@ -582,7 +582,7 @@ export function CreativeSheetPanel({
                 </div>
               </Group>
 
-              <Group heading={SHEET_GROUPS.activity}>
+              <Group heading={SHEET_GROUPS.activity.label}>
                 <div data-slot="creative-sheet-meta">
                   {row('Created', formatSheetDate(item.createdAt))}
                   {row('Last modified', formatSheetDate(item.updatedAt))}

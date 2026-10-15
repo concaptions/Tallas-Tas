@@ -152,21 +152,363 @@ export const DIMENSIONS_SAVE_LABELS = {
 } as const;
 
 /**
- * The panel's six section headings, in order (Ticket 6, 2026-10-14): Identity, Content, Assets,
- * QA, Status, Activity. The Status section covers both approval tracks and the due date; the
- * Activity section is what the panel previously labelled Meta, carrying the audit timestamps.
+ * The brief fields the sidebar, the New-creative dialog and the full brief page edit, grouped by
+ * the section they render under. Each entry carries its stored name, its on-screen label, the
+ * editor kind it needs and the surfaces that render it; the sidebar reads this manifest through
+ * `sectionFields(sectionId, 'sidebar')` so a change here lands on every surface at once.
  *
- * The object is written in the render order so a map over `Object.values(SHEET_GROUPS)` is the
- * same order the panel draws.
+ * The sidebar is the only live consumer today (Oct 15 editability chain, Fix A). `new-dialog`
+ * and `full-page` surfaces are accepted so the manifest is already the shape the next worker
+ * (Fix B / Fix C) will read; those pages still render from their own hand-coded blocks until
+ * they are rewired.
+ *
+ * One field appears in exactly one section — the orphan-detection test in `fields.test.ts`
+ * guards both directions.
+ */
+export type BriefFieldKind =
+  | 'text'
+  | 'richtext'
+  | 'singleSelect'
+  | 'multiSelect'
+  | 'link'
+  | 'url'
+  | 'date'
+  | 'file'
+  | 'user'
+  | 'checkbox'
+  | 'statusKey';
+
+export type BriefFieldSurface = 'sidebar' | 'new-dialog' | 'full-page';
+
+/**
+ * One field in a brief section, as the manifest declares it. `name` is the stored column key
+ * (camelCased, matching the brief row shape so a FormData hidden input can share the key).
+ * `surfaces` is the empty array for a read-only field (every Activity row), the single
+ * `'sidebar'` for a field the sidebar edits but no other surface yet reads, and may list
+ * `'new-dialog'` or `'full-page'` once those surfaces are rewired.
+ */
+export interface BriefSectionField {
+  readonly name: string;
+  readonly label: string;
+  readonly kind: BriefFieldKind;
+  readonly required: boolean;
+  readonly surfaces: ReadonlyArray<BriefFieldSurface>;
+}
+
+export interface BriefSection {
+  readonly label: string;
+  readonly fields: ReadonlyArray<BriefSectionField>;
+}
+
+export type SheetGroupId = 'identity' | 'content' | 'assets' | 'qa' | 'approval' | 'activity';
+
+/**
+ * The panel's six section headings, in render order (Ticket 6, 2026-10-14): Identity, Content,
+ * Assets, QA, Status, Activity. The Status section covers both approval tracks, the due date,
+ * priority and the client note; the Activity section carries the audit timestamps and is NOT
+ * inline-editable — its fields' `surfaces` list is empty on purpose.
+ *
+ * The object is written in render order so `Object.values(SHEET_GROUPS)` is the draw order.
  */
 export const SHEET_GROUPS = {
-  identity: 'Identity',
-  content: 'Content',
-  assets: 'Assets',
-  qa: 'QA',
-  approval: 'Status',
-  activity: 'Activity',
-} as const;
+  identity: {
+    label: 'Identity',
+    fields: [
+      {
+        name: 'conceptId',
+        label: 'Concept',
+        kind: 'link',
+        required: false,
+        surfaces: ['sidebar', 'new-dialog', 'full-page'],
+      },
+      {
+        name: 'angleId',
+        label: 'Angle',
+        kind: 'link',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'batch',
+        label: 'Batch',
+        kind: 'text',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'type',
+        label: 'Type',
+        kind: 'singleSelect',
+        required: true,
+        surfaces: ['sidebar', 'new-dialog', 'full-page'],
+      },
+      {
+        name: 'source',
+        label: 'Source',
+        kind: 'singleSelect',
+        required: true,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'funnel',
+        label: 'Funnel',
+        kind: 'singleSelect',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'version',
+        label: 'Version',
+        kind: 'text',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'productId',
+        label: 'Product',
+        kind: 'link',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'dimensions',
+        label: 'Dimensions',
+        kind: 'multiSelect',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'platform',
+        label: 'Platform',
+        kind: 'multiSelect',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'performance',
+        label: 'Performance',
+        kind: 'singleSelect',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'designFileUrl',
+        label: 'Design Link URL',
+        kind: 'url',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+    ],
+  },
+  content: {
+    label: 'Content',
+    fields: [
+      {
+        name: 'scriptContent',
+        label: 'Script / Ad Content',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'briefToDesign',
+        label: 'Brief to Design',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'offer',
+        label: 'Offer',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'inspiration',
+        label: 'Inspiration',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'inspoLinks',
+        label: 'Inspiration links',
+        kind: 'multiSelect',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'briefText',
+        label: 'Brief',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'music',
+        label: 'Music',
+        kind: 'text',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'voiceoverType',
+        label: 'Voiceover type',
+        kind: 'singleSelect',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'voiceoverScript',
+        label: 'Voiceover script',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+    ],
+  },
+  assets: {
+    label: 'Assets',
+    fields: [
+      {
+        name: 'inspirationImage',
+        label: 'Inspiration images',
+        kind: 'file',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'scriptAndBriefBreakdown',
+        label: 'Script breakdown',
+        kind: 'file',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'designFile',
+        label: 'Design file',
+        kind: 'file',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+    ],
+  },
+  qa: {
+    label: 'QA',
+    fields: [
+      {
+        name: 'qaVideoEditor',
+        label: 'Video Editor QA',
+        kind: 'checkbox',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'qaDesigner',
+        label: 'Graphic Designer QA',
+        kind: 'checkbox',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'qaStrategist',
+        label: 'Creative Strategist QA',
+        kind: 'checkbox',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'qaChecklistDoc',
+        label: 'QA Checklist Doc',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'spellCheckRequested',
+        label: 'Click for AI Spell Checker Again',
+        kind: 'checkbox',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'spellingFeedback',
+        label: 'Spelling Feedback',
+        kind: 'richtext',
+        required: false,
+        surfaces: ['full-page'],
+      },
+    ],
+  },
+  approval: {
+    label: 'Status',
+    fields: [
+      {
+        name: 'internalStatus',
+        label: 'Internal Status',
+        kind: 'statusKey',
+        required: true,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'status',
+        label: 'Client Approval',
+        kind: 'statusKey',
+        required: true,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'dueDate',
+        label: 'Due',
+        kind: 'date',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'priority',
+        label: 'Priority',
+        kind: 'singleSelect',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+      {
+        name: 'clientStatusNote',
+        label: 'Client note',
+        kind: 'text',
+        required: false,
+        surfaces: ['sidebar', 'full-page'],
+      },
+    ],
+  },
+  activity: {
+    label: 'Activity',
+    fields: [
+      { name: 'createdAt', label: 'Created', kind: 'date', required: false, surfaces: [] },
+      { name: 'updatedAt', label: 'Last modified', kind: 'date', required: false, surfaces: [] },
+      { name: 'createdBy', label: 'Creator', kind: 'user', required: false, surfaces: [] },
+      { name: 'assignee', label: 'Editor', kind: 'user', required: false, surfaces: [] },
+      { name: 'updatedBy', label: 'Updated by', kind: 'user', required: false, surfaces: [] },
+      { name: 'nameMode', label: 'Name mode', kind: 'text', required: false, surfaces: [] },
+    ],
+  },
+} as const satisfies Record<SheetGroupId, BriefSection>;
+
+/**
+ * The fields a given section renders on a given surface. The sidebar is the only live consumer
+ * today; `new-dialog` and `full-page` filter the same manifest but no surface reads them yet.
+ */
+export function sectionFields(
+  section: SheetGroupId,
+  surface: BriefFieldSurface,
+): readonly BriefSectionField[] {
+  // `SHEET_GROUPS` is `as const`, so each field's `surfaces` is a frozen tuple whose `.includes()`
+  // narrows the argument too tightly for a `BriefFieldSurface` argument. Widen to
+  // `readonly BriefSectionField[]` before the filter so the manifest's immutability does not
+  // leak into every caller.
+  const fields: readonly BriefSectionField[] = SHEET_GROUPS[section].fields;
+  return fields.filter((field) => field.surfaces.includes(surface));
+}
 
 /**
  * The Content section's four Ticket 6 fields on the brief (migration 0069): `brief_text` and

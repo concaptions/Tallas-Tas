@@ -29,6 +29,7 @@ import {
   QA_CHECKS,
   SEARCH_PARAM,
   SELECTION_PARAM,
+  sectionFields,
   SHEET_CHECKS,
   SHEET_DUE_DATE_LABEL,
   SHEET_GROUPS,
@@ -36,6 +37,8 @@ import {
   STATUS_OPTIONS,
   statusView,
   VOICEOVER_TYPE_OPTIONS,
+  type BriefSectionField,
+  type SheetGroupId,
 } from './fields';
 
 describe('the URL parameters', () => {
@@ -102,7 +105,7 @@ describe('the checkboxes', () => {
 
 describe('the panel sections (Ticket 6, 2026-10-14)', () => {
   it('are the six Ticket 6 headings in render order: Identity, Content, Assets, QA, Status, Activity', () => {
-    expect(Object.values(SHEET_GROUPS)).toEqual([
+    expect(Object.values(SHEET_GROUPS).map((group) => group.label)).toEqual([
       'Identity',
       'Content',
       'Assets',
@@ -110,6 +113,110 @@ describe('the panel sections (Ticket 6, 2026-10-14)', () => {
       'Status',
       'Activity',
     ]);
+  });
+});
+
+/**
+ * Oct 15 editability chain, Fix A scaffolding: the manifest in SHEET_GROUPS must list every
+ * typed brief field this module already exports (BRIEF_CONTENT_FIELDS, SHEET_CHECKS, and the
+ * four CreativeSheetFieldName writes), each in exactly one section — otherwise an inline-edit
+ * surface renders no affordance for it. Orphans in either direction are reported by name.
+ */
+describe('the SHEET_GROUPS field manifest (Oct 15 Fix A scaffolding)', () => {
+  const manifestFields: readonly BriefSectionField[] = Object.values(SHEET_GROUPS).flatMap(
+    (group) => [...group.fields],
+  );
+  const manifestNames = new Set(manifestFields.map((field) => field.name));
+
+  /** The brief fields this module already carries typed metadata for. */
+  const typedBriefFieldNames: readonly string[] = [
+    ...BRIEF_CONTENT_FIELDS.map((field) => field.name),
+    ...SHEET_CHECKS.map((check) => check.name),
+    'internalStatus',
+    'status',
+    'qaChecklistDoc',
+    'dimensions',
+  ];
+
+  it('names every BRIEF_CONTENT_FIELDS entry in exactly one section', () => {
+    const missing = BRIEF_CONTENT_FIELDS.filter((field) => !manifestNames.has(field.name)).map(
+      (field) => field.name,
+    );
+    expect(
+      missing,
+      `BRIEF_CONTENT_FIELDS missing from SHEET_GROUPS: ${missing.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('names every SHEET_CHECKS tick in exactly one section', () => {
+    const missing = SHEET_CHECKS.filter((check) => !manifestNames.has(check.name)).map(
+      (check) => check.name,
+    );
+    expect(missing, `SHEET_CHECKS missing from SHEET_GROUPS: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('names the two status tracks and the dimensions / QA checklist writes', () => {
+    const required = ['internalStatus', 'status', 'qaChecklistDoc', 'dimensions'];
+    const missing = required.filter((name) => !manifestNames.has(name));
+    expect(missing, `status/dimensions/qaChecklistDoc missing: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('lists every typed brief field in a section whose kind matches', () => {
+    const orphans = typedBriefFieldNames.filter((name) => !manifestNames.has(name));
+    expect(
+      orphans,
+      `typed brief fields without a SHEET_GROUPS entry: ${orphans.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('lists every field in exactly one section — no duplicates across sections', () => {
+    const counts = new Map<string, number>();
+    for (const field of manifestFields) {
+      counts.set(field.name, (counts.get(field.name) ?? 0) + 1);
+    }
+    const duplicates = [...counts.entries()].filter(([, count]) => count > 1).map(([name]) => name);
+    expect(duplicates, `duplicated across sections: ${duplicates.join(', ')}`).toEqual([]);
+  });
+
+  it('gives every manifest field a non-empty name, label and surfaces array', () => {
+    for (const field of manifestFields) {
+      expect(field.name, 'empty name').not.toBe('');
+      expect(field.label, `empty label for ${field.name}`).not.toBe('');
+      expect(Array.isArray(field.surfaces), `surfaces for ${field.name}`).toBe(true);
+    }
+  });
+
+  it('sectionFields filters by surface and keeps the section order', () => {
+    const identitySidebar = sectionFields('identity', 'sidebar');
+    expect(identitySidebar.length).toBeGreaterThan(0);
+    expect(identitySidebar.every((field) => field.surfaces.includes('sidebar'))).toBe(true);
+
+    // Activity is read-only everywhere: its fields carry an empty surfaces list.
+    expect(sectionFields('activity', 'sidebar')).toEqual([]);
+    expect(sectionFields('activity', 'full-page')).toEqual([]);
+
+    // Order within a section is preserved.
+    const contentNames = sectionFields('content', 'sidebar').map((field) => field.name);
+    expect(contentNames).toEqual(
+      SHEET_GROUPS.content.fields
+        .filter((field) => field.surfaces.includes('sidebar'))
+        .map((field) => field.name),
+    );
+  });
+
+  it('declares every section-id the SheetGroupId union lists', () => {
+    const ids: readonly SheetGroupId[] = [
+      'identity',
+      'content',
+      'assets',
+      'qa',
+      'approval',
+      'activity',
+    ];
+    for (const id of ids) {
+      expect(SHEET_GROUPS[id]).toBeDefined();
+      expect(SHEET_GROUPS[id].label.length).toBeGreaterThan(0);
+    }
   });
 });
 
