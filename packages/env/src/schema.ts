@@ -42,6 +42,10 @@ export const serverSchema = clientSchema.extend({
   DATABASE_URL_E2E: z.url().optional(),
   // Not a secret: the pre-created test user's address. apps/web/src/lib/live-e2e-env.ts has the default.
   CLERK_E2E_USER_EMAIL: z.email().optional(),
+  // Vercel sets this automatically on every deployment — the git SHA the running build was deployed
+  // from. The `/api/version` route reads it so a later `curl` can prove a push has rolled out.
+  // Not a secret (the SHA is on GitHub); the entry here is for the no-restricted-properties lint.
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 });
 
 export type ClientEnv = z.output<typeof clientSchema>;
