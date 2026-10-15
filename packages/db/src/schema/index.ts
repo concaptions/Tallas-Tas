@@ -42,6 +42,7 @@ export * from './upload-links';
 export * from './users';
 export * from './view-preferences';
 export * from './user-table-views';
+export * from './user-group-orders';
 export * from './activity-log';
 export * from './client-access-tokens';
 export * from './client-asset-folders';

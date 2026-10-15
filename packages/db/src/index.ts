@@ -408,6 +408,8 @@ export {
   updateUserTableViewConfig,
   type UserTableViewConfigInput,
 } from './user-table-views';
+export { clearGroupOrder, getGroupOrder, saveGroupOrder } from './group-orders';
+export type { GroupOrderEntry, GroupOrderScope } from './group-orders';
 // ── Module parity (2026-10-01): query layers + demo fixtures, one file per module ──
 export * from './copy-types';
 export * from './demo-copy-types';

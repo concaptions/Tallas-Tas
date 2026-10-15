@@ -152,6 +152,7 @@ import {
   ViewsMenuStory,
   ViewToolbarStory,
 } from './user-views.stories';
+import { GroupReorderStory } from './group-order.stories';
 import { CoverMenuStory } from './view-cover.stories';
 import { FreezeMenuStory, FrozenColumnsGridStory } from './view-freeze.stories';
 import { ClientQueueCardStory, ClientQueueColumnStory } from './client-queue-card.stories';
@@ -1157,6 +1158,12 @@ export default function DesignSystemPage() {
               filters and grouping — conditions narrow the rows, group headers count them (AI-32)
             </h3>
             <FilterGroupStory />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[11px] tracking-wide text-text3 uppercase">
+              drag, pin, reset — per-user group ordering (phase b5 commit 2)
+            </h3>
+            <GroupReorderStory />
           </div>
         </div>
       </Section>

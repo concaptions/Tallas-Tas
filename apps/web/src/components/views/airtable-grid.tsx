@@ -97,6 +97,31 @@ export interface AirtableGridProps<Row> {
    * row it belongs to, so that row keeps a `surface3` wash while the pointer is on the menu.
    */
   readonly contextRowId?: string | null;
+  /**
+   * Phase B5 commit 2 — per-user group ordering. When grouping is active, the page may provide an
+   * explicit order of group values (`applyGroupOrder` from `@tas/domain/views` resolves it from
+   * the viewer's saved order). Values not in the list keep their natural first-appearance order
+   * after the explicit ones. Absent → the grid draws groups in `groupRows` order, unchanged.
+   */
+  readonly groupOrder?: readonly string[];
+  /**
+   * Right-click on a group header, with the pointer position (Phase B5 commit 2). The page draws
+   * the pin / unpin / reset menu; the grid only reports which group the pointer is on.
+   */
+  readonly onGroupContextMenu?: (
+    groupValue: string,
+    position: { readonly x: number; readonly y: number },
+  ) => void;
+  /**
+   * Override the group-header render so a page can wrap it in a drag handle (Phase B5 commit 2).
+   * The default (no handler) draws the fallback label/count row the grid has always drawn.
+   */
+  readonly renderGroupHeader?: (args: {
+    readonly value: string;
+    readonly label: ReactNode;
+    readonly count: number;
+    readonly colSpan: number;
+  }) => ReactNode;
 }
 
 /**
@@ -136,6 +161,9 @@ export function AirtableGrid<Row>({
   selection,
   onRowContextMenu,
   contextRowId = null,
+  groupOrder,
+  onGroupContextMenu,
+  renderGroupHeader,
 }: AirtableGridProps<Row>) {
   const [localSort, setLocalSort] = useState<SortState | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
@@ -178,8 +206,20 @@ export function AirtableGrid<Row>({
   const groups = useMemo(() => {
     const groupBy = view?.groupBy ?? null;
     if (groupBy === null) return null;
-    return groupRows(sortedRows, groupBy, columns);
-  }, [columns, sortedRows, view]);
+    const baseGroups = groupRows(sortedRows, groupBy, columns);
+    if (baseGroups === null || groupOrder === undefined) return baseGroups;
+    // Phase B5 commit 2 — reorder the groups by the caller's explicit order (the viewer's saved
+    // group order, resolved through `applyGroupOrder` from `@tas/domain/views`). Values the caller
+    // did not mention keep their natural first-appearance order after the explicit ones.
+    const indexOf = new Map<string, number>();
+    groupOrder.forEach((value, index) => indexOf.set(value, index));
+    const fallback = groupOrder.length;
+    return [...baseGroups].sort((a, b) => {
+      const left = indexOf.get(a.value) ?? fallback;
+      const right = indexOf.get(b.value) ?? fallback;
+      return left - right;
+    });
+  }, [columns, sortedRows, view, groupOrder]);
   const groupHeader = columns.find((column) => column.key === view?.groupBy)?.groupHeader;
 
   const onHeaderClick = useCallback(
@@ -471,31 +511,53 @@ export function AirtableGrid<Row>({
                 </td>
               </tr>
             ) : groups !== null ? (
-              groups.map((group) => (
-                <Fragment key={`group-${group.value}`}>
-                  {/* One header row per group (AI-32): the value and its count. The inner div is
-                      sticky-left so the heading stays readable while the grid scrolls sideways. */}
-                  <tr
-                    data-slot="grid-group-header"
-                    data-group={group.value}
-                    className="border-b border-line bg-surface2"
-                  >
-                    <td colSpan={visibleColumns.length + selectionColumn} className="p-0">
-                      <div className="sticky left-0 flex w-fit max-w-full items-baseline gap-2 px-3 py-1.5">
-                        <span className="text-xs font-semibold text-text2">
-                          {group.value === ''
-                            ? group.label
-                            : (groupHeader?.(group.label) ?? group.label)}
-                        </span>
-                        <span className="font-mono text-[10px] text-text3" data-slot="group-count">
-                          {group.rows.length}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                  {group.rows.map((row) => renderRow(row))}
-                </Fragment>
-              ))
+              groups.map((group) => {
+                const colSpan = visibleColumns.length + selectionColumn;
+                const label: ReactNode =
+                  group.value === '' ? group.label : (groupHeader?.(group.label) ?? group.label);
+                const headerBody = renderGroupHeader?.({
+                  value: group.value,
+                  label,
+                  count: group.rows.length,
+                  colSpan,
+                }) ?? (
+                  <div className="sticky left-0 flex w-fit max-w-full items-baseline gap-2 px-3 py-1.5">
+                    <span className="text-xs font-semibold text-text2">{label}</span>
+                    <span className="font-mono text-[10px] text-text3" data-slot="group-count">
+                      {group.rows.length}
+                    </span>
+                  </div>
+                );
+                return (
+                  <Fragment key={`group-${group.value}`}>
+                    {/* One header row per group (AI-32): the value and its count. The inner body
+                        is sticky-left so the heading stays readable while the grid scrolls
+                        sideways. Phase B5 commit 2 — `renderGroupHeader` lets the page wrap this
+                        in a drag handle; `onGroupContextMenu` opens the pin/reset menu. */}
+                    <tr
+                      data-slot="grid-group-header"
+                      data-group={group.value}
+                      className="border-b border-line bg-surface2"
+                      onContextMenu={
+                        onGroupContextMenu === undefined
+                          ? undefined
+                          : (event) => {
+                              event.preventDefault();
+                              onGroupContextMenu(group.value, {
+                                x: event.clientX,
+                                y: event.clientY,
+                              });
+                            }
+                      }
+                    >
+                      <td colSpan={colSpan} className="p-0">
+                        {headerBody}
+                      </td>
+                    </tr>
+                    {group.rows.map((row) => renderRow(row))}
+                  </Fragment>
+                );
+              })
             ) : (
               sortedRows.map((row) => renderRow(row))
             )}

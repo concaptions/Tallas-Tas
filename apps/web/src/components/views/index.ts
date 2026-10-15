@@ -70,3 +70,13 @@ export {
   type RecordNavigation,
 } from './record-nav';
 export { onScreenOrder } from './airtable-grid-logic';
+export {
+  GroupSortableContext,
+  SortableGroupHeader,
+  useGroupOrder,
+  type GroupOrderControllerOptions,
+  type GroupOrderControllerState,
+  type GroupOrderIO,
+  type GroupSortableContextProps,
+  type SortableGroupHeaderProps,
+} from './group-order-controller';
