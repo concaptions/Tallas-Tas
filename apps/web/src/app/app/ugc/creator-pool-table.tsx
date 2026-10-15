@@ -49,7 +49,14 @@ export function CreatorPoolTable({ rows, demo }: CreatorPoolTableProps) {
                 {row.ageBracket === null ? EM_DASH : ageBracketLabel(row.ageBracket)}
               </TableCell>
               <TableCell className="text-sm">{row.ethnicity ?? EM_DASH}</TableCell>
-              <TableCell className="text-sm">{row.shippingLocation ?? EM_DASH}</TableCell>
+              {/*
+               * Oct-15 privacy fix (matching commit b6e966a): the Shipping Location cell
+               * printed the registry creator's full `shippingLocation` (postal code + street-
+               * level address) to every agency admin visiting the Creator Pool grid. The
+               * matching heading left `REGISTRY_POOL_COLUMNS`; the DB column stays until a
+               * role-gated reveal (owner-admin only) and migration 0073.
+               * TODO: role-gated reveal for owner-admin only — next sprint.
+               */}
               <TableCell className="text-sm">
                 {row.platform.length === 0
                   ? creatorPlatformLabel(null)

@@ -658,13 +658,16 @@ export function registryCountLabel(total: number): string {
 export const NO_REGISTRY_NOTE =
   'No creators in the global pool yet. Add someone and they can be assigned to any brand.';
 
+// Oct-15 privacy fix (matching commit b6e966a): 'Location' left the Creator Pool grid
+// headings when the matching `shippingLocation` cell was removed from `creator-pool-table.tsx`.
+// The DB column (`creators.shipping_location`) stays until a role-gated reveal for owner-admin
+// only and migration 0073.
 export const REGISTRY_POOL_COLUMNS = [
   'Name',
   'Instagram',
   'Gender',
   'Age',
   'Ethnicity',
-  'Location',
   'Platforms',
   'Brands',
   '',

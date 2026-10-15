@@ -362,7 +362,13 @@ export const CREATOR_RENDERERS: ColumnRegistry<CreatorCardRow> = {
   creator_info_request: { render: (creator) => <TextCell value={creator.creatorInfoRequest} /> },
   raw_assets_url: { render: (creator) => <LinkCell value={creator.rawAssetsUrl} /> },
   video_intro_url: { render: (creator) => <LinkCell value={creator.videoIntroUrl} /> },
-  shipping_location: { render: (creator) => <TextCell value={creator.shippingLocation} /> },
+  // Oct-15 privacy fix (matching commit b6e966a): the `shipping_location` resolver cell printed
+  // the creator's full `shippingLocation` (postal code + street-level address) in the UGC grid.
+  // Hidden by returning `null`, which the grid shows as the em dash. The resolver column stays
+  // configured so the Column Admin layout is unchanged, and the DB column stays until a role-
+  // gated reveal (owner-admin only) and migration 0073.
+  // TODO: role-gated reveal for owner-admin only — next sprint.
+  shipping_location: { render: () => <TextCell value={null} /> },
   tracking_number: { render: (creator) => <TextCell value={creator.trackingNumber} mono /> },
   date_of_management: {
     render: (creator) => <DateCell value={creator.dateOfManagement} />,

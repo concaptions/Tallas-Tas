@@ -504,7 +504,13 @@ export function CreatorPanel({
                   type: 'url',
                   mono: true,
                 })}
-                {textField('shippingLocation', 'Shipping Location', creator.shippingLocation)}
+                {/*
+                 * Oct-15 privacy fix (matching commit b6e966a): the Shipping Location text
+                 * field printed the creator's full `shippingLocation` (postal code + street-
+                 * level address) in the UGC detail panel. Hidden pending a role-gated reveal
+                 * for owner-admin only; the DB column stays until migration 0073.
+                 * TODO: role-gated reveal for owner-admin only — next sprint.
+                 */}
                 {textField('trackingNumber', 'Tracking Number', creator.trackingNumber, {
                   mono: true,
                 })}
