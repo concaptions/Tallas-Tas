@@ -159,10 +159,19 @@ export function briefPath(id: string): string {
 /** Public trees: the path itself and everything below it (`/sign-in/factor-one`). */
 const publicTrees = [signInPath, signUpPath, clientPortalPath];
 
+/**
+ * Public endpoints that are not trees: a single pathname serving an unauthenticated reader.
+ * `/api/version` returns the deploy's git SHA for the Vercel sha-match gate (Phase B5 Fix B,
+ * 2026-10-15 coordinator); the SHA is public on GitHub, so no auth gate is warranted and the
+ * middleware's catch-all would otherwise rewrite it to /404.
+ */
+const publicEndpoints = ['/api/version'];
+
 /** `/`, `/sign-in(.*)` and `/sign-up(.*)` are public; every other path is protected. */
 export function isPublicPath(pathname: string): boolean {
   return (
     pathname === '/' ||
+    publicEndpoints.includes(pathname) ||
     publicTrees.some((root) => pathname === root || pathname.startsWith(`${root}/`))
   );
 }

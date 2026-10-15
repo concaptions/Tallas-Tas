@@ -16,6 +16,15 @@ describe('isPublicPath', () => {
       expect(isPublicPath(pathname)).toBe(true);
     },
   );
+
+  it('leaves /api/version public (Vercel deploy-proof endpoint; the SHA is on GitHub)', () => {
+    expect(isPublicPath('/api/version')).toBe(true);
+  });
+
+  it('does not treat /api/version as a tree (an unrelated /api route stays protected)', () => {
+    expect(isPublicPath('/api/version/foo')).toBe(false);
+    expect(isPublicPath('/api/assets/upload')).toBe(false);
+  });
 });
 
 describe('internalQueuePath', () => {
