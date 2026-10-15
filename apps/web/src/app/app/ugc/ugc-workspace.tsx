@@ -24,20 +24,24 @@ import {
 
 import {
   GridSelectionOverlay,
+  GroupSortableContext,
   KanbanBoard,
   ListView,
   type KanbanItem,
   type ListChip,
   type SelectionStatusTrack,
   coverFieldOptions,
+  SortableGroupHeader,
   useGridSelection,
+  useGroupOrder,
+  useGroupOrderIo,
   useTableView,
   ViewToolbar,
   galleryItemsFrom,
 } from '@/components/views';
 import { ColumnNotices } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
-import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
+import { applyFilters, groupableFields, groupRows } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -588,6 +592,33 @@ export function UgcWorkspace({
     [visibleCreators, grid, tableView.config.filters],
   );
 
+  /**
+   * Phase B5 commit 3 — per-user group ordering, wired for the UGC Creator Pool TABLE view (the
+   * grid under the Creators tab; the pool-tab card list is a separate component and intentionally
+   * untouched). The DAO scope is the live `creators` table keyed by the active column key
+   * (`internal_creator_status`, `client_status`, `client_approval_status` for the status columns)
+   * and the viewer's active user view id. The controller resolves the status-enum default order
+   * through `statusEnumOrderFor`; non-status columns fall back to alpha.
+   */
+  const groupByField = tableView.config.groupBy;
+  const groupViewId = tableView.activeView?.id ?? null;
+  const naturalGroupOrder = useMemo<readonly string[]>(() => {
+    if (groupByField === null) return [];
+    const groups = groupRows(filteredCreators, groupByField, grid.columns);
+    return groups === null ? [] : groups.map((entry) => entry.value);
+  }, [filteredCreators, grid, groupByField]);
+  const [groupOrderNotice, setGroupOrderNotice] = useState<string | null>(null);
+  const groupOrderIo = useGroupOrderIo(
+    { tableKey: 'creators', fieldKey: groupByField ?? '', viewId: groupViewId },
+    { demo },
+  );
+  const groupOrderController = useGroupOrder({
+    fieldKey: groupByField ?? '',
+    naturalOrder: naturalGroupOrder,
+    io: groupOrderIo,
+    onError: setGroupOrderNotice,
+  });
+
   const refresh = useCallback(() => {
     router.refresh();
   }, [router]);
@@ -874,23 +905,54 @@ export function UgcWorkspace({
               }}
             />
           ) : (
-            <AirtableGrid
-              tableKey="creators"
-              view={tableView.config}
-              onSortChange={tableView.setSort}
-              columns={grid.columns}
-              rows={filteredCreators}
-              rowId={(creator) => creator.id}
-              rowLabel={(creator) => creator.name}
-              rowAttributes={(creator) => ({ 'data-creator-id': creator.id })}
-              selectedId={selection}
-              onRowClick={(creator) => {
-                select(creator.id);
-              }}
-              tableSlot="creators-table"
-              rowSlot="creator-row"
-              {...gridSelection.gridProps}
-            />
+            <GroupSortableContext
+              orderedValues={groupOrderController.orderedValues}
+              onReorder={groupOrderController.reorder}
+            >
+              <AirtableGrid
+                tableKey="creators"
+                view={tableView.config}
+                onSortChange={tableView.setSort}
+                columns={grid.columns}
+                rows={filteredCreators}
+                rowId={(creator) => creator.id}
+                rowLabel={(creator) => creator.name}
+                rowAttributes={(creator) => ({ 'data-creator-id': creator.id })}
+                selectedId={selection}
+                onRowClick={(creator) => {
+                  select(creator.id);
+                }}
+                tableSlot="creators-table"
+                rowSlot="creator-row"
+                groupOrder={groupByField === null ? undefined : groupOrderController.orderedValues}
+                onGroupContextMenu={
+                  groupByField === null ? undefined : groupOrderController.openContextMenu
+                }
+                renderGroupHeader={
+                  groupByField === null
+                    ? undefined
+                    : ({ value, label, count }) => (
+                        <SortableGroupHeader
+                          value={value}
+                          label={label}
+                          count={count}
+                          pinned={
+                            groupOrderController.saved?.some(
+                              (entry) => entry.value === value && entry.pinned,
+                            ) ?? false
+                          }
+                        />
+                      )
+                }
+                {...gridSelection.gridProps}
+              />
+              {groupOrderController.menu}
+              {groupOrderNotice === null ? null : (
+                <p className="text-xs text-bad" role="alert" data-slot="ugc-group-order-error">
+                  {groupOrderNotice}
+                </p>
+              )}
+            </GroupSortableContext>
           )}
         </TabsContent>
 

@@ -13,11 +13,15 @@ import {
   ColumnNotices,
   duplicateShortcut,
   GroupByControl,
+  GroupSortableContext,
   KanbanBoard,
   RowContextMenu,
   SelectionBar,
   SelectionDeleteConfirm,
   SelectionStatusPicker,
+  SortableGroupHeader,
+  useGroupOrder,
+  useGroupOrderIo,
   useTableView,
   ViewToolbar,
   type ContextMenuItem,
@@ -29,6 +33,7 @@ import { AirtableGrid } from '@/components/views/airtable-grid';
 import {
   applyFilters,
   groupableFields,
+  groupRows,
   pruneSelection,
   toggleAllSelected,
   toggleSelected,
@@ -639,6 +644,32 @@ export function CreativeSheetWorkspace({
   );
   const rows = rowsWithPendingCreative(pendingRow, filtered);
 
+  /**
+   * Phase B5 commit 3 — per-user group ordering, wired for the Creative Sheet grid. The DAO scope
+   * is `creative_briefs` (the live table; `creative_sheet_items` is frozen) by the active column key
+   * and the viewer's active user view id. `useGroupOrder` resolves the final display order through
+   * the view-specific → user-global → status-enum / alpha fallback chain; the hook has nothing to
+   * do when `groupBy === null` because `naturalOrder` is empty and the context never mounts a header.
+   */
+  const groupByField = tableView.config.groupBy;
+  const groupViewId = tableView.activeView?.id ?? null;
+  const naturalGroupOrder = useMemo<readonly string[]>(() => {
+    if (groupByField === null) return [];
+    const groups = groupRows(rows, groupByField, grid.columns);
+    return groups === null ? [] : groups.map((entry) => entry.value);
+  }, [grid, groupByField, rows]);
+  const [groupOrderNotice, setGroupOrderNotice] = useState<string | null>(null);
+  const groupOrderIo = useGroupOrderIo(
+    { tableKey: 'creative_briefs', fieldKey: groupByField ?? '', viewId: groupViewId },
+    { demo },
+  );
+  const groupOrderController = useGroupOrder({
+    fieldKey: groupByField ?? '',
+    naturalOrder: naturalGroupOrder,
+    io: groupOrderIo,
+    onError: setGroupOrderNotice,
+  });
+
   const open = items.find(({ item }) => item.id === selection) ?? null;
 
   useEffect(() => {
@@ -1145,66 +1176,101 @@ export function CreativeSheetWorkspace({
               ) : null}
             </div>
           ) : (
-            <AirtableGrid
-              tableKey={CAP.tableKey}
-              view={tableView.config}
-              onSortChange={tableView.setSort}
-              columns={grid.columns}
-              rows={rows}
-              rowId={({ item }) => item.id}
-              rowLabel={({ item }) => item.name}
-              rowAttributes={({ item }) => ({
-                'data-creative-sheet-id': item.id,
-                'data-creative-sheet-pending':
-                  pendingRow !== null && item.id === pendingRow.item.id ? 'true' : undefined,
-              })}
-              selectedId={selection}
-              onRowClick={({ item }) => {
-                select(item.id);
-              }}
-              selection={{
-                selected,
-                onToggle: (id) => {
-                  setSelected((current) => toggleSelected(current, id));
-                },
-                onToggleAll: (visibleIds) => {
-                  setSelected((current) => toggleAllSelected(current, visibleIds));
-                },
-              }}
-              onRowContextMenu={(view, position) => {
-                setContextMenu({ view, position });
-              }}
-              contextRowId={contextMenu?.view.item.id ?? null}
-              tableSlot="creative-sheet-table"
-              rowSlot="creative-sheet-row"
-              empty={
-                <div
-                  data-slot="creative-sheet-empty"
-                  className="flex flex-col items-center gap-3 text-center"
+            <GroupSortableContext
+              orderedValues={groupOrderController.orderedValues}
+              onReorder={groupOrderController.reorder}
+            >
+              <AirtableGrid
+                tableKey={CAP.tableKey}
+                view={tableView.config}
+                onSortChange={tableView.setSort}
+                columns={grid.columns}
+                rows={rows}
+                rowId={({ item }) => item.id}
+                rowLabel={({ item }) => item.name}
+                rowAttributes={({ item }) => ({
+                  'data-creative-sheet-id': item.id,
+                  'data-creative-sheet-pending':
+                    pendingRow !== null && item.id === pendingRow.item.id ? 'true' : undefined,
+                })}
+                selectedId={selection}
+                onRowClick={({ item }) => {
+                  select(item.id);
+                }}
+                selection={{
+                  selected,
+                  onToggle: (id) => {
+                    setSelected((current) => toggleSelected(current, id));
+                  },
+                  onToggleAll: (visibleIds) => {
+                    setSelected((current) => toggleAllSelected(current, visibleIds));
+                  },
+                }}
+                onRowContextMenu={(view, position) => {
+                  setContextMenu({ view, position });
+                }}
+                contextRowId={contextMenu?.view.item.id ?? null}
+                tableSlot="creative-sheet-table"
+                rowSlot="creative-sheet-row"
+                groupOrder={groupByField === null ? undefined : groupOrderController.orderedValues}
+                onGroupContextMenu={
+                  groupByField === null ? undefined : groupOrderController.openContextMenu
+                }
+                renderGroupHeader={
+                  groupByField === null
+                    ? undefined
+                    : ({ value, label, count }) => (
+                        <SortableGroupHeader
+                          value={value}
+                          label={label}
+                          count={count}
+                          pinned={
+                            groupOrderController.saved?.some(
+                              (entry) => entry.value === value && entry.pinned,
+                            ) ?? false
+                          }
+                        />
+                      )
+                }
+                empty={
+                  <div
+                    data-slot="creative-sheet-empty"
+                    className="flex flex-col items-center gap-3 text-center"
+                  >
+                    <p className="text-sm text-text2">
+                      {items.length === 0
+                        ? 'No sheet rows yet. Add the first creative of the month.'
+                        : `Nothing matches “${term}”. Try a creative name or a status.`}
+                    </p>
+                    {items.length === 0 ? (
+                      newCreative
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          onSearch('');
+                        }}
+                        data-slot="clear-search"
+                      >
+                        Clear search
+                      </Button>
+                    )}
+                  </div>
+                }
+              />
+              {groupOrderController.menu}
+              {groupOrderNotice === null ? null : (
+                <p
+                  className="text-xs text-bad"
+                  role="alert"
+                  data-slot="creative-sheet-group-order-error"
                 >
-                  <p className="text-sm text-text2">
-                    {items.length === 0
-                      ? 'No sheet rows yet. Add the first creative of the month.'
-                      : `Nothing matches “${term}”. Try a creative name or a status.`}
-                  </p>
-                  {items.length === 0 ? (
-                    newCreative
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        onSearch('');
-                      }}
-                      data-slot="clear-search"
-                    >
-                      Clear search
-                    </Button>
-                  )}
-                </div>
-              }
-            />
+                  {groupOrderNotice}
+                </p>
+              )}
+            </GroupSortableContext>
           )}
         </Suspense>
       </section>

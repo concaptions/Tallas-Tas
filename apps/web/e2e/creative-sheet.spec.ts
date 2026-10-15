@@ -360,6 +360,84 @@ test.describe('creative sheet in demo mode (no Clerk publishable key)', () => {
     await expect(rows).toHaveCount(ROWS);
   });
 
+  /* ── Phase B5 commit 3: per-user group ordering wired into the grid ──────────────────────── */
+
+  test('right-click a group header → Pin to top keeps the group at position 0 after reload', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+    await hydrated(page);
+
+    // Group by Internal Status.
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page.locator('[data-slot="grid-group-option"][data-field="internal_status"]').click();
+    await page.keyboard.press('Escape');
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    await expect(headers).toHaveCount(4);
+
+    // Pin "Approved" to the top through the right-click menu.
+    await page
+      .locator('[data-slot="grid-group-header"][data-group="Approved"]')
+      .click({ button: 'right' });
+    const pinItem = page.locator('[data-slot="group-context-pin"]');
+    await expect(pinItem).toBeVisible();
+    await pinItem.click();
+
+    await expect(headers.nth(0)).toHaveAttribute('data-group', 'Approved');
+    await expect(headers.nth(0).locator('[data-slot="group-pinned-indicator"]')).toBeVisible();
+
+    // Reload: the pin reads back from the per-viewer store (localStorage in demo).
+    await page.reload();
+    await hydrated(page);
+    await expect(headers).toHaveCount(4);
+    await expect(headers.nth(0)).toHaveAttribute('data-group', 'Approved');
+    await expect(headers.nth(0).locator('[data-slot="group-pinned-indicator"]')).toBeVisible();
+
+    // Reset the order so the next run of this suite starts from the default.
+    await page
+      .locator('[data-slot="grid-group-header"][data-group="Approved"]')
+      .click({ button: 'right' });
+    await page.locator('[data-slot="group-context-reset"]').click();
+  });
+
+  test('drag a group header below another and the new order survives a reload', async ({
+    page,
+  }) => {
+    await page.goto(creativeSheetPath);
+    await hydrated(page);
+
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page.locator('[data-slot="grid-group-option"][data-field="internal_status"]').click();
+    await page.keyboard.press('Escape');
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    await expect(headers).toHaveCount(4);
+
+    // Capture the initial order (the enum default: Approved last).
+    const initialOrder = await headers.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('data-group')),
+    );
+    expect(initialOrder).toContain('Approved');
+
+    // Drag "Approved" from its slot to the first row via its drag handle.
+    const sourceHandle = headers
+      .filter({ has: page.locator('[data-group-value="Approved"]') })
+      .locator('[data-slot="group-drag-handle"]')
+      .first();
+    const targetHandle = headers.nth(0).locator('[data-slot="group-drag-handle"]').first();
+    await sourceHandle.dragTo(targetHandle);
+
+    // The drag persists per-viewer; the controller's optimistic update puts Approved at index 0.
+    await expect(headers.nth(0)).toHaveAttribute('data-group', 'Approved');
+
+    await page.reload();
+    await hydrated(page);
+    await expect(headers).toHaveCount(4);
+    await expect(headers.nth(0)).toHaveAttribute('data-group', 'Approved');
+
+    await headers.nth(0).click({ button: 'right' });
+    await page.locator('[data-slot="group-context-reset"]').click();
+  });
+
   test('the board field is the Group control: a pick lands in ?groupBy= and a reload opens the same board', async ({
     page,
   }) => {

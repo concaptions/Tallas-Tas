@@ -484,4 +484,75 @@ test.describe('ugc management in demo mode (no Clerk publishable key)', () => {
     await expect(link).toHaveAttribute('href', ugcPath);
     await expect(link).toHaveAttribute('aria-current', 'page');
   });
+
+  /* ── Phase B5 commit 3: per-user group ordering wired into the UGC creators grid ─────── */
+
+  test('right-click a creators group header → Pin to top keeps the group at position 0 after reload', async ({
+    page,
+  }) => {
+    await page.goto(ugcPath);
+    await hydrated(page);
+
+    // Group the creators table by Client Status (any status column the Group popover offers).
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page
+      .locator('[data-slot="grid-group-option"][data-field="client_status"]')
+      .first()
+      .click();
+    await page.keyboard.press('Escape');
+
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    const headerCount = await headers.count();
+    expect(headerCount).toBeGreaterThanOrEqual(2);
+
+    const lastGroup = await headers.nth(headerCount - 1).getAttribute('data-group');
+    await headers.nth(headerCount - 1).click({ button: 'right' });
+    await page.locator('[data-slot="group-context-pin"]').click();
+
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+    await expect(headers.nth(0).locator('[data-slot="group-pinned-indicator"]')).toBeVisible();
+
+    await page.reload();
+    await hydrated(page);
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+    await expect(headers.nth(0).locator('[data-slot="group-pinned-indicator"]')).toBeVisible();
+
+    await headers.nth(0).click({ button: 'right' });
+    await page.locator('[data-slot="group-context-reset"]').click();
+  });
+
+  test('drag a creators group header to the top and the new order survives a reload', async ({
+    page,
+  }) => {
+    await page.goto(ugcPath);
+    await hydrated(page);
+
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page
+      .locator('[data-slot="grid-group-option"][data-field="client_status"]')
+      .first()
+      .click();
+    await page.keyboard.press('Escape');
+
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    const headerCount = await headers.count();
+    expect(headerCount).toBeGreaterThanOrEqual(2);
+
+    const lastGroup = await headers.nth(headerCount - 1).getAttribute('data-group');
+    const sourceHandle = headers
+      .nth(headerCount - 1)
+      .locator('[data-slot="group-drag-handle"]')
+      .first();
+    const targetHandle = headers.nth(0).locator('[data-slot="group-drag-handle"]').first();
+    await sourceHandle.dragTo(targetHandle);
+
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+
+    await page.reload();
+    await hydrated(page);
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+
+    await headers.nth(0).click({ button: 'right' });
+    await page.locator('[data-slot="group-context-reset"]').click();
+  });
 });

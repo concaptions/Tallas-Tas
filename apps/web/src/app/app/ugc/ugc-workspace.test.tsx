@@ -1,10 +1,20 @@
+// @vitest-environment jsdom
 import { COLUMN_SEED } from '@tas/db';
-import { describe, expect, it } from 'vitest';
+import { defaultUserViewConfig } from '@tas/domain';
+import { renderToString } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
 
+import { loadCreatorColumns, loadUgc } from '@/lib/ugc-source';
 import { groupRows } from '@/components/views/airtable-grid-logic';
 import { gridColumnsFrom } from '@/components/views/resolved-columns';
 
-import { CREATOR_RENDERERS } from './ugc-workspace';
+import { CREATOR_RENDERERS, UgcWorkspace } from './ugc-workspace';
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+vi.mock('./bulk-actions', () => ({
+  deleteCreatorsAction: vi.fn(),
+  bulkMoveCreatorsAction: vi.fn(),
+}));
 
 /**
  * Item 5c (2026-10-11): UGC Management draws a Client Approval column. AUDIT-13's ruling:
@@ -56,5 +66,77 @@ describe('CREATOR_RENDERERS', () => {
       ['Empty', 1],
       ['Disapproved', 1],
     ]);
+  });
+});
+
+/**
+ * Phase B5 commit 3 — the GroupOrderController is wired into the UGC Creator Pool TABLE view (the
+ * grid under the Creators tab). The pool-tab card list is a separate component and is intentionally
+ * untouched here. The test renders the workspace with an active view that groups by `clientStatus`
+ * and asserts that a draggable SortableGroupHeader lands on every group header.
+ */
+describe('Phase B5 commit 3 — GroupOrderController in UGC Creators grid', () => {
+  async function demoUgc() {
+    const demoMode = () => true;
+    const [{ creators, now }, { columns }] = await Promise.all([
+      loadUgc({ demoMode }),
+      loadCreatorColumns({ demoMode }),
+    ]);
+    return { columns, creators, now };
+  }
+
+  it('mounts a draggable SortableGroupHeader per group when the view groups by a column', async () => {
+    const { columns, creators, now } = await demoUgc();
+    const markup = renderToString(
+      <UgcWorkspace
+        columns={columns}
+        creators={creators}
+        partnerships={[]}
+        concepts={[]}
+        products={[]}
+        demo
+        initialTab="creators"
+        initialSearch=""
+        initialSelection={null}
+        initialCollabs={[]}
+        now={now}
+        userViews={{
+          userId: null,
+          views: [
+            {
+              id: 'view-ugc-group',
+              name: 'By client status',
+              isActive: true,
+              ...defaultUserViewConfig('grid'),
+              groupBy: 'client_status',
+            },
+          ],
+        }}
+      />,
+    );
+    expect(markup).toContain('data-slot="group-header-draggable"');
+    const handles = markup.match(/data-slot="group-drag-handle"/g) ?? [];
+    expect(handles.length).toBeGreaterThan(0);
+  });
+
+  it('renders no drag handle when the view has no groupBy', async () => {
+    const { columns, creators, now } = await demoUgc();
+    const markup = renderToString(
+      <UgcWorkspace
+        columns={columns}
+        creators={creators}
+        partnerships={[]}
+        concepts={[]}
+        products={[]}
+        demo
+        initialTab="creators"
+        initialSearch=""
+        initialSelection={null}
+        initialCollabs={[]}
+        now={now}
+        userViews={{ userId: null, views: [] }}
+      />,
+    );
+    expect(markup).not.toContain('data-slot="group-drag-handle"');
   });
 });

@@ -618,4 +618,77 @@ test.describe('concepts in demo mode (no Clerk publishable key)', () => {
       expect(overflow, `${path} scrolls sideways at 390px`).toBeLessThanOrEqual(0);
     }
   });
+
+  /* ── Phase B5 commit 3: per-user group ordering wired into the Concepts grid ─────────── */
+
+  test('right-click a group header → Pin to top keeps the concepts group at position 0 after reload', async ({
+    page,
+  }) => {
+    await page.goto(conceptsPath);
+    await hydrated(page);
+
+    // Group the grid by Client Status (the four fixtures all read "Pending for Approval" plus
+    // one empty bucket; the test picks any status column the Group popover offers).
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page
+      .locator('[data-slot="grid-group-option"][data-field="internal_status"]')
+      .first()
+      .click();
+    await page.keyboard.press('Escape');
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    const headerCount = await headers.count();
+    expect(headerCount).toBeGreaterThanOrEqual(2);
+
+    // Pin the last header to the top.
+    const lastGroup = await headers.nth(headerCount - 1).getAttribute('data-group');
+    expect(lastGroup).not.toBeNull();
+    await headers.nth(headerCount - 1).click({ button: 'right' });
+    await page.locator('[data-slot="group-context-pin"]').click();
+
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+    await expect(headers.nth(0).locator('[data-slot="group-pinned-indicator"]')).toBeVisible();
+
+    // Reload: the pin reads back from the per-viewer store (localStorage in demo).
+    await page.reload();
+    await hydrated(page);
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+    await expect(headers.nth(0).locator('[data-slot="group-pinned-indicator"]')).toBeVisible();
+
+    await headers.nth(0).click({ button: 'right' });
+    await page.locator('[data-slot="group-context-reset"]').click();
+  });
+
+  test('drag a concepts group header to the top and the new order survives a reload', async ({
+    page,
+  }) => {
+    await page.goto(conceptsPath);
+    await hydrated(page);
+
+    await page.locator('[data-slot="view-toolbar"] [data-slot="grid-group"]').click();
+    await page
+      .locator('[data-slot="grid-group-option"][data-field="internal_status"]')
+      .first()
+      .click();
+    await page.keyboard.press('Escape');
+    const headers = page.locator('[data-slot="grid-group-header"]');
+    const headerCount = await headers.count();
+    expect(headerCount).toBeGreaterThanOrEqual(2);
+
+    const lastGroup = await headers.nth(headerCount - 1).getAttribute('data-group');
+    const sourceHandle = headers
+      .nth(headerCount - 1)
+      .locator('[data-slot="group-drag-handle"]')
+      .first();
+    const targetHandle = headers.nth(0).locator('[data-slot="group-drag-handle"]').first();
+    await sourceHandle.dragTo(targetHandle);
+
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+
+    await page.reload();
+    await hydrated(page);
+    await expect(headers.nth(0)).toHaveAttribute('data-group', lastGroup ?? '');
+
+    await headers.nth(0).click({ button: 'right' });
+    await page.locator('[data-slot="group-context-reset"]').click();
+  });
 });

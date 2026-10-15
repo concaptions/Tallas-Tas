@@ -69,7 +69,7 @@ export {
   recordNavigation,
   type RecordNavigation,
 } from './record-nav';
-export { onScreenOrder } from './airtable-grid-logic';
+export { groupRows, onScreenOrder, type RowGroup } from './airtable-grid-logic';
 export {
   GroupSortableContext,
   SortableGroupHeader,
@@ -80,3 +80,8 @@ export {
   type GroupSortableContextProps,
   type SortableGroupHeaderProps,
 } from './group-order-controller';
+export {
+  useGroupOrderIo,
+  type GroupOrderIoOptions,
+  type GroupOrderIoScope,
+} from './use-group-order-io';

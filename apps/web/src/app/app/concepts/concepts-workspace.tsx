@@ -21,17 +21,21 @@ import {
   GalleryView,
   galleryItemsFrom,
   GridSelectionOverlay,
+  GroupSortableContext,
   ListView,
   onScreenOrder,
   recordNavigation,
+  SortableGroupHeader,
   useGridSelection,
+  useGroupOrder,
+  useGroupOrderIo,
   useTableView,
   ViewToolbar,
   type ListChip,
   type SelectionStatusTrack,
 } from '@/components/views';
 import { AirtableGrid } from '@/components/views/airtable-grid';
-import { applyFilters, groupableFields } from '@/components/views/airtable-grid-logic';
+import { applyFilters, groupableFields, groupRows } from '@/components/views/airtable-grid-logic';
 import {
   gridColumnsFrom,
   type ColumnRegistry,
@@ -435,6 +439,32 @@ export function ConceptsWorkspace({
 
   const narrowed = filtered.length !== items.length;
 
+  /**
+   * Phase B5 commit 3 — per-user group ordering, wired for the Concepts grid. The DAO scope is the
+   * live `concepts` table keyed by the active column key (`internal_status`, `client_status`,
+   * `client_approval_status` for the status columns the Group popover offers) and the viewer's
+   * active user view id. The controller resolves the status-enum default order through
+   * `statusEnumOrderFor`; non-status columns fall back to alpha.
+   */
+  const groupByField = tableView.config.groupBy;
+  const groupViewId = tableView.activeView?.id ?? null;
+  const naturalGroupOrder = useMemo<readonly string[]>(() => {
+    if (groupByField === null) return [];
+    const groups = groupRows(filtered, groupByField, grid.columns);
+    return groups === null ? [] : groups.map((entry) => entry.value);
+  }, [filtered, grid, groupByField]);
+  const [groupOrderNotice, setGroupOrderNotice] = useState<string | null>(null);
+  const groupOrderIo = useGroupOrderIo(
+    { tableKey: 'concepts', fieldKey: groupByField ?? '', viewId: groupViewId },
+    { demo },
+  );
+  const groupOrderController = useGroupOrder({
+    fieldKey: groupByField ?? '',
+    naturalOrder: naturalGroupOrder,
+    io: groupOrderIo,
+    onError: setGroupOrderNotice,
+  });
+
   const refresh = useCallback(() => {
     router.refresh();
   }, [router]);
@@ -667,23 +697,54 @@ export function ConceptsWorkspace({
             }}
           />
         ) : (
-          <AirtableGrid
-            tableKey="concepts"
-            view={tableView.config}
-            onSortChange={tableView.setSort}
-            columns={grid.columns}
-            rows={filtered}
-            rowId={(item) => item.id}
-            rowLabel={(item) => item.name}
-            rowAttributes={(item) => ({ 'data-concept-id': item.id })}
-            selectedId={selection}
-            onRowClick={(item) => {
-              open(item);
-            }}
-            tableSlot="concepts-table"
-            rowSlot="concept-row"
-            {...gridSelection.gridProps}
-          />
+          <GroupSortableContext
+            orderedValues={groupOrderController.orderedValues}
+            onReorder={groupOrderController.reorder}
+          >
+            <AirtableGrid
+              tableKey="concepts"
+              view={tableView.config}
+              onSortChange={tableView.setSort}
+              columns={grid.columns}
+              rows={filtered}
+              rowId={(item) => item.id}
+              rowLabel={(item) => item.name}
+              rowAttributes={(item) => ({ 'data-concept-id': item.id })}
+              selectedId={selection}
+              onRowClick={(item) => {
+                open(item);
+              }}
+              tableSlot="concepts-table"
+              rowSlot="concept-row"
+              groupOrder={groupByField === null ? undefined : groupOrderController.orderedValues}
+              onGroupContextMenu={
+                groupByField === null ? undefined : groupOrderController.openContextMenu
+              }
+              renderGroupHeader={
+                groupByField === null
+                  ? undefined
+                  : ({ value, label, count }) => (
+                      <SortableGroupHeader
+                        value={value}
+                        label={label}
+                        count={count}
+                        pinned={
+                          groupOrderController.saved?.some(
+                            (entry) => entry.value === value && entry.pinned,
+                          ) ?? false
+                        }
+                      />
+                    )
+              }
+              {...gridSelection.gridProps}
+            />
+            {groupOrderController.menu}
+            {groupOrderNotice === null ? null : (
+              <p className="text-xs text-bad" role="alert" data-slot="concepts-group-order-error">
+                {groupOrderNotice}
+              </p>
+            )}
+          </GroupSortableContext>
         )}
       </section>
 

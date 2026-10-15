@@ -206,6 +206,55 @@ describe('the sheet joins the per-user views (Ticket 7)', () => {
     expect(markup).toContain('Group: Internal Status</button>');
     expect(markup.match(/data-slot="creative-sheet-row"/g)).toHaveLength(7);
   });
+
+  /**
+   * Phase B5 commit 3 — the GroupOrderController is wired into the Creative Sheet grid. The test
+   * reads the rendered markup: one drag handle per group header (`group-drag-handle`) proves the
+   * `renderGroupHeader` override reached each header; the `tableKey` on the grid still points at
+   * the AirtableGrid's own capability key (localStorage), while the controller's DAO scope is
+   * `creative_briefs` — the controller's scope lives in the IO hook, not in the grid markup.
+   */
+  it('mounts a draggable SortableGroupHeader per group when the view groups by a column', async () => {
+    const { columns, items } = await demoSheet();
+    const markup = renderToString(
+      <CreativeSheetWorkspace
+        columns={columns}
+        items={items}
+        demo
+        initialSelection={null}
+        initialSearch=""
+        userViews={{
+          userId: null,
+          views: [
+            {
+              id: 'view-group-order',
+              name: 'By status',
+              isActive: true,
+              ...defaultUserViewConfig('grid'),
+              groupBy: 'internal_status',
+            },
+          ],
+        }}
+      />,
+    );
+    const handles = markup.match(/data-slot="group-drag-handle"/g) ?? [];
+    expect(handles.length).toBeGreaterThanOrEqual(4);
+    expect(markup).toContain('data-slot="group-header-draggable"');
+  });
+
+  it('renders no drag handle when the view has no groupBy', async () => {
+    const { columns, items } = await demoSheet();
+    const markup = renderToString(
+      <CreativeSheetWorkspace
+        columns={columns}
+        items={items}
+        demo
+        initialSelection={null}
+        initialSearch=""
+      />,
+    );
+    expect(markup).not.toContain('data-slot="group-drag-handle"');
+  });
 });
 
 /**
