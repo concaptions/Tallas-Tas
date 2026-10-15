@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { brandRoles, type BrandRole } from '../roles';
 import {
-  CLIENT_EDITABLE_BRIEF_FIELDS,
   DEMO_PROPAGATION_ACCESS_NOTE,
   EDIT_BRIEF_NOT_PERMITTED,
   INTERFACE_CONFIG_NOT_PERMITTED_NOTE,
+  INTERNAL_STATUS_USE_TRANSITION,
   NAV_SECTION_KEYS,
   NO_WORKSPACE_NOTE,
   REMOVED_WORKSPACES,
@@ -566,114 +566,50 @@ describe('Ticket 10 refusal notes', () => {
 });
 
 /**
- * Phase B5 Fix A, 2026-10-15. The role matrix the server action, the InlineField primitive and
- * the row grid all share. Table-driven so each (actor role × assignee-match × field-kind) case
- * is a line, not a block — a regression on any one of them is a one-line diff away.
+ * Phase B5 Fix A, 2026-10-15 (Oct 15 coordinator ruling): the simplified role matrix.
+ *
+ * - admin / csm / strategist / media_buyer: TRUE always
+ * - video_editor / designer: TRUE only when assigned
+ * - client: FALSE always (writes travel through the client-approval action, never here)
+ * - member / unresolved: FALSE
  */
 describe('canEditBrief', () => {
   const ME = 'user_me';
   const OTHER = 'user_other';
-  const CONTENT_FIELD = 'scriptContent';
-  const CLIENT_FIELD = 'clientStatus';
-  const ASSIGNEE_FIELD = 'assignee';
   const briefAssignedToMe: Readonly<Record<string, unknown>> = { assignee: ME };
   const briefAssignedToOther: Readonly<Record<string, unknown>> = { assignee: OTHER };
   const briefUnassigned: Readonly<Record<string, unknown>> = { assignee: null };
 
   it('denies by default on an unresolved role', () => {
-    expect(
-      canEditBrief({
-        actorRole: null,
-        actorUserId: ME,
-        brief: briefAssignedToMe,
-        assigneeField: ASSIGNEE_FIELD,
-        fieldName: CONTENT_FIELD,
-      }),
-    ).toBe(false);
-    expect(
-      canEditBrief({
-        actorRole: undefined,
-        actorUserId: ME,
-        brief: briefAssignedToMe,
-        assigneeField: ASSIGNEE_FIELD,
-        fieldName: CONTENT_FIELD,
-      }),
-    ).toBe(false);
+    expect(canEditBrief({ actorRole: null, actorUserId: ME, brief: briefAssignedToMe })).toBe(
+      false,
+    );
+    expect(canEditBrief({ actorRole: undefined, actorUserId: ME, brief: briefAssignedToMe })).toBe(
+      false,
+    );
   });
 
-  it('lets an admin edit any field on any brief, assigned or not', () => {
-    for (const brief of [briefAssignedToMe, briefAssignedToOther, briefUnassigned]) {
-      for (const fieldName of [CONTENT_FIELD, CLIENT_FIELD, 'batch']) {
-        expect(
-          canEditBrief({
-            actorRole: 'admin',
-            actorUserId: ME,
-            brief,
-            assigneeField: ASSIGNEE_FIELD,
-            fieldName,
-          }),
-        ).toBe(true);
+  it('lets admin, csm, strategist, media_buyer edit any brief, assigned or not', () => {
+    const allowed: readonly ViewerRole[] = ['admin', 'csm', 'strategist', 'media_buyer'];
+    for (const role of allowed) {
+      for (const brief of [briefAssignedToMe, briefAssignedToOther, briefUnassigned]) {
+        expect(canEditBrief({ actorRole: role, actorUserId: ME, brief }), role).toBe(true);
       }
-    }
-  });
-
-  it('lets a csm edit any field on any brief', () => {
-    expect(
-      canEditBrief({
-        actorRole: 'csm',
-        actorUserId: ME,
-        brief: briefAssignedToOther,
-        assigneeField: ASSIGNEE_FIELD,
-        fieldName: CONTENT_FIELD,
-      }),
-    ).toBe(true);
-  });
-
-  it('lets a strategist and a media buyer edit any field (agency reviewers)', () => {
-    for (const role of ['strategist', 'media_buyer'] as const) {
-      expect(
-        canEditBrief({
-          actorRole: role,
-          actorUserId: ME,
-          brief: briefAssignedToOther,
-          assigneeField: ASSIGNEE_FIELD,
-          fieldName: CONTENT_FIELD,
-        }),
-        role,
-      ).toBe(true);
     }
   });
 
   it('lets video_editor / designer edit a brief only when they are its assignee', () => {
     for (const role of ['video_editor', 'designer'] as const) {
       expect(
-        canEditBrief({
-          actorRole: role,
-          actorUserId: ME,
-          brief: briefAssignedToMe,
-          assigneeField: ASSIGNEE_FIELD,
-          fieldName: CONTENT_FIELD,
-        }),
+        canEditBrief({ actorRole: role, actorUserId: ME, brief: briefAssignedToMe }),
         `${role}/assigned`,
       ).toBe(true);
       expect(
-        canEditBrief({
-          actorRole: role,
-          actorUserId: ME,
-          brief: briefAssignedToOther,
-          assigneeField: ASSIGNEE_FIELD,
-          fieldName: CONTENT_FIELD,
-        }),
+        canEditBrief({ actorRole: role, actorUserId: ME, brief: briefAssignedToOther }),
         `${role}/not-assigned`,
       ).toBe(false);
       expect(
-        canEditBrief({
-          actorRole: role,
-          actorUserId: ME,
-          brief: briefUnassigned,
-          assigneeField: ASSIGNEE_FIELD,
-          fieldName: CONTENT_FIELD,
-        }),
+        canEditBrief({ actorRole: role, actorUserId: ME, brief: briefUnassigned }),
         `${role}/unassigned`,
       ).toBe(false);
     }
@@ -683,104 +619,38 @@ describe('canEditBrief', () => {
     for (const role of ['video_editor', 'designer'] as const) {
       for (const userId of [null, undefined, '']) {
         expect(
-          canEditBrief({
-            actorRole: role,
-            actorUserId: userId,
-            brief: briefAssignedToMe,
-            assigneeField: ASSIGNEE_FIELD,
-            fieldName: CONTENT_FIELD,
-          }),
+          canEditBrief({ actorRole: role, actorUserId: userId, brief: briefAssignedToMe }),
           `${role}/${String(userId)}`,
         ).toBe(false);
       }
     }
   });
 
-  it('reads the assignee column from whichever assigneeField the caller passes', () => {
-    const briefMulti: Readonly<Record<string, unknown>> = {
-      assignee: OTHER,
-      editorId: ME,
-      designerId: OTHER,
-    };
-    // The editor compares against editorId, so this video_editor is allowed.
-    expect(
-      canEditBrief({
-        actorRole: 'video_editor',
-        actorUserId: ME,
-        brief: briefMulti,
-        assigneeField: 'editorId',
-        fieldName: CONTENT_FIELD,
-      }),
-    ).toBe(true);
-    // The designer compares against designerId, which is somebody else, so refused.
-    expect(
-      canEditBrief({
-        actorRole: 'designer',
-        actorUserId: ME,
-        brief: briefMulti,
-        assigneeField: 'designerId',
-        fieldName: CONTENT_FIELD,
-      }),
-    ).toBe(false);
-    // The default `assignee` column also still names somebody else, so refused.
-    expect(
-      canEditBrief({
-        actorRole: 'video_editor',
-        actorUserId: ME,
-        brief: briefMulti,
-        assigneeField: 'assignee',
-        fieldName: CONTENT_FIELD,
-      }),
-    ).toBe(false);
-  });
-
-  it('lets a client edit only the client-track fields, nothing else', () => {
-    for (const fieldName of CLIENT_EDITABLE_BRIEF_FIELDS) {
-      expect(
-        canEditBrief({
-          actorRole: 'client',
-          actorUserId: ME,
-          brief: briefAssignedToMe,
-          assigneeField: ASSIGNEE_FIELD,
-          fieldName,
-        }),
-        fieldName,
-      ).toBe(true);
+  it('refuses a client whatever the field (client writes travel elsewhere)', () => {
+    for (const brief of [briefAssignedToMe, briefAssignedToOther, briefUnassigned]) {
+      expect(canEditBrief({ actorRole: 'client', actorUserId: ME, brief })).toBe(false);
     }
-    for (const fieldName of ['scriptContent', 'batch', 'internalStatus', 'briefToDesign']) {
-      expect(
-        canEditBrief({
-          actorRole: 'client',
-          actorUserId: ME,
-          brief: briefAssignedToMe,
-          assigneeField: ASSIGNEE_FIELD,
-          fieldName,
-        }),
-        fieldName,
-      ).toBe(false);
-    }
-  });
-
-  it('refuses a client with no fieldName (treats "any internal field" as deny)', () => {
+    // The fieldName hint never widens the gate — client is still refused.
     expect(
       canEditBrief({
         actorRole: 'client',
         actorUserId: ME,
         brief: briefAssignedToMe,
-        assigneeField: ASSIGNEE_FIELD,
+        fieldName: 'clientStatus',
       }),
     ).toBe(false);
   });
 
   it('refuses a plain organisation member (no brand assignment yet)', () => {
+    expect(canEditBrief({ actorRole: 'member', actorUserId: ME, brief: briefAssignedToMe })).toBe(
+      false,
+    );
+  });
+
+  it('ignores a non-string assignee for the two production roles', () => {
+    const briefWithNumber: Readonly<Record<string, unknown>> = { assignee: 42 };
     expect(
-      canEditBrief({
-        actorRole: 'member',
-        actorUserId: ME,
-        brief: briefAssignedToMe,
-        assigneeField: ASSIGNEE_FIELD,
-        fieldName: CONTENT_FIELD,
-      }),
+      canEditBrief({ actorRole: 'video_editor', actorUserId: ME, brief: briefWithNumber }),
     ).toBe(false);
   });
 
@@ -789,14 +659,14 @@ describe('canEditBrief', () => {
       actorRole: 'video_editor' as const,
       actorUserId: ME,
       brief: briefAssignedToMe,
-      assigneeField: ASSIGNEE_FIELD,
-      fieldName: CONTENT_FIELD,
     };
     expect(canEditBrief(args)).toBe(canEditBrief(args));
   });
 
-  it('refusal note is a plain sentence ending in a period', () => {
-    expect(EDIT_BRIEF_NOT_PERMITTED).not.toContain('<');
-    expect(EDIT_BRIEF_NOT_PERMITTED.endsWith('.')).toBe(true);
+  it('refusal notes are plain sentences ending in a period', () => {
+    for (const note of [EDIT_BRIEF_NOT_PERMITTED, INTERNAL_STATUS_USE_TRANSITION]) {
+      expect(note).not.toContain('<');
+      expect(note.endsWith('.')).toBe(true);
+    }
   });
 });

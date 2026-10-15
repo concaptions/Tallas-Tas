@@ -574,95 +574,61 @@ export function canViewBriefStats(role: ViewerRole | null | undefined): boolean 
  * ---------------------------------------------------------------------------------------------- */
 
 /**
- * The three brief fields a `client` may touch. Every other field is INTERNAL to the agency and
- * stays refused to a client whatever the surface (CLAUDE.md non-negotiable 10: clients see zero
- * internal data, and reciprocally they write to the client track only). Named here, not in the
- * SHEET_GROUPS manifest, because the manifest lives in `apps/web` and this module may not read it.
- */
-export const CLIENT_EDITABLE_BRIEF_FIELDS: ReadonlySet<string> = new Set([
-  'clientStatus',
-  'status', // the sheet's own column key for CLIENT_STATUS — PRD §9 track B
-  'clientFeedback',
-  'clientNoteFromClient',
-  'clientStatusNote',
-]);
-
-/**
- * The arguments `canEditBrief` reads. All five are composable so the function can answer for a
- * sidebar edit of a single field, a dialog edit of several fields and a grid cell commit — each
- * surface passes the brief row, the actor's role and id, the assignee column it is comparing on,
- * and (when known) the field name the write would target.
+ * The arguments `canEditBrief` reads. `brief` is a `Readonly<Record<string, unknown>>` on purpose:
+ * the module lives in `@tas/domain` and may not import `@tas/db`'s row type. The function reads
+ * the row's `assignee` column directly — the schema has one assignee field (migration 0001,
+ * `creative_briefs.assignee`), so there is no column to parameterise.
  *
- * `brief` is a `Readonly<Record<string, unknown>>` on purpose: the module lives in `@tas/domain`
- * and may not import `@tas/db`'s row type. The caller indexes the brief by `assigneeField` and
- * the function compares that value to `actorUserId`.
- *
- * `assigneeField` is a plain string so the caller can pass whichever assignee column its surface
- * is editing from — today the schema has one `assignee` column, but the function is written
- * composable so a future per-role assignee (`editorId`, `designerId`, `producerId`, `csmId`,
- * `userProfileId`) is a one-line call-site change, not a change here.
- *
- * `fieldName` is the stored column key the write targets, so a `client` can be refused on every
- * field but the handful in `CLIENT_EDITABLE_BRIEF_FIELDS`. Absent, a client is refused on anything:
- * the function treats a missing field name as "an internal field" (deny-by-default).
+ * `fieldName` is kept optional because the server action and the InlineField primitive sometimes
+ * answer "may this actor edit this brief at all?" without naming a field. Today the gate ignores
+ * it; it is here for a future per-field widening (never a narrowing — any narrower rule belongs
+ * on a stricter sibling gate like `canApproveBrief`).
  */
 export interface CanEditBriefArgs {
   readonly actorRole: ViewerRole | null | undefined;
   readonly actorUserId: string | null | undefined;
   readonly brief: Readonly<Record<string, unknown>>;
-  readonly assigneeField: string;
   readonly fieldName?: string;
 }
 
 /**
- * Whether this actor may EDIT this brief's field.
+ * Whether this actor may EDIT this brief.
  *
- * ROLE MATRIX, in deny-by-default order:
+ * ROLE MATRIX, as the Oct 15 coordinator ruling simplified it:
  *
  * - `null` / `undefined` → `false`. An unresolved role never widens the gate.
- * - `client` → `true` only when `fieldName` is in `CLIENT_EDITABLE_BRIEF_FIELDS`. Every other
- *   write is an internal field, which CLAUDE.md non-negotiable 10 forbids. A client with no
- *   `fieldName` passed is denied — "any field" means "any internal field" at this gate.
- * - `admin`, `csm` → `true`. PRD §11 row 1 ("everything, all brands") and row 2 ("works across
- *   the whole client base"); both roles manage the pipeline and need every field editable.
- * - `strategist`, `media_buyer` → `true`. The two agency reviewers who already run `canReviewBrief`
- *   above; a reviewer who can comment on a brief can edit its content, PRD §5.4-5.7 keeps the
- *   strategy on their desk.
- * - `video_editor`, `designer` → `true` only when `brief[assigneeField] === actorUserId`. The
- *   two production roles own a brief when it is assigned to them, PRD §9 and §12 trigger 1. An
+ * - `admin`, `csm`, `strategist`, `media_buyer` → `true`. The four internal agency roles that
+ *   PRD §11 scopes across the whole creative pipeline. All four already pass `canReviewBrief`;
+ *   this gate is strictly the WRITE companion.
+ * - `video_editor`, `designer` → `true` only when `brief.assignee === actorUserId`. The two
+ *   production roles own a brief when it is assigned to them, PRD §9 and §12 trigger 1. An
  *   unassigned brief or one assigned to somebody else is read-only to them.
+ * - `client` → `false`. CLAUDE.md non-negotiable 10 ("clients see zero internal data") and the
+ *   paired write rule: a client's own writes travel through the client-approval action in
+ *   `apps/web/src/lib/client-approval-actions.ts`, never through the internal brief gate.
  * - `member` → `false`. The Clerk organisation default for staff with no brand assignment yet;
  *   `canSeeInternalWorkspace` already keeps them off the sections, this gate keeps them off the
  *   writes if a route ever lets them through.
  *
- * PURE AND SESSION-FREE, like every rule above: the actor and the brief are parameters, no
- * module-level state, no Clerk, no database. The server action calls it once per field in the
- * patch; the InlineField primitive calls it before rendering an editor; the row grid calls it
- * before accepting a cell edit.
+ * PURE AND SESSION-FREE: the actor and the brief are parameters, no module-level state, no Clerk,
+ * no database. The server action calls it once per update; the InlineField primitive calls it
+ * before rendering an editor; the row grid calls it before accepting a cell edit.
  */
-export function canEditBrief({
-  actorRole,
-  actorUserId,
-  brief,
-  assigneeField,
-  fieldName,
-}: CanEditBriefArgs): boolean {
+export function canEditBrief({ actorRole, actorUserId, brief }: CanEditBriefArgs): boolean {
   if (actorRole === null || actorRole === undefined) {
     return false;
   }
 
   if (actorRole === 'client') {
-    if (fieldName === undefined) {
-      return false;
-    }
-    return CLIENT_EDITABLE_BRIEF_FIELDS.has(fieldName);
+    return false;
   }
 
-  if (actorRole === 'admin' || actorRole === 'csm') {
-    return true;
-  }
-
-  if (actorRole === 'strategist' || actorRole === 'media_buyer') {
+  if (
+    actorRole === 'admin' ||
+    actorRole === 'csm' ||
+    actorRole === 'strategist' ||
+    actorRole === 'media_buyer'
+  ) {
     return true;
   }
 
@@ -670,7 +636,7 @@ export function canEditBrief({
     if (actorUserId === null || actorUserId === undefined || actorUserId === '') {
       return false;
     }
-    const assignee = brief[assigneeField];
+    const assignee = brief['assignee'];
     return typeof assignee === 'string' && assignee === actorUserId;
   }
 
@@ -679,5 +645,13 @@ export function canEditBrief({
 }
 
 /** The refusal `updateBriefPartialAction` returns when `canEditBrief` is false. */
-export const EDIT_BRIEF_NOT_PERMITTED =
-  'You do not have permission to edit this field on this brief.';
+export const EDIT_BRIEF_NOT_PERMITTED = 'You do not have permission to edit this brief.';
+
+/**
+ * The refusal `updateBriefPartialAction` returns when a caller tries to write `internalStatus`
+ * through the partial-update path. The internal track runs the QA gate and the state-machine
+ * check; only `moveBriefStageAction` / `updateBriefAction` route a status move through those
+ * guards. A silent accept would skip the gates and lose the QA auto-reset.
+ */
+export const INTERNAL_STATUS_USE_TRANSITION =
+  'Internal Status must move through the status transition, not a partial update.';
