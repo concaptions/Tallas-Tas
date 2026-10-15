@@ -34,16 +34,11 @@ import {
   Textarea,
   TwoTrackApproval,
   Input,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from '@tas/ui';
 import { CLIENT_STATUS, chipTone } from '@tas/domain/state';
 
 import { ClientStatusDropdown } from '@/components/status/client-status-dropdown';
+import { BriefScriptsTable, type BriefScriptRow } from '@/components/briefs/scripts-table';
 
 import type { BriefActivityItem } from '@/lib/briefs-source';
 import { copywritingPath, creativeSheetPath } from '@/lib/routes';
@@ -148,30 +143,11 @@ export interface BriefValues {
   readonly clientStatusNote: string | null;
 }
 
-/** One row of the Scripts table: the brief's own script, or a Meta Copywriting row written for it. */
-interface BriefScriptRow {
-  readonly id: string;
-  readonly label: string;
-  readonly kind: string;
-  readonly statusLabel: string | null;
-  readonly statusTone: ChipTone;
-  readonly href: string | null;
-}
-
-/** What the Scripts table says when nothing has been written yet. */
-const NO_SCRIPTS_NOTE =
-  'No script yet. The creative’s script and its Copywriting rows appear here.';
-
-/**
- * Live script word count (Oct 12 ask, QA item 33). Whitespace-split, trimmed empties collapse
- * to zero. The format the strategist reads is always "N words", so the caller interpolates
- * `{countWords(text)} words` without pluralising — "1 words" is accepted per the ask.
- */
-function countWords(text: string): number {
-  const trimmed = text.trim();
-  if (trimmed === '') return 0;
-  return trimmed.split(/\s+/).length;
-}
+// Scripts table shape and the `countWords` helper are shared with the brief sidebar
+// (`creative-sheet-panel.tsx`): `BriefScriptRow` lives in `@/components/briefs/scripts-table`
+// and the helper in `@tas/domain/briefs/word-count`. Oct 12 QA item 33 shipped them inline on
+// this page; the Oct 15 SCRIPTS_SIDEBAR follow-up lifted both so the sidebar can draw the same
+// table under its Content section.
 
 /** A value no uuid can be, so the Select can offer "Standalone" without an empty item value. */
 const STANDALONE_VALUE = 'standalone';
@@ -464,8 +440,6 @@ export function BriefDetail({
             id: 'script-content',
             label: scriptContentValue,
             kind: 'Script',
-            statusLabel: null,
-            statusTone: 'mute' as const,
             href: null,
           },
         ]),
@@ -473,8 +447,6 @@ export function BriefDetail({
       id: copy.id,
       label: copy.label,
       kind: 'Copywriting',
-      statusLabel: copy.statusLabel,
-      statusTone: copy.statusTone,
       href: `${copywritingPath}?copy=${encodeURIComponent(copy.id)}`,
     })),
   ];
@@ -945,85 +917,7 @@ export function BriefDetail({
             className="flex min-w-0 flex-col gap-2 md:col-span-2 xl:col-span-2"
           >
             <h2 className="text-sm font-medium text-text2">{BRIEF_HEADINGS.scripts}</h2>
-            <div className="overflow-x-auto rounded-card border border-line bg-surface">
-              <Table data-slot="brief-scripts-table">
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="px-3">Type</TableHead>
-                    <TableHead className="px-3">Script</TableHead>
-                    <TableHead className="px-3">B-roll</TableHead>
-                    <TableHead className="px-3">Instructions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {scripts.length === 0 ? (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={4} className="px-3 py-6 text-center text-sm text-text3">
-                        <span data-slot="brief-scripts-empty">{NO_SCRIPTS_NOTE}</span>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    scripts.map((script) => (
-                      <TableRow key={script.id} data-slot="brief-script-row">
-                        <TableCell className="px-3 py-1.5 align-top text-text3">
-                          {script.kind}
-                        </TableCell>
-                        <TableCell className="max-w-[480px] px-3 py-1.5 align-top text-text2">
-                          <div
-                            className="truncate whitespace-pre-wrap"
-                            data-slot="brief-script-text"
-                          >
-                            {script.href === null ? (
-                              script.label
-                            ) : (
-                              <Link
-                                href={script.href}
-                                className="underline-offset-2 hover:underline"
-                              >
-                                {script.label}
-                              </Link>
-                            )}
-                          </div>
-                          {/*
-                            Oct 12 ask (QA item 33): live word count under every Script cell.
-                            The strategist watches this update as they type in the centre column.
-                           */}
-                          <div
-                            data-slot="brief-script-word-count"
-                            className="mt-1 text-[11px] text-text3"
-                          >
-                            {countWords(script.label)} words
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-3 py-1.5 align-top">
-                          {/*
-                            B-roll — a plain per-row input until the global B-roll library ships
-                            next sprint. Not posted with the form, so no `name` attribute.
-                           */}
-                          <Input
-                            type="text"
-                            aria-label="B-roll"
-                            data-slot="brief-script-broll"
-                            readOnly={demo}
-                            className="h-8 text-xs"
-                          />
-                        </TableCell>
-                        <TableCell className="px-3 py-1.5 align-top">
-                          {/* Instructions — same per-row ephemeral input shape as B-roll. */}
-                          <Input
-                            type="text"
-                            aria-label="Instructions"
-                            data-slot="brief-script-instructions"
-                            readOnly={demo}
-                            className="h-8 text-xs"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <BriefScriptsTable scripts={scripts} demo={demo} />
           </section>
         </form>
 

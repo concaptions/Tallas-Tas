@@ -31,6 +31,11 @@ import {
 import { ArrowRight, Captions, File, Image, Plus, type LucideIcon } from '@tas/ui/icons';
 
 import { briefPath } from '@/lib/routes';
+import {
+  BriefScriptsTable,
+  SIDEBAR_SCRIPTS_EMPTY_MESSAGE,
+  type BriefScriptRow,
+} from '@/components/briefs/scripts-table';
 
 import {
   updateCreativeSheetItemAction,
@@ -316,6 +321,24 @@ export function CreativeSheetPanel({
   const internalView = internalStatusView(item.internalStatus);
   const clientView = statusView(item.status);
 
+  /**
+   * Oct 15 SCRIPTS_SIDEBAR follow-up: the sidebar's Scripts table reads the stored script content
+   * as a static row — the live word count ticks whenever a change is saved on the brief page, not
+   * as the sidebar viewer types. One row for the brief's own script when there is one; empty
+   * array otherwise, which the shared table shows as "No scripts yet. Add one above.".
+   */
+  const sidebarScripts: readonly BriefScriptRow[] =
+    detail.scriptContent === null || detail.scriptContent.trim() === ''
+      ? []
+      : [
+          {
+            id: 'sidebar-script-content',
+            label: detail.scriptContent,
+            kind: 'Script',
+            href: null,
+          },
+        ];
+
   return (
     <Sheet
       open
@@ -422,6 +445,23 @@ export function CreativeSheetPanel({
               <Group heading={SHEET_GROUPS.content}>
                 <div className="flex flex-col gap-3" data-slot="creative-sheet-content">
                   {block('Script / Ad Content', detail.scriptContent ?? detail.adContent)}
+                  {/*
+                    Oct 15 SCRIPTS_SIDEBAR follow-up: the walkthrough found the sidebar's Content
+                    section stopped at the prose block and the Assets section said "Script
+                    breakdown — not uploaded" with no table at all. The brief's Scripts table
+                    (Type / Script / B-roll / Instructions, with the live "N words" line under
+                    every Script cell) now draws here too, through the component shared with
+                    `brief-detail.tsx`. Read-only: the sidebar does not edit scripts — the brief
+                    page does — so the only input is the ephemeral B-roll / Instructions field
+                    the shared component already renders.
+                   */}
+                  <div data-slot="creative-sheet-scripts">
+                    <BriefScriptsTable
+                      scripts={sidebarScripts}
+                      demo={demo}
+                      emptyMessage={SIDEBAR_SCRIPTS_EMPTY_MESSAGE}
+                    />
+                  </div>
                   {block('Brief to Design', detail.briefToDesign)}
                   {block('Offer', detail.offer)}
                   {block('Inspiration', detail.inspiration)}
