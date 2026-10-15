@@ -223,7 +223,7 @@ save contract.
 - `627b7ec` — `feat(briefs): canEditBrief draft-brief handling (D-036)`
 - `e06bf56` — `feat(briefs): wire InlineField into both new-brief dialogs`
 - `bb50b87` — `feat(briefs): brand-scoped options for link kind in sidebar + actor flow`
-- Fourth commit (this entry) — `feat(briefs): wire remaining sidebar fields through InlineField`
+- `db3928f` — `feat(briefs): wire remaining sidebar fields through InlineField`
 
 ### Test count
 
@@ -239,7 +239,7 @@ save contract.
 - `627b7ec` — matched on first poll (full SHA `627b7ec46d48cc1e3b492c85834d1a94231838a3`).
 - `e06bf56` — matched at the 11th poll (~5.5 min).
 - `bb50b87` — matched at the 4th poll (~2 min).
-- Final commit (this one) — match recorded against the pushed head after the push lands.
+- `db3928f` — matched at the 4th poll (~2 min).
 
 ### D-036 — `skipGate` prop on InlineField
 
