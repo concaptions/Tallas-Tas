@@ -40,6 +40,7 @@ import {
   type BriefScriptRow,
 } from '@/components/briefs/scripts-table';
 import { InlineField } from '@/components/briefs/inline-field';
+import type { ChipOption } from '@tas/ui';
 
 import {
   updateCreativeSheetItemAction,
@@ -75,6 +76,12 @@ import {
 } from './fields';
 import { notApplicableTag, sidebarQaChecklist } from './focus-mode';
 
+/** A `{id,name}` pair the sidebar's three `link` kind editors (Concept / Angle / Product) read. */
+export interface SidebarLinkOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 interface CreativeSheetPanelProps {
   readonly item: CreativeSheetItemListRow;
   /** The brief's resolved lookups (concept, angle, product…), for the Identity section. */
@@ -93,6 +100,14 @@ interface CreativeSheetPanelProps {
    */
   readonly actorRole?: ViewerRole | null;
   readonly actorUserId?: string | null;
+  /**
+   * Phase B5 Fix C (Oct 16): brand-scoped options the three `link` kind editors (Concept, Angle,
+   * Product) in Identity need to show as a chip picker. Absent collapses them to the readonly
+   * chip through InlineField's own fall-through (link-with-no-options stays uneditable).
+   */
+  readonly conceptOptions?: readonly SidebarLinkOption[];
+  readonly angleOptions?: readonly SidebarLinkOption[];
+  readonly productOptions?: readonly SidebarLinkOption[];
 }
 
 /** A select's "no value", which the action reads as "leave it where it is". */
@@ -159,6 +174,9 @@ export function CreativeSheetPanel({
   onFocusMode,
   actorRole,
   actorUserId,
+  conceptOptions,
+  angleOptions,
+  productOptions,
 }: CreativeSheetPanelProps) {
   const [state, formAction, pending] = useActionState<CreativeSheetActionResult | null, FormData>(
     updateCreativeSheetItemAction,
@@ -352,6 +370,24 @@ export function CreativeSheetPanel({
       onSaved(result.id);
     }
   };
+  /**
+   * Phase B5 Fix C (Oct 16): the sidebar's three `link` kind editors (Concept, Angle, Product)
+   * each need a brand-scoped `ChipOption[]`. The parent supplies the `{id,name}` arrays scoped by
+   * `withBrand(brandId)`; here they are shaped to the primitive's `ChipOption` tuple with no
+   * sentinel row — an unset link is a chip-less state the primitive already handles.
+   */
+  const linkOptionsFor = (name: string): readonly ChipOption[] | undefined => {
+    const source =
+      name === 'conceptId'
+        ? conceptOptions
+        : name === 'angleId'
+          ? angleOptions
+          : name === 'productId'
+            ? productOptions
+            : undefined;
+    if (source === undefined) return undefined;
+    return source.map((entry) => ({ value: entry.id, label: entry.name }));
+  };
   const inlineRow = (field: BriefSectionField): ReactNode => (
     <div className="flex items-start justify-between gap-3.5 py-1">
       <span className="shrink-0 text-xs whitespace-nowrap text-text3">{field.label}</span>
@@ -362,6 +398,7 @@ export function CreativeSheetPanel({
           surface="sidebar"
           actorRole={actorRole}
           actorUserId={actorUserId}
+          options={linkOptionsFor(field.name)}
           onUpdate={inlineUpdate}
         />
       </span>

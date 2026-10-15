@@ -71,7 +71,15 @@ import { currentActor } from '@/lib/actor';
 import { withBrandScope } from '@/lib/briefs-source';
 import { loadViewerRole } from '@/lib/data-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
-import { briefPath, briefsPath, creativeSheetPath } from '@/lib/routes';
+import {
+  anglesPath,
+  briefPath,
+  briefsPath,
+  conceptPath,
+  conceptsPath,
+  creativeSheetPath,
+  productsPath,
+} from '@/lib/routes';
 import {
   canEditBrief,
   EDIT_BRIEF_NOT_PERMITTED,
@@ -1438,6 +1446,23 @@ export async function updateBriefPartialAction(
     }
     revalidateBrief(outcome.id);
     revalidatePath(creativeSheetPath);
+    // Phase B5 Fix C (2026-10-16): a `link` kind patch moves which record this brief points at,
+    // so the OLD and NEW record's own pages are stale too. Revalidating the base list routes is
+    // the cheapest honest answer — the detail pages read from the list anyway, and Next's App
+    // Router hoists a path-based invalidate to any matching segment.
+    if ('conceptId' in patch) {
+      revalidatePath(conceptsPath);
+      const nextId = patch['conceptId'];
+      if (typeof nextId === 'string' && nextId !== '') {
+        revalidatePath(conceptPath(nextId));
+      }
+    }
+    if ('angleId' in patch) {
+      revalidatePath(anglesPath);
+    }
+    if ('productId' in patch) {
+      revalidatePath(productsPath);
+    }
     return { ok: true, id: outcome.id, savedAt: Date.now() };
   } catch {
     return {

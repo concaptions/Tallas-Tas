@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CreativeSheetItemListRow } from '@tas/db';
 import { getTableCapability, type UserViewConfig, type ViewType } from '@tas/domain';
 import { creativeDimensionDisplay, normalizeCreativeDimensions } from '@tas/domain/creatives';
+import type { Role as ViewerRole } from '@tas/domain/roles';
 import { EDITOR_STAGE_KEYS } from '@tas/domain/state';
 import { Button, DEMO_WRITE_HINT, formatSheetDate, Input, StatusChip } from '@tas/ui';
 import { Captions, Copy, Link, RefreshCw, Trash } from '@tas/ui/icons';
@@ -165,6 +166,12 @@ export interface SheetItemView {
   readonly updatedTitle: string;
 }
 
+/** A brand-scoped record pair for the sidebar's `link` kind pickers (concept / angle / product). */
+export interface SidebarLinkOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 interface CreativeSheetWorkspaceProps {
   /** The brand's ordered, labelled, visible columns, from `loadCreativeSheetColumns`. */
   readonly columns: readonly ResolvedColumnView[];
@@ -175,6 +182,14 @@ interface CreativeSheetWorkspaceProps {
   readonly boardBriefs?: readonly EditorBoardBrief[];
   /** The "New creative" dialog's Concept select; standalone is always offered. */
   readonly conceptOptions?: readonly ConceptOption[];
+  /**
+   * Phase B5 Fix C: the sidebar's three `link` kind editors (Concept, Angle, Product). The
+   * server resolves them from `withBrand(brandId)`-scoped loaders, so the picker is brand-scoped
+   * at the data layer. When absent, the sidebar renders those fields as readonly chips.
+   */
+  readonly sidebarConceptOptions?: readonly SidebarLinkOption[];
+  readonly sidebarAngleOptions?: readonly SidebarLinkOption[];
+  readonly sidebarProductOptions?: readonly SidebarLinkOption[];
   /** The number the "New creative" preview shows; the server allocates the real one. */
   readonly nextNumber?: number;
   readonly demo: boolean;
@@ -190,6 +205,13 @@ interface CreativeSheetWorkspaceProps {
   readonly initialKanbanField?: CreativeSheetKanbanField;
   /** The viewer's saved views (`loadUserViews`); absent in a story or a test, the browser keeps them. */
   readonly userViews?: UserViewsResult;
+  /**
+   * Phase B5 Fix C: the viewer's role and display-name identifier, so the sidebar's InlineField
+   * editors can run their role gate (`canEditBrief`) and `updateBriefPartialAction` can agree
+   * with the UI. Absent in demo mode and the stories, where the sidebar stays readonly end-to-end.
+   */
+  readonly actorRole?: ViewerRole | null;
+  readonly actorUserId?: string | null;
 }
 
 const CAP = getTableCapability('creative-sheet') as NonNullable<
@@ -479,6 +501,9 @@ export function CreativeSheetWorkspace({
   items,
   boardBriefs = [],
   conceptOptions = [],
+  sidebarConceptOptions = [],
+  sidebarAngleOptions = [],
+  sidebarProductOptions = [],
   nextNumber = 1,
   demo,
   initialSelection,
@@ -489,6 +514,8 @@ export function CreativeSheetWorkspace({
   userViews = NO_USER_VIEWS,
   columns,
   unconfiguredColumns = false,
+  actorRole = null,
+  actorUserId = null,
 }: CreativeSheetWorkspaceProps) {
   // Label and order from the resolver, rendering from the registry, joined by the ONE adapter.
   const grid = useMemo(
@@ -1284,6 +1311,11 @@ export function CreativeSheetWorkspace({
           onClose={close}
           onSaved={saved}
           onFocusMode={focus}
+          actorRole={actorRole}
+          actorUserId={actorUserId}
+          conceptOptions={sidebarConceptOptions}
+          angleOptions={sidebarAngleOptions}
+          productOptions={sidebarProductOptions}
         />
       ) : null}
 

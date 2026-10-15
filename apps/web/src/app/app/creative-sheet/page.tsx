@@ -3,11 +3,14 @@ import { redirect } from 'next/navigation';
 import type { ViewType } from '@tas/domain';
 import { canViewBriefStats } from '@tas/domain';
 
+import { currentActor } from '@/lib/actor';
+import { loadAngles } from '@/lib/angles-source';
 import { loadBriefs, loadNextBriefNumber } from '@/lib/briefs-source';
 import { loadBriefStatsForWorkspace } from '@/lib/brief-stats-source';
 import { loadConcepts } from '@/lib/concepts-source';
 import { loadCreativeSheetColumns, loadCreativeSheetWorkspace } from '@/lib/creative-sheet-source';
 import { isDemoMode } from '@/lib/demo-mode';
+import { loadProducts } from '@/lib/products-source';
 import { creativeSheetPath } from '@/lib/routes';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { loadViewPreference } from '@/lib/view-preference-actions';
@@ -84,6 +87,8 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
     { columns, unconfigured: unconfiguredColumns },
     briefResult,
     conceptResult,
+    angleResult,
+    productResult,
     nextNumber,
     userViews,
     viewPref,
@@ -92,6 +97,8 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
     loadCreativeSheetColumns(),
     loadBriefs(),
     loadConcepts(),
+    loadAngles(),
+    loadProducts(),
     loadNextBriefNumber(),
     loadUserViews('creative-sheet'),
     loadViewPreference('creative-sheet'),
@@ -99,6 +106,14 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
   const demo = isDemoMode();
   const role = await viewerRole();
   const canSeeStats = canViewBriefStats(role);
+  // Phase B5 Fix C (2026-10-16): the sidebar's InlineField editors need the viewer's role AND
+  // their display-name identifier (what `updateBriefPartialAction` compares against the brief's
+  // `assignee` column — see `actions.ts:1398-1402`). Resolved once per request through the
+  // request-scoped `currentActor()` and the `cache`-wrapped `viewerRole()`; demo mode gets its
+  // stub actor and no role, so the sidebar renders the readonly chrome exactly as before.
+  const actor = await currentActor();
+  const actorRole = role;
+  const actorUserId = demo ? null : actor.fullName;
 
   const items = buildSheetItems(workspace, new Date());
 
@@ -120,6 +135,13 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
     name,
     batch,
   }));
+  // Phase B5 Fix C (2026-10-16): the sidebar's three `link` kind editors (Concept, Angle, Product)
+  // need brand-scoped options from the ONE loader per table — `loadConcepts` / `loadAngles` /
+  // `loadProducts`, all `withBrand(brandId)` scoped — so the picker can never leak a cross-brand
+  // record.
+  const sidebarConceptOptions = conceptResult.rows.map(({ id, name }) => ({ id, name }));
+  const sidebarAngleOptions = angleResult.rows.map(({ id, name }) => ({ id, name }));
+  const sidebarProductOptions = productResult.rows.map(({ id, name }) => ({ id, name }));
 
   const requested = params[SELECTION_PARAM];
   const selection = typeof requested === 'string' && requested !== '' ? requested : null;
@@ -152,6 +174,9 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
         items={items}
         boardBriefs={boardBriefs}
         conceptOptions={conceptOptions}
+        sidebarConceptOptions={sidebarConceptOptions}
+        sidebarAngleOptions={sidebarAngleOptions}
+        sidebarProductOptions={sidebarProductOptions}
         nextNumber={nextNumber}
         demo={demo}
         initialSelection={selection}
@@ -160,6 +185,8 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
         defaultView={viewPref.viewType}
         initialKanbanField={initialKanbanField}
         userViews={userViews}
+        actorRole={actorRole}
+        actorUserId={actorUserId}
       />
     </div>
   );
