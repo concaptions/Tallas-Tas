@@ -1647,6 +1647,28 @@ describe('AI-39 · Gratsi shows Script, never Script Idea', () => {
  * `Exact Script` (url) — the item's premise ("remove the URL fields") was wrong, so they STAY.
  * Both are Gratsi's own relabel-platform rows; removing either would un-match the live base.
  */
+/**
+ * Oct 15 pre-demo cleanup (EMBARRASSING sub-fix b): the walkthrough reported a "Stop Claude"
+ * column on `/app/ugc`. A grep of `apps/web/src/` and `packages/db/src/` found no `stop_claude`,
+ * `stopClaude` or "Stop Claude" occurrence anywhere, so there was never a seed row to drop.
+ * This regression test pins that the key never appears in the Creators seed set: a future seed
+ * that adds it would need a conscious decision rather than slipping in.
+ */
+describe('Oct 15 EMBARRASSING sub-fix b · no `stop_claude` column seeded', () => {
+  it('does not ship a `stop_claude` or `stopClaude` column key in COLUMN_SEED', () => {
+    const keys = COLUMN_SEED.flatMap((group) => group.rows).map((row) => row.columnKey);
+    expect(keys).not.toContain('stop_claude');
+    expect(keys).not.toContain('stopClaude');
+  });
+
+  it('does not ship a `Stop Claude` display label in COLUMN_SEED', () => {
+    const labels = COLUMN_SEED.flatMap((group) => group.rows).map((row) => row.displayLabel);
+    for (const label of labels) {
+      expect(label).not.toMatch(/\bStop\s*Claude\b/i);
+    }
+  });
+});
+
 describe('AI-44 · Brief and Exact Script stay in Gratsi angle set', () => {
   it("resolves both URL columns for Gratsi, from Gratsi's own rows, as url fields", async () => {
     const db = await testDb();

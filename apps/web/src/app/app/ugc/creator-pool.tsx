@@ -57,6 +57,10 @@ export function CreatorPool({
   const [ratings, setRatings] = useState<CreatorPerformanceHistoryRow[]>([]);
   const [adding, startAdding] = useTransition();
   const [addResult, setAddResult] = useState<string | null>(null);
+  // Oct 15 EMBARRASSING sub-fix (d): the ids this session has successfully added to the brand.
+  // The badge/button swap for the current brand is driven by server-preloaded history; this
+  // mirror catches creators added THIS session before a refresh re-populates that preload.
+  const [sessionAddedIds, setSessionAddedIds] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     if (hasInitialCreators) {
@@ -124,6 +128,27 @@ export function CreatorPool({
     [initialHistoryByCreatorId],
   );
 
+  /**
+   * Oct 15 EMBARRASSING sub-fix (d): is the viewer's current brand already in this creator's
+   * brand history? Reads the server-preloaded map first (Ticket 13 Phase B1); for the selected
+   * creator the aside's own `history` state is consulted so a fresh add reflects without a
+   * re-fetch. A brand name match (case-insensitive) is used because `brandName` is what we have;
+   * the per-brand ids are not exposed to this component.
+   */
+  const normalizedBrand = brandName.trim().toLowerCase();
+  const alreadyInCurrentBrand = useCallback(
+    (registryId: string): boolean => {
+      // The just-added mirror: a card the viewer clicked Add on this session.
+      if (sessionAddedIds.has(registryId)) return true;
+      const asideMatchesSelected = selectedCreator?.id === registryId;
+      const entries = asideMatchesSelected
+        ? history
+        : (initialHistoryByCreatorId?.get(registryId) ?? []);
+      return entries.some((row) => row.brandName.trim().toLowerCase() === normalizedBrand);
+    },
+    [sessionAddedIds, history, initialHistoryByCreatorId, normalizedBrand, selectedCreator],
+  );
+
   const handleAdd = useCallback(
     (registryCreatorId: string) => {
       if (demo) return;
@@ -131,6 +156,11 @@ export function CreatorPool({
         const result = await addRegistryCreatorToBrandAction(registryCreatorId);
         if (result.ok) {
           setAddResult(result.alreadyExisted ? 'Already on this brand.' : `Added to ${brandName}!`);
+          setSessionAddedIds((prev) => {
+            const next = new Set(prev);
+            next.add(registryCreatorId);
+            return next;
+          });
           onAdded?.();
         } else {
           setAddResult(result.error);
@@ -179,7 +209,7 @@ export function CreatorPool({
         <div className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface px-4 py-10 text-center">
           <p className="text-sm text-text2">
             {registryCreators.length === 0
-              ? 'No creators in the global pool yet. Run the seed script to populate from existing brand data.'
+              ? 'No creators in the global pool yet. Add one from this brand’s roster and they will appear here.'
               : 'No creators match that search.'}
           </p>
         </div>
@@ -232,18 +262,35 @@ export function CreatorPool({
                     </span>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={demo || adding}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAdd(creator.id);
-                  }}
-                  data-slot="add-to-brand"
-                >
-                  Add to {brandName}
-                </Button>
+                {/*
+                  Oct 15 EMBARRASSING sub-fix (d): the "Add to {brand}" button fired an action
+                  that reported "Already on this brand" when the creator was already on it.
+                  Guarded here on the server-preloaded brand history (Ticket 13 Phase B1): if
+                  the current brand is in the creator's registry history, we render an "In
+                  {brand}" badge in place of the Add button so the viewer sees the state at a
+                  glance and the misleading click is gone.
+                 */}
+                {alreadyInCurrentBrand(creator.id) ? (
+                  <span
+                    data-slot="in-current-brand"
+                    className="inline-flex w-fit items-center rounded-input bg-ok/10 px-2 py-0.5 text-xs font-medium text-ok"
+                  >
+                    In {brandName}
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={demo || adding}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAdd(creator.id);
+                    }}
+                    data-slot="add-to-brand"
+                  >
+                    Add to {brandName}
+                  </Button>
+                )}
               </button>
             ))}
           </div>
@@ -376,16 +423,28 @@ export function CreatorPool({
                 )}
               </div>
 
-              <Button
-                size="sm"
-                disabled={demo || adding}
-                onClick={() => {
-                  handleAdd(selectedCreator.id);
-                }}
-                data-slot="add-selected-to-brand"
-              >
-                Add to {brandName}
-              </Button>
+              {/* Oct 15 EMBARRASSING sub-fix (d): same guard as the grid card above. The aside
+                  reads the current creator's history off `history` state, which the aside sets
+                  from `initialHistoryByCreatorId` or a server-action fallback. */}
+              {alreadyInCurrentBrand(selectedCreator.id) ? (
+                <span
+                  data-slot="aside-in-current-brand"
+                  className="inline-flex w-fit items-center rounded-input bg-ok/10 px-2 py-0.5 text-xs font-medium text-ok"
+                >
+                  In {brandName}
+                </span>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={demo || adding}
+                  onClick={() => {
+                    handleAdd(selectedCreator.id);
+                  }}
+                  data-slot="add-selected-to-brand"
+                >
+                  Add to {brandName}
+                </Button>
+              )}
             </aside>
           )}
         </div>

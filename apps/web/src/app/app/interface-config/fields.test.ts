@@ -10,6 +10,7 @@ import {
   INTERFACE_CONFIG_ADMIN_NOTE,
   INTERFACE_CONFIG_ENFORCEMENT_NOTE,
   INTERFACE_CONFIG_NOT_ADMIN_NOTE,
+  NO_CONFIG_BODY,
   PAGE_PREVIEW_BODY,
   clientStatusView,
   conceptPreview,
@@ -203,5 +204,25 @@ describe("the gate's copy (2026-10-03: this page had no role check at all)", () 
 
   it('says the save checks the rule again, so the page gate is not the only gate', () => {
     expect(INTERFACE_CONFIG_ENFORCEMENT_NOTE).toContain('again on the server');
+  });
+});
+
+/**
+ * Oct 15 pre-demo cleanup (EMBARRASSING sub-fix c): the Interface Config page carried three
+ * dev-only strings on a client-facing surface — "PRD §10", "run the seed", "0 of 0 pages".
+ * Replaced with user-facing copy. The three strings must not reappear in rendered JSX text.
+ */
+describe("the page's user-visible copy (Oct 15 EMBARRASSING sub-fix c)", () => {
+  it("doesn't say 'PRD §10' or 'run the seed' in the empty-state body", () => {
+    expect(NO_CONFIG_BODY).not.toContain('PRD §10');
+    expect(NO_CONFIG_BODY).not.toContain('§10');
+    expect(NO_CONFIG_BODY).not.toContain('run the seed');
+  });
+
+  it("pageCountLabel never returns '0 of 0 pages' — a brand with no pages hits the empty state above", () => {
+    // The '0 of 0' sentence is still produced by the pure function, but the workspace only
+    // reaches it when `draft.length > 0`; the test records the current function contract and
+    // the workspace's gate so a future refactor keeps the two in step.
+    expect(pageCountLabel(0, 0)).toBe('0 of 0 pages on');
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
-import type { RegistryCreatorListRow } from '@tas/db';
+import type { RegistryBrandHistoryRow, RegistryCreatorListRow } from '@tas/db';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CreatorPool } from './creator-pool';
@@ -68,6 +68,67 @@ function seededCreator(): RegistryCreatorListRow {
     normalizedInstagram: 'distinctive_handle',
   };
 }
+
+/**
+ * Oct 15 EMBARRASSING sub-fix (d): the "Add to {brand}" button fired even when the creator was
+ * already on the current brand, which left the viewer with a useless click and the toast
+ * "Already on this brand". The grid now hides the button and renders an "In {brand}" badge
+ * instead, guarded on the server-preloaded brand history (`initialHistoryByCreatorId`).
+ */
+describe('CreatorPool "Add to {brand}" button guard (Oct 15 EMBARRASSING sub-fix d)', () => {
+  function historyRow(brandName: string): RegistryBrandHistoryRow {
+    return {
+      brandName,
+      brandId: `brand-${brandName.toLowerCase()}`,
+      clientStatus: 'pending',
+      continueWorkingWith: null,
+      creatorCost: null,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+  }
+
+  it('hides the Add button and renders "In Gratsi" when the creator is already in Gratsi', () => {
+    const row = seededCreator();
+    const { container } = render(
+      <CreatorPool
+        brandName="Gratsi"
+        demo={false}
+        initialCreators={[row]}
+        initialHistoryByCreatorId={new Map([[row.id, [historyRow('Gratsi')]]])}
+      />,
+    );
+    const card = container.querySelector('[data-slot="pool-card"]');
+    expect(card).not.toBeNull();
+    expect(card?.querySelector('[data-slot="add-to-brand"]')).toBeNull();
+    expect(card?.querySelector('[data-slot="in-current-brand"]')?.textContent).toBe('In Gratsi');
+  });
+
+  it('still renders the Add button when the creator has history on OTHER brands but not Gratsi', () => {
+    const row = seededCreator();
+    const { container } = render(
+      <CreatorPool
+        brandName="Gratsi"
+        demo={false}
+        initialCreators={[row]}
+        initialHistoryByCreatorId={
+          new Map([[row.id, [historyRow('Niagara'), historyRow('Mattress Central')]]])
+        }
+      />,
+    );
+    const card = container.querySelector('[data-slot="pool-card"]');
+    expect(card?.querySelector('[data-slot="add-to-brand"]')?.textContent).toBe('Add to Gratsi');
+    expect(card?.querySelector('[data-slot="in-current-brand"]')).toBeNull();
+  });
+
+  it('renders the Add button when the creator has no history at all', () => {
+    const row = seededCreator();
+    const { container } = render(
+      <CreatorPool brandName="Gratsi" demo={false} initialCreators={[row]} />,
+    );
+    const card = container.querySelector('[data-slot="pool-card"]');
+    expect(card?.querySelector('[data-slot="add-to-brand"]')?.textContent).toBe('Add to Gratsi');
+  });
+});
 
 describe('the Creator Pool detail aside (Oct-14 privacy fix)', () => {
   it('renders no raw address, phone or email of a selected creator', async () => {

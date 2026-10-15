@@ -55,8 +55,10 @@ export const DEMO_DRAFT_NOTICE =
 
 /** What the tree says when the brand has no configuration rows at all. */
 export const NO_CONFIG_TITLE = 'No interface configuration for this brand yet.';
+// Oct 15 pre-demo cleanup (EMBARRASSING sub-fix c): the body carried a dev-facing note that
+// named a PRD section and told the viewer to "run the seed". Replaced with user-facing copy.
 export const NO_CONFIG_BODY =
-  "PRD §10's five pages are seeded with the brand. Connect a database and run the seed, and every page and field appears here ready to switch.";
+  'The five standard pages appear here as soon as this brand is set up. Each page can then be switched on or off for the client.';
 
 /** What the preview says when every field of the open page is switched off. */
 export const EMPTY_CARD_TITLE = 'The client would see an empty card.';

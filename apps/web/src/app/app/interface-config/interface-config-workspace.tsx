@@ -148,10 +148,12 @@ export function InterfaceConfigWorkspace({ rows, demo, concept }: InterfaceConfi
             </DisabledWrite>
           </form>
         </div>
+        {/* Oct 15 pre-demo cleanup (EMBARRASSING sub-fix c): the body sentence named PRD §10
+            and read as a dev note on a client-facing surface. Replaced with user-facing copy. */}
         <p className="text-sm text-text2">
           <span data-slot="page-count">{pageCountLabel(on, draft.length)}</span> — what this
-          brand&rsquo;s client sees when they sign in, at the two levels PRD §10 asks for: which
-          pages appear, and which fields those pages show.
+          brand&rsquo;s client sees when they sign in. Decide which pages appear, and for each page,
+          which fields the client reads.
         </p>
         {demo ? (
           <p data-slot="demo-notice" className="text-sm text-text3">
