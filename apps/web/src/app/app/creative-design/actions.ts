@@ -69,8 +69,16 @@ import {
 
 import { currentActor } from '@/lib/actor';
 import { withBrandScope } from '@/lib/briefs-source';
+import { loadViewerRole } from '@/lib/data-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { briefPath, briefsPath, creativeSheetPath } from '@/lib/routes';
+import {
+  canEditBrief,
+  EDIT_BRIEF_NOT_PERMITTED,
+  INTERNAL_STATUS_USE_TRANSITION,
+} from '@tas/domain/team';
+
+import { SHEET_GROUPS } from '@/app/app/creative-sheet/fields';
 
 /**
  * The Creative Briefs route's three mutations (PRD §5.10). All three follow `angles/actions.ts` and
@@ -1224,5 +1232,218 @@ export async function moveBriefStageAction(
     return outcome;
   } catch {
     return { ok: false, error: 'The creative could not be moved. Try again.' };
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * BRIEF PARTIAL UPDATE (Phase B5 Fix A, 2026-10-15)
+ *
+ * The write path the sidebar's inline editors, the new-brief dialog's inline editors and the
+ * grid cells all read for a single field commit. It is NEVER the right path for an internal
+ * status move — `moveCreativeSheetItemAction` runs the state-machine and QA gates for both
+ * tracks, and routing `internalStatus` through this action would skip the QA auto-reset.
+ * ---------------------------------------------------------------------------------------------- */
+
+/** The field keys this action is willing to write. Built from the manifest, so a surface added
+ * to `SHEET_GROUPS` lands here on next re-read and a retired key is gone from both at once. */
+const PARTIAL_UPDATE_EDITABLE_FIELDS: ReadonlySet<string> = (() => {
+  const names = new Set<string>();
+  for (const section of Object.values(SHEET_GROUPS)) {
+    for (const field of section.fields as readonly {
+      readonly name: string;
+      readonly surfaces: readonly string[];
+    }[]) {
+      if (field.surfaces.length > 0) {
+        names.add(field.name);
+      }
+    }
+  }
+  return names;
+})();
+
+/** Fields that must travel through the state-machine action, never through this partial path. */
+const PARTIAL_UPDATE_REJECTED_FIELDS: ReadonlySet<string> = new Set([
+  'internalStatus',
+  'internal_status',
+]);
+
+/**
+ * The reasons this action returns on refusal. Every surface reads the `reason` string to tell the
+ * reader which path to take instead; the audit log and the Playwright specs read the same keys.
+ */
+export type UpdateBriefPartialReason =
+  | 'demo'
+  | 'session_expired'
+  | 'not_identified'
+  | 'no_workspace'
+  | 'use_transition_action'
+  | 'unknown_field'
+  | 'forbidden'
+  | 'not_found'
+  | 'save_failed';
+
+export interface UpdateBriefPartialSuccess {
+  readonly ok: true;
+  readonly id: string;
+  readonly savedAt: number;
+}
+
+export interface UpdateBriefPartialFailure {
+  readonly ok: false;
+  readonly reason: UpdateBriefPartialReason;
+  /** The field key that triggered the refusal when the reason names a field. */
+  readonly field?: string;
+  /** A human-readable sentence the UI can show as a toast. */
+  readonly error: string;
+}
+
+export type UpdateBriefPartialResult = UpdateBriefPartialSuccess | UpdateBriefPartialFailure;
+
+/**
+ * The columns this action may write, after it has already decided the brief is editable. The
+ * values are left as `unknown` here: the caller trusted a BriefSectionField's `kind`, and the
+ * schema's own typing rejects a bad write at `updateBrief` — this action does not try to be a
+ * second validator.
+ */
+function pickKnownFields(patch: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const known: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (PARTIAL_UPDATE_EDITABLE_FIELDS.has(key)) {
+      known[key] = value;
+    }
+  }
+  return known;
+}
+
+/**
+ * Patches one brief of the actor's brand with a sidebar / dialog / grid field commit.
+ *
+ * REFUSAL ORDER, as the Oct 15 coordinator ruling asks:
+ * 1. demo mode → `demo`
+ * 2. empty id → `not_identified`
+ * 3. patch includes `internalStatus` → `use_transition_action` (Correction 3)
+ * 4. patch has no known field after filtering → `unknown_field`
+ * 5. actor not signed in → `session_expired`
+ * 6. brand not resolved → `no_workspace`
+ * 7. brief not found → `not_found`
+ * 8. `canEditBrief` refuses → `forbidden` (Correction 1)
+ * 9. anything else → `save_failed`
+ *
+ * SUCCESS writes the known fields through `updateBrief`, logs the diff against
+ * `BRIEF_ACTIVITY_FIELDS`, revalidates the brief's path and the Creative Sheet, and returns the
+ * row's id and a `savedAt` the client reads to show the save beat.
+ *
+ * NAME IS NEVER REWRITTEN. The row's auto-generated PRD §7 name is only re-run on the concept
+ * action's cascade (the Oct 5 preserve rule, see `concepts/actions.ts` lines 540..600). A partial
+ * patch that renames the parent fields (concept, funnel, type, source, batch) leaves the stored
+ * name alone, exactly as `updateBriefAction` does.
+ */
+export async function updateBriefPartialAction(
+  briefId: string,
+  patch: Readonly<Record<string, unknown>>,
+): Promise<UpdateBriefPartialResult> {
+  if (isDemoMode()) {
+    return { ok: false, reason: 'demo', error: DEMO_WRITE_REFUSAL };
+  }
+  if (typeof briefId !== 'string' || briefId.trim() === '') {
+    return { ok: false, reason: 'not_identified', error: 'This creative could not be identified.' };
+  }
+
+  for (const key of Object.keys(patch)) {
+    if (PARTIAL_UPDATE_REJECTED_FIELDS.has(key)) {
+      return {
+        ok: false,
+        reason: 'use_transition_action',
+        field: key,
+        error: INTERNAL_STATUS_USE_TRANSITION,
+      };
+    }
+  }
+
+  const known = pickKnownFields(patch);
+  if (Object.keys(known).length === 0) {
+    return {
+      ok: false,
+      reason: 'unknown_field',
+      error: 'That field is not editable through this update.',
+    };
+  }
+
+  try {
+    const actor = await actorId();
+    if (actor === null) {
+      return {
+        ok: false,
+        reason: 'session_expired',
+        error: 'Your session has expired. Sign in again to save.',
+      };
+    }
+    const actorInfo = await currentActor();
+    const actorName = actorInfo.fullName;
+    const actorRole = await loadViewerRole();
+
+    const outcome = await withBrandScope(async (db, brandId) => {
+      const current = await getBriefById(db, brandId, briefId);
+      if (current === null) {
+        return {
+          ok: false as const,
+          reason: 'not_found' as const,
+          error: 'That creative is no longer available.',
+        };
+      }
+      // `canEditBrief` reads `brief.assignee` — the schema stores a display-name string on that
+      // column (see `startBriefAction`), so the actor's full name is the comparable identifier,
+      // not the Clerk userId.
+      if (
+        !canEditBrief({
+          actorRole,
+          actorUserId: actorName,
+          brief: current,
+        })
+      ) {
+        return {
+          ok: false as const,
+          reason: 'forbidden' as const,
+          error: EDIT_BRIEF_NOT_PERMITTED,
+        };
+      }
+      const saved = await updateBrief(db, brandId, briefId, known, actor);
+      if (saved === null) {
+        return {
+          ok: false as const,
+          reason: 'not_found' as const,
+          error: 'That creative is no longer available.',
+        };
+      }
+      await insertActivity(
+        db,
+        brandId,
+        BRIEF_ENTITY,
+        saved.id,
+        diffFields(current, known, BRIEF_ACTIVITY_FIELDS),
+        { id: actor, name: actorName },
+      );
+      return { ok: true as const, id: saved.id };
+    });
+
+    if (outcome === null) {
+      return {
+        ok: false,
+        reason: 'no_workspace',
+        error: 'This workspace has no brand yet.',
+      };
+    }
+    if (!outcome.ok) {
+      return { ok: false, reason: outcome.reason, error: outcome.error };
+    }
+    revalidateBrief(outcome.id);
+    revalidatePath(creativeSheetPath);
+    return { ok: true, id: outcome.id, savedAt: Date.now() };
+  } catch {
+    return {
+      ok: false,
+      reason: 'save_failed',
+      error: 'The creative could not be saved. Try again.',
+    };
   }
 }

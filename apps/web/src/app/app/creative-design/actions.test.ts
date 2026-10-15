@@ -6,6 +6,7 @@ import {
   startBriefAction,
   toggleQaAction,
   updateBriefAction,
+  updateBriefPartialAction,
 } from './actions';
 
 /** The actions call `revalidatePath`, which only exists inside a Next request. */
@@ -451,6 +452,87 @@ describe('with Clerk configured', () => {
     expect(filledScript).toEqual({
       ok: false,
       error: 'The creative could not be saved. Try again.',
+    });
+  });
+});
+
+/**
+ * Phase B5 Fix A, 2026-10-15. The partial-update server action the sidebar, the new-brief dialog
+ * and the grid cell share. Shape-only tests: the demo refusal lands with reason 'demo', the
+ * internal-status reject lands with reason 'use_transition_action', an empty id lands with
+ * 'not_identified', and a patch of only unknown keys lands with 'unknown_field'. Live-mode role
+ * cases are covered against the PGlite fixture elsewhere; this file keeps the shape tight.
+ */
+describe('updateBriefPartialAction', () => {
+  it('refuses in demo mode with reason=demo, before the id check', async () => {
+    const result = await updateBriefPartialAction('any-brief-id', { batch: 'B1' });
+    expect(result).toEqual({
+      ok: false,
+      reason: 'demo',
+      error: 'Sign in required to save changes.',
+    });
+  });
+
+  describe('with Clerk configured', () => {
+    function configured(): void {
+      vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_configured');
+    }
+
+    it('refuses an empty briefId with reason=not_identified', async () => {
+      configured();
+      const result = await updateBriefPartialAction('   ', { batch: 'B1' });
+      expect(result).toEqual({
+        ok: false,
+        reason: 'not_identified',
+        error: 'This creative could not be identified.',
+      });
+    });
+
+    it('refuses a patch that includes internalStatus with reason=use_transition_action', async () => {
+      configured();
+      const result = await updateBriefPartialAction('a-brief', {
+        internalStatus: 'under_editing',
+        batch: 'B1',
+      });
+      if (result.ok) throw new Error('internalStatus must not land through this path');
+      expect(result.reason).toBe('use_transition_action');
+      expect(result.field).toBe('internalStatus');
+    });
+
+    it('rejects the snake_case alias internal_status too (correction 3)', async () => {
+      configured();
+      const result = await updateBriefPartialAction('a-brief', {
+        ['internal_status']: 'under_editing',
+      });
+      if (result.ok) throw new Error('internal_status must not land through this path');
+      expect(result.reason).toBe('use_transition_action');
+      expect(result.field).toBe('internal_status');
+    });
+
+    it('refuses a patch of only unknown keys with reason=unknown_field', async () => {
+      configured();
+      const result = await updateBriefPartialAction('a-brief', {
+        nonsenseField: 'value',
+        anotherNonsense: 'value',
+      });
+      expect(result).toEqual({
+        ok: false,
+        reason: 'unknown_field',
+        error: 'That field is not editable through this update.',
+      });
+    });
+
+    it('passes the manifest filter: a batch patch reaches past validation (and fails at Clerk)', async () => {
+      configured();
+      // The Clerk mock throws, so the only way the action reaches Clerk is by passing every
+      // earlier gate. Reaching the catch gives us `save_failed` — not an acceptance test, but
+      // proof the patch cleared the manifest and the reject lists.
+      const result = await updateBriefPartialAction('a-brief', { batch: 'B2' });
+      expect(result).toEqual({
+        ok: false,
+        reason: 'save_failed',
+        error: 'The creative could not be saved. Try again.',
+      });
     });
   });
 });
