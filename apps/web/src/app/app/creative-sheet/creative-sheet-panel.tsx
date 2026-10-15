@@ -30,12 +30,16 @@ import {
 } from '@tas/ui';
 import { ArrowRight, Captions, File, Image, Plus, type LucideIcon } from '@tas/ui/icons';
 
+import type { Role as ViewerRole } from '@tas/domain/roles';
+
 import { briefPath } from '@/lib/routes';
+import { updateBriefPartialAction } from '@/app/app/creative-design/actions';
 import {
   BriefScriptsTable,
   SIDEBAR_SCRIPTS_EMPTY_MESSAGE,
   type BriefScriptRow,
 } from '@/components/briefs/scripts-table';
+import { InlineField } from '@/components/briefs/inline-field';
 
 import {
   updateCreativeSheetItemAction,
@@ -63,6 +67,7 @@ import {
   STATUS_OPTIONS,
   statusView,
   VOICEOVER_TYPE_OPTIONS,
+  type BriefSectionField,
   type CreativeSheetCheck,
   type CreativeSheetFieldName,
   type SheetCheckField,
@@ -79,6 +84,15 @@ interface CreativeSheetPanelProps {
   readonly onSaved: (id: string) => void;
   /** Opens the same creative in Focus Mode (Oct 12); absent where there is no Focus view. */
   readonly onFocusMode?: (id: string) => void;
+  /**
+   * Phase B5 Fix A (Oct 15): when the parent resolves the viewer's role and user id, the sidebar
+   * exposes the Identity and Content fields as InlineField editors; when they are absent, those
+   * fields keep their read-only renders exactly as before. The role gate (`canEditBrief`) runs
+   * for every editor, so a video_editor who is not the brief's assignee sees the same chip as
+   * the role-less demo mode render.
+   */
+  readonly actorRole?: ViewerRole | null;
+  readonly actorUserId?: string | null;
 }
 
 /** A select's "no value", which the action reads as "leave it where it is". */
@@ -143,6 +157,8 @@ export function CreativeSheetPanel({
   onClose,
   onSaved,
   onFocusMode,
+  actorRole,
+  actorUserId,
 }: CreativeSheetPanelProps) {
   const [state, formAction, pending] = useActionState<CreativeSheetActionResult | null, FormData>(
     updateCreativeSheetItemAction,
@@ -298,6 +314,7 @@ export function CreativeSheetPanel({
       </p>
     </div>
   );
+
   // The board's asset row (B2.V20, B2.V21): an icon tile, the name over a mono sub-line; the empty
   // row keeps its dashed chrome and gains the plus glyph.
   const files = (label: string, urls: readonly string[] | null, Icon: LucideIcon) =>
@@ -320,6 +337,63 @@ export function CreativeSheetPanel({
   const detail = item.detail;
   const internalView = internalStatusView(item.internalStatus);
   const clientView = statusView(item.status);
+
+  // Phase B5 Fix A (Oct 15): the row where the Identity / Content InlineField editors land.
+  // Reads the manifest for the right surface, routes commits through `updateBriefPartialAction`.
+  // When the parent has not resolved an actor role (older callers, demo mode), the row falls
+  // back to the plain readonly `row` / `block` helper above.
+  const briefRecord = {
+    ...item,
+    ...detail,
+  } as unknown as Readonly<Record<string, unknown>>;
+  const inlineUpdate = async (patch: Readonly<Record<string, unknown>>): Promise<void> => {
+    const result = await updateBriefPartialAction(item.briefId, patch);
+    if (result.ok) {
+      onSaved(result.id);
+    }
+  };
+  const inlineRow = (field: BriefSectionField): ReactNode => (
+    <div className="flex items-start justify-between gap-3.5 py-1">
+      <span className="shrink-0 text-xs whitespace-nowrap text-text3">{field.label}</span>
+      <span className="min-w-0 text-right text-xs leading-normal text-text2">
+        <InlineField
+          brief={briefRecord}
+          field={field}
+          surface="sidebar"
+          actorRole={actorRole}
+          actorUserId={actorUserId}
+          onUpdate={inlineUpdate}
+        />
+      </span>
+    </div>
+  );
+  const inlineBlock = (field: BriefSectionField): ReactNode => (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold tracking-wider text-text4 uppercase">
+        {field.label}
+      </span>
+      <InlineField
+        brief={briefRecord}
+        field={field}
+        surface="sidebar"
+        actorRole={actorRole}
+        actorUserId={actorUserId}
+        onUpdate={inlineUpdate}
+      />
+    </div>
+  );
+  const canInlineEdit = actorRole !== undefined && actorRole !== null && !demo;
+  // The three Identity fields the sidebar now edits inline (Oct 15, user's named need):
+  // Batch (text), Source (singleSelect), Version (text). Everything else in Identity stays
+  // readonly for now — the full rewire is Fix B.
+  const identityInlineFields = SHEET_GROUPS.identity.fields.filter((f) =>
+    (['batch', 'source', 'version'] as const).includes(f.name as 'batch' | 'source' | 'version'),
+  );
+  const contentInlineFields = SHEET_GROUPS.content.fields.filter((f) =>
+    (['scriptContent', 'briefText', 'music'] as const).includes(
+      f.name as 'scriptContent' | 'briefText' | 'music',
+    ),
+  );
 
   /**
    * Oct 15 SCRIPTS_SIDEBAR follow-up: the sidebar's Scripts table reads the stored script content
@@ -385,11 +459,23 @@ export function CreativeSheetPanel({
                 <div data-slot="creative-sheet-identity">
                   {row('Concept', lookups?.concept ?? dash)}
                   {row('Angle', lookups?.angle ?? dash)}
-                  {row('Batch', <span className="font-mono">{detail.batch ?? EM_DASH}</span>)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'batch')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Batch', <span className="font-mono">{detail.batch ?? EM_DASH}</span>)}
                   {row('Type', item.briefType ?? dash)}
-                  {row('Source', detail.source)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'source')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Source', detail.source)}
                   {row('Funnel', item.briefFunnel ?? dash)}
-                  {row('Version', <span className="font-mono">V{String(detail.version)}</span>)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'version')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Version', <span className="font-mono">V{String(detail.version)}</span>)}
                   {row('Product', lookups?.internalProduct ?? dash)}
                 </div>
 
@@ -444,7 +530,11 @@ export function CreativeSheetPanel({
 
               <Group heading={SHEET_GROUPS.content.label}>
                 <div className="flex flex-col gap-3" data-slot="creative-sheet-content">
-                  {block('Script / Ad Content', detail.scriptContent ?? detail.adContent)}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'scriptContent')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block('Script / Ad Content', detail.scriptContent ?? detail.adContent)}
                   {/*
                     Oct 15 SCRIPTS_SIDEBAR follow-up: the walkthrough found the sidebar's Content
                     section stopped at the prose block and the Assets section said "Script
@@ -484,8 +574,16 @@ export function CreativeSheetPanel({
                   {/* Ticket 6 Content fields (migration 0069), read-only on the sidebar: the sidebar
                       is a quick-look surface, so a change goes through the brief page's own form.
                       Rendered through the shared `block` helper that every other prose field uses. */}
-                  {block('Brief', detail.briefText)}
-                  {block('Music', detail.music)}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'briefText')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block('Brief', detail.briefText)}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'music')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block('Music', detail.music)}
                   {block(
                     'Voiceover type',
                     detail.voiceoverType === null
