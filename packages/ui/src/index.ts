@@ -114,3 +114,11 @@ export {
   stepStar,
   type RatingStarsProps,
 } from './rating/rating-stars';
+
+export {
+  ChipRow,
+  type ChipOption,
+  type ChipRowMode,
+  type ChipRowProps,
+  type ChipRowSize,
+} from './forms/chip-row';

@@ -132,6 +132,7 @@ import {
 } from './airtable-grid.stories';
 import { RecordSheetStory } from './record-sheet.stories';
 import { CheckboxStory, DisabledWritePopoverStory, SectionLabelStory } from './primitives.stories';
+import { ChipRowDisabledStory, ChipRowMultiStory, ChipRowSingleStory } from './chip-row.stories';
 import {
   ChipToneMapStory,
   QaGateMatrixStory,
@@ -503,6 +504,17 @@ export default function DesignSystemPage() {
             white tick, the indeterminate bar, the dashed N/A box, disabled
           </h3>
           <CheckboxStory />
+        </div>
+      </Section>
+
+      <Section
+        title="ChipRow"
+        note="Phase B5 Fix A (Oct 15) — the primitive InlineField reads for a singleSelect or multiSelect field. Single mode is a radiogroup, multi mode is a group of checkboxes; chips are rounded-input on bg-surface, accent when selected."
+      >
+        <div className="flex flex-col gap-3">
+          <ChipRowSingleStory />
+          <ChipRowMultiStory />
+          <ChipRowDisabledStory />
         </div>
       </Section>
 
