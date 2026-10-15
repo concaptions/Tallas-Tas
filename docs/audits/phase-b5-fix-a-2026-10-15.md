@@ -55,7 +55,7 @@ below with named reasons; Flow Completion fires next and does not block on them.
 - `d83336b` — `feat(api): /api/version endpoint for Vercel deploy proof`
 - `faf6279` — `fix(middleware): mark /api/version as a public endpoint`
 - `b01cd8d` — `feat(briefs): extend InlineField to checkbox and link kinds`
-- `[sidebar+playwright+audit SHA]` — `feat(briefs): wire kind-supported Content fields through InlineField; Playwright dialog scenario`
+- `487092c` — `feat(briefs): Content section sidebar inline edit; Fix B closure audit`
 
 Each pushed commit's `/api/version` returned the pushed SHA before the next commit was prepared.
 Match history:
