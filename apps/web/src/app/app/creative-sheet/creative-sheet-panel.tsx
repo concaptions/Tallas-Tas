@@ -383,16 +383,29 @@ export function CreativeSheetPanel({
     </div>
   );
   const canInlineEdit = actorRole !== undefined && actorRole !== null && !demo;
-  // The three Identity fields the sidebar now edits inline (Oct 15, user's named need):
-  // Batch (text), Source (singleSelect), Version (text). Everything else in Identity stays
-  // readonly for now — the full rewire is Fix B.
+  // The Identity fields the sidebar edits inline (Oct 15 Fix A, user's named need):
+  // Batch (text), Source (singleSelect), Version (text). Linked/lookup rows (Concept, Angle,
+  // Type, Funnel, Product, Platform, Performance, Design Link URL) stay readonly because they
+  // need brand-scoped options the sidebar does not fetch today — Fix C territory per D-035.
   const identityInlineFields = SHEET_GROUPS.identity.fields.filter((f) =>
     (['batch', 'source', 'version'] as const).includes(f.name as 'batch' | 'source' | 'version'),
   );
+  // The Content fields the sidebar edits inline (Fix B, 2026-10-15): every kind-supported field
+  // in the Content section — the richtext blocks (Script, Brief to Design, Offer, Inspiration,
+  // Voiceover script), Brief text and Music. Inspo links (multiSelect) + Voiceover type
+  // (singleSelect) stay readonly until the sidebar supplies their options.
   const contentInlineFields = SHEET_GROUPS.content.fields.filter((f) =>
-    (['scriptContent', 'briefText', 'music'] as const).includes(
-      f.name as 'scriptContent' | 'briefText' | 'music',
-    ),
+    (
+      [
+        'scriptContent',
+        'briefToDesign',
+        'offer',
+        'inspiration',
+        'briefText',
+        'music',
+        'voiceoverScript',
+      ] as const
+    ).includes(f.name as never),
   );
 
   /**
@@ -552,9 +565,21 @@ export function CreativeSheetPanel({
                       emptyMessage={SIDEBAR_SCRIPTS_EMPTY_MESSAGE}
                     />
                   </div>
-                  {block('Brief to Design', detail.briefToDesign)}
-                  {block('Offer', detail.offer)}
-                  {block('Inspiration', detail.inspiration)}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'briefToDesign')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block('Brief to Design', detail.briefToDesign)}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'offer')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block('Offer', detail.offer)}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'inspiration')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block('Inspiration', detail.inspiration)}
                   {detail.inspoLinks.length === 0 ? null : (
                     <ul className="flex flex-col gap-1">
                       {detail.inspoLinks.map((url) => (
@@ -592,7 +617,11 @@ export function CreativeSheetPanel({
                           (option) => option.key === detail.voiceoverType,
                         )?.label ?? detail.voiceoverType),
                   )}
-                  {block('Voiceover script', detail.voiceoverScript)}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'voiceoverScript')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block('Voiceover script', detail.voiceoverScript)}
                 </div>
               </Group>
 

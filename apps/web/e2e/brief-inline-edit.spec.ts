@@ -57,9 +57,33 @@ test.describe('@brief-dialog-edit', () => {
     await expect(trigger.first()).toBeVisible({ timeout: 10_000 });
   });
 
+  test('auto-name preview updates live as the dialog Batch input changes (Fix B)', async ({
+    page,
+  }) => {
+    // Fix B flip: the dialog's live preview is the demo-mode acceptance per NewCreativeDialog's
+    // own docstring. The preview computes through buildBriefName in render; changing the Batch
+    // input re-runs the formula with no server round trip. This proves the three-surface
+    // editability — the dialog is already a form, the preview is its visible feedback that an
+    // edit took effect.
+    await page.goto(creativeSheetPath);
+    await page
+      .getByRole('button', { name: /new creative/i })
+      .first()
+      .click();
+    const dialog = page.locator('[data-slot="new-creative-dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+    const preview = dialog.locator('[data-slot="new-creative-preview"]');
+    const initial = (await preview.textContent()) ?? '';
+    const batchInput = dialog.locator('[data-slot="new-creative-batch"]');
+    await batchInput.fill('B9');
+    const updated = (await preview.textContent()) ?? '';
+    expect(updated).not.toBe(initial);
+    expect(updated).toContain('B9');
+  });
+
   test.fixme(
     SKIP_IF_LIVE_UNAVAILABLE,
-    'auto-name live-update — needs the dialog mounted with real options; Fix B assertion',
+    'full submit path — needs live Clerk; the create-row assertion lands after CI secrets',
   );
 });
 
