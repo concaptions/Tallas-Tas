@@ -11,6 +11,7 @@ import {
 } from '@tas/domain/creatives';
 import {
   Button,
+  type ChipOption,
   DEMO_WRITE_HINT,
   Dialog,
   DialogContent,
@@ -32,6 +33,29 @@ import {
 } from '@tas/ui';
 
 import { createBriefAction, type BriefActionResult } from './actions';
+import { InlineField } from '@/components/briefs/inline-field';
+import { SHEET_GROUPS } from '@/app/app/creative-sheet/fields';
+
+/**
+ * The two manifest fields the dialog edits through InlineField. See the sibling in
+ * `creative-sheet/new-creative-dialog.tsx` for why a missing field here throws.
+ */
+function lookupField(name: 'type' | 'conceptId') {
+  const field = SHEET_GROUPS.identity.fields.find((entry) => entry.name === name);
+  if (field === undefined) {
+    throw new Error(`SHEET_GROUPS.identity has no field named ${name}`);
+  }
+  return field;
+}
+
+const DIALOG_TYPE_FIELD = lookupField('type');
+const DIALOG_CONCEPT_FIELD = lookupField('conceptId');
+
+/** The CREATIVE_TYPES vocabulary as InlineField's `singleSelect` chips. */
+const TYPE_CHIP_OPTIONS: readonly ChipOption[] = CREATIVE_TYPES.map((entry) => ({
+  value: entry.key,
+  label: entry.label,
+}));
 
 /** The concept list the Standalone slug is slipped into, so a brief without a concept is a choice. */
 const STANDALONE_VALUE = 'standalone';
@@ -69,6 +93,17 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
   const [batch, setBatch] = useState('');
   const [nameMode, setNameMode] = useState<'auto' | 'manual'>('auto');
   const [manualName, setManualName] = useState('');
+
+  // Phase B5 Fix C: brand-scoped Concept chips with the Standalone sentinel at the head. See the
+  // sibling in `creative-sheet/new-creative-dialog.tsx` for why Standalone's chip VALUE is the
+  // sentinel string rather than empty.
+  const conceptChipOptions = useMemo<readonly ChipOption[]>(
+    () => [
+      { value: STANDALONE_VALUE, label: 'Standalone' },
+      ...conceptOptions.map((option) => ({ value: option.id, label: option.name })),
+    ],
+    [conceptOptions],
+  );
 
   useEffect(() => {
     if (state !== null && state.ok) {
@@ -164,42 +199,59 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
               </Select>
               <input type="hidden" name="funnel" value={funnel} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="new-brief-type">Type</Label>
-              <Select
-                value={type}
-                onValueChange={(value) => {
-                  setType(value as CreativeTypeKey);
+            <div className="flex flex-col gap-1.5" data-slot="new-brief-type">
+              <Label htmlFor="new-brief-type-chips">Type</Label>
+              {/*
+                Phase B5 Fix C (2026-10-16): the Type picker is now an InlineField over the shared
+                primitive, matching `new-creative-dialog.tsx`. `skipGate` bypasses the role check
+                for the draft brief; `createBriefAction` still runs its own role check on submit.
+              */}
+              <InlineField
+                id="new-brief-type-chips"
+                brief={{ type }}
+                field={DIALOG_TYPE_FIELD}
+                surface="new-dialog"
+                actorRole={null}
+                actorUserId={null}
+                skipGate
+                options={TYPE_CHIP_OPTIONS}
+                onUpdate={(patch) => {
+                  const next = patch['type'];
+                  if (typeof next === 'string' && next !== '') {
+                    setType(next as CreativeTypeKey);
+                  }
+                  return Promise.resolve();
                 }}
-              >
-                <SelectTrigger id="new-brief-type" data-slot="new-brief-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CREATIVE_TYPES.map((option) => (
-                    <SelectItem key={option.key} value={option.key}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
               <input type="hidden" name="type" value={type} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="new-brief-concept">Concept</Label>
-              <Select value={conceptChoice} onValueChange={setConceptChoice}>
-                <SelectTrigger id="new-brief-concept" data-slot="new-brief-concept">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={STANDALONE_VALUE}>Standalone</SelectItem>
-                  {conceptOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      <span className="font-mono text-xs">{option.name}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-1.5" data-slot="new-brief-concept">
+              <Label htmlFor="new-brief-concept-chips">Concept</Label>
+              {/*
+                Phase B5 Fix C (2026-10-16): the Concept picker runs through InlineField's `link`
+                kind. The brand-scoped concept options arrive from the server (`loadConcepts`
+                scoped by `withBrand`); the sibling in `creative-sheet/new-creative-dialog.tsx`
+                carries the full comment.
+              */}
+              <InlineField
+                id="new-brief-concept-chips"
+                brief={{ conceptId: conceptChoice }}
+                field={DIALOG_CONCEPT_FIELD}
+                surface="new-dialog"
+                actorRole={null}
+                actorUserId={null}
+                skipGate
+                options={conceptChipOptions}
+                onUpdate={(patch) => {
+                  const next = patch['conceptId'];
+                  if (typeof next === 'string' && next !== '') {
+                    setConceptChoice(next);
+                  } else {
+                    setConceptChoice(STANDALONE_VALUE);
+                  }
+                  return Promise.resolve();
+                }}
+              />
               <input
                 type="hidden"
                 name="conceptId"

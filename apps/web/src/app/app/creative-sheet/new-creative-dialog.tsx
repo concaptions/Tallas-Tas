@@ -13,6 +13,7 @@ import {
 } from '@tas/domain/creatives';
 import {
   Button,
+  type ChipOption,
   DEMO_WRITE_HINT,
   Dialog,
   DialogContent,
@@ -34,6 +35,31 @@ import {
 } from '@tas/ui';
 
 import { createBriefAction, type BriefActionResult } from '@/app/app/creative-design/actions';
+import { InlineField } from '@/components/briefs/inline-field';
+import { SHEET_GROUPS } from './fields';
+
+/**
+ * The two manifest fields the dialog edits through InlineField (surfaces includes
+ * `'new-dialog'`). The manifest is `as const` and both keys exist on it; a lookup miss here is a
+ * compile-time contract break, so the fallback is an informative throw rather than a silent
+ * narrower type.
+ */
+function lookupField(name: 'type' | 'conceptId') {
+  const field = SHEET_GROUPS.identity.fields.find((entry) => entry.name === name);
+  if (field === undefined) {
+    throw new Error(`SHEET_GROUPS.identity has no field named ${name}`);
+  }
+  return field;
+}
+
+const DIALOG_TYPE_FIELD = lookupField('type');
+const DIALOG_CONCEPT_FIELD = lookupField('conceptId');
+
+/** The CREATIVE_TYPES vocabulary as InlineField's `singleSelect` chips. */
+const TYPE_CHIP_OPTIONS: readonly ChipOption[] = CREATIVE_TYPES.map((entry) => ({
+  value: entry.key,
+  label: entry.label,
+}));
 
 /** The concept list the Standalone slug is slipped into, so a creative without a concept is a choice. */
 const STANDALONE_VALUE = 'standalone';
@@ -101,6 +127,19 @@ export function NewCreativeDialog({
   const [batch, setBatch] = useState('');
   const [nameMode, setNameMode] = useState<'auto' | 'manual'>('auto');
   const [manualName, setManualName] = useState('');
+
+  // Phase B5 Fix C: the Concept picker's chip set is the brand's concepts plus the Standalone
+  // sentinel at the head. The sentinel VALUE is the `STANDALONE_VALUE` constant so the picker
+  // reads a non-empty id (InlineField's link kind filters empty-string values out of its selection
+  // view, so an empty sentinel would never highlight the Standalone chip). The hidden input below
+  // still writes '' for Standalone — the server reads the empty string as "no concept linked".
+  const conceptChipOptions = useMemo<readonly ChipOption[]>(
+    () => [
+      { value: STANDALONE_VALUE, label: 'Standalone' },
+      ...conceptOptions.map((option) => ({ value: option.id, label: option.name })),
+    ],
+    [conceptOptions],
+  );
 
   useEffect(() => {
     if (state !== null && !state.ok) {
@@ -215,42 +254,67 @@ export function NewCreativeDialog({
               </Select>
               <input type="hidden" name="funnel" value={funnel} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="new-creative-type">Type</Label>
-              <Select
-                value={type}
-                onValueChange={(value) => {
-                  setType(value as CreativeTypeKey);
+            <div className="flex flex-col gap-1.5" data-slot="new-creative-type">
+              <Label htmlFor="new-creative-type-chips">Type</Label>
+              {/*
+                Phase B5 Fix C (2026-10-16): the Type picker is now an InlineField over the shared
+                primitive, so the dialog, the sidebar and the brief page all read one editor for a
+                `singleSelect` field. The draft brief has no `assignee` yet, so `skipGate` bypasses
+                the role check — the server's `createBriefAction` runs its own role check on submit,
+                so the write path is unchanged. The onUpdate body writes to local state, which drives
+                the hidden input below AND the `buildBriefName` preview — the dialog is a draft
+                editor, not a server committer.
+              */}
+              <InlineField
+                id="new-creative-type-chips"
+                brief={{ type }}
+                field={DIALOG_TYPE_FIELD}
+                surface="new-dialog"
+                actorRole={null}
+                actorUserId={null}
+                skipGate
+                options={TYPE_CHIP_OPTIONS}
+                onUpdate={(patch) => {
+                  const next = patch['type'];
+                  if (typeof next === 'string' && next !== '') {
+                    setType(next as CreativeTypeKey);
+                  }
+                  return Promise.resolve();
                 }}
-              >
-                <SelectTrigger id="new-creative-type" data-slot="new-creative-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CREATIVE_TYPES.map((option) => (
-                    <SelectItem key={option.key} value={option.key}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
               <input type="hidden" name="type" value={type} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="new-creative-concept">Concept</Label>
-              <Select value={conceptChoice} onValueChange={setConceptChoice}>
-                <SelectTrigger id="new-creative-concept" data-slot="new-creative-concept">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={STANDALONE_VALUE}>Standalone</SelectItem>
-                  {conceptOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      <span className="font-mono text-xs">{option.name}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-1.5" data-slot="new-creative-concept">
+              <Label htmlFor="new-creative-concept-chips">Concept</Label>
+              {/*
+                Phase B5 Fix C (2026-10-16): the Concept picker runs through InlineField's `link`
+                kind. `Standalone` is the "no concept" chip at the head of the options list, with
+                the empty-string sentinel the hidden input writes. The brand-scoped concept options
+                arrive from the server page (`loadConcepts` scoped by `withBrand`), so no cross-brand
+                record can reach the picker.
+              */}
+              <InlineField
+                id="new-creative-concept-chips"
+                brief={{ conceptId: conceptChoice }}
+                field={DIALOG_CONCEPT_FIELD}
+                surface="new-dialog"
+                actorRole={null}
+                actorUserId={null}
+                skipGate
+                options={conceptChipOptions}
+                onUpdate={(patch) => {
+                  const next = patch['conceptId'];
+                  // A pick writes the chip's value verbatim; a deselect writes null, which the
+                  // dialog treats as the Standalone sentinel so the chip row cannot land in a
+                  // "nothing selected" state (Standalone is a valid choice, not an unset).
+                  if (typeof next === 'string' && next !== '') {
+                    setConceptChoice(next);
+                  } else {
+                    setConceptChoice(STANDALONE_VALUE);
+                  }
+                  return Promise.resolve();
+                }}
+              />
               <input
                 type="hidden"
                 name="conceptId"
