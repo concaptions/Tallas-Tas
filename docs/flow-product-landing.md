@@ -41,6 +41,22 @@ cover every "landing page" surface the task names.**
 | `youtube_copy` ↔ `products` | `youtube_copy_products` junction | many-to-many |
 | `concepts` | **NONE** | inherited through angle (PRD §5.7) |
 
+## Coverage matrix after Phase 1
+
+| Page | Grid shows Product | Sidebar shows Product | New-dialog picks Product | Picker brand-scoped | Reverse list on Product page | Autofill inheritance |
+|---|---|---|---|---|---|---|
+| `/app/products` | n/a (is the Product) | n/a | n/a | n/a | **Concepts, Briefs, Copywriting (meta), Creators, Angles, Email campaigns, YouTube copy, Personas, Concepts-through-angle** — all present | n/a |
+| `/app/personas` | configurable via resolver | **Yes** (Linked Product section — Flow completion 2026-10-16) | **Yes** (same panel) | Yes (`loadProducts()`) | Yes (Products panel's Personas section) | n/a |
+| `/app/angles` | Yes | Yes | Yes | Yes | Yes (both direct and reverse-concepts) | n/a |
+| `/app/concepts` | Inherited (angle) | Read-only quick-look | n/a (concept detail picks Angle + Theme + Batch; Product inherits from Angle) | Angle picker is brand-scoped | Yes via Products panel's Concepts list (Flow completion 2026-10-16) | Yes: `inheritedFromAngle` auto-fills product/persona/type on concept detail. |
+| `/app/creative-sheet` | Yes (resolver column) | Yes (sidebar InlineField, brand-scoped) | **Yes** (Flow completion 2026-10-16) | Yes | Yes | **Yes**: picking a Concept inherits the Product (through-angle); strategist can override. |
+| `/app/creative-design` dialog | n/a (list retired) | Yes via `brief-panel.tsx` | **Yes** (Flow completion 2026-10-16) | Yes | Yes | Yes (same as creative-sheet) |
+| `/app/copywriting` | Yes | Yes (Select) | Yes | Yes | Yes | **Yes**: picking a Creative Brief or Concept auto-fills Linked Product; manual pick freezes the field (Flow completion 2026-10-16). |
+| `/app/collections` | retired | retired | retired | retired | retired | retired |
+| `/app/ugc` | n/a | Yes (LinkField `creator-products`) | Yes | Yes | Yes | n/a |
+
+Phase 1 closed GAP-1 through GAP-5. The seven remaining Yes rows were already Yes before this run.
+
 ## Coverage matrix (before this run)
 
 Legend: Yes = present; No = missing (gap); n/a = not expected by PRD; retired = scope removed.
