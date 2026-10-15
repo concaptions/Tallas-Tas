@@ -133,6 +133,7 @@ import {
 import { RecordSheetStory } from './record-sheet.stories';
 import { CheckboxStory, DisabledWritePopoverStory, SectionLabelStory } from './primitives.stories';
 import { ChipRowDisabledStory, ChipRowMultiStory, ChipRowSingleStory } from './chip-row.stories';
+import { DatePickerStory } from './date-picker.stories';
 import {
   ChipToneMapStory,
   QaGateMatrixStory,
@@ -516,6 +517,13 @@ export default function DesignSystemPage() {
           <ChipRowMultiStory />
           <ChipRowDisabledStory />
         </div>
+      </Section>
+
+      <Section
+        title="DatePicker"
+        note="Phase B5 Fix A (Oct 15) — the primitive InlineField reads for a date field. Native input wrapped in bg-surface/border-line (D-033: no new dep, keyboard and screen-reader support from the browser)."
+      >
+        <DatePickerStory />
       </Section>
 
       <Section title="Badge" note="Generic badge. A status badge is always StatusChip, never this.">

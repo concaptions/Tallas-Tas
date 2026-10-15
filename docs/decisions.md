@@ -2373,3 +2373,26 @@ chart library, so the design-system package stays runtime-free. Chart colours co
 layer (`var(--ok|warn|bad|info|accent|text3|line)`), so light and dark modes both work without a
 hex ever reaching chart code.
 
+
+
+## 2026-10-15 · D-033 — DatePicker: native `<input type="date">`, no new dep
+
+Phase B5 Fix A ships a `DatePicker` primitive the sidebar, the new-brief dialog and the grid cell
+all read for a brief's `date` field. Checked: neither `react-day-picker` nor `@radix-ui/react-popover`
+is in `packages/ui/package.json` or `apps/web/package.json` today. Adding one of them to meet this
+need would be a dependency the Oct 2026 cost ceiling (CLAUDE.md "Mission": 500 USD/yr) has no room
+for and no reader has asked for.
+
+The native `<input type="date">`, wrapped in `rounded-input bg-surface border border-line`, meets
+the user's need (B5 Fix A: "editable in popup, in the new-item dialog and in the row itself"):
+every modern browser renders a keyboard-navigable calendar on it for free, every screen reader
+announces it as a date field, and `min` / `max` reach the native validation. The chip, the tokens
+and the focus ring match every other inline editor on the three surfaces.
+
+A richer picker (year-nav header, keyboard month jumps, a popover variant) is a one-ticket upgrade
+to `react-day-picker` the day the team asks for one — the primitive's props (`value`, `onChange`,
+`min`, `max`, `placeholder`, `disabled`) are the same shape either way, so the swap is drop-in.
+
+Timezone rule: the primitive takes and returns an ISO `YYYY-MM-DD` LOCAL date — a brief's due date
+is "due Friday", not a UTC timestamp. The brief row's `due_date` column is `timestamptz`
+(migration 0043) and the caller normalises the two directions.

@@ -122,3 +122,5 @@ export {
   type ChipRowProps,
   type ChipRowSize,
 } from './forms/chip-row';
+
+export { DatePicker, type DatePickerProps } from './forms/date-picker';
