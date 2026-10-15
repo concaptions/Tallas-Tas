@@ -144,8 +144,8 @@ describe('InlineField', () => {
     expect(slot?.getAttribute('data-allowed')).toBe('true');
   });
 
-  it('falls through to readonly for link / user / file / checkbox kinds (D-034 stop)', () => {
-    for (const kind of ['link', 'user', 'file', 'checkbox'] as const) {
+  it('falls through to readonly for user / file kinds (D-035 stop; Fix C territory)', () => {
+    for (const kind of ['user', 'file'] as const) {
       const { unmount } = render(
         <InlineField
           {...ADMIN}
@@ -161,6 +161,59 @@ describe('InlineField', () => {
       expect(slot?.querySelector('input, textarea, [role=radio], [role=checkbox]')).toBeNull();
       unmount();
     }
+  });
+
+  it('renders a native checkbox for checkbox kind (D-035, 2026-10-15)', () => {
+    const onUpdate = vi.fn(() => Promise.resolve());
+    render(
+      <InlineField
+        {...ADMIN}
+        brief={{ ...brief, qaVideoEditor: false }}
+        field={field('qaVideoEditor', 'checkbox', 'Video Editor QA')}
+        surface="sidebar"
+        onUpdate={onUpdate}
+      />,
+    );
+    const input = screen.getByLabelText('Video Editor QA');
+    expect(input.getAttribute('type')).toBe('checkbox');
+    expect((input as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(input);
+    expect(onUpdate).toHaveBeenCalledWith({ qaVideoEditor: true });
+  });
+
+  it('renders a single-select ChipRow for link kind with brand-scoped options (D-035)', () => {
+    const onUpdate = vi.fn(() => Promise.resolve());
+    render(
+      <InlineField
+        {...ADMIN}
+        brief={{ ...brief, productId: null }}
+        field={field('productId', 'link', 'Product')}
+        surface="sidebar"
+        onUpdate={onUpdate}
+        options={[
+          { value: 'prod-a', label: 'Product A' },
+          { value: 'prod-b', label: 'Product B' },
+        ]}
+      />,
+    );
+    const chip = screen.getByRole('radio', { name: 'Product A' });
+    fireEvent.click(chip);
+    expect(onUpdate).toHaveBeenCalledWith({ productId: 'prod-a' });
+  });
+
+  it('link kind without options degrades to readonly chip (parent must supply the scope)', () => {
+    render(
+      <InlineField
+        {...ADMIN}
+        brief={{ ...brief, productId: 'prod-a' }}
+        field={field('productId', 'link', 'Product')}
+        surface="sidebar"
+        onUpdate={() => Promise.resolve()}
+      />,
+    );
+    const slot = document.querySelector('[data-slot="inline-field"][data-kind="link"]');
+    expect(slot?.getAttribute('data-allowed')).toBe('true');
+    expect(slot?.querySelector('[role=radio]')).toBeNull();
   });
 
   it('renders readonly when canEditBrief refuses (editor who is not the assignee)', () => {

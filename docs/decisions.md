@@ -2427,3 +2427,31 @@ dropdown.
 
 The role gate is pure (`canEditBrief`); the InlineField consults it before rendering an editor,
 and the server action re-runs the check. A disabled control and an action refusal always agree.
+
+
+## 2026-10-15 · D-035 — InlineField editable scope: partial retirement of D-034 (9 of 11 kinds)
+
+Phase B5 Fix B pulls `checkbox` and `link` into InlineField's editable set, lifting the
+readonly-chip stop D-034 placed on them. The primitive now covers nine of eleven BriefFieldKind
+kinds inline:
+
+- `text` / `richtext` / `url` / `singleSelect` / `multiSelect` / `date` — unchanged from D-034.
+- `checkbox` — a `<Checkbox>` wired through `updateBriefPartialAction`, immediate commit on
+  change. The QA ticks and the spell-check toggle on `creative_briefs` take the same partial
+  path every other field uses; the sheet-item action (`toggleQaAction`) remains for the
+  explicit sheet-only tick path, so a parent that wants the sheet-row shortcut still has it.
+- `link` — a single-select `ChipRow` over caller-supplied brand-scoped options. The parent
+  surface (sidebar, dialog, grid cell) fetches the brand's concepts / angles / products under
+  `withBrand(brandId)` and hands the result in; a link with no options still degrades to the
+  readonly chip, so a caller that has not wired the fetch yet is honest about it rather than
+  silently showing a cross-brand picker. Save goes through `updateBriefPartialAction` like any
+  other field; revalidation of the linked record's own page (products, angles, concepts) is a
+  parent concern, since the action does not know which link field changed.
+- `statusKey` — unchanged, readonly chip. A status move needs the state machine.
+
+The two kinds that remain readonly here are `user` and `file`. Both need a dedicated primitive
+the repo does not have yet (member picker; upload sheet with R2 presign and a thumbnail), and
+Flow Completion does not depend on either, so they stay Fix C scope.
+
+D-034 is partially retired by this entry: the "four fall-through kinds" line is now the "two
+fall-through kinds" line. The reader finds both entries in order; nothing is deleted.

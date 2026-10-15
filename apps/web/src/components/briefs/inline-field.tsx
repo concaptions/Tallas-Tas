@@ -4,7 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { canEditBrief } from '@tas/domain/team';
 import type { Role as ViewerRole } from '@tas/domain/roles';
-import { ChipRow, DatePicker, Input, StatusChip, Textarea, type ChipOption } from '@tas/ui';
+import {
+  Checkbox,
+  ChipRow,
+  DatePicker,
+  Input,
+  StatusChip,
+  Textarea,
+  type ChipOption,
+} from '@tas/ui';
 
 import type { BriefFieldSurface, BriefSectionField } from '@/app/app/creative-sheet/fields';
 import { internalStatusView, statusView } from '@/app/app/creative-sheet/fields';
@@ -16,16 +24,20 @@ import { internalStatusView, statusView } from '@/app/app/creative-sheet/fields'
  * provide different onUpdate bodies (`updateBriefPartialAction` for most fields,
  * `moveCreativeSheetItemAction` for the status tracks — see commit 6's wire-up).
  *
- * SCOPE (D-034, docs/decisions.md 2026-10-15):
+ * SCOPE (D-035, docs/decisions.md 2026-10-15, partial retirement of D-034):
  *
  * - `text` / `richtext` / `url` → `<Input>` / `<Textarea>` with onBlur commit, 400ms debounce.
  * - `singleSelect` / `multiSelect` → `ChipRow` committing immediately on pick.
  * - `date` → `DatePicker`, immediate.
+ * - `checkbox` → `Checkbox`, immediate (Fix B, 2026-10-15: pulled in from D-034's deferral).
+ * - `link` → `ChipRow` single-select when the caller passes brand-scoped `options`; otherwise a
+ *   read-only chip of the stored id (Fix B, 2026-10-15: UI pulled in from D-034's deferral; the
+ *   parent surface owns the options fetch so the picker is brand-scoped at the data layer).
  * - `statusKey` → read-only `StatusChip` (the parent surfaces owns the status DROPDOWN; a
  *   status move needs the state-machine action, not an inline commit).
- * - `link` / `user` / `file` / `checkbox` → read-only chip with an "edit in full editor"
- *   affordance. The user's named need is text/select/date/richtext editability; these four
- *   open in the full brief page where their dedicated editors already live.
+ * - `user` / `file` → read-only chip with an "edit in full editor" affordance. The remaining
+ *   two kinds that stay readonly open in the full brief page where their dedicated editors
+ *   already live. Fix C territory.
  *
  * ROLE GATE. `canEditBrief` is called before an editor is rendered; a false answer renders the
  * read-only variant with the same shape, so the row never jumps as the gate flips. The server
@@ -180,14 +192,15 @@ export function InlineField({
     );
   }
 
-  // The four kinds InlineField does not inline-edit (D-034). The user's named need is covered
-  // by the other seven; link/user/file/checkbox stay readonly here and open in the full editor.
+  // Readonly kinds (D-035, 2026-10-15): user/file remain Fix C. statusKey stays readonly here
+  // because status moves must flow through the state machine, not through a partial update.
+  // link with no caller-supplied options also stays readonly — the picker is a parent-fetched
+  // brand-scoped list, so without options the primitive degrades to the stored id as a chip.
   if (
-    field.kind === 'link' ||
     field.kind === 'user' ||
     field.kind === 'file' ||
-    field.kind === 'checkbox' ||
-    field.kind === 'statusKey'
+    field.kind === 'statusKey' ||
+    (field.kind === 'link' && (options === undefined || options.length === 0))
   ) {
     return (
       <span
@@ -302,6 +315,51 @@ export function InlineField({
             value={isoDateOrNull(current)}
             onChange={(next) => {
               commitPatch(next);
+            }}
+            ariaLabel={field.label}
+          />
+        </span>
+      );
+    case 'checkbox':
+      // D-035 (2026-10-15): a native Checkbox routed through the same `updateBriefPartialAction`
+      // path every other field uses. Immediate commit — a tick is a one-bit decision; a debounce
+      // between tick and server would read as a hang.
+      return (
+        <span
+          data-slot="inline-field"
+          data-surface={surface}
+          data-kind="checkbox"
+          className={className}
+        >
+          <Checkbox
+            id={id}
+            checked={current === true}
+            aria-label={field.label}
+            data-field={field.name}
+            onChange={(event) => {
+              commitPatch(event.target.checked);
+            }}
+          />
+        </span>
+      );
+    case 'link':
+      // D-035 (2026-10-15): a single-select ChipRow over caller-supplied brand-scoped options,
+      // same primitive as `singleSelect`. The parent surface fetches concepts / angles / products
+      // under `withBrand(brandId)` and hands the result in, so no cross-brand record ever reaches
+      // the picker; a bare link without options already fell through to the readonly chip above.
+      return (
+        <span
+          data-slot="inline-field"
+          data-surface={surface}
+          data-kind="link"
+          className={className}
+        >
+          <ChipRow
+            mode="single"
+            value={typeof current === 'string' && current !== '' ? [current] : []}
+            options={options ?? []}
+            onChange={(next) => {
+              commitPatch(next[0] ?? null);
             }}
             ariaLabel={field.label}
           />
