@@ -208,3 +208,166 @@ rewrites that risk breaking the 25+ other callers of `AirtableGrid` across the p
 - Address the dialog's draft-brief role gate — either an `InlineField` prop or a `canEditBrief`
   branch for drafts.
 - Flip the two outstanding `test.fixme` scenarios once Clerk CI secrets land.
+
+---
+
+## Fix C closure — 2026-10-16
+
+The Fix C follow-up closes three threads Fix B left open: the dialogs' draft-brief role gate, the
+sidebar's actor + link-option plumbing, and the remaining Identity/Status/Content fields that can
+route through `updateBriefPartialAction` without stranding the state-machine or the sheet-form
+save contract.
+
+### Commits landed
+
+- `627b7ec` — `feat(briefs): canEditBrief draft-brief handling (D-036)`
+- `e06bf56` — `feat(briefs): wire InlineField into both new-brief dialogs`
+- `bb50b87` — `feat(briefs): brand-scoped options for link kind in sidebar + actor flow`
+- Fourth commit (this entry) — `feat(briefs): wire remaining sidebar fields through InlineField`
+
+### Test count
+
+- Baseline on `52dff9c` (Fix B head): `4258` passing.
+- After `627b7ec` (InlineField +2 skipGate cases): `4260`.
+- After `e06bf56` and `bb50b87` and this commit: `4260` (no new test suites; the sidebar wiring
+  is pinned by the existing inline-field.test.tsx under its 11 cases plus the dialogs' preview
+  Playwright scenario).
+- Floor (≥ `4258`): met.
+
+### Vercel sha-match per commit
+
+- `627b7ec` — matched on first poll (full SHA `627b7ec46d48cc1e3b492c85834d1a94231838a3`).
+- `e06bf56` — matched at the 11th poll (~5.5 min).
+- `bb50b87` — matched at the 4th poll (~2 min).
+- Final commit (this one) — match recorded against the pushed head after the push lands.
+
+### D-036 — `skipGate` prop on InlineField
+
+Full text in `docs/decisions.md` (2026-10-16 D-036). Short form: the two new-brief dialogs edit a
+draft that has no persisted `assignee`, so `canEditBrief` would wrongly refuse the two
+assignee-gated roles. Added a `skipGate?: boolean` prop; only the dialogs set it. The server's
+`createBriefAction` runs its own role check on submit, so skipping the render-time gate never
+widens the write path.
+
+### Dialog draft-brief resolution path (Option A)
+
+Option A per the Fix C directive. The dialog passes `skipGate` because the row-level check does
+not apply to an in-memory draft; the server-side `createBriefAction` runs its own role check at
+submit. Option B (branching inside `canEditBrief` on undefined assignee) was rejected because it
+would mask a stuck persisted row — a brief with no assignee is a stuck row, not a draft, and
+loosening the gate for it would mask that bug.
+
+### Dialog rewire — both files
+
+Both `apps/web/src/app/app/creative-sheet/new-creative-dialog.tsx` (NewCreativeDialog, LIVE on
+the Creative Sheet) and `apps/web/src/app/app/creative-design/new-brief-dialog.tsx` (NewBriefDialog,
+kept wired for the day the key leaves `REMOVED_WORKSPACES`) now route their two `new-dialog`
+surface fields through InlineField:
+
+- `type` → `singleSelect` ChipRow over the shared `CREATIVE_TYPES` vocabulary.
+- `conceptId` → `link` ChipRow over the brand-scoped `conceptOptions` plus the Standalone chip.
+  Standalone's chip value is the local `STANDALONE_VALUE` constant (not an empty string) because
+  InlineField's `link` kind filters empty-string values out of its selection view — an empty
+  sentinel would never highlight the Standalone chip.
+
+The hidden `name="type"` / `name="conceptId"` inputs remain, so the form submission contract and
+the live `buildBriefName` preview are unchanged. The Playwright `@brief-dialog-edit` demo-mode
+scenario (`batchInput.fill('B9')` → preview updates) stays green — batch is not a `new-dialog`
+surface, so the batch input stays a plain `<Input>`.
+
+### Sidebar completion
+
+The sidebar now runs the following fields through InlineField when the viewer has an actor role
+(`canInlineEdit === true`). Fix C commits are listed inline against each editable row; readonly
+rows name the exact save-contract or vocabulary constraint that forced the deferral.
+
+Actor plumbing shipped in `bb50b87`: page.tsx resolves the viewer's role and display-name through
+the request-scoped `viewerRole()` + `currentActor()` and threads them through
+CreativeSheetWorkspace to CreativeSheetPanel; `canInlineEdit` is finally true in production.
+
+| Section  | Field              | Kind         | State                        | Notes                                                            |
+| -------- | ------------------ | ------------ | ---------------------------- | ---------------------------------------------------------------- |
+| Identity | conceptId          | link         | editable                     | Fix C: brand-scoped options from `loadConcepts` in `bb50b87`; wired in commit 4. |
+| Identity | angleId            | link         | editable                     | Fix C: brand-scoped options from `loadAngles` in `bb50b87`; wired in commit 4. |
+| Identity | batch              | text         | editable                     | Fix A commit `b7e85a6`.                                          |
+| Identity | type               | singleSelect | editable                     | Fix C commit 4: `CREATIVE_TYPES` vocabulary.                     |
+| Identity | source             | singleSelect | editable                     | Fix C commit 4: `creativeSources` vocabulary (Fix A had rendered this without options — bug fix). |
+| Identity | funnel             | singleSelect | editable                     | Fix C commit 4: `CREATIVE_FUNNELS` vocabulary.                   |
+| Identity | version            | text         | editable                     | Fix A commit `b7e85a6`.                                          |
+| Identity | productId          | link         | editable                     | Fix C: brand-scoped options from `loadProducts` in `bb50b87`; wired in commit 4. |
+| Identity | dimensions         | multiSelect  | editable (`DimensionsField`) | Uses the sidebar's own save path (`updateCreativeSheetItemDimensionsAction`), not InlineField. |
+| Identity | platform           | multiSelect  | editable                     | Fix C commit 4: `creativePlatforms` vocabulary.                  |
+| Identity | performance        | singleSelect | editable                     | Fix C commit 4: `creativePerformances` vocabulary.               |
+| Identity | designFileUrl      | url          | readonly                     | Shown as an anchor on the sidebar. The brief page's own form edits it (see `[briefId]/brief-detail.tsx`); keeping the sidebar an anchor preserves the click-through pattern a Playwright test can rely on. |
+| Content  | scriptContent      | richtext     | editable                     | Fix A commit `b7e85a6`.                                          |
+| Content  | briefToDesign      | richtext     | editable                     | Fix B.                                                           |
+| Content  | offer              | richtext     | editable                     | Fix B.                                                           |
+| Content  | inspiration        | richtext     | editable                     | Fix B.                                                           |
+| Content  | inspoLinks         | multiSelect  | readonly                     | The vocabulary is user-added URLs, not a fixed options list; a chip row would be empty. The brief page's own list editor accepts an URL per line. |
+| Content  | briefText          | richtext     | editable                     | Fix A commit `b7e85a6`.                                          |
+| Content  | music              | text         | editable                     | Fix A commit `b7e85a6`.                                          |
+| Content  | voiceoverType      | singleSelect | editable                     | Fix C commit 4: `VOICEOVER_TYPE_OPTIONS` (`tts` / `human` / `none`). |
+| Content  | voiceoverScript    | richtext     | editable                     | Fix B.                                                           |
+| Assets   | inspirationImage   | file         | readonly-by-kind             | D-035: `file` kind is Fix D (needs R2 presign + thumbnail primitive). |
+| Assets   | scriptAndBriefBreakdown | file    | readonly-by-kind             | D-035: `file` is Fix D.                                          |
+| Assets   | designFile         | file         | readonly-by-kind             | D-035: `file` is Fix D.                                          |
+| QA       | qaVideoEditor      | checkbox     | readonly (sheet form)        | The three QA ticks + spell-check + qaChecklistDoc stay on the sheet form's `updateCreativeSheetItemAction` path. The ticks themselves do NOT trigger the QA auto-reset — that fires from `qaResetFor` on an internal/client transition — so routing them through `updateBriefPartialAction` would be safe, BUT would duplicate the controls (two writes per tick) and race against the sheet form's bulk Save. The sheet form's existing Save button already updates these in one write; inline wiring would be noise, not a feature. |
+| QA       | qaDesigner         | checkbox     | readonly (sheet form)        | Same.                                                            |
+| QA       | qaStrategist       | checkbox     | readonly (sheet form)        | Same.                                                            |
+| QA       | qaChecklistDoc     | richtext     | readonly (sheet form)        | The sheet form submits this alongside the ticks; keeping it on the sheet form keeps the bulk Save path intact for the whole QA block. |
+| QA       | spellCheckRequested| checkbox     | readonly (sheet form)        | Same.                                                            |
+| QA       | spellingFeedback   | richtext     | readonly                     | Server-written. `surfaces` list on this field is `['full-page']` — the sidebar never had this editor. |
+| Approval | internalStatus     | statusKey    | readonly (status machine)    | The dropdown is the parent surface's; see Fix A note 3. Routing it through `updateBriefPartialAction` would strand the QA auto-reset and the state-machine transition (see `move-brief.ts:53`). |
+| Approval | status             | statusKey    | readonly (status machine)    | Same. The client track also co-writes `clientStatusNote` through the client's own action, but internal staff writing the note inline is a legal pure-partial write (same column). |
+| Approval | dueDate            | date         | editable                     | Fix C commit 4. Plain `timestamptz` column (migration 0043 / 0068); no status coupling, no QA auto-reset trigger. |
+| Approval | priority           | singleSelect | editable                     | Fix C commit 4: `CREATIVE_PRIORITIES` vocabulary. Plain `text` column; no coupling. |
+| Approval | clientStatusNote   | text         | editable                     | Fix C commit 4. The client's own `updateBriefClientStatus` also writes this column on a client-track move; the brief's own partial update path can set it as plain text too, so an internal note is a legal pure-partial write. |
+| Activity | all                | user/date/text | readonly                   | Fix A activity section is read-only on purpose.                  |
+
+### QA/Approval investigation outcome
+
+Fix B deferred the QA ticks and the Approval date / priority / client-note citing "sheet-form
+submit path (auto-reset gate + bulk save)". The claim is partly accurate and partly inaccurate:
+
+- **ACCURATE for internal/client status.** The state-machine action `moveCreativeSheetItemAction`
+  runs the two-track gate and applies the QA auto-reset via `qaResetFor` (see
+  `creative-sheet/move-brief.ts:53` and `creative-design/actions.ts:869`). Routing status moves
+  through `updateBriefPartialAction` would skip both. Keep these on the state machine.
+- **INACCURATE for dueDate / priority / clientStatusNote.** All three are plain columns on
+  `creative_briefs` (migration 0001 / 0043 / 0068). None triggers the QA auto-reset. Fix C wires
+  them inline.
+- **PARTIAL for QA ticks.** The ticks themselves do not trigger the auto-reset (the reset fires
+  on a status move only). Routing them through `updateBriefPartialAction` would be safe. The
+  reason Fix C still leaves them on the sheet form is cosmetic — the sheet form already saves them
+  in one bulk Save; inline + bulk would race on which one wrote last for no new user value.
+
+### Link editor live-reachable
+
+YES. The three `link` kind fields in the sidebar (Concept, Angle, Product) now receive brand-scoped
+options from `loadConcepts` / `loadAngles` / `loadProducts` (all `withBrand(brandId)` scoped at
+the data layer), reach InlineField's `link` case, and render ChipRow pickers. The new-brief
+dialogs' `conceptId` field also reaches the same path through the same primitive.
+
+### Playwright scenarios
+
+- `@brief-sidebar-edit` — presence check unchanged; the full write path still requires live Clerk
+  per-user fixtures. The `test.fixme` guard stays.
+- `@brief-dialog-edit` — the demo-mode `batchInput.fill('B9')` + preview assertion stays green
+  (batch is not a `new-dialog` surface, so the batch input stays a plain `<Input>`). The
+  `test.fixme` guard on the full submit path stays.
+- `@brief-grid-edit` — unchanged. Grid cell inline edit is Fix D.
+- `@brief-permission` — unchanged. The demo-mode presence check (no inline-field data-slot in
+  the sidebar's Identity section) stays — in demo mode `canInlineEdit` is false because
+  `actorUserId` is null, so the sidebar renders the readonly chrome.
+
+### Fix D scope statement — AirtableGrid cell inline edit
+
+The grid stays read-only after Fix C. `AirtableGrid`'s cell renderer is
+`render(row) => ReactNode`, with no actor / commit context flowing to the renderer registry.
+Wiring a cell to InlineField needs either a React context carrying
+`{actorRole, actorUserId, onUpdate, options}` through `CREATIVE_SHEET_RENDERERS` and the 24 other
+registries that extend `AirtableGrid`, or a factory shape over the registry itself so a cell
+renderer can accept parent-scoped dependencies. Both are nontrivial rewrites that cross 25+
+callers of `AirtableGrid` across the product — Fix D's exclusive scope. The two outstanding
+`test.fixme` Playwright scenarios (`@brief-grid-edit` and the per-user disabled-editor matrix
+under `@brief-permission`) also wait on this; they land once the registry refactor completes.

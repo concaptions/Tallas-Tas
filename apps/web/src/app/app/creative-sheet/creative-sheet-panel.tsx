@@ -3,7 +3,13 @@
 import { useActionState, useEffect, useState, useTransition, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { CreativeSheetItemListRow } from '@tas/db';
-import { creativeTrack } from '@tas/domain/creatives';
+import {
+  CREATIVE_FUNNELS,
+  CREATIVE_PRIORITIES,
+  CREATIVE_TYPES,
+  creativeTrack,
+} from '@tas/domain/creatives';
+import { creativePerformances, creativePlatforms, creativeSources } from '@tas/db/schema';
 import {
   Button,
   Checkbox,
@@ -81,6 +87,40 @@ export interface SidebarLinkOption {
   readonly id: string;
   readonly name: string;
 }
+
+/**
+ * Phase B5 Fix C (2026-10-16): fixed vocabularies that drive the Identity / Status single-select
+ * chips. All five live in `@tas/db/schema` or `@tas/domain/creatives`; stated here as `as const`
+ * tuples so the chip's `value` and `label` are the SAME storage key the server reads back.
+ */
+const SOURCE_CHIP_OPTIONS: readonly ChipOption[] = creativeSources.map((value) => ({
+  value,
+  label: value,
+}));
+const TYPE_CHIP_OPTIONS: readonly ChipOption[] = CREATIVE_TYPES.map((entry) => ({
+  value: entry.key,
+  label: entry.label,
+}));
+const FUNNEL_CHIP_OPTIONS: readonly ChipOption[] = CREATIVE_FUNNELS.map((entry) => ({
+  value: entry.key,
+  label: entry.label,
+}));
+const PERFORMANCE_CHIP_OPTIONS: readonly ChipOption[] = creativePerformances.map((value) => ({
+  value,
+  label: value,
+}));
+const PRIORITY_CHIP_OPTIONS: readonly ChipOption[] = CREATIVE_PRIORITIES.map((entry) => ({
+  value: entry.key,
+  label: entry.label,
+}));
+const PLATFORM_CHIP_OPTIONS: readonly ChipOption[] = creativePlatforms.map((value) => ({
+  value,
+  label: value,
+}));
+const VOICEOVER_CHIP_OPTIONS: readonly ChipOption[] = VOICEOVER_TYPE_OPTIONS.map((entry) => ({
+  value: entry.key,
+  label: entry.label,
+}));
 
 interface CreativeSheetPanelProps {
   readonly item: CreativeSheetItemListRow;
@@ -371,22 +411,38 @@ export function CreativeSheetPanel({
     }
   };
   /**
-   * Phase B5 Fix C (Oct 16): the sidebar's three `link` kind editors (Concept, Angle, Product)
-   * each need a brand-scoped `ChipOption[]`. The parent supplies the `{id,name}` arrays scoped by
-   * `withBrand(brandId)`; here they are shaped to the primitive's `ChipOption` tuple with no
-   * sentinel row — an unset link is a chip-less state the primitive already handles.
+   * Phase B5 Fix C (Oct 16): the chip set every editable singleSelect / multiSelect / link field
+   * reads for its inline picker. Brand-scoped record options (concept / angle / product) come from
+   * the parent through `withBrand(brandId)`-scoped loaders; the vocabulary options are the fixed
+   * `as const` tuples defined above. Returning `undefined` collapses the field to the readonly
+   * fall-through — the primitive's `link-with-no-options` and `singleSelect-with-empty-options`
+   * paths render the stored value as a chip without an editor.
    */
-  const linkOptionsFor = (name: string): readonly ChipOption[] | undefined => {
-    const source =
-      name === 'conceptId'
-        ? conceptOptions
-        : name === 'angleId'
-          ? angleOptions
-          : name === 'productId'
-            ? productOptions
-            : undefined;
-    if (source === undefined) return undefined;
-    return source.map((entry) => ({ value: entry.id, label: entry.name }));
+  const optionsFor = (name: string): readonly ChipOption[] | undefined => {
+    switch (name) {
+      case 'conceptId':
+        return conceptOptions?.map((entry) => ({ value: entry.id, label: entry.name }));
+      case 'angleId':
+        return angleOptions?.map((entry) => ({ value: entry.id, label: entry.name }));
+      case 'productId':
+        return productOptions?.map((entry) => ({ value: entry.id, label: entry.name }));
+      case 'source':
+        return SOURCE_CHIP_OPTIONS;
+      case 'type':
+        return TYPE_CHIP_OPTIONS;
+      case 'funnel':
+        return FUNNEL_CHIP_OPTIONS;
+      case 'performance':
+        return PERFORMANCE_CHIP_OPTIONS;
+      case 'priority':
+        return PRIORITY_CHIP_OPTIONS;
+      case 'platform':
+        return PLATFORM_CHIP_OPTIONS;
+      case 'voiceoverType':
+        return VOICEOVER_CHIP_OPTIONS;
+      default:
+        return undefined;
+    }
   };
   const inlineRow = (field: BriefSectionField): ReactNode => (
     <div className="flex items-start justify-between gap-3.5 py-1">
@@ -398,7 +454,7 @@ export function CreativeSheetPanel({
           surface="sidebar"
           actorRole={actorRole}
           actorUserId={actorUserId}
-          options={linkOptionsFor(field.name)}
+          options={optionsFor(field.name)}
           onUpdate={inlineUpdate}
         />
       </span>
@@ -415,22 +471,57 @@ export function CreativeSheetPanel({
         surface="sidebar"
         actorRole={actorRole}
         actorUserId={actorUserId}
+        options={optionsFor(field.name)}
         onUpdate={inlineUpdate}
       />
     </div>
   );
   const canInlineEdit = actorRole !== undefined && actorRole !== null && !demo;
-  // The Identity fields the sidebar edits inline (Oct 15 Fix A, user's named need):
-  // Batch (text), Source (singleSelect), Version (text). Linked/lookup rows (Concept, Angle,
-  // Type, Funnel, Product, Platform, Performance, Design Link URL) stay readonly because they
-  // need brand-scoped options the sidebar does not fetch today — Fix C territory per D-035.
+  /**
+   * The Identity fields the sidebar edits inline. Expanded in Phase B5 Fix C (2026-10-16): the
+   * three `link` kind editors (Concept, Angle, Product) now have brand-scoped options from the
+   * parent; `type`, `source`, `funnel`, `performance` read their fixed `as const` vocabularies
+   * through `optionsFor`. The multiSelect `platform` is also wired here through `optionsFor`.
+   * Fields left out: `dimensions` (owns its own save path via `DimensionsField`), `designFileUrl`
+   * (shown as an anchor; its editable form lives on the full brief page).
+   */
   const identityInlineFields = SHEET_GROUPS.identity.fields.filter((f) =>
-    (['batch', 'source', 'version'] as const).includes(f.name as 'batch' | 'source' | 'version'),
+    (
+      [
+        'conceptId',
+        'angleId',
+        'batch',
+        'type',
+        'source',
+        'funnel',
+        'version',
+        'productId',
+        'platform',
+        'performance',
+      ] as const
+    ).includes(f.name as never),
   );
-  // The Content fields the sidebar edits inline (Fix B, 2026-10-15): every kind-supported field
-  // in the Content section — the richtext blocks (Script, Brief to Design, Offer, Inspiration,
-  // Voiceover script), Brief text and Music. Inspo links (multiSelect) + Voiceover type
-  // (singleSelect) stay readonly until the sidebar supplies their options.
+  /**
+   * Phase B5 Fix C (2026-10-16): the Status / Approval fields that route through
+   * `updateBriefPartialAction`. `dueDate` and `priority` are plain columns on `creative_briefs`
+   * (migration 0001 / 0043 / 0068): neither triggers the status-move QA auto-reset, which fires
+   * from `qaResetFor` on an internal / client transition — see `creative-sheet/move-brief.ts`
+   * and `creative-design/actions.ts:869`. `clientStatusNote` is co-written by the client's own
+   * `updateBriefClientStatus` on a track move, but the brief's own partial update path can set
+   * it as plain text too (same column), so an internal note is a legal inline write.
+   *
+   * Deferred (readonly on the sidebar): `internalStatus` and `status` stay on the state-machine
+   * `moveCreativeSheetItemAction` because the move runs the two-track gate and the QA auto-reset
+   * (see `move-brief.ts:53`). Routing them through the partial path would strand the gate.
+   */
+  const approvalInlineFields = SHEET_GROUPS.approval.fields.filter((f) =>
+    (['dueDate', 'priority', 'clientStatusNote'] as const).includes(f.name as never),
+  );
+  // The Content fields the sidebar edits inline (Fix B, 2026-10-15; Fix C adds voiceoverType):
+  // every kind-supported field in the Content section — the richtext blocks (Script, Brief to
+  // Design, Offer, Inspiration, Voiceover script), Brief text, Music and Voiceover type (its
+  // three-key singleSelect vocabulary now flows through `optionsFor`). Inspo links stays readonly
+  // because the vocabulary is user-added URLs rather than a fixed options list.
   const contentInlineFields = SHEET_GROUPS.content.fields.filter((f) =>
     (
       [
@@ -440,6 +531,7 @@ export function CreativeSheetPanel({
         'inspiration',
         'briefText',
         'music',
+        'voiceoverType',
         'voiceoverScript',
       ] as const
     ).includes(f.name as never),
@@ -507,26 +599,46 @@ export function CreativeSheetPanel({
             <div className="flex flex-col">
               <Group heading={SHEET_GROUPS.identity.label}>
                 <div data-slot="creative-sheet-identity">
-                  {row('Concept', lookups?.concept ?? dash)}
-                  {row('Angle', lookups?.angle ?? dash)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'conceptId')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Concept', lookups?.concept ?? dash)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'angleId')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Angle', lookups?.angle ?? dash)}
                   {canInlineEdit
                     ? identityInlineFields
                         .filter((f) => f.name === 'batch')
                         .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
                     : row('Batch', <span className="font-mono">{detail.batch ?? EM_DASH}</span>)}
-                  {row('Type', item.briefType ?? dash)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'type')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Type', item.briefType ?? dash)}
                   {canInlineEdit
                     ? identityInlineFields
                         .filter((f) => f.name === 'source')
                         .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
                     : row('Source', detail.source)}
-                  {row('Funnel', item.briefFunnel ?? dash)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'funnel')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Funnel', item.briefFunnel ?? dash)}
                   {canInlineEdit
                     ? identityInlineFields
                         .filter((f) => f.name === 'version')
                         .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
                     : row('Version', <span className="font-mono">V{String(detail.version)}</span>)}
-                  {row('Product', lookups?.internalProduct ?? dash)}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'productId')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Product', lookups?.internalProduct ?? dash)}
                 </div>
 
                 <DimensionsField
@@ -537,26 +649,34 @@ export function CreativeSheetPanel({
                 />
 
                 <div data-slot="creative-sheet-brief-lookups">
-                  {row(
-                    BRIEF_LOOKUP_LABELS.briefPlatform,
-                    item.briefPlatform.length === 0 ? (
-                      dash
-                    ) : (
-                      <span className="flex flex-wrap justify-end gap-1">
-                        {item.briefPlatform.map((platform) => (
-                          <StatusChip key={platform} tone="mute" label={platform} />
-                        ))}
-                      </span>
-                    ),
-                  )}
-                  {row(
-                    BRIEF_LOOKUP_LABELS.briefPerformance,
-                    item.briefPerformance === null ? (
-                      dash
-                    ) : (
-                      <StatusChip tone="info" label={item.briefPerformance} />
-                    ),
-                  )}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'platform')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row(
+                        BRIEF_LOOKUP_LABELS.briefPlatform,
+                        item.briefPlatform.length === 0 ? (
+                          dash
+                        ) : (
+                          <span className="flex flex-wrap justify-end gap-1">
+                            {item.briefPlatform.map((platform) => (
+                              <StatusChip key={platform} tone="mute" label={platform} />
+                            ))}
+                          </span>
+                        ),
+                      )}
+                  {canInlineEdit
+                    ? identityInlineFields
+                        .filter((f) => f.name === 'performance')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row(
+                        BRIEF_LOOKUP_LABELS.briefPerformance,
+                        item.briefPerformance === null ? (
+                          dash
+                        ) : (
+                          <StatusChip tone="info" label={item.briefPerformance} />
+                        ),
+                      )}
                   {row(
                     BRIEF_LOOKUP_LABELS.briefDesignFileUrl,
                     item.briefDesignFileUrl === null ? (
@@ -572,9 +692,11 @@ export function CreativeSheetPanel({
                       </a>
                     ),
                   )}
-                  <p className="pt-1 text-xs text-text4">
-                    Read from the creative. Edit them on its own page.
-                  </p>
+                  {canInlineEdit ? null : (
+                    <p className="pt-1 text-xs text-text4">
+                      Read from the creative. Edit them on its own page.
+                    </p>
+                  )}
                 </div>
               </Group>
 
@@ -646,14 +768,18 @@ export function CreativeSheetPanel({
                         .filter((f) => f.name === 'music')
                         .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
                     : block('Music', detail.music)}
-                  {block(
-                    'Voiceover type',
-                    detail.voiceoverType === null
-                      ? null
-                      : (VOICEOVER_TYPE_OPTIONS.find(
-                          (option) => option.key === detail.voiceoverType,
-                        )?.label ?? detail.voiceoverType),
-                  )}
+                  {canInlineEdit
+                    ? contentInlineFields
+                        .filter((f) => f.name === 'voiceoverType')
+                        .map((f) => <div key={f.name}>{inlineBlock(f)}</div>)
+                    : block(
+                        'Voiceover type',
+                        detail.voiceoverType === null
+                          ? null
+                          : (VOICEOVER_TYPE_OPTIONS.find(
+                              (option) => option.key === detail.voiceoverType,
+                            )?.label ?? detail.voiceoverType),
+                      )}
                   {canInlineEdit
                     ? contentInlineFields
                         .filter((f) => f.name === 'voiceoverScript')
@@ -737,12 +863,24 @@ export function CreativeSheetPanel({
                   statusView(status === NONE_VALUE ? null : status),
                 )}
                 <div data-slot="creative-sheet-status-facts">
-                  {row(
-                    SHEET_DUE_DATE_LABEL,
-                    detail.dueDate === null ? dash : formatSheetDate(detail.dueDate),
-                  )}
-                  {row('Priority', detail.priority ?? dash)}
-                  {row('Client note', detail.clientStatusNote ?? dash)}
+                  {canInlineEdit
+                    ? approvalInlineFields
+                        .filter((f) => f.name === 'dueDate')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row(
+                        SHEET_DUE_DATE_LABEL,
+                        detail.dueDate === null ? dash : formatSheetDate(detail.dueDate),
+                      )}
+                  {canInlineEdit
+                    ? approvalInlineFields
+                        .filter((f) => f.name === 'priority')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Priority', detail.priority ?? dash)}
+                  {canInlineEdit
+                    ? approvalInlineFields
+                        .filter((f) => f.name === 'clientStatusNote')
+                        .map((f) => <div key={f.name}>{inlineRow(f)}</div>)
+                    : row('Client note', detail.clientStatusNote ?? dash)}
                 </div>
               </Group>
 
