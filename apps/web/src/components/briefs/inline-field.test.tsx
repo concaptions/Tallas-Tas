@@ -246,4 +246,50 @@ describe('InlineField', () => {
     const slot = document.querySelector('[data-slot="inline-field"]');
     expect(slot?.getAttribute('data-allowed')).toBe('false');
   });
+
+  it('skipGate bypasses canEditBrief for an in-memory draft brief (D-036)', () => {
+    // A video_editor who is NOT the assignee would normally be refused by canEditBrief.
+    // The two new-brief dialogs set skipGate because the draft brief has no assignee yet; the
+    // server's `createBriefAction` runs its own role check on submit, so skipping the render-side
+    // gate never widens the write.
+    const onUpdate = vi.fn(() => Promise.resolve());
+    render(
+      <InlineField
+        actorRole="video_editor"
+        actorUserId="Someone Else"
+        brief={{ assignee: undefined }}
+        field={field('batch', 'text', 'Batch')}
+        surface="new-dialog"
+        onUpdate={onUpdate}
+        skipGate
+      />,
+    );
+    const input = screen.getByLabelText('Batch');
+    expect(input).toBeTruthy();
+    fireEvent.change(input, { target: { value: 'B9' } });
+    fireEvent.blur(input);
+    expect(onUpdate).toHaveBeenCalled();
+    const slot = document.querySelector('[data-slot="inline-field"][data-surface="new-dialog"]');
+    expect(slot?.getAttribute('data-allowed')).not.toBe('false');
+  });
+
+  it('skipGate also lets a null actorRole edit a draft (dialog has no resolved actor)', () => {
+    render(
+      <InlineField
+        actorRole={null}
+        actorUserId={null}
+        brief={{ assignee: undefined }}
+        field={field('type', 'singleSelect', 'Type')}
+        surface="new-dialog"
+        onUpdate={() => Promise.resolve()}
+        skipGate
+        options={[
+          { value: 'Video', label: 'Video' },
+          { value: 'Static', label: 'Static' },
+        ]}
+      />,
+    );
+    const group = screen.getByRole('radiogroup', { name: 'Type' });
+    expect(group).toBeTruthy();
+  });
 });

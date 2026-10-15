@@ -56,6 +56,15 @@ export interface InlineFieldProps {
   readonly id?: string;
   /** Optional className for the wrapper. */
   readonly className?: string;
+  /**
+   * D-036 (Phase B5 Fix C, 2026-10-16): bypass the `canEditBrief` role gate for an in-memory draft
+   * brief. The new-brief / new-creative dialog edits a draft that does not exist in the database
+   * yet, so `brief.assignee` is undefined — the gate would refuse `video_editor` / `designer` roles
+   * that can legitimately open the dialog. Only the two dialogs set this. The server-side
+   * `createBriefAction` runs its own role check at submit, so skipping the gate at render never
+   * widens the write path.
+   */
+  readonly skipGate?: boolean;
 }
 
 const DEBOUNCE_MS = 400;
@@ -155,10 +164,13 @@ export function InlineField({
   options,
   id,
   className,
+  skipGate = false,
 }: InlineFieldProps): React.ReactElement {
   const allowed = useMemo(
-    () => canEditBrief({ actorRole, actorUserId, brief, fieldName: field.name }),
-    [actorRole, actorUserId, brief, field.name],
+    // D-036: `skipGate` bypasses the role gate for a dialog's draft brief; the server action
+    // still re-runs its own role check at submit, so the write path is unchanged.
+    () => skipGate || canEditBrief({ actorRole, actorUserId, brief, fieldName: field.name }),
+    [actorRole, actorUserId, brief, field.name, skipGate],
   );
 
   // Optimistic local draft for debounced text/richtext editors — the UI shows the new value

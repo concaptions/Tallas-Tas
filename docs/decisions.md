@@ -2455,3 +2455,29 @@ Flow Completion does not depend on either, so they stay Fix C scope.
 
 D-034 is partially retired by this entry: the "four fall-through kinds" line is now the "two
 fall-through kinds" line. The reader finds both entries in order; nothing is deleted.
+
+
+## 2026-10-16 · D-036 — InlineField `skipGate` prop for the dialogs' draft brief
+
+Phase B5 Fix C wires InlineField into both new-brief dialogs (`new-creative-dialog.tsx` and
+`new-brief-dialog.tsx`). A dialog edits a draft brief that does not exist in the database yet,
+so the row has no `assignee` column to compare against; `canEditBrief` therefore refuses the
+two assignee-gated roles (`video_editor`, `designer`) even though both have the business right
+to open a dialog. Two options were open:
+
+- A. Add a `skipGate?: boolean` prop to InlineField; the dialog passes `skipGate` because the
+     row-level check does not apply to an in-memory draft. The server-side `createBriefAction`
+     still runs its own role check on submit, so skipping the render-time gate never widens the
+     write path.
+- B. Branch inside `canEditBrief` on an undefined/null `brief.assignee`: treat it as "draft"
+     and return `true` for assignee-gated roles.
+
+Option A ships. It keeps `canEditBrief` honest for persisted rows — a brief with no assignee
+is a stuck row, not a draft, and loosening the gate for it would mask that bug — and it makes
+the draft case explicit at the call site. The server action already answers "may this actor
+CREATE a brief?" independently; two different questions, two different guards.
+
+The prop is scoped: only the two dialogs pass it. The sidebar, the brief-detail page and any
+future grid-cell editor pass through `canEditBrief` unchanged. Two tests pin it: the
+`skipGate` path renders an editor for a video_editor who is not the assignee, and the
+`skipGate` path also lets a null actorRole edit (demo-mode dialog has no resolved role).
