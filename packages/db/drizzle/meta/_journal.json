@@ -505,6 +505,13 @@
       "when": 1792081200000,
       "tag": "0071_brief_submissions",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792253400000,
+      "tag": "0072_user_group_orders",
+      "breakpoints": true
     }
   ]
 }
