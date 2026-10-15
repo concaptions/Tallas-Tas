@@ -2,22 +2,26 @@ import { PRODUCT_CSV_COLUMNS } from '@tas/db';
 
 import { loadAngles } from '@/lib/angles-source';
 import { loadBriefs } from '@/lib/briefs-source';
+import { loadConcepts } from '@/lib/concepts-source';
 import { loadCopy } from '@/lib/copy-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { loadEmailCampaigns } from '@/lib/email-campaigns-source';
+import { loadPersonas } from '@/lib/personas-source';
 import { loadProductColumns, loadProducts } from '@/lib/products-source';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
 import { loadCreators } from '@/lib/ugc-source';
 import { loadYoutubeCopyWorkspace } from '@/lib/youtube-copywriting-source';
 
 import {
+  conceptLinks,
   creativeDesignLinks,
   creatorLinks,
   creatorOptions,
   emailCampaignLinks,
   hostLabel,
   metaCopywritingLinks,
+  personaLinks,
   youtubeCopyLinks,
 } from './fields';
 import { ProductsWorkspace, type ProductItem } from './products-workspace';
@@ -63,6 +67,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     { rows: creatorRows },
     { rows: angleRows },
     { rows: copyRows },
+    { rows: personaRows },
+    { rows: conceptRows },
     params,
   ] = await Promise.all([
     loadProducts(),
@@ -73,6 +79,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     loadCreators(),
     loadAngles(),
     loadCopy(),
+    loadPersonas(),
+    loadConcepts(),
     searchParams,
   ]);
   const demo = isDemoMode();
@@ -92,6 +100,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     // The Meta copywriting written for this product — the reverse of `copywriting.product_id`
     // (Oct 5 Linked Product control). Section on the product detail only, never a grid column.
     metaCopywriting: metaCopywritingLinks(product.id, copyRows),
+    // Flow completion 2026-10-16: the reverse of `personas.product_id`. Section only.
+    personas: personaLinks(product.id, personaRows),
+    // Flow completion 2026-10-16: concepts whose first angle points at this product (two-hop
+    // reverse of concept → angle → product). The concept row carries the inherited `productId`
+    // on it (`packages/db/src/concepts.ts`), so the join is already resolved on the server.
+    concepts: conceptLinks(product.id, conceptRows),
     // The angle side of `angle_products`, read from the angle rows' own ids (LINK-01).
     angleIds: angleRows
       .filter((angle) => angle.productIds.includes(product.id))

@@ -1066,6 +1066,7 @@ export function CreativeSheetWorkspace({
     <NewCreativeDialog
       demo={demo}
       conceptOptions={conceptOptions}
+      productOptions={sidebarProductOptions}
       nextNumber={nextNumber}
       onPending={onPending}
       onCreated={onCreated}

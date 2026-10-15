@@ -40,7 +40,7 @@ import { SHEET_GROUPS } from '@/app/app/creative-sheet/fields';
  * The two manifest fields the dialog edits through InlineField. See the sibling in
  * `creative-sheet/new-creative-dialog.tsx` for why a missing field here throws.
  */
-function lookupField(name: 'type' | 'conceptId') {
+function lookupField(name: 'type' | 'conceptId' | 'productId') {
   const field = SHEET_GROUPS.identity.fields.find((entry) => entry.name === name);
   if (field === undefined) {
     throw new Error(`SHEET_GROUPS.identity has no field named ${name}`);
@@ -50,6 +50,7 @@ function lookupField(name: 'type' | 'conceptId') {
 
 const DIALOG_TYPE_FIELD = lookupField('type');
 const DIALOG_CONCEPT_FIELD = lookupField('conceptId');
+const DIALOG_PRODUCT_FIELD = lookupField('productId');
 
 /** The CREATIVE_TYPES vocabulary as InlineField's `singleSelect` chips. */
 const TYPE_CHIP_OPTIONS: readonly ChipOption[] = CREATIVE_TYPES.map((entry) => ({
@@ -74,11 +75,21 @@ const STANDALONE_VALUE = 'standalone';
  */
 interface NewBriefDialogProps {
   readonly demo: boolean;
-  /** Every concept of the brand, for the Concept select. Standalone (null concept) is the default. */
-  readonly conceptOptions: readonly { readonly id: string; readonly name: string }[];
+  /**
+   * Every concept of the brand, for the Concept select. Standalone (null concept) is the default.
+   * `productId` is the concept's inherited product (through its first angle) so the dialog can
+   * prefill the brief's Product on concept pick (PRD §5.7). Flow completion 2026-10-16.
+   */
+  readonly conceptOptions: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly productId?: string | null;
+  }[];
+  /** The brand's products, for the Product single-select (Flow completion 2026-10-16). */
+  readonly productOptions?: readonly { readonly id: string; readonly name: string }[];
 }
 
-export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
+export function NewBriefDialog({ demo, conceptOptions, productOptions = [] }: NewBriefDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<BriefActionResult | null, FormData>(
@@ -91,8 +102,15 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
   const [type, setType] = useState<CreativeTypeKey>(CREATIVE_TYPES[0].key);
   const [conceptChoice, setConceptChoice] = useState(STANDALONE_VALUE);
   const [batch, setBatch] = useState('');
+  const [productId, setProductId] = useState<string>('');
+  const [productManuallySet, setProductManuallySet] = useState(false);
   const [nameMode, setNameMode] = useState<'auto' | 'manual'>('auto');
   const [manualName, setManualName] = useState('');
+
+  const productChipOptions = useMemo<readonly ChipOption[]>(
+    () => productOptions.map((option) => ({ value: option.id, label: option.name })),
+    [productOptions],
+  );
 
   // Phase B5 Fix C: brand-scoped Concept chips with the Standalone sentinel at the head. See the
   // sibling in `creative-sheet/new-creative-dialog.tsx` for why Standalone's chip VALUE is the
@@ -110,6 +128,8 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
       setOpen(false);
       setBatch('');
       setConceptChoice(STANDALONE_VALUE);
+      setProductId('');
+      setProductManuallySet(false);
       setNameMode('auto');
       setManualName('');
       router.refresh();
@@ -246,6 +266,13 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
                   const next = patch['conceptId'];
                   if (typeof next === 'string' && next !== '') {
                     setConceptChoice(next);
+                    // Flow completion 2026-10-16: prefill from the concept's through-angle product.
+                    if (!productManuallySet) {
+                      const picked = conceptOptions.find((option) => option.id === next);
+                      if (picked?.productId !== null && picked?.productId !== undefined) {
+                        setProductId(picked.productId);
+                      }
+                    }
                   } else {
                     setConceptChoice(STANDALONE_VALUE);
                   }
@@ -257,6 +284,35 @@ export function NewBriefDialog({ demo, conceptOptions }: NewBriefDialogProps) {
                 name="conceptId"
                 value={conceptChoice === STANDALONE_VALUE ? '' : conceptChoice}
               />
+            </div>
+            {/*
+             * Product picker (Flow completion 2026-10-16): mirrors the new-creative-dialog.tsx
+             * flow — picking a concept pre-populates this via its through-angle product (PRD §5.7).
+             */}
+            <div className="flex flex-col gap-1.5" data-slot="new-brief-product">
+              <Label htmlFor="new-brief-product-chips">Product</Label>
+              <InlineField
+                id="new-brief-product-chips"
+                brief={{ productId: productId === '' ? null : productId }}
+                field={DIALOG_PRODUCT_FIELD}
+                surface="new-dialog"
+                actorRole={null}
+                actorUserId={null}
+                skipGate
+                options={productChipOptions}
+                onUpdate={(patch) => {
+                  const next = patch['productId'];
+                  setProductManuallySet(true);
+                  setProductId(typeof next === 'string' ? next : '');
+                  return Promise.resolve();
+                }}
+              />
+              <input type="hidden" name="productId" value={productId} />
+              {conceptChoice !== STANDALONE_VALUE && !productManuallySet && productId !== '' ? (
+                <p className="text-[11px] text-text3" data-slot="new-brief-product-inherited">
+                  Inherited from the concept.
+                </p>
+              ) : null}
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
               <Label htmlFor="new-brief-batch">Batch</Label>

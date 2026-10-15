@@ -179,6 +179,11 @@ export function CopyPanel({
     item.copyTypeIds,
   );
   const [productId, setProductId] = useState<string | null>(item.productId);
+  // Flow completion 2026-10-16: once the editor touches the Linked Product by hand, concept /
+  // brief changes stop overriding it. `item.productId !== null` means the saved row already has a
+  // product chosen — we honour that as if the editor had just set it. False only when both the
+  // saved row has no product AND no change has been made in this edit session yet.
+  const [productManuallySet, setProductManuallySet] = useState(item.productId !== null);
 
   const validation = useMemo(() => validateCopyDraft(draft), [draft]);
 
@@ -198,7 +203,33 @@ export function CopyPanel({
   }, [state, onSaved]);
 
   const patch = (values: Partial<CopyDraft>) => {
-    setDraft((current) => ({ ...current, ...values }));
+    setDraft((current) => {
+      const next = { ...current, ...values };
+      // Flow completion 2026-10-16: when the editor picks a Creative or a Concept, prefill the
+      // Linked Product from that pick's own `productId` — unless they have already set one by
+      // hand (`productManuallySet`). The brief's own `product_id` wins over the concept's
+      // through-angle inheritance if both change at once, because the brief is the more specific
+      // link; otherwise either one fills it.
+      if (!productManuallySet) {
+        let picked: string | null = null;
+        if ('creativeBriefId' in values && values.creativeBriefId !== null) {
+          const brief = creatives.find((creative) => creative.id === values.creativeBriefId);
+          if (brief?.productId !== null && brief?.productId !== undefined) {
+            picked = brief.productId;
+          }
+        }
+        if (picked === null && 'conceptId' in values && values.conceptId !== null) {
+          const concept = concepts.find((option) => option.id === values.conceptId);
+          if (concept?.productId !== null && concept?.productId !== undefined) {
+            picked = concept.productId;
+          }
+        }
+        if (picked !== null) {
+          setProductId(picked);
+        }
+      }
+      return next;
+    });
   };
 
   /**
@@ -461,6 +492,9 @@ export function CopyPanel({
                   value={productId ?? NO_PRODUCT_VALUE}
                   onValueChange={(next) => {
                     setProductId(next === NO_PRODUCT_VALUE ? null : next);
+                    // Flow completion 2026-10-16: the editor's own choice freezes the field so a
+                    // later Creative or Concept pick cannot overwrite it.
+                    setProductManuallySet(true);
                   }}
                   disabled={locked}
                 >

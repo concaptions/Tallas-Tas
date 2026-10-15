@@ -39,6 +39,12 @@ export const NO_CREATORS_NOTE =
 /** What the Related Copywriting list says when no copy row names this product (Oct 5). */
 export const NO_META_COPYWRITING_NOTE =
   'No copywriting names this product yet. Link one from the copy’s Linked Product control.';
+/** What the Personas reverse list says when no persona researches this product (Flow completion 2026-10-16). */
+export const NO_PERSONAS_NOTE =
+  'No persona researches this product yet. Link one from the persona’s panel.';
+/** What the Concepts reverse list says when no concept's angle points at this product (Flow completion 2026-10-16). */
+export const NO_CONCEPTS_NOTE =
+  'No concept’s angle points at this product yet. Pick the product on the angle’s panel.';
 
 interface ProductPanelProps {
   readonly product: ProductListRow | null;
@@ -56,6 +62,16 @@ interface ProductPanelProps {
    * product is simply absent.
    */
   readonly metaCopywriting?: readonly LinkedRecord[];
+  /**
+   * The personas researched FOR this product — the reverse of `personas.product_id` (Flow
+   * completion 2026-10-16). RECORD-PAGE section only; a persona with no product is simply absent.
+   */
+  readonly personas?: readonly LinkedRecord[];
+  /**
+   * The concepts whose first angle points at this product (Flow completion 2026-10-16). Reverse
+   * of concept → angle → product; names are the generated `Batch-Angle-Theme` strings.
+   */
+  readonly concepts?: readonly LinkedRecord[];
   /**
    * Every creator of the brand, as the Creators link field's options — each carrying its own route
    * and status chip, so the field reads exactly as the read-only list it replaced.
@@ -150,6 +166,8 @@ export function ProductPanel({
   creativeDesigns,
   creators,
   metaCopywriting = [],
+  personas = [],
+  concepts = [],
   creatorOptions = [],
   demo,
   onClose,
@@ -347,6 +365,36 @@ export function ProductPanel({
                     empty={NO_META_COPYWRITING_NOTE}
                     slot="product-meta-copywriting"
                     rowSlot="product-meta-copywriting-row"
+                    mono
+                  />
+                </div>
+                {/*
+                 * Personas (Flow completion 2026-10-16): the reverse of `personas.product_id`.
+                 * RECORD-PAGE section only; the Personas panel owns the FK and its single-select
+                 * writes `personas.product_id`, which revalidates this page.
+                 */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">Personas</span>
+                  <LinkedRecordList
+                    records={personas}
+                    empty={NO_PERSONAS_NOTE}
+                    slot="product-personas"
+                    rowSlot="product-persona"
+                  />
+                </div>
+                {/*
+                 * Concepts (Flow completion 2026-10-16): the two-hop reverse of concept → angle →
+                 * product. The angle panel is where you edit which product an angle points at;
+                 * this list is read-only. The grid's `concepts` column already counts them, so
+                 * this section names them. Font-mono because concept names are generated.
+                 */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] tracking-wide text-text3 uppercase">Concepts</span>
+                  <LinkedRecordList
+                    records={concepts}
+                    empty={NO_CONCEPTS_NOTE}
+                    slot="product-concepts-list"
+                    rowSlot="product-concept"
                     mono
                   />
                 </div>

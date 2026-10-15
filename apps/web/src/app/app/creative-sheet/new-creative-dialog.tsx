@@ -44,7 +44,7 @@ import { SHEET_GROUPS } from './fields';
  * compile-time contract break, so the fallback is an informative throw rather than a silent
  * narrower type.
  */
-function lookupField(name: 'type' | 'conceptId') {
+function lookupField(name: 'type' | 'conceptId' | 'productId') {
   const field = SHEET_GROUPS.identity.fields.find((entry) => entry.name === name);
   if (field === undefined) {
     throw new Error(`SHEET_GROUPS.identity has no field named ${name}`);
@@ -54,6 +54,7 @@ function lookupField(name: 'type' | 'conceptId') {
 
 const DIALOG_TYPE_FIELD = lookupField('type');
 const DIALOG_CONCEPT_FIELD = lookupField('conceptId');
+const DIALOG_PRODUCT_FIELD = lookupField('productId');
 
 /** The CREATIVE_TYPES vocabulary as InlineField's `singleSelect` chips. */
 const TYPE_CHIP_OPTIONS: readonly ChipOption[] = CREATIVE_TYPES.map((entry) => ({
@@ -69,6 +70,12 @@ export interface ConceptOption {
   readonly id: string;
   readonly name: string;
   readonly batch: string | null;
+  /**
+   * The concept's inherited product id (through its first angle's `angle_products`), or null when
+   * the angle links to no product. The dialog uses this to prefill the brief's Product on concept
+   * pick (PRD §5.7: Product is auto-filled from the linked Angle). Flow completion 2026-10-16.
+   */
+  readonly productId: string | null;
 }
 
 /**
@@ -95,6 +102,11 @@ interface NewCreativeDialogProps {
   readonly demo: boolean;
   /** Every concept of the brand, for the Concept select. Standalone (null concept) is the default. */
   readonly conceptOptions: readonly ConceptOption[];
+  /**
+   * The brand's products, for the Product single-select (Flow completion 2026-10-16). Picking a
+   * Concept with a through-angle product prefills this unless the strategist has already set it.
+   */
+  readonly productOptions?: readonly { readonly id: string; readonly name: string }[];
   /** The number the preview shows; the server allocates the real one inside the transaction. */
   readonly nextNumber: number;
   /** Called the moment the form is SUBMITTED, with the previewed name (SMOKE-17): the sheet shows it at once. */
@@ -108,6 +120,7 @@ interface NewCreativeDialogProps {
 export function NewCreativeDialog({
   demo,
   conceptOptions,
+  productOptions = [],
   nextNumber,
   onPending,
   onCreated,
@@ -125,8 +138,19 @@ export function NewCreativeDialog({
   const [type, setType] = useState<CreativeTypeKey>(CREATIVE_TYPES[0].key);
   const [conceptChoice, setConceptChoice] = useState(STANDALONE_VALUE);
   const [batch, setBatch] = useState('');
+  const [productId, setProductId] = useState<string>('');
+  // Flow completion 2026-10-16: the strategist's own Product choice takes priority over the
+  // concept's inherited one. We track whether the strategist has edited the Product field — once
+  // true, concept changes stop overriding it. False at the start so the first concept-pick fills
+  // the field; the strategist can clear or change it afterwards and the change sticks.
+  const [productManuallySet, setProductManuallySet] = useState(false);
   const [nameMode, setNameMode] = useState<'auto' | 'manual'>('auto');
   const [manualName, setManualName] = useState('');
+
+  const productChipOptions = useMemo<readonly ChipOption[]>(
+    () => productOptions.map((option) => ({ value: option.id, label: option.name })),
+    [productOptions],
+  );
 
   // Phase B5 Fix C: the Concept picker's chip set is the brand's concepts plus the Standalone
   // sentinel at the head. The sentinel VALUE is the `STANDALONE_VALUE` constant so the picker
@@ -150,6 +174,8 @@ export function NewCreativeDialog({
       setOpen(false);
       setBatch('');
       setConceptChoice(STANDALONE_VALUE);
+      setProductId('');
+      setProductManuallySet(false);
       setNameMode('auto');
       setManualName('');
       router.refresh();
@@ -309,6 +335,15 @@ export function NewCreativeDialog({
                   // "nothing selected" state (Standalone is a valid choice, not an unset).
                   if (typeof next === 'string' && next !== '') {
                     setConceptChoice(next);
+                    // Flow completion 2026-10-16: PRD §5.7 — the brief's Product auto-fills from
+                    // the concept's inherited product. Only when the strategist hasn't already
+                    // chosen one by hand: we respect their explicit choice over the inheritance.
+                    if (!productManuallySet) {
+                      const picked = conceptOptions.find((option) => option.id === next);
+                      if (picked?.productId !== null && picked?.productId !== undefined) {
+                        setProductId(picked.productId);
+                      }
+                    }
                   } else {
                     setConceptChoice(STANDALONE_VALUE);
                   }
@@ -320,6 +355,37 @@ export function NewCreativeDialog({
                 name="conceptId"
                 value={conceptChoice === STANDALONE_VALUE ? '' : conceptChoice}
               />
+            </div>
+            {/*
+             * Product picker (Flow completion 2026-10-16): the brief's Product in the create
+             * flow. Picking a concept pre-populates this via its through-angle product (PRD §5.7),
+             * and the strategist can override. Hidden input writes the id back to the server
+             * action's `productId` field. Brand-scoped options from the server page.
+             */}
+            <div className="flex flex-col gap-1.5" data-slot="new-creative-product">
+              <Label htmlFor="new-creative-product-chips">Product</Label>
+              <InlineField
+                id="new-creative-product-chips"
+                brief={{ productId: productId === '' ? null : productId }}
+                field={DIALOG_PRODUCT_FIELD}
+                surface="new-dialog"
+                actorRole={null}
+                actorUserId={null}
+                skipGate
+                options={productChipOptions}
+                onUpdate={(patch) => {
+                  const next = patch['productId'];
+                  setProductManuallySet(true);
+                  setProductId(typeof next === 'string' ? next : '');
+                  return Promise.resolve();
+                }}
+              />
+              <input type="hidden" name="productId" value={productId} />
+              {conceptChoice !== STANDALONE_VALUE && !productManuallySet && productId !== '' ? (
+                <p className="text-[11px] text-text3" data-slot="new-creative-product-inherited">
+                  Inherited from the concept.
+                </p>
+              ) : null}
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
               <Label htmlFor="new-creative-batch">Batch</Label>

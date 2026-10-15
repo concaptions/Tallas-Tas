@@ -129,12 +129,17 @@ export default async function CreativeSheetPage({ searchParams }: CreativeSheetP
   );
 
   // "New creative": the Concept select, and the preview's number read by the allocator's own rule
-  // (`loadNextBriefNumber`, SMOKE-15) so the dialog and the save never disagree.
-  const conceptOptions: ConceptOption[] = conceptResult.rows.map(({ id, name, batch }) => ({
-    id,
-    name,
-    batch,
-  }));
+  // (`loadNextBriefNumber`, SMOKE-15) so the dialog and the save never disagree. `productId` is
+  // the concept's inherited product (through its first angle), so the dialog can pre-fill the
+  // brief's Product on concept pick (PRD §5.7). Flow completion 2026-10-16.
+  const conceptOptions: ConceptOption[] = conceptResult.rows.map(
+    ({ id, name, batch, productId }) => ({
+      id,
+      name,
+      batch,
+      productId,
+    }),
+  );
   // Phase B5 Fix C (2026-10-16): the sidebar's three `link` kind editors (Concept, Angle, Product)
   // need brand-scoped options from the ONE loader per table — `loadConcepts` / `loadAngles` /
   // `loadProducts`, all `withBrand(brandId)` scoped — so the picker can never leak a cross-brand

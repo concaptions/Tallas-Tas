@@ -74,6 +74,18 @@ export interface ProductItem {
    * (AI-43).
    */
   readonly metaCopywriting: readonly LinkedRecord[];
+  /**
+   * The personas researched FOR this product — the reverse of `personas.product_id` (Flow
+   * completion 2026-10-16). Panel-only section, never a grid column; `product` is not a
+   * resolver-indexed column on personas.
+   */
+  readonly personas: readonly LinkedRecord[];
+  /**
+   * The concepts whose first angle points at this product (Flow completion 2026-10-16; two-hop
+   * reverse of concept → angle → product). Panel-only section, never a grid column; the grid's
+   * existing `concepts` count column covers the count side.
+   */
+  readonly concepts: readonly LinkedRecord[];
   /** The angles linked through `angle_products`, by id, for the panel's two-way field. */
   readonly angleIds: readonly string[];
 }
@@ -572,6 +584,8 @@ export function ProductsWorkspace({
           creativeDesigns={openItem?.creativeDesigns ?? []}
           creators={openItem?.creators ?? []}
           metaCopywriting={openItem?.metaCopywriting ?? []}
+          personas={openItem?.personas ?? []}
+          concepts={openItem?.concepts ?? []}
           creatorOptions={creatorOptions}
           angleOptions={angleOptions}
           angleIds={openItem?.angleIds ?? []}

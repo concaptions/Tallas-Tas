@@ -61,6 +61,11 @@ export type CopySourceKind = 'database' | 'demo';
 export interface CreativeOption {
   readonly id: string;
   readonly name: string;
+  /**
+   * The brief's own `product_id`, so the copy panel can prefill its Linked Product on pick (Flow
+   * completion 2026-10-16). Null when the brief has no product.
+   */
+  readonly productId: string | null;
 }
 
 export interface CopyListResult {
@@ -76,6 +81,12 @@ export interface CopyListResult {
 export interface ConceptOption {
   readonly id: string;
   readonly name: string;
+  /**
+   * The concept's inherited product id (through its first angle), so the copy panel can prefill
+   * its Linked Product on pick (Flow completion 2026-10-16; PRD §5.7 auto-fill). Null when the
+   * angle has no product.
+   */
+  readonly productId: string | null;
 }
 
 /**
@@ -163,12 +174,20 @@ async function withDb<T>(deps: CopySourceDeps, query: (db: Db) => Promise<T>): P
 }
 
 /** A brief row reduced to what the `<select>` needs; the name is the brief's own, never rebuilt. */
-function toCreativeOption(brief: { readonly id: string; readonly name: string }): CreativeOption {
-  return { id: brief.id, name: brief.name };
+function toCreativeOption(brief: {
+  readonly id: string;
+  readonly name: string;
+  readonly productId?: string | null;
+}): CreativeOption {
+  return { id: brief.id, name: brief.name, productId: brief.productId ?? null };
 }
 
-function toConceptOption(concept: { readonly id: string; readonly name: string }): ConceptOption {
-  return { id: concept.id, name: concept.name };
+function toConceptOption(concept: {
+  readonly id: string;
+  readonly name: string;
+  readonly productId?: string | null;
+}): ConceptOption {
+  return { id: concept.id, name: concept.name, productId: concept.productId ?? null };
 }
 
 function toLookupCampaign(row: {

@@ -42,6 +42,15 @@ export const serverSchema = clientSchema.extend({
   DATABASE_URL_E2E: z.url().optional(),
   // Not a secret: the pre-created test user's address. apps/web/src/lib/live-e2e-env.ts has the default.
   CLERK_E2E_USER_EMAIL: z.email().optional(),
+  // Flow completion 2026-10-16 (`apps/web/e2e/live/talal-flow.spec.ts`): the admin credentials
+  // used to sign in through the Clerk UI during the Talal-flow E2E spec. The run signs in with
+  // E2E_ADMIN_EMAIL + E2E_ADMIN_PASSWORD, or skips when either is absent and prints the exact
+  // command for the operator to re-run.
+  E2E_ADMIN_EMAIL: z.email().optional(),
+  E2E_ADMIN_PASSWORD: secret.optional(),
+  // Node sets this on invocation. Read as a seam so `.env.local` can be located even when cwd is
+  // not the repo root; still optional because node ensures it is always set at runtime.
+  PWD: z.string().optional(),
   // Vercel sets this automatically on every deployment — the git SHA the running build was deployed
   // from. The `/api/version` route reads it so a later `curl` can prove a push has rolled out.
   // Not a secret (the SHA is on GitHub); the entry here is for the no-restricted-properties lint.

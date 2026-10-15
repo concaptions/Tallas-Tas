@@ -79,8 +79,18 @@ export default async function CopywritingPage({ searchParams }: CopywritingPageP
       columns={columns}
       unconfiguredColumns={unconfiguredColumns}
       items={items}
-      creatives={workspace.creatives.map((creative) => ({ id: creative.id, name: creative.name }))}
-      concepts={workspace.concepts.map((concept) => ({ id: concept.id, name: concept.name }))}
+      // Flow completion 2026-10-16: carry the brief and concept's product ids so the panel can
+      // prefill the Linked Product on pick (PRD §5.7 for concepts, direct FK for briefs).
+      creatives={workspace.creatives.map((creative) => ({
+        id: creative.id,
+        name: creative.name,
+        productId: creative.productId ?? null,
+      }))}
+      concepts={workspace.concepts.map((concept) => ({
+        id: concept.id,
+        name: concept.name,
+        productId: concept.productId ?? null,
+      }))}
       products={workspace.products.map((product) => ({
         id: product.id,
         name: product.name,

@@ -177,6 +177,11 @@ export function copyTypeIdsByCopy(
 export interface CreativeChoice {
   readonly id: string;
   readonly name: string;
+  /**
+   * The brief's own `product_id`, so picking it in the dialog can prefill the copy's Linked Product
+   * (Flow completion 2026-10-16). Null when the brief has no product.
+   */
+  readonly productId?: string | null;
 }
 
 /**
@@ -206,6 +211,12 @@ export const NO_CREATIVE_LABEL = 'No creative';
 export interface ConceptChoice {
   readonly id: string;
   readonly name: string;
+  /**
+   * The concept's inherited product id (through its first angle), so picking it in the dialog can
+   * prefill the copy's Linked Product (Flow completion 2026-10-16). Null when the angle has no
+   * product.
+   */
+  readonly productId?: string | null;
 }
 
 export const NO_CONCEPT_VALUE = 'none';

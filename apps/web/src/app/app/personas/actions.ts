@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
 import { withBrandScope } from '@/lib/personas-source';
-import { personasPath } from '@/lib/routes';
+import { personasPath, productsPath } from '@/lib/routes';
 
 import type { PersonaFieldName } from './fields';
 
@@ -59,6 +59,17 @@ const text = z
  * returns a column this list did not accept would be shown an editor that cannot save. Every
  * persona column is accepted; which ones are rendered is configuration.
  */
+/**
+ * A nullable FK column: empty string means NULL (the picker's "No product" value), a non-empty
+ * value is the product id. Absent means "leave the stored FK alone" — the Persona panel always
+ * sends the field, so this branch exists only for defensive narrowing.
+ */
+const linkId = z
+  .string()
+  .trim()
+  .transform((value) => (value === '' ? null : value))
+  .nullish();
+
 const personaSchema = z.object({
   name: z.string().trim().min(1, 'A persona needs a name.'),
   dayInTheLife: text,
@@ -78,6 +89,10 @@ const personaSchema = z.object({
   buyingTriggers: text,
   emotionalTriggers: text,
   triggerWords: text,
+  // Flow completion 2026-10-16: Product is a direct FK on `personas` (schema since migration
+  // 0001) and the panel edits it unconditionally. Empty string → null; the hidden input is always
+  // sent, so the partial-update patch stays faithful to the picker.
+  productId: linkId,
 });
 
 /** `FormData` entries are `FormDataEntryValue | null`; zod sees strings, or nothing. */
@@ -137,6 +152,9 @@ export async function createPersonaAction(
       return { ok: false, error: 'This workspace has no brand yet.' };
     }
     revalidatePath(personasPath);
+    // Flow completion 2026-10-16: the Products panel reads this product's Personas reverse list,
+    // so a save that sets or clears `product_id` must refresh that page's cache too.
+    revalidatePath(productsPath);
     return { ok: true, id: created.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The persona could not be saved. Try again.' };
@@ -174,6 +192,9 @@ export async function updatePersonaAction(
       return { ok: false, error: 'That persona is no longer available.' };
     }
     revalidatePath(personasPath);
+    // Flow completion 2026-10-16: the Products panel reads this product's Personas reverse list,
+    // so a save that sets or clears `product_id` must refresh that page's cache too.
+    revalidatePath(productsPath);
     return { ok: true, id: saved.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The persona could not be saved. Try again.' };

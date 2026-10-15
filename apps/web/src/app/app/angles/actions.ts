@@ -20,7 +20,7 @@ import { z } from 'zod';
 
 import { withBrandScope } from '@/lib/angles-source';
 import { DEMO_WRITE_REFUSAL, isDemoMode } from '@/lib/demo-mode';
-import { anglesPath } from '@/lib/routes';
+import { anglesPath, productsPath } from '@/lib/routes';
 
 /**
  * The Angles route's two mutations (PRD §5.6). Both follow `personas/actions.ts` exactly:
@@ -292,6 +292,10 @@ export async function createAngleAction(
       return { ok: false, error: 'This workspace has no brand yet.' };
     }
     revalidatePath(anglesPath);
+    // Flow completion 2026-10-16: angle_products writes flow onto the Products panel's two
+    // reverse lists (angles and concepts-through-angle), so the Products page cache must refresh
+    // on every angle save.
+    revalidatePath(productsPath);
     return { ok: true, id: created.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The angle could not be saved. Try again.' };
@@ -336,6 +340,9 @@ export async function updateAngleAction(
       return { ok: false, error: 'That angle is no longer available.' };
     }
     revalidatePath(anglesPath);
+    // Flow completion 2026-10-16: see the create path above. Save that touches `angle_products`
+    // or the angle's name must refresh the Products panel's two reverse lists.
+    revalidatePath(productsPath);
     return { ok: true, id: saved.id, savedAt: Date.now() };
   } catch {
     return { ok: false, error: 'The angle could not be saved. Try again.' };

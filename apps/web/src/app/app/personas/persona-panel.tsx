@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { AwarenessStage, PersonaListRow } from '@tas/db';
 import {
   Button,
@@ -27,6 +28,7 @@ import {
 import type { ResolvedColumnView } from '@/components/views/resolved-columns';
 import { LinkField } from '@/components/links/link-field';
 import { RecordSheet, type RecordSheetNavigation } from '@/components/views';
+import { productsPath } from '@/lib/routes';
 
 /** The `?persona=` value that means "the panel is open on a persona that does not exist yet". */
 export const NEW_PERSONA = 'new';
@@ -47,6 +49,16 @@ export interface AngleLinkOption {
   readonly name: string;
 }
 
+/** One product of the brand the Product picker offers (Flow completion 2026-10-16). */
+export interface ProductLinkOption {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** The sentinel the single-select writes for "no product linked". */
+export const NO_PRODUCT_VALUE = '__no-product__';
+export const NO_PRODUCT_LABEL = 'No product linked';
+
 interface PersonaPanelProps {
   readonly persona: PersonaListRow | null;
   /** The brand's Personas columns from `resolveColumns`: which fields this panel shows, and their
@@ -56,6 +68,11 @@ interface PersonaPanelProps {
   readonly angles?: readonly AngleLinkOption[];
   /** The angle ids currently linked to the persona, from the same junction the angle panel writes. */
   readonly angleIds?: readonly string[];
+  /**
+   * The brand's products, for the Product single-select (Flow completion 2026-10-16). Empty on a
+   * brand with no products; the "No product linked" chip remains the only option in that case.
+   */
+  readonly products?: readonly ProductLinkOption[];
   readonly demo: boolean;
   /** The sheet's prev/next walk, from `recordNavigation` over the grid's `onScreenOrder`. */
   readonly nav?: RecordSheetNavigation;
@@ -89,6 +106,7 @@ export function PersonaPanel({
   columns,
   angles = [],
   angleIds = [],
+  products = [],
   demo,
   nav,
   onNavigate,
@@ -102,6 +120,7 @@ export function PersonaPanel({
     null,
   );
   const [stage, setStage] = useState<AwarenessStage | ''>(persona?.stageOfAwareness ?? '');
+  const [productId, setProductId] = useState<string | null>(persona?.productId ?? null);
   const layout = useMemo(() => personaPanelFrom(columns), [columns]);
 
   useEffect(() => {
@@ -189,6 +208,74 @@ export function PersonaPanel({
                 {FIELDS_HEADING}
               </h3>
               <div className="flex flex-col gap-4">{layout.fields.map(renderField)}</div>
+            </section>
+
+            {/*
+             * Linked Product (Flow completion 2026-10-16): a single-select over the brand's
+             * products that writes `personas.product_id` directly through `updatePersonaAction`
+             * (the FK is on this row, so no cross-table setter is needed). The chip under the
+             * select opens the product's panel. Shown unconditionally — Product is not a
+             * resolver-gated column; it is a core cross-reference the strategist wants on every
+             * persona.
+             */}
+            <section className="flex flex-col gap-3">
+              <h3
+                data-slot="persona-group-heading"
+                className="border-b border-line pb-1 text-sm font-medium text-text2"
+              >
+                Linked Product
+              </h3>
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="persona-field-productId"
+                  className="text-[11px] tracking-wide text-text3 uppercase"
+                >
+                  Linked Product
+                </Label>
+                <Select
+                  value={productId ?? NO_PRODUCT_VALUE}
+                  onValueChange={(next) => {
+                    setProductId(next === NO_PRODUCT_VALUE ? null : next);
+                  }}
+                  disabled={demo}
+                >
+                  <SelectTrigger
+                    id="persona-field-productId"
+                    className="w-full"
+                    aria-label="Linked Product"
+                    data-slot="persona-product-select"
+                  >
+                    <SelectValue placeholder={NO_PRODUCT_LABEL} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_PRODUCT_VALUE}>{NO_PRODUCT_LABEL}</SelectItem>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input
+                  type="hidden"
+                  name="productId"
+                  value={productId ?? ''}
+                  data-slot="persona-product-value"
+                />
+                {productId === null ? null : (
+                  <Link
+                    href={`${productsPath}?product=${encodeURIComponent(productId)}`}
+                    data-slot="persona-product-chip"
+                    data-product-id={productId}
+                    className="inline-flex self-start rounded-input border border-line bg-surface2 px-1.5 py-0.5 text-[11px] text-text2 hover:border-accent-line hover:text-accent"
+                  >
+                    Open {products.find((product) => product.id === productId)?.name ?? productId}
+                  </Link>
+                )}
+                {fieldError('productId') === undefined ? null : (
+                  <p className="text-xs text-bad">{fieldError('productId')}</p>
+                )}
+              </div>
             </section>
 
             {creating || layout.anglesLabel === null ? null : (

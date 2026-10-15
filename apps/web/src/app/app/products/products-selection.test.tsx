@@ -44,6 +44,8 @@ async function renderProducts(demo: boolean): Promise<RenderResult> {
     creativeDesigns: [],
     creators: [],
     metaCopywriting: [],
+    personas: [],
+    concepts: [],
     angleIds: [],
   }));
   return render(

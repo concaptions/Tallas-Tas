@@ -1,5 +1,6 @@
 import { loadAngles } from '@/lib/angles-source';
 import { loadPersonaColumns, loadPersonas } from '@/lib/personas-source';
+import { loadProducts } from '@/lib/products-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { loadUserViews } from '@/lib/user-view-actions';
 import { absoluteTime, relativeTime } from '@/lib/relative-time';
@@ -33,8 +34,19 @@ interface PersonasPageProps {
 }
 
 export default async function PersonasPage({ searchParams }: PersonasPageProps) {
-  const [{ rows }, { rows: angleRows }, { columns: resolved, unconfigured }, params] =
-    await Promise.all([loadPersonas(), loadAngles(), loadPersonaColumns(), searchParams]);
+  const [
+    { rows },
+    { rows: angleRows },
+    { rows: productRows },
+    { columns: resolved, unconfigured },
+    params,
+  ] = await Promise.all([
+    loadPersonas(),
+    loadAngles(),
+    loadProducts(),
+    loadPersonaColumns(),
+    searchParams,
+  ]);
   const requestedSearch = params.q;
   const initialSearch = typeof requestedSearch === 'string' ? requestedSearch : '';
   const demo = isDemoMode();
@@ -50,6 +62,7 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
       .map((angle) => angle.id),
   }));
   const angleOptions = angleRows.map(({ id, name }) => ({ id, name }));
+  const productOptions = productRows.map(({ id, name }) => ({ id, name }));
   const columns = resolved.map(({ columnKey, displayLabel, displayOrder }) => ({
     columnKey,
     displayLabel,
@@ -68,6 +81,7 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
       initialSearch={initialSearch}
       userViews={userViews}
       angleOptions={angleOptions}
+      productOptions={productOptions}
       unconfiguredColumns={unconfigured}
     />
   );

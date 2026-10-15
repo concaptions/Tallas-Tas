@@ -87,6 +87,13 @@ export type ConceptListRow = Concept & {
   themeName: string | null;
   personaName: string | null;
   productName: string | null;
+  /**
+   * The first angle-linked product's id, inherited through `angle_products` (Flow completion
+   * 2026-10-16). Lets a dialog that picks a Concept prefill its own Product field — the brief and
+   * copy new-dialog paths read this to carry the Product through PRD §5.7's auto-fill rule.
+   * Null when the concept's angle links to no product.
+   */
+  productId: string | null;
   collectionName: string | null;
 };
 
@@ -219,6 +226,9 @@ function withInherited(row: Concept, tables: Inherited): ConceptListRow {
     themeName: firstThemeId === null ? null : (tables.themeNames.get(firstThemeId) ?? null),
     personaName: firstPersonaId === null ? null : (tables.personaNames.get(firstPersonaId) ?? null),
     productName: firstProductId === null ? null : (tables.productNames.get(firstProductId) ?? null),
+    // The inherited product id (same angle hop as productName). Nulls when the first linked angle
+    // has no product; the dialog's prefill treats null as "ask the strategist to pick one".
+    productId: firstProductId,
     collectionName:
       firstCollectionId === null ? null : (tables.collectionNames.get(firstCollectionId) ?? null),
   };

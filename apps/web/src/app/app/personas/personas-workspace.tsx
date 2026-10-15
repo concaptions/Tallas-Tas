@@ -73,6 +73,8 @@ interface PersonasWorkspaceProps {
   readonly userViews: UserViewsResult;
   /** The brand's angles, for the panel's two-way Linked angles field. */
   readonly angleOptions?: readonly { readonly id: string; readonly name: string }[];
+  /** The brand's products, for the panel's Linked Product single-select (Flow completion 2026-10-16). */
+  readonly productOptions?: readonly { readonly id: string; readonly name: string }[];
 }
 
 const PERSONAS_CAP = getTableCapability('personas') as NonNullable<
@@ -193,6 +195,7 @@ export function PersonasWorkspace({
   initialView,
   userViews,
   angleOptions = [],
+  productOptions = [],
 }: PersonasWorkspaceProps) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
@@ -469,6 +472,7 @@ export function PersonasWorkspace({
           columns={columns}
           angles={angleOptions}
           angleIds={openItem?.angleIds ?? []}
+          products={productOptions}
           demo={demo}
           nav={creating ? undefined : nav}
           onNavigate={creating ? undefined : select}

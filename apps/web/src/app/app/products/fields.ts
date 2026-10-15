@@ -2,6 +2,7 @@ import type {
   CopyListRow,
   CreatorListRow,
   EmailCampaignListRow,
+  PersonaListRow,
   YoutubeCopyListRow,
 } from '@tas/db';
 import { copyTitle } from '@tas/domain/copy';
@@ -14,7 +15,7 @@ import {
   type InternalStatusKey,
 } from '@tas/domain/state';
 
-import { briefPath, copywritingPath, ugcPath } from '@/lib/routes';
+import { briefPath, copywritingPath, personasPath, ugcPath } from '@/lib/routes';
 
 import { internalStatusView as briefInternalStatusView } from '../creative-design/fields';
 import { statusView as emailCampaignStatusView } from '../email-campaigns/fields';
@@ -258,6 +259,54 @@ export function creatorOptions(rows: readonly CreatorListRow[]): CreatorOption[]
     href: creatorHref(row.id),
     chip: creatorChip(row),
   }));
+}
+
+/**
+ * The personas that research this product — the reverse of `personas.product_id` (Flow completion
+ * 2026-10-16). In the rows' order (newest edit first, as `listPersonas` returns). No chip because
+ * personas have no status track. Click-through opens the persona panel on the Personas page.
+ *
+ * RECORD-PAGE section only, never a grid column: the Products grid stays on the resolver-driven
+ * column set; the reverse link reads as a list of names in the side panel. A persona with no
+ * product is simply absent.
+ */
+export function personaLinks(productId: string, rows: readonly PersonaListRow[]): LinkedRecord[] {
+  return rows
+    .filter((row) => row.productId === productId)
+    .map((row) => ({
+      id: row.id,
+      label: row.name,
+      href: `${personasPath}?persona=${encodeURIComponent(row.id)}`,
+    }));
+}
+
+/** A concept reduced to what the Products panel's reverse-list needs — the generated name and the
+ * inherited product id (through its first angle), nothing more. The concept module's own row shape
+ * (`ConceptRow`) carries much more and is deliberately not imported here. */
+export interface ConceptReverseSource {
+  readonly id: string;
+  readonly name: string;
+  readonly productId: string | null;
+}
+
+/**
+ * The concepts whose first angle points at this product — the two-hop reverse of
+ * `concepts.first_angle.first_product` (Flow completion 2026-10-16; PRD §5.7 says the concept's
+ * Product auto-fills from its linked Angle). The generated `Batch-Angle-Theme` name reads in
+ * `font-mono` on the panel (CLAUDE.md non-negotiable 6). No chip: a concept has its own two-track
+ * status, and the panel's existing `conceptCount` already surfaces the count — this list surfaces
+ * the names, which the count alone cannot.
+ */
+export function conceptLinks(
+  productId: string,
+  rows: readonly ConceptReverseSource[],
+): LinkedRecord[] {
+  return rows
+    .filter((row) => row.productId === productId)
+    .map((row) => ({
+      id: row.id,
+      label: row.name,
+    }));
 }
 
 /**

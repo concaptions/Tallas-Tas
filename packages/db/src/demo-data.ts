@@ -704,6 +704,9 @@ function pairing(
     themeName: theme.name,
     personaName: angle.personaName,
     productName: angle.productName,
+    // Flow completion 2026-10-16: the inherited product id, read from the angle's first linked
+    // product. The fixture's demoAngle has productIds already populated.
+    productId: angle.productIds[0] ?? null,
     collectionName,
   };
 }

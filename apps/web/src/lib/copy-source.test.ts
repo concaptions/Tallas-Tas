@@ -84,7 +84,15 @@ describe('loadCreativeOptions in demo mode', () => {
 
     const options = await loadCreativeOptions({ connect });
 
-    expect(options).toEqual(demoBriefs.map((brief) => ({ id: brief.id, name: brief.name })));
+    // Flow completion 2026-10-16: options now carry productId (the brief's FK), so the panel can
+    // prefill the copy's Linked Product on pick. Null when the brief has no product.
+    expect(options).toEqual(
+      demoBriefs.map((brief) => ({
+        id: brief.id,
+        name: brief.name,
+        productId: brief.productId ?? null,
+      })),
+    );
     expect(options.every((option) => option.name !== '')).toBe(true);
     expect(connect).not.toHaveBeenCalled();
   });

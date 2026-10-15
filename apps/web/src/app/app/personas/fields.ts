@@ -36,7 +36,10 @@ export type PersonaFieldName =
   | 'buyingTriggers'
   | 'emotionalTriggers'
   | 'triggerWords'
-  | 'passion';
+  | 'passion'
+  // Flow completion 2026-10-16: Product is a direct FK (`personas.product_id`) and is edited
+  // unconditionally in the panel, outside the resolver layout. See fieldErrors handling in actions.
+  | 'productId';
 
 /** `input` is one line, `textarea` is strategist prose, `stage` is the awareness Select. */
 export type PersonaFieldKind = 'input' | 'textarea' | 'stage';
