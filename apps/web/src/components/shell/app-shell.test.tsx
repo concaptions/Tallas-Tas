@@ -50,9 +50,9 @@ describe('AppShell', () => {
     expect(markup).toContain('data-ui="bold"');
     expect(markup).toContain('data-slot="bold-shell"');
     expect(markup).toContain('data-slot="bold-sidebar"');
-    // The legacy SIDEBAR is not also mounted behind the rail. The legacy TOP BAR deliberately is —
-    // commit 2b replaces it with the Bold top bar; until then nothing it does may be dropped.
-    expect(markup).toContain('data-slot="shell-top-bar"');
+    expect(markup).toContain('data-slot="bold-top-bar"');
+    // The legacy chrome is NOT also mounted behind it (commit 2b replaced the interim TopBar).
+    expect(markup).not.toContain('data-slot="shell-top-bar"');
     expect(markup).not.toContain('data-slot="shell-sidebar"');
   });
 

@@ -88,6 +88,10 @@ export interface BoldSidebarProps {
   readonly activeBrandId: string | null;
   readonly actor: DemoActor;
   readonly demo: boolean;
+  /** ≤900px only: whether the rail is open as the fixed overlay. Ignored at desktop width. */
+  readonly open: boolean;
+  /** Closes the overlay; also fired when a nav link is followed. A no-op at desktop width. */
+  readonly onClose: () => void;
 }
 
 /**
@@ -99,8 +103,9 @@ export interface BoldSidebarProps {
  * Per-item record counts and the Template-updates pending pill are NOT here: the data plumbing is
  * its own change, deferred to the pages commits (spec "Rollout constraints" 5). No fake numbers.
  *
- * ≤900px the rail is hidden for now; commit 2b turns it into the spec's fixed overlay
- * (`min(290px, 86vw)`) behind the Bold top bar's hamburger, with Escape / scrim-click close.
+ * ≤900px the rail leaves the grid and becomes a fixed overlay (`min(290px, 86vw)`, radius
+ * `0 24px 24px 0` — spec §1.4) that `BoldShell` opens from the Bold top bar's hamburger and closes
+ * on Escape, scrim click and navigation.
  */
 export function BoldSidebar({
   role,
@@ -109,6 +114,8 @@ export function BoldSidebar({
   activeBrandId,
   actor,
   demo,
+  open,
+  onClose,
 }: BoldSidebarProps) {
   const pathname = usePathname();
   const active = activeSectionKey(pathname);
@@ -118,14 +125,20 @@ export function BoldSidebar({
     <aside
       data-slot="bold-sidebar"
       className={cn(
-        'hidden flex-col gap-[18px] overflow-y-auto bg-side-bg px-3.5 py-5 text-side-ink',
+        'z-50 flex-col gap-[18px] overflow-y-auto bg-side-bg px-3.5 py-5 text-side-ink',
         // Desktop (≥901px): the floating rail — sticky top 12, 12px outer margin, rounded 24
-        // (spec §1.4 "Sidebar"). Below 901px it stays hidden until commit 2b's overlay.
-        'min-[901px]:sticky min-[901px]:top-3 min-[901px]:my-3 min-[901px]:ml-3 min-[901px]:flex min-[901px]:h-[calc(100vh-24px)] min-[901px]:rounded-3xl',
+        // (spec §1.4 "Sidebar").
+        'min-[901px]:sticky min-[901px]:top-3 min-[901px]:my-3 min-[901px]:ml-3 min-[901px]:h-[calc(100vh-24px)] min-[901px]:rounded-3xl',
+        // ≤900px: a fixed overlay, `min(290px, 86vw)`, rounded on its free edge (spec §1.4).
+        'max-[900px]:fixed max-[900px]:inset-y-0 max-[900px]:left-0 max-[900px]:w-[min(290px,86vw)] max-[900px]:rounded-r-3xl',
+        // Closed hides the overlay only; the desktop rail is always on. No transform animation,
+        // so `prefers-reduced-motion` has nothing it needs to kill here.
+        open ? 'flex' : 'hidden min-[901px]:flex',
       )}
     >
       <Link
         href={appPath}
+        onClick={onClose}
         className="flex shrink-0 items-center gap-2.5 px-1"
         title="TAS Creative Platform"
       >
@@ -187,6 +200,7 @@ export function BoldSidebar({
                 <li key={section.key}>
                   <Link
                     href={section.href}
+                    onClick={onClose}
                     aria-current={isActive ? 'page' : undefined}
                     title={section.label}
                     className={cn(

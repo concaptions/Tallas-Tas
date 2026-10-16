@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DEMO_ACTOR } from '@/lib/demo-mode';
 
 import { navGroupsForView } from '../nav';
+import { BoldShell } from './bold-shell';
 import { BoldSidebar } from './bold-sidebar';
 
-import type { BrandSummary } from '@/lib/data-source';
+import type { BrandScope, BrandSummary } from '@/lib/data-source';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/app' }));
 
@@ -17,6 +18,15 @@ const TEMPLATE: BrandSummary = {
   status: 'active',
   isTemplate: true,
 };
+const SCOPE: BrandScope = { active: TEMPLATE, options: [TEMPLATE] };
+
+const shell = (
+  <BoldShell brands={SCOPE} actor={DEMO_ACTOR} demo role="admin">
+    <p>page</p>
+  </BoldShell>
+);
+
+const noop = () => undefined;
 
 function renderRail(brands: readonly BrandSummary[] = [TEMPLATE]) {
   return render(
@@ -27,12 +37,46 @@ function renderRail(brands: readonly BrandSummary[] = [TEMPLATE]) {
       activeBrandId={TEMPLATE.id}
       actor={DEMO_ACTOR}
       demo
+      open={false}
+      onClose={noop}
     />,
   );
 }
 
 afterEach(() => {
   cleanup();
+});
+
+describe('BoldShell overlay nav (commit 2b)', () => {
+  it('opens from the hamburger, then closes on Escape', () => {
+    const { container, getByLabelText } = render(shell);
+    const sidebar = () => container.querySelector('[data-slot="bold-sidebar"]');
+    const scrim = () => container.querySelector('[data-slot="bold-nav-scrim"]');
+
+    // Closed: the rail carries the hidden class (desktop re-shows it via min-[901px]:flex).
+    expect(sidebar()?.className).toContain('hidden');
+    expect(scrim()).toBeNull();
+
+    fireEvent.click(getByLabelText('Open navigation'));
+    expect(sidebar()?.className).not.toContain('hidden');
+    expect(scrim()).not.toBeNull();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(sidebar()?.className).toContain('hidden');
+    expect(scrim()).toBeNull();
+  });
+
+  it('closes on a scrim click — the outside-click', () => {
+    const { container, getByLabelText } = render(shell);
+    fireEvent.click(getByLabelText('Open navigation'));
+
+    const scrim = container.querySelector('[data-slot="bold-nav-scrim"]');
+    if (scrim === null) throw new Error('no scrim while open');
+    fireEvent.click(scrim);
+
+    expect(container.querySelector('[data-slot="bold-nav-scrim"]')).toBeNull();
+    expect(container.querySelector('[data-slot="bold-sidebar"]')?.className).toContain('hidden');
+  });
 });
 
 describe('BoldSidebar nav model', () => {

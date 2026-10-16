@@ -113,7 +113,7 @@ import {
   OverviewPipelineStory,
 } from './overview.stories';
 import { AssetUploadModalStory } from './assets-upload.stories';
-import { BoldSidebarStory } from './bold-shell.stories';
+import { BoldSidebarStory, BoldTopBarStory } from './bold-shell.stories';
 import { BrandGradientStory } from './brand-gradient.stories';
 import {
   BriefSidebarStory,
@@ -398,9 +398,14 @@ export default function DesignSystemPage() {
 
       <Section
         title="Bold shell (template brand)"
-        note="Redesign commit 2 (docs/design/bold-redesign-spec.md §3.1): the floating indigo rail, rendered under an explicit data-ui='bold' wrapper exactly as the app shell stamps it for the template brand. Child brands keep the legacy shell untouched. Nav counts are deferred to the pages commits; the Bold top bar is commit 2b."
+        note="Redesign commits 2/2b (docs/design/bold-redesign-spec.md §3.1–§3.2): the floating indigo rail and the Bold top bar, rendered under an explicit data-ui='bold' wrapper exactly as the app shell stamps it for the template brand. Child brands keep the legacy shell untouched. Nav counts are deferred to the pages commits."
       >
-        <BoldSidebarStory />
+        <div className="flex flex-col gap-6 xl:flex-row">
+          <BoldSidebarStory />
+          <div className="min-w-0 flex-1">
+            <BoldTopBarStory />
+          </div>
+        </div>
       </Section>
 
       <Section

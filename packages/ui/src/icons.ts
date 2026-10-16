@@ -9,9 +9,9 @@
  * barrel because `Table`, `Link`, `Image`, `File` would collide with the component exports, and
  * because a single file makes the set auditable: an icon the boards never drew is not here.
  *
- * The additions from `Bell` through `Video` are the Bold rail's nav set (redesign commit 2,
- * docs/design/bold-redesign-spec.md §3 "Iconography": lucide at 18px, stroke 1.75, mapped per nav
- * section in `apps/web/src/components/shell/bold/bold-sidebar.tsx`).
+ * The additions from `Bell` through `Video` are the Bold shell's nav and top-bar set (redesign
+ * commits 2/2b, docs/design/bold-redesign-spec.md §3 "Iconography": lucide at 18px, stroke 1.75,
+ * mapped per nav section in `apps/web/src/components/shell/bold/bold-sidebar.tsx`).
  */
 export {
   ArrowRight,
@@ -29,6 +29,7 @@ export {
   ClipboardList,
   Clock,
   Copy,
+  Eye,
   File,
   Folder,
   GitMerge,
@@ -44,6 +45,7 @@ export {
   Lock,
   LockOpen,
   Megaphone,
+  Menu,
   Minus,
   Monitor,
   MousePointer2,

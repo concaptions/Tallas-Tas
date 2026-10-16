@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@tas/ui';
+import { Button, cn } from '@tas/ui';
 
 import { DEFAULT_THEME, THEME_STORAGE_KEY, isTheme, type Theme } from '@/lib/theme';
 
@@ -28,7 +28,7 @@ function remember(theme: Theme): void {
  * choice. The first paint is not this component's job: `THEME_BOOT_SCRIPT` in the root layout has
  * already applied the stored value in `<head>`, so there is no flash and nothing to hydrate around.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { readonly className?: string } = {}) {
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
@@ -52,7 +52,9 @@ export function ThemeToggle() {
       aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
       title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
       data-theme-state={theme}
-      className="text-text2 hover:text-text"
+      // The default is the exact class string the legacy top bar always had; the Bold top bar
+      // (redesign commit 2b) restyles the trigger only — the toggle's logic is shared, not forked.
+      className={cn('text-text2 hover:text-text', className)}
     >
       {/* The glyph shows the current theme; the label says what clicking does. */}
       <svg
