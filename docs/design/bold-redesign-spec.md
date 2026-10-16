@@ -300,6 +300,24 @@ every new/changed primitive lands a story on `/design-system` in the same commit
 Suggested verification after 8: screenshot pass over all 14 pages in light + dark at desktop/900px
 widths into `docs/qa/bold-redesign/`, compared against the artifact.
 
+## Rollout constraints (2026-10-16)
+
+Operator rulings that bind every commit in the chain:
+
+1. **InlineField wiring + Flow pickers are RESTYLE, not DROP.** Commit 4 must port them onto the new
+   drawer skin and prove it with before/after `grep -c` of InlineField usages — the counts match or
+   grow, never shrink.
+2. **Fix D (grid cell inline edit) is deferred until AFTER commit 8.** No grid-cell-editing work of
+   any kind during the chain.
+3. **Template brand only, through the whole chain.** The Bold scope is gated on the active brand's
+   `isTemplate` flag (`BrandSummary.isTemplate` → `data-ui="bold"` stamped by the app shell,
+   `apps/web/src/lib/ui-scope.ts`) — never on a `column_definitions` flag, which template-seeded rows
+   would inherit into child brands. Child brands (Gratsi, Niagara Sleep Solutions, Mattress Central,
+   Funky Painting) keep the current look untouched until the user approves. STOP reports for commits
+   2, 4, 6 and 7 must include Template-vs-Gratsi screenshots proving the separation.
+4. **Gates.** The four local gates (typecheck 0 · lint 0 · tests ≥ floor · build green) run on every
+   commit. Vercel `/api/version` sha-match is skipped for commits 1–3 and required for commits 4–8.
+
 ---
 
 *Spec extracted 2026-10-16 from the artifact (1247 lines, read in full). Implementation has not started;

@@ -61,16 +61,17 @@ function callSites(): string[] {
 
 describe('the brand gradient', () => {
   /**
-   * Four: the dark `:root`, the explicit light theme, the nested dark container the /design-system
-   * page uses to show both palettes at once, and the OS light preference. A theme block that
-   * forgets it inherits the other theme's purples.
+   * Seven: the dark `:root`, the explicit light theme, the nested dark container the /design-system
+   * page uses to show both palettes at once, and the OS light preference — plus, since Bold redesign
+   * commit 1, the three `data-ui="bold"` scope blocks (Bold light, Bold dark via the OS preference,
+   * Bold dark via `data-theme`). A theme block that forgets it inherits the other theme's purples.
    */
   it('is defined in every theme block', () => {
     const declarations = readFileSync(tokensFile, 'utf8').match(
       new RegExp(`${TOKEN}:\\s*linear-gradient`, 'g'),
     );
 
-    expect(declarations).toHaveLength(4);
+    expect(declarations).toHaveLength(7);
   });
 
   it('is reachable as a utility that references the token, not a literal', () => {

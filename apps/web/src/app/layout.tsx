@@ -1,6 +1,6 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { DM_Mono, Figtree, Inter, JetBrains_Mono, Outfit } from 'next/font/google';
 import type { ReactNode } from 'react';
 
 import { clerkPublishableKey } from '@/lib/clerk-keys';
@@ -28,6 +28,31 @@ const jetBrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+// The three Bold faces (Bold redesign commit 1, docs/design/bold-redesign-spec.md §2). They only
+// hand over CSS variables here; tokens.css CONSUMES Outfit and DM Mono solely under the
+// `data-ui="bold"` scope (template brand only), so the default palette keeps Inter/JetBrains Mono.
+// Figtree is loaded now but consumed later, by the FB ad preview of chain commit 7.
+const outfit = Outfit({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-outfit',
+  display: 'swap',
+});
+
+const dmMono = DM_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-dm-mono',
+  display: 'swap',
+});
+
+const figtree = Figtree({
+  subsets: ['latin'],
+  weight: ['500', '600'],
+  variable: '--font-figtree',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'TAS Creative Platform',
   description: 'Creative workflow for the TAS Digital team and their clients.',
@@ -41,7 +66,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       lang="en"
       data-theme={DEFAULT_THEME}
       suppressHydrationWarning
-      className={`${inter.variable} ${jetBrainsMono.variable}`}
+      className={`${inter.variable} ${jetBrainsMono.variable} ${outfit.variable} ${dmMono.variable} ${figtree.variable}`}
     >
       <head>
         {/* Applies the remembered theme before the first paint, so light never flashes dark. */}

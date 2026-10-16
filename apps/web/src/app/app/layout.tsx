@@ -10,6 +10,7 @@ import { loadBrandScope } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { ensureOrganization } from '@/lib/ensure-organization';
 import { ensureUser } from '@/lib/ensure-user';
+import { uiScope } from '@/lib/ui-scope';
 import { viewerRole } from '@/lib/viewer-role';
 
 /**
@@ -80,7 +81,13 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
   }
 
   return (
-    <div data-slot="app-shell" className="flex min-h-screen flex-col overflow-x-hidden bg-bg">
+    // `data-ui="bold"` scopes the Bold token set (redesign commit 1) to the template brand only;
+    // for a child brand `uiScope` returns undefined and React omits the attribute entirely.
+    <div
+      data-slot="app-shell"
+      data-ui={uiScope(brands.active)}
+      className="flex min-h-screen flex-col overflow-x-hidden bg-bg"
+    >
       <TopBar brands={brands} actor={actor} demo={demo} />
       {demo ? <DemoBanner /> : null}
       <div className="flex flex-1 items-stretch">

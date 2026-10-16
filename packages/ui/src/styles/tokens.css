@@ -175,11 +175,29 @@
   --color-on-accent: var(--on-accent);
   --color-on-ok: var(--on-ok);
 
+  /* Bold-chain names (commit 1). Each resolves through the default aliases below, so the classes
+     exist everywhere and re-palette only inside the `data-ui="bold"` scope. */
+  --color-accent-2: var(--accent-2);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad-soft: var(--bad-soft);
+  --color-info-soft: var(--info-soft);
+  --color-side-bg: var(--side-bg);
+  --color-side-ink: var(--side-ink);
+  --color-side-ink2: var(--side-ink-2);
+  --color-side-active: var(--side-active);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-grid: var(--grid);
+  --color-scrim: var(--scrim);
+
   --font-sans: var(--sans);
   --font-mono: var(--mono);
 
-  --radius-input: 6px;
-  --radius-card: 8px;
+  /* Routed through :root vars so the Bold scope can widen radii without new utility names.
+     The default scope keeps rendering exactly 6px / 8px (declared below). */
+  --radius-input: var(--r-input);
+  --radius-card: var(--r-card);
 
   /* `shadow-float` / `shadow-sheet`. The theme name equals the token name, so Tailwind also emits
      `:root { --shadow-float: var(--shadow-float) }` inside `@layer theme` — a self-reference that
@@ -210,4 +228,200 @@
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 6px);
+}
+
+/**
+ * Token names the Bold redesign chain introduces (docs/design/bold-redesign-spec.md §1), defined
+ * for the DEFAULT scope too so later chain commits can consume them unconditionally while child
+ * brands keep the current palette. Every one is a var() alias onto the existing palette — so it
+ * follows the theme switch for free — except `--accent-2`, the one new literal: the second stop of
+ * the existing brand gradient, themed in the same four blocks as the palette above. The radius
+ * vars carry the exact values `--radius-input` / `--radius-card` held before they were routed here.
+ */
+:root {
+  --accent-2: #c026d3;
+  --accent-ink: var(--on-accent);
+  --accent-text: var(--accent-line);
+  --panel: var(--surface);
+  --panel-solid: var(--surface);
+  --panel-2: var(--surface2);
+  --ink: var(--text);
+  --ink-2: var(--text2);
+  --ink-3: var(--text3);
+  --ok-soft: color-mix(in srgb, var(--ok) 15%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 15%, transparent);
+  --bad-soft: color-mix(in srgb, var(--bad) 15%, transparent);
+  --info-soft: color-mix(in srgb, var(--info) 15%, transparent);
+  --side-bg: var(--bg-deep);
+  --side-ink: var(--text);
+  --side-ink-2: var(--text3);
+  --side-active: color-mix(in srgb, var(--text) 10%, transparent);
+  --shadow: var(--shadow-float);
+  --chart-1: var(--accent);
+  --chart-2: var(--accent-2);
+  --grid: var(--line);
+  --fill-o: 0.2;
+  --scrim: color-mix(in srgb, var(--bg-deep) 60%, transparent);
+  --font-d: var(--sans);
+  --font-b: var(--sans);
+  --font-m: var(--mono);
+  --r-input: 6px;
+  --r-card: 8px;
+}
+
+:root[data-theme='light'],
+[data-theme='light'] {
+  --accent-2: #a21caf;
+}
+
+[data-theme='dark'] {
+  --accent-2: #c026d3;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --accent-2: #a21caf;
+  }
+}
+
+/**
+ * BOLD (Direction C) — the scoped token set, commit 1 of the redesign chain
+ * (docs/design/bold-redesign-spec.md §1–§2, §6.1 and "Rollout constraints"). These blocks apply
+ * ONLY under `data-ui="bold"`, which the app shell stamps when the ACTIVE BRAND IS THE TEMPLATE
+ * (apps/web/src/lib/ui-scope.ts). Child brands and logged-out pages never carry the attribute and
+ * render from the palette above, untouched. Light is Bold's base; dark redefines VALUES only,
+ * keyed off the same `data-theme` switch on <html> as the default palette. `--surface3/4` and
+ * `--text4` have no spec row (Bold stops at panel-2 / ink-3); they are interpolated on the Bold
+ * ramp so existing call sites keep a sensible inset/muted step.
+ */
+[data-ui='bold'] {
+  --bg: #f2f3fa;
+  --surface: #ffffff; /* --panel */
+  --surface2: #f5f5fc; /* --panel-2 */
+  --surface3: #ececf7;
+  --surface4: #e2e2f0;
+  --line: #e5e5f2;
+  --line2: #d2d2e6;
+  --text: #15123a; /* --ink */
+  --text2: #474470;
+  --text3: #6a6890;
+  --text4: #8d8ab2;
+  --accent: #6c3bff;
+  --accent-2: #ff4f82;
+  --accent-line: #5a27f0; /* carries --accent-text through the alias above */
+  --accent-soft: #eee8ff;
+  --accent-gradient: linear-gradient(135deg, #6c3bff 0%, #ff4f82 100%);
+  --on-accent: #ffffff; /* --accent-ink */
+  --ok: #0b8452;
+  --ok-soft: #e1f6ec;
+  --warn: #9c5900;
+  --warn-soft: #fff1da;
+  --bad: #cc3049;
+  --bad-soft: #ffe6eb;
+  --info: #2160e6;
+  --info-soft: #e3ecff;
+  --on-ok: #ffffff; /* Bold's light --ok is a deep green, so its ink flips to white */
+  --side-bg: #17123f;
+  --side-ink: #ffffff;
+  --side-ink-2: #bdb8e6;
+  --side-active: rgba(255, 255, 255, 0.1);
+  --shadow: 0 1px 2px rgba(21, 18, 58, 0.04), 0 14px 32px -18px rgba(21, 18, 58, 0.22);
+  --chart-1: #6c3bff;
+  --chart-2: #ff4f82;
+  --grid: #ececf6;
+  --fill-o: 0.2;
+  --scrim: rgba(21, 18, 58, 0.4);
+  --r-input: 14px;
+  --r-card: 20px;
+  --sans: var(--font-outfit, 'Outfit'), 'Segoe UI', system-ui, sans-serif;
+  --mono: var(--font-dm-mono, 'DM Mono'), ui-monospace, Consolas, monospace;
+  /* font-family and color are INHERITED from <body>, which sits outside the scope, so the scope
+     re-declares both to re-evaluate the re-pointed vars on its own element. */
+  font-family: var(--sans);
+  color: var(--text);
+}
+
+/* Bold dark. Two routes to the same values: the OS preference while the root is not pinned light,
+   and an explicit `data-theme="dark"` (on the root, or on the scoped element itself). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) [data-ui='bold'] {
+    --bg: #0d0b21;
+    --bg-deep: #08061a;
+    --surface: #17143a;
+    --surface2: #1f1b48;
+    --surface3: #272257;
+    --surface4: #2f2a66;
+    --line: rgba(255, 255, 255, 0.08);
+    --line2: rgba(255, 255, 255, 0.15);
+    --text: #f2f0ff;
+    --text2: #bebae4;
+    --text3: #9490c0;
+    --text4: #7b77a6;
+    --accent: #7c55ff;
+    --accent-2: #ff6b96;
+    --accent-line: #b9a3ff;
+    --accent-soft: rgba(124, 85, 255, 0.2);
+    --accent-gradient: linear-gradient(135deg, #7c55ff 0%, #ff6b96 100%);
+    --on-accent: #ffffff;
+    --ok: #3edc95;
+    --ok-soft: rgba(62, 220, 149, 0.13);
+    --warn: #ffc15c;
+    --warn-soft: rgba(255, 193, 92, 0.13);
+    --bad: #ff7a93;
+    --bad-soft: rgba(255, 122, 147, 0.13);
+    --info: #7fa9ff;
+    --info-soft: rgba(127, 169, 255, 0.13);
+    --on-ok: #0f2418;
+    --side-bg: #08061a;
+    --side-ink: #ffffff;
+    --side-ink-2: #b4afe0;
+    --side-active: rgba(255, 255, 255, 0.09);
+    --shadow: 0 0 0 1px var(--line), 0 18px 36px -20px rgba(0, 0, 0, 0.7);
+    --chart-1: #8f6bff;
+    --chart-2: #ff6b96;
+    --grid: rgba(255, 255, 255, 0.06);
+    --fill-o: 0.25;
+    --scrim: rgba(0, 0, 0, 0.6);
+  }
+}
+
+[data-theme='dark'] [data-ui='bold'],
+[data-ui='bold'][data-theme='dark'] {
+  --bg: #0d0b21;
+  --bg-deep: #08061a;
+  --surface: #17143a;
+  --surface2: #1f1b48;
+  --surface3: #272257;
+  --surface4: #2f2a66;
+  --line: rgba(255, 255, 255, 0.08);
+  --line2: rgba(255, 255, 255, 0.15);
+  --text: #f2f0ff;
+  --text2: #bebae4;
+  --text3: #9490c0;
+  --text4: #7b77a6;
+  --accent: #7c55ff;
+  --accent-2: #ff6b96;
+  --accent-line: #b9a3ff;
+  --accent-soft: rgba(124, 85, 255, 0.2);
+  --accent-gradient: linear-gradient(135deg, #7c55ff 0%, #ff6b96 100%);
+  --on-accent: #ffffff;
+  --ok: #3edc95;
+  --ok-soft: rgba(62, 220, 149, 0.13);
+  --warn: #ffc15c;
+  --warn-soft: rgba(255, 193, 92, 0.13);
+  --bad: #ff7a93;
+  --bad-soft: rgba(255, 122, 147, 0.13);
+  --info: #7fa9ff;
+  --info-soft: rgba(127, 169, 255, 0.13);
+  --on-ok: #0f2418;
+  --side-bg: #08061a;
+  --side-ink: #ffffff;
+  --side-ink-2: #b4afe0;
+  --side-active: rgba(255, 255, 255, 0.09);
+  --shadow: 0 0 0 1px var(--line), 0 18px 36px -20px rgba(0, 0, 0, 0.7);
+  --chart-1: #8f6bff;
+  --chart-2: #ff6b96;
+  --grid: rgba(255, 255, 255, 0.06);
+  --fill-o: 0.25;
+  --scrim: rgba(0, 0, 0, 0.6);
 }
