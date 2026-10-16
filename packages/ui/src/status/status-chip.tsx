@@ -7,6 +7,14 @@ export interface StatusChipProps {
   tone: ChipTone;
   label: string;
   className?: string;
+  /**
+   * The Bold dot treatment (redesign commit 3, spec §3.5). The default chip carries a filled
+   * leading dot UNDER THE BOLD SCOPE ONLY — a scoped `::before` in `styles/bold.css`, no DOM of its
+   * own — `ring` outlines that dot (the client-track marker) and `plain` removes it. Only Bold call
+   * sites pass this; `undefined` emits no attribute, so the default output stays byte-identical to
+   * the pre-Bold chip (`status-chip.test.tsx` pins it) and child brands render exactly as before.
+   */
+  variant?: 'ring' | 'plain';
 }
 
 /**
@@ -22,7 +30,7 @@ const toneVariable: Record<ChipTone, string> = {
   mute: 'var(--text3)',
 };
 
-export function StatusChip({ tone, label, className }: StatusChipProps) {
+export function StatusChip({ tone, label, className, variant }: StatusChipProps) {
   const colour = toneVariable[tone];
   const style: CSSProperties = {
     fontSize: '10.5px',
@@ -36,6 +44,7 @@ export function StatusChip({ tone, label, className }: StatusChipProps) {
     <span
       data-slot="status-chip"
       data-tone={tone}
+      data-variant={variant}
       className={cn(
         'inline-flex items-center rounded-input border px-1.5 py-0.5 font-mono leading-none whitespace-nowrap uppercase',
         className,

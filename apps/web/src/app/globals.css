@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 @import '@tas/ui/styles/tokens.css';
+/* The Bold primitive skins (redesign commit 3). Unlayered on purpose, like tokens.css: every rule
+   is scoped under [data-ui='bold'] and must beat the layered Tailwind utilities on the same DOM. */
+@import '@tas/ui/styles/bold.css';
 
 /* Tailwind only compiles classes it can see. @tas/ui lives outside this app's source tree, so its
    components' utilities have to be registered explicitly. */

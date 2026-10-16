@@ -114,6 +114,13 @@ import {
 } from './overview.stories';
 import { AssetUploadModalStory } from './assets-upload.stories';
 import { BoldSidebarStory, BoldTopBarStory } from './bold-shell.stories';
+import {
+  BoldButtonsStory,
+  BoldChipsStory,
+  BoldControlsStory,
+  BoldTagsStory,
+  BoldToastSkinStory,
+} from './bold-primitives.stories';
 import { BrandGradientStory } from './brand-gradient.stories';
 import {
   BriefSidebarStory,
@@ -405,6 +412,19 @@ export default function DesignSystemPage() {
           <div className="min-w-0 flex-1">
             <BoldTopBarStory />
           </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Bold primitives (template brand)"
+        note="Redesign commit 3 (spec §3.4–§3.11): the scoped skins in packages/ui/src/styles/bold.css over the product's own chips, buttons, switch, input and status notice — same DOM, Bold paint under data-ui='bold' only — plus the new Bold-only Tag and aspect-ratio glyph. Tabs, pills, seg, banner, empty state and BoldToast land with commit 3b."
+      >
+        <div className="flex flex-col gap-4">
+          <BoldChipsStory />
+          <BoldButtonsStory />
+          <BoldControlsStory />
+          <BoldTagsStory />
+          <BoldToastSkinStory />
         </div>
       </Section>
 

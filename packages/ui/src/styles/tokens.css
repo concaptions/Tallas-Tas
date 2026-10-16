@@ -205,6 +205,7 @@
      layered one on the same element. Keep the import unlayered. */
   --shadow-float: var(--shadow-float);
   --shadow-sheet: var(--shadow-sheet);
+  --shadow-toast: var(--shadow-toast);
 
   /* shadcn surface aliases, so the vendored primitives keep compiling unchanged. */
   --color-background: var(--background);
@@ -267,6 +268,11 @@
   --font-m: var(--mono);
   --r-input: 6px;
   --r-card: 8px;
+  /* Commit 3 shadows (spec §1.5). `--shadow-pri` is the primary button's glow — pure var() over
+     the live accent, so one declaration serves both scopes and every theme. `--shadow-toast`
+     defaults onto the float shadow; the Bold scope re-points it to the artifact's toast cast. */
+  --shadow-pri: 0 10px 24px -12px color-mix(in srgb, var(--accent) 80%, transparent);
+  --shadow-toast: var(--shadow-float);
 }
 
 :root[data-theme='light'],
@@ -331,6 +337,7 @@
   --grid: #ececf6;
   --fill-o: 0.2;
   --scrim: rgba(21, 18, 58, 0.4);
+  --shadow-toast: 0 18px 40px -16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --r-input: 14px;
   --r-card: 20px;
   --sans: var(--font-outfit, 'Outfit'), 'Segoe UI', system-ui, sans-serif;

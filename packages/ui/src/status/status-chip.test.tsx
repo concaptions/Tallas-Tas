@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { chipTone, type ChipTone } from '@tas/domain/state';
 
@@ -43,5 +44,47 @@ describe('StatusChip', () => {
   it('never carries a colour of its own: the tone always comes from chipTone', () => {
     render(<StatusChip tone={chipTone('Revisions Needed')} label="Revisions Needed" />);
     expect(screen.getByText('Revisions Needed').dataset['tone']).toBe('warn');
+  });
+
+  /**
+   * The commit-3 cardinal rule: the Bold `variant` prop must not move a byte of the default
+   * output — child brands render the chip unscoped, and the Bold dot is a scoped `::before` in
+   * bold.css, not DOM. The reference below is the pre-commit-3 component's JSX, copied verbatim
+   * (the byte-pin approach of `app-shell.test.tsx`).
+   */
+  it('renders the default chip byte-identical to the pre-Bold component', () => {
+    const colour = 'var(--info)';
+    const reference = (
+      <span
+        data-slot="status-chip"
+        data-tone="info"
+        className="inline-flex items-center rounded-input border px-1.5 py-0.5 font-mono leading-none whitespace-nowrap uppercase"
+        style={{
+          fontSize: '10.5px',
+          letterSpacing: '.03em',
+          borderColor: colour,
+          color: colour,
+          backgroundColor: `color-mix(in srgb, ${colour} 13%, transparent)`,
+        }}
+      >
+        Pending for Approval
+      </span>
+    );
+    expect(renderToStaticMarkup(<StatusChip tone="info" label="Pending for Approval" />)).toBe(
+      renderToStaticMarkup(reference),
+    );
+  });
+
+  it('emits data-variant only when a Bold call site passes one', () => {
+    render(
+      <>
+        <StatusChip tone="info" label="ring" variant="ring" />
+        <StatusChip tone="info" label="plain" variant="plain" />
+        <StatusChip tone="info" label="default" />
+      </>,
+    );
+    expect(screen.getByText('ring').dataset['variant']).toBe('ring');
+    expect(screen.getByText('plain').dataset['variant']).toBe('plain');
+    expect(screen.getByText('default').dataset['variant']).toBeUndefined();
   });
 });

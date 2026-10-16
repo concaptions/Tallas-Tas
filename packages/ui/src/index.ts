@@ -124,3 +124,6 @@ export {
 } from './forms/chip-row';
 
 export { DatePicker, type DatePickerProps } from './forms/date-picker';
+
+export { AR_GLYPH_BOX, ArGlyph, type ArGlyphProps, type ArGlyphRatio } from './bold/ar-glyph';
+export { BoldTag, type BoldTagProps } from './bold/tag';

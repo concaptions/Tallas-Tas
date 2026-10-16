@@ -16,6 +16,8 @@ export interface ClientStatusBadgeProps {
   /** How to colour the chip, given the stored value. Each table's own tone function. */
   readonly toneFor: (value: string) => ChipTone;
   readonly className?: string;
+  /** Forwarded to `StatusChip` (Bold §3.5): `ring` is the client-track marker. Bold call sites only. */
+  readonly variant?: 'ring' | 'plain';
 }
 
 /**
@@ -29,8 +31,9 @@ export function ClientStatusBadge({
   value,
   toneFor,
   className,
+  variant,
 }: ClientStatusBadgeProps) {
   const entry = vocabulary.find((row) => row.key === value);
   const label = entry === undefined ? value : entry.label;
-  return <StatusChip tone={toneFor(value)} label={label} className={className} />;
+  return <StatusChip tone={toneFor(value)} label={label} className={className} variant={variant} />;
 }
