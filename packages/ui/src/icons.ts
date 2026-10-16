@@ -33,6 +33,7 @@ export {
   File,
   Folder,
   GitMerge,
+  Globe,
   Grid3x3,
   GripVertical,
   House,

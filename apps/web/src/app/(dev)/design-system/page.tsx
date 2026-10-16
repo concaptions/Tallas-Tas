@@ -122,6 +122,7 @@ import {
   BoldToastSkinStory,
 } from './bold-primitives.stories';
 import { BoldNavStory } from './bold-nav.stories';
+import { BoldBannerEmptyStory, BoldToastStory } from './bold-feedback.stories';
 import { BrandGradientStory } from './brand-gradient.stories';
 import {
   BriefSidebarStory,
@@ -418,7 +419,7 @@ export default function DesignSystemPage() {
 
       <Section
         title="Bold primitives (template brand)"
-        note="Redesign commits 3/3b (spec §3.4–§3.11): the scoped skins in packages/ui/src/styles/bold.css over the product's own chips, buttons, switch, input and status notice — same DOM, Bold paint under data-ui='bold' only — plus the new Bold-only primitives: Tag, aspect-ratio glyph, tabs, pills, seg and subnav. Banner, empty state and the 3.2s BoldToast land with commit 3c."
+        note="Redesign commits 3/3b/3c (spec §3.4–§3.13): the scoped skins in packages/ui/src/styles/bold.css over the product's own chips, buttons, switch, input and status notice — same DOM, Bold paint under data-ui='bold' only — plus the new Bold-only primitives: Tag, aspect-ratio glyph, tabs, pills, seg, subnav, banner, empty state and the 3.2s BoldToast."
       >
         <div className="flex flex-col gap-4">
           <BoldChipsStory />
@@ -426,7 +427,9 @@ export default function DesignSystemPage() {
           <BoldControlsStory />
           <BoldTagsStory />
           <BoldNavStory />
+          <BoldBannerEmptyStory />
           <BoldToastSkinStory />
+          <BoldToastStory />
         </div>
       </Section>
 
