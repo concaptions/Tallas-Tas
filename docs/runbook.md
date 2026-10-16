@@ -104,6 +104,20 @@ line → push `main`.
 
 Items whose acceptance criteria are gated on credentials (see D-008). Each line gives the exact command.
 
+- Bold redesign commits 2/2b (2026-10-16, `5db7500` + `cd19937`) · the Template-vs-Gratsi screenshot
+  pair (spec rollout constraint 3) could not be taken on this machine: `.env.local` carries only the
+  PRODUCTION Clerk keys (the `*_TEST`/`_E2E` names alias them), and the production instance's frontend
+  API (`clerk.tallas-tas-pi.vercel.app`) refuses a localhost origin — every Clerk asset dies with
+  `ERR_CONNECTION_CLOSED` and the `/sign-in` page renders zero inputs on `next dev --port 3001`;
+  `@clerk/testing` tokens only exist for development instances, and the deployed app (where sign-in
+  works) is at `f72b8c3`, before this chain. Once a deploy carries `cd19937`: sign in as
+  `E2E_ADMIN_EMAIL`, screenshot `/app` with the Template active (Bold rail + Bold top bar,
+  `data-ui="bold"`) and again with Gratsi active (legacy shell, byte-identical markup pinned by
+  `apps/web/src/components/shell/app-shell.test.tsx`), into `docs/qa/bold-redesign/commit2/`
+  as `template.png` / `gratsi.png`. Until then the folder holds the honest substitutes:
+  `design-system-bold-stories.png` (the rail + top bar under an explicit `data-ui="bold"` scope)
+  and `demo-child-legacy.png` (demo mode, Niagara active, zero Bold selectors on the page).
+
 - Oct 12 UI overhaul, Ticket 0 (2026-10-13) · the live Playwright spec `apps/web/e2e/live/briefs-start.spec.ts`
   now reads the Activity entry's `data-value` attributes (the grouped QA auto-reset entry); it is typechecked
   but unrun here (no Clerk test instance): run `pnpm test:e2e -- --project=live` once with the four live
