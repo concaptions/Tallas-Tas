@@ -113,6 +113,7 @@ import {
   OverviewPipelineStory,
 } from './overview.stories';
 import { AssetUploadModalStory } from './assets-upload.stories';
+import { BoldSidebarStory } from './bold-shell.stories';
 import { BrandGradientStory } from './brand-gradient.stories';
 import {
   BriefSidebarStory,
@@ -393,6 +394,13 @@ export default function DesignSystemPage() {
         note="--accent-gradient through the .bg-brand-gradient utility, in both palettes: the top bar is the product's gradient surface (pinned to the dark palette); the mark and rule here are the text-free primitives the gradient also fits."
       >
         <BrandGradientStory />
+      </Section>
+
+      <Section
+        title="Bold shell (template brand)"
+        note="Redesign commit 2 (docs/design/bold-redesign-spec.md §3.1): the floating indigo rail, rendered under an explicit data-ui='bold' wrapper exactly as the app shell stamps it for the template brand. Child brands keep the legacy shell untouched. Nav counts are deferred to the pages commits; the Bold top bar is commit 2b."
+      >
+        <BoldSidebarStory />
       </Section>
 
       <Section

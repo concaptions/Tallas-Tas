@@ -8,19 +8,30 @@
  * aliases, `Text` not at all, and `Grid3X3` is spelled `Grid3x3`. A subpath rather than the main
  * barrel because `Table`, `Link`, `Image`, `File` would collide with the component exports, and
  * because a single file makes the set auditable: an icon the boards never drew is not here.
+ *
+ * The additions from `Bell` through `Video` are the Bold rail's nav set (redesign commit 2,
+ * docs/design/bold-redesign-spec.md §3 "Iconography": lucide at 18px, stroke 1.75, mapped per nav
+ * section in `apps/web/src/components/shell/bold/bold-sidebar.tsx`).
  */
 export {
   ArrowRight,
+  Bell,
   Book,
+  Bot,
+  Box,
+  Building2,
   CalendarRange,
   Captions,
   Check,
   ChevronLeft,
   ChevronRight,
   CircleX,
+  ClipboardList,
   Clock,
   Copy,
   File,
+  Folder,
+  GitMerge,
   Grid3x3,
   GripVertical,
   House,
@@ -28,11 +39,16 @@ export {
   Info,
   Layers2,
   LayoutGrid,
+  Lightbulb,
   Link,
   Lock,
   LockOpen,
+  Megaphone,
   Minus,
+  Monitor,
   MousePointer2,
+  Palette,
+  PenLine,
   Pin,
   PinOff,
   Play,
@@ -40,13 +56,19 @@ export {
   RefreshCw,
   RotateCcw,
   Rows3,
+  Ruler,
   Search,
   SquareKanban,
   Star,
   Table,
+  Target,
   TextAlignStart,
   Trash,
+  TrendingUp,
   TriangleAlert,
+  Trophy,
+  Users,
+  Video,
   X,
 } from 'lucide-react';
 

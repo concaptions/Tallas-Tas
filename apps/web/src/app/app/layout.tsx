@@ -2,15 +2,12 @@ import { auth } from '@clerk/nextjs/server';
 import { NO_WORKSPACE_NOTE, NO_WORKSPACE_TITLE, canSeeInternalWorkspace } from '@tas/domain';
 import type { ReactNode } from 'react';
 
-import { DemoBanner } from '@/components/shell/demo-banner';
-import { Sidebar } from '@/components/shell/sidebar';
-import { TopBar } from '@/components/shell/top-bar';
+import { AppShell } from '@/components/shell/app-shell';
 import { currentActor } from '@/lib/actor';
 import { loadBrandScope } from '@/lib/data-source';
 import { isDemoMode } from '@/lib/demo-mode';
 import { ensureOrganization } from '@/lib/ensure-organization';
 import { ensureUser } from '@/lib/ensure-user';
-import { uiScope } from '@/lib/ui-scope';
 import { viewerRole } from '@/lib/viewer-role';
 
 /**
@@ -80,24 +77,11 @@ export default async function AppShellLayout({ children }: Readonly<{ children: 
     return <NoWorkspace />;
   }
 
+  // The chrome itself — and the template-only Bold branch (redesign commit 2) — lives in
+  // `AppShell`, which keeps the choosing logic beside both shells and testable without `auth()`.
   return (
-    // `data-ui="bold"` scopes the Bold token set (redesign commit 1) to the template brand only;
-    // for a child brand `uiScope` returns undefined and React omits the attribute entirely.
-    <div
-      data-slot="app-shell"
-      data-ui={uiScope(brands.active)}
-      className="flex min-h-screen flex-col overflow-x-hidden bg-bg"
-    >
-      <TopBar brands={brands} actor={actor} demo={demo} />
-      {demo ? <DemoBanner /> : null}
-      <div className="flex flex-1 items-stretch">
-        <Sidebar role={role} isTemplate={brands.active?.isTemplate ?? false} />
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          {/* Full-width content (P2D, client feedback Sep 28): tables stretch to fill wide screens
-              instead of sitting inside a narrow centred column. */}
-          <div className="w-full">{children}</div>
-        </main>
-      </div>
-    </div>
+    <AppShell brands={brands} actor={actor} demo={demo} role={role}>
+      {children}
+    </AppShell>
   );
 }

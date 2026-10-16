@@ -28,6 +28,13 @@ export interface BrandSwitcherProps {
   activeId: string | null;
   /** Demo mode has exactly one brand and no session to persist a choice against. */
   readOnly: boolean;
+  /**
+   * How the TRIGGER renders; the menu and the switching logic are identical in both. `bar` is the
+   * legacy top-bar button, byte-for-byte what it always was. `rail-card` is the Bold sidebar's
+   * translucent brand card (redesign commit 2, spec §3.1) — side-rail tokens, 32px gradient
+   * avatar, brand count — rendered only under the template brand's `data-ui="bold"` scope.
+   */
+  variant?: 'bar' | 'rail-card';
 }
 
 /**
@@ -40,32 +47,62 @@ export interface BrandSwitcherProps {
  * governance" 3). In demo mode there is no session to hold a selection, so the list is shown but the
  * rows are inert.
  */
-export function BrandSwitcher({ brands, activeId, readOnly }: BrandSwitcherProps) {
+export function BrandSwitcher({ brands, activeId, readOnly, variant = 'bar' }: BrandSwitcherProps) {
   const [isPending, startTransition] = useTransition();
   const active = brands.find((brand) => brand.id === activeId) ?? null;
   const empty = active === null;
 
+  const spinnerOrChevron = isPending ? (
+    <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-text3 border-t-transparent" />
+  ) : (
+    <Icon name="chevron" className="size-3.5 shrink-0 text-text3" />
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          data-slot="brand-switcher"
-          className="max-w-[46vw] gap-2 border-line bg-surface2 text-text2 hover:text-text sm:max-w-xs"
-        >
-          <Icon name="building" className="size-4 shrink-0 text-text3" />
-          <span className="truncate">{empty ? 'No brands yet' : active.name}</span>
-          {empty ? null : (
-            <StatusChip tone="ok" label={active.status} className="hidden sm:inline-flex" />
-          )}
-          {isPending ? (
-            <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-text3 border-t-transparent" />
-          ) : (
-            <Icon name="chevron" className="size-3.5 shrink-0 text-text3" />
-          )}
-        </Button>
+        {variant === 'rail-card' ? (
+          <button
+            type="button"
+            data-slot="brand-switcher"
+            className="flex w-full items-center gap-2.5 rounded-input border border-side-ink/10 bg-side-ink/8 p-2.5 text-left transition-colors hover:bg-side-ink/15"
+          >
+            <span
+              aria-hidden="true"
+              className="bg-brand-gradient grid size-8 shrink-0 place-items-center rounded-[9px] text-[12px] font-bold text-on-accent"
+            >
+              {empty ? '—' : active.name.slice(0, 1).toUpperCase()}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-sm font-semibold text-side-ink">
+                {empty ? 'No brands yet' : active.name}
+              </span>
+              <span className="text-[11px] text-side-ink2">
+                {brands.length} brand{brands.length === 1 ? '' : 's'}
+              </span>
+            </span>
+            {isPending ? (
+              <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-side-ink2 border-t-transparent" />
+            ) : (
+              <Icon name="chevron" className="size-3.5 shrink-0 text-side-ink2" />
+            )}
+          </button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-slot="brand-switcher"
+            className="max-w-[46vw] gap-2 border-line bg-surface2 text-text2 hover:text-text sm:max-w-xs"
+          >
+            <Icon name="building" className="size-4 shrink-0 text-text3" />
+            <span className="truncate">{empty ? 'No brands yet' : active.name}</span>
+            {empty ? null : (
+              <StatusChip tone="ok" label={active.status} className="hidden sm:inline-flex" />
+            )}
+            {spinnerOrChevron}
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuLabel className="text-text3">

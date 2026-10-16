@@ -317,6 +317,9 @@ Operator rulings that bind every commit in the chain:
    2, 4, 6 and 7 must include Template-vs-Gratsi screenshots proving the separation.
 4. **Gates.** The four local gates (typecheck 0 · lint 0 · tests ≥ floor · build green) run on every
    commit. Vercel `/api/version` sha-match is skipped for commits 1–3 and required for commits 4–8.
+5. **Nav counts are deferred.** The per-item record counts and the Template-updates pending pill in
+   §3.1/§4 need their own data plumbing, so commit 2 ships the Bold rail without them (no hardcoded
+   numbers); they land with the pages commits (6–7).
 
 ---
 
