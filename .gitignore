@@ -25,3 +25,4 @@ blob-report/
 # Operator scratch from the Oct 8/9 audits (untracked outputs; the eleven files already tracked stay tracked)
 .audit-oct8/
 .audit-oct9/
+.vercel
